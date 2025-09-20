@@ -162,6 +162,7 @@ After running `specify init`, your AI coding agent will have access to these sla
 | `/plan`         | Create technical implementation plans with your chosen tech stack     |
 | `/tasks`        | Generate actionable task lists for implementation                     |
 | `/implement`    | Execute all tasks to build the feature according to the plan         |
+| `/levelup`      | Capture learnings and contribute new knowledge assets to the team-ai-directives repository, closing the knowledge loop after feature completion |
 
 ## 📚 Core philosophy
 

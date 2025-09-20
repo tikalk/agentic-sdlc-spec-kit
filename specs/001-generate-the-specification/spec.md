@@ -4,7 +4,7 @@
 **Feature Branch**: `001-generate-the-specification`  
 **Created**: September 20, 2025  
 **Status**: Draft  
-**Input**: User description: "Generate the specification for a new /levelup command to be added to the spec-kit project, as tracked in @issue-tracker TIK-42. This command is the implementation of 'Stage 4: Leveling Up' from the Twelve-Factor Agentic SDLC manifesto. ..."
+**Input**: User description: "Generate the specification for a new /levelup command to be added to the spec-kit project. This command is the implementation of 'Stage 4: Leveling Up' from the Twelve-Factor Agentic SDLC manifesto. ..."
 
 
 ## Execution Flow (main)
@@ -59,11 +59,11 @@ When creating this spec from a user prompt:
 ## User Scenarios & Testing *(mandatory)*
 
 ### Primary User Story
-A developer, having completed a feature using the spec-kit workflow, wants to share a valuable learning (e.g., a new prompt, pattern, or rule) with the team. They run the /levelup command, describe the knowledge to capture, review the AI-generated asset and PR, and confirm submission. The knowledge is contributed to the central team-ai-directives repository, and a traceability comment is posted to the original issue tracker.
+A developer, having completed a feature using the Agentic SDLC workflow, wants to share a valuable learning (e.g., a new prompt, pattern, or rule) with the team. They run the /levelup command, describe the knowledge to capture, review the AI-generated asset and PR, and confirm submission. The knowledge is contributed as a versioned asset to the central team-ai-directives repository under the appropriate context_modules/ subdirectory (e.g., rules/v1/, examples/v1/, personas/v1/). A traceability comment is posted to the original issue tracker, linking the new asset and PR, closing the knowledge loop as described in Stage 4 of the workflow.
 
 ### Acceptance Scenarios
-1. **Given** a developer has completed a feature and identified a knowledge asset, **When** they run the /levelup command and provide a description, **Then** the system drafts the asset, PR, and comment, and presents them for review.
-2. **Given** the developer reviews and confirms the drafts, **When** the system executes the workflow, **Then** a pull request is opened in the team-ai-directives repository and a traceability comment is posted to the issue tracker.
+1. **Given** a developer has completed a feature and identified a knowledge asset, **When** they run the /levelup command and provide a description, **Then** the system drafts the asset (as a Markdown file in the correct context_modules/ directory), PR, and traceability comment, and presents them for review.
+2. **Given** the developer reviews and confirms the drafts, **When** the system executes the workflow, **Then** a pull request is opened in the team-ai-directives repository (targeting the correct versioned directory) and a traceability comment is posted to the issue tracker, referencing the new asset and PR.
 
 ### Edge Cases
 - What happens if the developer rejects the AI-generated drafts? [NEEDS CLARIFICATION: Should the process allow for edits or abort?]
@@ -84,11 +84,16 @@ A developer, having completed a feature using the spec-kit workflow, wants to sh
 - **FR-008**: System MUST abort or allow edits if the developer rejects the AI-generated drafts. [NEEDS CLARIFICATION: Edit flow or abort only?]
 - **FR-009**: System MUST provide clear error messages for authentication or repository failures.
 - **FR-010**: System MUST add the /levelup command to relevant agent configuration templates for discoverability.
+- **FR-011**: System MUST generate and maintain command template files for /levelup in both Bash and PowerShell variants (e.g., `templates/commands/levelup.md`, `templates/commands/levelup.ps1`), and a general template for levelup assets (e.g., `templates/levelup-template.md`), ensuring all are referenced in documentation and configuration as appropriate.
+- **FR-012**: System MUST provide entrypoint scripts for /levelup in both Bash (`scripts/bash/levelup.sh`) and PowerShell (`scripts/powershell/levelup.ps1`), each delegating to their respective core logic scripts in `.specify/scripts/bash/levelup.sh` and `.specify/scripts/powershell/levelup.ps1`.
+- **FR-013**: System MUST ensure all file paths and operations are absolute and cross-platform compatible, supporting both Bash and PowerShell workflows.
 
 ### Key Entities
-- **Knowledge Asset**: Represents the new directive, rule, or pattern to be contributed. Attributes: title, content, type (e.g., rule, example), author, date.
-- **Pull Request Metadata**: Title, description, branch, target repository.
-- **Traceability Comment**: Summary, link to PR, reference to original issue tracker ticket.
+- **Knowledge Asset**: A new Markdown file (e.g., rule, example, persona) contributed to the team-ai-directives repository under context_modules/ (e.g., rules/v1/, examples/v1/, personas/v1/). Attributes: title, content, type, author, date, versioned path. Generated using the standards in `templates/levelup-template.md`.
+- **Command Templates**: Markdown or PowerShell files defining the workflow and standards for the /levelup command in both Bash (`templates/commands/levelup.md`) and PowerShell (`templates/commands/levelup.ps1`).
+- **Entrypoint Scripts**: Bash (`scripts/bash/levelup.sh`) and PowerShell (`scripts/powershell/levelup.ps1`) scripts that serve as the user-facing entrypoints for the /levelup command, delegating to core logic scripts in `.specify/scripts/bash/levelup.sh` and `.specify/scripts/powershell/levelup.ps1`.
+- **Pull Request Metadata**: Title, description, branch, target repository, target directory (context_modules/ subfolder).
+- **Traceability Comment**: Summary, link to PR, reference to original issue tracker ticket, and path to the new asset in the repository.
 
 ---
 
@@ -101,6 +106,7 @@ A developer, having completed a feature using the spec-kit workflow, wants to sh
 - [ ] Focused on user value and business needs
 - [ ] Written for non-technical stakeholders
 - [ ] All mandatory sections completed
+- [ ] Asset location and repository integration are correct per team-ai-directives structure
 
 ### Requirement Completeness
 - [ ] No [NEEDS CLARIFICATION] markers remain
@@ -108,8 +114,10 @@ A developer, having completed a feature using the spec-kit workflow, wants to sh
 - [ ] Success criteria are measurable
 - [ ] Scope is clearly bounded
 - [ ] Dependencies and assumptions identified
+- [ ] Asset is versioned and placed in the correct context_modules/ directory
 
 ---
+
 
 
 ## Execution Status
@@ -122,5 +130,6 @@ A developer, having completed a feature using the spec-kit workflow, wants to sh
 - [ ] Requirements generated
 - [ ] Entities identified
 - [ ] Review checklist passed
+- [ ] Asset location and repository integration validated
 
 ---
