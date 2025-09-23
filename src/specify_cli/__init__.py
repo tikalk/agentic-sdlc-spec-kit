@@ -745,6 +745,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
 
 @app.command()
 def init(
+    team_ai_directive_repo: str = typer.Option(None, "--team-ai-directive-repo", help="URL of the team-ai-directive git repository (or set TEAM_AI_DIRECTIVE_REPO env variable)"),
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here)"),
     ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, or windsurf"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
@@ -921,6 +922,7 @@ def init(
         ("zip-list", "Archive contents"),
         ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
+        ("team-ai-directive", "Setup team-ai-directive repo"),
         ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
         ("final", "Finalize")
@@ -940,6 +942,32 @@ def init(
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
+
+            # --- Team-AI-Directive phase (before cleanup) ---
+            team_ai_repo_url = (team_ai_directive_repo or os.getenv("TEAM_AI_DIRECTIVE_REPO") or "").strip() or None
+            if team_ai_repo_url:
+                tracker.start("team-ai-directive", f"using {team_ai_repo_url}")
+                console.print(f"[cyan]Using team-ai-directive repo:[/cyan] {team_ai_repo_url}")
+                team_ai_dir = project_path / ".specify" / "team-ai-directive"
+                team_ai_dir.parent.mkdir(parents=True, exist_ok=True)
+                if team_ai_dir.exists():
+                    try:
+                        # If already exists, pull latest
+                        run_command(["git", "-C", str(team_ai_dir), "pull"], check_return=True)
+                        tracker.complete("team-ai-directive", "pulled latest")
+                    except Exception as e:
+                        tracker.error("team-ai-directive", f"pull failed: {e}")
+                else:
+                    try:
+                        run_command(["git", "clone", team_ai_repo_url, str(team_ai_dir)], check_return=True)
+                        tracker.complete("team-ai-directive", "cloned")
+                    except Exception as e:
+                        tracker.error("team-ai-directive", f"clone failed: {e}")
+            else:
+                tracker.skip("team-ai-directive", "not configured")
+
+            # --- Cleanup phase ---
+            tracker.complete("cleanup", "done")
 
             # Git step
             if not no_git:
@@ -973,7 +1001,6 @@ def init(
                 shutil.rmtree(project_path)
             raise typer.Exit(1)
         finally:
-            # Force final render
             pass
 
     # Final static tree (ensures finished state visible after Live context ends)
