@@ -66,6 +66,9 @@ WINDSURF_FILE="$REPO_ROOT/.windsurf/rules/specify-rules.md"
 # Template file
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/agent-file-template.md"
 
+# Team AI Directives path
+TEAM_AI_DIRECTIVES_PATH="$REPO_ROOT/.specify/memory/team-ai-directive"
+
 # Global variables for parsed plan data
 NEW_LANG=""
 NEW_FRAMEWORK=""
@@ -272,6 +275,22 @@ create_new_agent_file() {
         "s|\[LANGUAGE-SPECIFIC, ONLY FOR LANGUAGES IN USE\]|$language_conventions|"
         "s|\[LAST 3 FEATURES AND WHAT THEY ADDED\]|- $CURRENT_BRANCH: Added $NEW_LANG + $NEW_FRAMEWORK|"
     )
+
+    # Add directives from the team-ai-directives repo
+    if [[ -d "$TEAM_AI_DIRECTIVES_PATH" ]]; then
+        local directives_content=""
+        while IFS= read -r -d $'\0' file; do
+            directives_content+="$(cat "$file")\n\n"
+        done < <(find "$TEAM_AI_DIRECTIVES_PATH" -type f -print0)
+        
+        # Escape directives_content for sed
+        local escaped_directives_content
+        escaped_directives_content=$(printf '%s' "$directives_content" | sed -e 's/[\/&]/\\&/g' -e 's/$/\\n/g' | tr -d '\n')
+        
+        substitutions+=("s|<!-- TEAM AI DIRECTIVES -->|$escaped_directives_content|")
+    else
+        substitutions+=("s|<!-- TEAM AI DIRECTIVES -->||") # Remove placeholder if repo not found
+    fi
     
     for substitution in "${substitutions[@]}"; do
         if ! sed -i.bak "$substitution" "$temp_file"; then

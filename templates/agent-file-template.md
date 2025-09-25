@@ -19,5 +19,7 @@ Auto-generated from all feature plans. Last updated: [DATE]
 ## Recent Changes
 [LAST 3 FEATURES AND WHAT THEY ADDED]
 
+<!-- TEAM AI DIRECTIVES -->
+
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

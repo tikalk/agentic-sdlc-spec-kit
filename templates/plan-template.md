@@ -1,13 +1,24 @@
----
+# Agentic SDLC Planning Checklist (for /plan)
+
+Before generating or updating this implementation plan, ensure:
+- [ ] Loaded and validated the latest spec.md and constitution.md
+- [ ] Included strategic guidance relevant to the feature (e.g., performance, scalability, security)
+- [ ] Identified and documented key risks and mitigation steps
+- [ ] Added explicit testing priorities and coverage requirements
+- [ ] Referenced relevant rules, personas, or examples from team-ai-directive/context_modules/ if applicable
+- [ ] Constitution Check section is complete and all violations are tracked or justified
+- [ ] No unexplained placeholders or ambiguous requirements remain
+
 description: "Implementation plan template for feature development"
 scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
----
 
 # Implementation Plan: [FEATURE]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: {FEATURE_SPEC_LINK}
+**Mission Brief Link**: [LINK TO MISSION BRIEF]
+**Issue Tracker Ticket**: [LINK TO ISSUE TRACKER TICKET]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 ## Execution Flow (/plan command scope)
@@ -33,8 +44,6 @@ scripts:
 ```
 
 **IMPORTANT**: The /plan command STOPS at step 7. Phases 2-4 are executed by other commands:
-- Phase 2: /tasks command creates tasks.md
-- Phase 3-4: Implementation execution (manual or via tools)
 
 ## Summary
 [Extract from feature spec: primary requirement + technical approach from research]
@@ -164,17 +173,12 @@ ios/ or android/
 *This section describes what the /tasks command will do - DO NOT execute during /plan*
 
 **Task Generation Strategy**:
-- Load `.specify/templates/tasks-template.md` as base
-- Generate tasks from Phase 1 design docs (contracts, data model, quickstart)
-- Each contract → contract test task [P]
-- Each entity → model creation task [P] 
-- Each user story → integration test task
-- Implementation tasks to make tests pass
+When generating tasks for `tasks.md`, each task must be explicitly tagged as either `[SYNC]` or `[ASYNC]`.
+
+- **[SYNC]** (Synchronous): For tasks requiring interactive human-AI collaboration, complex problem-solving, or ambiguous requirements. These tasks will be executed by the developer.
+- **[ASYNC]** (Asynchronous): For tasks suitable for delegation to autonomous agents, such as well-defined, repetitive work, or generating boilerplate. These tasks will be executed by an autonomous agent via CLI commands.
 
 **Ordering Strategy**:
-- TDD order: Tests before implementation 
-- Dependency order: Models before services before UI
-- Mark [P] for parallel execution (independent files)
 
 **Estimated Output**: 25-30 numbered, ordered tasks in tasks.md
 
@@ -200,18 +204,7 @@ ios/ or android/
 *This checklist is updated during execution flow*
 
 **Phase Status**:
-- [ ] Phase 0: Research complete (/plan command)
-- [ ] Phase 1: Design complete (/plan command)
-- [ ] Phase 2: Task planning complete (/plan command - describe approach only)
-- [ ] Phase 3: Tasks generated (/tasks command)
-- [ ] Phase 4: Implementation complete
-- [ ] Phase 5: Validation passed
 
 **Gate Status**:
-- [ ] Initial Constitution Check: PASS
-- [ ] Post-Design Constitution Check: PASS
-- [ ] All NEEDS CLARIFICATION resolved
-- [ ] Complexity deviations documented
 
----
 *Based on Constitution v2.1.1 - See `/memory/constitution.md`*

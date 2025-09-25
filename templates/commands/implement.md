@@ -1,9 +1,20 @@
+
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
   sh: scripts/bash/check-implementation-prerequisites.sh --json
   ps: scripts/powershell/check-implementation-prerequisites.ps1 -Json
 ---
+
+# Agentic SDLC Implementation Checklist (for /implement)
+
+Before starting or updating implementation, ensure:
+- [ ] Read and validated the latest plan.md, spec.md, and constitution.md
+- [ ] Parsed all relevant tasks from tasks.md and checked dependencies
+- [ ] Referenced applicable rules, style guides, and best practices from team-ai-directive/context_modules/
+- [ ] Confirmed all required tests and validation checkpoints are present
+- [ ] Implementation follows the architecture and constraints defined in plan.md and constitution.md
+- [ ] No unexplained placeholders or ambiguous requirements remain
 
 Given the current feature context, do this:
 

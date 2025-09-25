@@ -1,9 +1,18 @@
+# Agentic SDLC Levelup Checklist (for /levelup)
+
+Before generating or contributing a new knowledge asset, ensure:
+- [ ] Analyzed recent work and extracted actionable best practices or patterns
+- [ ] Drafted a knowledge asset with clear title, type, content, author, and date
+- [ ] Saved the asset in the correct versioned context_modules/ subdirectory
+- [ ] Created or updated traceability records (e.g., issue tracker, asset metadata)
+- [ ] Prepared a draft pull request for the team-ai-directives repository
+- [ ] Presented all changes for human review and confirmation before execution
+- [ ] No unexplained placeholders or ambiguous requirements remain
 
 ---
 description: Template for generating a new knowledge asset via the /levelup command, to be contributed to the team-ai-directives repository.
 scripts:
 	sh: scripts/levelup.sh
-	core: .specify/scripts/bash/levelup.sh
 ---
 
 Given a developer has completed a feature and wants to share a new best practice, pattern, or prompt, do this:

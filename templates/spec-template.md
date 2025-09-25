@@ -1,13 +1,27 @@
+# Agentic SDLC Context Validation Checklist (for /specify)
+
+Before generating or updating this specification, ensure:
+- [ ] Injected context from the latest constitution.md (project principles)
+- [ ] Included relevant modules from team-ai-directive/context_modules/ (personas, rules, examples) based on feature domain
+- [ ] User input and issue tracker references are parsed and reflected
+- [ ] All mandatory sections are present and validated
+- [ ] No unexplained placeholders or ambiguous requirements remain
+- [ ] Spec is aligned with current project context and standards
+
 # Feature Specification: [FEATURE NAME]
 
 **Feature Branch**: `[###-feature-name]`  
 **Created**: [DATE]  
-**Status**: Draft  
-**Input**: User description: "$ARGUMENTS"
+**Status**: Draft
+**Mission Brief Link**: [LINK TO MISSION BRIEF]
+**Issue Tracker Ticket**: [LINK TO ISSUE TRACKER TICKET]
+
+## Mission Brief
+[The original Mission Brief (feature description) provided by the user will be inserted here.]
 
 ## Execution Flow (main)
 ```
-1. Parse user description from Input
+1. Parse user description from Mission Brief
    → If empty: ERROR "No feature description provided"
 2. Extract key concepts from description
    → Identify: actors, actions, data, constraints
@@ -99,6 +113,13 @@ When creating this spec from a user prompt:
 - [ ] Success criteria are measurable
 - [ ] Scope is clearly bounded
 - [ ] Dependencies and assumptions identified
+
+### Key Risks (Human-Identified)
+*This section is for human developers to explicitly list critical business, security, or performance risks associated with this feature. These risks will guide the AI in generating targeted tests.*
+
+- [ ] Risk 1: [Describe critical risk, e.g., "Unauthorized data access"]
+- [ ] Risk 2: [Describe critical risk, e.g., "Performance degradation under heavy load"]
+- [ ] Risk 3: [Describe critical risk, e.g., "Data inconsistency due to race conditions"]
 
 ---
 

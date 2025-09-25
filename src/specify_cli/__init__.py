@@ -308,20 +308,34 @@ app = typer.Typer(
 )
 
 
+
 def show_banner():
-    """Display the ASCII art banner."""
+    """Display the ASCII art banner and onboarding guidance."""
     # Create gradient effect with different colors
     banner_lines = BANNER.strip().split('\n')
     colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
-    
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
         color = colors[i % len(colors)]
         styled_banner.append(line + "\n", style=color)
-    
     console.print(Align.center(styled_banner))
     console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
-    console.print()
+    console.print(Align.center("[bold cyan]Debug the spec, not the code[/bold cyan]"))
+    console.print(Align.center("[dim]Agentic SDLC: Orchestrate, validate, and debug your specs and plans before implementation. The CLI helps you shape context and workflows for robust, testable results.[/dim]"))
+    console.print(Align.center("[green]Onboarding Steps:[/green]"))
+    onboarding = [
+        "1. [bold]Initialize your project with 'specify init'[/bold]",
+        "2. [bold]Establish your constitution and principles[/bold] ([cyan]/constitution[/cyan])",
+        "3. [bold]Create specifications[/bold] ([cyan]/specify[/cyan])",
+        "4. [bold]Plan implementation[/bold] ([cyan]/plan[/cyan])",
+        "5. [bold]Generate actionable tasks[/bold] ([cyan]/tasks[/cyan])",
+        "6. [bold]Implement only after specs and plans are validated[/bold] ([cyan]/implement[/cyan])",
+        "7. [bold]Level up by codifying learnings[/bold] ([cyan]/levelup[/cyan])",
+        "",
+        "[yellow]Tip: Use the CLI and agent workflows to surface gaps, risks, and opportunities before writing code.[/yellow]",
+        "[dim]Every workflow starts with context. If you’re missing key context (constitution, rules, directives), add it before proceeding.[/dim]"
+    ]
+    console.print(Panel("\n".join(onboarding), title="Agentic SDLC Onboarding", border_style="cyan", padding=(1,2)))
 
 
 @app.callback()
@@ -948,7 +962,7 @@ def init(
             if team_ai_repo_url:
                 tracker.start("team-ai-directive", f"using {team_ai_repo_url}")
                 console.print(f"[cyan]Using team-ai-directive repo:[/cyan] {team_ai_repo_url}")
-                team_ai_dir = project_path / ".specify" / "team-ai-directive"
+                team_ai_dir = project_path / ".specify" / "memory" / "team-ai-directive"
                 team_ai_dir.parent.mkdir(parents=True, exist_ok=True)
                 if team_ai_dir.exists():
                     try:

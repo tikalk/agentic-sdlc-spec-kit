@@ -56,6 +56,11 @@ Given the context provided as an argument, do this:
    - Dependency notes
    - Parallel execution guidance
 
+8. **Sync tasks to issue tracker**:
+   - Run `scripts/bash/sync-tasks-to-tracker.sh {FEATURE_DIR}/tasks.md` (or PowerShell equivalent: `scripts/powershell/sync-tasks-to-tracker.ps1 -TasksFile {FEATURE_DIR}/tasks.md`)
+   - This script will parse `tasks.md` and output a JSON representation.
+   - The JSON output can then be used to create issues/subtasks in your chosen issue tracker.
+
 Context for task generation: {ARGS}
 
 The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
