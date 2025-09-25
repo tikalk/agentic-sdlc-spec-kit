@@ -1036,6 +1036,7 @@ def init(
     steps_lines.append("   2.3 [cyan]/plan[/] - Create implementation plans")
     steps_lines.append("   2.4 [cyan]/tasks[/] - Generate actionable tasks")
     steps_lines.append("   2.5 [cyan]/implement[/] - Execute implementation")
+    steps_lines.append("   2.6 [cyan]/levelup[/] - Codify learnings")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next steps", border_style="cyan", padding=(1,2))
     console.print()
