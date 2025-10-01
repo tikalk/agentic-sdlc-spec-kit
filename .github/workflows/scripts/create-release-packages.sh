@@ -173,8 +173,8 @@ build_variant() {
       mkdir -p "$base_dir/.roo/commands"
       generate_commands roo md "\$ARGUMENTS" "$base_dir/.roo/commands" "$script" ;;
   esac
-  ( cd "$base_dir" && zip -r "../spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip" . )
-  echo "Created $GENRELEASES_DIR/spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip"
+  ( cd "$base_dir" && zip -r "../agentic-sdlc-spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip" . )
+  echo "Created $GENRELEASES_DIR/agentic-sdlc-spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip"
 }
 
 # Determine agent list
@@ -225,4 +225,4 @@ for agent in "${AGENT_LIST[@]}"; do
 done
 
 echo "Archives in $GENRELEASES_DIR:"
-ls -1 "$GENRELEASES_DIR"/spec-kit-template-*-"${NEW_VERSION}".zip
+ls -1 "$GENRELEASES_DIR"/agentic-sdlc-spec-kit-template-*-"${NEW_VERSION}".zip

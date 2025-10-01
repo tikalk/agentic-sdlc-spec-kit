@@ -56,13 +56,13 @@
     "cleanupCacheHistory": false,
     "disableGitFeatures": false,
     "globalMetadata": {
-      "_appTitle": "Spec Kit Documentation",
-      "_appName": "Spec Kit",
-      "_appFooter": "Spec Kit - A specification-driven development toolkit",
+      "_appTitle": "Agentic SDLC Spec Kit Documentation",
+      "_appName": "Agentic SDLC Spec Kit",
+      "_appFooter": "Agentic SDLC Spec Kit - A specification-driven development toolkit",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {
-        "repo": "https://github.com/github/spec-kit",
+        "repo": "https://github.com/tikalk/agentic-sdlc-spec-kit",
         "branch": "main"
       }
     }

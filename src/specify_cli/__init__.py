@@ -524,7 +524,7 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     
     # Find the template asset for the specified AI assistant
     assets = release_data.get("assets", [])
-    pattern = f"spec-kit-template-{ai_assistant}-{script_type}"
+    pattern = f"agentic-sdlc-spec-kit-template-{ai_assistant}-{script_type}"
     matching_assets = [
         asset for asset in assets
         if pattern in asset["name"] and asset["name"].endswith(".zip")
