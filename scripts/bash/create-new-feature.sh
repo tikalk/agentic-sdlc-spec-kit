@@ -18,6 +18,8 @@ if [ -z "$FEATURE_DESCRIPTION" ]; then
     exit 1
 fi
 
+TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
+
 # Function to find the repository root by searching for existing project markers
 find_repo_root() {
     local dir="$1"
@@ -53,6 +55,20 @@ cd "$REPO_ROOT"
 SPECS_DIR="$REPO_ROOT/specs"
 mkdir -p "$SPECS_DIR"
 
+CONSTITUTION_FILE="$REPO_ROOT/.specify/memory/constitution.md"
+if [ -f "$CONSTITUTION_FILE" ]; then
+    export SPECIFY_CONSTITUTION="$CONSTITUTION_FILE"
+else
+    CONSTITUTION_FILE=""
+fi
+
+TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/$TEAM_DIRECTIVES_DIRNAME"
+if [ -d "$TEAM_DIRECTIVES_DIR" ]; then
+    export SPECIFY_TEAM_DIRECTIVES="$TEAM_DIRECTIVES_DIR"
+else
+    TEAM_DIRECTIVES_DIR=""
+fi
+
 HIGHEST=0
 if [ -d "$SPECS_DIR" ]; then
     for dir in "$SPECS_DIR"/*; do
@@ -84,14 +100,67 @@ TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
+CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
+CONTEXT_FILE="$FEATURE_DIR/context.md"
+if [ -f "$CONTEXT_TEMPLATE" ]; then
+    if command -v sed >/dev/null 2>&1; then
+        sed "s/\[FEATURE NAME\]/$BRANCH_NAME/" "$CONTEXT_TEMPLATE" > "$CONTEXT_FILE"
+    else
+        cp "$CONTEXT_TEMPLATE" "$CONTEXT_FILE"
+    fi
+else
+    cat <<'EOF' > "$CONTEXT_FILE"
+# Feature Context
+
+## Mission Brief
+- **Issue Tracker**: [NEEDS INPUT]
+- **Summary**: [NEEDS INPUT]
+
+## Local Context
+- Relevant code paths:
+  - [NEEDS INPUT]
+- Existing dependencies or services touched:
+  - [NEEDS INPUT]
+
+## Team Directives
+- Referenced modules:
+  - [NEEDS INPUT]
+- Additional guardrails:
+  - [NEEDS INPUT]
+
+## External Research & References
+- Links or documents:
+  - [NEEDS INPUT]
+
+## Gateway Check
+- Last verified gateway endpoint: [NEEDS INPUT]
+- Verification timestamp (UTC): [NEEDS INPUT]
+
+## Open Questions
+- [NEEDS INPUT]
+EOF
+fi
+
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM"
+    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s"}\n' \
+        "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
+    echo "HAS_GIT: $HAS_GIT"
+    if [ -n "$CONSTITUTION_FILE" ]; then
+        echo "CONSTITUTION: $CONSTITUTION_FILE"
+    else
+        echo "CONSTITUTION: (missing)"
+    fi
+    if [ -n "$TEAM_DIRECTIVES_DIR" ]; then
+        echo "TEAM_DIRECTIVES: $TEAM_DIRECTIVES_DIR"
+    else
+        echo "TEAM_DIRECTIVES: (missing)"
+    fi
     echo "SPECIFY_FEATURE environment variable set to: $BRANCH_NAME"
 fi

@@ -39,6 +39,13 @@ scripts:
 ## Summary
 [Extract from feature spec: primary requirement + technical approach from research]
 
+## Triage Overview
+*For each major plan step below, assign an execution mode and rationale. Execution mode must be either `[SYNC]` (close human supervision) or `[ASYNC]` (delegated to an autonomous loop).*
+
+| Step | Execution Mode | Rationale |
+|------|----------------|-----------|
+| e.g., Phase 1 – API design | [ASYNC] | Well-defined schemas, low architectural risk |
+
 ## Technical Context
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
@@ -171,6 +178,7 @@ ios/ or android/
 - Each entity → model creation task [P] 
 - Each user story → integration test task
 - Implementation tasks to make tests pass
+- Carry forward the Execution Mode from the Triage Overview: annotate each generated task with `[SYNC]` or `[ASYNC]` based on the finalized plan decision.
 
 **Ordering Strategy**:
 - TDD order: Tests before implementation 

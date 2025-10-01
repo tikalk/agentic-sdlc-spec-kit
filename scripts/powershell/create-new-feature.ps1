@@ -60,6 +60,21 @@ Set-Location $repoRoot
 $specsDir = Join-Path $repoRoot 'specs'
 New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
 
+$constitutionFile = Join-Path $repoRoot '.specify/memory/constitution.md'
+if (Test-Path $constitutionFile) {
+    $env:SPECIFY_CONSTITUTION = $constitutionFile
+} else {
+    $constitutionFile = ""
+}
+
+$teamDirName = 'team-ai-directives'
+$teamDirectives = Join-Path $repoRoot ".specify/memory/$teamDirName"
+if (Test-Path $teamDirectives) {
+    $env:SPECIFY_TEAM_DIRECTIVES = $teamDirectives
+} else {
+    $teamDirectives = ""
+}
+
 $highest = 0
 if (Test-Path $specsDir) {
     Get-ChildItem -Path $specsDir -Directory | ForEach-Object {
@@ -106,6 +121,8 @@ if ($Json) {
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
         HAS_GIT = $hasGit
+        CONSTITUTION = $constitutionFile
+        TEAM_DIRECTIVES = $teamDirectives
     }
     $obj | ConvertTo-Json -Compress
 } else {
@@ -113,5 +130,15 @@ if ($Json) {
     Write-Output "SPEC_FILE: $specFile"
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
+    if ($constitutionFile) {
+        Write-Output "CONSTITUTION: $constitutionFile"
+    } else {
+        Write-Output "CONSTITUTION: (missing)"
+    }
+    if ($teamDirectives) {
+        Write-Output "TEAM_DIRECTIVES: $teamDirectives"
+    } else {
+        Write-Output "TEAM_DIRECTIVES: (missing)"
+    }
     Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
 }

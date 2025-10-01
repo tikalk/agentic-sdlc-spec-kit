@@ -53,6 +53,8 @@ import truststore
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
 
+TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+
 def _github_token(cli_token: str | None = None) -> str | None:
     """Return sanitized GitHub token (cli arg takes precedence) or None."""
     return ((cli_token or os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()) or None
@@ -386,6 +388,61 @@ def check_tool(tool: str, install_hint: str) -> bool:
         return False
 
 
+def _run_git_command(args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """Run a git command with optional working directory and environment overrides."""
+    cmd = ["git"]
+    if cwd is not None:
+        cmd.extend(["-C", str(cwd)])
+    cmd.extend(args)
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
+
+
+def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool = False) -> str:
+    """Clone or update the team-ai-directives repository under .specify/memory.
+
+    Returns a short status string describing the action performed.
+    """
+    repo_url = (repo_url or "").strip()
+    if not repo_url:
+        raise ValueError("Team AI directives repository URL cannot be empty")
+
+    memory_root = project_root / ".specify" / "memory"
+    memory_root.mkdir(parents=True, exist_ok=True)
+    destination = memory_root / TEAM_DIRECTIVES_DIRNAME
+
+    git_env = os.environ.copy()
+    if skip_tls:
+        git_env["GIT_SSL_NO_VERIFY"] = "1"
+
+    try:
+        if destination.exists() and any(destination.iterdir()):
+            _run_git_command(["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env)
+            try:
+                existing_remote = _run_git_command([
+                    "config",
+                    "--get",
+                    "remote.origin.url",
+                ], cwd=destination, env=git_env).stdout.strip()
+            except subprocess.CalledProcessError:
+                existing_remote = ""
+
+            if existing_remote and existing_remote != repo_url:
+                _run_git_command(["remote", "set-url", "origin", repo_url], cwd=destination, env=git_env)
+
+            _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
+            return "updated"
+
+        if destination.exists() and not any(destination.iterdir()):
+            shutil.rmtree(destination)
+
+        memory_root.mkdir(parents=True, exist_ok=True)
+        _run_git_command(["clone", repo_url, str(destination)], env=git_env)
+        return "cloned"
+    except subprocess.CalledProcessError as exc:
+        message = exc.stderr.strip() if exc.stderr else str(exc)
+        raise RuntimeError(f"Git operation failed: {message}") from exc
+
+
 def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
@@ -690,7 +747,6 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     finally:
         if tracker:
             tracker.add("cleanup", "Remove temporary archive")
-        # Clean up downloaded ZIP file
         if zip_path.exists():
             zip_path.unlink()
             if tracker:
@@ -757,6 +813,7 @@ def init(
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
+    team_ai_directives: str = typer.Option(None, "--team-ai-directive", "--team-ai-directives", help="Clone or update a team-ai-directives repository into .specify/memory"),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -768,6 +825,7 @@ def init(
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
     6. Optionally set up AI assistant commands
+    7. Optionally clone or update a team-ai-directives repository for shared directives
     
     Examples:
         specify init my-project
@@ -785,6 +843,7 @@ def init(
         specify init --here --ai codex
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
+        specify init my-project --team-ai-directive https://github.com/my-org/team-ai-directives.git
     """
     # Show banner first
     show_banner()
@@ -830,7 +889,7 @@ def init(
             console.print()
             console.print(error_panel)
             raise typer.Exit(1)
-    
+
     # Create formatted setup info with column alignment
     current_dir = Path.cwd()
     
@@ -847,13 +906,22 @@ def init(
     
     console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
     
-    # Check git only if we might need it (not --no-git)
-    # Only set to True if the user wants it and the tool is available
+    git_required_for_init = not no_git
+    git_required_for_directives = bool(team_ai_directives)
+    git_required = git_required_for_init or git_required_for_directives
+    git_available = True
+
     should_init_git = False
-    if not no_git:
-        should_init_git = check_tool("git", "https://git-scm.com/downloads")
-        if not should_init_git:
+    if git_required:
+        git_available = check_tool("git", "https://git-scm.com/downloads")
+        if not git_available:
+            if git_required_for_directives:
+                console.print("[red]Error:[/red] Git is required to clone team-ai-directives. Install git or omit --team-ai-directive.")
+                raise typer.Exit(1)
             console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
+
+    if git_available and git_required_for_init:
+        should_init_git = True
 
     # AI assistant selection
     if ai_assistant:
@@ -951,6 +1019,7 @@ def init(
         ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
         ("cleanup", "Cleanup"),
+        ("directives", "Sync team directives"),
         ("git", "Initialize git repository"),
         ("final", "Finalize")
     ]:
@@ -960,15 +1029,35 @@ def init(
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
-            # Create a httpx client with verify based on skip_tls
             verify = not skip_tls
             local_ssl_context = ssl_context if verify else False
             local_client = httpx.Client(verify=local_ssl_context)
 
-            download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
+            download_and_extract_template(
+                project_path,
+                selected_ai,
+                selected_script,
+                here,
+                verbose=False,
+                tracker=tracker,
+                client=local_client,
+                debug=debug,
+                github_token=github_token,
+            )
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
+
+            if team_ai_directives and team_ai_directives.strip():
+                tracker.start("directives", "syncing")
+                try:
+                    directives_status = sync_team_ai_directives(team_ai_directives, project_path, skip_tls=skip_tls)
+                    tracker.complete("directives", directives_status)
+                except Exception as e:
+                    tracker.error("directives", str(e))
+                    raise
+            else:
+                tracker.skip("directives", "not provided")
 
             # Git step
             if not no_git:
@@ -1065,6 +1154,7 @@ def init(
     steps_lines.append("   2.5 [cyan]/tasks[/] - Generate actionable tasks")
     steps_lines.append("   2.6 [cyan]/analyze[/] - Validate alignment & surface inconsistencies (read-only)")
     steps_lines.append("   2.7 [cyan]/implement[/] - Execute implementation")
+    steps_lines.append("   2.8 [cyan]/levelup[/] - Capture learnings & draft knowledge assets")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
     console.print()

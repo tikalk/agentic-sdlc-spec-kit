@@ -42,6 +42,26 @@ if (Test-Path $template) {
     New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
 }
 
+$constitutionFile = $env:SPECIFY_CONSTITUTION
+if (-not $constitutionFile) {
+    $constitutionFile = Join-Path $paths.REPO_ROOT '.specify/memory/constitution.md'
+}
+if (Test-Path $constitutionFile) {
+    $env:SPECIFY_CONSTITUTION = $constitutionFile
+} else {
+    $constitutionFile = ''
+}
+
+$teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
+if (-not $teamDirectives) {
+    $teamDirectives = Join-Path $paths.REPO_ROOT '.specify/memory/team-ai-directives'
+}
+if (Test-Path $teamDirectives) {
+    $env:SPECIFY_TEAM_DIRECTIVES = $teamDirectives
+} else {
+    $teamDirectives = ''
+}
+
 # Output results
 if ($Json) {
     $result = [PSCustomObject]@{ 
@@ -50,6 +70,8 @@ if ($Json) {
         SPECS_DIR = $paths.FEATURE_DIR
         BRANCH = $paths.CURRENT_BRANCH
         HAS_GIT = $paths.HAS_GIT
+        CONSTITUTION = $constitutionFile
+        TEAM_DIRECTIVES = $teamDirectives
     }
     $result | ConvertTo-Json -Compress
 } else {
@@ -58,4 +80,14 @@ if ($Json) {
     Write-Output "SPECS_DIR: $($paths.FEATURE_DIR)"
     Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
     Write-Output "HAS_GIT: $($paths.HAS_GIT)"
+    if ($constitutionFile) {
+        Write-Output "CONSTITUTION: $constitutionFile"
+    } else {
+        Write-Output "CONSTITUTION: (missing)"
+    }
+    if ($teamDirectives) {
+        Write-Output "TEAM_DIRECTIVES: $teamDirectives"
+    } else {
+        Write-Output "TEAM_DIRECTIVES: (missing)"
+    }
 }
