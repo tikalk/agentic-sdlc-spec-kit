@@ -399,14 +399,20 @@ def _run_git_command(args: list[str], cwd: Path | None = None, *, env: dict[str,
     return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
 
 
-def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool = False) -> str:
-    """Clone or update the team-ai-directives repository under .specify/memory.
+def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool = False) -> tuple[str, Path]:
+    """Clone or update the team-ai-directives repository.
 
-    Returns a short status string describing the action performed.
+    If repo_url is a local path, return it directly and skip cloning.
+    Returns a tuple of (status, path_to_use).
     """
     repo_url = (repo_url or "").strip()
     if not repo_url:
         raise ValueError("Team AI directives repository URL cannot be empty")
+
+    # Detect local path
+    potential_path = Path(repo_url).expanduser()
+    if potential_path.exists() and potential_path.is_dir():
+        return ("local", potential_path.resolve())
 
     memory_root = project_root / ".specify" / "memory"
     memory_root.mkdir(parents=True, exist_ok=True)
@@ -432,14 +438,14 @@ def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool
                 _run_git_command(["remote", "set-url", "origin", repo_url], cwd=destination, env=git_env)
 
             _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
-            return "updated"
+            return ("updated", destination)
 
         if destination.exists() and not any(destination.iterdir()):
             shutil.rmtree(destination)
 
         memory_root.mkdir(parents=True, exist_ok=True)
         _run_git_command(["clone", repo_url, str(destination)], env=git_env)
-        return "cloned"
+        return ("cloned", destination)
     except subprocess.CalledProcessError as exc:
         message = exc.stderr.strip() if exc.stderr else str(exc)
         raise RuntimeError(f"Git operation failed: {message}") from exc
@@ -1116,11 +1122,13 @@ def init(
                 suppress_warning=gateway_suppress_warning,
             )
 
+            resolved_team_directives: Path | None = None
             if team_ai_directives and team_ai_directives.strip():
                 tracker.start("directives", "syncing")
                 try:
-                    directives_status = sync_team_ai_directives(team_ai_directives, project_path, skip_tls=skip_tls)
-                    tracker.complete("directives", directives_status)
+                    status, resolved_path = sync_team_ai_directives(team_ai_directives, project_path, skip_tls=skip_tls)
+                    resolved_team_directives = resolved_path
+                    tracker.complete("directives", status)
                 except Exception as e:
                     tracker.error("directives", str(e))
                     raise
@@ -1165,6 +1173,18 @@ def init(
     # Final static tree (ensures finished state visible after Live context ends)
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
+
+    # Persist team directives path if available
+    if resolved_team_directives is None:
+        default_dir = project_path / ".specify" / "memory" / TEAM_DIRECTIVES_DIRNAME
+        if default_dir.exists():
+            resolved_team_directives = default_dir
+
+    if resolved_team_directives is not None:
+        os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(resolved_team_directives)
+        config_dir = project_path / ".specify" / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "team_directives.path").write_text(str(resolved_team_directives))
     
     # Agent folder security notice
     agent_folder_map = {

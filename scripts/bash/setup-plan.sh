@@ -33,6 +33,12 @@ eval $(get_feature_paths)
 # Check if we're on a proper feature branch (only for git repos)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 
+# Resolve team directives path if provided
+if [[ -n "$TEAM_DIRECTIVES" && ! -d "$TEAM_DIRECTIVES" ]]; then
+    echo "ERROR: TEAM_DIRECTIVES path $TEAM_DIRECTIVES is not accessible." >&2
+    exit 1
+fi
+
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
 
@@ -71,7 +77,10 @@ else
     CONSTITUTION_FILE=""
 fi
 
-TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
+TEAM_DIRECTIVES_DIR="${TEAM_DIRECTIVES:-}"
+if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
+    TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
+fi
 if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
     TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
 fi

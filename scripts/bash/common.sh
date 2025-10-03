@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Common functions and variables for all scripts
 
+# Shared constants
+TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
+
 # Load gateway configuration and export helper environment variables
 load_gateway_config() {
     local repo_root="$1"
@@ -27,6 +30,30 @@ load_gateway_config() {
 
     if [[ -n "${SPECIFY_GATEWAY_TOKEN:-}" ]]; then
         export SPECIFY_GATEWAY_TOKEN
+    fi
+}
+
+load_team_directives_config() {
+    local repo_root="$1"
+    if [[ -n "${SPECIFY_TEAM_DIRECTIVES:-}" ]]; then
+        return
+    fi
+
+    local config_file="$repo_root/.specify/config/team_directives.path"
+    if [[ -f "$config_file" ]]; then
+        local path
+        path=$(cat "$config_file" 2>/dev/null)
+        if [[ -n "$path" && -d "$path" ]]; then
+            export SPECIFY_TEAM_DIRECTIVES="$path"
+            return
+        else
+            echo "[specify] Warning: team directives path '$path' from $config_file is unavailable." >&2
+        fi
+    fi
+
+    local default_dir="$repo_root/.specify/memory/$TEAM_DIRECTIVES_DIRNAME"
+    if [[ -d "$default_dir" ]]; then
+        export SPECIFY_TEAM_DIRECTIVES="$default_dir"
     fi
 }
 
@@ -115,6 +142,7 @@ get_feature_dir() { echo "$1/specs/$2"; }
 get_feature_paths() {
     local repo_root=$(get_repo_root)
     load_gateway_config "$repo_root"
+    load_team_directives_config "$repo_root"
     local current_branch=$(get_current_branch)
     local has_git_repo="false"
     
@@ -137,6 +165,7 @@ DATA_MODEL='$feature_dir/data-model.md'
 QUICKSTART='$feature_dir/quickstart.md'
 CONTEXT='$feature_dir/context.md'
 CONTRACTS_DIR='$feature_dir/contracts'
+TEAM_DIRECTIVES='${SPECIFY_TEAM_DIRECTIVES:-}'
 EOF
 }
 

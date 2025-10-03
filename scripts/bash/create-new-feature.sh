@@ -62,7 +62,19 @@ else
     CONSTITUTION_FILE=""
 fi
 
-TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/$TEAM_DIRECTIVES_DIRNAME"
+if [ -z "$SPECIFY_TEAM_DIRECTIVES" ]; then
+    CONFIG_TEAM_FILE="$REPO_ROOT/.specify/config/team_directives.path"
+    if [ -f "$CONFIG_TEAM_FILE" ]; then
+        CONFIG_TEAM_PATH=$(cat "$CONFIG_TEAM_FILE")
+        if [ -d "$CONFIG_TEAM_PATH" ]; then
+            export SPECIFY_TEAM_DIRECTIVES="$CONFIG_TEAM_PATH"
+        else
+            >&2 echo "[specify] Warning: team directives path '$CONFIG_TEAM_PATH' from $CONFIG_TEAM_FILE is missing."
+        fi
+    fi
+fi
+
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-$REPO_ROOT/.specify/memory/$TEAM_DIRECTIVES_DIRNAME}"
 if [ -d "$TEAM_DIRECTIVES_DIR" ]; then
     export SPECIFY_TEAM_DIRECTIVES="$TEAM_DIRECTIVES_DIR"
 else

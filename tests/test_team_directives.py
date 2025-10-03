@@ -18,9 +18,10 @@ def test_sync_clones_when_missing(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    status = sync_team_ai_directives("https://example.com/repo.git", tmp_path, skip_tls=True)
+    status, path = sync_team_ai_directives("https://example.com/repo.git", tmp_path, skip_tls=True)
 
     assert status == "cloned"
+    assert path == tmp_path / ".specify" / "memory" / TEAM_DIRECTIVES_DIRNAME
     memory_root = tmp_path / ".specify" / "memory"
     assert memory_root.exists()
     assert calls[0][0][:2] == ["git", "clone"]
@@ -42,9 +43,10 @@ def test_sync_updates_existing_repo(tmp_path, monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    status = sync_team_ai_directives("https://example.com/repo.git", tmp_path)
+    status, path = sync_team_ai_directives("https://example.com/repo.git", tmp_path)
 
     assert status == "updated"
+    assert path == destination
     assert any(item[3] == "pull" for item in commands if len(item) > 3)
     assert commands[0][:4] == ["git", "-C", str(destination), "rev-parse"]
 
@@ -81,3 +83,13 @@ def test_sync_raises_on_git_failure(tmp_path, monkeypatch):
         sync_team_ai_directives("https://example.com/repo.git", tmp_path)
 
     assert "fatal: error" in str(exc.value)
+
+
+def test_sync_returns_local_path_when_given_directory(tmp_path):
+    local_repo = tmp_path / "team-ai-directives"
+    local_repo.mkdir()
+
+    status, path = sync_team_ai_directives(str(local_repo), tmp_path)
+
+    assert status == "local"
+    assert path == local_repo
