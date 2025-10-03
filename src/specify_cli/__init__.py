@@ -97,6 +97,20 @@ BANNER = """
 """
 
 TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
+
+ORANGE_ACCENT = "#f47721"
+ORANGE_MUTED = "#f89b52"
+ORANGE_DIM = "#f4c8a3"
+SLATE_TEXT = "#f5f5f5"
+SLATE_MUTED = "#c8ced6"
+
+
+def accent(text: str) -> str:
+    return f"[{ORANGE_ACCENT}]{text}[/{ORANGE_ACCENT}]"
+
+
+def accent_muted(text: str) -> str:
+    return f"[{ORANGE_MUTED}]{text}[/{ORANGE_MUTED}]"
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.
@@ -147,7 +161,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(f"[{ORANGE_ACCENT}]{self.title}[/{ORANGE_ACCENT}]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -155,11 +169,11 @@ class StepTracker:
             # Circles (unchanged styling)
             status = step["status"]
             if status == "done":
-                symbol = "[green]●[/green]"
+                symbol = f"[{ORANGE_ACCENT}]●[/{ORANGE_ACCENT}]"
             elif status == "pending":
-                symbol = "[green dim]○[/green dim]"
+                symbol = f"[{ORANGE_DIM}]○[/{ORANGE_DIM}]"
             elif status == "running":
-                symbol = "[cyan]○[/cyan]"
+                symbol = f"[{ORANGE_MUTED}]○[/{ORANGE_MUTED}]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -168,17 +182,15 @@ class StepTracker:
                 symbol = " "
 
             if status == "pending":
-                # Entire line light gray (pending)
                 if detail_text:
-                    line = f"{symbol} [bright_black]{label} ({detail_text})[/bright_black]"
+                    line = f"{symbol} [{ORANGE_DIM}]{label} ({detail_text})[/{ORANGE_DIM}]"
                 else:
-                    line = f"{symbol} [bright_black]{label}[/bright_black]"
+                    line = f"{symbol} [{ORANGE_DIM}]{label}[/{ORANGE_DIM}]"
             else:
-                # Label white, detail (if any) light gray in parentheses
                 if detail_text:
-                    line = f"{symbol} [white]{label}[/white] [bright_black]({detail_text})[/bright_black]"
+                    line = f"{symbol} [{SLATE_TEXT}]{label}[/{SLATE_TEXT}] [bright_black]({detail_text})[/bright_black]"
                 else:
-                    line = f"{symbol} [white]{label}[/white]"
+                    line = f"{symbol} [{SLATE_TEXT}]{label}[/{SLATE_TEXT}]"
 
             tree.add(line)
         return tree
@@ -245,9 +257,9 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
         
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row("▶", f"{accent(key)} [dim]({options[key]})[/dim]")
             else:
-                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row(" ", f"{accent(key)} [dim]({options[key]})[/dim]")
         
         table.add_row("", "")
         table.add_row("", "[dim]Use ↑/↓ to navigate, Enter to select, Esc to cancel[/dim]")
@@ -255,7 +267,7 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=ORANGE_ACCENT,
             padding=(1, 2)
         )
     
@@ -320,7 +332,7 @@ def show_banner():
     """Display the ASCII art banner."""
     # Create gradient effect with different colors
     banner_lines = BANNER.strip().split('\n')
-    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
+    colors = [ORANGE_ACCENT, ORANGE_MUTED, ORANGE_ACCENT, ORANGE_MUTED, SLATE_TEXT, "white"]
     
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -328,7 +340,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
     
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
+    console.print(Align.center(Text(TAGLINE, style=f"italic {ORANGE_MUTED}")))
     console.print()
 
 
@@ -480,12 +492,12 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
+            console.print(accent("Initializing git repository..."))
         subprocess.run(["git", "init"], check=True, capture_output=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True)
         if not quiet:
-            console.print("[green]✓[/green] Git repository initialized")
+            console.print(accent_muted("✓ Git repository initialized"))
         return True
         
     except subprocess.CalledProcessError as e:
@@ -503,7 +515,7 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         client = httpx.Client(verify=ssl_context)
     
     if verbose:
-        console.print("[cyan]Fetching latest release information...[/cyan]")
+        console.print(accent("Fetching latest release information..."))
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
     
     try:
@@ -549,13 +561,13 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     file_size = asset["size"]
     
     if verbose:
-        console.print(f"[cyan]Found template:[/cyan] {filename}")
-        console.print(f"[cyan]Size:[/cyan] {file_size:,} bytes")
-        console.print(f"[cyan]Release:[/cyan] {release_data['tag_name']}")
+        console.print(f"{accent('Found template:')} {filename}")
+        console.print(f"{accent('Size:')} {file_size:,} bytes")
+        console.print(f"{accent('Release:')} {release_data['tag_name']}")
 
     zip_path = download_dir / filename
     if verbose:
-        console.print(f"[cyan]Downloading template...[/cyan]")
+        console.print(accent("Downloading template..."))
     
     try:
         with client.stream(
@@ -658,7 +670,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                 tracker.start("zip-list")
                 tracker.complete("zip-list", f"{len(zip_contents)} entries")
             elif verbose:
-                console.print(f"[cyan]ZIP contains {len(zip_contents)} items[/cyan]")
+                console.print(accent(f"ZIP contains {len(zip_contents)} items"))
             
             # For current directory, extract to a temp location first
             if is_current_dir:
@@ -672,7 +684,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                         tracker.start("extracted-summary")
                         tracker.complete("extracted-summary", f"temp {len(extracted_items)} items")
                     elif verbose:
-                        console.print(f"[cyan]Extracted {len(extracted_items)} items to temp location[/cyan]")
+                        console.print(accent(f"Extracted {len(extracted_items)} items to temp location"))
                     
                     # Handle GitHub-style ZIP with a single root directory
                     source_dir = temp_path
@@ -682,7 +694,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                             tracker.add("flatten", "Flatten nested directory")
                             tracker.complete("flatten")
                         elif verbose:
-                            console.print(f"[cyan]Found nested directory structure[/cyan]")
+                            console.print(accent("Found nested directory structure"))
                     
                     # Copy contents to current directory
                     for item in source_dir.iterdir():
@@ -705,7 +717,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                                 console.print(f"[yellow]Overwriting file:[/yellow] {item.name}")
                             shutil.copy2(item, dest_path)
                     if verbose and not tracker:
-                        console.print(f"[cyan]Template files merged into current directory[/cyan]")
+                        console.print(accent("Template files merged into current directory"))
             else:
                 # Extract directly to project directory (original behavior)
                 zip_ref.extractall(project_path)
@@ -716,7 +728,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     tracker.start("extracted-summary")
                     tracker.complete("extracted-summary", f"{len(extracted_items)} top-level items")
                 elif verbose:
-                    console.print(f"[cyan]Extracted {len(extracted_items)} items to {project_path}:[/cyan]")
+                    console.print(f"{accent(f'Extracted {len(extracted_items)} items to {project_path}:')}")
                     for item in extracted_items:
                         console.print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
                 
@@ -735,7 +747,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                         tracker.add("flatten", "Flatten nested directory")
                         tracker.complete("flatten")
                     elif verbose:
-                        console.print(f"[cyan]Flattened nested directory structure[/cyan]")
+                        console.print(accent("Flattened nested directory structure"))
                     
     except Exception as e:
         if tracker:
@@ -850,9 +862,9 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
         if updated:
-            console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
+            console.print(accent(f"Updated execute permissions on {updated} script(s) recursively"))
         if failures:
-            console.print("[yellow]Some scripts could not be updated:[/yellow]")
+            console.print(f"[{ORANGE_MUTED}]Some scripts could not be updated:[/{ORANGE_MUTED}]")
             for f in failures:
                 console.print(f"  - {f}")
 
@@ -927,14 +939,14 @@ def init(
     if here:
         project_name = Path.cwd().name
         project_path = Path.cwd()
-        
+
         # Check if current directory has any files
         existing_items = list(project_path.iterdir())
         if existing_items:
             console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
             console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
             if force:
-                console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
+                console.print(accent("--force supplied: skipping confirmation and proceeding with merge"))
             else:
                 # Ask for confirmation
                 response = typer.confirm("Do you want to continue?")
@@ -946,7 +958,7 @@ def init(
         # Check if project directory already exists
         if project_path.exists():
             error_panel = Panel(
-                f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
+                f"Directory '{accent(project_name)}' already exists\n"
                 "Please choose a different project name or remove the existing directory.",
                 title="[red]Directory Conflict[/red]",
                 border_style="red",
@@ -960,7 +972,7 @@ def init(
     current_dir = Path.cwd()
     
     setup_lines = [
-        "[cyan]Specify Project Setup[/cyan]",
+        accent("Specify Project Setup"),
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -970,7 +982,7 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
     
-    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+    console.print(Panel("\n".join(setup_lines), border_style=ORANGE_ACCENT, padding=(1, 2)))
     
     git_required_for_init = not no_git
     git_required_for_directives = bool(team_ai_directives)
@@ -1035,10 +1047,10 @@ def init(
 
         if agent_tool_missing:
             error_panel = Panel(
-                f"[cyan]{selected_ai}[/cyan] not found\n"
-                f"Install with: [cyan]{install_url}[/cyan]\n"
+                f"{accent(selected_ai)} not found\n"
+                f"Install with: {accent(install_url)}\n"
                 f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
-                "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                f"Tip: Use {accent('--ignore-agent-tools')} to skip this check",
                 title="[red]Agent Detection Error[/red]",
                 border_style="red",
                 padding=(1, 2)
@@ -1062,8 +1074,8 @@ def init(
         else:
             selected_script = default_script
     
-    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
-    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"{accent('Selected AI assistant:')} {selected_ai}")
+    console.print(f"{accent('Selected script type:')} {selected_script}")
     
     # Download and set up project
     # New tree-based progress (no emojis); include earlier substeps
@@ -1172,7 +1184,7 @@ def init(
 
     # Final static tree (ensures finished state visible after Live context ends)
     console.print(tracker.render())
-    console.print("\n[bold green]Project ready.[/bold green]")
+    console.print(f"\n{accent('Project ready.')}\n")
 
     # Persist team directives path if available
     if resolved_team_directives is None:
@@ -1205,24 +1217,22 @@ def init(
         agent_folder = agent_folder_map[selected_ai]
         security_notice = Panel(
             f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-            f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
-            title="[yellow]Agent Folder Security[/yellow]",
-            border_style="yellow",
-            padding=(1, 2)
+            f"Consider adding {accent(agent_folder)} (or parts of it) to {accent('.gitignore')} to prevent accidental credential leakage.",
+            title=accent_muted("Agent Folder Security"),
+            border_style=ORANGE_MUTED,
+            padding=(1, 2),
         )
         console.print()
         console.print(security_notice)
-    
-    # Boxed "Next steps" section
+
     steps_lines = []
     if not here:
-        steps_lines.append(f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]")
+        steps_lines.append(f"1. Go to the project folder: {accent('cd ' + project_path.name)}")
         step_num = 2
     else:
         steps_lines.append("1. You're already in the project directory!")
         step_num = 2
 
-    # Add Codex-specific setup step if needed
     if selected_ai == "codex":
         codex_path = project_path / ".codex"
         quoted_path = shlex.quote(str(codex_path))
@@ -1230,41 +1240,47 @@ def init(
             cmd = f"setx CODEX_HOME {quoted_path}"
         else:  # Unix-like systems
             cmd = f"export CODEX_HOME={quoted_path}"
-        
-        steps_lines.append(f"{step_num}. Set [cyan]CODEX_HOME[/cyan] environment variable before running Codex: [cyan]{cmd}[/cyan]")
+        steps_lines.append(f"{step_num}. Set {accent('CODEX_HOME')} environment variable before running Codex: {accent(cmd)}")
         step_num += 1
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
-    steps_lines.append("   2.1 [cyan]/constitution[/] - Establish project principles")
-    steps_lines.append("   2.2 [cyan]/specify[/] - Create baseline specification")
-    steps_lines.append("   2.3 [cyan]/plan[/] - Create implementation plan")
-    steps_lines.append("   2.4 [cyan]/tasks[/] - Generate actionable tasks")
-    steps_lines.append("   2.5 [cyan]/implement[/] - Execute implementation")
-    steps_lines.append("   2.6 [cyan]/levelup[/] - Capture learnings & draft knowledge assets")
+    steps_lines.append(f"   2.1 {accent('/constitution')} - Establish project principles")
+    steps_lines.append(f"   2.2 {accent('/specify')} - Create baseline specification")
+    steps_lines.append(f"   2.3 {accent('/plan')} - Create implementation plan")
+    steps_lines.append(f"   2.4 {accent('/tasks')} - Generate actionable tasks")
+    steps_lines.append(f"   2.5 {accent('/implement')} - Execute implementation")
+    steps_lines.append(f"   2.6 {accent('/levelup')} - Capture learnings & draft knowledge assets")
 
-    steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
+    steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=ORANGE_ACCENT, padding=(1,2))
     console.print()
     console.print(steps_panel)
 
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [cyan]/clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/plan[/] if used)",
-        f"○ [cyan]/analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/tasks[/], before [cyan]/implement[/])"
+        f"○ {accent('/clarify')} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {accent('/plan')} if used)",
+        f"○ {accent('/analyze')} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {accent('/tasks')}, before {accent('/implement')})"
     ]
-    enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1,2))
+    enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style=ORANGE_ACCENT, padding=(1,2))
     console.print()
     console.print(enhancements_panel)
 
     if selected_ai == "codex":
-        warning_text = """[bold yellow]Important Note:[/bold yellow]
+        warning_text = (
+            f"[bold {ORANGE_MUTED}]Important Note:[/bold {ORANGE_MUTED}]\n\n"
+            "Custom prompts do not yet support arguments in Codex. You may need to manually specify "
+            "additional project instructions directly in prompt files located in "
+            f"{accent('.codex/prompts/')}\n\n"
+            f"For more information, see: {accent('https://github.com/openai/codex/issues/2890')}"
+        )
 
-Custom prompts do not yet support arguments in Codex. You may need to manually specify additional project instructions directly in prompt files located in [cyan].codex/prompts/[/cyan].
-
-For more information, see: [cyan]https://github.com/openai/codex/issues/2890[/cyan]"""
-        
-        warning_panel = Panel(warning_text, title="Slash Commands in Codex", border_style="yellow", padding=(1,2))
+        warning_panel = Panel(
+            warning_text,
+            title=accent_muted("Slash Commands in Codex"),
+            border_style=ORANGE_MUTED,
+            padding=(1, 2),
+        )
         console.print()
         console.print(warning_panel)
 
@@ -1304,7 +1320,7 @@ def check():
 
     console.print(tracker.render())
 
-    console.print("\n[bold green]Specify CLI is ready to use![/bold green]")
+    console.print(f"\n{accent('Specify CLI is ready to use!')}")
 
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")
