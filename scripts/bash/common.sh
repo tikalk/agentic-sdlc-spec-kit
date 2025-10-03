@@ -1,6 +1,35 @@
 #!/usr/bin/env bash
 # Common functions and variables for all scripts
 
+# Load gateway configuration and export helper environment variables
+load_gateway_config() {
+    local repo_root="$1"
+    local config_dir="$repo_root/.specify/config"
+    local env_file="$config_dir/gateway.env"
+
+    if [[ -f "$env_file" ]]; then
+        # shellcheck disable=SC1090
+        source "$env_file"
+    fi
+
+    if [[ -n "${SPECIFY_GATEWAY_URL:-}" ]]; then
+        export SPECIFY_GATEWAY_URL
+        export SPECIFY_GATEWAY_ACTIVE="true"
+        [[ -z "${ANTHROPIC_BASE_URL:-}" ]] && export ANTHROPIC_BASE_URL="$SPECIFY_GATEWAY_URL"
+        [[ -z "${GEMINI_BASE_URL:-}" ]] && export GEMINI_BASE_URL="$SPECIFY_GATEWAY_URL"
+        [[ -z "${OPENAI_BASE_URL:-}" ]] && export OPENAI_BASE_URL="$SPECIFY_GATEWAY_URL"
+    else
+        export SPECIFY_GATEWAY_ACTIVE="false"
+        if [[ -z "${SPECIFY_SUPPRESS_GATEWAY_WARNING:-}" ]]; then
+            echo "[specify] Warning: Gateway URL not configured. Set SPECIFY_GATEWAY_URL in .specify/config/gateway.env." >&2
+        fi
+    fi
+
+    if [[ -n "${SPECIFY_GATEWAY_TOKEN:-}" ]]; then
+        export SPECIFY_GATEWAY_TOKEN
+    fi
+}
+
 # Get repository root, with fallback for non-git repositories
 get_repo_root() {
     if git rev-parse --show-toplevel >/dev/null 2>&1; then
@@ -85,6 +114,7 @@ get_feature_dir() { echo "$1/specs/$2"; }
 
 get_feature_paths() {
     local repo_root=$(get_repo_root)
+    load_gateway_config "$repo_root"
     local current_branch=$(get_current_branch)
     local has_git_repo="false"
     

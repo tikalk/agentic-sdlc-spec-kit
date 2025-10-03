@@ -759,6 +759,53 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     return project_path
 
 
+def ensure_gateway_config(
+    project_path: Path,
+    selected_ai: str,
+    *,
+    tracker: StepTracker | None = None,
+    gateway_url: str | None = None,
+    gateway_token: str | None = None,
+    suppress_warning: bool | None = None,
+) -> None:
+    """Create gateway config template and optionally auto-write base URL env guidance."""
+    config_dir = project_path / ".specify" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    env_path = config_dir / "gateway.env"
+
+    was_existing = env_path.exists()
+
+    if was_existing and not any([gateway_url, gateway_token, suppress_warning]):
+        return
+
+    lines = [
+        "# Central LLM gateway configuration",
+        "# Populate SPECIFY_GATEWAY_URL with your proxy endpoint.",
+        "# Populate SPECIFY_GATEWAY_TOKEN if authentication is required.",
+        f"SPECIFY_GATEWAY_URL={gateway_url or ''}",
+        f"SPECIFY_GATEWAY_TOKEN={gateway_token or ''}",
+        "# Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true to silence CLI warnings.",
+        "SPECIFY_SUPPRESS_GATEWAY_WARNING=" + ("true" if suppress_warning else ""),
+    ]
+
+    # Assistant guidance comments
+    assistant_comments = {
+        "claude": "# Claude Code uses ANTHROPIC_BASE_URL; the CLI will export it automatically when SPECIFY_GATEWAY_URL is set.",
+        "gemini": "# Gemini CLI uses GEMINI_BASE_URL; the CLI will export it automatically when SPECIFY_GATEWAY_URL is set.",
+        "qwen": "# Qwen/Codex style CLIs use OPENAI_BASE_URL; the CLI will export it automatically when SPECIFY_GATEWAY_URL is set.",
+        "opencode": "# OpenCode can reference the gateway via {env:SPECIFY_GATEWAY_URL} in opencode.json.",
+    }
+
+    if selected_ai in assistant_comments:
+        lines.append(assistant_comments[selected_ai])
+
+    env_path.write_text("\n".join(lines) + "\n")
+
+    if tracker:
+        tracker.add("gateway", "Create gateway configuration")
+        tracker.complete("gateway", "updated" if was_existing else "scaffolded template")
+
+
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
@@ -816,6 +863,9 @@ def init(
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
     team_ai_directives: str = typer.Option(None, "--team-ai-directive", "--team-ai-directives", help="Clone or update a team-ai-directives repository into .specify/memory"),
+    gateway_url: str = typer.Option(None, "--gateway-url", help="Optional central LLM gateway base URL (populates .specify/config/gateway.env)"),
+    gateway_token: str = typer.Option(None, "--gateway-token", help="Optional token used when calling the central LLM gateway"),
+    gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Suppress gateway missing warnings for this project"),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -848,6 +898,7 @@ def init(
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
         specify init my-project --team-ai-directive https://github.com/my-org/team-ai-directives.git
+        specify init my-project --gateway-url https://llm-proxy.internal --gateway-token $TOKEN
     """
     # Show banner first
     show_banner()
@@ -1056,6 +1107,14 @@ def init(
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
+            ensure_gateway_config(
+                project_path,
+                selected_ai,
+                tracker=tracker,
+                gateway_url=gateway_url,
+                gateway_token=gateway_token,
+                suppress_warning=gateway_suppress_warning,
+            )
 
             if team_ai_directives and team_ai_directives.strip():
                 tracker.start("directives", "syncing")
