@@ -5,17 +5,46 @@ scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
 
-The user input can be provided directly by the agent or as a command argument - you **MUST** consider it before proceeding with the prompt (if not empty).
+## User Input
 
-User input:
-
+```text
 $ARGUMENTS
+```
 
-1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR, AVAILABLE_DOCS, SPEC_RISKS, and PLAN_RISKS. All paths must be absolute.
+You **MUST** consider the user input before proceeding (if not empty).
 
-2. Verify feature context:
-   - Load `context.md` from FEATURE_DIR.
-   - STOP if the file is missing or still contains `[NEEDS INPUT]` markers; request updated mission brief, code paths, directives, research, and gateway status before continuing.
+## Outline
+
+1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+
+2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+   - Scan all checklist files in the checklists/ directory
+   - For each checklist, count:
+     * Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
+     * Completed items: Lines matching `- [X]` or `- [x]`
+     * Incomplete items: Lines matching `- [ ]`
+   - Create a status table:
+     ```
+     | Checklist | Total | Completed | Incomplete | Status |
+     |-----------|-------|-----------|------------|--------|
+     | ux.md     | 12    | 12        | 0          | ✓ PASS |
+     | test.md   | 8     | 5         | 3          | ✗ FAIL |
+     | security.md | 6   | 6         | 0          | ✓ PASS |
+     ```
+   - Calculate overall status:
+     * **PASS**: All checklists have 0 incomplete items
+     * **FAIL**: One or more checklists have incomplete items
+   
+   - **If any checklist is incomplete**:
+     * Display the table with incomplete item counts
+     * **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
+     * Wait for user response before continuing
+     * If user says "no" or "wait" or "stop", halt execution
+     * If user says "yes" or "proceed" or "continue", proceed to step 3
+   
+   - **If all checklists are complete**:
+     * Display the table showing all checklists passed
+     * Automatically proceed to step 3
 
 3. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
@@ -24,8 +53,6 @@ $ARGUMENTS
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
-   - Extract the Execution Mode for each task (`[SYNC]` or `[ASYNC]`) and ensure every task is explicitly tagged. STOP and raise an error if any tasks lack a mode.
-   - Consolidate the Risk Register by merging SPEC_RISKS and PLAN_RISKS. Ensure every Risk ID listed in tasks.md has a corresponding definition (statement, mitigation, test strategy, evidence artefact). STOP if any gaps remain.
 
 4. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
@@ -39,9 +66,6 @@ $ARGUMENTS
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
-   - **Execution modes**:
-     * `[SYNC]` tasks → operate in tight feedback loops, narrate intent, request confirmation before and after significant changes, and capture micro-review notes.
-     * `[ASYNC]` tasks → may be executed autonomously but still require post-task summaries and macro-review validation against plan.md.
 
 6. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -49,7 +73,6 @@ $ARGUMENTS
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
-   - **Risk validation**: For each `[SYNC]` risk test task (`TRxx`), execute the specified tests, capture pass/fail output, and record the evidence in the artefact defined by plan.md (e.g., `risk-tests/R1.log` or the Risk Evidence Log table).
 
 7. Progress tracking and error handling:
    - Report progress after each completed task
@@ -57,8 +80,7 @@ $ARGUMENTS
    - For parallel tasks [P], continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-    - **IMPORTANT** For completed tasks, mark the task off as `[X]` in tasks.md while preserving `[SYNC]/[ASYNC]` tags and [P] markers.
-    - Update the **Risk Evidence Log** in tasks.md with the test task ID, evidence artefact, and a concise summary (include command executed and assertion outcome). Missing evidence is a blocker for completion.
+   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
 8. Completion validation:
    - Verify all required tasks are completed
