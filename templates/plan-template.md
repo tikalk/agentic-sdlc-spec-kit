@@ -75,6 +75,17 @@ specs/[###-feature]/
 └── tasks.md             # Phase 2 output (/tasks command - NOT created by /plan)
 ```
 
+## Risk Mitigation & Test Strategy
+*Map every risk from the specification's Risk Register to a concrete mitigation and validation artefact.*
+
+| Risk ID | Statement | Mitigation Owner | Test Strategy | Evidence Artefact |
+|---------|-----------|------------------|---------------|--------------------|
+| R1 | Unauthorized access to admin endpoints | Security | RBAC denies non-admin roles via integration test | risk-tests/R1.log |
+
+- Keep `Risk ID` identical to the spec entry (e.g., `R1`).
+- `Test Strategy` describes the exact validation (unit, integration, fuzz, chaos, etc.)
+- `Evidence Artefact` states where `/implement` must record the passing test output (e.g., `specs/001-feature/risk-test-evidence.md`).
+
 ### Source Code (repository root)
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
@@ -186,6 +197,7 @@ directories captured above]
 - Each user story → integration test task
 - Implementation tasks to make tests pass
 - Carry forward the Execution Mode from the Triage Overview: annotate each generated task with `[SYNC]` or `[ASYNC]` based on the finalized plan decision.
+- For every risk entry, generate at least one dedicated `[SYNC]` test task referencing the Risk ID and the evidence artefact.
 
 **Ordering Strategy**:
 - TDD order: Tests before implementation 

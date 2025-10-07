@@ -56,6 +56,64 @@ EXAMPLES:
 # Source common functions
 . "$PSScriptRoot/common.ps1"
 
+function Get-RisksFromFile {
+    param([string]$Path)
+
+    if (-not (Test-Path $Path -PathType Leaf)) {
+        return @()
+    }
+
+    $risks = @()
+    $pattern = '^-\s*RISK:\s*(.+)$'
+    $index = 1
+
+    foreach ($line in Get-Content -Path $Path) {
+        $trim = $line.Trim()
+        if ($trim -notmatch $pattern) { continue }
+
+        $content = $Matches[1]
+        $parts = @()
+        foreach ($piece in ($content -split '\|')) {
+            $trimmed = $piece.Trim()
+            if ($trimmed) { $parts += $trimmed }
+        }
+
+        $data = @{}
+
+        if ($parts.Count -gt 0 -and $parts[0] -notmatch ':') {
+            $data['id'] = $parts[0]
+            if ($parts.Count -gt 1) {
+                $parts = $parts[1..($parts.Count - 1)]
+            } else {
+                $parts = @()
+            }
+        }
+
+        foreach ($part in $parts) {
+            if ($part -match '^\s*([^:]+):\s*(.+)$') {
+                $key = $Matches[1].Trim()
+                $value = $Matches[2].Trim()
+                $normalized = $key.ToLower().Replace(' ', '_')
+
+                if ($normalized -eq 'risk') {
+                    $data['id'] = $value
+                } else {
+                    $data[$normalized] = $value
+                }
+            }
+        }
+
+        if (-not $data.ContainsKey('id')) {
+            $data['id'] = "missing-id-$index"
+        }
+        $index += 1
+
+        $risks += [PSCustomObject]$data
+    }
+
+    return $risks
+}
+
 # Get feature paths and validate branch
 $paths = Get-FeaturePathsEnv
 
@@ -125,11 +183,16 @@ if ($IncludeTasks -and (Test-Path $paths.TASKS)) {
 }
 
 # Output results
+    $specRisks = Get-RisksFromFile -Path $paths.FEATURE_SPEC
+    $planRisks = Get-RisksFromFile -Path $paths.IMPL_PLAN
+
 if ($Json) {
     # JSON output
     [PSCustomObject]@{ 
         FEATURE_DIR = $paths.FEATURE_DIR
         AVAILABLE_DOCS = $docs 
+        SPEC_RISKS = $specRisks
+        PLAN_RISKS = $planRisks
     } | ConvertTo-Json -Compress
 } else {
     # Text output
@@ -145,4 +208,7 @@ if ($Json) {
     if ($IncludeTasks) {
         Test-FileExists -Path $paths.TASKS -Description 'tasks.md' | Out-Null
     }
+
+    Write-Output "SPEC_RISKS: $($specRisks.Count)"
+    Write-Output "PLAN_RISKS: $($planRisks.Count)"
 }

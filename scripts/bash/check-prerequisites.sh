@@ -78,6 +78,57 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
+# Extract risk entries from a markdown file's Risk Register section
+extract_risks() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo "[]"
+        return
+    fi
+
+    python3 - "$file" <<'PY'
+import json
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+pattern = re.compile(r"^-\s*RISK:\s*(.+)$", re.IGNORECASE)
+risks = []
+
+for line in path.read_text().splitlines():
+    match = pattern.match(line.strip())
+    if not match:
+        continue
+
+    parts = [p.strip() for p in match.group(1).split("|") if p.strip()]
+    data = {}
+
+    if parts and ":" not in parts[0]:
+        data["id"] = parts[0]
+        parts = parts[1:]
+
+    for part in parts:
+        if ":" not in part:
+            continue
+        key, value = part.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        normalized = key.lower().replace(" ", "_")
+        if normalized == "risk":
+            data["id"] = value
+        else:
+            data[normalized] = value
+
+    if data:
+        if "id" not in data:
+            data["id"] = f"missing-id-{len(risks)+1}"
+        risks.append(data)
+
+print(json.dumps(risks, ensure_ascii=False))
+PY
+}
+
 # Get feature paths and validate branch
 eval $(get_feature_paths)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
@@ -160,7 +211,9 @@ if $JSON_MODE; then
         json_docs="[${json_docs%,}]"
     fi
     
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s}\n' "$FEATURE_DIR" "$json_docs"
+    SPEC_RISKS=$(extract_risks "$FEATURE_SPEC")
+    PLAN_RISKS=$(extract_risks "$IMPL_PLAN")
+    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s}\n' "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS"
 else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"
@@ -175,4 +228,26 @@ else
     if $INCLUDE_TASKS; then
         check_file "$TASKS" "tasks.md"
     fi
+
+    spec_risks_count=$(extract_risks "$FEATURE_SPEC" | python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    data = []
+print(len(data))
+PY
+    )
+    plan_risks_count=$(extract_risks "$IMPL_PLAN" | python3 - <<'PY'
+import json, sys
+try:
+    data = json.load(sys.stdin)
+except json.JSONDecodeError:
+    data = []
+print(len(data))
+PY
+    )
+
+    echo "SPEC_RISKS: $spec_risks_count"
+    echo "PLAN_RISKS: $plan_risks_count"
 fi

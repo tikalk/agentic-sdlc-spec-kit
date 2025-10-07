@@ -11,7 +11,7 @@ User input:
 
 $ARGUMENTS
 
-1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
+1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR, AVAILABLE_DOCS, SPEC_RISKS, and PLAN_RISKS. All paths must be absolute.
 
 2. Verify feature context:
    - Load `context.md` from FEATURE_DIR.
@@ -25,6 +25,7 @@ $ARGUMENTS
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
    - Extract the Execution Mode for each task (`[SYNC]` or `[ASYNC]`) and ensure every task is explicitly tagged. STOP and raise an error if any tasks lack a mode.
+   - Consolidate the Risk Register by merging SPEC_RISKS and PLAN_RISKS. Ensure every Risk ID listed in tasks.md has a corresponding definition (statement, mitigation, test strategy, evidence artefact). STOP if any gaps remain.
 
 4. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
@@ -48,6 +49,7 @@ $ARGUMENTS
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Risk validation**: For each `[SYNC]` risk test task (`TRxx`), execute the specified tests, capture pass/fail output, and record the evidence in the artefact defined by plan.md (e.g., `risk-tests/R1.log` or the Risk Evidence Log table).
 
 7. Progress tracking and error handling:
    - Report progress after each completed task
@@ -56,6 +58,7 @@ $ARGUMENTS
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
     - **IMPORTANT** For completed tasks, mark the task off as `[X]` in tasks.md while preserving `[SYNC]/[ASYNC]` tags and [P] markers.
+    - Update the **Risk Evidence Log** in tasks.md with the test task ID, evidence artefact, and a concise summary (include command executed and assertion outcome). Missing evidence is a blocker for completion.
 
 8. Completion validation:
    - Verify all required tasks are completed

@@ -55,6 +55,10 @@
 - [ ] T006 [SYNC] [P] Integration test user registration in tests/integration/test_registration.py
 - [ ] T007 [SYNC] [P] Integration test auth flow in tests/integration/test_auth.py
 
+## Phase 3.2b: Risk-Based Tests (Spec Risk Register)
+- [ ] TR01 [SYNC] Risk R1 — RBAC denies non-admin roles (tests/integration/test_admin_access.py) → Capture evidence in risk-tests/R1.log
+- [ ] TR02 [SYNC] Risk R2 — Prevent data loss during retries (tests/integration/test_retry_durability.py) → Capture evidence in risk-tests/R2.log
+
 ## Phase 3.3: Core Implementation (ONLY after tests are failing)
 - [ ] T008 [ASYNC] [P] User model in src/models/user.py
 - [ ] T009 [ASYNC] [P] UserService CRUD in src/services/user_service.py
@@ -98,6 +102,7 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 - Verify tests fail before implementing
 - Commit after each task
 - Avoid: vague tasks, same file conflicts
+- Risk tasks (`TRxx`) must reference the exact Risk ID and evidence location defined in plan.md.
 
 ## Task Generation Rules
 *Applied during main() execution*
@@ -118,6 +123,11 @@ Task: "Integration test auth in tests/integration/test_auth.py"
    - Setup → Tests → Models → Services → Endpoints → Polish
    - Dependencies block parallel execution
 
+5. **Risk Coverage**:
+   - For each Risk ID in spec/plan, create at least one `[SYNC]` test task prefixed `TR` that references the risk, test path, and evidence artefact.
+   - If multiple mitigations exist, create a task per mitigation/test.
+   - Document required evidence capture in the task description (e.g., `→ Capture evidence in risk-tests/R1.log`).
+
 ## Validation Checklist
 *GATE: Checked by main() before returning*
 
@@ -127,3 +137,9 @@ Task: "Integration test auth in tests/integration/test_auth.py"
 - [ ] Parallel tasks truly independent
 - [ ] Each task specifies exact file path
 - [ ] No task modifies same file as another [P] task
+- [ ] Every Risk ID has at least one `[SYNC]` risk test task with evidence path
+
+## Risk Evidence Log (maintained during /implement)
+| Risk ID | Test Task ID | Evidence Artefact | Evidence Summary |
+|---------|--------------|-------------------|------------------|
+| R1 | TR01 | risk-tests/R1.log | TBD – populate with `/implement` test output |

@@ -82,6 +82,18 @@ When creating this spec from a user prompt:
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+## Risk Register *(mandatory)*
+Document the critical risks the team must mitigate. Capture each risk on its own line using the canonical format so downstream automation can parse it:
+
+- `- RISK: R1 | Statement: Unauthorized access to admin endpoints | Impact: High | Likelihood: Medium | Test: Assert RBAC denies non-admin roles`
+
+Guidance:
+- **RISK**: Stable identifier (`R1`, `SEC-02`, etc.)
+- **Statement**: Concise summary of the exposure in business terms
+- **Impact/Likelihood**: Qualitative level (`Low`, `Medium`, `High`)
+- **Test**: The validation focus needed to prove the mitigation works (e.g., "Fuzz payload to detect overflow")
+- Add additional pipe-delimited attributes when needed (`Owner`, `Notes`, etc.); keep the key names capitalized for readability.
+
 ---
 
 ## Review & Acceptance Checklist
