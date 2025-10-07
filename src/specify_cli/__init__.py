@@ -55,6 +55,8 @@ import truststore
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
 
+TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+
 def _github_token(cli_token: str | None = None) -> str | None:
     """Return sanitized GitHub token (cli arg takes precedence) or None."""
     return ((cli_token or os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()) or None
@@ -363,6 +365,66 @@ def check_tool(tool: str, install_hint: str) -> bool:
     else:
         return False
 
+
+def _run_git_command(args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+    """Run a git command with optional working directory and environment overrides."""
+    cmd = ["git"]
+    if cwd is not None:
+        cmd.extend(["-C", str(cwd)])
+    cmd.extend(args)
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
+
+
+def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool = False) -> tuple[str, Path]:
+    """Clone or update the team-ai-directives repository.
+
+    When repo_url points to a local directory, return it without cloning.
+    Returns a tuple of (status, resolved_path).
+    """
+    repo_url = (repo_url or "").strip()
+    if not repo_url:
+        raise ValueError("Team AI directives repository URL cannot be empty")
+
+    potential_path = Path(repo_url).expanduser()
+    if potential_path.exists() and potential_path.is_dir():
+        return ("local", potential_path.resolve())
+
+    memory_root = project_root / ".specify" / "memory"
+    memory_root.mkdir(parents=True, exist_ok=True)
+    destination = memory_root / TEAM_DIRECTIVES_DIRNAME
+
+    git_env = os.environ.copy()
+    if skip_tls:
+        git_env["GIT_SSL_NO_VERIFY"] = "1"
+
+    try:
+        if destination.exists() and any(destination.iterdir()):
+            _run_git_command(["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env)
+            try:
+                existing_remote = _run_git_command([
+                    "config",
+                    "--get",
+                    "remote.origin.url",
+                ], cwd=destination, env=git_env).stdout.strip()
+            except subprocess.CalledProcessError:
+                existing_remote = ""
+
+            if existing_remote and existing_remote != repo_url:
+                _run_git_command(["remote", "set-url", "origin", repo_url], cwd=destination, env=git_env)
+
+            _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
+            return ("updated", destination)
+
+        if destination.exists() and not any(destination.iterdir()):
+            shutil.rmtree(destination)
+
+        memory_root.mkdir(parents=True, exist_ok=True)
+        _run_git_command(["clone", repo_url, str(destination)], env=git_env)
+        return ("cloned", destination)
+    except subprocess.CalledProcessError as exc:
+        message = exc.stderr.strip() if exc.stderr else str(exc)
+        raise RuntimeError(f"Git operation failed: {message}") from exc
+
 def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
@@ -407,8 +469,8 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> bool:
         os.chdir(original_cwd)
 
 def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
-    repo_owner = "github"
-    repo_name = "spec-kit"
+    repo_owner = "tikalk"
+    repo_name = "agentic-sdlc-spec-kit"
     if client is None:
         client = httpx.Client(verify=ssl_context)
 
@@ -675,6 +737,52 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     return project_path
 
 
+def ensure_gateway_config(
+    project_path: Path,
+    selected_ai: str,
+    *,
+    tracker: StepTracker | None = None,
+    gateway_url: str | None = None,
+    gateway_token: str | None = None,
+    suppress_warning: bool | None = None,
+) -> None:
+    """Ensure gateway.env exists and optionally hydrate it with provided values."""
+    config_dir = project_path / ".specify" / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    env_path = config_dir / "gateway.env"
+
+    was_existing = env_path.exists()
+
+    if was_existing and not any([gateway_url, gateway_token, suppress_warning]):
+        if tracker:
+            tracker.skip("gateway", "using template")
+        return
+
+    lines = [
+        "# Central LLM gateway configuration",
+        "# Populate SPECIFY_GATEWAY_URL with your proxy endpoint.",
+        "# Populate SPECIFY_GATEWAY_TOKEN if authentication is required.",
+        f"SPECIFY_GATEWAY_URL={gateway_url or ''}",
+        f"SPECIFY_GATEWAY_TOKEN={gateway_token or ''}",
+        "# Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true to silence CLI warnings.",
+        "SPECIFY_SUPPRESS_GATEWAY_WARNING=" + ("true" if suppress_warning else ""),
+    ]
+
+    assistant_comments = {
+        "claude": "# Claude Code uses ANTHROPIC_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
+        "gemini": "# Gemini CLI uses GEMINI_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
+        "qwen": "# Qwen CLI uses OPENAI_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
+        "opencode": "# opencode.json can reference {env:SPECIFY_GATEWAY_URL} to reach the proxy.",
+    }
+
+    if selected_ai in assistant_comments:
+        lines.append(assistant_comments[selected_ai])
+
+    env_path.write_text("\n".join(lines) + "\n")
+
+    if tracker:
+        tracker.complete("gateway", "updated" if was_existing else "created")
+
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
@@ -722,7 +830,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie or q"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie, roo or q"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -731,17 +839,22 @@ def init(
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
+    team_ai_directives: str = typer.Option(None, "--team-ai-directive", "--team-ai-directives", help="Clone or reference a team-ai-directives repository during setup"),
+    gateway_url: str = typer.Option(None, "--gateway-url", help="Populate SPECIFY_GATEWAY_URL in .specify/config/gateway.env"),
+    gateway_token: str = typer.Option(None, "--gateway-token", help="Populate SPECIFY_GATEWAY_TOKEN in .specify/config/gateway.env"),
+    gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true in gateway.env"),
 ):
     """
     Initialize a new Specify project from the latest template.
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, or Amazon Q Developer CLI)
+    2. Let you choose your AI assistant (Claude Code, Gemini CLI, GitHub Copilot, Cursor, Qwen Code, opencode, Codex CLI, Windsurf, Kilo Code, Auggie CLI, Roo Code, or Amazon Q Developer CLI)
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally set up AI assistant commands
+    6. Optionally scaffold central gateway configuration
+    7. Optionally clone or reference a shared team-ai-directives repository
     
     Examples:
         specify init my-project
@@ -754,6 +867,9 @@ def init(
         specify init --here --ai codex
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
+        specify init my-project --team-ai-directive ~/workspace/team-ai-directives
+        specify init my-project --team-ai-directive https://github.com/example/team-ai-directives.git
+        specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
     """
 
     show_banner()
@@ -815,13 +931,22 @@ def init(
 
     console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
 
-    # Check git only if we might need it (not --no-git)
-    # Only set to True if the user wants it and the tool is available
+    git_required_for_init = not no_git
+    git_required_for_directives = bool(team_ai_directives and team_ai_directives.strip())
+    git_required = git_required_for_init or git_required_for_directives
+    git_available = True
+
     should_init_git = False
-    if not no_git:
-        should_init_git = check_tool("git", "https://git-scm.com/downloads")
-        if not should_init_git:
+    if git_required:
+        git_available = check_tool("git", "https://git-scm.com/downloads")
+        if not git_available:
+            if git_required_for_directives:
+                console.print("[red]Error:[/red] Git is required to sync team-ai-directives. Install git or omit --team-ai-directive.")
+                raise typer.Exit(1)
             console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
+
+    if git_available and git_required_for_init:
+        should_init_git = True
 
     if ai_assistant:
         if ai_assistant not in AI_CHOICES:
@@ -921,11 +1046,15 @@ def init(
         ("zip-list", "Archive contents"),
         ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
+        ("gateway", "Configure gateway"),
         ("cleanup", "Cleanup"),
+        ("directives", "Sync team directives"),
         ("git", "Initialize git repository"),
         ("final", "Finalize")
     ]:
         tracker.add(key, label)
+
+    resolved_team_directives: Path | None = None
 
     # Use transient so live tree is replaced by the final static render (avoids duplicate output)
     with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
@@ -940,6 +1069,27 @@ def init(
 
             # Ensure scripts are executable (POSIX)
             ensure_executable_scripts(project_path, tracker=tracker)
+            ensure_gateway_config(
+                project_path,
+                selected_ai,
+                tracker=tracker,
+                gateway_url=gateway_url,
+                gateway_token=gateway_token,
+                suppress_warning=gateway_suppress_warning,
+            )
+
+            team_arg = team_ai_directives.strip() if team_ai_directives else ""
+            if team_arg:
+                tracker.start("directives", "syncing")
+                try:
+                    status, resolved_path = sync_team_ai_directives(team_arg, project_path, skip_tls=skip_tls)
+                    resolved_team_directives = resolved_path
+                    tracker.complete("directives", status)
+                except Exception as e:
+                    tracker.error("directives", str(e))
+                    raise
+            else:
+                tracker.skip("directives", "not provided")
 
             # Git step
             if not no_git:
@@ -979,6 +1129,17 @@ def init(
     # Final static tree (ensures finished state visible after Live context ends)
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
+
+    if resolved_team_directives is None:
+        default_directives = project_path / ".specify" / "memory" / TEAM_DIRECTIVES_DIRNAME
+        if default_directives.exists():
+            resolved_team_directives = default_directives
+
+    if resolved_team_directives is not None:
+        os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(resolved_team_directives)
+        config_dir = project_path / ".specify" / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "team_directives.path").write_text(str(resolved_team_directives))
 
     # Agent folder security notice
     agent_folder_map = {
