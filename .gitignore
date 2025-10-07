@@ -38,8 +38,6 @@ env/
 .env
 .env.local
 *.lock
-.pytest_cache/
-.roo/
 
 # Spec Kit-specific files
 .genreleases/
