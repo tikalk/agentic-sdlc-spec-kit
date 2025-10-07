@@ -12,8 +12,11 @@ fi
 
 VERSION="$1"
 
-# Remove 'v' prefix from version for release title
-VERSION_NO_V=${VERSION#v}
+# Tag prefix must remain in sync with get-next-version
+TAG_PREFIX="agentic-sdlc-v"
+
+# Remove prefix from version for release title
+VERSION_NO_PREFIX=${VERSION#${TAG_PREFIX}}
 
 ASSETS=()
 AGENTS=(claude gemini copilot cursor qwen opencode windsurf codex kilocode auggie roo q)
@@ -31,5 +34,5 @@ for agent in "${AGENTS[@]}"; do
 done
 
 gh release create "$VERSION" "${ASSETS[@]}" \
-  --title "Spec Kit Templates - $VERSION_NO_V" \
+  --title "Agentic SDLC Spec Kit Templates - $VERSION_NO_PREFIX" \
   --notes-file release_notes.md

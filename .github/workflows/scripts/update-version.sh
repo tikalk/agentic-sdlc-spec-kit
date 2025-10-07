@@ -12,8 +12,10 @@ fi
 
 VERSION="$1"
 
-# Remove 'v' prefix for Python versioning
-PYTHON_VERSION=${VERSION#v}
+TAG_PREFIX="agentic-sdlc-v"
+
+# Remove custom prefix for Python versioning
+PYTHON_VERSION=${VERSION#${TAG_PREFIX}}
 
 if [ -f "pyproject.toml" ]; then
   sed -i "s/version = \".*\"/version = \"$PYTHON_VERSION\"/" pyproject.toml

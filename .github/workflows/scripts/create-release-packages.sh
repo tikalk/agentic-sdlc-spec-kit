@@ -18,8 +18,10 @@ if [[ $# -ne 1 ]]; then
   exit 1
 fi
 NEW_VERSION="$1"
-if [[ ! $NEW_VERSION =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Version must look like v0.0.0" >&2
+TAG_PREFIX="agentic-sdlc-v"
+
+if [[ ! $NEW_VERSION =~ ^${TAG_PREFIX}[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "Version must look like ${TAG_PREFIX}0.0.0" >&2
   exit 1
 fi
 
