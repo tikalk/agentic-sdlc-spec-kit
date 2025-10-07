@@ -1,6 +1,6 @@
 # Quick Start Guide
 
-This guide will help you get started with Spec-Driven Development using Spec Kit.
+This guide will help you get started with Spec-Driven Development using Agentic SDLC Spec Kit.
 
 > NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `specify` CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
@@ -10,7 +10,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.
 
 1. **Project Initialization (`/init`)**  
-   **Action:** From the project root, run the Spec Kit `init` command (e.g., `specify init <project> --team-ai-directive https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
+   **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
    **Purpose:** Creates the handshake that brings the repository into the managed Agentic SDLC ecosystem, wiring credentials, endpoints, and shared knowledge needed for subsequent commands.
 2. **Establishing the Constitution (`/constitution`)**  
    **Action:** Within the IDE, execute `/constitution`, importing relevant modules from `team-ai-directives` and adding any project-specific principles.  
@@ -27,13 +27,13 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 ## Stage 1: Feature Specification
 
 **Goal:** Produce a committed `spec.md` that captures the feature's intent, constraints, and acceptance criteria.
-**Note:** From Stage 1 onward, all work happens inside the Intelligent IDE with the context automatically assembled by Spec Kit.
+**Note:** From Stage 1 onward, all work happens inside the Intelligent IDE with the context automatically assembled by Agentic SDLC Spec Kit.
 
 1. **Craft the Directive (`/specify`)**  
    **Action:** Author a single, comprehensive natural-language directive that blends the issue tracker mission, personas, constraints, and any clarifications.  
    **Purpose:** Front-load human judgment so the AI can draft an accurate `spec.md` aligned with the constitution.
 2. **Execute the Command**  
-   **Action:** Run `/specify` in the IDE; Spec Kit loads `memory/constitution.md`, resolves `@team/...` references against the directives repo, and captures any `@issue-tracker ISSUE-###` reference in the prompt so the resulting spec links back to the originating ticket.  
+   **Action:** Run `/specify` in the IDE; Agentic SDLC Spec Kit loads `memory/constitution.md`, resolves `@team/...` references against the directives repo, and captures any `@issue-tracker ISSUE-###` reference in the prompt so the resulting spec links back to the originating ticket.  
    **Purpose:** Generates the structured specification artifact under `specs/<feature>/spec.md` with shared principles and traceability already in context.
 3. **Review and Commit**  
    **Action:** Perform a macro-review of the generated `spec.md`, refine if needed, then commit it.  
@@ -53,7 +53,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 **Note:** `/plan` and `/tasks` run inside the IDE, reusing the constitution and the locally cloned `team-ai-directives` modules.
 
 1. **Generate the Plan (`/plan`)**  
-   **Action:** Execute `/plan` with a directive that covers tech stack, risk considerations, testing focus, and any implementation preferences. Spec Kit loads `memory/constitution.md`, references in `team-ai-directives`, and copies the plan template before executing automation.  
+   **Action:** Execute `/plan` with a directive that covers tech stack, risk considerations, testing focus, and any implementation preferences. Agentic SDLC Spec Kit loads `memory/constitution.md`, references in `team-ai-directives`, and copies the plan template before executing automation.  
    **Purpose:** Guides the AI in generating a comprehensive and strategically-sound first draft of `plan.md`—front-loading human judgment yields more robust outputs, and the AI produces technical steps with preliminary [SYNC]/[ASYNC] triage suggestions while emitting `plan.md`, `research.md`, `data-model.md`, `quickstart.md`, and contract stubs aligned with the constitution.
 2. **Macro-Review and Commit**  
    **Action:** Review the generated artifacts, adjust as needed, decide [SYNC]/[ASYNC] triage, then commit.  
@@ -84,7 +84,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 **Note:** `/levelup` runs inside the IDE and relies on the locally cloned directives repository from Stage 0.
 
 1. **Run Level-Up Workflow (`/levelup`)**  
-   **Action:** Invoke `/levelup` with a strategic directive (e.g., highlight what should become reusable). Spec Kit gathers spec/plan/tasks metadata, validates the directives repo, and prompts you to synthesize a knowledge asset plus PR/issue summaries.  
+   **Action:** Invoke `/levelup` with a strategic directive (e.g., highlight what should become reusable). Agentic SDLC Spec Kit gathers spec/plan/tasks metadata, validates the directives repo, and prompts you to synthesize a knowledge asset plus PR/issue summaries.  
    **Purpose:** Produces a draft markdown asset under `.specify/memory/team-ai-directives/drafts/`, along with a pull-request description and trace comment for review.
 2. **Review & Publish**  
    **Action:** Inspect the generated asset and summaries. When satisfied, confirm inside `/levelup` to let it create a `levelup/{slug}` branch, commit the asset, push (when remotes are configured), open a PR via `gh pr create` (or emit the command), and post the trace comment (or provide the text if automation is unavailable).  

@@ -12,7 +12,7 @@ For help or questions about using this project, please:
 
 ## Project Status
 
-**Spec Kit** is under active development and maintained by GitHub staff **AND THE COMMUNITY**. We will do our best to respond to support, feature requests, and community questions in a timely manner.
+**Agentic SDLC Spec Kit** is under active development and maintained by GitHub staff **AND THE COMMUNITY**. We will do our best to respond to support, feature requests, and community questions in a timely manner.
 
 ## GitHub Support Policy
 
