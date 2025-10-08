@@ -1006,7 +1006,7 @@ def init(
                 f"[{ACCENT_COLOR}]{selected_ai}[/{ACCENT_COLOR}] not found\n"
                 f"Install with: [{ACCENT_COLOR}]{install_url}[/{ACCENT_COLOR}]\n"
                 f"{AI_CHOICES[selected_ai]} is required to continue with this project type.\n\n"
-                "Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
+                f"Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
                 title="[red]Agent Detection Error[/red]",
                 border_style="red",
                 padding=(1, 2)
