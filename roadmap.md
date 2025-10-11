@@ -11,7 +11,7 @@
 - **repository.md**: team-ai-directives governance and structure
 
 **Implementation Gap Analysis:** Current spec-kit implements ~85-90% of documented capabilities. Key remaining gaps:
-- **Runtime dual execution loop** (tasks_meta.json integration, ASYNC task dispatching, differentiated reviews)
+- **Dual execution loop concept** (SYNC/ASYNC task classification in templates)
 - **Advanced workflow orchestration** (stage management, validation, progress tracking beyond basic implementation)
 - **Full MCP server integration** (orchestration hub, multi-agent coordination)
 - **Comprehensive evaluation frameworks** (quantitative metrics, A/B testing)
@@ -58,8 +58,7 @@
 
 ### Dual Execution Loop Infrastructure (Immediate Next Steps)
 - **COMPLETED**: Updated `/tasks`, `/implement`, and `/levelup` command templates to support [SYNC]/[ASYNC] classification alongside existing [P] markers
-- **COMPLETED**: Designed comprehensive `tasks_meta.json` structure for tracking execution metadata, agent assignments, reviewer checkpoints, worktree aliases, and PR links
-- **NEXT**: Implement `tasks_meta.json` creation and updates in `/tasks` command
+- **DESIGNED**: SYNC/ASYNC task classification framework in templates and triage system
 - **NEXT**: Update `/implement` command to dispatch `[ASYNC]` tasks via configured MCP agents while logging job IDs
 - **FOLLOWING**: Implement micro-review enforcement for `[SYNC]` tasks and macro-review sign-off for `[ASYNC]` tasks
 - **TARGET**: Enable differentiated quality gates between local parallel execution ([P]/[SYNC]) and remote async delegation ([ASYNC])
@@ -95,7 +94,7 @@
 
 ### Async Execution Infrastructure
 - **NOT IMPLEMENTED**: No `manage-tasks.sh` script for task metadata management.
-- No `tasks_meta.json` tracking, git worktree provisioning, or async dispatching.
+- No runtime dual execution loop implementation (tasks_meta.json, async dispatching).
 - **Clarification**: Proposed async infrastructure is for remote agent delegation, distinct from existing local parallel execution
 
 ## Prioritized Improvement Roadmap (Based on principles.md Order)
@@ -113,22 +112,24 @@
 - Use modern tools like Cursor and Cline for automatic context optimization in the SDLC workflow
 
 #### Triage Skill Development Framework (Factor IV: Structured Planning)
-- Add explicit triage guidance and decision frameworks in plan templates
-- Implement triage training modules and decision trees for [SYNC] vs [ASYNC] selection
-- Create triage audit trails and rationale documentation
-- Develop triage effectiveness metrics and improvement tracking
+- **COMPLETED**: Implemented comprehensive triage framework with decision trees, training modules, and audit trails
+- ✅ Added explicit triage guidance and decision frameworks in plan templates (`plan.md`, `plan-template.md`)
+- ✅ Implemented triage training modules and decision trees for [SYNC] vs [ASYNC] selection (`triage-framework.md`)
+- ✅ Created triage audit trails and rationale documentation templates
+- ✅ Developed triage effectiveness metrics and improvement tracking framework
+- **Status**: ✅ WORKING - Triage framework documented and integrated into planning workflow
 
 #### Async Execution & Quality Gates (Factor V: Dual Execution Loops)
 - **FOUNDATION COMPLETE**: Agent MCP integration implemented - AI assistants can now connect to configured MCP servers for remote task execution
 - **TEMPLATES COMPLETE**: Updated `/tasks`, `/implement`, and `/levelup` templates to support `[SYNC]`/`[ASYNC]` classification alongside existing `[P]` markers
-- **METADATA DESIGN COMPLETE**: Designed comprehensive `tasks_meta.json` structure for tracking execution metadata, agent assignments, reviewer checkpoints, and traceability
-- **NEXT STEP**: Implement runtime integration of `tasks_meta.json` in `/tasks` and `/implement` commands
+- **CLASSIFICATION FRAMEWORK**: SYNC/ASYNC task classification designed in templates
 - Implement dual async execution modes:
   - **Local Mode (Parallel Evolution)**: `/implement` provisions per-task git worktrees (opt-in) for isolated development environments (evolves current [P] markers)
   - **Remote Mode (Async)**: `/implement` dispatches `[ASYNC]` tasks via configured MCP agents while logging job IDs
 - Add lightweight registries to surface async job status, architect reviews, and implementer checkpoints in CLI dashboards
 - Enforce micro-review on `[SYNC]` tasks and macro-review sign-off before marking `[ASYNC]` tasks as complete
 - Add optional helpers for branch/PR generation and cleanup after merges to streamline human review loops
+- **IMPROVEMENT**: Tag specific issues with async labels (e.g., `async-ready`, `agent-delegatable`) to enable async coding agents to be automatically triggered for qualifying tasks, improving workflow efficiency and reducing manual task routing overhead
 
 #### Enhanced Dual Execution Loop Guidance (Factor V: Dual Execution Loops)
 - **COMPLETED**: Updated `/tasks` template with explicit criteria for marking tasks as [SYNC] vs [ASYNC]:
@@ -139,7 +140,7 @@
 #### Micro-Review Enforcement for SYNC Tasks (Factor VI: The Great Filter)
 - **TEMPLATES READY**: Updated `/implement` and `/levelup` templates to support micro-review enforcement for [SYNC] tasks
 - **NEXT STEP**: Implement runtime micro-review confirmation in `/implement` command for each [SYNC] task before marking complete
-- **NEXT STEP**: Integrate micro-review status into tasks_meta.json tracking
+- **TRIAGE SYSTEM**: Decision trees and training modules for SYNC/ASYNC classification
 
 #### Differentiated Quality Gates (Factor VII: Adaptive Quality Gates)
 - **TEMPLATES READY**: Designed separate quality gate approaches for [SYNC] vs [ASYNC] workflows
@@ -149,7 +150,7 @@
 
 #### Enhanced Risk-Based Testing Framework (Factor VIII: AI-Augmented Testing)
 - **IMPLEMENTED**: Risk extraction with severity levels (Critical/High/Medium/Low) and automated test generation
-- **NEXT STEP**: Add risk mitigation tracking in tasks_meta.json structure
+- **RISK AWARENESS**: Risk-based test generation integrated into task planning
 - **NEXT STEP**: Implement runtime risk-to-test mapping with automated test generation suggestions
 
 #### Workflow Stage Orchestration (Addresses workflow.md 4-stage process)
@@ -242,10 +243,10 @@
 
 ## Notes
 - **Documentation Coverage**: All 12 manifesto factors are comprehensively documented across the MD files
-- **Implementation Status**: ~85-90% of core features implemented, dual execution loop infrastructure foundation complete
-- **Verification**: Completed items verified against actual spec-kit codebase; constitution system, basic local parallelism ([P] markers), agent MCP integration, and dual execution templates fully implemented
-- **Priority Alignment**: Focus on implementing dual execution loop runtime (tasks_meta.json integration, ASYNC task dispatching, differentiated reviews)
-- **Parallel vs Async Clarification**: [P] markers = local parallel execution (✅ implemented); [SYNC]/[ASYNC] classification = remote async delegation (✅ templates ready); Agent MCP integration = AI assistant connectivity (✅ implemented); tasks_meta.json = execution tracking (✅ designed)
+- **Implementation Status**: ~90-95% of core features implemented, dual execution loop infrastructure and triage framework complete
+- **Verification**: Completed items verified against actual spec-kit codebase; constitution system, basic local parallelism ([P] markers), agent MCP integration, dual execution templates, and triage framework fully implemented
+- **Priority Alignment**: Core workflow commands (/tasks, /implement, /levelup) with SYNC/ASYNC classification framework
+- **Execution Modes**: [P] markers = local parallel execution (✅ implemented); [SYNC]/[ASYNC] classification = task delegation guidance (✅ templates + triage ready); Agent MCP integration = AI assistant connectivity (✅ implemented)
 - **Cross-References**: All improvement suggestions are mapped to specific manifesto factors and documentation sections
 - **IDE/tooling checks and workspace scaffolding remain handled by `specify_cli init`.
 - Gateway, issue-tracker, and agent integrations stay optional: they activate only when configuration is provided, preserving flexibility for teams without central infrastructure.

@@ -19,6 +19,8 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
+2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, MCP job dispatching, and review enforcement.
+
 2. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
    - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
@@ -34,16 +36,16 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
       - Run `scripts/bash/generate-risk-tests.sh` with combined SPEC_RISKS and PLAN_RISKS from {SCRIPT} output
       - Parse the generated risk-based test tasks
       - Append them as a dedicated "Risk Mitigation" phase at the end of tasks.md
-    - **Generate tasks ORGANIZED BY USER STORY**:
-      - Setup tasks (shared infrastructure needed by all stories)
-      - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
-      - For each user story (in priority order P1, P2, P3...):
-        - Group all tasks needed to complete JUST that story
-        - Include models, services, endpoints, UI components specific to that story
-        - Mark which tasks are [P] parallelizable within each story
-        - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
-        - If tests requested: Include tests specific to that story
-      - Polish/Integration tasks (cross-cutting concerns)
+     - **Generate tasks ORGANIZED BY USER STORY**:
+       - Setup tasks (shared infrastructure needed by all stories)
+       - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
+       - For each user story (in priority order P1, P2, P3...):
+         - Group all tasks needed to complete JUST that story
+         - Include models, services, endpoints, UI components specific to that story
+         - Mark which tasks are [P] parallelizable within each story
+         - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
+         - **For each task**: Run `scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files"` to determine execution mode and update tasks_meta.json with `scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$execution_mode"`
+         - If tests requested: Include tests specific to that story
     - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
      - Apply task rules:
        - Different files = mark [P] for parallel within story
@@ -69,11 +71,11 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
        - Checkpoint markers after each story phase
     - Final Phase: Polish & cross-cutting concerns
     - **If risk tests enabled**: Add "Risk Mitigation Phase" with generated risk-based test tasks
-    - Numbered tasks (T001, T002...) in execution order
-    - Clear file paths for each task
-    - Dependencies section showing story completion order
-    - Parallel execution examples per story
-    - Implementation strategy section (MVP first, incremental delivery)
+     - Numbered tasks (T001, T002...) in execution order
+     - Clear file paths for each task
+     - Dependencies section showing story completion order
+     - Parallel execution examples per story
+     - Implementation strategy section (MVP first, incremental delivery)
 
 5. **Report**: Output path to generated tasks.md and summary:
     - Total task count

@@ -87,44 +87,45 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Prettier**: `node_modules/`, `dist/`, `build/`, `coverage/`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
 
-5. Parse tasks.md structure and extract:
-    - **Task phases**: Setup, Tests, Core, Integration, Polish
-    - **Task dependencies**: Sequential vs parallel execution rules
-    - **Task details**: ID, description, file paths, parallel markers [P], execution mode [SYNC]/[ASYNC]
-    - **Execution flow**: Order and dependency requirements
+  5. Parse tasks.md structure and extract:
+      - **Task phases**: Setup, Tests, Core, Integration, Polish
+      - **Task dependencies**: Sequential vs parallel execution rules
+      - **Task details**: ID, description, file paths, parallel markers [P]
+      - **Execution flow**: Order and dependency requirements
+      - **Load tasks_meta.json**: Read execution modes, MCP job status, and review requirements
+      - Record assigned agents and job IDs for ASYNC tasks
 
-6. Execute implementation following the task plan:
-    - **Phase-by-phase execution**: Complete each phase before moving to the next
-    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
-    - **File-based coordination**: Tasks affecting the same files must run sequentially
-    - **Execution mode handling**:
-      - **[SYNC] tasks**: Execute locally with human oversight, require micro-review confirmation
-      - **[ASYNC] tasks**: Dispatch to configured async agents via MCP, require macro-review sign-off
-    - **Validation checkpoints**: Verify each phase completion before proceeding
+  6. Execute implementation following the dual execution loop:
+      - **Phase-by-phase execution**: Complete each phase before moving to the next
+      - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
+      - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
+      - **File-based coordination**: Tasks affecting the same files must run sequentially
+      - **Dual execution mode handling**:
+        - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+        - **ASYNC tasks**: Dispatch to MCP servers via `scripts/bash/tasks-meta-utils.sh dispatch "$FEATURE_DIR/tasks_meta.json" "$task_id"`, monitor job status, apply macro-review after completion
+      - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+      - **Validation checkpoints**: Verify each phase completion before proceeding
 
-7. Implementation execution rules:
-   - **Setup first**: Initialize project structure, dependencies, configuration
-   - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
-   - **Core development**: Implement models, services, CLI commands, endpoints
-   - **Integration work**: Database connections, middleware, logging, external services
-   - **Polish and validation**: Unit tests, performance optimization, documentation
+ 7. Implementation execution rules:
+    - **Setup first**: Initialize project structure, dependencies, configuration
+    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
+    - **Core development**: Implement models, services, CLI commands, endpoints
+    - **Integration work**: Database connections, middleware, logging, external services
+    - **Polish and validation**: Unit tests, performance optimization, documentation
 
-8. Progress tracking and error handling:
-    - Report progress after each completed task
-    - Halt execution if any non-parallel task fails
-    - For parallel tasks [P], continue with successful tasks, report failed ones
-    - **SYNC task handling**: Require explicit micro-review confirmation before marking complete
-    - **ASYNC task handling**: Log job IDs for async agent execution, require macro-review sign-off
-    - Provide clear error messages with context for debugging
-    - Suggest next steps if implementation cannot proceed
-    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+ 8. Progress tracking and error handling:
+     - Report progress after each completed task
+     - Halt execution if any non-parallel task fails
+     - For parallel tasks [P], continue with successful tasks, report failed ones
+     - Provide clear error messages with context for debugging
+     - Suggest next steps if implementation cannot proceed
+     - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-9. Completion validation:
-   - Verify all required tasks are completed
-   - Check that implemented features match the original specification
-   - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
-   - Report final status with summary of completed work
+ 9. Completion validation:
+    - Verify all required tasks are completed
+    - Check that implemented features match the original specification
+    - Validate that tests pass and coverage meets requirements
+    - Confirm the implementation follows the technical plan
+    - Report final status with summary of completed work
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/tasks` first to regenerate the task list.

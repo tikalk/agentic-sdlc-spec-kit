@@ -94,6 +94,37 @@ ios/ or android/
 **Structure Decision**: [Document the selected structure and reference the real
 directories captured above]
 
+## Triage Framework: [SYNC] vs [ASYNC] Classification
+
+**Execution Strategy**: This feature will use a hybrid execution model combining human expertise ([SYNC]) with autonomous agent delegation ([ASYNC]).
+
+### Preliminary Task Classification
+
+*Complete during planning phase - will be validated and refined during task generation*
+
+| Task Category | Estimated [SYNC] Tasks | Estimated [ASYNC] Tasks | Rationale |
+|---------------|----------------------|----------------------|-----------|
+| Business Logic | [count] | [count] | [why this split] |
+| Data Operations | [count] | [count] | [why this split] |
+| UI Components | [count] | [count] | [why this split] |
+| Integrations | [count] | [count] | [why this split] |
+| Infrastructure | [count] | [count] | [why this split] |
+
+### Triage Decision Criteria Applied
+
+**High-Risk [SYNC] Classifications:**
+- [List specific tasks that MUST be human-reviewed due to complexity/security/criticality]
+
+**Agent-Delegated [ASYNC] Classifications:**
+- [List specific tasks suitable for autonomous execution]
+
+### Triage Audit Trail
+
+| Task | Classification | Primary Criteria | Risk Level | Rationale |
+|------|----------------|------------------|------------|-----------|
+| [Task 1] | [SYNC/ASYNC] | [criteria] | [Low/Med/High] | [explanation] |
+| [Task 2] | [SYNC/ASYNC] | [criteria] | [Low/Med/High] | [explanation] |
+
 ## Complexity Tracking
 
 *Fill ONLY if Constitution Check has violations that must be justified*

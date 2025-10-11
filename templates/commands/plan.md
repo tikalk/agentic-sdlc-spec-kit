@@ -129,7 +129,57 @@ $ARGUMENTS
 
 **Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
+## Triage Framework: [SYNC] vs [ASYNC] Task Classification
+
+**Purpose**: Guide the classification of implementation tasks as [SYNC] (human-reviewed) or [ASYNC] (agent-delegated) to optimize execution efficiency and quality.
+
+### Triage Decision Framework
+
+**Evaluate Each Implementation Task Against These Criteria:**
+
+#### [SYNC] Classification (Human Execution Required)
+- **Complex Business Logic**: Non-trivial algorithms, state machines, or domain-specific calculations
+- **Architectural Decisions**: System design choices, component boundaries, or integration patterns
+- **Security-Critical Code**: Authentication, authorization, encryption, or data protection
+- **External Integrations**: Third-party APIs, legacy systems, or complex data transformations
+- **Ambiguous Requirements**: Unclear specifications requiring interpretation or clarification
+- **High-Risk Changes**: Database schema changes, API contract modifications, or breaking changes
+
+#### [ASYNC] Classification (Agent Delegation Suitable)
+- **Well-Defined CRUD**: Standard create/read/update/delete operations with clear schemas
+- **Repetitive Tasks**: Boilerplate code, standard library usage, or template-based generation
+- **Clear Specifications**: Unambiguous requirements with complete acceptance criteria
+- **Independent Components**: Self-contained modules with minimal external dependencies
+- **Standard Patterns**: Established frameworks, libraries, or architectural patterns
+- **Testable Units**: Components with comprehensive automated test coverage
+
+### Triage Process
+
+1. **Task Identification**: Break down the feature into discrete, implementable tasks
+2. **Criteria Evaluation**: Assess each task against the [SYNC]/[ASYNC] criteria above
+3. **Rationale Documentation**: Record the reasoning for each classification decision
+4. **Risk Assessment**: Consider the impact of incorrect classification
+5. **Review Checkpoint**: Validate triage decisions before task generation
+
+### Triage Audit Trail
+
+**Document for Each Task:**
+- Classification: [SYNC] or [ASYNC]
+- Primary Criteria: Which criteria drove the classification
+- Risk Level: Low/Medium/High (impact of misclassification)
+- Rationale: 1-2 sentence explanation
+- Review Status: Pending/Approved/Rejected
+
+### Triage Effectiveness Metrics
+
+**Track Over Time:**
+- Classification Accuracy: Percentage of tasks correctly classified (measured post-implementation)
+- Review Efficiency: Time spent on [SYNC] reviews vs [ASYNC] execution time
+- Quality Impact: Defect rates by classification type
+- Learning Opportunities: Common misclassification patterns
+
 ## Key rules
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+- **TRIAGE REQUIREMENT**: All implementation tasks must be classified as [SYNC] or [ASYNC] with documented rationale

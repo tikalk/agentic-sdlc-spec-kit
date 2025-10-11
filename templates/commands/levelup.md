@@ -22,9 +22,11 @@ $ARGUMENTS
 2. Load the implementation artifacts:
    - Read `SPEC_FILE` (feature intent and acceptance criteria).
    - Read `PLAN_FILE` (execution strategy and triage decisions).
-   - Read `TASKS_FILE` (completed task log, including `[SYNC]/[ASYNC]` execution modes and `[X]` markers).
-   - IF EXISTS: Read `RESEARCH_FILE` (supporting decisions) and `QUICKSTART_FILE` (validation scenarios).
-   - Synthesize the key decisions, risks addressed, and noteworthy implementation patterns from these artifacts.
+    - Read `TASKS_FILE` (completed task log, including `[SYNC]/[ASYNC]` execution modes and `[X]` markers).
+    - **Read tasks_meta.json**: Load dual execution metadata, review status, MCP job tracking, and quality gate results.
+    - IF EXISTS: Read `RESEARCH_FILE` (supporting decisions) and `QUICKSTART_FILE` (validation scenarios).
+    - Synthesize the key decisions, risks addressed, and noteworthy implementation patterns from these artifacts.
+    - **Perform macro-review**: Run `scripts/bash/tasks-meta-utils.sh review-macro "$FEATURE_DIR/tasks_meta.json"` to complete the dual execution loop.
 
 3. Draft the knowledge asset:
     - Determine a slug such as `{BRANCH}-levelup` and create a new markdown file under `KNOWLEDGE_DRAFTS/{slug}.md`.
@@ -34,11 +36,11 @@ $ARGUMENTS
       * **Evidence links** back to repository files/commits and the originating issue (if available from user input).
       * **Adoption guidance** (when to apply, prerequisites, caveats).
     - Ensure the asset is self-contained, written in clear, prescriptive language, and references the feature branch/issue ID where relevant.
-    - Generate a review checklist capturing:
-      * Which `[SYNC]` tasks were inspected and the outcome of their micro-reviews
-      * Which `[ASYNC]` tasks were delegated to agents and the outcome of their macro-reviews
-      * Any issues found during review and how they were resolved
-    - Embed this checklist in the asset for compliance with Stage 3 documentation.
+     - Generate a review checklist capturing:
+       * Tasks completed and any issues found during review
+       * Test coverage and quality metrics
+       * Documentation completeness
+     - Embed this checklist in the asset for compliance with Stage 3 documentation.
 
 4. Analyze for constitution enhancement:
     - Run `{CONSTITUTION_SCRIPT} --json "{KNOWLEDGE_DRAFTS}/{slug}.md"` to analyze the drafted knowledge asset for constitution relevance.
