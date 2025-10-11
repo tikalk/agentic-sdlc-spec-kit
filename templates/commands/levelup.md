@@ -34,7 +34,11 @@ $ARGUMENTS
       * **Evidence links** back to repository files/commits and the originating issue (if available from user input).
       * **Adoption guidance** (when to apply, prerequisites, caveats).
     - Ensure the asset is self-contained, written in clear, prescriptive language, and references the feature branch/issue ID where relevant.
-    - Generate a micro-review checklist capturing which `[SYNC]` tasks were inspected and the outcome of their micro-reviews; embed this in the asset for compliance with Stage 3 documentation.
+    - Generate a review checklist capturing:
+      * Which `[SYNC]` tasks were inspected and the outcome of their micro-reviews
+      * Which `[ASYNC]` tasks were delegated to agents and the outcome of their macro-reviews
+      * Any issues found during review and how they were resolved
+    - Embed this checklist in the asset for compliance with Stage 3 documentation.
 
 4. Analyze for constitution enhancement:
     - Run `{CONSTITUTION_SCRIPT} --json "{KNOWLEDGE_DRAFTS}/{slug}.md"` to analyze the drafted knowledge asset for constitution relevance.

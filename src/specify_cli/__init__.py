@@ -180,6 +180,29 @@ ISSUE_TRACKER_CONFIG = {
     },
 }
 
+# Agent MCP configuration for async coding agents that support autonomous task execution
+# These agents can receive tasks, execute them asynchronously, and create PRs
+AGENT_MCP_CONFIG = {
+    "jules": {
+        "name": "Jules",
+        "type": "http",
+        "url": "https://mcp.jules.ai/",
+        "description": "Connect to Jules for autonomous async task execution and PR creation",
+    },
+    "async-copilot": {
+        "name": "Async Copilot",
+        "type": "http",
+        "url": "https://mcp.async-copilot.dev/",
+        "description": "Connect to Async Copilot for autonomous coding task execution",
+    },
+    "async-codex": {
+        "name": "Async Codex",
+        "type": "http",
+        "url": "https://mcp.async-codex.ai/",
+        "description": "Connect to Async Codex for autonomous development workflows",
+    },
+}
+
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
@@ -571,6 +594,60 @@ def configure_mcp_servers(project_path: Path, issue_tracker: str, team_directive
         mcp_servers[server_name] = {
             "type": tracker_config["type"],
             "url": tracker_config["url"]
+        }
+
+    # Write updated configuration
+    mcp_data = {"mcpServers": mcp_servers}
+    with open(mcp_file, 'w') as f:
+        json.dump(mcp_data, f, indent=2)
+
+def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_path: Path | None = None) -> None:
+    """Configure MCP servers for AI agent integration.
+
+    Creates or updates .mcp.json in the project root with the appropriate
+    MCP server configuration for the selected AI coding agent.
+    """
+    import json
+
+    mcp_file = project_path / ".mcp.json"
+    mcp_servers = {}
+
+    # Load existing .mcp.json if it exists
+    if mcp_file.exists():
+        try:
+            with open(mcp_file, 'r') as f:
+                data = json.load(f)
+                mcp_servers = data.get("mcpServers", {})
+        except (json.JSONDecodeError, IOError):
+            # If file is corrupted, start fresh
+            pass
+
+    # Load team directives template if available
+    if team_directives_path:
+        template_file = team_directives_path / ".mcp.json"
+        if template_file.exists():
+            try:
+                with open(template_file, 'r') as f:
+                    template_data = json.load(f)
+                    template_servers = template_data.get("mcpServers", {})
+                    # Merge template servers (template takes precedence for conflicts)
+                    for name, config in template_servers.items():
+                        mcp_servers[name] = config
+            except (json.JSONDecodeError, IOError):
+                # Skip template if corrupted
+                pass
+
+    # Get agent configuration
+    agent_config = AGENT_MCP_CONFIG.get(agent)
+    if not agent_config:
+        raise ValueError(f"Unknown agent: {agent}")
+
+    # Add agent server
+    server_name = f"agent-{agent}"
+    if server_name not in mcp_servers:
+        mcp_servers[server_name] = {
+            "type": agent_config["type"],
+            "url": agent_config["url"]
         }
 
     # Write updated configuration
@@ -993,6 +1070,7 @@ def init(
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
     team_ai_directives: str = typer.Option(None, "--team-ai-directives", "--team-ai-directive", help="Clone or reference a team-ai-directives repository during setup"),
     issue_tracker: Optional[str] = typer.Option(None, "--issue-tracker", help="Enable issue tracker MCP integration: github, jira, linear, gitlab"),
+    async_agent: Optional[str] = typer.Option(None, "--async-agent", help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex"),
     gateway_url: str = typer.Option(None, "--gateway-url", help="Populate SPECIFY_GATEWAY_URL in .specify/config/gateway.env"),
     gateway_token: str = typer.Option(None, "--gateway-token", help="Populate SPECIFY_GATEWAY_TOKEN in .specify/config/gateway.env"),
     gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true in gateway.env"),
@@ -1009,7 +1087,8 @@ def init(
     6. Optionally scaffold central gateway configuration
     7. Optionally clone or reference a shared team-ai-directives repository
     8. Optionally configure MCP servers for issue tracker integration
-    9. Capture learnings after delivery with /speckit.levelup
+    9. Optionally configure MCP servers for AI agent integration
+    10. Capture learnings after delivery with /speckit.levelup
     
     Examples:
         specify init my-project
@@ -1026,6 +1105,7 @@ def init(
         specify init my-project --team-ai-directives ~/workspace/team-ai-directives
         specify init my-project --team-ai-directives https://github.com/example/team-ai-directives.git
         specify init my-project --issue-tracker github
+        specify init my-project --async-agent jules
         specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
     """
 
@@ -1124,6 +1204,12 @@ def init(
     if issue_tracker:
         if issue_tracker not in ISSUE_TRACKER_CONFIG:
             console.print(f"[red]Error:[/red] Invalid issue tracker '{issue_tracker}'. Choose from: {', '.join(ISSUE_TRACKER_CONFIG.keys())}")
+            raise typer.Exit(1)
+
+    # Validate async agent option
+    if async_agent:
+        if async_agent not in AGENT_MCP_CONFIG:
+            console.print(f"[red]Error:[/red] Invalid async agent '{async_agent}'. Choose from: {', '.join(AGENT_MCP_CONFIG.keys())}")
             raise typer.Exit(1)
 
     if not ignore_agent_tools:
@@ -1234,6 +1320,18 @@ def init(
                     raise
             else:
                 tracker.skip("mcp", "not requested")
+
+            # Async Agent MCP configuration step
+            if async_agent:
+                tracker.start("async-agent-mcp", "configuring")
+                try:
+                    configure_agent_mcp_servers(project_path, async_agent, resolved_team_directives if team_arg else None)
+                    tracker.complete("async-agent-mcp", "configured")
+                except Exception as e:
+                    tracker.error("async-agent-mcp", str(e))
+                    raise
+            else:
+                tracker.skip("async-agent-mcp", "not requested")
 
             if not no_git:
                 tracker.start("git")

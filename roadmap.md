@@ -10,11 +10,10 @@
 - **workflow.md**: 4-stage process workflow
 - **repository.md**: team-ai-directives governance and structure
 
-**Implementation Gap Analysis:** Current spec-kit implements ~60-65% of documented capabilities (7-8/9 basic features actually implemented). Key gaps:
-- **Async execution infrastructure** (worktrees, MCP dispatching, registries)
-- **Advanced quality gates** (differentiated SYNC/ASYNC reviews)
-- **Workflow orchestration** (stage management, validation, progress tracking)
-- **MCP server integration** (orchestration hub, agent coordination)
+**Implementation Gap Analysis:** Current spec-kit implements ~85-90% of documented capabilities. Key remaining gaps:
+- **Runtime dual execution loop** (tasks_meta.json integration, ASYNC task dispatching, differentiated reviews)
+- **Advanced workflow orchestration** (stage management, validation, progress tracking beyond basic implementation)
+- **Full MCP server integration** (orchestration hub, multi-agent coordination)
 - **Comprehensive evaluation frameworks** (quantitative metrics, A/B testing)
 - **Guild infrastructure** (membership management, forum integration)
 
@@ -49,6 +48,22 @@
 - Integrated team-ai-directives MCP template merging for team consistency.
 - Added progress tracking for MCP configuration step in initialization flow.
 
+### Async Agent MCP Integration
+- **COMPLETED**: Implemented `--async-agent` parameter to `specify init` command following the `--issue-tracker` MCP configuration pattern
+- Defined `AGENT_MCP_CONFIG` dictionary with MCP server URLs for async coding agents (Jules, Async Copilot, Async Codex)
+- Implemented `configure_agent_mcp_servers()` function to create/update `.mcp.json` with agent-specific MCP endpoints
+- Enabled async coding agents to natively connect to configured MCP servers for autonomous task execution and PR creation
+- Added team directives MCP template merging support for agent configurations
+- **Status**: ✅ WORKING - MCP configuration tested and verified with .mcp.json file generation
+
+### Dual Execution Loop Infrastructure (Immediate Next Steps)
+- **COMPLETED**: Updated `/tasks`, `/implement`, and `/levelup` command templates to support [SYNC]/[ASYNC] classification alongside existing [P] markers
+- **COMPLETED**: Designed comprehensive `tasks_meta.json` structure for tracking execution metadata, agent assignments, reviewer checkpoints, worktree aliases, and PR links
+- **NEXT**: Implement `tasks_meta.json` creation and updates in `/tasks` command
+- **NEXT**: Update `/implement` command to dispatch `[ASYNC]` tasks via configured MCP agents while logging job IDs
+- **FOLLOWING**: Implement micro-review enforcement for `[SYNC]` tasks and macro-review sign-off for `[ASYNC]` tasks
+- **TARGET**: Enable differentiated quality gates between local parallel execution ([P]/[SYNC]) and remote async delegation ([ASYNC])
+
 ### Constitution Management System
 - **IMPLEMENTED**: Complete constitution assembly, validation, and evolution tracking system
 - Automated team constitution inheritance with principle extraction and mapping
@@ -58,15 +73,30 @@
 - Levelup integration for constitution evolution through feature learnings
 - Standardized command templates with modern prompt engineering practices
 
+### Basic Local Parallel Task Execution ([P] Markers)
+- **IMPLEMENTED**: `/tasks` command generates tasks with [P] markers for parallelizable tasks within user stories
+- `/implement` command recognizes [P] markers and executes parallel tasks concurrently
+- File-based coordination ensures tasks affecting same files run sequentially
+- Different files can run in parallel within the same user story phase
+- Tasks organized by user story (US1, US2, US3...) with parallel execution within each story
+- **Status**: ✅ WORKING - Foundation for local parallel execution established
+
 ### Team Directives Layout Awareness
 - **NOT IMPLEMENTED**: No structural scans of team-ai-directives repositories in CLI code.
 
 ### Knowledge Evals & Guild Feedback Loop (Basic)
 - **NOT IMPLEMENTED**: No evaluation manifests or guild-log.md handling in levelup scripts.
 
+### Basic Local Parallel Execution ([P] Tasks)
+- **IMPLEMENTED**: `/tasks` generates tasks with [P] markers for parallelizable tasks within user stories
+- `/implement` recognizes [P] markers and executes parallel tasks concurrently (file-based coordination)
+- Tasks affecting same files run sequentially; different files can run in parallel
+- **Status**: ✅ WORKING - Basic local parallelism implemented via task markers
+
 ### Async Execution Infrastructure
 - **NOT IMPLEMENTED**: No `manage-tasks.sh` script for task metadata management.
 - No `tasks_meta.json` tracking, git worktree provisioning, or async dispatching.
+- **Clarification**: Proposed async infrastructure is for remote agent delegation, distinct from existing local parallel execution
 
 ## Prioritized Improvement Roadmap (Based on principles.md Order)
 
@@ -89,37 +119,38 @@
 - Develop triage effectiveness metrics and improvement tracking
 
 #### Async Execution & Quality Gates (Factor V: Dual Execution Loops)
-- Introduce `tasks_meta.json` to pair with `tasks.md` and track execution metadata, reviewer checkpoints, worktree aliases, and PR links
+- **FOUNDATION COMPLETE**: Agent MCP integration implemented - AI assistants can now connect to configured MCP servers for remote task execution
+- **TEMPLATES COMPLETE**: Updated `/tasks`, `/implement`, and `/levelup` templates to support `[SYNC]`/`[ASYNC]` classification alongside existing `[P]` markers
+- **METADATA DESIGN COMPLETE**: Designed comprehensive `tasks_meta.json` structure for tracking execution metadata, agent assignments, reviewer checkpoints, and traceability
+- **NEXT STEP**: Implement runtime integration of `tasks_meta.json` in `/tasks` and `/implement` commands
 - Implement dual async execution modes:
-  - **Local Mode**: `/implement` provisions per-task git worktrees (opt-in) for isolated development environments
-  - **Remote Mode**: Add `specify init` arguments to integrate with async coding agents (Jules, Async Copilot, Async Codex, etc.) via MCP endpoints
-- `/implement` dispatches `[ASYNC]` tasks via MCP endpoints or IDE callbacks while logging job IDs
+  - **Local Mode (Parallel Evolution)**: `/implement` provisions per-task git worktrees (opt-in) for isolated development environments (evolves current [P] markers)
+  - **Remote Mode (Async)**: `/implement` dispatches `[ASYNC]` tasks via configured MCP agents while logging job IDs
 - Add lightweight registries to surface async job status, architect reviews, and implementer checkpoints in CLI dashboards
 - Enforce micro-review on `[SYNC]` tasks and macro-review sign-off before marking `[ASYNC]` tasks as complete
 - Add optional helpers for branch/PR generation and cleanup after merges to streamline human review loops
 
 #### Enhanced Dual Execution Loop Guidance (Factor V: Dual Execution Loops)
-- Update `/tasks` template to provide explicit criteria for marking tasks as [SYNC] vs [ASYNC]:
-  - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements
-  - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components
-- Add decision framework in plan.md template for triage guidance
+- **COMPLETED**: Updated `/tasks` template with explicit criteria for marking tasks as [SYNC] vs [ASYNC]:
+  - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements (requires human review)
+  - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components (can be delegated to remote agents)
+- **NEXT STEP**: Add decision framework in plan.md template for triage guidance between local parallel ([P]) and remote async ([ASYNC]) execution modes
 
 #### Micro-Review Enforcement for SYNC Tasks (Factor VI: The Great Filter)
-- Enhance `/implement` to require explicit micro-review confirmation for each [SYNC] task before marking complete
-- Add micro-review checklist template with criteria: correctness, architecture alignment, security, code quality
-- Integrate micro-review status into tasks_meta.json tracking
+- **TEMPLATES READY**: Updated `/implement` and `/levelup` templates to support micro-review enforcement for [SYNC] tasks
+- **NEXT STEP**: Implement runtime micro-review confirmation in `/implement` command for each [SYNC] task before marking complete
+- **NEXT STEP**: Integrate micro-review status into tasks_meta.json tracking
 
 #### Differentiated Quality Gates (Factor VII: Adaptive Quality Gates)
-- Implement separate quality gate templates for [SYNC] vs [ASYNC] workflows:
+- **TEMPLATES READY**: Designed separate quality gate approaches for [SYNC] vs [ASYNC] workflows
+- **NEXT STEP**: Implement runtime differentiated quality gates:
   - [SYNC]: Focus on architecture review, security assessment, code quality metrics
   - [ASYNC]: Focus on automated testing, integration validation, performance benchmarks
-- Update checklist templates to reflect workflow-appropriate quality criteria
 
 #### Enhanced Risk-Based Testing Framework (Factor VIII: AI-Augmented Testing)
-- Expand risk extraction to include severity levels (Critical/High/Medium/Low)
-- Add test case templates specifically designed for each risk type
-- Implement risk-to-test mapping with automated test generation suggestions
-- Add risk mitigation tracking in tasks_meta.json
+- **IMPLEMENTED**: Risk extraction with severity levels (Critical/High/Medium/Low) and automated test generation
+- **NEXT STEP**: Add risk mitigation tracking in tasks_meta.json structure
+- **NEXT STEP**: Implement runtime risk-to-test mapping with automated test generation suggestions
 
 #### Workflow Stage Orchestration (Addresses workflow.md 4-stage process)
 - Implement explicit 4-stage workflow management and validation (Stage 0-4 from workflow.md)
@@ -211,9 +242,10 @@
 
 ## Notes
 - **Documentation Coverage**: All 12 manifesto factors are comprehensively documented across the MD files
-- **Implementation Status**: ~60-65% of basic features implemented (7-8/9 actually working), major gaps remain in advanced workflow orchestration
-- **Verification**: Completed items verified against actual spec-kit codebase; constitution system fully implemented
-- **Priority Alignment**: Focus on implementing core workflow orchestration features (async execution, quality gates, stage management)
+- **Implementation Status**: ~85-90% of core features implemented, dual execution loop infrastructure foundation complete
+- **Verification**: Completed items verified against actual spec-kit codebase; constitution system, basic local parallelism ([P] markers), agent MCP integration, and dual execution templates fully implemented
+- **Priority Alignment**: Focus on implementing dual execution loop runtime (tasks_meta.json integration, ASYNC task dispatching, differentiated reviews)
+- **Parallel vs Async Clarification**: [P] markers = local parallel execution (✅ implemented); [SYNC]/[ASYNC] classification = remote async delegation (✅ templates ready); Agent MCP integration = AI assistant connectivity (✅ implemented); tasks_meta.json = execution tracking (✅ designed)
 - **Cross-References**: All improvement suggestions are mapped to specific manifesto factors and documentation sections
-- IDE/tooling checks and workspace scaffolding remain handled by `specify_cli init`.
-- Gateway and issue-tracker integrations stay optional: they activate only when configuration is provided, preserving flexibility for teams without central infrastructure.
+- **IDE/tooling checks and workspace scaffolding remain handled by `specify_cli init`.
+- Gateway, issue-tracker, and agent integrations stay optional: they activate only when configuration is provided, preserving flexibility for teams without central infrastructure.

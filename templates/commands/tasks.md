@@ -40,14 +40,18 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
       - For each user story (in priority order P1, P2, P3...):
         - Group all tasks needed to complete JUST that story
         - Include models, services, endpoints, UI components specific to that story
-        - Mark which tasks are [P] parallelizable
+        - Mark which tasks are [P] parallelizable within each story
+        - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
         - If tests requested: Include tests specific to that story
       - Polish/Integration tasks (cross-cutting concerns)
     - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
-    - Apply task rules:
-      - Different files = mark [P] for parallel
-      - Same file = sequential (no [P])
-      - If tests requested: Tests before implementation (TDD order)
+     - Apply task rules:
+       - Different files = mark [P] for parallel within story
+       - Same file = sequential (no [P])
+       - If tests requested: Tests before implementation (TDD order)
+       - Classify execution mode:
+         - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements (requires human review)
+         - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components (can be delegated to async agents)
     - Number tasks sequentially (T001, T002...)
     - Generate dependency graph showing user story completion order
     - Create parallel execution examples per user story
@@ -59,9 +63,10 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
     - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
     - Phase 3+: One phase per user story (in priority order from spec.md)
       - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-      - Clear [Story] labels (US1, US2, US3...) for each task
-      - [P] markers for parallelizable tasks within each story
-      - Checkpoint markers after each story phase
+       - Clear [Story] labels (US1, US2, US3...) for each task
+       - [P] markers for parallelizable tasks within each story
+       - [SYNC]/[ASYNC] markers for execution mode classification
+       - Checkpoint markers after each story phase
     - Final Phase: Polish & cross-cutting concerns
     - **If risk tests enabled**: Add "Risk Mitigation Phase" with generated risk-based test tasks
     - Numbered tasks (T001, T002...) in execution order
@@ -114,10 +119,26 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - Story-specific setup → within that story's phase
 
 5. **Ordering**:
-   - Phase 1: Setup (project initialization)
-   - Phase 2: Foundational (blocking prerequisites - must complete before user stories)
-   - Phase 3+: User Stories in priority order (P1, P2, P3...)
-     - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
-   - Final Phase: Polish & Cross-Cutting Concerns
-   - Each user story phase should be a complete, independently testable increment
+    - Phase 1: Setup (project initialization)
+    - Phase 2: Foundational (blocking prerequisites - must complete before user stories)
+    - Phase 3+: User Stories in priority order (P1, P2, P3...)
+      - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
+    - Final Phase: Polish & Cross-Cutting Concerns
+    - Each user story phase should be a complete, independently testable increment
+
+6. **[SYNC]/[ASYNC] Classification**:
+    - **[SYNC] Tasks**: Require human review and oversight
+      - Complex business logic or algorithms
+      - Architectural or design decisions
+      - Security-critical functionality
+      - Integration with external systems
+      - Ambiguous or unclear requirements
+      - Tasks affecting multiple components
+    - **[ASYNC] Tasks**: Can be safely delegated to async coding agents
+      - Well-defined CRUD operations
+      - Repetitive or boilerplate code
+      - Clear, unambiguous specifications
+      - Independent component implementation
+      - Standard library/framework usage
+      - Tasks with comprehensive test coverage
 
