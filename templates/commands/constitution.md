@@ -1,5 +1,8 @@
 ---
 description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
+scripts:
+  sh: scripts/bash/setup-constitution.sh
+  ps: scripts/powershell/setup-constitution.ps1
 ---
 
 ## User Input
