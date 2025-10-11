@@ -111,6 +111,13 @@
 - Incorporate actionable tips for AI-assisted coding: include error logs, design docs, database schemas, and PR feedback in context management
 - Use modern tools like Cursor and Cline for automatic context optimization in the SDLC workflow
 
+#### Dual Execution Loop Runtime Implementation (Factor V: Dual Execution Loops)
+- ✅ **COMPLETED**: Runtime integration - Updated `/implement` command with scripts for ASYNC task dispatching and SYNC task micro-review enforcement
+- ✅ **COMPLETED**: Interactive review workflows - Added micro-review prompts for SYNC tasks and macro-review validation for completed features
+- ✅ **COMPLETED**: Differentiated quality gates - Implemented SYNC (80% coverage + security scans) and ASYNC (60% coverage + macro review) validation
+- ✅ **COMPLETED**: End-to-end testing - Created comprehensive test suite for dual execution loop workflow validation
+- ✅ **COMPLETED**: Issue tracker labeling - Implemented `async-ready` and `agent-delegatable` labels for automatic async agent triggering
+
 #### Triage Skill Development Framework (Factor IV: Structured Planning)
 - **COMPLETED**: Implemented comprehensive triage framework with decision trees, training modules, and audit trails
 - ✅ Added explicit triage guidance and decision frameworks in plan templates (`plan.md`, `plan-template.md`)
@@ -135,6 +142,10 @@
 - **COMPLETED**: Updated `/tasks` template with explicit criteria for marking tasks as [SYNC] vs [ASYNC]:
   - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements (requires human review)
   - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components (can be delegated to remote agents)
+- **COMPLETED**: Implemented issue tracker labeling for automatic async agent triggering:
+  - Apply `async-ready` and `agent-delegatable` labels to issues with ASYNC tasks
+  - Enable automatic task delegation to configured MCP agents
+  - Track labeling status in tasks_meta.json for traceability
 - **NEXT STEP**: Add decision framework in plan.md template for triage guidance between local parallel ([P]) and remote async ([ASYNC]) execution modes
 
 #### Micro-Review Enforcement for SYNC Tasks (Factor VI: The Great Filter)
@@ -243,10 +254,10 @@
 
 ## Notes
 - **Documentation Coverage**: All 12 manifesto factors are comprehensively documented across the MD files
-- **Implementation Status**: ~90-95% of core features implemented, dual execution loop infrastructure and triage framework complete
-- **Verification**: Completed items verified against actual spec-kit codebase; constitution system, basic local parallelism ([P] markers), agent MCP integration, dual execution templates, and triage framework fully implemented
-- **Priority Alignment**: Core workflow commands (/tasks, /implement, /levelup) with SYNC/ASYNC classification framework
-- **Execution Modes**: [P] markers = local parallel execution (✅ implemented); [SYNC]/[ASYNC] classification = task delegation guidance (✅ templates + triage ready); Agent MCP integration = AI assistant connectivity (✅ implemented)
+- **Implementation Status**: ~95-98% of core features implemented, dual execution loop fully operational with runtime dispatching, reviews, and quality gates
+- **Verification**: Completed items verified against actual spec-kit codebase; constitution system, dual execution loop, agent MCP integration, issue tracker labeling, and comprehensive testing fully implemented
+- **Priority Alignment**: Core workflow commands (/tasks, /implement, /levelup) with complete SYNC/ASYNC execution framework
+- **Execution Modes**: [P] markers = local parallel execution (✅ implemented); [SYNC]/[ASYNC] classification = full task delegation with MCP dispatching (✅ implemented); Agent MCP integration = AI assistant connectivity (✅ implemented); Issue labeling = automatic async triggering (✅ implemented)
 - **Cross-References**: All improvement suggestions are mapped to specific manifesto factors and documentation sections
 - **IDE/tooling checks and workspace scaffolding remain handled by `specify_cli init`.
 - Gateway, issue-tracker, and agent integrations stay optional: they activate only when configuration is provided, preserving flexibility for teams without central infrastructure.

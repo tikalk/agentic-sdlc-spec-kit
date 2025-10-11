@@ -77,13 +77,19 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
      - Parallel execution examples per story
      - Implementation strategy section (MVP first, incremental delivery)
 
-5. **Report**: Output path to generated tasks.md and summary:
-    - Total task count
-    - Task count per user story
-    - Parallel opportunities identified
-    - Independent test criteria for each story
-    - **If risk tests enabled**: Number of risk mitigation tasks generated
-    - Suggested MVP scope (typically just User Story 1)
+  5. **Apply Issue Tracker Labels**: If issue tracker MCP is configured and ASYNC tasks exist:
+     - Apply `async-ready` and `agent-delegatable` labels to the associated issue
+     - Update tasks_meta.json with labeling information
+     - Enable automatic async agent triggering for qualifying tasks
+
+  6. **Report**: Output path to generated tasks.md and summary:
+     - Total task count
+     - Task count per user story
+     - Parallel opportunities identified
+     - Independent test criteria for each story
+     - **If risk tests enabled**: Number of risk mitigation tasks generated
+     - **If issue labeling applied**: Issue ID and labels applied
+     - Suggested MVP scope (typically just User Story 1)
 
 Context for task generation: {ARGS}
 

@@ -1,8 +1,8 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
+  sh: scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
+  ps: scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
 ---
 
 ## User Input
@@ -121,11 +121,16 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Suggest next steps if implementation cannot proceed
      - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
- 9. Completion validation:
-    - Verify all required tasks are completed
-    - Check that implemented features match the original specification
-    - Validate that tests pass and coverage meets requirements
-    - Confirm the implementation follows the technical plan
-    - Report final status with summary of completed work
+  9. Issue Tracker Integration:
+     - If ASYNC tasks were dispatched, update issue tracker with progress
+     - Apply completion labels when ASYNC tasks finish
+     - Provide traceability links between tasks and issue tracker items
+
+  10. Completion validation:
+      - Verify all required tasks are completed
+      - Check that implemented features match the original specification
+      - Validate that tests pass and coverage meets requirements
+      - Confirm the implementation follows the technical plan
+      - Report final status with summary of completed work
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/tasks` first to regenerate the task list.
