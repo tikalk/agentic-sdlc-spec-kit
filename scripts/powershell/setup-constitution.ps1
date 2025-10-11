@@ -2,22 +2,21 @@
 [CmdletBinding()]
 param(
     [switch]$Json,
-    [switch]$Validate
+    [switch]$Validate,
+    [switch]$Scan,
+    [switch]$Help
 )
 
 $ErrorActionPreference = 'Stop'
 
-# Import common functions (assuming they exist)
-# . "$PSScriptRoot\common.ps1"
-
-# Get repository root
-function Get-RepositoryRoot {
-    if (Get-Command git -ErrorAction SilentlyContinue) {
-        try {
-            $gitRoot = & git rev-parse --show-toplevel 2>$null
-            if ($gitRoot) { return $gitRoot }
-        } catch { }
-    }
+if ($Help) {
+    Write-Output "Usage: ./setup-constitution.ps1 [-Json] [-Validate] [-Scan] [-Help]"
+    Write-Output "  -Json     Output results in JSON format"
+    Write-Output "  -Validate Validate existing constitution against team inheritance"
+    Write-Output "  -Scan     Scan project artifacts and suggest constitution enhancements"
+    Write-Output "  -Help     Show this help message"
+    exit 0
+}
 
     # Fallback: search for repository markers
     $currentDir = Get-Location
@@ -183,6 +182,12 @@ try {
         New-Item -ItemType Directory -Path $constitutionDir -Force | Out-Null
     }
 
+    if ($Scan -and -not (Test-Path $constitutionFile)) {
+        Write-Host "Scanning project artifacts for constitution suggestions..." -ForegroundColor Cyan
+        & "$PSScriptRoot\scan-project-artifacts.ps1" -Suggestions
+        exit 0
+    }
+
     if ($Validate) {
         if (-not (Test-Path $constitutionFile)) {
             Write-Error "No constitution file found at $constitutionFile. Run without --validate to create the constitution first."
@@ -230,6 +235,65 @@ try {
     # Create new constitution
     $teamConstitution = Get-TeamConstitution
     $projectConstitution = Add-ProjectContext -Constitution $teamConstitution
+
+    # If scan mode is enabled, enhance constitution with project insights
+    if ($Scan) {
+        if (-not $Json) {
+            Write-Host "Enhancing constitution with project artifact analysis..." -ForegroundColor Cyan
+        }
+
+        # Get scan results
+        $scanResults = & "$PSScriptRoot\scan-project-artifacts.ps1" -Json | ConvertFrom-Json
+
+        # Generate additional principles based on scan
+        $additionalPrinciples = @()
+
+        # Parse testing data
+        $testingParts = $scanResults.testing -split '\|'
+        $testFiles = [int]$testingParts[0]
+        $testFrameworks = $testingParts[1]
+
+        if ($testFiles -gt 0) {
+            $additionalPrinciples += @"
+### Tests Drive Confidence (Project Practice)
+Automated testing is established with $testFiles test files using $testFrameworks. All features must maintain or improve test coverage. Refuse to ship when test suites fail.
+"@
+        }
+
+        # Parse security data
+        $securityParts = $scanResults.security -split '\|'
+        $authPatterns = [int]$securityParts[0]
+        $securityIndicators = [int]$securityParts[2]
+
+        if ($authPatterns -gt 0 -or $securityIndicators -gt 0) {
+            $additionalPrinciples += @"
+### Security by Default (Project Practice)
+Security practices are established in the codebase. All features must include security considerations, input validation, and follow established security patterns.
+"@
+        }
+
+        # Parse documentation data
+        $docsParts = $scanResults.documentation -split '\|'
+        $readmeCount = [int]$docsParts[0]
+
+        if ($readmeCount -gt 0) {
+            $additionalPrinciples += @"
+### Documentation Matters (Project Practice)
+Documentation practices are established with $readmeCount README files. All features must include appropriate documentation and maintain existing documentation standards.
+"@
+        }
+
+        # Insert additional principles into constitution
+        if ($additionalPrinciples.Count -gt 0) {
+            $projectConstitution = $projectConstitution -replace '(## Additional Constraints)', @"
+## Project-Specific Principles
+
+$($additionalPrinciples -join "`n`n")
+
+## Additional Constraints
+"@
+        }
+    }
 
     # Validate inheritance
     if (-not $Json) {

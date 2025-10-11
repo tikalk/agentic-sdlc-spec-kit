@@ -6,6 +6,7 @@ JSON_MODE=false
 ARGS=()
 
 VALIDATE_MODE=false
+SCAN_MODE=false
 
 for arg in "$@"; do
     case "$arg" in
@@ -15,10 +16,14 @@ for arg in "$@"; do
         --validate)
             VALIDATE_MODE=true
             ;;
+        --scan)
+            SCAN_MODE=true
+            ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--validate]"
+            echo "Usage: $0 [--json] [--validate] [--scan]"
             echo "  --json      Output results in JSON format"
             echo "  --validate  Validate existing constitution against team inheritance"
+            echo "  --scan      Scan project artifacts and suggest constitution enhancements"
             echo "  --help      Show this help message"
             exit 0
             ;;
@@ -39,6 +44,7 @@ eval $(get_feature_paths)
 mkdir -p "$REPO_ROOT/.specify/memory"
 
 CONSTITUTION_FILE="$REPO_ROOT/.specify/memory/constitution.md"
+TEMPLATE_FILE="$REPO_ROOT/memory/constitution.md"
 
 # Function to load team constitution
 load_team_constitution() {
@@ -84,9 +90,54 @@ Security considerations must be addressed for all features.
     echo "$team_constitution"
 }
 
-# Function to enhance constitution with project context
-enhance_constitution() {
-    local base_constitution="$1"
+# Function to parse team principles
+parse_team_principles() {
+    local team_constitution="$1"
+
+    principles=()
+    descriptions=()
+
+    echo "DEBUG: Parsing team constitution:" >&2
+    echo "$team_constitution" | head -10 >&2
+
+    # Split team constitution into lines and parse
+    in_description=false
+    current_description=""
+
+    while IFS= read -r line; do
+        echo "DEBUG: Line: '$line'" >&2
+        # Check for principle header: "1. **Principle Name**"
+        if [[ $line =~ ^([0-9]+)\.\ \*\*(.*)\*\*\ *$ ]]; then
+            echo "DEBUG: Matched principle: '${BASH_REMATCH[2]}'" >&2
+            # Save previous principle if exists
+            if [[ ${#principles[@]} -gt 0 && -n "$current_description" ]]; then
+                descriptions[${#descriptions[@]}]="$current_description"
+            fi
+
+            # Start new principle
+            principles[${#principles[@]}]="${BASH_REMATCH[2]}"
+            current_description=""
+            in_description=true
+        elif [[ $in_description == true && -n "$line" ]]; then
+            # Accumulate description lines
+            if [[ -z "$current_description" ]]; then
+                current_description="$line"
+            else
+                current_description="$current_description $line"
+            fi
+        fi
+    done <<< "$team_constitution"
+
+    # Save last principle description
+    if [[ ${#principles[@]} -gt 0 && -n "$current_description" ]]; then
+        descriptions[${#descriptions[@]}]="$current_description"
+    fi
+}
+
+# Function to fill constitution template with team inheritance
+fill_constitution_template() {
+    local team_constitution="$1"
+    local template_content="$2"
     local project_name=""
 
     # Try to extract project name from git or directory
@@ -96,16 +147,49 @@ enhance_constitution() {
         project_name=$(basename "$REPO_ROOT")
     fi
 
-    # Add project-specific header if not present
-    if ! echo "$base_constitution" | grep -q "^# $project_name Constitution"; then
-        base_constitution="# $project_name Constitution
+    # Parse team principles
+    parse_team_principles "$team_constitution"
 
-*Inherited from team constitution on $(date +%Y-%m-%d)*
+    # Debug: Show what was parsed
+    echo "DEBUG: Found ${#principles[@]} principles" >&2
+    for i in "${!principles[@]}"; do
+        echo "DEBUG: Principle $((i+1)): '${principles[$i]}'" >&2
+    done
 
-$base_constitution"
-    fi
+    # Set template variables
+    local today=$(date +%Y-%m-%d)
 
-    echo "$base_constitution"
+    # Replace placeholders in template
+    filled_template="$template_content"
+    filled_template="${filled_template//\[PROJECT_NAME\]/$project_name}"
+    filled_template="${filled_template//\[CONSTITUTION_VERSION\]/1.0.0}"
+    filled_template="${filled_template//\[RATIFICATION_DATE\]/$today}"
+    filled_template="${filled_template//\[LAST_AMENDED_DATE\]/$today}"
+
+    # Fill principle placeholders
+    for i in {1..5}; do
+        # Get principle name and description (arrays are 0-indexed)
+        local idx=$((i-1))
+        local name_value=""
+        local desc_value=""
+
+        if [[ $idx -lt ${#principles[@]} ]]; then
+            name_value="${principles[$idx]}"
+            desc_value="${descriptions[$idx]}"
+        fi
+
+        filled_template="${filled_template//\[PRINCIPLE_${i}_NAME\]/$name_value}"
+        filled_template="${filled_template//\[PRINCIPLE_${i}_DESCRIPTION\]/$desc_value}"
+    done
+
+    # Fill section placeholders with team governance
+    filled_template="${filled_template//\[SECTION_2_NAME\]/Additional Constraints}"
+    filled_template="${filled_template//\[SECTION_2_CONTENT\]/All team principles must be followed. Constitution supersedes other practices.}"
+    filled_template="${filled_template//\[SECTION_3_NAME\]/Development Workflow}"
+    filled_template="${filled_template//\[SECTION_3_CONTENT\]/Follow team constitution principles in all development activities.}"
+    filled_template="${filled_template//\[GOVERNANCE_RULES\]/All changes must comply with team constitution. Amendments require team approval.}"
+
+    echo "$filled_template"
 }
 
 # Function to validate inheritance integrity
@@ -174,6 +258,13 @@ check_team_updates() {
     fi
 }
 
+# Scan-only mode
+if $SCAN_MODE && [[ ! -f "$CONSTITUTION_FILE" ]]; then
+    echo "Scanning project artifacts for constitution suggestions..."
+    "$SCRIPT_DIR/scan-project-artifacts.sh" --suggestions
+    exit 0
+fi
+
 # Validation-only mode
 if $VALIDATE_MODE; then
     if [[ ! -f "$CONSTITUTION_FILE" ]]; then
@@ -224,8 +315,72 @@ fi
 # Load team constitution
 TEAM_CONSTITUTION=$(load_team_constitution)
 
-# Enhance with project context
-PROJECT_CONSTITUTION=$(enhance_constitution "$TEAM_CONSTITUTION")
+# Load constitution template
+if [[ ! -f "$TEMPLATE_FILE" ]]; then
+    echo "ERROR: Constitution template not found at $TEMPLATE_FILE"
+    exit 1
+fi
+TEMPLATE_CONTENT=$(cat "$TEMPLATE_FILE")
+
+# Fill template with team inheritance
+PROJECT_CONSTITUTION=$(fill_constitution_template "$TEAM_CONSTITUTION" "$TEMPLATE_CONTENT")
+
+# If scan mode is enabled, enhance constitution with project insights
+if $SCAN_MODE; then
+    if ! $JSON_MODE; then
+        echo "Enhancing constitution with project artifact analysis..."
+    fi
+
+    # Get scan suggestions
+    SCAN_SUGGESTIONS=$("$SCRIPT_DIR/scan-project-artifacts.sh" --json)
+
+    # Parse scan data and generate suggestions
+    TESTING_DATA=$(echo "$SCAN_SUGGESTIONS" | jq -r '.testing')
+    SECURITY_DATA=$(echo "$SCAN_SUGGESTIONS" | jq -r '.security')
+    DOCS_DATA=$(echo "$SCAN_SUGGESTIONS" | jq -r '.documentation')
+    ARCH_DATA=$(echo "$SCAN_SUGGESTIONS" | jq -r '.architecture')
+
+    # Generate additional principles based on scan
+    ADDITIONAL_PRINCIPLES=""
+
+    # Parse testing data
+    TEST_FILES=$(echo "$TESTING_DATA" | cut -d'|' -f1)
+    TEST_FRAMEWORKS=$(echo "$TESTING_DATA" | cut -d'|' -f2)
+
+    if [[ $TEST_FILES -gt 0 ]]; then
+        ADDITIONAL_PRINCIPLES="${ADDITIONAL_PRINCIPLES}
+### Tests Drive Confidence (Project Practice)
+Automated testing is established with $TEST_FILES test files using $TEST_FRAMEWORKS. All features must maintain or improve test coverage. Refuse to ship when test suites fail."
+    fi
+
+    # Parse security data
+    AUTH_PATTERNS=$(echo "$SECURITY_DATA" | cut -d'|' -f1)
+    SECURITY_INDICATORS=$(echo "$SECURITY_DATA" | cut -d'|' -f3)
+
+    if [[ $AUTH_PATTERNS -gt 0 || $SECURITY_INDICATORS -gt 0 ]]; then
+        ADDITIONAL_PRINCIPLES="${ADDITIONAL_PRINCIPLES}
+### Security by Default (Project Practice)
+Security practices are established in the codebase. All features must include security considerations, input validation, and follow established security patterns."
+    fi
+
+    # Parse documentation data
+    README_COUNT=$(echo "$DOCS_DATA" | cut -d'|' -f1)
+    COMMENT_PERCENTAGE=$(echo "$DOCS_DATA" | cut -d'|' -f3)
+
+    if [[ $README_COUNT -gt 0 ]]; then
+        ADDITIONAL_PRINCIPLES="${ADDITIONAL_PRINCIPLES}
+### Documentation Matters (Project Practice)
+Documentation practices are established with $README_COUNT README files. All features must include appropriate documentation and maintain existing documentation standards."
+    fi
+
+    # Insert additional principles into constitution
+    if [[ -n "$ADDITIONAL_PRINCIPLES" ]]; then
+        # Find the end of core principles section and insert additional principles
+        PROJECT_CONSTITUTION=$(echo "$PROJECT_CONSTITUTION" | sed "/## Additional Constraints/i\\
+## Project-Specific Principles\\
+$ADDITIONAL_PRINCIPLES")
+    fi
+fi
 
 # Validate inheritance integrity
 if ! $JSON_MODE; then
