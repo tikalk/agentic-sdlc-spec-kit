@@ -10,7 +10,7 @@
 - **workflow.md**: 4-stage process workflow
 - **repository.md**: team-ai-directives governance and structure
 
-**Implementation Gap Analysis:** Current spec-kit implements ~40-45% of documented capabilities (4-5/9 basic features actually implemented). Key gaps:
+**Implementation Gap Analysis:** Current spec-kit implements ~45-50% of documented capabilities (5-6/9 basic features actually implemented). Key gaps:
 - **Async execution infrastructure** (worktrees, MCP dispatching, registries)
 - **Advanced quality gates** (differentiated SYNC/ASYNC reviews)
 - **Workflow orchestration** (stage management, validation, progress tracking)
@@ -44,8 +44,10 @@
 - `/implement` captures test evidence before polish tasks conclude, keeping risk mitigation actionable.
 
 ### Issue Tracker MCP Integration
-- **NOT IMPLEMENTED**: No `--issue-tracker` argument in `specify init` command.
-- No MCP configuration scaffolding for Jira, Linear, GitHub Issues, and GitLab Issues.
+- **IMPLEMENTED**: Added `--issue-tracker` argument to `specify init` command with validation for github, jira, linear, gitlab.
+- Implemented MCP configuration scaffolding that creates `.mcp.json` with appropriate server URLs for each tracker type.
+- Integrated team-ai-directives MCP template merging for team consistency.
+- Added progress tracking for MCP configuration step in initialization flow.
 
 ### Team Directives Layout Awareness
 - **NOT IMPLEMENTED**: No structural scans of team-ai-directives repositories in CLI code.
@@ -118,14 +120,14 @@
 
 ### MEDIUM PRIORITY - Integration & Governance (IX, X, XI, XII)
 
-#### Issue Tracker Enhancement (Factor IX: Traceability)
-- Add `--issue-tracker` argument to `specify init` command to inject MCP configuration for popular issue trackers (Jira, Linear, GitHub Issues, GitLab Issues) with guided setup for API tokens, endpoints, and project identifiers
+
 
 #### Traceability Enhancements (Factor IX: Traceability)
 - Implement automated trace linking between:
-  - Issue tracker tickets ↔ spec.md ↔ plan.md ↔ tasks.md ↔ commits/PRs
+  - Issue tracker tickets ↔ spec.md ↔ plan.md ↔ tasks.md ↔ commits/PRs (MCP configuration foundation now implemented)
   - AI interactions ↔ code changes ↔ review feedback
 - Add trace validation in quality gates to ensure complete audit trails
+- Implement MCP client integration for direct issue operations and status updates
 
 #### Strategic Tooling Improvements (Factor X: Strategic Tooling)
 - Add tool performance monitoring and recommendation system
@@ -199,7 +201,7 @@
 
 ## Notes
 - **Documentation Coverage**: All 12 manifesto factors are comprehensively documented across the MD files
-- **Implementation Status**: ~40-45% of basic features implemented (4-5/9 actually working), major gaps remain in advanced workflow orchestration
+- **Implementation Status**: ~45-50% of basic features implemented (5-6/9 actually working), major gaps remain in advanced workflow orchestration
 - **Verification**: Completed items verified against actual spec-kit codebase; most "completed" items were not implemented
 - **Priority Alignment**: Focus on implementing core workflow orchestration features (async execution, quality gates, stage management)
 - **Cross-References**: All improvement suggestions are mapped to specific manifesto factors and documentation sections
