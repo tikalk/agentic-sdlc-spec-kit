@@ -96,6 +96,21 @@ path = Path(sys.argv[1])
 pattern = re.compile(r"^-\s*RISK:\s*(.+)$", re.IGNORECASE)
 risks = []
 
+def normalize_severity(value):
+    """Normalize severity/impact to standard levels."""
+    if not value:
+        return "Medium"
+    value = value.lower().strip()
+    if value in ["critical", "crit", "high", "hi"]:
+        return "Critical" if value.startswith("crit") else "High"
+    elif value in ["medium", "med"]:
+        return "Medium"
+    elif value in ["low", "lo"]:
+        return "Low"
+    else:
+        # Try to map numeric or other values
+        return "Medium"
+
 for line in path.read_text().splitlines():
     match = pattern.match(line.strip())
     if not match:
@@ -123,6 +138,9 @@ for line in path.read_text().splitlines():
     if data:
         if "id" not in data:
             data["id"] = f"missing-id-{len(risks)+1}"
+        # Normalize severity from impact or severity field
+        severity = data.get("severity") or data.get("impact")
+        data["severity"] = normalize_severity(severity)
         risks.append(data)
 
 print(json.dumps(risks, ensure_ascii=False))

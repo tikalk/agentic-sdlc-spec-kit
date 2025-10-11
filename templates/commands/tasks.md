@@ -13,6 +13,8 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+Check for `--include-risk-tests` flag in user input. If present, enable risk-based test generation.
+
 ## Outline
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
@@ -23,52 +25,58 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 3. **Execute task generation workflow** (follow the template structure):
-   - Load plan.md and extract tech stack, libraries, project structure
-   - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
-   - If data-model.md exists: Extract entities → map to user stories
-   - If contracts/ exists: Each file → map endpoints to user stories
-   - If research.md exists: Extract decisions → generate setup tasks
-   - **Generate tasks ORGANIZED BY USER STORY**:
-     - Setup tasks (shared infrastructure needed by all stories)
-     - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
-     - For each user story (in priority order P1, P2, P3...):
-       - Group all tasks needed to complete JUST that story
-       - Include models, services, endpoints, UI components specific to that story
-       - Mark which tasks are [P] parallelizable
-       - If tests requested: Include tests specific to that story
-     - Polish/Integration tasks (cross-cutting concerns)
-   - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
-   - Apply task rules:
-     - Different files = mark [P] for parallel
-     - Same file = sequential (no [P])
-     - If tests requested: Tests before implementation (TDD order)
-   - Number tasks sequentially (T001, T002...)
-   - Generate dependency graph showing user story completion order
-   - Create parallel execution examples per user story
-   - Validate task completeness (each user story has all needed tasks, independently testable)
+    - Load plan.md and extract tech stack, libraries, project structure
+    - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
+    - If data-model.md exists: Extract entities → map to user stories
+    - If contracts/ exists: Each file → map endpoints to user stories
+    - If research.md exists: Extract decisions → generate setup tasks
+    - **If --include-risk-tests flag is present**:
+      - Run `scripts/bash/generate-risk-tests.sh` with combined SPEC_RISKS and PLAN_RISKS from {SCRIPT} output
+      - Parse the generated risk-based test tasks
+      - Append them as a dedicated "Risk Mitigation" phase at the end of tasks.md
+    - **Generate tasks ORGANIZED BY USER STORY**:
+      - Setup tasks (shared infrastructure needed by all stories)
+      - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
+      - For each user story (in priority order P1, P2, P3...):
+        - Group all tasks needed to complete JUST that story
+        - Include models, services, endpoints, UI components specific to that story
+        - Mark which tasks are [P] parallelizable
+        - If tests requested: Include tests specific to that story
+      - Polish/Integration tasks (cross-cutting concerns)
+    - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
+    - Apply task rules:
+      - Different files = mark [P] for parallel
+      - Same file = sequential (no [P])
+      - If tests requested: Tests before implementation (TDD order)
+    - Number tasks sequentially (T001, T002...)
+    - Generate dependency graph showing user story completion order
+    - Create parallel execution examples per user story
+    - Validate task completeness (each user story has all needed tasks, independently testable)
 
 4. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
-   - Correct feature name from plan.md
-   - Phase 1: Setup tasks (project initialization)
-   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-   - Phase 3+: One phase per user story (in priority order from spec.md)
-     - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-     - Clear [Story] labels (US1, US2, US3...) for each task
-     - [P] markers for parallelizable tasks within each story
-     - Checkpoint markers after each story phase
-   - Final Phase: Polish & cross-cutting concerns
-   - Numbered tasks (T001, T002...) in execution order
-   - Clear file paths for each task
-   - Dependencies section showing story completion order
-   - Parallel execution examples per story
-   - Implementation strategy section (MVP first, incremental delivery)
+    - Correct feature name from plan.md
+    - Phase 1: Setup tasks (project initialization)
+    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
+    - Phase 3+: One phase per user story (in priority order from spec.md)
+      - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
+      - Clear [Story] labels (US1, US2, US3...) for each task
+      - [P] markers for parallelizable tasks within each story
+      - Checkpoint markers after each story phase
+    - Final Phase: Polish & cross-cutting concerns
+    - **If risk tests enabled**: Add "Risk Mitigation Phase" with generated risk-based test tasks
+    - Numbered tasks (T001, T002...) in execution order
+    - Clear file paths for each task
+    - Dependencies section showing story completion order
+    - Parallel execution examples per story
+    - Implementation strategy section (MVP first, incremental delivery)
 
 5. **Report**: Output path to generated tasks.md and summary:
-   - Total task count
-   - Task count per user story
-   - Parallel opportunities identified
-   - Independent test criteria for each story
-   - Suggested MVP scope (typically just User Story 1)
+    - Total task count
+    - Task count per user story
+    - Parallel opportunities identified
+    - Independent test criteria for each story
+    - **If risk tests enabled**: Number of risk mitigation tasks generated
+    - Suggested MVP scope (typically just User Story 1)
 
 Context for task generation: {ARGS}
 
