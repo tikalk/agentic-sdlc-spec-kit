@@ -79,12 +79,14 @@
 - ❌ **MCP-based Tool Chaining**: Context sharing between agents
 - ❌ **Centralized Orchestration Dashboard**: Workflow monitoring interface
 
-#### **IDE Integration & Cockpit Features**
+#### **IDE Integration & Cockpit Features** *(LOW PRIORITY - Defer Until Core Complete)*
 - ❌ **Native Command Palette Support**: IDE-specific command integration
 - ❌ **Visual Workflow Indicators**: Real-time progress tracking in IDE
 - ❌ **IDE-specific Context Injection**: Prompt optimization for different editors
 - ❌ **Real-time Collaboration**: Pair programming features
 - ❌ **IDE Plugin Ecosystem**: Extensible plugin architecture
+
+**Assessment**: Not currently needed. Core workflow (dual execution loop, MCP integration) should be completed first. Existing terminal interface with agent context files provides sufficient IDE support. Consider lightweight integration only after core adoption is proven.
 
 #### **Comprehensive Evaluation Suite**
 - ❌ **Versioned Evaluation Manifests**: Standardized metrics framework
@@ -143,3 +145,12 @@
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration)
 - **Advanced Features**: 0-60% Complete (infrastructure and integration features)
 - **Future Enhancements**: 0% Complete (guild, advanced MCP, comprehensive evals)
+- **Deferred Features**: IDE Integration & Cockpit Features (marked LOW PRIORITY)
+
+## 🎯 **PRIORITY RANKING**
+
+1. **HIGH**: Complete dual execution loop (75% → 100%)
+2. **HIGH**: Workflow stage orchestration (60% → 100%)
+3. **MEDIUM**: Enhanced traceability (40% → 100%)
+4. **MEDIUM**: Strategic tooling improvements (30% → 100%)
+5. **LOW**: IDE Integration & Cockpit Features (0% → future consideration)
