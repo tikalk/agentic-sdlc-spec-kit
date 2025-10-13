@@ -361,6 +361,9 @@ specify init my-project --ai claude --async-agent jules
 # Initialize with central LLM gateway configuration
 specify init my-project --ai claude --gateway-url https://proxy.internal --gateway-token $TOKEN
 
+# Complex example: Enterprise setup with all integrations
+specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --gateway-url https://llm-gateway.company.com --gateway-token $GATEWAY_TOKEN --github-token $GH_TOKEN
+
 # Check system requirements
 specify check
 ```
