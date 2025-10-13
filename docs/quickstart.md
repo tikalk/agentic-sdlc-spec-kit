@@ -74,8 +74,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Alignment with 12 Factors:** This stage applies [VI. The Great Filter](https://tikalk.github.io/agentic-sdlc-12-factors/content/great-filter.html), [VII. Adaptive Quality Gates](https://tikalk.github.io/agentic-sdlc-12-factors/content/adaptive-quality-gates.html), and [VIII. AI-Augmented, Risk-Based Testing](https://tikalk.github.io/agentic-sdlc-12-factors/content/ai-augmented-testing.html), ensuring human judgment filters AI output with appropriate review processes and targeted testing.
 
 1. **Execute Tasks (`/implement`)**  
-   **Action:** Run `/implement` to load `plan.md`, `tasks.md`, and supporting artifacts. Follow the phase-by-phase flow, completing tests before implementation and respecting `[SYNC]/[ASYNC]` modes and `[P]` parallel markers.  
-   **Purpose:** Produces production-ready code, marks tasks as `[X]`, and preserves the execution trace for Stage 4.
+    **Action:** Run `/implement` to load `plan.md`, `tasks.md`, and supporting artifacts. Follow the phase-by-phase flow, completing risk-based tests before implementation and respecting `[SYNC]/[ASYNC]` modes and `[P]` parallel markers for efficient execution.  
+    **Purpose:** Produces production-ready code with targeted testing based on identified risks, marks tasks as `[X]`, and preserves the execution trace for Stage 4.
 2. **Review & Validate**  
    **Action:** Ensure all `[SYNC]` tasks received micro-reviews, all `[ASYNC]` work underwent macro-review, and the test suite passes before moving on.  
    **Purpose:** Guarantees the feature matches the spec and plan with traceable quality gates.

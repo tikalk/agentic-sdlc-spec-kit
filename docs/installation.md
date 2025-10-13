@@ -5,7 +5,7 @@
 ## Prerequisites
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen Code](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai), [Codex CLI](https://github.com/openai/codex), [Windsurf](https://codeium.com/windsurf), [Kilo Code](https://kilocode.com/), [Auggie CLI](https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli), [CodeBuddy](https://www.codebuddy.ai), [Roo Code](https://github.com/rooveterinaryinc/roo-clinic), or [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/)
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
@@ -61,14 +61,65 @@ If you prefer to get the templates without checking for the right tools:
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude --ignore-agent-tools
 ```
 
+### Configure Team AI Directives
+
+Connect to shared team knowledge and standards:
+
+```bash
+# Use local team-ai-directives directory
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives ~/workspace/team-ai-directives
+
+# Clone from remote repository
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives.git
+```
+
+### Enable Issue Tracker Integration
+
+Configure MCP servers for project management integration:
+
+```bash
+# GitHub Issues
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker github
+
+# Jira, Linear, or GitLab
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker jira
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker linear
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker gitlab
+```
+
+### Enable Async Agent Support
+
+Configure autonomous coding agents for delegated task execution:
+
+```bash
+# Jules, Async Copilot, or Async Codex
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent jules
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent async-copilot
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent async-codex
+```
+
+### Configure Central LLM Gateway
+
+Set up proxy configuration for centralized AI model access:
+
+```bash
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --gateway-url https://proxy.internal --gateway-token $TOKEN
+```
+
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
-- `/speckit.specify` - Create specifications
-- `/speckit.plan` - Generate implementation plans  
-- `/speckit.tasks` - Break down into actionable tasks
+- `/speckit.constitution` - Establish project principles and assemble constitution
+- `/speckit.specify` - Create detailed specifications from requirements
+- `/speckit.plan` - Generate technical implementation plans with triage
+- `/speckit.tasks` - Break down plans into actionable tasks with issue tracker sync
+- `/speckit.implement` - Execute implementation with SYNC/ASYNC dual execution loops
+- `/speckit.levelup` - Capture learnings and contribute to team knowledge
+- `/speckit.analyze` - Cross-artifact consistency and alignment reports
+- `/speckit.checklist` - Generate quality checklists for requirements validation
+- `/speckit.clarify` - Structured questions to de-risk ambiguous areas
 
-The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts.
+The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts for automation, and `.mcp.json` will be configured for issue tracker and async agent integration if specified.
 
 ## Troubleshooting
 
