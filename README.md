@@ -82,6 +82,139 @@ uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init 
 - Better tool management with `uv tool list`, `uv tool upgrade`, `uv tool uninstall`
 - Cleaner shell configuration
 
+### 2. Initialize Your Project
+
+The `specify init` command supports comprehensive configuration options:
+
+#### Basic Usage
+
+```bash
+# Initialize a new project
+specify init my-project
+
+# Initialize in current directory
+specify init .
+
+# Initialize in current directory (alternative syntax)
+specify init --here
+```
+
+#### AI Agent Configuration
+
+```bash
+# Specify AI agent during initialization
+specify init my-project --ai claude
+specify init my-project --ai copilot
+specify init my-project --ai gemini
+specify init my-project --ai cursor-agent
+specify init my-project --ai qwen
+specify init my-project --ai opencode
+specify init my-project --ai codex
+specify init my-project --ai windsurf
+specify init my-project --ai kilocode
+specify init my-project --ai auggie
+specify init my-project --ai codebuddy
+specify init my-project --ai roo
+specify init my-project --ai q
+```
+
+#### Script Type Selection
+
+```bash
+# Auto-detect script type (default: ps on Windows, sh on others)
+specify init my-project
+
+# Force PowerShell scripts
+specify init my-project --script ps
+
+# Force POSIX shell scripts
+specify init my-project --script sh
+```
+
+#### Team AI Directives Integration
+
+```bash
+# Use local team-ai-directives directory
+specify init my-project --team-ai-directives ~/workspace/team-ai-directives
+
+# Clone from remote repository
+specify init my-project --team-ai-directives https://github.com/your-org/team-ai-directives.git
+```
+
+#### Issue Tracker Integration
+
+```bash
+# Enable GitHub Issues integration
+specify init my-project --issue-tracker github
+
+# Enable Jira integration
+specify init my-project --issue-tracker jira
+
+# Enable Linear integration
+specify init my-project --issue-tracker linear
+
+# Enable GitLab integration
+specify init my-project --issue-tracker gitlab
+```
+
+#### Async Agent Support
+
+```bash
+# Enable Jules for autonomous task execution
+specify init my-project --async-agent jules
+
+# Enable Async Copilot
+specify init my-project --async-agent async-copilot
+
+# Enable Async Codex
+specify init my-project --async-agent async-codex
+```
+
+#### Gateway Configuration
+
+```bash
+# Configure central LLM gateway
+specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
+
+# Suppress gateway warnings
+specify init my-project --gateway-suppress-warning
+```
+
+#### Advanced Options
+
+```bash
+# Skip agent tool checks
+specify init my-project --ignore-agent-tools
+
+# Skip git repository initialization
+specify init my-project --no-git
+
+# Force overwrite existing files
+specify init my-project --here --force
+
+# Skip TLS verification (not recommended)
+specify init my-project --skip-tls
+
+# Show debug output
+specify init my-project --debug
+
+# Use custom GitHub token
+specify init my-project --github-token $GITHUB_TOKEN
+```
+
+#### Complete Example
+
+```bash
+specify init my-project \
+  --ai claude \
+  --script sh \
+  --team-ai-directives https://github.com/your-org/team-ai-directives.git \
+  --issue-tracker github \
+  --async-agent jules \
+  --gateway-url https://proxy.internal \
+  --gateway-token $TOKEN
+```
+
 ### 2. Establish project principles
 
 Use the **`/speckit.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
@@ -116,10 +249,18 @@ Use **`/speckit.tasks`** to create an actionable task list from your implementat
 
 ### 6. Execute implementation
 
-Use **`/speckit.implement`** to execute all tasks and build your feature according to the plan.
+Use **`/speckit.implement`** to execute all tasks and build your feature according to the plan. Supports both synchronous (interactive) and asynchronous (autonomous) execution modes.
 
 ```bash
 /speckit.implement
+```
+
+### 7. Level up and contribute knowledge
+
+Use **`/speckit.levelup`** to capture learnings from completed work and contribute reusable knowledge back to your team's shared repository.
+
+```bash
+/speckit.levelup "Document the patterns learned from this implementation for future reference"
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -155,18 +296,24 @@ The `specify` command supports the following options:
 
 ### `specify init` Arguments & Options
 
-| Argument/Option        | Type     | Description                                                                  |
-|------------------------|----------|------------------------------------------------------------------------------|
-| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, or `q` |
-| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                 |
-| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
-| `--no-git`             | Flag     | Skip git repository initialization                                          |
-| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one   |
-| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation) |
-| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                 |
-| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                            |
-| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)  |
+| Argument/Option              | Type     | Description                                                                 |
+|------------------------------|----------|-----------------------------------------------------------------------------|
+| `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
+| `--ai`                       | Option   | AI assistant: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, or `q` |
+| `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
+| `--ignore-agent-tools`       | Flag     | Skip AI agent tool checks                                                  |
+| `--no-git`                   | Flag     | Skip git repository initialization                                         |
+| `--here`                     | Flag     | Initialize in current directory                                            |
+| `--force`                    | Flag     | Force merge/overwrite in current directory (skip confirmation)             |
+| `--skip-tls`                 | Flag     | Skip SSL/TLS verification (not recommended)                                |
+| `--debug`                    | Flag     | Enable debug output                                                        |
+| `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env vars)      |
+| `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                               |
+| `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
+| `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
+| `--gateway-url`              | Option   | Central LLM gateway URL                                                    |
+| `--gateway-token`            | Option   | Gateway authentication token                                               |
+| `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
 
 ### Examples
 
@@ -205,6 +352,15 @@ specify init my-project --ai claude --debug
 # Use GitHub token for API requests (helpful for corporate environments)
 specify init my-project --ai claude --github-token ghp_your_token_here
 
+# Initialize with team AI directives and issue tracker integration
+specify init my-project --ai claude --team-ai-directives https://github.com/your-org/team-ai-directives.git --issue-tracker github
+
+# Initialize with async agent support for autonomous task execution
+specify init my-project --ai claude --async-agent jules
+
+# Initialize with central LLM gateway configuration
+specify init my-project --ai claude --gateway-url https://proxy.internal --gateway-token $TOKEN
+
 # Check system requirements
 specify check
 ```
@@ -221,9 +377,10 @@ Essential commands for the Spec-Driven Development workflow:
 |--------------------------|-----------------------------------------------------------------------|
 | `/speckit.constitution`  | Create or update project governing principles and development guidelines |
 | `/speckit.specify`       | Define what you want to build (requirements and user stories)        |
-| `/speckit.plan`          | Create technical implementation plans with your chosen tech stack     |
-| `/speckit.tasks`         | Generate actionable task lists for implementation                     |
-| `/speckit.implement`     | Execute all tasks to build the feature according to the plan         |
+| `/speckit.plan`          | Create technical implementation plans with SYNC/ASYNC triage          |
+| `/speckit.tasks`         | Generate actionable task lists with issue tracker synchronization     |
+| `/speckit.implement`     | Execute tasks with dual execution loops (SYNC/ASYNC modes)           |
+| `/speckit.levelup`       | Capture learnings and contribute to team knowledge repository        |
 
 #### Optional Commands
 
