@@ -7,7 +7,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ## Stage 0: Foundation & Setup
 
 **Goal:** Establish the foundational rules and configure the development environment so every later stage aligns with the project's architectural and security principles.  
-**Note:** Run these steps in a standard terminal before opening the Intelligent IDE.
+**Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
+**Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
@@ -27,7 +28,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ## Stage 1: Feature Specification
 
 **Goal:** Produce a committed `spec.md` that captures the feature's intent, constraints, and acceptance criteria.
-**Note:** From Stage 1 onward, all work happens inside the Intelligent IDE with the context automatically assembled by Agentic SDLC Spec Kit.
+**Note:** From Stage 1 onward, all work happens inside the Intelligent IDE with the context automatically assembled by Agentic SDLC Spec Kit.  
+**Alignment with 12 Factors:** This stage focuses on [III. Mission Definition](https://tikalk.github.io/agentic-sdlc-12-factors/content/mission-definition.html), translating intent into formal, version-controlled specifications.
 
 1. **Craft the Directive (`/specify`)**  
    **Action:** Author a single, comprehensive natural-language directive that blends the issue tracker mission, personas, constraints, and any clarifications.  
@@ -50,7 +52,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ## Stage 2: Planning & Task Management
 
 **Goal:** Convert the committed `spec.md` into a human-approved `plan.md` and a synced task list that routes work through the issue tracker.
-**Note:** `/plan` and `/tasks` run inside the IDE, reusing the constitution and the locally cloned `team-ai-directives` modules.
+**Note:** `/plan` and `/tasks` run inside the IDE, reusing the constitution and the locally cloned `team-ai-directives` modules.  
+**Alignment with 12 Factors:** This stage implements [IV. Structured Planning](https://tikalk.github.io/agentic-sdlc-12-factors/content/structured-planning.html) and [V. Dual Execution Loops](https://tikalk.github.io/agentic-sdlc-12-factors/content/dual-execution-loops.html), decomposing tasks and triaging them for synchronous or asynchronous execution.
 
 1. **Generate the Plan (`/plan`)**  
    **Action:** Execute `/plan` with a directive that covers tech stack, risk considerations, testing focus, and any implementation preferences. Agentic SDLC Spec Kit loads `memory/constitution.md`, references in `team-ai-directives`, and copies the plan template before executing automation.  
@@ -67,7 +70,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ## Stage 3: Implementation
 
 **Goal:** Execute the validated plan, honoring the `[SYNC]/[ASYNC]` execution modes and completing every task in `tasks.md`.
-**Note:** Use `/implement` within the IDE; the command enforces the TDD order, dependency rules, and execution modes captured in Stages 1-2.
+**Note:** Use `/implement` within the IDE; the command enforces the TDD order, dependency rules, and execution modes captured in Stages 1-2.  
+**Alignment with 12 Factors:** This stage applies [VI. The Great Filter](https://tikalk.github.io/agentic-sdlc-12-factors/content/great-filter.html), [VII. Adaptive Quality Gates](https://tikalk.github.io/agentic-sdlc-12-factors/content/adaptive-quality-gates.html), and [VIII. AI-Augmented, Risk-Based Testing](https://tikalk.github.io/agentic-sdlc-12-factors/content/ai-augmented-testing.html), ensuring human judgment filters AI output with appropriate review processes and targeted testing.
 
 1. **Execute Tasks (`/implement`)**  
    **Action:** Run `/implement` to load `plan.md`, `tasks.md`, and supporting artifacts. Follow the phase-by-phase flow, completing tests before implementation and respecting `[SYNC]/[ASYNC]` modes and `[P]` parallel markers.  
@@ -81,7 +85,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ## Stage 4: Leveling Up
 
 **Goal:** Capture best practices from the completed feature, draft a reusable knowledge asset in `team-ai-directives`, and generate traceability notes for the original issue.
-**Note:** `/levelup` runs inside the IDE and relies on the locally cloned directives repository from Stage 0.
+**Note:** `/levelup` runs inside the IDE and relies on the locally cloned directives repository from Stage 0.  
+**Alignment with 12 Factors:** This stage encompasses [IX. Traceability](https://tikalk.github.io/agentic-sdlc-12-factors/content/traceability.html), [X. Strategic Tooling](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-tooling.html), [XI. Directives as Code](https://tikalk.github.io/agentic-sdlc-12-factors/content/directives-as-code.html), and [XII. Team Capability](https://tikalk.github.io/agentic-sdlc-12-factors/content/team-capability.html), linking artifacts, managing tools, versioning AI behavior, and systematizing learning.
 
 1. **Run Level-Up Workflow (`/levelup`)**  
    **Action:** Invoke `/levelup` with a strategic directive (e.g., highlight what should become reusable). Agentic SDLC Spec Kit gathers spec/plan/tasks metadata, validates the directives repo, and prompts you to synthesize a knowledge asset plus PR/issue summaries.  
@@ -105,13 +110,13 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 Initialize your project depending on the coding agent you're using:
 
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
 ```
 
 Pick script type explicitly (optional):
 ```bash
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
-uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
 ### 2. Create the Spec

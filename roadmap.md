@@ -117,6 +117,9 @@
 - ❌ **Guild-log.md Handling**: Feedback loop integration
 - ❌ **Automated Evaluation Reports**: Guild performance insights
 
+#### **Documentation & Outreach**
+- ❌ **Video Overview Creation**: Produce introductory video demonstrating Agentic SDLC Spec Kit workflow
+
 ---
 
 ## 📈 **IMPLEMENTATION STATUS SUMMARY**

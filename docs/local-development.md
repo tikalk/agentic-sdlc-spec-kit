@@ -1,13 +1,13 @@
 # Local Development Guide
 
-This guide shows how to iterate on the `specify` CLI locally without publishing a release or committing to `main` first.
+This guide shows how to iterate on the `specify` CLI locally without publishing a release or committing to `main` first. This process aligns with [X. Strategic Tooling](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-tooling.html), managing a governed stack of development tools for controlled and efficient workflows.
 
 > Scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants. The CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
 ## 1. Clone and Switch Branches
 
 ```bash
-git clone https://github.com/github/spec-kit.git
+git clone https://github.com/github/agentic-sdlc-spec-kit.git
 cd spec-kit
 # Work on a feature branch
 git checkout -b your-feature-branch
@@ -60,7 +60,7 @@ You can also point uvx at a specific branch without merging:
 ```bash
 # Push your working branch first
 git push origin your-feature-branch
-uvx --from git+https://github.com/github/spec-kit.git@your-feature-branch specify init demo-branch-test --script ps
+uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git@your-feature-branch specify init demo-branch-test --script ps
 ```
 
 ### 4a. Absolute Path uvx (Run From Anywhere)
@@ -68,19 +68,19 @@ uvx --from git+https://github.com/github/spec-kit.git@your-feature-branch specif
 If you're in another directory, use an absolute path instead of `.`:
 
 ```bash
-uvx --from /mnt/c/GitHub/spec-kit specify --help
-uvx --from /mnt/c/GitHub/spec-kit specify init demo-anywhere --ai copilot --ignore-agent-tools --script sh
+uvx --from /mnt/c/GitHub/agentic-sdlc-spec-kit specify --help
+uvx --from /mnt/c/GitHub/agentic-sdlc-spec-kit specify init demo-anywhere --ai copilot --ignore-agent-tools --script sh
 ```
 
 Set an environment variable for convenience:
 ```bash
-export SPEC_KIT_SRC=/mnt/c/GitHub/spec-kit
+export SPEC_KIT_SRC=/mnt/c/GitHub/agentic-sdlc-spec-kit
 uvx --from "$SPEC_KIT_SRC" specify init demo-env --ai copilot --ignore-agent-tools --script ps
 ```
 
 (Optional) Define a shell function:
 ```bash
-specify-dev() { uvx --from /mnt/c/GitHub/spec-kit specify "$@"; }
+specify-dev() { uvx --from /mnt/c/GitHub/agentic-sdlc-spec-kit specify "$@"; }
 # Then
 specify-dev --help
 ```
@@ -139,7 +139,7 @@ specify init demo --skip-tls --ai gemini --ignore-agent-tools --script ps
 | Run CLI directly | `python -m src.specify_cli --help` |
 | Editable install | `uv pip install -e .` then `specify ...` |
 | Local uvx run (repo root) | `uvx --from . specify ...` |
-| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/spec-kit specify ...` |
+| Local uvx run (abs path) | `uvx --from /mnt/c/GitHub/agentic-sdlc-spec-kit specify ...` |
 | Git branch uvx | `uvx --from git+URL@branch specify ...` |
 | Build wheel | `uv build` |
 

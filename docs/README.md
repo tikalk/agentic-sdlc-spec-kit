@@ -1,6 +1,6 @@
 # Documentation
 
-This folder contains the documentation source files for Agentic SDLC Spec Kit, built using [DocFX](https://dotnet.github.io/docfx/).
+This folder contains the documentation source files for Agentic SDLC Spec Kit, built using [DocFX](https://dotnet.github.io/docfx/). Agentic SDLC Spec Kit is built upon the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology for structured AI-assisted development.
 
 ## Building Locally
 

@@ -124,12 +124,6 @@ Use **`/speckit.implement`** to execute all tasks and build your feature accordi
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
 
-## 📽️ Video Overview
-
-Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)!
-
-[![Spec Kit video header](/media/spec-kit-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
-
 ## 🤖 Supported AI Agents
 
 | Agent                                                     | Support | Notes                                             |
