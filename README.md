@@ -139,6 +139,9 @@ specify init my-project --team-ai-directives ~/workspace/team-ai-directives
 
 # Clone from remote repository
 specify init my-project --team-ai-directives https://github.com/your-org/team-ai-directives.git
+
+# Example: Use the official Agentic SDLC team-ai-directives template
+specify init my-project --team-ai-directives https://github.com/tikalk/agentic-sdlc-team-ai-directives.git
 ```
 
 #### Issue Tracker Integration
@@ -409,6 +412,23 @@ Spec-Driven Development is a structured process that emphasizes:
 - **Rich specification creation** using guardrails and organizational principles
 - **Multi-step refinement** rather than one-shot code generation from prompts
 - **Heavy reliance** on advanced AI model capabilities for specification interpretation
+
+### Alignment with Agentic SDLC 12 Factors
+
+This methodology aligns with the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) framework, which provides foundational principles for building software with AI coding agents. Key alignments include:
+
+- **Factor I: Strategic Mindset** - Intent-driven development with clear specifications
+- **Factor II: Context Scaffolding** - Rich organizational principles and guardrails
+- **Factor III: Mission Definition** - Structured specification creation process
+- **Factor IV: Structured Planning** - Multi-step refinement with technical planning
+- **Factor V: Dual Execution Loops** - SYNC/ASYNC execution modes for different development phases
+- **Factor VI: The Great Filter** - Quality gates and validation checkpoints
+- **Factor VII: Adaptive Quality Gates** - Flexible quality assurance based on project needs
+- **Factor VIII: AI-Augmented, Risk-Based Testing** - Intelligent testing strategies
+- **Factor IX: Traceability** - End-to-end artifact traceability
+- **Factor X: Strategic Tooling** - Purpose-built tools for AI-assisted development
+- **Factor XI: Directives as Code** - Team AI directives for consistent behavior
+- **Factor XII: Team Capability** - Knowledge sharing and continuous improvement
 
 ## 🌟 Development phases
 
