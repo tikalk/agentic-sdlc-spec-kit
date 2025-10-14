@@ -1,5 +1,5 @@
 <div align="center">
-    <img src="./media/logo_small.webp"/>
+    <img src="./media/logo_small.png"/>
     <h1>🐙 Agentic SDLC Spec Kit</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
