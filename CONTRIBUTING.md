@@ -13,6 +13,25 @@ These are one time installations required to be able to test your changes locall
 1. Install [Git](https://git-scm.com/downloads)
 1. Have an [AI coding agent available](README.md#-supported-ai-agents)
 
+## Repository setup
+
+This repository is a fork of [github/spec-kit](https://github.com/github/spec-kit). To keep your fork in sync:
+
+```bash
+# Add upstream remote (one-time setup)
+git remote add upstream https://github.com/github/spec-kit.git
+
+# Fetch upstream changes
+git fetch upstream
+
+# Merge upstream changes into your main branch
+git checkout main
+git merge upstream/main
+
+# Push the merged changes
+git push origin main
+```
+
 ## Submitting a pull request
 
 >[!NOTE]
