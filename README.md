@@ -788,7 +788,7 @@ rm gcm-linux_amd64.2.6.1.deb
 - John Lam ([@jflam](https://github.com/jflam))
 
 ### Fork Maintainers (tikalk/agentic-sdlc-spec-kit)
-- [Add fork maintainers here]
+- Lior Kanfi ([@kanfil](https://github.com/kanfil))
 
 ## 💬 Support
 
