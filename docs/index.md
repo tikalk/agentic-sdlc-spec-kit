@@ -74,8 +74,8 @@ This alignment ensures that Agentic SDLC Spec Kit provides a structured, high-ve
 
 ## Contributing
 
-Please see our [Contributing Guide](https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/CONTRIBUTING.md) for information on how to contribute to this project.
+Please see our [Contributing Guide](https://github.com/github/spec-kit/blob/main/CONTRIBUTING.md) for information on how to contribute to this project.
 
 ## Support
 
-For support, please check our [Support Guide](https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/SUPPORT.md) or open an issue on GitHub.
+For support, please check our [Support Guide](https://github.com/github/spec-kit/blob/main/SUPPORT.md) or open an issue on GitHub.
