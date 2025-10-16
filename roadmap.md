@@ -117,6 +117,13 @@
 - ❌ **Guild-log.md Handling**: Feedback loop integration
 - ❌ **Automated Evaluation Reports**: Guild performance insights
 
+#### **SDD Workflow Flexibility & Optimization**
+- ❌ **Adaptive Workflow Selection**: Different workflows for problem sizes (small bug fixes vs. large features)
+- ❌ **Iterative Spec Development**: Support for incremental spec refinement rather than large upfront specs
+- ❌ **Enhanced Spec Review UX**: Better markdown review experience with code diffs and validation
+- ❌ **Functional vs Technical Spec Separation**: Clear guidance and tooling for separating requirements from implementation
+- ❌ **Spec-Anchored Evolution**: Extend beyond spec-first to maintain specs as living artifacts for feature evolution
+
 #### **Documentation & Outreach**
 - ❌ **Video Overview Creation**: Produce introductory video demonstrating Agentic SDLC Spec Kit workflow
 - ❌ **Interactive CLI Tutorial**: Create step-by-step tutorial for complex CLI scenarios (enterprise setups, multi-agent configurations)
@@ -147,10 +154,12 @@
 | **Guild Infrastructure** | 0% | 🆕 New |
 | **Layout Awareness** | 0% | 🆕 New |
 | **Knowledge Evals** | 0% | 🆕 New |
+| **SDD Flexibility** | 0% | 🆕 New |
 
-**Overall Implementation Status**: ~75% Complete
+**Overall Implementation Status**: ~70% Complete
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration)
 - **Advanced Features**: 0-60% Complete (infrastructure and integration features)
+- **SDD Optimization**: 0% Complete (workflow flexibility, spec review UX, iterative development)
 - **Future Enhancements**: 0% Complete (guild, advanced MCP, comprehensive evals)
 - **Deferred Features**: IDE Integration & Cockpit Features (marked LOW PRIORITY)
 
@@ -158,6 +167,7 @@
 
 1. **HIGH**: Complete dual execution loop (75% → 100%)
 2. **HIGH**: Workflow stage orchestration (60% → 100%)
-3. **MEDIUM**: Enhanced traceability (40% → 100%)
-4. **MEDIUM**: Strategic tooling improvements (30% → 100%)
-5. **LOW**: IDE Integration & Cockpit Features (0% → future consideration)
+3. **HIGH**: SDD workflow flexibility & optimization (0% → core improvements)
+4. **MEDIUM**: Enhanced traceability (40% → 100%)
+5. **MEDIUM**: Strategic tooling improvements (30% → 100%)
+6. **LOW**: IDE Integration & Cockpit Features (0% → future consideration)
