@@ -79,3 +79,4 @@ Please see our [Contributing Guide](https://github.com/github/spec-kit/blob/main
 ## Support
 
 For support, please check our [Support Guide](https://github.com/github/spec-kit/blob/main/SUPPORT.md) or open an issue on GitHub.
+

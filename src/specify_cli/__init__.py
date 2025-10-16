@@ -135,7 +135,7 @@ AGENT_CONFIG = {
     "codebuddy": {
         "name": "CodeBuddy",
         "folder": ".codebuddy/",
-        "install_url": "https://www.codebuddy.ai",
+        "install_url": "https://www.codebuddy.ai/cli",
         "requires_cli": True,
     },
     "roo": {
@@ -1497,3 +1497,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

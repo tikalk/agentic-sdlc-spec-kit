@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-    <strong>An effort to allow organizations to focus on product scenarios rather than writing undifferentiated code with the help of Spec-Driven Development.</strong>
+    <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
 </p>
 
 ## 🎯 Project Vision
@@ -43,16 +43,16 @@ This fork represents the evolution from a development process to a complete orga
 ## Table of Contents
 
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
-- [⚡ Get started](#-get-started)
+- [⚡ Get Started](#-get-started)
 - [📽️ Video Overview](#️-video-overview)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
-- [📚 Core philosophy](#-core-philosophy)
-- [🌟 Development phases](#-development-phases)
-- [🎯 Experimental goals](#-experimental-goals)
+- [📚 Core Philosophy](#-core-philosophy)
+- [🌟 Development Phases](#-development-phases)
+- [🎯 Experimental Goals](#-experimental-goals)
 - [🔧 Prerequisites](#-prerequisites)
-- [📖 Learn more](#-learn-more)
-- [📋 Detailed process](#-detailed-process)
+- [📖 Learn More](#-learn-more)
+- [📋 Detailed Process](#-detailed-process)
 - [🔍 Troubleshooting](#-troubleshooting)
 - [👥 Maintainers](#-maintainers)
 - [💬 Support](#-support)
@@ -63,9 +63,9 @@ This fork represents the evolution from a development process to a complete orga
 
 Spec-Driven Development **flips the script** on traditional software development. For decades, code has been king — specifications were just scaffolding we built and discarded once the "real work" of coding began. Spec-Driven Development changes this: **specifications become executable**, directly generating working implementations rather than just guiding them.
 
-## ⚡ Get started
+## ⚡ Get Started
 
-### 1. Install Specify
+### 1. Install Specify CLI
 
 Choose your preferred installation method:
 
@@ -304,7 +304,7 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | [Windsurf](https://windsurf.com/)                         | ✅ |                                                   |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
-| [CodeBuddy](https://www.codebuddy.ai/)                    | ✅ |                                                   |
+| [CodeBuddy CLI](https://www.codebuddy.ai/cli)             | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
 | [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
@@ -427,7 +427,7 @@ Additional commands for enhanced quality and validation:
 |------------------|------------------------------------------------------------------------------------------------|
 | `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>**Must be set in the context of the agent you're working with prior to using `/speckit.plan` or follow-up commands. |
 
-## 📚 Core philosophy
+## 📚 Core Philosophy
 
 Spec-Driven Development is a structured process that emphasizes:
 
@@ -453,7 +453,7 @@ This methodology aligns with the [Agentic SDLC 12 Factors](https://tikalk.github
 - **Factor XI: Directives as Code** - Team AI directives for consistent behavior
 - **Factor XII: Team Capability** - Knowledge sharing and continuous improvement
 
-## 🌟 Development phases
+## 🌟 Development Phases
 
 | Phase | Focus | Key Activities |
 |-------|-------|----------------|
@@ -461,7 +461,7 @@ This methodology aligns with the [Agentic SDLC 12 Factors](https://tikalk.github
 | **Creative Exploration** | Parallel implementations | <ul><li>Explore diverse solutions</li><li>Support multiple technology stacks & architectures</li><li>Experiment with UX patterns</li></ul> |
 | **Iterative Enhancement** ("Brownfield") | Brownfield modernization | <ul><li>Add features iteratively</li><li>Modernize legacy systems</li><li>Adapt processes</li></ul> |
 
-## 🎯 Experimental goals
+## 🎯 Experimental Goals
 
 Our research and experimentation focus on:
 
@@ -489,22 +489,22 @@ Our research and experimentation focus on:
 
 ## 🔧 Prerequisites
 
-- **Linux/macOS** (or WSL2 on Windows)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen CLI](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai/), [Codex CLI](https://github.com/openai/codex), [Windsurf](https://windsurf.com/), or [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/)
+- **Linux/macOS/Windows**
+- [Supported](#-supported-ai-agents) AI coding agent.
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
 
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
-## 📖 Learn more
+## 📖 Learn More
 
 - **[Complete Spec-Driven Development Methodology](./spec-driven.md)** - Deep dive into the full process
 - **[Detailed Walkthrough](#-detailed-process)** - Step-by-step implementation guide
 
 ---
 
-## 📋 Detailed process
+## 📋 Detailed Process
 
 <details>
 <summary>Click to expand the detailed step-by-step walkthrough</summary>
@@ -824,3 +824,4 @@ This project is heavily influenced by and based on the work and research of [Joh
 ## 📄 License
 
 This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](./LICENSE) file for the full terms.
+

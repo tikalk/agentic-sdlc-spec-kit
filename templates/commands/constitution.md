@@ -150,3 +150,5 @@ $ARGUMENTS
 - Structured JSON output for automation integration
 - Human-readable summaries with actionable guidance
 - Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)
+Do not create a new template; always operate on the existing `/memory/constitution.md` file.
+

@@ -16,7 +16,7 @@ VERSION="$1"
 TAG_PREFIX="agentic-sdlc-v"
 
 # Remove prefix from version for release title
-VERSION_NO_PREFIX=${VERSION#${TAG_PREFIX}}
+VERSION_NO_V=${VERSION#v}
 
 ASSETS=()
 AGENTS=(copilot claude gemini cursor-agent opencode qwen windsurf codex kilocode auggie roo codebuddy q)
@@ -34,5 +34,5 @@ for agent in "${AGENTS[@]}"; do
 done
 
 gh release create "$VERSION" "${ASSETS[@]}" \
-  --title "Agentic SDLC Spec Kit Templates - $VERSION_NO_PREFIX" \
+  --title "Agentic SDLC Spec Kit Templates - $VERSION_NO_V" \
   --notes-file release_notes.md
