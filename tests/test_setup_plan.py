@@ -19,7 +19,7 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     project_root = Path(__file__).resolve().parent.parent
     shutil.copy(project_root / "scripts" / "bash" / "setup-plan.sh", script_dir / "setup-plan.sh")
     shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
-    shutil.copy(Path(__file__).resolve().parent.parent.parent / ".specify" / "templates" / "plan-template.md", templates_dir / "plan-template.md")
+    shutil.copy(project_root / "templates" / "plan-template.md", templates_dir / "plan-template.md")
 
     # Seed constitution and team directives
     constitution = memory_dir / "constitution.md"

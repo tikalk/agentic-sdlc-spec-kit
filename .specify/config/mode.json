@@ -1,0 +1,16 @@
+{
+  "current_mode": "spec",
+  "default_mode": "spec",
+  "mode_history": [
+    {
+      "timestamp": null,
+      "from_mode": "spec",
+      "to_mode": "build"
+    },
+    {
+      "timestamp": null,
+      "from_mode": "build",
+      "to_mode": "spec"
+    }
+  ]
+}

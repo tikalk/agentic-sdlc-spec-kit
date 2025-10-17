@@ -13,6 +13,14 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Mode Detection
+
+1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/mode.json`. If the file doesn't exist or mode is not set, default to "spec" mode.
+
+2. **Mode-Aware Behavior**:
+   - **Build Mode**: Minimal clarification - focus only on critical blockers, limit to 1-2 questions maximum
+   - **Spec Mode**: Full clarification workflow - comprehensive ambiguity detection and resolution
+
 ## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
@@ -84,51 +92,66 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
-    - Maximum of 10 total questions across the whole session.
-    - Each question must be answerable with EITHER:
-       * A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
-       * A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words").
-   - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
-   - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
-   - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
-   - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
-   - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
+3. Generate (internally) a prioritized queue of candidate clarification questions (mode-aware limits):
 
-4. Sequential questioning loop (interactive):
-    - Present EXACTLY ONE question at a time.
-    - For multiple‑choice questions:
-       * **Analyze all options** and determine the **most suitable option** based on:
-          - Best practices for the project type
-          - Common patterns in similar implementations
-          - Risk reduction (security, performance, maintainability)
-          - Alignment with any explicit project goals or constraints visible in the spec
-       * Present your **recommended option prominently** at the top with clear reasoning (1-2 sentences explaining why this is the best choice).
-       * Format as: `**Recommended:** Option [X] - <reasoning>`
-       * Then render all options as a Markdown table:
+     **Build Mode Question Generation:**
+     - Maximum of 2 total questions across the whole session
+     - Focus ONLY on scope-defining decisions that would prevent basic functionality
+     - Skip detailed technical, performance, or edge case questions
+     - Prioritize: core functionality > basic UX > essential data requirements
 
-       | Option | Description |
-       |--------|-------------|
-       | A | <Option A description> |
-       | B | <Option B description> |
-       | C | <Option C description> | (add D/E as needed up to 5)
-       | Short | Provide a different short answer (<=5 words) | (Include only if free-form alternative is appropriate)
+     **Spec Mode Question Generation:**
+     - Maximum of 10 total questions across the whole session
+     - Each question must be answerable with EITHER:
+        * A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
+        * A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words")
+     - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation
+     - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved
+     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests
+     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic
 
-       * After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
-    - For short‑answer style (no meaningful discrete options):
-       * Provide your **suggested answer** based on best practices and context.
-       * Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
-       * Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
-    - After the user answers:
-       * If the user replies with "yes", "recommended", or "suggested", use your previously stated recommendation/suggestion as the answer.
-       * Otherwise, validate the answer maps to one option or fits the <=5 word constraint.
-       * If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance).
-       * Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question.
-    - Stop asking further questions when:
-       * All critical ambiguities resolved early (remaining queued items become unnecessary), OR
-       * User signals completion ("done", "good", "no more"), OR
-       * You reach 5 asked questions.
-    - Never reveal future queued questions in advance.
+4. Sequential questioning loop (interactive, mode-aware):
+
+     **Build Mode Questioning:**
+     - Present EXACTLY ONE question at a time (maximum 2 total)
+     - Keep questions extremely simple and focused on basic functionality
+     - Use short-answer format when possible to minimize interaction
+     - Stop after 2 questions or when core functionality is clear
+
+     **Spec Mode Questioning:**
+     - Present EXACTLY ONE question at a time
+     - For multiple‑choice questions:
+        * **Analyze all options** and determine the **most suitable option** based on:
+           - Best practices for the project type
+           - Common patterns in similar implementations
+           - Risk reduction (security, performance, maintainability)
+           - Alignment with any explicit project goals or constraints visible in the spec
+        * Present your **recommended option prominently** at the top with clear reasoning (1-2 sentences explaining why this is the best choice)
+        * Format as: `**Recommended:** Option [X] - <reasoning>`
+        * Then render all options as a Markdown table:
+
+        | Option | Description |
+        |--------|-------------|
+        | A | <Option A description> |
+        | B | <Option B description> |
+        | C | <Option C description> | (add D/E as needed up to 5)
+        | Short | Provide a different short answer (<=5 words) | (Include only if free-form alternative is appropriate)
+
+        * After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+     - For short‑answer style (no meaningful discrete options):
+        * Provide your **suggested answer** based on best practices and context
+        * Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
+        * Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
+     - After the user answers:
+        * If the user replies with "yes", "recommended", or "suggested", use your previously stated recommendation/suggestion as the answer
+        * Otherwise, validate the answer maps to one option or fits the <=5 word constraint
+        * If ambiguous, ask for a quick disambiguation (count still belongs to same question; do not advance)
+        * Once satisfactory, record it in working memory (do not yet write to disk) and move to the next queued question
+     - Stop asking further questions when:
+        * All critical ambiguities resolved early (remaining queued items become unnecessary), OR
+        * User signals completion ("done", "good", "no more"), OR
+        * You reach 5 asked questions
+     - Never reveal future queued questions in advance
     - If no valid questions exist at start, immediately report no critical ambiguities.
 
 5. Integration after EACH accepted answer (incremental update approach):
@@ -159,13 +182,21 @@ Execution steps:
 
 7. Write the updated spec back to `FEATURE_SPEC`.
 
-8. Report completion (after questioning loop ends or early termination):
-   - Number of questions asked & answered.
-   - Path to updated spec.
-   - Sections touched (list names).
-   - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
-   - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan.
-   - Suggested next command.
+8. Report completion (after questioning loop ends or early termination, mode-aware):
+
+    **Build Mode Completion:**
+    - Number of questions asked & answered (max 2)
+    - Path to updated spec
+    - Basic coverage summary (focus on core functionality)
+    - Suggested next command: `/speckit.implement` (skip formal planning)
+
+    **Spec Mode Completion:**
+    - Number of questions asked & answered
+    - Path to updated spec
+    - Sections touched (list names)
+    - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact)
+    - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan
+    - Suggested next command
 
 Behavior rules:
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
@@ -173,7 +204,12 @@ Behavior rules:
 - Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
 - Avoid speculative tech stack questions unless the absence blocks functional clarity.
 - Respect user early termination signals ("stop", "done", "proceed").
- - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
+  - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
+
+9. **Mode Guidance & Transitions**:
+    - **Build Mode**: Limited clarification (max 2 questions) focuses on critical blockers only
+    - **Spec Mode**: Comprehensive clarification (max 5 questions) ensures thorough understanding
+    - **Mode Switching**: If Build mode reveals unexpected complexity, suggest switching to Spec mode with `/mode spec`
  - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 
 Context for prioritization: {ARGS}

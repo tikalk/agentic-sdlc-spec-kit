@@ -18,7 +18,7 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     top_level_root = project_root.parent
 
     shutil.copy(project_root / "scripts" / "bash" / "create-new-feature.sh", script_dir / "create-new-feature.sh")
-    shutil.copy(top_level_root / ".specify" / "templates" / "spec-template.md", template_dir / "spec-template.md")
+    shutil.copy(project_root / "templates" / "spec-template.md", template_dir / "spec-template.md")
 
     constitution_path = memory_dir / "constitution.md"
     constitution_path.write_text("Principles")

@@ -228,6 +228,55 @@ specify init my-project --debug
 specify init my-project --github-token $GITHUB_TOKEN
 ```
 
+### Workflow Mode Management
+
+Specify supports two workflow modes that control the complexity level of the development process:
+
+#### Available Modes
+
+- **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
+- **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
+
+#### Mode Commands
+
+```bash
+# Show current mode and available options
+specify mode
+
+# Switch to build mode (lightweight development)
+specify mode build
+
+# Switch to spec mode (comprehensive development)
+specify mode spec
+
+# Show detailed information about all modes
+specify mode --info
+```
+
+#### When to Use Each Mode
+
+**Use `build` mode for:**
+- Prototyping and exploration
+- Simple features with clear requirements
+- Quick validation of ideas
+- When you want to get something working fast
+
+**Use `spec` mode for:**
+- Complex features requiring thorough analysis
+- Team collaboration with detailed documentation
+- Production systems needing comprehensive validation
+- When you need full traceability and quality gates
+
+#### Mode-Aware Commands
+
+All slash commands adapt their behavior based on the current mode:
+
+- **`/speckit.specify`**: Build mode uses simplified templates, spec mode uses comprehensive validation
+- **`/speckit.clarify`**: Build mode limits questions to 2, spec mode allows up to 5
+- **`/speckit.plan`**: Build mode creates lightweight plans, spec mode includes full research
+- **`/speckit.implement`**: Build mode focuses on core functionality, spec mode includes comprehensive quality gates
+- **`/speckit.analyze`**: Auto-detects pre vs post-implementation context based on project state
+
 #### Complete Example
 
 ```bash
@@ -319,6 +368,7 @@ The `specify` command supports the following options:
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
+| `mode`      | Manage workflow modes (build/spec) for development complexity control |
 
 ### `specify init` Arguments & Options
 
@@ -338,8 +388,15 @@ The `specify` command supports the following options:
 | `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
 | `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
 | `--gateway-url`              | Option   | Central LLM gateway URL                                                    |
-| `--gateway-token`            | Option   | Gateway authentication token                                               |
+| `--gateway-token`             | Option   | Gateway authentication token                                               |
 | `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
+
+### `specify mode` Arguments & Options
+
+| Argument/Option | Type     | Description                                                                 |
+|-----------------|----------|-----------------------------------------------------------------------------|
+| `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
+| `--info`, `-i`  | Flag     | Show detailed information about available modes                             |
 
 ### Examples
 
@@ -392,6 +449,12 @@ specify init enterprise-app --ai claude --script sh --team-ai-directives https:/
 
 # Check system requirements
 specify check
+
+# Workflow mode management
+specify mode                    # Show current mode
+specify mode build             # Switch to lightweight build mode
+specify mode spec              # Switch to comprehensive spec mode
+specify mode --info            # Show detailed mode information
 ```
 
 ### Available Slash Commands

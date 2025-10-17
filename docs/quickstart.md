@@ -10,6 +10,29 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
+### Choose Your Workflow Mode
+
+Specify supports two workflow modes that control development complexity:
+
+- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
+- **`build` mode**: Lightweight approach focused on quick implementation and exploration
+
+```bash
+# Check current mode
+specify mode
+
+# Switch to lightweight mode for prototyping
+specify mode build
+
+# Switch to comprehensive mode for production features
+specify mode spec
+
+# Learn more about modes
+specify mode --info
+```
+
+**Recommendation:** Start with `build` mode for exploration, switch to `spec` mode when features become complex or need thorough documentation.
+
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
    **Purpose:** Creates the handshake that brings the repository into the managed Agentic SDLC ecosystem, wiring credentials, endpoints, and shared knowledge needed for subsequent commands.
@@ -108,6 +131,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 ### 1. Install Specify
 
 Initialize your project depending on the coding agent you're using:
+
+> **Note:** All slash commands adapt their behavior based on your current workflow mode. Use `specify mode` to check or change modes.
 
 ```bash
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
@@ -213,6 +238,35 @@ implement specs/002-create-taskify/plan.md
 - **Iterate and refine** your specifications before implementation
 - **Validate** the plan before coding begins
 - **Let the AI agent handle** the implementation details
+- **Choose your complexity level** with workflow modes (build for speed, spec for thoroughness)
+
+## Mode Transitions
+
+Your development needs may change as features evolve:
+
+### When to Switch from Build to Spec Mode
+
+```bash
+specify mode spec
+```
+
+**Indicators:**
+- Feature scope is growing beyond initial expectations
+- Multiple stakeholders need detailed documentation
+- Production deployment requires comprehensive testing
+- Integration with existing systems becomes complex
+
+### When to Switch from Spec to Build Mode
+
+```bash
+specify mode build
+```
+
+**Indicators:**
+- Shifting to exploratory prototyping
+- Need to quickly validate a technical approach
+- Working on throwaway proof-of-concepts
+- Time pressure requires simplified process
 
 ## Next Steps
 

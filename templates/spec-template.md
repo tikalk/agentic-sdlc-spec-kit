@@ -100,6 +100,23 @@
 - **[Entity 1]**: [What it represents, key attributes without implementation]
 - **[Entity 2]**: [What it represents, relationships to other entities]
 
+### Non-Functional Requirements
+
+- **NFR-001**: System MUST [performance requirement, e.g., "respond within 2 seconds for typical operations"]
+- **NFR-002**: System MUST [security requirement, e.g., "encrypt sensitive data at rest and in transit"]
+- **NFR-003**: System MUST [scalability requirement, e.g., "handle 1000 concurrent users"]
+- **NFR-004**: System MUST [reliability requirement, e.g., "maintain 99.9% uptime"]
+- **NFR-005**: System MUST [usability requirement, e.g., "provide accessible interface compliant with WCAG 2.1 AA"]
+
+### Quality Attributes
+
+- **Security**: [Specific security considerations and requirements]
+- **Performance**: [Response times, throughput, resource usage expectations]
+- **Scalability**: [Expected growth patterns and scaling requirements]
+- **Reliability**: [Uptime, error handling, and fault tolerance requirements]
+- **Usability**: [User experience and accessibility requirements]
+- **Maintainability**: [Code quality, documentation, and technical debt considerations]
+
 ## Success Criteria *(mandatory)*
 
 <!--

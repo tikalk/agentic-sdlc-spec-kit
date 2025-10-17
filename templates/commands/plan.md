@@ -1,12 +1,20 @@
 ---
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 scripts:
-   sh: scripts/bash/setup-plan.sh --json
-   ps: scripts/powershell/setup-plan.ps1 -Json
+    sh: scripts/bash/setup-plan.sh --json
+    ps: scripts/powershell/setup-plan.ps1 -Json
 agent_scripts:
-   sh: scripts/bash/update-agent-context.sh __AGENT__
-   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+    sh: scripts/bash/update-agent-context.sh __AGENT__
+    ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
+
+## Mode Detection
+
+1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/mode.json`. If the file doesn't exist or mode is not set, default to "spec" mode.
+
+2. **Mode-Aware Behavior**:
+   - **Build Mode**: Lightweight planning focused on core implementation approach and basic structure
+   - **Spec Mode**: Full research-driven planning with comprehensive design artifacts and validation
 
 ## Role & Context
 
@@ -35,16 +43,16 @@ $ARGUMENTS
 - Timeline or resource considerations
 - Quality or compliance requirements
 
-## Execution Strategy
+## Execution Strategy (Mode-Aware)
 
 **Chain of Thought Approach:**
 1. **Establish Context** → Load specifications and constitutional requirements
-2. **Analyze Scope** → Identify technical unknowns and research needs
-3. **Design Architecture** → Create system models and component definitions
+2. **Analyze Scope** → Identify technical unknowns and research needs (mode-aware depth)
+3. **Design Architecture** → Create system models and component definitions (mode-aware complexity)
 4. **Validate Compliance** → Ensure constitutional alignment
-5. **Generate Artifacts** → Produce implementation-ready documentation
+5. **Generate Artifacts** → Produce implementation-ready documentation (mode-aware templates)
 
-## Core Workflow
+## Core Workflow (Mode-Aware)
 
 ### Phase 1: Planning Setup & Context Loading
 **Objective:** Establish planning environment and load all required context
@@ -58,7 +66,9 @@ $ARGUMENTS
 2. **Context Acquisition**
    - **Specification Loading:** Read FEATURE_SPEC for requirements and constraints
    - **Constitutional Loading:** Read `/memory/constitution.md` for governance rules
-   - **Template Loading:** Access IMPL_PLAN template structure
+   - **Template Loading:** Load appropriate template based on mode
+     - **Build Mode**: Use `plan-template-build.md` (lightweight structure)
+     - **Spec Mode**: Use `plan-template.md` (full research-driven structure)
    - **Validation:** Ensure all context sources are available and consistent
 
 ### Phase 2: Technical Analysis & Research Planning
@@ -82,9 +92,33 @@ $ARGUMENTS
    - **Best Practice Research:** Identify technology-specific recommendations
    - Generate research.md with prioritized investigation plan
 
-## Detailed Phases
+## Detailed Phases (Mode-Aware)
 
-### Phase 0: Outline & Research
+### Build Mode Execution Flow
+**Focus:** Lightweight planning for quick implementation and validation
+
+1. **Core Implementation Approach**
+   - Identify primary technology stack and architecture pattern
+   - Define basic project structure (source directories, key components)
+   - Document essential dependencies and integrations
+   - Skip extensive research - use reasonable defaults and industry standards
+
+2. **Basic Design Artifacts**
+   - Create simplified data model (only essential entities)
+   - Define core API contracts (main endpoints only)
+   - Generate basic project structure documentation
+
+3. **Implementation Readiness Check**
+   - Validate core functionality is implementable
+   - Ensure basic dependencies are identified
+   - Confirm project structure supports feature scope
+
+**Output**: plan.md with core implementation approach, basic data model, essential contracts
+
+### Spec Mode Execution Flow
+**Focus:** Comprehensive research-driven planning with full validation
+
+#### Phase 0: Outline & Research
 
 1. **Extract unknowns from Technical Context** above:
    - For each NEEDS CLARIFICATION → research task
@@ -106,7 +140,7 @@ $ARGUMENTS
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-### Phase 1: Design & Contracts
+#### Phase 1: Design & Contracts
 
 **Prerequisites:** `research.md` complete
 
@@ -129,15 +163,24 @@ $ARGUMENTS
 
 **Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
-## Triage Framework: [SYNC] vs [ASYNC] Task Classification
+## Triage Framework: [SYNC] vs [ASYNC] Task Classification (Mode-Aware)
 
 **Purpose**: Guide the classification of implementation tasks as [SYNC] (human-reviewed) or [ASYNC] (agent-delegated) to optimize execution efficiency and quality.
 
-### Triage Decision Framework
+### Build Mode Triage
+**Focus:** Simplified classification for lightweight execution
+- Prioritize core functionality tasks as [SYNC]
+- Delegate supporting tasks (boilerplate, standard patterns) as [ASYNC]
+- Limit detailed triage analysis - focus on obvious complexity indicators
+
+### Spec Mode Triage
+**Focus:** Comprehensive classification with full validation
+
+#### Triage Decision Framework
 
 **Evaluate Each Implementation Task Against These Criteria:**
 
-#### [SYNC] Classification (Human Execution Required)
+##### [SYNC] Classification (Human Execution Required)
 - **Complex Business Logic**: Non-trivial algorithms, state machines, or domain-specific calculations
 - **Architectural Decisions**: System design choices, component boundaries, or integration patterns
 - **Security-Critical Code**: Authentication, authorization, encryption, or data protection
@@ -145,7 +188,7 @@ $ARGUMENTS
 - **Ambiguous Requirements**: Unclear specifications requiring interpretation or clarification
 - **High-Risk Changes**: Database schema changes, API contract modifications, or breaking changes
 
-#### [ASYNC] Classification (Agent Delegation Suitable)
+##### [ASYNC] Classification (Agent Delegation Suitable)
 - **Well-Defined CRUD**: Standard create/read/update/delete operations with clear schemas
 - **Repetitive Tasks**: Boilerplate code, standard library usage, or template-based generation
 - **Clear Specifications**: Unambiguous requirements with complete acceptance criteria
@@ -153,7 +196,7 @@ $ARGUMENTS
 - **Standard Patterns**: Established frameworks, libraries, or architectural patterns
 - **Testable Units**: Components with comprehensive automated test coverage
 
-### Triage Process
+#### Triage Process
 
 1. **Task Identification**: Break down the feature into discrete, implementable tasks
 2. **Criteria Evaluation**: Assess each task against the [SYNC]/[ASYNC] criteria above
@@ -161,16 +204,15 @@ $ARGUMENTS
 4. **Risk Assessment**: Consider the impact of incorrect classification
 5. **Review Checkpoint**: Validate triage decisions before task generation
 
-### Triage Audit Trail
+#### Triage Audit Trail
 
 **Document for Each Task:**
 - Classification: [SYNC] or [ASYNC]
 - Primary Criteria: Which criteria drove the classification
 - Risk Level: Low/Medium/High (impact of misclassification)
 - Rationale: 1-2 sentence explanation
-- Review Status: Pending/Approved/Rejected
 
-### Triage Effectiveness Metrics
+#### Triage Effectiveness Metrics
 
 **Track Over Time:**
 - Classification Accuracy: Percentage of tasks correctly classified (measured post-implementation)
@@ -178,9 +220,39 @@ $ARGUMENTS
 - Quality Impact: Defect rates by classification type
 - Learning Opportunities: Common misclassification patterns
 
-## Key rules
+## Key Rules (Mode-Aware)
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
 - **TRIAGE REQUIREMENT**: All implementation tasks must be classified as [SYNC] or [ASYNC] with documented rationale
+
+### Build Mode Rules
+- Focus on core functionality and basic implementation approach
+- Use reasonable defaults for unspecified technical details
+- Skip extensive research - prioritize getting something working
+- Limit triage to obvious complexity indicators
+
+### Spec Mode Rules
+- Comprehensive research required before design decisions
+- Full constitutional compliance validation
+- Detailed triage analysis for all tasks
+- Complete design artifacts and validation
+
+## Mode Guidance & Transitions
+
+**Build Mode Planning:**
+- Focus on core implementation approach and essential structure
+- Use reasonable defaults for unspecified technical details
+- Skip extensive research to prioritize getting something working
+- Suitable for: Prototyping, simple features, quick validation
+
+**Spec Mode Planning:**
+- Comprehensive research-driven planning with full validation
+- Detailed technical analysis and constitutional compliance
+- Complete design artifacts and thorough triage
+- Suitable for: Complex features, team collaboration, production systems
+
+**Mode Transitions:**
+- Build → Spec: Use `/mode spec` when feature complexity increases or comprehensive planning is needed
+- Spec → Build: Use `/mode build` for rapid prototyping or when detailed planning creates overhead
 
