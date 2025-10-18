@@ -193,6 +193,32 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - Testing gaps revealed
 - Monitoring/logging enhancements needed
 
+#### K. Smart Trace Validation (Both Modes)
+
+**Purpose**: Ensure spec-to-issue traceability is maintained throughout the SDD workflow using `@issue-tracker ISSUE-123` syntax.
+
+**Detection Logic**:
+1. **Scan all artifacts** for existing `@issue-tracker` references
+2. **Extract issue IDs** from patterns like `@issue-tracker PROJ-123`, `@issue-tracker #456`, `@issue-tracker GITHUB-789`
+3. **Validate coverage**:
+   - **Spec-level traces**: Every major feature/user story should have at least one issue reference
+   - **Task-level traces**: Implementation tasks should reference parent spec issues
+   - **Cross-artifact consistency**: Same issue IDs used across spec.md, plan.md, tasks.md
+4. **Check MCP configuration**: Verify `.mcp.json` exists and issue tracker is properly configured
+
+**Traceability Gaps to Detect**:
+- **Missing spec traces**: User stories or major features without `@issue-tracker` references
+- **Orphaned tasks**: Implementation tasks not linked to spec-level issues
+- **Inconsistent issue references**: Same feature referenced with different issue IDs across artifacts
+- **Invalid issue formats**: Malformed issue references that won't integrate with MCP
+- **MCP misconfiguration**: Issue tracker not configured in `.mcp.json`
+
+**Validation Rules**:
+- **Minimum coverage**: ≥80% of user stories/requirements should have traceable issue links
+- **Format validation**: Issue references must match configured tracker patterns (GitHub/Jira/Linear/GitLab)
+- **Consistency check**: Issue IDs should be consistent across spec.md → plan.md → tasks.md
+- **MCP readiness**: `.mcp.json` must exist and contain valid issue tracker configuration
+
 ### 5. Severity Assignment (Mode-Aware)
 
 Use this heuristic to prioritize findings:
@@ -238,6 +264,12 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - Duplication Count
 - Critical Issues Count
 
+**Traceability Validation:**
+- **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
+- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
+- **Format Validation**: All issue references use valid formats
+- **Consistency Check**: Issue IDs consistent across artifacts
+
 #### Post-Implementation Report Structure
 
 ## Post-Implementation Analysis Report
@@ -264,6 +296,12 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - Testing enhancements
 - Documentation updates needed
 
+**Traceability Validation:**
+- **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
+- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
+- **Format Validation**: All issue references use valid formats
+- **Consistency Check**: Issue IDs consistent across artifacts
+
 ### 7. Provide Next Actions (Auto-Detected)
 
 At end of report, output a concise Next Actions block based on detected mode and findings:
@@ -272,11 +310,13 @@ At end of report, output a concise Next Actions block based on detected mode and
 - **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
 - **Spec Mode**: If CRITICAL issues exist: Recommend resolving before `/implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
+- **Traceability**: If <80% coverage: "Add @issue-tracker ISSUE-123 references to major user stories in spec.md"
 - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 **Post-Implementation Next Actions:**
 - If CRITICAL issues exist: Recommend immediate fixes for security/stability
 - If HIGH issues exist: Suggest prioritization for next iteration
+- **Traceability**: If gaps found: "Update issue status in tracker and ensure all implemented features are linked via @issue-tracker references"
 - Provide refinement suggestions: e.g., "Consider performance optimization", "Update documentation for new features", "Add missing test coverage"
 - Suggest follow-up commands: e.g., "Run /plan to update architecture docs", "Run /specify to document new requirements"
 
