@@ -1,8 +1,8 @@
 ---
 description: Perform cross-artifact consistency and quality analysis. Automatically detects pre vs post-implementation context based on workflow mode and project state.
 scripts:
-   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
+   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
+   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
 
 ## User Input
@@ -34,7 +34,9 @@ This command adapts its behavior based on project state and workflow mode.
 **Auto-Detection Logic**:
 1. Check workflow mode (build vs spec) from `.specify/config/mode.json`
 2. Analyze project state:
-   - **Pre-implementation**: tasks.md exists, no source code or build artifacts
+   - **Pre-implementation**:
+     - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
+     - **Spec mode**: tasks.md exists, no source code or build artifacts
    - **Post-implementation**: Source code directories, compiled outputs, or deployment artifacts exist
 3. Apply mode-aware analysis depth:
    - **Build mode**: Lightweight analysis appropriate for rapid iteration
@@ -63,33 +65,35 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
    - Check git history for implementation commits
    - Verify if `/implement` has been run recently
 3. **Determine Analysis Type**:
-   - **Pre-Implementation**: No implementation artifacts + tasks.md exists
+   - **Pre-Implementation**:
+     - **Build mode**: No implementation artifacts (regardless of plan.md/tasks.md status)
+     - **Spec mode**: No implementation artifacts + tasks.md exists
    - **Post-Implementation**: Implementation artifacts exist
 4. **Apply Mode-Aware Depth**:
    - **Build Mode**: Focus on core functionality and quick iterations
    - **Spec Mode**: Comprehensive analysis with full validation
 
-**Fallback Logic**: If detection is ambiguous, default to pre-implementation analysis and prompt user for clarification.
+**Fallback Logic**: If detection is ambiguous, default to pre-implementation analysis appropriate for the current mode and prompt user for clarification.
 
 ### 3. Load Artifacts (Auto-Detected Mode)
 
 **Pre-Implementation Mode Artifacts:**
-Load only the minimal necessary context from each artifact:
+Load available artifacts (build mode may have only spec.md):
 
-**From spec.md:**
+**From spec.md (required):**
 - Overview/Context
 - Functional Requirements
 - Non-Functional Requirements
 - User Stories
 - Edge Cases (if present)
 
-**From plan.md:**
+**From plan.md (optional in build mode):**
 - Architecture/stack choices
 - Data Model references
 - Phases
 - Technical constraints
 
-**From tasks.md:**
+**From tasks.md (optional in build mode):**
 - Task IDs
 - Descriptions
 - Phase grouping
@@ -143,7 +147,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 - Requirements with verbs but missing object or measurable outcome
 - User stories missing acceptance criteria alignment
-- Tasks referencing files or components not defined in spec/plan
+- Tasks referencing files or components not defined in spec/plan (if tasks.md exists)
 
 #### D. Constitution Alignment
 
@@ -152,9 +156,9 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 #### E. Coverage Gaps
 
-- Requirements with zero associated tasks
-- Tasks with no mapped requirement/story
-- Non-functional requirements not reflected in tasks (e.g., performance, security)
+- Requirements with zero associated tasks (if tasks.md exists)
+- Tasks with no mapped requirement/story (if tasks.md exists)
+- Non-functional requirements not reflected in tasks (if tasks.md exists)
 
 #### F. Inconsistency
 
@@ -194,9 +198,9 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 Use this heuristic to prioritize findings:
 
 **Pre-Implementation Severities:**
-- **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
+- **CRITICAL**: Violates constitution MUST, missing spec.md, or requirement with zero coverage that blocks baseline functionality
 - **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
+- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, missing plan.md/tasks.md (build mode only)
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
 **Post-Implementation Severities:**
@@ -265,7 +269,8 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 At end of report, output a concise Next Actions block based on detected mode and findings:
 
 **Pre-Implementation Next Actions:**
-- If CRITICAL issues exist: Recommend resolving before `/implement`
+- **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
+- **Spec Mode**: If CRITICAL issues exist: Recommend resolving before `/implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 

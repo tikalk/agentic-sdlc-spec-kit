@@ -204,6 +204,12 @@
 - ❌ **Archive Option**: Optional archiving instead of permanent deletion
 - ❌ **Cleanup Verification**: Confirm all related files and branches are removed
 
+#### **Feature-Level Mode Configuration** *(0% Complete)* - **FUTURE ENHANCEMENT**
+- ❌ **Per-Feature Mode Settings**: Allow different workflow modes (build/spec) per feature instead of project-wide
+- ❌ **Feature Mode Inheritance**: Default to project mode with ability to override per feature
+- ❌ **Mode Compatibility Validation**: Ensure feature modes are compatible with project infrastructure
+- ❌ **Mode Migration Support**: Tools to change feature modes mid-development
+
 #### **Issue Tracker Labeling** *(0% Complete)* - **FUTURE ENHANCEMENT**
 - ❌ **Issue Label Application**: `apply_issue_labels()` for `async-ready` and `agent-delegatable` labels
 - ❌ **Spec vs Task Complexity**: Handle original spec issues vs. generated implementation tasks
@@ -244,6 +250,7 @@
 | **Context Engineering** | 0% | 🆕 New |
 | **Knowledge Evals** | 0% | 🆕 New |
 | **Spec Management** | 0% | 🆕 New |
+| **Feature-Level Modes** | 0% | 🆕 New |
 
 **Overall Implementation Status**: ~92% Complete
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration)
@@ -269,7 +276,8 @@
 7. **MEDIUM**: Strategic tooling improvements (50% → 100%)
 8. **MEDIUM**: Enhanced traceability (60% → 100%)
 9. **MEDIUM**: Methodology documentation integration (30% → 100%)
-10. **LOW**: IDE Integration & Cockpit Features (0% → future consideration)
+10. **LOW**: Feature-level mode configuration (0% → future consideration)
+11. **LOW**: IDE Integration & Cockpit Features (0% → future consideration)
 
 **Context Engineering Implementation Timeline:**
 - Phase 1 (2 weeks): Context chunking and progressive layering
