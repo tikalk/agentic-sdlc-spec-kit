@@ -74,7 +74,7 @@ Choose your preferred installation method:
 Install once and use everywhere:
 
 ```bash
-uv tool install specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
 ```
 
 Then use the tool directly:
@@ -87,7 +87,7 @@ specify check
 To upgrade specify run:
 
 ```bash
-uv tool install specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
+uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
 ```
 
 #### Option 2: One-time Usage
@@ -377,7 +377,7 @@ The `specify` command supports the following options:
 | Argument/Option              | Type     | Description                                                                 |
 |------------------------------|----------|-----------------------------------------------------------------------------|
 | `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                       | Option   | AI assistant: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, or `q` |
+| `--ai`                       | Option   | AI assistant: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `codebuddy`, `roo`, or `q` |
 | `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
 | `--ignore-agent-tools`       | Flag     | Skip AI agent tool checks                                                  |
 | `--no-git`                   | Flag     | Skip git repository initialization                                         |
