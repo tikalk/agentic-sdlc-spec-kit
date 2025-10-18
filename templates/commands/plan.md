@@ -140,28 +140,37 @@ $ARGUMENTS
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-#### Phase 1: Design & Contracts
+#### Phase 1: Design & Contracts (Configurable)
 
 **Prerequisites:** `research.md` complete
 
-1. **Extract entities from feature spec** → `data-model.md`:
-   - Entity name, fields, relationships
-   - Validation rules from requirements
-   - State transitions if applicable
+**Framework Opinions Check:**
+- Check current mode and opinion settings via `/mode`
+- Respect user configuration for contracts and data models
 
-2. **Generate API contracts** from functional requirements:
-   - For each user action → endpoint
-   - Use standard REST/GraphQL patterns
-   - Output OpenAPI/GraphQL schema to `/contracts/`
+1. **Extract entities from feature spec** → `data-model.md` (if data models enabled):
+    - Only generate if data models are enabled in current mode settings
+    - Entity name, fields, relationships
+    - Validation rules from requirements
+    - State transitions if applicable
+
+2. **Generate API contracts** from functional requirements (if contracts enabled):
+    - Only generate if API contracts are enabled in current mode settings
+    - For each user action → endpoint
+    - Use standard REST/GraphQL patterns
+    - Output OpenAPI/GraphQL schema to `/contracts/`
 
 3. **Agent context update**:
-   - Run `{AGENT_SCRIPT}`
-   - These scripts detect which AI agent is in use
-   - Update the appropriate agent-specific context file
-   - Add only new technology from current plan
-   - Preserve manual additions between markers
+    - Run `{AGENT_SCRIPT}`
+    - These scripts detect which AI agent is in use
+    - Update the appropriate agent-specific context file
+    - Add only new technology from current plan
+    - Preserve manual additions between markers
 
-**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
+**Output**: Conditionally generated artifacts based on mode opinion settings:
+- data-model.md (if data models enabled)
+- /contracts/* (if contracts enabled)
+- quickstart.md, agent-specific file (always generated)
 
 ## Triage Framework: [SYNC] vs [ASYNC] Task Classification (Mode-Aware)
 

@@ -12,23 +12,34 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 
 ### Choose Your Workflow Mode
 
-Specify supports two workflow modes that control development complexity:
+Specify supports two workflow modes that control development complexity, plus configurable framework opinions:
 
 - **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
 - **`build` mode**: Lightweight approach focused on quick implementation and exploration
 
+**Framework Opinions** (configurable within each mode):
+- **TDD**: Test-Driven Development (tests before implementation)
+- **API Contracts**: Automatic contract generation during planning
+- **Data Models**: Automatic data model generation during planning
+
 ```bash
-# Check current mode
-specify mode
+# Check current mode and opinions
+/mode
 
 # Switch to lightweight mode for prototyping
-specify mode build
+/mode build
 
 # Switch to comprehensive mode for production features
-specify mode spec
+/mode spec
 
-# Learn more about modes
-specify mode --info
+# Customize framework opinions
+/mode --no-contracts  # Disable API contracts
+/mode --tdd           # Enable TDD
+/mode --risk-tests    # Enable risk-based testing
+/mode --reset-opinions  # Reset to mode defaults
+
+# Learn more about modes and opinions
+/mode --info
 ```
 
 **Recommendation:** Start with `build` mode for exploration, switch to `spec` mode when features become complex or need thorough documentation.
@@ -132,7 +143,7 @@ specify mode --info
 
 Initialize your project depending on the coding agent you're using:
 
-> **Note:** All slash commands adapt their behavior based on your current workflow mode. Use `specify mode` to check or change modes.
+> **Note:** All slash commands adapt their behavior based on your current workflow mode. Use `/mode` to check or change modes.
 
 ```bash
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
@@ -247,7 +258,7 @@ Your development needs may change as features evolve:
 ### When to Switch from Build to Spec Mode
 
 ```bash
-specify mode spec
+/mode spec
 ```
 
 **Indicators:**
@@ -259,7 +270,7 @@ specify mode spec
 ### When to Switch from Spec to Build Mode
 
 ```bash
-specify mode build
+/mode build
 ```
 
 **Indicators:**

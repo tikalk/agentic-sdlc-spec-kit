@@ -1,6 +1,6 @@
 #!/bin/bash
 # implement.sh - Execute the implementation plan with dual execution loop support
-# Handles SYNC/ASYNC task classification, MCP dispatching, and review enforcement
+# Handles SYNC/ASYNC task classification, LLM delegation, and review enforcement
 
 set -euo pipefail
 
@@ -199,19 +199,40 @@ execute_task() {
     log_info "Executing task $task_id in $execution_mode mode"
 
     if [[ "$execution_mode" == "ASYNC" ]]; then
-        # Dispatch to MCP server
-        local mcp_config
-        mcp_config=$(load_mcp_config ".mcp.json")
-        dispatch_async_task "$TASKS_META_FILE" "$task_id" "$mcp_config"
+        # Generate delegation prompt for LLM
+        local task_description
+        task_description=$(jq -r ".tasks[\"$task_id\"].description" "$TASKS_META_FILE")
+        local task_files
+        task_files=$(jq -r ".tasks[\"$task_id\"].files // empty" "$TASKS_META_FILE")
+        local agent_type
+        agent_type=$(jq -r ".tasks[\"$task_id\"].agent_type // \"general\"" "$TASKS_META_FILE")
+
+        # For now, use simple context and requirements
+        local task_context="Files: $task_files"
+        local task_requirements="Complete the task according to specifications"
+        local execution_instructions="Execute the task and provide detailed results"
+
+        if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
+            log_success "ASYNC task $task_id dispatched successfully"
+        else
+            handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
+        fi
     else
         # Execute SYNC task (would normally involve AI agent execution)
         log_info "SYNC task $task_id would be executed here (simulated)"
 
-        # Mark as completed (in real implementation, this would happen after successful execution)
-        safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
+        # Simulate execution success/failure (in real implementation, check actual execution result)
+        local execution_success=true
 
-        # Perform micro-review
-        perform_micro_review "$TASKS_META_FILE" "$task_id"
+        if [[ "$execution_success" == "true" ]]; then
+            # Mark as completed (in real implementation, this would happen after successful execution)
+            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
+
+            # Perform micro-review
+            perform_micro_review "$TASKS_META_FILE" "$task_id"
+        else
+            handle_task_failure "$task_id" "SYNC task execution failed"
+        fi
     fi
 
     # Apply quality gates
@@ -236,19 +257,26 @@ monitor_async_tasks() {
         fi
 
         local status
-        status=$(check_mcp_job_status "$TASKS_META_FILE" "$task_id")
+        status=$(check_delegation_status "$task_id")
 
         case "$status" in
             "completed")
                 log_success "ASYNC task $task_id completed"
+                # Mark as completed in tasks_meta.json
+                safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
                 # Perform macro-review for completed ASYNC tasks
                 perform_macro_review "$TASKS_META_FILE"
                 ;;
             "running")
                 log_info "ASYNC task $task_id still running"
                 ;;
+            "failed")
+                log_error "ASYNC task $task_id failed"
+                # Handle failure with rollback options
+                handle_task_failure "$task_id" "ASYNC task execution failed"
+                ;;
             "no_job")
-                log_warning "ASYNC task $task_id has no job ID"
+                log_warning "ASYNC task $task_id has no delegation response"
                 ;;
         esac
     done
@@ -292,6 +320,10 @@ main() {
     if [[ "$all_completed" == "true" ]]; then
         log_info "All tasks completed - performing macro-review"
         perform_macro_review "$TASKS_META_FILE"
+
+        # Offer documentation evolution after successful implementation
+        log_info "Offering documentation evolution based on implementation learnings"
+        offer_documentation_evolution "$FEATURE_DIR"
     else
         log_info "Some tasks still pending - macro-review deferred until completion"
     fi
@@ -300,6 +332,128 @@ main() {
     get_execution_summary "$TASKS_META_FILE"
 
     log_success "Implementation phase completed"
+}
+
+# Offer documentation evolution after implementation
+offer_documentation_evolution() {
+    local feature_dir="$1"
+
+    log_info "Analyzing implementation for documentation evolution opportunities..."
+
+    # Analyze implementation changes
+    local analysis_results
+    analysis_results=$(analyze_implementation_changes "$feature_dir")
+
+    # Check if there are significant changes worth documenting
+    if echo "$analysis_results" | grep -q "new features\|architecture\|refinements\|additional tasks"; then
+        log_info "Implementation changes detected - offering documentation evolution"
+
+        # Propose documentation updates
+        local proposals
+        proposals=$(propose_documentation_updates "$feature_dir" "$analysis_results")
+
+        echo "## Documentation Evolution Available
+$proposals
+
+Would you like to apply these documentation updates? (yes/no): "
+        read -r response
+        if [[ "$response" =~ ^(yes|y)$ ]]; then
+            apply_recommended_updates "$feature_dir" "$analysis_results"
+        else
+            log_info "Documentation evolution skipped by user"
+        fi
+    else
+        log_info "No significant documentation evolution needed"
+    fi
+}
+
+# Apply recommended documentation updates
+apply_recommended_updates() {
+    local feature_dir="$1"
+    local analysis_results="$2"
+
+    # Apply spec updates if new features detected
+    if echo "$analysis_results" | grep -q "new features\|new API\|new components"; then
+        echo "What new features should be added to spec.md? (describe or 'skip'): "
+        read -r spec_updates
+        if [[ "$spec_updates" != "skip" ]]; then
+            apply_documentation_updates "$feature_dir" "spec" "$spec_updates"
+        fi
+    fi
+
+    # Apply plan updates if architecture changes detected
+    if echo "$analysis_results" | grep -q "architecture\|performance\|security"; then
+        echo "What architecture changes should be documented in plan.md? (describe or 'skip'): "
+        read -r plan_updates
+        if [[ "$plan_updates" != "skip" ]]; then
+            apply_documentation_updates "$feature_dir" "plan" "$plan_updates"
+        fi
+    fi
+
+    # Apply task updates if refinements detected
+    if echo "$analysis_results" | grep -q "additional tasks\|refinements"; then
+        echo "What refinement tasks should be added to tasks.md? (describe or 'skip'): "
+        read -r task_updates
+        if [[ "$task_updates" != "skip" ]]; then
+            apply_documentation_updates "$feature_dir" "tasks" "$task_updates"
+        fi
+    fi
+
+    log_success "Documentation evolution completed"
+}
+
+# Handle task failure with enhanced rollback options
+handle_task_failure() {
+    local task_id="$1"
+    local failure_reason="$2"
+
+    log_warning "Task $task_id failed: $failure_reason"
+
+    # Get workflow mode for mode-aware rollback
+    local mode="spec"  # Default
+    if [[ -f ".specify/config/mode.json" ]]; then
+        mode=$(jq -r '.mode // "spec"' ".specify/config/mode.json" 2>/dev/null || echo "spec")
+    fi
+
+    echo "Task $task_id failed. Options:
+1. Retry task
+2. Rollback task and continue (mode-aware: $mode)
+3. Rollback entire feature and regenerate tasks
+4. Regenerate plan and tasks
+5. Skip and continue
+Choose (1-5): "
+    read -r choice
+
+    case "$choice" in
+        1)
+            log_info "Retrying task $task_id"
+            # Reset task status to pending
+            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "pending"'
+            ;;
+        2)
+            log_info "Rolling back task $task_id with $mode mode strategy"
+            execute_mode_aware_rollback "$FEATURE_DIR" "task" "$mode" "$task_id"
+            ensure_documentation_consistency "$FEATURE_DIR"
+            ;;
+        3)
+            log_info "Rolling back entire feature and regenerating tasks"
+            execute_mode_aware_rollback "$FEATURE_DIR" "feature" "$mode"
+            regenerate_tasks_after_rollback "$FEATURE_DIR" "$failure_reason"
+            ensure_documentation_consistency "$FEATURE_DIR"
+            ;;
+        4)
+            log_info "Regenerating plan and tasks after failure analysis"
+            regenerate_plan "$FEATURE_DIR" "Task failure: $failure_reason"
+            regenerate_tasks_after_rollback "$FEATURE_DIR" "$failure_reason"
+            ;;
+        5)
+            log_info "Skipping failed task $task_id"
+            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "skipped"'
+            ;;
+        *)
+            log_warning "Invalid choice, skipping task"
+            ;;
+    esac
 }
 
 # Run main if script is executed directly

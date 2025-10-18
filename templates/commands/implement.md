@@ -129,7 +129,7 @@ You **MUST** consider the user input before proceeding (if not empty).
        - **Task dependencies**: Sequential vs parallel execution rules
        - **Task details**: ID, description, file paths, parallel markers [P]
        - **Execution flow**: Order and dependency requirements
-       - **Load tasks_meta.json**: Read execution modes, MCP job status, and review requirements
+        - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
        - Record assigned agents and job IDs for ASYNC tasks
 
    6. Execute implementation following execution approach (mode-aware):
@@ -143,11 +143,11 @@ You **MUST** consider the user input before proceeding (if not empty).
        **Spec Mode Execution (Dual Execution Loop):**
        - **Phase-by-phase execution**: Complete each phase before moving to the next
        - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-       - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
+        - **Follow TDD approach** (if enabled): Check current mode opinion settings - if TDD enabled, execute test tasks before implementation tasks
        - **File-based coordination**: Tasks affecting the same files must run sequentially
        - **Dual execution mode handling**:
          - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-         - **ASYNC tasks**: Dispatch to MCP servers via `scripts/bash/tasks-meta-utils.sh dispatch "$FEATURE_DIR/tasks_meta.json" "$task_id"`, monitor job status, apply macro-review after completion
+          - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
        - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
        - **Validation checkpoints**: Verify each phase completion before proceeding
 
@@ -161,7 +161,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
      **Spec Mode Rules:**
      - **Setup first**: Initialize project structure, dependencies, configuration
-     - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
+      - **Tests before code** (if TDD enabled): If TDD is enabled in current mode settings and you need to write tests for contracts, entities, and integration scenarios
      - **Core development**: Implement models, services, CLI commands, endpoints
      - **Integration work**: Database connections, middleware, logging, external services
      - **Polish and validation**: Unit tests, performance optimization, documentation

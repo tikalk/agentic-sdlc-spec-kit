@@ -1,757 +1,818 @@
 #!/bin/bash
-# tasks-meta-utils.sh - Dual Execution Loop utilities for managing tasks_meta.json
-# Provides functions for SYNC/ASYNC task classification, MCP dispatching, and review enforcement
 
-set -euo pipefail
+# Task Meta Utilities for Agentic SDLC
+# Handles task classification, delegation, and status tracking
 
-# Source common utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
-
-# Global variable to track temporary files created by this script
-TEMP_FILES=()
-
-# Function to safely update JSON file without leaving temp files
-safe_json_update() {
-    local input_file="$1"
-    local jq_filter="$2"
-
-    # Create a temporary file in the same directory as the input file
-    local temp_file
-    temp_file=$(mktemp "${input_file}.XXXXXX")
-
-    # Track the temp file for cleanup
-    TEMP_FILES+=("$temp_file")
-
-    # Run jq and write to temp file
-    if jq "$jq_filter" "$input_file" > "$temp_file"; then
-        # Only move if jq succeeded
-        mv "$temp_file" "$input_file"
-        # Remove from tracking since it was successfully moved
-        TEMP_FILES=("${TEMP_FILES[@]/$temp_file}")
-    else
-        # Clean up temp file on failure
-        rm -f "$temp_file"
-        TEMP_FILES=("${TEMP_FILES[@]/$temp_file}")
-        return 1
-    fi
-}
-
-# Cleanup function for temporary files created by this script
-cleanup_temp_files() {
-    for temp_file in "${TEMP_FILES[@]}"; do
-        if [[ -f "$temp_file" ]]; then
-            rm -f "$temp_file"
-        fi
-    done
-    TEMP_FILES=()
-}
-
-# Set up trap to clean up temporary files on exit
-trap cleanup_temp_files EXIT
-
-# Logging functions
-log_info() {
-    echo "[INFO] $*" >&2
-}
-
-log_success() {
-    echo "[SUCCESS] $*" >&2
-}
-
-log_error() {
-    echo "[ERROR] $*" >&2
-}
-
-log_warning() {
-    echo "[WARNING] $*" >&2
-}
-
-# Constants
-TASKS_META_FILE="tasks_meta.json"
-FEATURE_DIR=""
-MCP_CONFIG_FILE=".mcp.json"
-
-# Initialize tasks_meta.json structure
+# Initialize tasks_meta.json for a feature
 init_tasks_meta() {
     local feature_dir="$1"
-    local tasks_meta_path="$feature_dir/$TASKS_META_FILE"
+    local tasks_meta_file="$feature_dir/tasks_meta.json"
 
-    if [[ ! -f "$tasks_meta_path" ]]; then
-        cat > "$tasks_meta_path" << EOF
+    # Create basic structure
+    cat > "$tasks_meta_file" << EOF
 {
-  "feature": "$(basename "$feature_dir")",
-  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "execution_mode": "dual",
-  "quality_gates": {
-    "sync": {
-      "micro_review_required": true,
-      "macro_review_required": true,
-      "test_coverage_minimum": 80,
-      "security_scan_required": true,
-      "performance_benchmarks_required": true
-    },
-    "async": {
-      "micro_review_required": false,
-      "macro_review_required": true,
-      "test_coverage_minimum": 60,
-      "security_scan_required": false,
-      "performance_benchmarks_required": false
-    }
-  },
-  "mcp_servers": {},
-  "tasks": {},
-  "reviews": {
-    "micro_reviews": [],
-    "macro_reviews": []
-  },
-  "risks": [],
-  "status": "initialized"
+    "feature": "$(basename "$feature_dir")",
+    "created": "$(date -Iseconds)",
+    "tasks": {}
 }
 EOF
-        log_info "Initialized tasks_meta.json at $tasks_meta_path"
-    else
-        log_info "tasks_meta.json already exists at $tasks_meta_path"
-    fi
 
-    echo "$tasks_meta_path"
+    echo "Initialized tasks_meta.json at $tasks_meta_file"
 }
 
-# Load MCP server configuration
-load_mcp_config() {
-    local mcp_config_path="$1"
-
-    if [[ -f "$mcp_config_path" ]]; then
-        # Extract MCP servers from .mcp.json
-        jq -r '.mcpServers // {}' "$mcp_config_path" 2>/dev/null || echo "{}"
-    else
-        echo "{}"
-    fi
-}
-
-# Classify task as SYNC or ASYNC based on criteria
+# Classify task execution mode (SYNC/ASYNC)
 classify_task_execution_mode() {
-    local task_description="$1"
-    local task_files="$2"
+    local description="$1"
+    local files="$2"
 
-    # SYNC criteria (requires human review)
-    if echo "$task_description" | grep -qiE "(complex|architectural|security|integration|external|ambiguous|decision|design)"; then
-        echo "SYNC"
-        return
-    fi
-
-    # ASYNC criteria (can be delegated to agents)
-    if echo "$task_description" | grep -qiE "(crud|boilerplate|repetitive|standard|independent|clear|well-defined)"; then
+    # Simple classification logic
+    # ASYNC if description contains certain keywords or involves multiple files
+    if echo "$description" | grep -qi "research\|analyze\|design\|plan\|review\|test"; then
         echo "ASYNC"
-        return
+    elif [[ $(echo "$files" | wc -w) -gt 2 ]]; then
+        echo "ASYNC"
+    else
+        echo "SYNC"
     fi
-
-    # Default to SYNC for safety
-    echo "SYNC"
 }
 
 # Add task to tasks_meta.json
 add_task() {
-    local tasks_meta_path="$1"
+    local tasks_meta_file="$1"
     local task_id="$2"
-    local task_description="$3"
-    local task_files="$4"
+    local description="$3"
+    local files="$4"
     local execution_mode="$5"
 
-    local task_json
-    task_json=$(cat << EOF
-{
-  "id": "$task_id",
-  "description": "$task_description",
-  "files": "$task_files",
-  "execution_mode": "$execution_mode",
-  "status": "pending",
-  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "mcp_job_id": null,
-  "mcp_server": null,
-  "review_status": "pending",
-  "quality_gate_passed": false
-}
-EOF
-)
-
-    # Add task to tasks_meta.json
-    safe_json_update "$tasks_meta_path" --arg task_id "$task_id" --argjson task "$task_json" '.tasks[$task_id] = $task'
-
-    log_info "Added task $task_id ($execution_mode) to tasks_meta.json"
-}
-
-# Dispatch ASYNC task to MCP server
-dispatch_async_task() {
-    local tasks_meta_path="$1"
-    local task_id="$2"
-    local mcp_servers="$3"
-
-    # Find available MCP server for async agents
-    local async_server=""
-    local server_url=""
-
-    # Look for async agent servers
-    if echo "$mcp_servers" | jq -e '.["agent-jules"]' >/dev/null 2>&1; then
-        async_server="agent-jules"
-        server_url=$(echo "$mcp_servers" | jq -r '."agent-jules".url')
-    elif echo "$mcp_servers" | jq -e '.["agent-async-copilot"]' >/dev/null 2>&1; then
-        async_server="agent-async-copilot"
-        server_url=$(echo "$mcp_servers" | jq -r '."agent-async-copilot".url')
-    elif echo "$mcp_servers" | jq -e '.["agent-async-codex"]' >/dev/null 2>&1; then
-        async_server="agent-async-codex"
-        server_url=$(echo "$mcp_servers" | jq -r '."agent-async-codex".url')
-    fi
-
-    if [[ -z "$async_server" ]]; then
-        log_error "No async MCP server configured for task $task_id"
-        return 1
-    fi
-
-    # Generate mock job ID (in real implementation, this would call the MCP server)
-    local job_id="job_$(date +%s)_${task_id}"
-
-    # Update task with MCP job info
-    safe_json_update "$tasks_meta_path" --arg task_id "$task_id" --arg job_id "$job_id" --arg server "$async_server" \
-       '.tasks[$task_id].mcp_job_id = $job_id | .tasks[$task_id].mcp_server = $server | .tasks[$task_id].status = "dispatched"'
-
-    log_info "Dispatched ASYNC task $task_id to $async_server (job: $job_id)"
-
-    # In real implementation, would make HTTP call to MCP server
-    # curl -X POST "$server_url/tasks" -H "Content-Type: application/json" -d "{\"task_id\": \"$task_id\", \"description\": \"...\"}"
-}
-
-# Check MCP job status (mock implementation)
-check_mcp_job_status() {
-    local tasks_meta_path="$1"
-    local task_id="$2"
-
-    local job_id
-    job_id=$(jq -r ".tasks[\"$task_id\"].mcp_job_id" "$tasks_meta_path")
-
-    if [[ "$job_id" == "null" ]]; then
-        echo "no_job"
-        return
-    fi
-
-    # Mock status - in real implementation, would query MCP server
-    # For demo purposes, randomly complete some jobs
-    if [[ $((RANDOM % 3)) -eq 0 ]]; then
-        echo "completed"
-        # Update task status
-        safe_json_update "$tasks_meta_path" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
+    # Use jq if available, otherwise create manually
+    if command -v jq >/dev/null 2>&1; then
+        jq --arg task_id "$task_id" \
+           --arg desc "$description" \
+           --arg files "$files" \
+           --arg mode "$execution_mode" \
+           '.tasks[$task_id] = {
+               "description": $desc,
+               "files": $files,
+               "execution_mode": $mode,
+               "status": "pending",
+               "agent_type": "general"
+           }' "$tasks_meta_file" > "${tasks_meta_file}.tmp" && mv "${tasks_meta_file}.tmp" "$tasks_meta_file"
     else
-        echo "running"
+        # Fallback without jq - just log for now
+        echo "Added task $task_id ($execution_mode) to $tasks_meta_file"
     fi
 }
 
-# Perform micro-review for SYNC task
-perform_micro_review() {
-    local tasks_meta_path="$1"
-    local task_id="$2"
+# Generate comprehensive agent context
+generate_agent_context() {
+    local feature_dir="$1"
 
-    local task_description
-    task_description=$(jq -r ".tasks[\"$task_id\"].description" "$tasks_meta_path")
+    local context="## Project Context
 
-    local task_files
-    task_files=$(jq -r ".tasks[\"$task_id\"].files" "$tasks_meta_path")
+"
 
-    log_info "Starting micro-review for task $task_id: $task_description"
+    # Add spec.md content
+    if [[ -f "$feature_dir/spec.md" ]]; then
+        context="${context}### Feature Specification
+$(cat "$feature_dir/spec.md")
 
-    # Interactive review prompts
-    echo "=== MICRO-REVIEW: Task $task_id ==="
-    echo "Description: $task_description"
-    echo "Files: $task_files"
-    echo ""
-
-    # Code quality check
-    echo "1. Code Quality Review:"
-    echo "   - Is the code well-structured and readable?"
-    echo "   - Are naming conventions followed?"
-    echo "   - Is the code properly commented?"
-    read -p "   Pass? (y/n): " code_quality
-    echo ""
-
-    # Logic correctness check
-    echo "2. Logic Correctness Review:"
-    echo "   - Does the implementation match the requirements?"
-    echo "   - Are edge cases handled properly?"
-    echo "   - Is the logic sound and complete?"
-    read -p "   Pass? (y/n): " logic_correctness
-    echo ""
-
-    # Security best practices check
-    echo "3. Security Best Practices:"
-    echo "   - No hardcoded secrets or credentials?"
-    echo "   - Input validation and sanitization?"
-    echo "   - No obvious security vulnerabilities?"
-    read -p "   Pass? (y/n): " security_practices
-    echo ""
-
-    # Error handling check
-    echo "4. Error Handling:"
-    echo "   - Appropriate error handling and logging?"
-    echo "   - Graceful failure modes?"
-    echo "   - User-friendly error messages?"
-    read -p "   Pass? (y/n): " error_handling
-    echo ""
-
-    # Overall assessment
-    local overall_status="passed"
-    local failed_criteria=()
-
-    if [[ "$code_quality" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("code_quality")
+"
     fi
 
-    if [[ "$logic_correctness" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("logic_correctness")
+    # Add plan.md content
+    if [[ -f "$feature_dir/plan.md" ]]; then
+        context="${context}### Technical Plan
+$(cat "$feature_dir/plan.md")
+
+"
     fi
 
-    if [[ "$security_practices" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("security_practices")
+    # Add data-model.md if exists
+    if [[ -f "$feature_dir/data-model.md" ]]; then
+        context="${context}### Data Model
+$(cat "$feature_dir/data-model.md")
+
+"
     fi
 
-    if [[ "$error_handling" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("error_handling")
+    # Add research.md if exists
+    if [[ -f "$feature_dir/research.md" ]]; then
+        context="${context}### Research & Decisions
+$(cat "$feature_dir/research.md")
+
+"
     fi
 
-    # Collect comments
-    echo "Additional comments (optional):"
-    read -r comments
-    if [[ -z "$comments" ]]; then
-        comments="Micro-review completed interactively"
-    fi
+    # Add contracts if exists
+    if [[ -d "$feature_dir/contracts" ]]; then
+        context="${context}### API Contracts
+"
+        for contract_file in "$feature_dir/contracts"/*.md; do
+            if [[ -f "$contract_file" ]]; then
+                context="${context}#### $(basename "$contract_file" .md)
+$(cat "$contract_file")
 
-    local review_id="micro_$(date +%s)"
-    local review_json
-    review_json=$(cat << EOF
-{
-  "id": "$review_id",
-  "task_id": "$task_id",
-  "type": "micro",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "status": "$overall_status",
-  "reviewer": "human",
-  "comments": "$comments",
-  "criteria_checked": [
-    "code_quality",
-    "logic_correctness",
-    "security_best_practices",
-    "error_handling"
-  ],
-  "failed_criteria": $(printf '%s\n' "${failed_criteria[@]}" | jq -R . | jq -s .)
-}
-EOF
-)
-
-    # Add review to tasks_meta.json
-    safe_json_update "$tasks_meta_path" --argjson review "$review_json" '.reviews.micro_reviews += [$review]'
-
-    # Update task review status
-    safe_json_update "$tasks_meta_path" --arg task_id "$task_id" '.tasks[$task_id].review_status = "micro_reviewed"'
-
-    if [[ "$overall_status" == "passed" ]]; then
-        log_success "Micro-review PASSED for task $task_id"
-    else
-        log_error "Micro-review FAILED for task $task_id (failed: ${failed_criteria[*]})"
-        return 1
-    fi
-}
-
-# Perform macro-review for completed feature
-perform_macro_review() {
-    local tasks_meta_path="$1"
-
-    local feature_name
-    feature_name=$(jq -r '.feature' "$tasks_meta_path")
-
-    log_info "Starting macro-review for feature: $feature_name"
-
-    # Check if all tasks are completed
-    local pending_tasks
-    pending_tasks=$(jq '.tasks | to_entries[] | select(.value.status != "completed") | .key' "$tasks_meta_path")
-
-    if [[ -n "$pending_tasks" ]]; then
-        log_error "Cannot perform macro-review: pending tasks found: $pending_tasks"
-        return 1
-    fi
-
-    # Interactive macro-review prompts
-    echo "=== MACRO-REVIEW: Feature $feature_name ==="
-    echo ""
-
-    # Feature integration check
-    echo "1. Feature Integration:"
-    echo "   - All components work together correctly?"
-    echo "   - No integration issues or conflicts?"
-    echo "   - Feature meets original requirements?"
-    read -p "   Pass? (y/n): " feature_integration
-    echo ""
-
-    # Test coverage check
-    echo "2. Test Coverage:"
-    echo "   - Adequate test coverage for new functionality?"
-    echo "   - All critical paths tested?"
-    echo "   - Tests pass consistently?"
-    read -p "   Pass? (y/n): " test_coverage
-    echo ""
-
-    # Performance requirements check
-    echo "3. Performance Requirements:"
-    echo "   - No performance regressions?"
-    echo "   - Meets performance expectations?"
-    echo "   - Efficient resource usage?"
-    read -p "   Pass? (y/n): " performance_requirements
-    echo ""
-
-    # Documentation completeness check
-    echo "4. Documentation Completeness:"
-    echo "   - Code is properly documented?"
-    echo "   - User documentation updated?"
-    echo "   - API documentation current?"
-    read -p "   Pass? (y/n): " documentation_completeness
-    echo ""
-
-    # Security compliance check
-    echo "5. Security Compliance:"
-    echo "   - No security vulnerabilities introduced?"
-    echo "   - Security best practices followed?"
-    echo "   - Compliance requirements met?"
-    read -p "   Pass? (y/n): " security_compliance
-    echo ""
-
-    # Overall assessment
-    local overall_status="passed"
-    local failed_criteria=()
-
-    if [[ "$feature_integration" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("feature_integration")
-    fi
-
-    if [[ "$test_coverage" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("test_coverage")
-    fi
-
-    if [[ "$performance_requirements" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("performance_requirements")
-    fi
-
-    if [[ "$documentation_completeness" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("documentation_completeness")
-    fi
-
-    if [[ "$security_compliance" != "y" ]]; then
-        overall_status="failed"
-        failed_criteria+=("security_compliance")
-    fi
-
-    # Collect comments
-    echo "Additional comments (optional):"
-    read -r comments
-    if [[ -z "$comments" ]]; then
-        comments="Macro-review completed interactively - feature integration and quality verified"
-    fi
-
-    local review_id="macro_$(date +%s)"
-    local review_json
-    review_json=$(cat << EOF
-{
-  "id": "$review_id",
-  "type": "macro",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-  "status": "$overall_status",
-  "reviewer": "human",
-  "comments": "$comments",
-  "criteria_checked": [
-    "feature_integration",
-    "test_coverage",
-    "performance_requirements",
-    "documentation_completeness",
-    "security_compliance"
-  ],
-  "failed_criteria": $(printf '%s\n' "${failed_criteria[@]}" | jq -R . | jq -s .)
-}
-EOF
-)
-
-    # Add review to tasks_meta.json
-    safe_json_update "$tasks_meta_path" --argjson review "$review_json" '.reviews.macro_reviews += [$review]'
-
-    # Update feature status
-    safe_json_update "$tasks_meta_path" '.status = "macro_reviewed"'
-
-    if [[ "$overall_status" == "passed" ]]; then
-        log_success "Macro-review PASSED for feature $feature_name"
-    else
-        log_error "Macro-review FAILED for feature $feature_name (failed: ${failed_criteria[*]})"
-        return 1
-    fi
-}
-
-# Apply quality gates based on execution mode
-apply_quality_gates() {
-    local tasks_meta_path="$1"
-    local task_id="$2"
-
-    local execution_mode
-    execution_mode=$(jq -r ".tasks[\"$task_id\"].execution_mode" "$tasks_meta_path")
-
-    log_info "Applying quality gates for task $task_id ($execution_mode mode)"
-
-    local passed=true
-    local failed_checks=()
-
-    if [[ "$execution_mode" == "SYNC" ]]; then
-        # SYNC quality gates: 80% coverage + security scans
-        echo "=== QUALITY GATES: SYNC Task $task_id ==="
-
-        # Test coverage check (80% minimum)
-        echo "1. Test Coverage Check (80% minimum):"
-        # In real implementation, would run actual test coverage tools
-        local coverage_percentage=85  # Mock value
-        echo "   Current coverage: ${coverage_percentage}%"
-        if [[ $coverage_percentage -lt 80 ]]; then
-            passed=false
-            failed_checks+=("test_coverage")
-            echo "   ❌ FAILED: Coverage below 80%"
-        else
-            echo "   ✅ PASSED: Coverage meets requirement"
-        fi
-        echo ""
-
-        # Security scan check
-        echo "2. Security Scan:"
-        # In real implementation, would run security scanning tools
-        local security_issues=0  # Mock value
-        echo "   Security issues found: $security_issues"
-        if [[ $security_issues -gt 0 ]]; then
-            passed=false
-            failed_checks+=("security_scan")
-            echo "   ❌ FAILED: Security issues detected"
-        else
-            echo "   ✅ PASSED: No security issues"
-        fi
-        echo ""
-
-    elif [[ "$execution_mode" == "ASYNC" ]]; then
-        # ASYNC quality gates: 60% coverage + macro review
-        echo "=== QUALITY GATES: ASYNC Task $task_id ==="
-
-        # Test coverage check (60% minimum)
-        echo "1. Test Coverage Check (60% minimum):"
-        local coverage_percentage=75  # Mock value
-        echo "   Current coverage: ${coverage_percentage}%"
-        if [[ $coverage_percentage -lt 60 ]]; then
-            passed=false
-            failed_checks+=("test_coverage")
-            echo "   ❌ FAILED: Coverage below 60%"
-        else
-            echo "   ✅ PASSED: Coverage meets requirement"
-        fi
-        echo ""
-
-        # Macro review check
-        echo "2. Macro Review Status:"
-        local macro_reviews_count
-        macro_reviews_count=$(jq '.reviews.macro_reviews | length' "$tasks_meta_path")
-        echo "   Macro reviews completed: $macro_reviews_count"
-        if [[ $macro_reviews_count -eq 0 ]]; then
-            passed=false
-            failed_checks+=("macro_review")
-            echo "   ❌ FAILED: No macro review completed"
-        else
-            echo "   ✅ PASSED: Macro review completed"
-        fi
-        echo ""
-    fi
-
-    if [[ "$passed" == "true" ]]; then
-        safe_json_update "$tasks_meta_path" --arg task_id "$task_id" '.tasks[$task_id].quality_gate_passed = true'
-        log_success "Quality gates PASSED for task $task_id ($execution_mode mode)"
-    else
-        safe_json_update "$tasks_meta_path" --arg task_id "$task_id" '.tasks[$task_id].quality_gate_passed = false'
-        log_error "Quality gates FAILED for task $task_id ($execution_mode mode) - failed: ${failed_checks[*]}"
-        return 1
-    fi
-}
-
-# Apply issue tracker labels for async agent triggering
-apply_issue_labels() {
-    local tasks_meta_path="$1"
-    local issue_id="$2"
-
-    if [[ -z "$issue_id" ]]; then
-        log_warning "No issue ID provided for labeling"
-        return 0
-    fi
-
-    # Load MCP config to check if issue tracker is configured
-    local mcp_config
-    mcp_config=$(load_mcp_config ".mcp.json")
-
-    local issue_tracker_server=""
-    if echo "$mcp_config" | jq -e '."issue-tracker-github"' >/dev/null 2>&1; then
-        issue_tracker_server="github"
-    elif echo "$mcp_config" | jq -e '."issue-tracker-jira"' >/dev/null 2>&1; then
-        issue_tracker_server="jira"
-    elif echo "$mcp_config" | jq -e '."issue-tracker-linear"' >/dev/null 2>&1; then
-        issue_tracker_server="linear"
-    elif echo "$mcp_config" | jq -e '."issue-tracker-gitlab"' >/dev/null 2>&1; then
-        issue_tracker_server="gitlab"
-    fi
-
-    if [[ -z "$issue_tracker_server" ]]; then
-        log_warning "No issue tracker MCP server configured for labeling"
-        return 0
-    fi
-
-    # Get ASYNC tasks that are ready for delegation
-    local async_tasks
-    async_tasks=$(jq -r '.tasks | to_entries[] | select(.value.execution_mode == "ASYNC" and .value.status == "pending") | .key' "$tasks_meta_path")
-
-    if [[ -z "$async_tasks" ]]; then
-        log_info "No pending ASYNC tasks to label"
-        return 0
-    fi
-
-    local labels_to_add=("async-ready" "agent-delegatable")
-
-    log_info "Applying labels to issue $issue_id for ASYNC task delegation: ${labels_to_add[*]}"
-
-    # In real implementation, would make API calls to the issue tracker
-    # For now, just log the intended action
-    for label in "${labels_to_add[@]}"; do
-        log_info "Would add label '$label' to issue $issue_id via $issue_tracker_server MCP server"
-        # Example API calls:
-        # GitHub: POST /repos/{owner}/{repo}/issues/{issue_number}/labels
-        # Jira: PUT /rest/api/2/issue/{issueIdOrKey}
-        # Linear: mutation IssueUpdate
-    done
-
-    # Update tasks_meta.json to record labeling
-    local label_record
-    label_record=$(cat << EOF
-{
-  "issue_id": "$issue_id",
-  "labels_applied": $(printf '%s\n' "${labels_to_add[@]}" | jq -R . | jq -s .),
-  "tracker": "$issue_tracker_server",
-  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-)
-
-    safe_json_update "$tasks_meta_path" --argjson label_record "$label_record" '.issue_labels = $label_record'
-
-    log_success "Issue labeling completed for $issue_id"
-}
-
-# Get execution summary
-get_execution_summary() {
-    local tasks_meta_path="$1"
-
-    echo "=== Dual Execution Loop Summary ==="
-    echo "Feature: $(jq -r '.feature' "$tasks_meta_path")"
-    echo "Status: $(jq -r '.status' "$tasks_meta_path")"
-    echo ""
-
-    echo "Task Summary:"
-    jq -r '.tasks | to_entries[] | "- \(.key): \(.value.execution_mode) - \(.value.status)"' "$tasks_meta_path"
-    echo ""
-
-    echo "Review Summary:"
-    echo "Micro-reviews: $(jq '.reviews.micro_reviews | length' "$tasks_meta_path")"
-    echo "Macro-reviews: $(jq '.reviews.macro_reviews | length' "$tasks_meta_path")"
-    echo ""
-
-    local async_tasks
-    async_tasks=$(jq '.tasks | to_entries[] | select(.value.execution_mode == "ASYNC") | .key' "$tasks_meta_path")
-    if [[ -n "$async_tasks" ]]; then
-        echo "ASYNC Tasks MCP Status:"
-        echo "$async_tasks" | while read -r task_id; do
-            local job_id
-            job_id=$(jq -r ".tasks[\"$task_id\"].mcp_job_id" "$tasks_meta_path")
-            if [[ "$job_id" != "null" ]]; then
-                echo "- $task_id: Job $job_id"
+"
             fi
         done
     fi
 
-    # Show issue labeling status
-    local issue_labels
-    issue_labels=$(jq -r '.issue_labels // empty' "$tasks_meta_path")
-    if [[ -n "$issue_labels" && "$issue_labels" != "null" ]]; then
-        echo ""
-        echo "Issue Tracker Labels:"
-        echo "- Issue ID: $(jq -r '.issue_labels.issue_id // "N/A"' "$tasks_meta_path")"
-        echo "- Labels Applied: $(jq -r '.issue_labels.labels_applied | join(", ") // "None"' "$tasks_meta_path")"
-        echo "- Tracker: $(jq -r '.issue_labels.tracker // "N/A"' "$tasks_meta_path")"
+    # Add team context if available
+    if [[ -f "constitution.md" ]]; then
+        context="${context}### Team Constitution
+$(head -50 constitution.md)
+
+"
     fi
+
+    echo "$context"
 }
 
-# Main function for testing
-main() {
-    if [[ $# -lt 1 ]]; then
-        echo "Usage: $0 <command> [args...]"
-        echo "Commands:"
-        echo "  init <feature_dir>          - Initialize tasks_meta.json"
-        echo "  add-task <meta_file> <task_id> <description> <files> - Add task"
-        echo "  classify <description> <files> - Classify task execution mode"
-        echo "  dispatch <meta_file> <task_id> - Dispatch ASYNC task"
-        echo "  review-micro <meta_file> <task_id> - Perform micro-review"
-        echo "  review-macro <meta_file> - Perform macro-review"
-        echo "  quality-gate <meta_file> <task_id> - Apply quality gates"
-        echo "  summary <meta_file> - Show execution summary"
-        exit 1
+# Generate delegation prompt from task metadata with rich context
+generate_delegation_prompt() {
+    local task_id="$1"
+    local agent_type="$2"
+    local task_description="$3"
+    local task_context="$4"
+    local task_requirements="$5"
+    local execution_instructions="$6"
+    local feature_dir="$7"
+
+    # Read template
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local template_file="$script_dir/../../templates/delegation-template.md"
+    if [[ ! -f "$template_file" ]]; then
+        echo "Error: Delegation template not found at $template_file" >&2
+        return 1
     fi
 
-    local command="$1"
-    shift
+    local template_content
+    template_content=$(cat "$template_file")
 
-    case "$command" in
-        "init")
-            init_tasks_meta "$1"
+    # Generate comprehensive context
+    local agent_context
+    agent_context=$(generate_agent_context "$feature_dir")
+
+    # Combine task context with agent context
+    local full_context="${task_context}
+
+${agent_context}"
+
+    # Substitute variables using awk to handle multiline content safely
+    local prompt
+    prompt=$(awk -v agent_type="$agent_type" \
+                 -v task_description="$task_description" \
+                 -v full_context="$full_context" \
+                 -v task_requirements="$task_requirements" \
+                 -v execution_instructions="$execution_instructions" \
+                 -v task_id="$task_id" \
+                 -v timestamp="$(date)" '
+    {
+        gsub(/{AGENT_TYPE}/, agent_type);
+        gsub(/{TASK_DESCRIPTION}/, task_description);
+        gsub(/{TASK_CONTEXT}/, full_context);
+        gsub(/{TASK_REQUIREMENTS}/, task_requirements);
+        gsub(/{EXECUTION_INSTRUCTIONS}/, execution_instructions);
+        gsub(/{TASK_ID}/, task_id);
+        gsub(/{TIMESTAMP}/, timestamp);
+        print;
+    }' <<< "$template_content")
+
+    echo "$prompt"
+}
+
+# Check delegation status
+check_delegation_status() {
+    local task_id="$1"
+
+    # Check if prompt exists (task was delegated)
+    local prompt_file="delegation_prompts/${task_id}.md"
+    if [[ ! -f "$prompt_file" ]]; then
+        echo "no_job"
+        return 0
+    fi
+
+    # Check for completion marker (AI assistant would create this)
+    local completion_file="delegation_completed/${task_id}.txt"
+    if [[ -f "$completion_file" ]]; then
+        echo "completed"
+        return 0
+    fi
+
+    # Check for error marker
+    local error_file="delegation_errors/${task_id}.txt"
+    if [[ -f "$error_file" ]]; then
+        echo "failed"
+        return 0
+    fi
+
+    # Otherwise, assume still running
+    echo "running"
+}
+
+# Dispatch async task using natural language delegation with rich context
+dispatch_async_task() {
+    local task_id="$1"
+    local agent_type="$2"
+    local task_description="$3"
+    local task_context="$4"
+    local task_requirements="$5"
+    local execution_instructions="$6"
+    local feature_dir="$7"
+
+    # Generate natural language delegation prompt with comprehensive context
+    local prompt
+    prompt=$(generate_delegation_prompt "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$feature_dir")
+
+    if [[ $? -ne 0 ]]; then
+        echo "Failed to generate delegation prompt" >&2
+        return 1
+    fi
+
+    # Save prompt for AI assistant consumption
+    # The AI assistant with MCP tool access will process this prompt
+    local prompt_file="delegation_prompts/${task_id}.md"
+    mkdir -p delegation_prompts
+    echo "$prompt" > "$prompt_file"
+
+    echo "Task $task_id delegated successfully - comprehensive prompt saved for AI assistant"
+}
+
+# Analyze implementation changes vs documentation for evolution
+analyze_implementation_changes() {
+    local feature_dir="$1"
+    local spec_file="$feature_dir/spec.md"
+    local plan_file="$feature_dir/plan.md"
+    local tasks_file="$feature_dir/tasks.md"
+
+    local changes="## Implementation vs Documentation Analysis
+"
+
+    # Check for new features in code not in spec
+    if [[ -d "src" ]] || [[ -d "lib" ]] || find . -name "*.js" -o -name "*.ts" -o -name "*.py" | grep -q .; then
+        changes="${changes}### Potential New Features
+- Scan codebase for implemented functionality not documented in spec.md
+- Check for new API endpoints, UI components, or business logic
+- Identify user flows that may have evolved during implementation
+
+"
+    fi
+
+    # Check for architecture changes
+    if [[ -f "$plan_file" ]]; then
+        changes="${changes}### Architecture Evolution
+- Compare implemented architecture against plan.md
+- Identify performance optimizations or security enhancements
+- Note technology stack changes or library updates
+
+"
+    fi
+
+    # Check for completed tasks that might indicate refinements
+    if [[ -f "$tasks_file" ]]; then
+        local completed_tasks
+        completed_tasks=$(grep -c "^- \[X\]" "$tasks_file" || echo "0")
+        local total_tasks
+        total_tasks=$(grep -c "^- \[.\]" "$tasks_file" || echo "0")
+
+        changes="${changes}### Task Completion Status
+- Completed: $completed_tasks / $total_tasks tasks
+- Check for additional tasks added during implementation
+- Identify refinements or bug fixes that emerged
+
+"
+    fi
+
+    echo "$changes"
+}
+
+# Propose documentation updates based on implementation analysis
+propose_documentation_updates() {
+    local feature_dir="$1"
+    local analysis_results="$2"
+
+    local proposals="## Documentation Evolution Proposals
+
+Based on implementation analysis, here are recommended documentation updates:
+
+"
+
+    # Check if there are undocumented features
+    if echo "$analysis_results" | grep -q "new features\|new API\|new components"; then
+        proposals="${proposals}### Spec.md Updates
+- Add newly implemented features to functional requirements
+- Document discovered edge cases and user experience insights
+- Update acceptance criteria based on actual implementation
+
+"
+    fi
+
+    # Check for architecture changes
+    if echo "$analysis_results" | grep -q "architecture\|performance\|security"; then
+        proposals="${proposals}### Plan.md Updates
+- Document architecture changes made during implementation
+- Add performance optimizations and their rationale
+- Update technology decisions based on implementation experience
+
+"
+    fi
+
+    # Check for task additions
+    if echo "$analysis_results" | grep -q "additional tasks\|refinements"; then
+        proposals="${proposals}### Tasks.md Updates
+- Add follow-up tasks for refinements discovered during implementation
+- Document bug fixes and improvements made
+- Update task status and add completion notes
+
+"
+    fi
+
+    proposals="${proposals}### Evolution Guidelines
+- Preserve original requirements while incorporating implementation learnings
+- Maintain traceability between documentation and code
+- Version documentation changes with clear rationale
+- Ensure constitution compliance for any new requirements
+
+"
+
+    echo "$proposals"
+}
+
+# Apply documentation updates with user confirmation
+apply_documentation_updates() {
+    local feature_dir="$1"
+    local update_type="$2"  # spec, plan, tasks
+    local update_content="$3"
+
+    case "$update_type" in
+        "spec")
+            local spec_file="$feature_dir/spec.md"
+            echo "## Implementation Learnings - $(date)" >> "$spec_file"
+            echo "" >> "$spec_file"
+            echo "$update_content" >> "$spec_file"
+            echo "Updated spec.md with implementation insights"
             ;;
-        "add-task")
-            add_task "$1" "$2" "$3" "$4" "$5"
+        "plan")
+            local plan_file="$feature_dir/plan.md"
+            echo "## Architecture Evolution - $(date)" >> "$plan_file"
+            echo "" >> "$plan_file"
+            echo "$update_content" >> "$plan_file"
+            echo "Updated plan.md with architecture changes"
             ;;
-        "classify")
-            classify_task_execution_mode "$1" "$2"
-            ;;
-        "dispatch")
-            # Load MCP config for dispatching
-            local mcp_config
-            mcp_config=$(load_mcp_config ".mcp.json")
-            dispatch_async_task "$1" "$2" "$mcp_config"
-            ;;
-        "review-micro")
-            perform_micro_review "$1" "$2"
-            ;;
-        "review-macro")
-            perform_macro_review "$1"
-            ;;
-        "quality-gate")
-            apply_quality_gates "$1" "$2"
-            ;;
-        "summary")
-            get_execution_summary "$1"
+        "tasks")
+            local tasks_file="$feature_dir/tasks.md"
+            echo "" >> "$tasks_file"
+            echo "## Refinement Tasks - $(date)" >> "$tasks_file"
+            echo "$update_content" >> "$tasks_file"
+            echo "Added refinement tasks to tasks.md"
             ;;
         *)
-            echo "Unknown command: $command"
-            exit 1
+            echo "Unknown update type: $update_type" >&2
+            return 1
             ;;
     esac
 }
 
-# Run main if script is executed directly
+# Rollback individual task while preserving documentation
+rollback_task() {
+    local tasks_meta_file="$1"
+    local task_id="$2"
+    local preserve_docs="${3:-true}"
+
+    echo "Rolling back task: $task_id"
+
+    # Get task information before rollback
+    local task_description=""
+    local task_files=""
+    if command -v jq >/dev/null 2>&1; then
+        task_description=$(jq -r ".tasks[\"$task_id\"].description // empty" "$tasks_meta_file")
+        task_files=$(jq -r ".tasks[\"$task_id\"].files // empty" "$tasks_meta_file")
+    fi
+
+    # Mark task as rolled back in metadata
+    if command -v jq >/dev/null 2>&1; then
+        jq --arg task_id "$task_id" '.tasks[$task_id].status = "rolled_back"' "$tasks_meta_file" > "${tasks_meta_file}.tmp" && \
+        mv "${tasks_meta_file}.tmp" "$tasks_meta_file"
+    fi
+
+    # Attempt to revert code changes (simplified - would need proper git integration)
+    if [[ -n "$task_files" ]]; then
+        echo "Attempting to revert changes to files: $task_files"
+        # In a real implementation, this would use git checkout or similar
+        echo "Note: Manual code reversion may be required for files: $task_files"
+    fi
+
+    # Log rollback details
+    local feature_dir
+    feature_dir=$(dirname "$tasks_meta_file")
+    echo "## Task Rollback - $(date)" >> "$feature_dir/rollback.log"
+    echo "Task ID: $task_id" >> "$feature_dir/rollback.log"
+    echo "Description: $task_description" >> "$feature_dir/rollback.log"
+    echo "Files: $task_files" >> "$feature_dir/rollback.log"
+    echo "Documentation Preserved: $preserve_docs" >> "$feature_dir/rollback.log"
+    echo "" >> "$feature_dir/rollback.log"
+
+    echo "Task $task_id rolled back successfully"
+
+    if [[ "$preserve_docs" == "true" ]]; then
+        echo "Documentation preserved for rolled back task $task_id"
+    fi
+}
+
+# Rollback entire feature implementation
+rollback_feature() {
+    local feature_dir="$1"
+    local preserve_docs="${2:-true}"
+
+    echo "Rolling back entire feature: $(basename "$feature_dir")"
+
+    local tasks_meta_file="$feature_dir/tasks_meta.json"
+
+    if [[ -f "$tasks_meta_file" ]]; then
+        # Mark all tasks as rolled back
+        if command -v jq >/dev/null 2>&1; then
+            jq '.tasks |= map_values(.status = "rolled_back")' "$tasks_meta_file" > "${tasks_meta_file}.tmp" && \
+            mv "${tasks_meta_file}.tmp" "$tasks_meta_file"
+        fi
+    fi
+
+    # Remove implementation artifacts
+    rm -f "$feature_dir/implementation.log"
+    rm -rf "$feature_dir/checklists"
+
+    # Log comprehensive rollback
+    echo "## Feature Rollback - $(date)" >> "$feature_dir/rollback.log"
+    echo "Feature: $(basename "$feature_dir")" >> "$feature_dir/rollback.log"
+    echo "All tasks marked as rolled back" >> "$feature_dir/rollback.log"
+    echo "Implementation artifacts removed" >> "$feature_dir/rollback.log"
+    echo "Documentation Preserved: $preserve_docs" >> "$feature_dir/rollback.log"
+    echo "" >> "$feature_dir/rollback.log"
+
+    echo "Feature $(basename "$feature_dir") implementation rolled back"
+
+    if [[ "$preserve_docs" == "true" ]]; then
+        echo "Documentation preserved during feature rollback"
+    fi
+}
+
+# Regenerate tasks after rollback with corrected approach
+regenerate_tasks_after_rollback() {
+    local feature_dir="$1"
+    local rollback_reason="$2"
+
+    local tasks_file="$feature_dir/tasks.md"
+    local tasks_meta_file="$feature_dir/tasks_meta.json"
+
+    # Add new tasks for corrected implementation
+    echo "" >> "$tasks_file"
+    echo "## Corrected Implementation Tasks - $(date)" >> "$tasks_file"
+    echo "" >> "$tasks_file"
+    echo "- [ ] T_CORRECT_001 Apply corrected implementation approach based on: $rollback_reason" >> "$tasks_file"
+    echo "- [ ] T_CORRECT_002 Verify fixes address root cause of rollback" >> "$tasks_file"
+    echo "- [ ] T_CORRECT_003 Test corrected implementation thoroughly" >> "$tasks_file"
+
+    # Reinitialize tasks metadata
+    if [[ -f "$tasks_meta_file" ]]; then
+        # Reset rolled back tasks to pending for retry
+        if command -v jq >/dev/null 2>&1; then
+            jq '.tasks |= map_values(if .status == "rolled_back" then .status = "pending" else . end)' "$tasks_meta_file" > "${tasks_meta_file}.tmp" && \
+            mv "${tasks_meta_file}.tmp" "$tasks_meta_file"
+        fi
+    fi
+
+    echo "Regenerated tasks for corrected implementation approach"
+}
+
+
+
+
+
+# Regenerate plan based on current specifications and implementation learnings
+regenerate_plan() {
+    local feature_dir="$1"
+    local reason="$2"
+
+    local spec_file="$feature_dir/spec.md"
+    local plan_file="$feature_dir/plan.md"
+
+    echo "Regenerating plan for feature: $(basename "$feature_dir")"
+    echo "Reason: $reason"
+
+    if [[ ! -f "$spec_file" ]]; then
+        echo "Error: Cannot regenerate plan without spec.md"
+        return 1
+    fi
+
+    # Backup original plan
+    if [[ -f "$plan_file" ]]; then
+        cp "$plan_file" "${plan_file}.backup.$(date +%Y%m%d_%H%M%S)"
+        echo "Original plan backed up"
+    fi
+
+    # Create regeneration template
+    cat > "$plan_file" << EOF
+# Implementation Plan - Regenerated $(date)
+## Reason for Regeneration
+$reason
+
+## Original Specification Context
+$(head -20 "$spec_file")
+
+## Architecture Decisions
+<!-- Regenerate based on current spec and implementation learnings -->
+
+## Technical Stack
+<!-- Update based on implementation experience -->
+
+## Component Design
+<!-- Refine based on actual implementation needs -->
+
+## Data Model
+<!-- Adjust based on real-world usage patterns -->
+
+## Implementation Phases
+<!-- Reorganize based on lessons learned -->
+
+## Risk Mitigation
+<!-- Update based on encountered issues -->
+
+## Success Metrics
+<!-- Refine based on implementation insights -->
+EOF
+
+    # Log regeneration
+    echo "## Plan Regeneration - $(date)" >> "$feature_dir/rollback.log"
+    echo "Reason: $reason" >> "$feature_dir/rollback.log"
+    echo "Original plan backed up" >> "$feature_dir/rollback.log"
+    echo "New plan template created for regeneration" >> "$feature_dir/rollback.log"
+    echo "" >> "$feature_dir/rollback.log"
+
+    echo "Plan regeneration template created. Manual editing required to complete regeneration."
+    echo "Original plan backed up for reference."
+}
+
+# Ensure documentation consistency after rollback
+ensure_documentation_consistency() {
+    local feature_dir="$1"
+
+    echo "Ensuring documentation consistency after rollback..."
+
+    local spec_file="$feature_dir/spec.md"
+    local plan_file="$feature_dir/plan.md"
+    local tasks_file="$feature_dir/tasks.md"
+
+    # Check for consistency issues
+    local issues_found=false
+
+    # Check if plan references tasks that no longer exist
+    if [[ -f "$plan_file" ]] && [[ -f "$tasks_file" ]]; then
+        # This is a simplified check - in practice would need more sophisticated analysis
+        if grep -q "T[0-9]" "$plan_file" && ! grep -q "T[0-9]" "$tasks_file"; then
+            echo "⚠️  Plan references tasks that may no longer exist"
+            issues_found=true
+        fi
+    fi
+
+    # Check for implementation references in docs after rollback
+    if [[ -f "$spec_file" ]] && grep -q "implementation\|code\|deploy" "$spec_file"; then
+        echo "⚠️  Spec contains implementation details that should be reviewed"
+        issues_found=true
+    fi
+
+    if [[ "$issues_found" == "false" ]]; then
+        echo "✅ Documentation consistency verified"
+    else
+        echo "⚠️  Some documentation consistency issues detected"
+        echo "Consider running '/analyze' to identify specific issues"
+    fi
+}
+
+# Mode-aware rollback strategies
+get_mode_aware_rollback_strategy() {
+    local mode="${1:-spec}"  # Default to spec mode
+
+    case "$mode" in
+        "build")
+            echo "build_mode_rollback"
+            ;;
+        "spec")
+            echo "spec_mode_rollback"
+            ;;
+        *)
+            echo "default_rollback"
+            ;;
+    esac
+}
+
+# Execute mode-aware rollback
+execute_mode_aware_rollback() {
+    local feature_dir="$1"
+    local rollback_type="$2"
+    local mode="${3:-spec}"
+
+    local strategy
+    strategy=$(get_mode_aware_rollback_strategy "$mode")
+
+    echo "Executing $strategy for $rollback_type in $mode mode"
+
+    case "$strategy" in
+        "build_mode_rollback")
+            # Lightweight rollback for build mode
+            echo "Build mode: Minimal rollback preserving rapid iteration artifacts"
+            case "$rollback_type" in
+                "task")
+                    # Less aggressive task rollback in build mode
+                    echo "Task rollback completed with minimal cleanup"
+                    ;;
+                "feature")
+                    # Preserve more artifacts in build mode
+                    echo "Feature rollback completed, preserving iteration artifacts"
+                    ;;
+            esac
+            ;;
+
+        "spec_mode_rollback")
+            # Comprehensive rollback for spec mode
+            echo "Spec mode: Comprehensive rollback with full documentation preservation"
+            case "$rollback_type" in
+                "task")
+                    rollback_task "$feature_dir/tasks_meta.json" "$4" "true"
+                    ;;
+                "feature")
+                    rollback_feature "$feature_dir" "true"
+                    ;;
+            esac
+            ;;
+
+        "default_rollback")
+    echo "Default rollback strategy applied"
+    ;;
+    esac
+}
+
+# Get framework options configuration
+get_framework_opinions() {
+    local mode="${1:-spec}"
+    local mode_file=".specify/config/mode.json"
+
+    # Read from mode config
+    if [[ -f "$mode_file" ]] && command -v jq >/dev/null 2>&1; then
+        local user_tdd
+        user_tdd=$(jq -r ".options.tdd_enabled" "$mode_file" 2>/dev/null || echo "null")
+        local user_contracts
+        user_contracts=$(jq -r ".options.contracts_enabled" "$mode_file" 2>/dev/null || echo "null")
+        local user_data_models
+        user_data_models=$(jq -r ".options.data_models_enabled" "$mode_file" 2>/dev/null || echo "null")
+        local user_risk_tests
+        user_risk_tests=$(jq -r ".options.risk_tests_enabled" "$mode_file" 2>/dev/null || echo "null")
+
+        # Fill in defaults for unset options based on mode
+        case "$mode" in
+            "build")
+                [[ "$user_tdd" == "null" ]] && user_tdd="false"
+                [[ "$user_contracts" == "null" ]] && user_contracts="false"
+                [[ "$user_data_models" == "null" ]] && user_data_models="false"
+                [[ "$user_risk_tests" == "null" ]] && user_risk_tests="false"
+                ;;
+            "spec")
+                [[ "$user_tdd" == "null" ]] && user_tdd="true"
+                [[ "$user_contracts" == "null" ]] && user_contracts="true"
+                [[ "$user_data_models" == "null" ]] && user_data_models="true"
+                [[ "$user_risk_tests" == "null" ]] && user_risk_tests="true"
+                ;;
+        esac
+        echo "tdd_enabled=$user_tdd contracts_enabled=$user_contracts data_models_enabled=$user_data_models risk_tests_enabled=$user_risk_tests"
+        return
+    fi
+
+    # Fallback to mode-based defaults
+    case "$mode" in
+        "build")
+            echo "tdd_enabled=false contracts_enabled=false data_models_enabled=false risk_tests_enabled=false"
+            ;;
+        "spec")
+            echo "tdd_enabled=true contracts_enabled=true data_models_enabled=true risk_tests_enabled=true"
+            ;;
+        *)
+            echo "tdd_enabled=false contracts_enabled=false data_models_enabled=false risk_tests_enabled=false"
+            ;;
+    esac
+}
+
+# Set framework opinion (legacy compatibility - now handled by specify CLI)
+set_framework_opinion() {
+    local opinion_type="$1"
+    local value="$2"
+
+    echo "Framework opinions are now managed by the '/mode' slash command."
+    echo "Use '/mode --$opinion_type' to change this setting."
+    echo "Run '/mode --help' for more information."
+}
+
+# Check if opinion is enabled
+is_opinion_enabled() {
+    local opinion_type="$1"
+    local mode="${2:-spec}"
+
+    local opinions
+    opinions=$(get_framework_opinions "$mode")
+
+    case "$opinion_type" in
+        "tdd")
+            echo "$opinions" | grep -o "tdd_enabled=[^ ]*" | cut -d= -f2
+            ;;
+        "contracts")
+            echo "$opinions" | grep -o "contracts_enabled=[^ ]*" | cut -d= -f2
+            ;;
+        "data_models")
+            echo "$opinions" | grep -o "data_models_enabled=[^ ]*" | cut -d= -f2
+            ;;
+        *)
+            echo "false"
+            ;;
+    esac
+}
+
+# Generate tasks with configurable opinions
+generate_tasks_with_opinions() {
+    local feature_dir="$1"
+    local mode="${2:-spec}"
+
+    local opinions
+    opinions=$(get_framework_opinions "$mode")
+
+    echo "Generating tasks with framework opinions for $mode mode:"
+    echo "$opinions"
+    echo ""
+
+    local tdd_enabled
+    tdd_enabled=$(is_opinion_enabled "tdd" "$mode")
+    local contracts_enabled
+    contracts_enabled=$(is_opinion_enabled "contracts" "$mode")
+    local data_models_enabled
+    data_models_enabled=$(is_opinion_enabled "data_models" "$mode")
+
+    # Generate tasks based on enabled opinions
+    echo "### Task Generation Configuration"
+    echo "- TDD: $tdd_enabled"
+    echo "- Contracts: $contracts_enabled"
+    echo "- Data Models: $data_models_enabled"
+    echo ""
+
+    if [[ "$tdd_enabled" == "true" ]]; then
+        echo "TDD enabled: Tests will be generated before implementation tasks"
+    else
+    echo "TDD disabled: Tests are optional and generated only if explicitly requested"
+    fi
+}
+
+# Main function for testing
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    case "$1" in
+        generate_delegation_prompt)
+            shift
+            generate_delegation_prompt "$@"
+            ;;
+        check_delegation_status)
+            shift
+            check_delegation_status "$@"
+            ;;
+        dispatch_async_task)
+            shift
+            dispatch_async_task "$@"
+            ;;
+        analyze_implementation_changes)
+            shift
+            analyze_implementation_changes "$@"
+            ;;
+        propose_documentation_updates)
+            shift
+            propose_documentation_updates "$@"
+            ;;
+        apply_documentation_updates)
+            shift
+            apply_documentation_updates "$@"
+            ;;
+        rollback_task)
+            shift
+            rollback_task "$@"
+            ;;
+        rollback_feature)
+            shift
+            rollback_feature "$@"
+            ;;
+        regenerate_tasks_after_rollback)
+            shift
+            regenerate_tasks_after_rollback "$@"
+            ;;
+        regenerate_plan|ensure_documentation_consistency|        get_mode_aware_rollback_strategy|execute_mode_aware_rollback|        get_framework_opinions|set_framework_opinion|is_opinion_enabled|generate_tasks_with_opinions)
+            shift
+            "$1" "$@"
+            ;;
+        *)
+            echo "Usage: $0 {generate_delegation_prompt|check_delegation_status|dispatch_async_task|analyze_implementation_changes|propose_documentation_updates|apply_documentation_updates|rollback_task|rollback_feature|regenerate_tasks_after_rollback|regenerate_plan|ensure_documentation_consistency|get_mode_aware_rollback_strategy|execute_mode_aware_rollback} [args...]"
+            exit 1
+            ;;
+    esac
 fi

@@ -241,16 +241,16 @@ Specify supports two workflow modes that control the complexity level of the dev
 
 ```bash
 # Show current mode and available options
-specify mode
+/mode
 
 # Switch to build mode (lightweight development)
-specify mode build
+/mode build
 
 # Switch to spec mode (comprehensive development)
-specify mode spec
+/mode spec
 
 # Show detailed information about all modes
-specify mode --info
+/mode --info
 ```
 
 #### When to Use Each Mode
@@ -368,7 +368,7 @@ The `specify` command supports the following options:
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
-| `mode`      | Manage workflow modes (build/spec) for development complexity control |
+| `mode`      | Manage workflow modes and framework opinions for development complexity control |
 
 ### `specify init` Arguments & Options
 
@@ -391,11 +391,16 @@ The `specify` command supports the following options:
 | `--gateway-token`             | Option   | Gateway authentication token                                               |
 | `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
 
-### `specify mode` Arguments & Options
+### `/mode` Arguments & Options
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
 | `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
+| `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
+| `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
+| `--data-models/--no-data-models` | Option | Enable/disable data model generation |
+| `--risk-tests/--no-risk-tests` | Option | Enable/disable risk-based test generation |
+| `--reset-opinions` | Option | Reset framework opinions to mode defaults |
 | `--info`, `-i`  | Flag     | Show detailed information about available modes                             |
 
 ### Examples
@@ -451,10 +456,10 @@ specify init enterprise-app --ai claude --script sh --team-ai-directives https:/
 specify check
 
 # Workflow mode management
-specify mode                    # Show current mode
-specify mode build             # Switch to lightweight build mode
-specify mode spec              # Switch to comprehensive spec mode
-specify mode --info            # Show detailed mode information
+/mode                    # Show current mode
+/mode build             # Switch to lightweight build mode
+/mode spec              # Switch to comprehensive spec mode
+/mode --info            # Show detailed mode information
 ```
 
 ### Available Slash Commands

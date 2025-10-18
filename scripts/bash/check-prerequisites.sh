@@ -147,6 +147,50 @@ print(json.dumps(risks, ensure_ascii=False))
 PY
 }
 
+# Extract mode configuration
+get_mode_config() {
+    local mode_file=".specify/config/mode.json"
+
+    # Extract current mode and options
+    python3 - "$mode_file" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+mode_file = Path(sys.argv[1])
+try:
+    with open(mode_file, 'r') as f:
+        data = json.load(f)
+
+    current_mode = data.get('current_mode', 'spec')
+    options = data.get('options', {})
+
+    # Ensure all expected options are present with defaults
+    defaults = {
+        'tdd_enabled': True,
+        'contracts_enabled': True,
+        'data_models_enabled': True,
+        'risk_tests_enabled': True
+    }
+
+    # Merge with defaults for any missing options
+    for key, default_value in defaults.items():
+        if key not in options:
+            options[key] = default_value
+
+    result = {
+        'current_mode': current_mode,
+        'options': options
+    }
+
+    print(json.dumps(result))
+
+except Exception as e:
+    # Fallback to defaults on any error
+    print('{"current_mode":"spec","options":{"tdd_enabled":true,"contracts_enabled":true,"data_models_enabled":true,"risk_tests_enabled":true}}')
+PY
+}
+
 # Get feature paths and validate branch
 eval $(get_feature_paths)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
@@ -231,7 +275,8 @@ if $JSON_MODE; then
     
     SPEC_RISKS=$(extract_risks "$FEATURE_SPEC")
     PLAN_RISKS=$(extract_risks "$IMPL_PLAN")
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s}\n' "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS"
+    MODE_CONFIG=$(get_mode_config)
+    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"MODE_CONFIG":%s}\n' "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" "$MODE_CONFIG"
 else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"

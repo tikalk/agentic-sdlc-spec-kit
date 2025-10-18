@@ -29,16 +29,18 @@
 ### **Risk-Based Testing Framework**
 - ✅ **Risk Extraction**: Standardized severity levels (Critical/High/Medium/Low) in `check-prerequisites.sh`
 - ✅ **Automated Test Generation**: `generate-risk-tests.sh` creates targeted test tasks
-- ✅ **Task Integration**: `--include-risk-tests` flag appends risk-based tasks to `tasks.md`
+- ✅ **Mode Integration**: Risk-based testing configurable via `/mode --risk-tests` command
 - ✅ **Test Evidence Capture**: `/implement` preserves risk mitigation validation
 
 #### **Dual Execution Loop Infrastructure**
 - ✅ **Task Classification Framework**: SYNC/ASYNC classification in templates and triage system
 - ✅ **Runtime Scripts**: `implement.sh`/`implement.ps1` for actual task execution
-- ✅ **MCP Dispatching**: `dispatch_async_task()` function for ASYNC task delegation
+- ✅ **Rich Context Delegation**: `dispatch_async_task()` function for ASYNC task delegation with comprehensive project context
+- ✅ **Delegation Template**: `templates/delegation-template.md` for conversational AI assistant prompts
+- ✅ **Context Generation**: `generate_agent_context()` provides spec, plan, research, and team constitution context
+- ✅ **Delegation Utilities**: `tasks-meta-utils.sh` with enhanced prompt generation and status checking
 - ✅ **Interactive Reviews**: `perform_micro_review()` and `perform_macro_review()` with user prompts
 - ✅ **Differentiated Quality Gates**: SYNC (80% coverage + security) vs ASYNC (60% coverage + macro review)
-- ✅ **Issue Tracker Labeling**: `apply_issue_labels()` for `async-ready` and `agent-delegatable` labels
 - ✅ **End-to-End Testing**: `test-dual-execution-loop.sh` comprehensive workflow validation
 
 #### **Triage Framework**
@@ -54,8 +56,10 @@
 - ✅ **Factor IX-XII (Team Capability)**: Traceability, tooling, directives as code, and team learning supported
 
 #### **Workflow Modes Feature** - **COMPLETED**
-- ✅ **Mode Switching Command**: `/mode` command to set build/spec workflow modes (spec mode is default)
-- ✅ **Mode State Persistence**: Store current mode in `.specify/config/mode.json`
+- ✅ **Mode Switching Command**: `/mode` command to set build/spec workflow modes and framework options (spec mode is default)
+- ✅ **Consolidated Configuration**: Unified `.specify/config/mode.json` with `options` section replacing separate `opinions.json`
+- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via `/mode` command
+- ✅ **Mode State Persistence**: Store current mode, options, and history in single config file
 - ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands adapted for mode-aware behavior
 - ✅ **Mode Validation**: Commands validate mode compatibility and provide guidance
 - ✅ **Complexity Reduction**: Allow users to choose workflow complexity level (spec-driven vs lightweight)
@@ -63,13 +67,13 @@
 - ✅ **Documentation**: Mode functionality documented in README.md and quickstart.md
 - ✅ **12-Factors Integration**: Workflow modes documented in methodology documentation
 
+- ✅ **Checklist Integration**: `/checklist` command adapts validation based on enabled framework options
+
 ---
 
 ## 🔄 **IN PROGRESS ITEMS** (Partially Implemented)
 
-#### **Workflow Stage Orchestration** *(~67% Complete)*
-- ✅ **Basic Stage Management**: 5-stage process foundation in workflow.md
-- ✅ **Stage Transition Controls**: Prerequisite checking implemented
+#### **Workflow Stage Orchestration** *(0% Complete)*
 - ❌ **Progress Visualization**: Not yet implemented
 - ❌ **Workflow Rollback**: Not yet implemented
 
@@ -91,37 +95,28 @@
 - ✅ **Command Templates**: Agent-specific /speckit.* command templates available (.cursor/, .opencode/)
 - 🔄 **Spec Kit Alignment**: Partial mapping of features to 12 factors
 - ❌ **CLI Help Integration**: Docs not yet integrated into CLI help system
-- ❌ **Interactive Tutorials**: Step-by-step CLI tutorials based on workflow.md not implemented
+- ❌ **Interactive Tutorials**: Step-by-step CLI tutorials not implemented
 
 #### **SDD Workflow Flexibility & Optimization** *(~55% Complete)*
 - ✅ **Basic Workflow Foundation**: 5-stage process documented
 - ✅ **Example Implementations**: Working feature examples in 12-factors specs/ directory
-- 🔄 **SYNC/ASYNC Triage**: Classification framework implemented
-- 🔄 **Mode Switching Command**: `/mode` command for workflow mode management - infrastructure planned
+- ✅ **SYNC/ASYNC Triage**: Classification framework implemented
+- ✅ **Mode Switching Command**: `/mode` command for workflow mode management - fully implemented
 - ✅ **Iterative Spec Development**: Implemented via `/clarify` command (incremental spec refinement with targeted questions)
-- ✅ **Enhanced Spec Review UX**: Implemented via `/analyze` (cross-artifact consistency analysis) and `/checklist` (requirements quality validation)
+- ✅ **Enhanced Spec Review UX**: Implemented via `/analyze` (cross-artifact consistency analysis) and `/checklist` (requirements quality validation with mode-aware framework option checking)
 
 ---
 
 ## 🚀 **NEXT PHASE** (Immediate Priority - Complete Within 2-3 Months)
 
-#### **Iterative Development Support** *(0% Complete)* - **HIGH PRIORITY** - Addresses anti-iterative critique
-- ❌ **Post-Implementation Refinement**: `/correct` command for fine-tuning completed work
-- ❌ **Change Synchronization**: `/collect` command to sync manual changes back to documentation
+#### **Iterative Development Support** *(25% Complete)* - **HIGH PRIORITY** - Addresses anti-iterative critique
+- ✅ **Post-Implementation Analysis**: Extended `/analyze` command with auto-detection for pre/post-implementation context
 - ❌ **Documentation Evolution**: Keep specs and plans active throughout development lifecycle
 - ❌ **Rollback Integration**: Easy rollback with documentation preservation
 
-#### **Workflow Stage Orchestration** *(~67% Complete)* - **HIGH PRIORITY**
-- ✅ **Basic Stage Management**: 5-stage process foundation in workflow.md
-- ✅ **Stage Transition Controls**: Prerequisite checking implemented
+#### **Workflow Stage Orchestration** *(0% Complete)* - **HIGH PRIORITY**
 - ❌ **Progress Visualization**: Not yet implemented
 - ❌ **Workflow Rollback**: Not yet implemented
-
-#### **Flexible Documentation Modes** *(0% Complete)* - **HIGH PRIORITY** - Addresses documentation overload
-- ❌ **Documentation Depth Selection**: User choice between comprehensive and lightweight approaches
-- ❌ **Conversational Format**: `discuss.md` alternative to rigid `spec.md` structure
-- ❌ **Template Selection**: Mode-aware documentation templates (<300 words for lightweight)
-- ❌ **Progressive Disclosure**: Start simple, expand complexity as needed
 
 #### **Enhanced Rollback Capabilities** *(0% Complete)* - **MEDIUM PRIORITY** - Addresses expensive rollback critique
 - ❌ **Task-Level Rollback**: Rollback individual tasks while preserving completed work
@@ -129,11 +124,13 @@
 - ❌ **Documentation Consistency**: Automatic documentation updates on rollback
 - ❌ **Mode-Aware Strategies**: Different rollback approaches for different workflow modes
 
-#### **Configurable Framework Opinions** *(0% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
-- ❌ **Opt-in Architecture Patterns**: TDD, contracts, data models become user-configurable
-- ❌ **Constitution-Based Preferences**: Mode-specific default behaviors via constitution
-- ❌ **Reduced Mandatory Opinions**: Core workflow preserved, opinions made optional
-- ❌ **User-Driven Defaults**: Constitution can override framework defaults
+#### **Configurable Framework Options** *(100% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
+- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via `/mode` command
+- ✅ **Consolidated Configuration**: Unified `mode.json` with `options` section (renamed from `opinions.json`)
+- ✅ **Mode-Based Preferences**: Different defaults for build vs spec modes
+- ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional
+- ✅ **User-Driven Defaults**: Users can override mode defaults with custom settings
+
 
 ---
 
@@ -157,13 +154,13 @@
 - ✅ **Command Templates**: Agent-specific /speckit.* command templates available (.cursor/, .opencode/)
 - 🔄 **Spec Kit Alignment**: Partial mapping of features to 12 factors
 - ❌ **CLI Help Integration**: Docs not yet integrated into CLI help system
-- ❌ **Interactive Tutorials**: Step-by-step CLI tutorials based on workflow.md not implemented
+- ❌ **Interactive Tutorials**: Step-by-step CLI tutorials not implemented
 
 #### **SDD Workflow Flexibility & Optimization** *(~55% Complete)*
 - ✅ **Basic Workflow Foundation**: 5-stage process documented
 - ✅ **Example Implementations**: Working feature examples in 12-factors specs/ directory
-- 🔄 **SYNC/ASYNC Triage**: Classification framework implemented
-- 🔄 **Mode Switching Command**: `/mode` command for workflow mode management - infrastructure planned
+- ✅ **SYNC/ASYNC Triage**: Classification framework implemented
+- ✅ **Mode Switching Command**: `/mode` command for workflow mode management - fully implemented
 - ✅ **Iterative Spec Development**: Implemented via `/clarify` command (incremental spec refinement with targeted questions)
 - ✅ **Enhanced Spec Review UX**: Implemented via `/analyze` (cross-artifact consistency analysis) and `/checklist` (requirements quality testing)
 
@@ -196,30 +193,6 @@
 - ❌ **Dual Memory Architecture**: Separate long-term knowledge base from short-term session context
 - ❌ **Intelligent Context Routing**: Use vector search and graph relationships for context selection
 
-#### **Iterative Development Support** *(0% Complete)* - **HIGH PRIORITY** - Addresses anti-iterative critique
-- ❌ **Post-Implementation Refinement**: `/correct` command for fine-tuning completed work
-- ❌ **Change Synchronization**: `/collect` command to sync manual changes back to documentation
-- ❌ **Documentation Evolution**: Keep specs and plans active throughout development lifecycle
-- ❌ **Rollback Integration**: Easy rollback with documentation preservation
-
-#### **Flexible Documentation Modes** *(0% Complete)* - **MEDIUM PRIORITY** - Addresses documentation overload
-- ❌ **Documentation Depth Selection**: User choice between comprehensive and lightweight approaches
-- ❌ **Conversational Format**: `discuss.md` alternative to rigid `spec.md` structure
-- ❌ **Template Selection**: Mode-aware documentation templates (<300 words for lightweight)
-- ❌ **Progressive Disclosure**: Start simple, expand complexity as needed
-
-#### **Enhanced Rollback Capabilities** *(0% Complete)* - **MEDIUM PRIORITY** - Addresses expensive rollback critique
-- ❌ **Task-Level Rollback**: Rollback individual tasks while preserving completed work
-- ❌ **Plan Regeneration**: Regenerate plans with preserved context and completed tasks
-- ❌ **Documentation Consistency**: Automatic documentation updates on rollback
-- ❌ **Mode-Aware Strategies**: Different rollback approaches for different workflow modes
-
-#### **Configurable Framework Opinions** *(0% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
-- ❌ **Opt-in Architecture Patterns**: TDD, contracts, data models become user-configurable
-- ❌ **Constitution-Based Preferences**: Mode-specific default behaviors via constitution
-- ❌ **Reduced Mandatory Opinions**: Core workflow preserved, opinions made optional
-- ❌ **User-Driven Defaults**: Constitution can override framework defaults
-
 #### **Knowledge Evals & Guild Feedback Loop**
 - ❌ **Evaluation Manifests**: Standardized evaluation formats
 - ❌ **Guild-log.md Handling**: Feedback loop integration
@@ -230,6 +203,12 @@
 - ❌ **Dependency Validation**: Check for dependent artifacts before deletion
 - ❌ **Archive Option**: Optional archiving instead of permanent deletion
 - ❌ **Cleanup Verification**: Confirm all related files and branches are removed
+
+#### **Issue Tracker Labeling** *(0% Complete)* - **FUTURE ENHANCEMENT**
+- ❌ **Issue Label Application**: `apply_issue_labels()` for `async-ready` and `agent-delegatable` labels
+- ❌ **Spec vs Task Complexity**: Handle original spec issues vs. generated implementation tasks
+- ❌ **External Agent Integration**: Enable monitoring systems to pick up labeled issues
+- ❌ **Workflow Compatibility**: Ensure compatibility with natural language delegation approach
 
 ---
 
@@ -244,7 +223,7 @@
 | **Risk-Based Testing** | 100% | ✅ Complete |
 | **Dual Execution Loop** | 100% | ✅ Complete |
 | **Triage Framework** | 100% | ✅ Complete |
-| **Workflow Orchestration** | 67% | 🚀 Next Phase |
+| **Workflow Orchestration** | 0% | 🚀 Next Phase |
 | **Traceability** | 60% | 🔄 In Progress |
 | **Strategic Tooling** | 50% | 🔄 In Progress |
 | **Methodology Docs Integration** | 30% | 🔄 In Progress |
@@ -252,10 +231,10 @@
 | **Complexity Solutions** | 0% | 🆕 New |
 | **Documentation & Outreach** | 40% | 🔄 In Progress |
 | **Workflow Modes** | 100% | ✅ Complete |
-| **Iterative Development** | 0% | 🚀 Next Phase |
-| **Flexible Documentation** | 0% | 🚀 Next Phase |
+| **Iterative Development** | 25% | 🚀 Next Phase |
+
 | **Enhanced Rollback** | 0% | 🚀 Next Phase |
-| **Configurable Opinions** | 0% | 🚀 Next Phase |
+| **Configurable Options** | 100% | ✅ Complete |
 | **Advanced MCP** | 0% | 🆕 New |
 | **IDE Integration** | 0% | 🆕 New |
 | **Evaluation Suite** | 0% | 🆕 New |
@@ -269,22 +248,21 @@
 **Overall Implementation Status**: ~92% Complete
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration)
 - **Advanced Features**: 20-67% Complete (infrastructure, methodology integration, and workflow features)
-- **SDD Optimization**: 90% Complete (workflow flexibility with iterative development, enhanced UX, and completed mode switching with auto-detection)
-- **Complexity Solutions**: ~90% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, flexible documentation, enhanced rollback, configurable opinions - HIGH PRIORITY response to user feedback)
-- **Next Phase Priorities**: 4 HIGH/MEDIUM priority features (iterative development, workflow orchestration completion, flexible docs, rollback capabilities) - **IMMEDIATE FOCUS**
-- **Future Enhancements**: 0% Complete (guild, advanced MCP, comprehensive evals, context engineering)
+- **SDD Optimization**: 95% Complete (workflow flexibility with iterative development, enhanced UX, completed mode switching with auto-detection, and mode-aware checklist validation)
+- **Complexity Solutions**: ~100% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable options - HIGH PRIORITY response to user feedback)
+- **Next Phase Priorities**: 3 HIGH/MEDIUM priority features (iterative development, workflow orchestration completion, rollback capabilities) - **IMMEDIATE FOCUS**
+- **Future Enhancements**: 0% Complete (guild, advanced MCP, comprehensive evals, context engineering, issue tracker labeling)
 - **Deferred Features**: IDE Integration & Cockpit Features (marked LOW PRIORITY)
 
-**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection), and `/checklist` (requirements quality testing). **Complexity reduction prioritized** based on user feedback analysis - workflow modes provide user-choice flexibility (spec-driven structured mode as default vs lightweight build mode for exploration), iterative development support consolidated into extended `/analyze` command addresses anti-iterative concerns, flexible documentation modes with conversational `discuss.md` solve documentation overload, enhanced rollback capabilities provide task-level rollbacks, and configurable framework opinions make TDD/contracts/data models opt-in rather than mandatory. Context engineering optimization planned using stone-skipping metaphor for progressive context layering and verbalized sampling for AI output diversity.
+**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection and post-implementation analysis), and `/checklist` (requirements quality testing with mode-aware framework option validation). **Complexity reduction prioritized** based on user feedback analysis - workflow modes provide user-choice flexibility (spec-driven structured mode as default vs lightweight build mode for exploration), iterative development support partially implemented via extended `/analyze` command with auto-detection addresses anti-iterative concerns, enhanced rollback capabilities provide task-level rollbacks, and configurable framework options make TDD/contracts/data models/risk-based testing opt-in rather than mandatory, with checklist validation ensuring enabled options are properly specified in requirements. Rich context delegation provides superior AI assistance compared to issue labeling approaches.
 
 ## 🎯 **PRIORITY RANKING** - Updated based on complexity feedback analysis
 
 **🚀 NEXT PHASE (Immediate - Complete Within 2-3 Months):**
-1. **HIGH**: Iterative development support (0% → 100%) - Addresses anti-iterative design concerns
-2. **HIGH**: Complete workflow stage orchestration (67% → 100%)
-3. **HIGH**: Flexible documentation modes (0% → 100%) - Addresses documentation overload
-4. **MEDIUM**: Enhanced rollback capabilities (0% → 100%) - Addresses expensive rollback critique
-5. **MEDIUM**: Configurable framework opinions (0% → 100%) - Addresses over-opinionated design
+1. **HIGH**: Iterative development support (25% → 100%) - Addresses anti-iterative design concerns
+2. **HIGH**: Complete workflow stage orchestration (0% → 100%)
+3. **MEDIUM**: Enhanced rollback capabilities (0% → 100%) - Addresses expensive rollback critique
+5. **MEDIUM**: Configurable framework options (100% ✅) - Addresses over-opinionated design
 
 **🔄 CURRENT PHASE (Complete After Next Phase):**
 6. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance and cleanup
@@ -302,20 +280,18 @@
 
 **🚀 NEXT PHASE (Immediate Priority - Start Now):**
 - **Iterative Development Support** (HIGH PRIORITY - Start Immediately):
-  - Phase 1 (2 weeks): `/correct` and `/collect` command infrastructure
+  - ✅ Phase 1 (2 weeks): Extended `/analyze` with auto-detection - COMPLETED
   - Phase 2 (2 weeks): Documentation evolution and rollback integration
 - **Workflow Stage Orchestration Completion** (HIGH PRIORITY):
   - Phase 1 (1 week): Progress visualization implementation
   - Phase 2 (1 week): Workflow rollback capabilities
-- **Flexible Documentation Modes** (HIGH PRIORITY):
-  - Phase 1 (2 weeks): Conversational `discuss.md` format and template selection
-  - Phase 2 (2 weeks): Progressive disclosure and documentation depth controls
+
 - **Enhanced Rollback Capabilities** (MEDIUM PRIORITY):
   - Phase 1 (2 weeks): Task-level rollback infrastructure
   - Phase 2 (2 weeks): Plan regeneration and documentation consistency
-- **Configurable Framework Opinions** (MEDIUM PRIORITY):
-  - Phase 1 (2 weeks): Constitution-based preference system
-  - Phase 2 (2 weeks): Opt-in architecture patterns and user-driven defaults
+- **Configurable Framework Options** (MEDIUM PRIORITY - COMPLETED ✅):
+  - ✅ Phase 1 (2 weeks): Constitution-based preference system - COMPLETED
+  - ✅ Phase 2 (2 weeks): Opt-in architecture patterns and user-driven defaults - COMPLETED
 
 **🔄 CURRENT PHASE (Complete After Next Phase):**
 - **Spec Management & Cleanup** (MEDIUM PRIORITY):
@@ -329,3 +305,5 @@
   - ✅ Phase 3 (2 weeks): Extended `/analyze` with auto-detection for pre/post-implementation analysis, complexity reduction features, and user experience polish - COMPLETED
   - ✅ Phase 4 (1 week): Documentation integration in README.md and quickstart.md - COMPLETED
   - ✅ Phase 5 (1 week): 12-Factors methodology integration - COMPLETED
+  - ✅ Phase 6 (1 week): Configuration consolidation - COMPLETED
+- ✅ Phase 7 (1 week): Checklist command mode integration - COMPLETED

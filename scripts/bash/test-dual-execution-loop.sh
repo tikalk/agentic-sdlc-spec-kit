@@ -38,7 +38,7 @@ setup_test_environment() {
     mkdir -p "$TEST_FEATURE_DIR"
     mkdir -p "$TEST_PROJECT_ROOT"
 
-    # Create mock .mcp.json for testing
+    # Create mock .mcp.json for async agent testing
     cat > "$TEST_PROJECT_ROOT/.mcp.json" << EOF
 {
   "mcpServers": {
@@ -49,10 +49,15 @@ setup_test_environment() {
     "agent-async-copilot": {
       "type": "http",
       "url": "https://mcp.async-copilot.dev/"
+    },
+    "agent-async-codex": {
+      "type": "http",
+      "url": "https://mcp.async-codex.ai/"
     }
   }
 }
 EOF
+    # Note: LLM delegation no longer uses MCP servers for async tasks
 
     # Create mock feature files
     cat > "$TEST_FEATURE_DIR/spec.md" << EOF
@@ -191,9 +196,9 @@ test_task_generation() {
     log_test_success "Task generation and classification test complete"
 }
 
-# Test MCP dispatching
-test_mcp_dispatching() {
-    log_test_info "Testing MCP dispatching..."
+# Test LLM delegation dispatching
+test_llm_delegation_dispatching() {
+    log_test_info "Testing natural language delegation dispatching..."
 
     cd "$TEST_PROJECT_ROOT"
 
@@ -201,13 +206,21 @@ test_mcp_dispatching() {
     local async_tasks=("T003" "T006" "T007")
 
     for task_id in "${async_tasks[@]}"; do
-        local mcp_config
-        mcp_config=$(load_mcp_config ".mcp.json")
-        dispatch_async_task "$TEST_FEATURE_DIR/tasks_meta.json" "$task_id" "$mcp_config"
-        log_test_success "Dispatched ASYNC task $task_id to MCP server"
+        # Use mock task details for testing (since jq not available)
+        local task_description="Test ASYNC task $task_id"
+        local task_files="test-file.js"
+        local agent_type="general"
+
+        # Dispatch using natural language delegation with context
+        dispatch_async_task "$task_id" "$agent_type" "$task_description" "Files: $task_files" "Complete the task according to specifications" "Execute the task and provide detailed results" "$TEST_FEATURE_DIR"
+        log_test_success "Dispatched ASYNC task $task_id via natural language delegation"
+
+        # Simulate AI assistant completion (in real usage, AI assistant would create this)
+        mkdir -p delegation_completed
+        echo "Task completed by AI assistant" > "delegation_completed/${task_id}.txt"
     done
 
-    log_test_success "MCP dispatching test complete"
+    log_test_success "LLM delegation dispatching test complete"
 }
 
 # Test review workflows
@@ -307,7 +320,7 @@ main() {
 
     setup_test_environment
     test_task_generation
-    test_mcp_dispatching
+    test_llm_delegation_dispatching
     test_review_workflows
     test_quality_gates
     test_execution_summary

@@ -206,18 +206,7 @@ AGENT_MCP_CONFIG = {
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 # Workflow mode configuration
-WORKFLOW_MODES = {
-    "build": {
-        "name": "Build Mode",
-        "description": "Lightweight, conversational approach for quick implementation and validation",
-        "default": False
-    },
-    "spec": {
-        "name": "Spec Mode",
-        "description": "Full specification-driven workflow with comprehensive planning and structure",
-        "default": True
-    }
-}
+
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 
@@ -689,65 +678,9 @@ def is_git_repo(path: Path = None) -> bool:
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
-def get_mode_config_path(project_path: Path = None) -> Path:
-    """Get the path to the mode configuration file."""
-    if project_path is None:
-        project_path = Path.cwd()
-    config_dir = project_path / ".specify" / "config"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir / "mode.json"
 
-def load_mode_config(project_path: Path = None) -> dict:
-    """Load the current mode configuration."""
-    config_path = get_mode_config_path(project_path)
-    if config_path.exists():
-        try:
-            with open(config_path, 'r') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            pass
 
-    # Return default configuration
-    return {
-        "current_mode": "spec",  # spec is the default
-        "default_mode": "spec",
-        "mode_history": []
-    }
 
-def save_mode_config(config: dict, project_path: Path = None) -> None:
-    """Save the mode configuration."""
-    config_path = get_mode_config_path(project_path)
-    with open(config_path, 'w') as f:
-        json.dump(config, f, indent=2)
-
-def get_current_mode(project_path: Path = None) -> str:
-    """Get the current workflow mode."""
-    config = load_mode_config(project_path)
-    return config.get("current_mode", "spec")
-
-def set_current_mode(mode: str, project_path: Path = None) -> None:
-    """Set the current workflow mode."""
-    if mode not in WORKFLOW_MODES:
-        raise ValueError(f"Invalid mode: {mode}. Choose from: {', '.join(WORKFLOW_MODES.keys())}")
-
-    config = load_mode_config(project_path)
-    old_mode = config.get("current_mode")
-
-    # Update current mode
-    config["current_mode"] = mode
-
-    # Add to history if mode changed
-    if old_mode != mode:
-        history = config.get("mode_history", [])
-        history.append({
-            "timestamp": None,  # Could add datetime if needed
-            "from_mode": old_mode,
-            "to_mode": mode
-        })
-        # Keep only last 10 entries
-        config["mode_history"] = history[-10:]
-
-    save_mode_config(config, project_path)
 
 def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Optional[str]]:
     """Initialize a git repository in the specified path.
@@ -1530,87 +1463,6 @@ def init(
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style=ACCENT_COLOR, padding=(1,2))
     console.print()
     console.print(enhancements_panel)
-
-@app.command()
-def mode(
-    mode_name: str = typer.Argument(None, help="Workflow mode to set: build or spec (leave empty to show current mode)"),
-    show_info: bool = typer.Option(False, "--info", "-i", help="Show detailed information about available modes"),
-):
-    """
-    Set or display the current workflow mode for Specify projects.
-
-    Workflow modes control the complexity level of the development process:
-
-    - build: Lightweight, conversational approach for quick implementation and validation
-    - spec: Full specification-driven workflow with comprehensive planning and structure (default)
-
-    Examples:
-        specify mode                    # Show current mode
-        specify mode build             # Switch to build mode
-        specify mode spec              # Switch to spec mode
-        specify mode --info            # Show detailed mode information
-    """
-    show_banner()
-
-    if show_info:
-        console.print(f"[{ACCENT_COLOR}]Available Workflow Modes[/{ACCENT_COLOR}]\n")
-
-        for mode_key, mode_config in WORKFLOW_MODES.items():
-            current_indicator = " [green](current)[/green]" if mode_key == get_current_mode() else ""
-            default_indicator = " [blue](default)[/blue]" if mode_config["default"] else ""
-
-            mode_panel = Panel(
-                mode_config["description"],
-                title=f"{mode_config['name']}{current_indicator}{default_indicator}",
-                border_style=ACCENT_COLOR if mode_key == get_current_mode() else "grey50",
-                padding=(1, 2)
-            )
-            console.print(mode_panel)
-            console.print()
-
-        return
-
-    if mode_name is None:
-        # Show current mode
-        current_mode = get_current_mode()
-        mode_config = WORKFLOW_MODES[current_mode]
-
-        console.print(f"[{ACCENT_COLOR}]Current Workflow Mode[/{ACCENT_COLOR}]")
-        console.print(f"Mode: [green]{current_mode}[/green]")
-        console.print(f"Description: {mode_config['description']}")
-        console.print(f"Default: {'Yes' if mode_config['default'] else 'No'}")
-
-        # Show mode history if available
-        config = load_mode_config()
-        history = config.get("mode_history", [])
-        if history:
-            console.print(f"\n[{ACCENT_COLOR}]Recent Mode Changes[/{ACCENT_COLOR}]")
-            for entry in history[-5:]:  # Show last 5 changes
-                from_mode = entry.get("from_mode", "unknown")
-                to_mode = entry.get("to_mode", "unknown")
-                console.print(f"  {from_mode} → {to_mode}")
-
-        return
-
-    # Set new mode
-    try:
-        old_mode = get_current_mode()
-        set_current_mode(mode_name)
-
-        if old_mode != mode_name:
-            console.print(f"[{ACCENT_COLOR}]Workflow mode changed![/{ACCENT_COLOR}]")
-            console.print(f"From: [yellow]{old_mode}[/yellow] → To: [green]{mode_name}[/green]")
-        else:
-            console.print(f"[{ACCENT_COLOR}]Workflow mode is already set to:[/{ACCENT_COLOR}] [green]{mode_name}[/green]")
-
-        # Show mode description
-        mode_config = WORKFLOW_MODES[mode_name]
-        console.print(f"\nDescription: {mode_config['description']}")
-
-    except ValueError as e:
-        console.print(f"[red]Error:[/red] {e}")
-        console.print(f"\nAvailable modes: {', '.join(WORKFLOW_MODES.keys())}")
-        raise typer.Exit(1)
 
 @app.command()
 def check():

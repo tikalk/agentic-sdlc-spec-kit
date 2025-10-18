@@ -13,13 +13,13 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Check for `--include-risk-tests` flag in user input. If present, enable risk-based test generation.
+Check mode configuration for risk-based testing. If enabled in `.specify/config/mode.json` under options.risk_tests_enabled, enable risk-based test generation.
 
 ## Outline
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, MCP job dispatching, and review enforcement.
+2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
 2. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
@@ -32,7 +32,7 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
     - If data-model.md exists: Extract entities → map to user stories
     - If contracts/ exists: Each file → map endpoints to user stories
     - If research.md exists: Extract decisions → generate setup tasks
-    - **If --include-risk-tests flag is present**:
+    - **If risk-based testing is enabled in mode configuration**:
       - Run `scripts/bash/generate-risk-tests.sh` with combined SPEC_RISKS and PLAN_RISKS from {SCRIPT} output
       - Parse the generated risk-based test tasks
       - Append them as a dedicated "Risk Mitigation" phase at the end of tasks.md
@@ -46,11 +46,12 @@ Check for `--include-risk-tests` flag in user input. If present, enable risk-bas
         - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
         - **For each task**: Run `scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files"` to determine execution mode and update tasks_meta.json with `scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$execution_mode"`
         - If tests requested: Include tests specific to that story
-    - **Tests are OPTIONAL**: Only generate test tasks if explicitly requested in the feature spec or user asks for TDD approach
+    - **Tests are CONFIGURABLE**: Check current mode opinion settings - if TDD enabled, generate test tasks before implementation; if disabled, tests are optional
     - Apply task rules:
       - Different files = mark [P] for parallel within story
       - Same file = sequential (no [P])
-      - If tests requested: Tests before implementation (TDD order)
+      - If TDD enabled (`is_opinion_enabled tdd $MODE`): Tests before implementation (TDD order)
+    - If TDD disabled: Tests optional, generated only if explicitly requested
       - Classify execution mode:
         - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements (requires human review)
         - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components (can be delegated to async agents)

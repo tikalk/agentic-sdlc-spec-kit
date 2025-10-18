@@ -12,5 +12,26 @@
       "from_mode": "build",
       "to_mode": "spec"
     }
-  ]
+  ],
+  "options": {
+    "tdd_enabled": false,
+    "contracts_enabled": false,
+    "data_models_enabled": false,
+    "risk_tests_enabled": false,
+    "description": "Configurable framework options - set to true to enable, false to disable"
+  },
+  "mode_defaults": {
+    "build": {
+      "tdd_enabled": false,
+      "contracts_enabled": false,
+      "data_models_enabled": false,
+      "risk_tests_enabled": false
+    },
+    "spec": {
+      "tdd_enabled": true,
+      "contracts_enabled": true,
+      "data_models_enabled": true,
+      "risk_tests_enabled": true
+    }
+  }
 }

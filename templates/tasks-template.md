@@ -158,7 +158,7 @@ Examples of foundational tasks (adjust based on your project):
 
 ---
 
-## Risk Mitigation Phase (OPTIONAL - only if --include-risk-tests flag used)
+## Risk Mitigation Phase (OPTIONAL - only if risk-based testing enabled in mode configuration)
 
 **Purpose**: Address security, performance, and reliability risks identified during planning
 

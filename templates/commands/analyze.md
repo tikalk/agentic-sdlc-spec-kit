@@ -279,6 +279,46 @@ At end of report, output a concise Next Actions block based on detected mode and
 
 Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
 
+### 9. Documentation Evolution (Post-Implementation Only)
+
+**When Post-Implementation Analysis Detects Significant Changes:**
+
+If the analysis reveals substantial implementation changes that should be reflected in documentation, offer to evolve the documentation:
+
+**Documentation Evolution Options:**
+- **Spec Updates**: Add newly discovered requirements, edge cases, or user experience insights
+- **Plan Updates**: Document architecture changes, performance optimizations, or integration decisions
+- **Task Updates**: Mark completed tasks, add follow-up tasks for refinements
+
+**Evolution Workflow:**
+1. **Identify Changes**: Flag implemented features not in spec.md, architecture deviations from plan.md
+2. **Propose Updates**: Suggest specific additions to documentation artifacts
+3. **Preserve Intent**: Ensure updates maintain original requirements while incorporating implementation learnings
+4. **Version Tracking**: Create new versions of documentation with clear change rationale
+
+**Evolution Triggers:**
+- New features implemented but not specified
+- Architecture changes for performance/security reasons
+- User experience improvements discovered during implementation
+- Integration requirements not anticipated in planning
+
+### 10. Rollback Integration
+
+**When Analysis Reveals Critical Issues:**
+
+If post-implementation analysis identifies critical problems requiring rollback:
+
+**Rollback Options:**
+- **Task-Level Rollback**: Revert individual tasks while preserving completed work
+- **Feature Rollback**: Roll back entire feature implementation
+- **Documentation Preservation**: Keep documentation updates even when code is rolled back
+
+**Rollback Workflow:**
+1. **Assess Impact**: Determine which tasks/code to rollback
+2. **Preserve Documentation**: Keep spec/plan updates that reflect learnings
+3. **Clean Revert**: Remove problematic implementation while maintaining good changes
+4. **Regenerate Tasks**: Create new tasks for corrected implementation approach
+
 ## Operating Principles
 
 ### Context Efficiency
