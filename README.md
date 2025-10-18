@@ -292,6 +292,8 @@ specify init my-project \
 
 ### 2. Establish project principles
 
+Launch your AI assistant in the project directory. The `/speckit.*` commands are available in the assistant.
+
 Use the **`/speckit.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
 
 ```bash
