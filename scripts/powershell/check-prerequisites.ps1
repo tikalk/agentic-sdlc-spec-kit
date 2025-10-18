@@ -40,10 +40,10 @@ OPTIONS:
   -Help, -h           Show this help message
 
 EXAMPLES:
-  # Check task prerequisites (plan.md required)
+  # Check task prerequisites (plan.md required in spec mode)
   .\check-prerequisites.ps1 -Json
   
-  # Check implementation prerequisites (plan.md + tasks.md required)
+  # Check implementation prerequisites (plan.md required in spec mode, tasks.md always required)
   .\check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
   
   # Get feature paths only (no validation)
@@ -150,10 +150,27 @@ if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
     exit 1
 }
 
+# Check for plan.md (required in spec mode, optional in build mode)
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
-    Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
-    Write-Output "Run /speckit.plan first to create the implementation plan."
-    exit 1
+    # Get current mode to determine if plan.md is required
+    $currentMode = "spec"
+    $modeFile = ".specify/config/mode.json"
+    if (Test-Path $modeFile) {
+        try {
+            $modeData = Get-Content $modeFile | ConvertFrom-Json
+            $currentMode = $modeData.current_mode
+            if (-not $currentMode) { $currentMode = "spec" }
+        } catch {
+            $currentMode = "spec"
+        }
+    }
+
+    if ($currentMode -eq "spec") {
+        Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
+        Write-Output "Run /speckit.plan first to create the implementation plan."
+        exit 1
+    }
+    # In build mode, plan.md is optional - allow implementation to proceed
 }
 
 # Check for tasks.md if required

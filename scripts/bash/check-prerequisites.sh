@@ -55,10 +55,10 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  # Check task prerequisites (plan.md required)
+  # Check task prerequisites (plan.md required in spec mode)
   ./check-prerequisites.sh --json
   
-  # Check implementation prerequisites (plan.md + tasks.md required)
+  # Check implementation prerequisites (plan.md required in spec mode, tasks.md always required)
   ./check-prerequisites.sh --json --require-tasks --include-tasks
   
   # Get feature paths only (no validation)
@@ -219,10 +219,28 @@ if [[ ! -d "$FEATURE_DIR" ]]; then
     exit 1
 fi
 
+# Check for plan.md (required in spec mode, optional in build mode)
 if [[ ! -f "$IMPL_PLAN" ]]; then
-    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-    echo "Run /speckit.plan first to create the implementation plan." >&2
-    exit 1
+    # Get current mode to determine if plan.md is required
+    local current_mode="spec"
+    if [[ -f ".specify/config/mode.json" ]]; then
+        current_mode=$(python3 -c "
+import json
+try:
+    with open('.specify/config/mode.json', 'r') as f:
+        data = json.load(f)
+    print(data.get('current_mode', 'spec'))
+except:
+    print('spec')
+" 2>/dev/null || echo "spec")
+    fi
+
+    if [[ "$current_mode" == "spec" ]]; then
+        echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
+        echo "Run /speckit.plan first to create the implementation plan." >&2
+        exit 1
+    fi
+    # In build mode, plan.md is optional - allow implementation to proceed
 fi
 
 if [[ ! -f "$CONTEXT" ]]; then

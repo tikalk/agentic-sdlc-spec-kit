@@ -78,9 +78,9 @@ You **MUST** consider the user input before proceeding (if not empty).
      * Automatically proceed to step 3
 
 3. Load and analyze the implementation context:
-   - **REQUIRED**: Read tasks.md for the complete task list and execution plan
-   - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-   - **IF EXISTS**: Read data-model.md for entities and relationships
+    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
+    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure (optional in build mode)
+    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
@@ -104,7 +104,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
    **If ignore file missing**: Create with full pattern set for detected technology
    
-   **Common Patterns by Technology** (from plan.md tech stack):
+    **Common Patterns by Technology** (from plan.md tech stack if available, otherwise detect from project files):
    - **Node.js/JavaScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
    - **Python**: `__pycache__/`, `*.pyc`, `.venv/`, `venv/`, `dist/`, `*.egg-info/`
    - **Java**: `target/`, `*.class`, `*.jar`, `.gradle/`, `build/`

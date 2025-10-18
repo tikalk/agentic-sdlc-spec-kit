@@ -97,7 +97,7 @@ Once a feature specification exists, this command creates a comprehensive implem
 
 After a plan is created, this command analyzes the plan and related design documents to generate an executable task list:
 
-1. **Inputs**: Reads `plan.md` (required) and, if present, `data-model.md`, `contracts/`, and `research.md`
+1. **Inputs**: Reads `plan.md` (required in spec mode, optional in build mode) and, if present, `data-model.md`, `contracts/`, and `research.md`
 2. **Task Derivation**: Converts contracts, entities, and scenarios into specific tasks
 3. **Parallelization**: Marks independent tasks `[P]` and outlines safe parallel groups
 4. **Output**: Writes `tasks.md` in the feature directory, ready for execution by a Task agent

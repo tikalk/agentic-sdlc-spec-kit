@@ -119,8 +119,17 @@ check_checklists_status() {
 load_implementation_context() {
     log_info "Loading implementation context..."
 
-    # Required files
-    local required_files=("tasks.md" "plan.md" "spec.md")
+    # Get current workflow mode
+    local workflow_mode="spec"  # Default
+    if [[ -f ".specify/config/mode.json" ]]; then
+        workflow_mode=$(jq -r '.current_mode // "spec"' ".specify/config/mode.json" 2>/dev/null || echo "spec")
+    fi
+
+    # Required files (plan.md is optional in build mode)
+    local required_files=("tasks.md" "spec.md")
+    if [[ "$workflow_mode" == "spec" ]]; then
+        required_files+=("plan.md")
+    fi
 
     for file in "${required_files[@]}"; do
         if [[ ! -f "$FEATURE_DIR/$file" ]]; then
@@ -128,6 +137,12 @@ load_implementation_context() {
             exit 1
         fi
     done
+
+    # Optional files (plan.md is optional in build mode)
+    local optional_files=("data-model.md" "contracts/" "research.md" "quickstart.md")
+    if [[ "$workflow_mode" == "build" ]]; then
+        optional_files+=("plan.md")
+    fi
 
     # Optional files
     local optional_files=("data-model.md" "contracts/" "research.md" "quickstart.md")

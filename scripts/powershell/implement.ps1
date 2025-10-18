@@ -121,8 +121,24 @@ function Test-ChecklistsStatus {
 function Import-ImplementationContext {
     Write-Info "Loading implementation context..."
 
-    # Required files
-    $requiredFiles = @("tasks.md", "plan.md", "spec.md")
+    # Get current workflow mode
+    $workflowMode = "spec"  # Default
+    $modeFile = ".specify/config/mode.json"
+    if (Test-Path $modeFile) {
+        try {
+            $modeData = Get-Content $modeFile | ConvertFrom-Json
+            $workflowMode = $modeData.current_mode
+            if (-not $workflowMode) { $workflowMode = "spec" }
+        } catch {
+            $workflowMode = "spec"
+        }
+    }
+
+    # Required files (plan.md is optional in build mode)
+    $requiredFiles = @("tasks.md", "spec.md")
+    if ($workflowMode -eq "spec") {
+        $requiredFiles += "plan.md"
+    }
 
     foreach ($file in $requiredFiles) {
         $filePath = Join-Path $global:FeatureDir $file
@@ -132,8 +148,11 @@ function Import-ImplementationContext {
         }
     }
 
-    # Optional files
+    # Optional files (plan.md is optional in build mode)
     $optionalFiles = @("data-model.md", "contracts", "research.md", "quickstart.md")
+    if ($workflowMode -eq "build") {
+        $optionalFiles += "plan.md"
+    }
 
     foreach ($file in $optionalFiles) {
         $filePath = Join-Path $global:FeatureDir $file
