@@ -23,7 +23,7 @@ Control the complexity level of the Agentic SDLC workflow by setting workflow mo
 
 **Option Management**: Framework options control which architectural patterns are enabled
 
-**Configuration Persistence**: Settings are stored in `.specify/config/mode.json`
+**Configuration Persistence**: Settings are stored in `.specify/config/config.json` under the `workflow` and `options` sections
 
 ## Execution Steps
 
@@ -53,7 +53,7 @@ Control the complexity level of the Agentic SDLC workflow by setting workflow mo
 
 #### Configure Options
 - Enable/disable individual framework options
-- Persist custom settings in the `options` section of mode.json
+- Persist custom settings in the `options` section of config.json
 - Allow fine-grained control over development patterns
 
 #### Reset Options

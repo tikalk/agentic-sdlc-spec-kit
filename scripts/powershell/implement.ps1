@@ -123,11 +123,11 @@ function Import-ImplementationContext {
 
     # Get current workflow mode
     $workflowMode = "spec"  # Default
-    $modeFile = ".specify/config/mode.json"
-    if (Test-Path $modeFile) {
+    $configFile = ".specify/config/config.json"
+    if (Test-Path $configFile) {
         try {
-            $modeData = Get-Content $modeFile | ConvertFrom-Json
-            $workflowMode = $modeData.current_mode
+            $configData = Get-Content $configFile | ConvertFrom-Json
+            $workflowMode = $configData.workflow.current_mode
             if (-not $workflowMode) { $workflowMode = "spec" }
         } catch {
             $workflowMode = "spec"

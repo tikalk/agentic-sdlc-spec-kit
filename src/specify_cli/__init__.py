@@ -205,6 +205,88 @@ AGENT_MCP_CONFIG = {
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
+# Consolidated Configuration Management
+
+def get_config_path(project_path: Path) -> Path:
+    """Get the path to the consolidated config file."""
+    return project_path / ".specify" / "config" / "config.json"
+
+def load_config(project_path: Path) -> dict:
+    """Load the consolidated configuration file."""
+    config_path = get_config_path(project_path)
+    if not config_path.exists():
+        return get_default_config()
+
+    try:
+        with open(config_path, 'r') as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        console.print(f"[yellow]Warning:[/yellow] Could not load config file {config_path}, using defaults")
+        return get_default_config()
+
+def save_config(project_path: Path, config: dict) -> None:
+    """Save the consolidated configuration file."""
+    config_path = get_config_path(project_path)
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Update last_modified timestamp
+    config["project"]["last_modified"] = __import__('datetime').datetime.now().isoformat()
+
+    with open(config_path, 'w') as f:
+        json.dump(config, f, indent=2)
+
+def get_default_config() -> dict:
+    """Get the default configuration structure."""
+    from datetime import datetime
+    now = datetime.now().isoformat()
+
+    return {
+        "version": "1.0",
+        "project": {
+            "created": now,
+            "last_modified": now
+        },
+        "workflow": {
+            "current_mode": "spec",
+            "default_mode": "spec",
+            "mode_history": []
+        },
+        "options": {
+            "tdd_enabled": False,
+            "contracts_enabled": False,
+            "data_models_enabled": False,
+            "risk_tests_enabled": False
+        },
+        "mode_defaults": {
+            "build": {
+                "tdd_enabled": False,
+                "contracts_enabled": False,
+                "data_models_enabled": False,
+                "risk_tests_enabled": False
+            },
+            "spec": {
+                "tdd_enabled": True,
+                "contracts_enabled": True,
+                "data_models_enabled": True,
+                "risk_tests_enabled": True
+            }
+        },
+        "spec_sync": {
+            "enabled": False,
+            "queue": {
+                "version": "1.0",
+                "created": now,
+                "pending": [],
+                "processed": []
+            }
+        },
+        "gateway": {
+            "url": None,
+            "token": None,
+            "suppress_warning": False
+        }
+    }
+
 # Workflow mode configuration
 
 
@@ -1053,42 +1135,34 @@ def ensure_gateway_config(
     gateway_token: str | None = None,
     suppress_warning: bool | None = None,
 ) -> None:
-    """Ensure gateway.env exists and optionally hydrate it with provided values."""
-    config_dir = project_path / ".specify" / "config"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    env_path = config_dir / "gateway.env"
+    """Ensure gateway configuration exists in consolidated config and optionally hydrate it with provided values."""
+    config = load_config(project_path)
 
-    was_existing = env_path.exists()
+    # Check if gateway config already exists and no new values provided
+    gateway_config = config.get("gateway", {})
+    has_existing_config = any([
+        gateway_config.get("url"),
+        gateway_config.get("token"),
+        gateway_config.get("suppress_warning", False)
+    ])
 
-    if was_existing and not any([gateway_url, gateway_token, suppress_warning]):
+    if has_existing_config and not any([gateway_url, gateway_token, suppress_warning]):
         if tracker:
-            tracker.skip("gateway", "using template")
+            tracker.skip("gateway", "using existing config")
         return
 
-    lines = [
-        "# Central LLM gateway configuration",
-        "# Populate SPECIFY_GATEWAY_URL with your proxy endpoint.",
-        "# Populate SPECIFY_GATEWAY_TOKEN if authentication is required.",
-        f"SPECIFY_GATEWAY_URL={gateway_url or ''}",
-        f"SPECIFY_GATEWAY_TOKEN={gateway_token or ''}",
-        "# Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true to silence CLI warnings.",
-        "SPECIFY_SUPPRESS_GATEWAY_WARNING=" + ("true" if suppress_warning else ""),
-    ]
+    # Update gateway configuration
+    if gateway_url is not None:
+        config["gateway"]["url"] = gateway_url
+    if gateway_token is not None:
+        config["gateway"]["token"] = gateway_token
+    if suppress_warning is not None:
+        config["gateway"]["suppress_warning"] = suppress_warning
 
-    assistant_comments = {
-        "claude": "# Claude Code uses ANTHROPIC_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
-        "gemini": "# Gemini CLI uses GEMINI_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
-        "qwen": "# Qwen CLI uses OPENAI_BASE_URL; the CLI exports it when SPECIFY_GATEWAY_URL is set.",
-        "opencode": "# opencode.json can reference {env:SPECIFY_GATEWAY_URL} to reach the proxy.",
-    }
-
-    if selected_ai in assistant_comments:
-        lines.append(assistant_comments[selected_ai])
-
-    env_path.write_text("\n".join(lines) + "\n")
+    save_config(project_path, config)
 
     if tracker:
-        tracker.complete("gateway", "updated" if was_existing else "created")
+        tracker.complete("gateway", "configured")
 
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
@@ -1149,8 +1223,8 @@ def init(
     team_ai_directives: str = typer.Option(None, "--team-ai-directives", "--team-ai-directive", help="Clone or reference a team-ai-directives repository during setup"),
     issue_tracker: Optional[str] = typer.Option(None, "--issue-tracker", help="Enable issue tracker MCP integration: github, jira, linear, gitlab"),
     async_agent: Optional[str] = typer.Option(None, "--async-agent", help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex"),
-    gateway_url: str = typer.Option(None, "--gateway-url", help="Populate SPECIFY_GATEWAY_URL in .specify/config/gateway.env"),
-    gateway_token: str = typer.Option(None, "--gateway-token", help="Populate SPECIFY_GATEWAY_TOKEN in .specify/config/gateway.env"),
+    gateway_url: str = typer.Option(None, "--gateway-url", help="Populate gateway URL in .specify/config/config.json"),
+    gateway_token: str = typer.Option(None, "--gateway-token", help="Populate gateway token in .specify/config/config.json"),
     gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true in gateway.env"),
     spec_sync: bool = typer.Option(False, "--spec-sync", help="Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes)"),
 ):

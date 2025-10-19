@@ -95,27 +95,73 @@ EOF
 }
 
 # Create spec sync configuration
-create_config() {
+function create_config {
     local config_dir=".specify/config"
+    local config_file="$config_dir/config.json"
     mkdir -p "$config_dir"
 
-    # Mark spec sync as enabled
-    touch "$config_dir/spec-sync-enabled"
-
-    # Create initial queue file
-    local queue_file="$config_dir/spec-sync-queue.json"
-    if [[ ! -f "$queue_file" ]]; then
-        cat > "$queue_file" << EOF
+    # Check if config file exists, create if not
+    if [[ ! -f "$config_file" ]]; then
+        cat > "$config_file" << EOF
 {
-    "version": "1.0",
+  "version": "1.0",
+  "project": {
     "created": "$(date -Iseconds)",
-    "queue": [],
-    "processed": []
+    "last_modified": "$(date -Iseconds)"
+  },
+  "workflow": {
+    "current_mode": "spec",
+    "default_mode": "spec",
+    "mode_history": []
+  },
+  "options": {
+    "tdd_enabled": false,
+    "contracts_enabled": false,
+    "data_models_enabled": false,
+    "risk_tests_enabled": false
+  },
+  "mode_defaults": {
+    "build": {
+      "tdd_enabled": false,
+      "contracts_enabled": false,
+      "data_models_enabled": false,
+      "risk_tests_enabled": false
+    },
+    "spec": {
+      "tdd_enabled": true,
+      "contracts_enabled": true,
+      "data_models_enabled": true,
+      "risk_tests_enabled": true
+    }
+  },
+  "spec_sync": {
+    "enabled": true,
+    "queue": {
+      "version": "1.0",
+      "created": "$(date -Iseconds)",
+      "pending": [],
+      "processed": []
+    }
+  },
+  "gateway": {
+    "url": null,
+    "token": null,
+    "suppress_warning": false
+  }
 }
 EOF
+    else
+        # Update existing config to enable spec sync
+        # Use jq if available, otherwise use sed for simple update
+        if command -v jq >/dev/null 2>&1; then
+            jq '.spec_sync.enabled = true' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
+        else
+            # Fallback: simple sed replacement (assumes enabled is currently false)
+            sed -i 's/"enabled": false/"enabled": true/' "$config_file"
+        fi
     fi
 
-    log_success "Created spec sync configuration"
+    log_success "Created/updated spec sync configuration"
 }
 
 # Main installation function

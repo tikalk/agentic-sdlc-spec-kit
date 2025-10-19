@@ -82,7 +82,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      - plan.md (if exists): Technical details, dependencies
      - tasks.md (if exists): Implementation tasks
      - .mcp.json (if exists): MCP server configurations
-     - .specify/config/mode.json: Current mode and enabled options
+     - .specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
 
     **Context Loading Strategy**:
     - Load only necessary portions relevant to active focus areas (avoid full-file dumping)

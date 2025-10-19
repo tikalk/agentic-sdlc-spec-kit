@@ -22,28 +22,38 @@ def test_mode_detection_and_template_selection(tmp_path):
     shutil.copy(project_root / "templates" / "plan-template-build.md", template_dir / "plan-template-build.md")
 
     # Test Build mode configuration
-    mode_config = config_dir / "mode.json"
-    mode_config.write_text(json.dumps({
-        "current_mode": "build",
-        "default_mode": "spec",
-        "mode_history": []
-    }))
+    config_file = config_dir / "config.json"
+    build_config = {
+        "version": "1.0",
+        "project": {"created": "2025-01-01T00:00:00", "last_modified": "2025-01-01T00:00:00"},
+        "workflow": {
+            "current_mode": "build",
+            "default_mode": "spec",
+            "mode_history": []
+        },
+        "options": {"tdd_enabled": False, "contracts_enabled": False, "data_models_enabled": False, "risk_tests_enabled": False},
+        "mode_defaults": {
+            "build": {"tdd_enabled": False, "contracts_enabled": False, "data_models_enabled": False, "risk_tests_enabled": False},
+            "spec": {"tdd_enabled": True, "contracts_enabled": True, "data_models_enabled": True, "risk_tests_enabled": True}
+        },
+        "spec_sync": {"enabled": False, "queue": {"version": "1.0", "created": "2025-01-01T00:00:00", "pending": [], "processed": []}},
+        "gateway": {"url": None, "token": None, "suppress_warning": False}
+    }
+    config_file.write_text(json.dumps(build_config))
 
     # Verify mode config is readable
-    with open(mode_config) as f:
+    with open(config_file) as f:
         config = json.load(f)
-        assert config["current_mode"] == "build"
+        assert config["workflow"]["current_mode"] == "build"
 
     # Test Spec mode configuration
-    mode_config.write_text(json.dumps({
-        "current_mode": "spec",
-        "default_mode": "spec",
-        "mode_history": []
-    }))
+    spec_config = build_config.copy()
+    spec_config["workflow"]["current_mode"] = "spec"
+    config_file.write_text(json.dumps(spec_config))
 
-    with open(mode_config) as f:
+    with open(config_file) as f:
         config = json.load(f)
-        assert config["current_mode"] == "spec"
+        assert config["workflow"]["current_mode"] == "spec"
 
 
 def test_mode_history_tracking(tmp_path):
@@ -52,33 +62,44 @@ def test_mode_history_tracking(tmp_path):
     config_dir = repo_root / ".specify" / "config"
     config_dir.mkdir(parents=True)
 
-    mode_config = config_dir / "mode.json"
+    config_file = config_dir / "config.json"
 
     # Initial config
     initial_config = {
-        "current_mode": "spec",
-        "default_mode": "spec",
-        "mode_history": []
+        "version": "1.0",
+        "project": {"created": "2025-01-01T00:00:00", "last_modified": "2025-01-01T00:00:00"},
+        "workflow": {
+            "current_mode": "spec",
+            "default_mode": "spec",
+            "mode_history": []
+        },
+        "options": {"tdd_enabled": False, "contracts_enabled": False, "data_models_enabled": False, "risk_tests_enabled": False},
+        "mode_defaults": {
+            "build": {"tdd_enabled": False, "contracts_enabled": False, "data_models_enabled": False, "risk_tests_enabled": False},
+            "spec": {"tdd_enabled": True, "contracts_enabled": True, "data_models_enabled": True, "risk_tests_enabled": True}
+        },
+        "spec_sync": {"enabled": False, "queue": {"version": "1.0", "created": "2025-01-01T00:00:00", "pending": [], "processed": []}},
+        "gateway": {"url": None, "token": None, "suppress_warning": False}
     }
-    mode_config.write_text(json.dumps(initial_config))
+    config_file.write_text(json.dumps(initial_config))
 
     # Simulate mode change to build
     updated_config = initial_config.copy()
-    updated_config["current_mode"] = "build"
-    updated_config["mode_history"] = [{
+    updated_config["workflow"]["current_mode"] = "build"
+    updated_config["workflow"]["mode_history"] = [{
         "timestamp": None,
         "from_mode": "spec",
         "to_mode": "build"
     }]
-    mode_config.write_text(json.dumps(updated_config))
+    config_file.write_text(json.dumps(updated_config))
 
     # Verify history is tracked
-    with open(mode_config) as f:
+    with open(config_file) as f:
         config = json.load(f)
-        assert config["current_mode"] == "build"
-        assert len(config["mode_history"]) == 1
-        assert config["mode_history"][0]["from_mode"] == "spec"
-        assert config["mode_history"][0]["to_mode"] == "build"
+        assert config["workflow"]["current_mode"] == "build"
+        assert len(config["workflow"]["mode_history"]) == 1
+        assert config["workflow"]["mode_history"][0]["from_mode"] == "spec"
+        assert config["workflow"]["mode_history"][0]["to_mode"] == "build"
 
 
 def test_template_content_difference():

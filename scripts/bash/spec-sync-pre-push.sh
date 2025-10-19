@@ -33,8 +33,22 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # Check if spec sync is enabled
-if [[ ! -f "$PROJECT_ROOT/.specify/config/spec-sync-enabled" ]]; then
+CONFIG_FILE="$PROJECT_ROOT/.specify/config/config.json"
+if [[ ! -f "$CONFIG_FILE" ]]; then
     exit 0
+fi
+
+# Parse config to check if spec sync is enabled
+if command -v jq >/dev/null 2>&1; then
+    SPEC_SYNC_ENABLED=$(jq -r '.spec_sync.enabled // false' "$CONFIG_FILE" 2>/dev/null)
+    if [[ "$SPEC_SYNC_ENABLED" != "true" ]]; then
+        exit 0
+    fi
+else
+    # Fallback: check if enabled is set to true in the file
+    if ! grep -q '"enabled": true' "$CONFIG_FILE" 2>/dev/null; then
+        exit 0
+    fi
 fi
 
 log_info "Checking spec sync status before push..."

@@ -121,8 +121,8 @@ load_implementation_context() {
 
     # Get current workflow mode
     local workflow_mode="spec"  # Default
-    if [[ -f ".specify/config/mode.json" ]]; then
-        workflow_mode=$(jq -r '.current_mode // "spec"' ".specify/config/mode.json" 2>/dev/null || echo "spec")
+    if [[ -f ".specify/config/config.json" ]]; then
+        workflow_mode=$(jq -r '.workflow.current_mode // "spec"' ".specify/config/config.json" 2>/dev/null || echo "spec")
     fi
 
     # Required files (plan.md is optional in build mode)
@@ -426,8 +426,8 @@ handle_task_failure() {
 
     # Get workflow mode for mode-aware rollback
     local mode="spec"  # Default
-    if [[ -f ".specify/config/mode.json" ]]; then
-        mode=$(jq -r '.mode // "spec"' ".specify/config/mode.json" 2>/dev/null || echo "spec")
+    if [[ -f ".specify/config/config.json" ]]; then
+        mode=$(jq -r '.workflow.current_mode // "spec"' ".specify/config/config.json" 2>/dev/null || echo "spec")
     fi
 
     echo "Task $task_id failed. Options:

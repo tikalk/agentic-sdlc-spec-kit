@@ -79,9 +79,10 @@
 - ✅ **Automatic Trace Creation**: Spec-issue links created automatically when issues referenced in `/specify` and other commands
 - ✅ **Smart Trace Validation**: Enhanced `/analyze` detects missing traces and suggests automatic linking
 
-#### **Strategic Tooling Improvements** *(~80% Complete)* - **MEDIUM PRIORITY**
+#### **Strategic Tooling Improvements** *(~75% Complete)* - **MEDIUM PRIORITY**
 - ✅ **Gateway Health Checks**: Basic framework established
 - ✅ **Tool Selection Guidance**: Implementation in CLI and scripts
+- ❌ **Config Consolidation**: Consolidate all `.specify/config/` files into a single unified configuration file to reduce complexity and improve maintainability
 
 #### **SDD Workflow Flexibility & Optimization** *(~90% Complete)* - **MEDIUM PRIORITY** - Core workflow Factors III-V alignment
 - ✅ **Basic Workflow Foundation**: 5-stage process documented
@@ -191,7 +192,7 @@
 | **Iterative Development** | 100% | 🚀 Next Phase |
 
 | **Enhanced Traceability** | 100% | ✅ Complete |
-| **Strategic Tooling** | 80% | 🔄 Current Phase |
+| **Strategic Tooling** | 75% | 🔄 Current Phase |
 | **Spec Management** | 0% | 🔄 Current Phase |
 | **Advanced MCP** | 0% | 🆕 Future Phase |
 | **IDE Integration** | 0% | 🆕 Future Phase |
@@ -221,7 +222,7 @@
 
 **🔄 CURRENT PHASE (Complete After Next Phase):**
 5. **MEDIUM**: Enhanced traceability framework (100% → 100%) - **COMPLETED**
-6. **MEDIUM**: Strategic tooling improvements (80% → 100%) - Tool health and guidance
+6. **MEDIUM**: Strategic tooling improvements (75% → 100%) - Tool health, guidance, and config consolidation
 7. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
@@ -251,8 +252,9 @@
   - ✅ Phase 1 (2 weeks): Complete automated trace validation - COMPLETED
   - ✅ Phase 2 (1 week): Implement Smart Trace Validation in /analyze command - COMPLETED
 - **Strategic Tooling Improvements** (MEDIUM PRIORITY):
-  - Phase 1 (2 weeks): Performance monitoring implementation
-  - Phase 2 (2 weeks): Cost tracking and resource analytics
+  - Phase 1 (2 weeks): Config consolidation - merge mode.json, spec-sync-enabled, spec-sync-queue.json, and gateway.env into single config.json
+  - Phase 2 (2 weeks): Performance monitoring implementation
+  - Phase 3 (2 weeks): Cost tracking and resource analytics
 
 - **Spec Management & Cleanup** (MEDIUM PRIORITY):
   - Phase 1 (2 weeks): `/delete-spec` command infrastructure with dependency validation

@@ -6,13 +6,19 @@ TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
 
 # Load gateway configuration and export helper environment variables
 load_gateway_config() {
-    local repo_root="$1"
-    local config_dir="$repo_root/.specify/config"
-    local env_file="$config_dir/gateway.env"
+    local config_dir=".specify/config"
+    local config_file="$config_dir/config.json"
 
-    if [[ -f "$env_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$env_file"
+    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
+        # Read gateway config from consolidated config
+        SPECIFY_GATEWAY_URL=$(jq -r '.gateway.url // empty' "$config_file" 2>/dev/null)
+        SPECIFY_GATEWAY_TOKEN=$(jq -r '.gateway.token // empty' "$config_file" 2>/dev/null)
+        SPECIFY_SUPPRESS_GATEWAY_WARNING=$(jq -r '.gateway.suppress_warning // false' "$config_file" 2>/dev/null)
+
+        # Export token if set
+        if [[ -n "$SPECIFY_GATEWAY_TOKEN" ]]; then
+            export SPECIFY_GATEWAY_TOKEN
+        fi
     fi
 
     if [[ -n "${SPECIFY_GATEWAY_URL:-}" ]]; then
@@ -23,13 +29,9 @@ load_gateway_config() {
         [[ -z "${OPENAI_BASE_URL:-}" ]] && export OPENAI_BASE_URL="$SPECIFY_GATEWAY_URL"
     else
         export SPECIFY_GATEWAY_ACTIVE="false"
-        if [[ -z "${SPECIFY_SUPPRESS_GATEWAY_WARNING:-}" ]]; then
-            echo "[specify] Warning: Gateway URL not configured. Set SPECIFY_GATEWAY_URL in .specify/config/gateway.env." >&2
+        if [[ "$SPECIFY_SUPPRESS_GATEWAY_WARNING" != "true" ]]; then
+            echo "[specify] Warning: Gateway URL not configured. Set gateway.url in .specify/config/config.json." >&2
         fi
-    fi
-
-    if [[ -n "${SPECIFY_GATEWAY_TOKEN:-}" ]]; then
-        export SPECIFY_GATEWAY_TOKEN
     fi
 }
 

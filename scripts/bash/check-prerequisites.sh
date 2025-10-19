@@ -149,20 +149,22 @@ PY
 
 # Extract mode configuration
 get_mode_config() {
-    local mode_file=".specify/config/mode.json"
+    local config_file=".specify/config/config.json"
 
-    # Extract current mode and options
-    python3 - "$mode_file" <<'PY'
+    # Extract current mode and options from consolidated config
+    python3 - "$config_file" <<'PY'
 import json
 import sys
 from pathlib import Path
 
-mode_file = Path(sys.argv[1])
+config_file = Path(sys.argv[1])
 try:
-    with open(mode_file, 'r') as f:
+    with open(config_file, 'r') as f:
         data = json.load(f)
 
-    current_mode = data.get('current_mode', 'spec')
+    # Mode is now under workflow.current_mode
+    current_mode = data.get('workflow', {}).get('current_mode', 'spec')
+    # Options are at the top level
     options = data.get('options', {})
 
     # Ensure all expected options are present with defaults
@@ -223,13 +225,13 @@ fi
 if [[ ! -f "$IMPL_PLAN" ]]; then
     # Get current mode to determine if plan.md is required
     local current_mode="spec"
-    if [[ -f ".specify/config/mode.json" ]]; then
+    if [[ -f ".specify/config/config.json" ]]; then
         current_mode=$(python3 -c "
 import json
 try:
-    with open('.specify/config/mode.json', 'r') as f:
+    with open('.specify/config/config.json', 'r') as f:
         data = json.load(f)
-    print(data.get('current_mode', 'spec'))
+    print(data.get('workflow', {}).get('current_mode', 'spec'))
 except:
     print('spec')
 " 2>/dev/null || echo "spec")

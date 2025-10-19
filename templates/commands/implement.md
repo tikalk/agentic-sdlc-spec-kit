@@ -7,7 +7,7 @@ scripts:
 
 ## Mode Detection
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/mode.json`. If the file doesn't exist or mode is not set, default to "spec" mode.
+1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
 
 2. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight implementation focused on core functionality with simplified validation

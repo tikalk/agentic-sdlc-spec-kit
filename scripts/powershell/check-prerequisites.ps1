@@ -154,11 +154,11 @@ if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
     # Get current mode to determine if plan.md is required
     $currentMode = "spec"
-    $modeFile = ".specify/config/mode.json"
-    if (Test-Path $modeFile) {
+    $configFile = ".specify/config/config.json"
+    if (Test-Path $configFile) {
         try {
-            $modeData = Get-Content $modeFile | ConvertFrom-Json
-            $currentMode = $modeData.current_mode
+            $configData = Get-Content $configFile | ConvertFrom-Json
+            $currentMode = $configData.workflow.current_mode
             if (-not $currentMode) { $currentMode = "spec" }
         } catch {
             $currentMode = "spec"

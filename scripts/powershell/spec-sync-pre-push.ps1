@@ -44,15 +44,19 @@ if (-not (Test-Path $enabled_file)) {
 log_info "Checking spec sync status before push..."
 
 # Check if there are any pending spec updates in the queue
-$queue_file = Join-Path $project_root ".specify/config/spec-sync-queue.json"
-if (Test-Path $queue_file) {
-    # Check if queue has pending items (simplified check)
-    $content = Get-Content $queue_file -Raw -ErrorAction SilentlyContinue
-    if ($content -and $content -match '"queue": \[[^]]') {
-        log_warning "Pending spec updates detected in queue"
-        log_warning "Consider processing spec updates before pushing"
-        log_warning "Use 'git push --no-verify' to skip this check if intentional"
-        # Don't fail the push, just warn
+$config_file = Join-Path $project_root ".specify/config/config.json"
+if (Test-Path $config_file) {
+    try {
+        $config = Get-Content $config_file -Raw | ConvertFrom-Json
+        $pending_count = $config.spec_sync.queue.pending.Count
+        if ($pending_count -gt 0) {
+            log_warning "Pending spec updates detected in queue ($pending_count items)"
+            log_warning "Consider processing spec updates before pushing"
+            log_warning "Use 'git push --no-verify' to skip this check if intentional"
+            # Don't fail the push, just warn
+        }
+    } catch {
+        # Ignore config parsing errors
     }
 }
 

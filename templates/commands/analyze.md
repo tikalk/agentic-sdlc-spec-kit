@@ -32,7 +32,7 @@ This command adapts its behavior based on project state and workflow mode.
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
 **Auto-Detection Logic**:
-1. Check workflow mode (build vs spec) from `.specify/config/mode.json`
+1. Check workflow mode (build vs spec) from `.specify/config/config.json` under `workflow.current_mode`
 2. Analyze project state:
    - **Pre-implementation**:
      - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
@@ -59,7 +59,7 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 ### 2. Auto-Detect Analysis Mode
 
 **Context Analysis**:
-1. **Check Workflow Mode**: Read current mode from `.specify/config/mode.json`
+1. **Check Workflow Mode**: Read current mode from `.specify/config/config.json` under `workflow.current_mode`
 2. **Analyze Project State**:
    - Scan for implementation artifacts (src/, build/, dist/, *.js, *.py, etc.)
    - Check git history for implementation commits

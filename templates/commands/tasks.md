@@ -13,7 +13,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Check mode configuration for risk-based testing. If enabled in `.specify/config/mode.json` under options.risk_tests_enabled, enable risk-based test generation.
+Check mode configuration for risk-based testing. If enabled in `.specify/config/config.json` under `options.risk_tests_enabled`, enable risk-based test generation.
 
 ## Outline
 

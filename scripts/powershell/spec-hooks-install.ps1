@@ -109,27 +109,73 @@ fi
 # Create spec sync configuration
 function create_config {
     $config_dir = ".specify/config"
+    $config_file = Join-Path $config_dir "config.json"
     New-Item -ItemType Directory -Path $config_dir -Force | Out-Null
 
-    # Mark spec sync as enabled
-    $enabled_file = Join-Path $config_dir "spec-sync-enabled"
-    New-Item -ItemType File -Path $enabled_file -Force | Out-Null
-
-    # Create initial queue file
-    $queue_file = Join-Path $config_dir "spec-sync-queue.json"
-    if (-not (Test-Path $queue_file)) {
-        $queue_content = @"
+    # Check if config file exists, create if not
+    if (-not (Test-Path $config_file)) {
+        $config_content = @"
 {
-    "version": "1.0",
+  "version": "1.0",
+  "project": {
     "created": "$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')",
-    "queue": [],
-    "processed": []
+    "last_modified": "$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')"
+  },
+  "workflow": {
+    "current_mode": "spec",
+    "default_mode": "spec",
+    "mode_history": []
+  },
+  "options": {
+    "tdd_enabled": false,
+    "contracts_enabled": false,
+    "data_models_enabled": false,
+    "risk_tests_enabled": false
+  },
+  "mode_defaults": {
+    "build": {
+      "tdd_enabled": false,
+      "contracts_enabled": false,
+      "data_models_enabled": false,
+      "risk_tests_enabled": false
+    },
+    "spec": {
+      "tdd_enabled": true,
+      "contracts_enabled": true,
+      "data_models_enabled": true,
+      "risk_tests_enabled": true
+    }
+  },
+  "spec_sync": {
+    "enabled": true,
+    "queue": {
+      "version": "1.0",
+      "created": "$(Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK')",
+      "pending": [],
+      "processed": []
+    }
+  },
+  "gateway": {
+    "url": null,
+    "token": null,
+    "suppress_warning": false
+  }
 }
 "@
-        $queue_content | Out-File -FilePath $queue_file -Encoding UTF8 -Force
+        $config_content | Out-File -FilePath $config_file -Encoding UTF8 -Force
+    } else {
+        # Update existing config to enable spec sync
+        try {
+            $config = Get-Content $config_file -Raw | ConvertFrom-Json
+            $config.spec_sync.enabled = $true
+            $config.project.last_modified = Get-Date -Format 'yyyy-MM-ddTHH:mm:ssK'
+            $config | ConvertTo-Json -Depth 10 | Out-File -FilePath $config_file -Encoding UTF8 -Force
+        } catch {
+            log_warning "Could not update existing config file, spec sync may not be enabled"
+        }
     }
 
-    log_success "Created spec sync configuration"
+    log_success "Created/updated spec sync configuration"
 }
 
 # Main installation function

@@ -654,18 +654,18 @@ execute_mode_aware_rollback() {
 # Get framework options configuration
 get_framework_opinions() {
     local mode="${1:-spec}"
-    local mode_file=".specify/config/mode.json"
+    local config_file=".specify/config/config.json"
 
-    # Read from mode config
-    if [[ -f "$mode_file" ]] && command -v jq >/dev/null 2>&1; then
+    # Read from consolidated config
+    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local user_tdd
-        user_tdd=$(jq -r ".options.tdd_enabled" "$mode_file" 2>/dev/null || echo "null")
+        user_tdd=$(jq -r ".options.tdd_enabled" "$config_file" 2>/dev/null || echo "null")
         local user_contracts
-        user_contracts=$(jq -r ".options.contracts_enabled" "$mode_file" 2>/dev/null || echo "null")
+        user_contracts=$(jq -r ".options.contracts_enabled" "$config_file" 2>/dev/null || echo "null")
         local user_data_models
-        user_data_models=$(jq -r ".options.data_models_enabled" "$mode_file" 2>/dev/null || echo "null")
+        user_data_models=$(jq -r ".options.data_models_enabled" "$config_file" 2>/dev/null || echo "null")
         local user_risk_tests
-        user_risk_tests=$(jq -r ".options.risk_tests_enabled" "$mode_file" 2>/dev/null || echo "null")
+        user_risk_tests=$(jq -r ".options.risk_tests_enabled" "$config_file" 2>/dev/null || echo "null")
 
         # Fill in defaults for unset options based on mode
         case "$mode" in
