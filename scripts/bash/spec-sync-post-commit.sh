@@ -53,10 +53,15 @@ fi
 
 log_info "Processing spec sync queue after commit..."
 
-# Check if there's a queue file
-QUEUE_FILE="$PROJECT_ROOT/.specify/config/spec-sync-queue.json"
-if [[ ! -f "$QUEUE_FILE" ]]; then
-    log_info "No spec sync queue found"
+# Check if spec sync is enabled and there's a config file
+if [[ ! -f "$CONFIG_FILE" ]] || ! command -v jq >/dev/null 2>&1; then
+    log_info "No spec sync config found"
+    exit 0
+fi
+
+# Check if spec sync is enabled
+SPEC_SYNC_ENABLED=$(jq -r '.spec_sync.enabled // false' "$CONFIG_FILE" 2>/dev/null)
+if [[ "$SPEC_SYNC_ENABLED" != "true" ]]; then
     exit 0
 fi
 

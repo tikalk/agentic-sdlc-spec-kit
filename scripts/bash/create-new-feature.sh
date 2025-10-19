@@ -97,13 +97,13 @@ else
 fi
 
 if [ -z "$SPECIFY_TEAM_DIRECTIVES" ]; then
-    CONFIG_TEAM_FILE="$REPO_ROOT/.specify/config/team_directives.path"
-    if [ -f "$CONFIG_TEAM_FILE" ]; then
-        CONFIG_TEAM_PATH=$(cat "$CONFIG_TEAM_FILE")
-        if [ -d "$CONFIG_TEAM_PATH" ]; then
+    CONFIG_FILE="$REPO_ROOT/.specify/config/config.json"
+    if [ -f "$CONFIG_FILE" ] && command -v jq >/dev/null 2>&1; then
+        CONFIG_TEAM_PATH=$(jq -r '.team_directives.path // empty' "$CONFIG_FILE" 2>/dev/null)
+        if [ -n "$CONFIG_TEAM_PATH" ] && [ "$CONFIG_TEAM_PATH" != "null" ] && [ -d "$CONFIG_TEAM_PATH" ]; then
             export SPECIFY_TEAM_DIRECTIVES="$CONFIG_TEAM_PATH"
-        else
-            >&2 echo "[specify] Warning: team directives path '$CONFIG_TEAM_PATH' from $CONFIG_TEAM_FILE is missing."
+        elif [ -n "$CONFIG_TEAM_PATH" ] && [ "$CONFIG_TEAM_PATH" != "null" ]; then
+            >&2 echo "[specify] Warning: team directives path '$CONFIG_TEAM_PATH' from $CONFIG_FILE is missing."
         fi
     fi
 fi

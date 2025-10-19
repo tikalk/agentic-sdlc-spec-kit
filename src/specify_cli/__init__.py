@@ -284,6 +284,9 @@ def get_default_config() -> dict:
             "url": None,
             "token": None,
             "suppress_warning": False
+        },
+        "team_directives": {
+            "path": None
         }
     }
 
@@ -1225,7 +1228,7 @@ def init(
     async_agent: Optional[str] = typer.Option(None, "--async-agent", help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex"),
     gateway_url: str = typer.Option(None, "--gateway-url", help="Populate gateway URL in .specify/config/config.json"),
     gateway_token: str = typer.Option(None, "--gateway-token", help="Populate gateway token in .specify/config/config.json"),
-    gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set SPECIFY_SUPPRESS_GATEWAY_WARNING=true in gateway.env"),
+    gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set gateway.suppress_warning=true in config.json"),
     spec_sync: bool = typer.Option(False, "--spec-sync", help="Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes)"),
 ):
     """
@@ -1577,9 +1580,10 @@ def init(
 
     if resolved_team_directives is not None:
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(resolved_team_directives)
-        config_dir = project_path / ".specify" / "config"
-        config_dir.mkdir(parents=True, exist_ok=True)
-        (config_dir / "team_directives.path").write_text(str(resolved_team_directives))
+        # Save team directives path to consolidated config
+        config = load_config(project_path)
+        config["team_directives"]["path"] = str(resolved_team_directives)
+        save_config(project_path, config)
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)

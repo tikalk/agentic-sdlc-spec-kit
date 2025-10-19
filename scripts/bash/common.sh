@@ -37,18 +37,15 @@ load_gateway_config() {
 
 load_team_directives_config() {
     local repo_root="$1"
-    if [[ -n "${SPECIFY_TEAM_DIRECTIVES:-}" ]]; then
-        return
-    fi
 
-    local config_file="$repo_root/.specify/config/team_directives.path"
-    if [[ -f "$config_file" ]]; then
+    local config_file="$repo_root/.specify/config/config.json"
+    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local path
-        path=$(cat "$config_file" 2>/dev/null)
-        if [[ -n "$path" && -d "$path" ]]; then
+        path=$(jq -r '.team_directives.path // empty' "$config_file" 2>/dev/null)
+        if [[ -n "$path" && "$path" != "null" && -d "$path" ]]; then
             export SPECIFY_TEAM_DIRECTIVES="$path"
             return
-        else
+        elif [[ -n "$path" && "$path" != "null" ]]; then
             echo "[specify] Warning: team directives path '$path' from $config_file is unavailable." >&2
         fi
     fi

@@ -54,11 +54,11 @@ fi
 log_info "Checking spec sync status before push..."
 
 # Check if there are any pending spec updates in the queue
-QUEUE_FILE="$PROJECT_ROOT/.specify/config/spec-sync-queue.json"
-if [[ -f "$QUEUE_FILE" ]]; then
-    # Check if queue has pending items (simplified check)
-    if grep -q '"queue": \[[^]]' "$QUEUE_FILE" 2>/dev/null; then
-        log_warning "Pending spec updates detected in queue"
+if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
+    # Check if queue has pending items
+    PENDING_COUNT=$(jq -r '.spec_sync.queue.pending | length' "$CONFIG_FILE" 2>/dev/null || echo "0")
+    if [[ "$PENDING_COUNT" -gt 0 ]]; then
+        log_warning "Pending spec updates detected in queue ($PENDING_COUNT items)"
         log_warning "Consider processing spec updates before pushing"
         log_warning "Use 'git push --no-verify' to skip this check if intentional"
         # Don't fail the push, just warn

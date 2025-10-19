@@ -78,8 +78,21 @@ SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="\$(cd "\$SCRIPT_DIR/../.." && pwd)"
 
 # Check if spec sync is enabled for this project
-if [[ ! -f "\$PROJECT_ROOT/.specify/config/spec-sync-enabled" ]]; then
+if [[ ! -f "\$PROJECT_ROOT/.specify/config/config.json" ]]; then
     exit 0
+fi
+
+# Check if spec sync is enabled in config
+if command -v jq >/dev/null 2>&1; then
+    enabled=\$(jq -r '.spec_sync.enabled // false' "\$PROJECT_ROOT/.specify/config/config.json" 2>/dev/null)
+    if [[ "\$enabled" != "true" ]]; then
+        exit 0
+    fi
+else
+    # Fallback: check if enabled exists in config (simple grep)
+    if ! grep -q '"enabled":\s*true' "\$PROJECT_ROOT/.specify/config/config.json" 2>/dev/null; then
+        exit 0
+    fi
 fi
 
 # Run the $hook_script

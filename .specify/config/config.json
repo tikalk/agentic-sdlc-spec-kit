@@ -1,0 +1,49 @@
+{
+  "version": "1.0",
+  "project": {
+    "created": "2024-01-01T00:00:00Z",
+    "last_modified": "2024-01-01T00:00:00Z"
+  },
+  "workflow": {
+    "current_mode": "spec",
+    "default_mode": "spec",
+    "mode_history": []
+  },
+  "options": {
+    "tdd_enabled": true,
+    "contracts_enabled": true,
+    "data_models_enabled": true,
+    "risk_tests_enabled": true
+  },
+  "mode_defaults": {
+    "build": {
+      "tdd_enabled": false,
+      "contracts_enabled": false,
+      "data_models_enabled": false,
+      "risk_tests_enabled": false
+    },
+    "spec": {
+      "tdd_enabled": true,
+      "contracts_enabled": true,
+      "data_models_enabled": true,
+      "risk_tests_enabled": true
+    }
+  },
+  "spec_sync": {
+    "enabled": true,
+    "queue": {
+      "version": "1.0",
+      "created": "2024-01-01T00:00:00Z",
+      "pending": [],
+      "processed": []
+    }
+  },
+  "gateway": {
+    "url": null,
+    "token": null,
+    "suppress_warning": false
+  },
+  "team_directives": {
+    "path": "memory"
+  }
+}

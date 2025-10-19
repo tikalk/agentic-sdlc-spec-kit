@@ -36,8 +36,19 @@ $script_dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project_root = Split-Path -Parent (Split-Path -Parent $script_dir)
 
 # Check if spec sync is enabled
-$enabled_file = Join-Path $project_root ".specify/config/spec-sync-enabled"
-if (-not (Test-Path $enabled_file)) {
+$config_file = Join-Path $project_root ".specify/config/config.json"
+if (Test-Path $config_file) {
+    try {
+        $config = Get-Content $config_file -Raw | ConvertFrom-Json
+        if (-not $config.spec_sync.enabled) {
+            exit 0
+        }
+    } catch {
+        # If config can't be read, assume disabled
+        exit 0
+    }
+} else {
+    # No config file, assume disabled
     exit 0
 }
 

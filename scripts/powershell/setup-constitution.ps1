@@ -33,12 +33,17 @@ if ($Help) {
 # Get team directives path
 function Get-TeamDirectivesPath {
     $repoRoot = Get-RepositoryRoot
-    $configFile = Join-Path $repoRoot ".specify\config\team_directives.path"
+    $configFile = Join-Path $repoRoot ".specify\config\config.json"
 
     if (Test-Path $configFile) {
-        $path = Get-Content $configFile -Raw -ErrorAction SilentlyContinue
-        if ($path -and (Test-Path $path.Trim())) {
-            return $path.Trim()
+        try {
+            $config = Get-Content $configFile -Raw | ConvertFrom-Json
+            $path = $config.team_directives.path
+            if ($path -and (Test-Path $path.Trim())) {
+                return $path.Trim()
+            }
+        } catch {
+            # Ignore config parsing errors
         }
     }
 
