@@ -1419,16 +1419,12 @@ def init(
             if spec_sync:
                 tracker.start("spec_sync", "setting up spec-code synchronization")
                 try:
-                    # Run the spec-hooks install command
-                    result = subprocess.run([
-                        sys.executable, "-m", "specify_cli", "spec-hooks", "install", "--quiet"
-                    ], cwd=project_path, capture_output=True, text=True, check=True)
+                    # Run the spec hooks installation script directly
+                    script_path = Path(__file__).parent.parent / "scripts" / "bash" / "spec-hooks-install.sh"
+                    run_command(["bash", str(script_path)], check_return=True, capture=True)
                     tracker.complete("spec_sync", "hooks installed")
-                except subprocess.CalledProcessError as e:
-                    tracker.error("spec_sync", f"failed to install hooks: {e.stderr}")
-                    console.print(f"[yellow]Warning:[/yellow] Spec sync setup failed: {e.stderr}")
                 except Exception as e:
-                    tracker.error("spec_sync", f"unexpected error: {str(e)}")
+                    tracker.error("spec_sync", f"failed to install hooks: {str(e)}")
                     console.print(f"[yellow]Warning:[/yellow] Spec sync setup failed: {str(e)}")
             else:
                 tracker.skip("spec_sync", "not requested")
@@ -1599,68 +1595,6 @@ def check():
     if not any(agent_results.values()):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
-
-@app.command()
-def spec_hooks(
-    action: str = typer.Argument(..., help="Action: install, uninstall, status"),
-    quiet: bool = typer.Option(False, "--quiet", help="Suppress output for automated usage"),
-):
-    """Manage specification synchronization hooks."""
-    if action == "install":
-        success = install_spec_hooks(quiet=quiet)
-        if not quiet:
-            if success:
-                console.print("[green]✓[/green] Specification synchronization hooks installed")
-                console.print("  Background spec-code sync is now active")
-                console.print("  Use 'specify spec-hooks --help' for management commands")
-            else:
-                console.print("[red]✗[/red] Failed to install specification synchronization hooks")
-                raise typer.Exit(1)
-    elif action == "uninstall":
-        if not quiet:
-            console.print("[yellow]Uninstall functionality not yet implemented[/yellow]")
-    elif action == "status":
-        if not quiet:
-            console.print("[yellow]Status check not yet implemented[/yellow]")
-    else:
-        if not quiet:
-            console.print(f"[red]Unknown action: {action}[/red]")
-            console.print("Available actions: install, uninstall, status")
-        raise typer.Exit(1)
-
-
-def install_spec_hooks(quiet: bool = False) -> bool:
-    """Install specification synchronization hooks for the current project."""
-    try:
-        # Check if we're in a git repository
-        if not is_git_repo():
-            if not quiet:
-                console.print("[yellow]Warning:[/yellow] Not in a git repository. Spec sync requires git.")
-            return False
-
-        # Run the hook installation script
-        script_dir = Path(__file__).parent.parent / "scripts" / "bash"
-        hook_script = script_dir / "spec-hooks-install.sh"
-
-        if not hook_script.exists():
-            if not quiet:
-                console.print("[red]Error:[/red] Spec hooks installation script not found.")
-            return False
-
-        result = subprocess.run([
-            "bash", str(hook_script)
-        ], capture_output=quiet, text=True, check=True)
-
-        return True
-
-    except subprocess.CalledProcessError as e:
-        if not quiet:
-            console.print(f"[red]Error installing spec hooks:[/red] {e.stderr}")
-        return False
-    except Exception as e:
-        if not quiet:
-            console.print(f"[red]Unexpected error:[/red] {str(e)}")
-        return False
 
 
 def main():
