@@ -230,6 +230,10 @@ def save_config(project_path: Path, config: dict) -> None:
     config_path.parent.mkdir(parents=True, exist_ok=True)
 
     # Update last_modified timestamp
+    if "project" not in config:
+        config["project"] = {}
+    if not isinstance(config["project"], dict):
+        config["project"] = {}
     config["project"]["last_modified"] = __import__('datetime').datetime.now().isoformat()
 
     with open(config_path, 'w') as f:
@@ -1155,6 +1159,10 @@ def ensure_gateway_config(
         return
 
     # Update gateway configuration
+    if "gateway" not in config:
+        config["gateway"] = {}
+    if not isinstance(config["gateway"], dict):
+        config["gateway"] = {}
     if gateway_url is not None:
         config["gateway"]["url"] = gateway_url
     if gateway_token is not None:
@@ -1582,6 +1590,10 @@ def init(
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(resolved_team_directives)
         # Save team directives path to consolidated config
         config = load_config(project_path)
+        if "team_directives" not in config:
+            config["team_directives"] = {}
+        if not isinstance(config["team_directives"], dict):
+            config["team_directives"] = {}
         config["team_directives"]["path"] = str(resolved_team_directives)
         save_config(project_path, config)
 
