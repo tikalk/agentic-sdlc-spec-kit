@@ -1419,9 +1419,21 @@ def init(
             if spec_sync:
                 tracker.start("spec_sync", "setting up spec-code synchronization")
                 try:
+                    # Determine script directory and command based on selected script type
+                    if selected_script == "sh":
+                        script_dir = "bash"
+                        script_cmd = "bash"
+                        script_ext = ".sh"
+                    elif selected_script == "ps":
+                        script_dir = "powershell"
+                        script_cmd = "powershell"
+                        script_ext = ".ps1"
+                    else:
+                        raise ValueError(f"Unsupported script type: {selected_script}")
+
                     # Run the spec hooks installation script directly
-                    script_path = Path(__file__).parent.parent / "scripts" / "bash" / "spec-hooks-install.sh"
-                    run_command(["bash", str(script_path)], check_return=True, capture=True)
+                    script_path = Path(__file__).parent.parent.parent / "scripts" / script_dir / f"spec-hooks-install{script_ext}"
+                    run_command([script_cmd, str(script_path)], check_return=True, capture=True)
                     tracker.complete("spec_sync", "hooks installed")
                 except Exception as e:
                     tracker.error("spec_sync", f"failed to install hooks: {str(e)}")
