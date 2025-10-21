@@ -417,16 +417,16 @@ At this stage, your project folder contents should resemble the following:
 ```text
 └── .specify
     ├── memory
-    │	 └── constitution.md
+    │  └── constitution.md
     ├── scripts
-    │	 ├── check-prerequisites.sh
-    │	 ├── common.sh
-    │	 ├── create-new-feature.sh
-    │	 ├── setup-plan.sh
-    │	 └── update-claude-md.sh
+    │  ├── check-prerequisites.sh
+    │  ├── common.sh
+    │  ├── create-new-feature.sh
+    │  ├── setup-plan.sh
+    │  └── update-claude-md.sh
     ├── specs
-    │	 └── 001-create-taskify
-    │	     └── spec.md
+    │  └── 001-create-taskify
+    │      └── spec.md
     └── templates
         ├── plan-template.md
         ├── spec-template.md
@@ -440,6 +440,7 @@ With the baseline specification created, you can go ahead and clarify any of the
 You should run the structured clarification workflow **before** creating a technical plan to reduce rework downstream.
 
 Preferred order:
+
 1. Use `/speckit.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
 2. Optionally follow up with ad-hoc free-form refinement if something still feels vague.
 
@@ -477,23 +478,23 @@ The output of this step will include a number of implementation detail documents
 .
 ├── CLAUDE.md
 ├── memory
-│	 └── constitution.md
+│  └── constitution.md
 ├── scripts
-│	 ├── check-prerequisites.sh
-│	 ├── common.sh
-│	 ├── create-new-feature.sh
-│	 ├── setup-plan.sh
-│	 └── update-claude-md.sh
+│  ├── check-prerequisites.sh
+│  ├── common.sh
+│  ├── create-new-feature.sh
+│  ├── setup-plan.sh
+│  └── update-claude-md.sh
 ├── specs
-│	 └── 001-create-taskify
-│	     ├── contracts
-│	     │	 ├── api-spec.json
-│	     │	 └── signalr-spec.md
-│	     ├── data-model.md
-│	     ├── plan.md
-│	     ├── quickstart.md
-│	     ├── research.md
-│	     └── spec.md
+│  └── 001-create-taskify
+│      ├── contracts
+│      │  ├── api-spec.json
+│      │  └── signalr-spec.md
+│      ├── data-model.md
+│      ├── plan.md
+│      ├── quickstart.md
+│      ├── research.md
+│      └── spec.md
 └── templates
     ├── CLAUDE-template.md
     ├── plan-template.md
@@ -575,6 +576,7 @@ Once ready, use the `/speckit.implement` command to execute your implementation 
 ```
 
 The `/speckit.implement` command will:
+
 - Validate that all prerequisites are in place (constitution, spec, plan, and tasks)
 - Parse the task breakdown from `tasks.md`
 - Execute tasks in the correct order, respecting dependencies and parallel execution markers
@@ -625,4 +627,3 @@ This project is heavily influenced by and based on the work and research of [Joh
 ## 📄 License
 
 This project is licensed under the terms of the MIT open source license. Please refer to the [LICENSE](./LICENSE) file for the full terms.
-
