@@ -21,7 +21,7 @@ Perform consistency and quality analysis across artifacts and implementation wit
 - **Pre-Implementation**: When tasks.md exists but no implementation artifacts detected
 - **Post-Implementation**: When implementation artifacts exist (source code, build outputs, etc.)
 
-**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation begins.
+**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit.tasks` has successfully produced a complete `tasks.md`.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -42,7 +42,7 @@ This command adapts its behavior based on project state and workflow mode.
    - **Build mode**: Lightweight analysis appropriate for rapid iteration
    - **Spec mode**: Comprehensive analysis with full validation
 
-**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/analyze`.
+**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
 
 ## Execution Steps
 
@@ -308,8 +308,9 @@ At end of report, output a concise Next Actions block based on detected mode and
 
 **Pre-Implementation Next Actions:**
 - **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
-- **Spec Mode**: If CRITICAL issues exist: Recommend resolving before `/implement`
+- **Spec Mode**: - If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
+- Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 - **Traceability**: If <80% coverage: "Add @issue-tracker ISSUE-123 references to major user stories in spec.md"
 - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
@@ -398,4 +399,3 @@ If post-implementation analysis identifies critical problems requiring rollback:
 ## Context
 
 {ARGS}
-

@@ -126,7 +126,8 @@ $ARGUMENTS
    - For each integration → patterns task
 
 2. **Generate and dispatch research agents**:
-   ```
+
+   ```text
    For each unknown in Technical Context:
      Task: "Research {unknown} for {feature context}"
    For each technology choice:
@@ -264,4 +265,3 @@ $ARGUMENTS
 **Mode Transitions:**
 - Build → Spec: Use `/mode spec` when feature complexity increases or comprehensive planning is needed
 - Spec → Build: Use `/mode build` for rapid prototyping or when detailed planning creates overhead
-

@@ -150,6 +150,7 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 ```
 
 Pick script type explicitly (optional):
+
 ```bash
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
@@ -284,4 +285,3 @@ Your development needs may change as features evolve:
 - Read the complete methodology for in-depth guidance
 - Check out more examples in the repository
 - Explore the source code on GitHub
-

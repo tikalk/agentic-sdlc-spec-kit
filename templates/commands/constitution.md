@@ -46,7 +46,6 @@ $ARGUMENTS
 
 ### Phase 1: Context Analysis & Inheritance
 **Objective:** Establish constitutional foundation through team inheritance
-
 1. **Load Team Constitution**
    - Execute: `{SCRIPT}` to access team directives
    - Parse JSON output for team constitution path
@@ -151,4 +150,3 @@ $ARGUMENTS
 - Human-readable summaries with actionable guidance
 - Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)
 Do not create a new template; always operate on the existing `/memory/constitution.md` file.
-

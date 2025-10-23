@@ -44,11 +44,13 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 All automation scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants.
 
 Auto behavior:
+
 - Windows default: `ps`
 - Other OS default: `sh`
 - Interactive mode: you'll be prompted unless you pass `--script`
 
 Force a specific script type:
+
 ```bash
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --script sh
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --script ps
@@ -111,9 +113,9 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 
 After initialization, you should see the following commands available in your AI agent:
 - `/speckit.constitution` - Establish project principles and assemble constitution
-- `/speckit.specify` - Create detailed specifications from requirements
-- `/speckit.plan` - Generate technical implementation plans with triage
-- `/speckit.tasks` - Break down plans into actionable tasks with issue tracker sync
+- `/speckit.specify` - Create specifications
+- `/speckit.plan` - Generate implementation plans
+- `/speckit.tasks` - Break down into actionable tasks
 - `/speckit.implement` - Execute implementation with SYNC/ASYNC dual execution loops
 - `/speckit.levelup` - Capture learnings and contribute to team knowledge
 - `/speckit.analyze` - Cross-artifact consistency and alignment reports
@@ -140,4 +142,3 @@ git config --global credential.helper manager
 echo "Cleaning up..."
 rm gcm-linux_amd64.2.6.1.deb
 ```
-
