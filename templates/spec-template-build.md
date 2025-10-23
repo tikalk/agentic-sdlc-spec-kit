@@ -47,9 +47,11 @@
 <!-- Optional: Any assumptions or scope limitations -->
 
 **Assumptions**:
+
 - [Any reasonable defaults or assumptions made]
 
 **Out of Scope**:
+
 - [What we're explicitly NOT building in this lightweight version]
 
 ---

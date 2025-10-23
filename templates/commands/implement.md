@@ -85,9 +85,9 @@ You **MUST** consider the user input before proceeding (if not empty).
     - **REQUIRED**: Read tasks.md for the complete task list and execution plan
     - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure (optional in build mode)
     - **IF EXISTS**: Read data-model.md for entities and relationships
-   - **IF EXISTS**: Read contracts/ for API specifications and test requirements
-   - **IF EXISTS**: Read research.md for technical decisions and constraints
-   - **IF EXISTS**: Read quickstart.md for integration scenarios
+    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
+    - **IF EXISTS**: Read research.md for technical decisions and constraints
+    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
 4. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
@@ -132,15 +132,15 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-   5. Parse tasks.md structure and extract (mode-aware):
+   1. Parse tasks.md structure and extract (mode-aware):
        - **Task phases**: Setup, Tests, Core, Integration, Polish
        - **Task dependencies**: Sequential vs parallel execution rules
        - **Task details**: ID, description, file paths, parallel markers [P]
        - **Execution flow**: Order and dependency requirements
-        - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
+       - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
        - Record assigned agents and job IDs for ASYNC tasks
 
-   6. Execute implementation following execution approach (mode-aware):
+   2. Execute implementation following execution approach (mode-aware):
 
        **Build Mode Execution:**
        - **Simplified flow**: Focus on core tasks for primary functionality
@@ -151,15 +151,15 @@ You **MUST** consider the user input before proceeding (if not empty).
        **Spec Mode Execution (Dual Execution Loop):**
        - **Phase-by-phase execution**: Complete each phase before moving to the next
        - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-        - **Follow TDD approach** (if enabled): Check current mode opinion settings - if TDD enabled, execute test tasks before implementation tasks
+       - **Follow TDD approach** (if enabled): Check current mode opinion settings - if TDD enabled, execute test tasks before implementation tasks
        - **File-based coordination**: Tasks affecting the same files must run sequentially
        - **Dual execution mode handling**:
          - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-          - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
+           - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
        - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
        - **Validation checkpoints**: Verify each phase completion before proceeding
 
-7. Implementation execution rules (mode-aware):
+5. Implementation execution rules (mode-aware):
 
      **Build Mode Rules:**
      - **Core first**: Focus on primary user journey implementation
@@ -169,12 +169,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
      **Spec Mode Rules:**
      - **Setup first**: Initialize project structure, dependencies, configuration
-      - **Tests before code** (if TDD enabled): If TDD is enabled in current mode settings and you need to write tests for contracts, entities, and integration scenarios
+     - **Tests before code** (if TDD enabled): If TDD is enabled in current mode settings and you need to write tests for contracts, entities, and integration scenarios
      - **Core development**: Implement models, services, CLI commands, endpoints
      - **Integration work**: Database connections, middleware, logging, external services
      - **Polish and validation**: Unit tests, performance optimization, documentation
 
-8. Progress tracking and error handling (mode-aware):
+6. Progress tracking and error handling (mode-aware):
      - Report progress after each completed task
      - **Build Mode**: Continue on minor errors, focus on core functionality
      - **Spec Mode**: Halt execution if any non-parallel task fails
@@ -183,12 +183,12 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Suggest next steps if implementation cannot proceed
      - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-9. Issue Tracker Integration (Spec Mode only):
+7. Issue Tracker Integration (Spec Mode only):
      - If ASYNC tasks were dispatched, update issue tracker with progress
      - Apply completion labels when ASYNC tasks finish
      - Provide traceability links between tasks and issue tracker items
 
-10. Completion validation (mode-aware):
+8. Completion validation (mode-aware):
 
       **Build Mode Validation:**
       - Verify core user journey works end-to-end
