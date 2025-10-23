@@ -30,6 +30,7 @@ Control the complexity level of the Agentic SDLC workflow by setting workflow mo
 ### 1. Parse User Input
 
 **Command Patterns:**
+
 - No arguments: Display current mode and option settings
 - `build|spec`: Switch to specified workflow mode
 - `--tdd|--no-tdd`: Enable/disable TDD
@@ -42,27 +43,32 @@ Control the complexity level of the Agentic SDLC workflow by setting workflow mo
 ### 2. Execute Operation
 
 #### Display Current Configuration
+
 - Show current workflow mode (build/spec)
 - Display framework option settings
 - Indicate which settings are defaults vs customizations
 
 #### Switch Workflow Mode
+
 - Change from current mode to specified mode
 - Automatically reset options to new mode defaults
 - Preserve mode change history
 
 #### Configure Options
+
 - Enable/disable individual framework options
 - Persist custom settings in the `options` section of config.json
 - Allow fine-grained control over development patterns
 
 #### Reset Options
+
 - Restore options to current mode's default settings
 - Clear any custom option overrides
 
 ### 3. Show Impact
 
 After any configuration change, display:
+
 - How the change affects workflow stages
 - Which artifacts will be generated differently
 - Recommendations for the new configuration
@@ -71,7 +77,7 @@ After any configuration change, display:
 
 ### Current Configuration Display
 
-```
+```text
 Current Workflow Configuration
 Mode: spec
 Description: Full specification-driven workflow with comprehensive planning and structure
@@ -86,7 +92,7 @@ Framework Options
 
 ### Mode Change Confirmation
 
-```
+```text
 Workflow mode changed!
 From: build → To: spec
 Framework options reset to spec mode defaults
@@ -94,7 +100,7 @@ Framework options reset to spec mode defaults
 
 ### Opinion Change Confirmation
 
-```
+```text
 TDD enabled
 API contracts disabled
 Data models disabled
@@ -104,13 +110,17 @@ Risk-based testing disabled
 ## Mode Descriptions
 
 ### Build Mode
-**Lightweight approach for quick implementation and validation**
+
+#### Lightweight approach for quick implementation and validation
+
 - Framework options: All disabled by default
 - Focus: Rapid prototyping and exploration
 - Artifacts: Minimal documentation, flexible structure
 
 ### Spec Mode
-**Full specification-driven workflow with comprehensive planning**
+
+#### Full specification-driven workflow with comprehensive planning
+
 - Framework options: All enabled by default
 - Focus: Thorough planning and structured development
 - Artifacts: Complete documentation, rigorous validation
@@ -118,21 +128,25 @@ Risk-based testing disabled
 ## Framework Options
 
 ### TDD (Test-Driven Development)
+
 - **Enabled**: Tests generated before implementation tasks
 - **Disabled**: Tests optional, generated only when explicitly requested
 - **Impact**: Affects task generation and implementation ordering
 
 ### API Contracts
+
 - **Enabled**: OpenAPI/GraphQL contract generation during planning
 - **Disabled**: Contract artifacts not automatically created
 - **Impact**: Affects planning phase output and API documentation
 
 ### Data Models
+
 - **Enabled**: Entity and relationship modeling during planning
 - **Disabled**: Data model artifacts not automatically created
 - **Impact**: Affects planning phase output and data architecture
 
 ### Risk-Based Testing
+
 - **Enabled**: Generate tests specifically targeting identified risks and edge cases
 - **Disabled**: Use standard test coverage without risk prioritization
 - **Impact**: Affects task generation and test planning in tasks.md

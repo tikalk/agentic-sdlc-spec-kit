@@ -100,7 +100,7 @@ directories captured above]
 
 ### Preliminary Task Classification
 
-*Complete during planning phase - will be validated and refined during task generation*
+Complete during planning phase - will be validated and refined during task generation
 
 | Task Category | Estimated [SYNC] Tasks | Estimated [ASYNC] Tasks | Rationale |
 |---------------|----------------------|----------------------|-----------|
@@ -113,9 +113,11 @@ directories captured above]
 ### Triage Decision Criteria Applied
 
 **High-Risk [SYNC] Classifications:**
+
 - [List specific tasks that MUST be human-reviewed due to complexity/security/criticality]
 
 **Agent-Delegated [ASYNC] Classifications:**
+
 - [List specific tasks suitable for autonomous execution]
 
 ### Triage Audit Trail

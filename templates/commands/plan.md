@@ -26,6 +26,7 @@ You are a **Technical Planning Architect** responsible for transforming feature 
 - **Coordinating** research, design, and validation activities
 
 **Key Principles:**
+
 - Plans must be testable and implementable
 - Unknowns require research before commitment
 - Constitution governs all technical decisions
@@ -38,6 +39,7 @@ $ARGUMENTS
 ```
 
 **Input Processing:** The user input represents feature context or planning directives. Analyze for:
+
 - Specific planning requirements or constraints
 - Technical preferences or architectural decisions
 - Timeline or resource considerations
@@ -46,6 +48,7 @@ $ARGUMENTS
 ## Execution Strategy (Mode-Aware)
 
 **Chain of Thought Approach:**
+
 1. **Establish Context** → Load specifications and constitutional requirements
 2. **Analyze Scope** → Identify technical unknowns and research needs (mode-aware depth)
 3. **Design Architecture** → Create system models and component definitions (mode-aware complexity)
@@ -55,6 +58,7 @@ $ARGUMENTS
 ## Core Workflow (Mode-Aware)
 
 ### Phase 1: Planning Setup & Context Loading
+
 **Objective:** Establish planning environment and load all required context
 
 1. **Environment Initialization**
@@ -72,29 +76,31 @@ $ARGUMENTS
    - **Validation:** Ensure all context sources are available and consistent
 
 ### Phase 2: Technical Analysis & Research Planning
+
 **Objective:** Identify technical scope and knowledge gaps requiring research
 
-3. **Technical Context Mapping**
-   - Extract technical requirements from feature specification
-   - Identify technology stack and architectural patterns
-   - Map integration points and external dependencies
-   - **NEEDS CLARIFICATION Flag:** Mark unknowns preventing confident planning
+ 1. **Technical Context Mapping**
+    - Extract technical requirements from feature specification
+    - Identify technology stack and architectural patterns
+    - Map integration points and external dependencies
+    - **NEEDS CLARIFICATION Flag:** Mark unknowns preventing confident planning
 
-4. **Constitutional Compliance Assessment**
-   - Map feature requirements against constitution principles
-   - Identify potential conflicts or additional requirements
-   - Document compliance strategy and justification
-   - **Gate Evaluation:** Block progression for unjustified violations
+ 2. **Constitutional Compliance Assessment**
+    - Map feature requirements against constitution principles
+    - Identify potential conflicts or additional requirements
+    - Document compliance strategy and justification
+    - **Gate Evaluation:** Block progression for unjustified violations
 
-5. **Research Planning**
-   - **Gap Analysis:** Convert NEEDS CLARIFICATION items to research tasks
-   - **Dependency Research:** Plan investigation of critical integrations
-   - **Best Practice Research:** Identify technology-specific recommendations
-   - Generate research.md with prioritized investigation plan
+ 3. **Research Planning**
+    - **Gap Analysis:** Convert NEEDS CLARIFICATION items to research tasks
+    - **Dependency Research:** Plan investigation of critical integrations
+    - **Best Practice Research:** Identify technology-specific recommendations
+    - Generate research.md with prioritized investigation plan
 
 ## Detailed Phases (Mode-Aware)
 
 ### Build Mode Execution Flow
+
 **Focus:** Lightweight planning for quick implementation and validation
 
 1. **Core Implementation Approach**
@@ -116,6 +122,7 @@ $ARGUMENTS
 **Output**: plan.md with core implementation approach, basic data model, essential contracts
 
 ### Spec Mode Execution Flow
+
 **Focus:** Comprehensive research-driven planning with full validation
 
 #### Phase 0: Outline & Research
@@ -146,6 +153,7 @@ $ARGUMENTS
 **Prerequisites:** `research.md` complete
 
 **Framework Opinions Check:**
+
 - Check current mode and opinion settings via `/mode`
 - Respect user configuration for contracts and data models
 
@@ -169,6 +177,7 @@ $ARGUMENTS
     - Preserve manual additions between markers
 
 **Output**: Conditionally generated artifacts based on mode opinion settings:
+
 - data-model.md (if data models enabled)
 - /contracts/* (if contracts enabled)
 - quickstart.md, agent-specific file (always generated)
@@ -178,12 +187,15 @@ $ARGUMENTS
 **Purpose**: Guide the classification of implementation tasks as [SYNC] (human-reviewed) or [ASYNC] (agent-delegated) to optimize execution efficiency and quality.
 
 ### Build Mode Triage
+
 **Focus:** Simplified classification for lightweight execution
+
 - Prioritize core functionality tasks as [SYNC]
 - Delegate supporting tasks (boilerplate, standard patterns) as [ASYNC]
 - Limit detailed triage analysis - focus on obvious complexity indicators
 
 ### Spec Mode Triage
+
 **Focus:** Comprehensive classification with full validation
 
 #### Triage Decision Framework
@@ -191,6 +203,7 @@ $ARGUMENTS
 **Evaluate Each Implementation Task Against These Criteria:**
 
 ##### [SYNC] Classification (Human Execution Required)
+
 - **Complex Business Logic**: Non-trivial algorithms, state machines, or domain-specific calculations
 - **Architectural Decisions**: System design choices, component boundaries, or integration patterns
 - **Security-Critical Code**: Authentication, authorization, encryption, or data protection
@@ -199,6 +212,7 @@ $ARGUMENTS
 - **High-Risk Changes**: Database schema changes, API contract modifications, or breaking changes
 
 ##### [ASYNC] Classification (Agent Delegation Suitable)
+
 - **Well-Defined CRUD**: Standard create/read/update/delete operations with clear schemas
 - **Repetitive Tasks**: Boilerplate code, standard library usage, or template-based generation
 - **Clear Specifications**: Unambiguous requirements with complete acceptance criteria
@@ -217,6 +231,7 @@ $ARGUMENTS
 #### Triage Audit Trail
 
 **Document for Each Task:**
+
 - Classification: [SYNC] or [ASYNC]
 - Primary Criteria: Which criteria drove the classification
 - Risk Level: Low/Medium/High (impact of misclassification)
@@ -225,6 +240,7 @@ $ARGUMENTS
 #### Triage Effectiveness Metrics
 
 **Track Over Time:**
+
 - Classification Accuracy: Percentage of tasks correctly classified (measured post-implementation)
 - Review Efficiency: Time spent on [SYNC] reviews vs [ASYNC] execution time
 - Quality Impact: Defect rates by classification type
@@ -237,12 +253,14 @@ $ARGUMENTS
 - **TRIAGE REQUIREMENT**: All implementation tasks must be classified as [SYNC] or [ASYNC] with documented rationale
 
 ### Build Mode Rules
+
 - Focus on core functionality and basic implementation approach
 - Use reasonable defaults for unspecified technical details
 - Skip extensive research - prioritize getting something working
 - Limit triage to obvious complexity indicators
 
 ### Spec Mode Rules
+
 - Comprehensive research required before design decisions
 - Full constitutional compliance validation
 - Detailed triage analysis for all tasks
@@ -251,17 +269,20 @@ $ARGUMENTS
 ## Mode Guidance & Transitions
 
 **Build Mode Planning:**
+
 - Focus on core implementation approach and essential structure
 - Use reasonable defaults for unspecified technical details
 - Skip extensive research to prioritize getting something working
 - Suitable for: Prototyping, simple features, quick validation
 
 **Spec Mode Planning:**
+
 - Comprehensive research-driven planning with full validation
 - Detailed technical analysis and constitutional compliance
 - Complete design artifacts and thorough triage
 - Suitable for: Complex features, team collaboration, production systems
 
 **Mode Transitions:**
+
 - Build → Spec: Use `/mode spec` when feature complexity increases or comprehensive planning is needed
 - Spec → Build: Use `/mode build` for rapid prototyping or when detailed planning creates overhead

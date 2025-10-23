@@ -21,7 +21,7 @@
 
 ### Source Code Layout
 
-```
+```text
 src/
 ├── [main-module]/
 │   ├── [core-components]
@@ -35,11 +35,13 @@ src/
 ## Implementation Tasks
 
 ### Core Functionality
+
 - [Primary user journey implementation]
 - [Essential data operations]
 - [Basic error handling]
 
 ### Supporting Tasks
+
 - [Configuration/setup]
 - [Basic testing]
 - [Documentation]
@@ -54,7 +56,7 @@ src/
 ## Next Steps
 
 Ready for `/speckit.implement` to execute the core functionality. Can evolve to Spec mode later for comprehensive planning if needed.</content>
-</xai:function_call"> 
+</xai:function_call">
 
 <xai:function_call name="todowrite">
 <parameter name="todos">[{"status":"completed","id":"adapt_plan_command"},{"status":"completed","id":"create_plan_template_build"}]
