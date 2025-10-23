@@ -112,6 +112,7 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
+
 - `/speckit.constitution` - Establish project principles and assemble constitution
 - `/speckit.specify` - Create specifications
 - `/speckit.plan` - Generate implementation plans

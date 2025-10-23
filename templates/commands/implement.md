@@ -24,6 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Outline (Mode-Aware)
 
 ### Build Mode Execution Flow
+
 **Focus:** Quick implementation of core functionality
 
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
@@ -44,6 +45,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Ensure basic usability
 
 ### Spec Mode Execution Flow
+
 **Focus:** Comprehensive implementation with full validation
 
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
@@ -157,7 +159,7 @@ You **MUST** consider the user input before proceeding (if not empty).
        - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
        - **Validation checkpoints**: Verify each phase completion before proceeding
 
-  7. Implementation execution rules (mode-aware):
+7. Implementation execution rules (mode-aware):
 
      **Build Mode Rules:**
      - **Core first**: Focus on primary user journey implementation
@@ -172,7 +174,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      - **Integration work**: Database connections, middleware, logging, external services
      - **Polish and validation**: Unit tests, performance optimization, documentation
 
-  8. Progress tracking and error handling (mode-aware):
+8. Progress tracking and error handling (mode-aware):
      - Report progress after each completed task
      - **Build Mode**: Continue on minor errors, focus on core functionality
      - **Spec Mode**: Halt execution if any non-parallel task fails
@@ -181,12 +183,12 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Suggest next steps if implementation cannot proceed
      - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-  9. Issue Tracker Integration (Spec Mode only):
+9. Issue Tracker Integration (Spec Mode only):
      - If ASYNC tasks were dispatched, update issue tracker with progress
      - Apply completion labels when ASYNC tasks finish
      - Provide traceability links between tasks and issue tracker items
 
-  10. Completion validation (mode-aware):
+10. Completion validation (mode-aware):
 
       **Build Mode Validation:**
       - Verify core user journey works end-to-end
@@ -204,11 +206,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
 
 **Mode-Specific Notes:**
+
 - **Build Mode**: Can work with simplified task lists focused on core functionality
 - **Spec Mode**: Requires comprehensive task breakdown with proper triage classification
 
 **Mode Guidance & Transitions:**
+
 - **Build Mode**: Lightweight implementation with basic validation - ideal for quick wins
 - **Spec Mode**: Full dual execution loop with comprehensive quality gates - ideal for robust delivery
 - **Mode Switching**: If Build mode implementation reveals gaps, switch to Spec mode with `/mode spec` for complete coverage
-

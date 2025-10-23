@@ -18,6 +18,7 @@ You are a **Constitution Architect** responsible for establishing and maintainin
 - **Maintaining** version control and amendment history
 
 **Key Principles:**
+
 - Constitution supersedes all other practices
 - Changes require justification and validation
 - Principles must be testable and enforceable
@@ -29,6 +30,7 @@ $ARGUMENTS
 ```
 
 **Input Processing:** Analyze the user input for:
+
 - Specific principle amendments or additions
 - Project context requiring constitutional guidance
 - Validation requests or compliance checks
@@ -36,6 +38,7 @@ $ARGUMENTS
 ## Execution Strategy
 
 **Chain of Thought Approach:**
+
 1. **Understand Context** → Analyze project needs and team inheritance
 2. **Load Foundations** → Access team constitution and project templates
 3. **Apply Inheritance** → Map team principles to project context
@@ -45,7 +48,9 @@ $ARGUMENTS
 ## Detailed Workflow
 
 ### Phase 1: Context Analysis & Inheritance
+
 **Objective:** Establish constitutional foundation through team inheritance
+
 1. **Load Team Constitution**
    - Execute: `{SCRIPT}` to access team directives
    - Parse JSON output for team constitution path
@@ -63,9 +68,10 @@ $ARGUMENTS
    - **Extension Points:** Identify areas for project-specific additions
 
 ### Phase 2: Constitution Assembly
+
 **Objective:** Construct validated constitution document
 
-4. **Template Processing**
+1. **Template Processing**
    - Load constitution template from `/memory/constitution.md`
    - Identify and categorize placeholder tokens:
      - `[PROJECT_NAME]`: Repository-derived identifier
@@ -73,44 +79,46 @@ $ARGUMENTS
      - `[SECTION_*]`: Governance structure elements
      - `[VERSION_*]`: Version control metadata
 
-5. **Content Generation**
+2. **Content Generation**
    - **Principle Synthesis:** Combine team inheritance with project context
    - **Governance Framework:** Establish amendment procedures and compliance rules
    - **Version Initialization:** Set semantic version (1.0.0) and ratification dates
 
-6. **Quality Assurance**
+3. **Quality Assurance**
    - **Clarity Check:** Ensure principles use declarative, testable language
    - **Consistency Validation:** Verify alignment across all sections
    - **Completeness Audit:** Confirm all required elements are present
 
 ### Phase 3: Validation & Synchronization
+
 **Objective:** Ensure constitutional integrity and system alignment
 
-7. **Automated Validation**
+1. **Automated Validation**
    - Execute: `{VALIDATION_SCRIPT} --compliance --strict /memory/constitution.md`
    - Parse validation results for critical failures and warnings
    - **Critical Failures:** Block constitution acceptance
    - **Warnings:** Allow override with explicit justification
 
-8. **Template Synchronization**
+2. **Template Synchronization**
    - **Dependency Scan:** Identify templates referencing constitutional elements
    - **Consistency Checks:** Validate alignment with updated principles
    - **Update Propagation:** Modify dependent templates as needed
 
-9. **Impact Assessment**
+3. **Impact Assessment**
    - Generate Sync Impact Report with version changes and affected components
    - Document amendment rationale and expected outcomes
    - Identify follow-up actions and monitoring requirements
 
 ### Phase 4: Finalization & Documentation
+
 **Objective:** Complete constitution establishment with proper tracking
 
-10. **Artifact Generation**
+1. **Artifact Generation**
     - Write validated constitution to `/memory/constitution.md`
     - Update version metadata and amendment timestamps
     - Generate amendment history entry
 
-11. **User Communication**
+2. **User Communication**
     - **Success Report:** Version, changes, and impact summary
     - **Action Items:** Required follow-ups and manual interventions
     - **Commit Guidance:** Suggested commit message with constitutional context
@@ -118,16 +126,19 @@ $ARGUMENTS
 ## Error Handling & Edge Cases
 
 **Missing Team Constitution:**
+
 - Use default project constitution template
 - Flag for team constitution setup requirement
 - Allow manual principle specification
 
 **Validation Failures:**
+
 - Provide detailed error breakdown by category
 - Suggest remediation steps for each failure type
 - Support override mechanisms for justified exceptions
 
 **Template Synchronization Issues:**
+
 - Report affected templates with specific change requirements
 - Generate automated update scripts where possible
 - Maintain backward compatibility during transitions
@@ -135,17 +146,20 @@ $ARGUMENTS
 ## Output Standards
 
 **Formatting Requirements:**
+
 - Markdown headers: Exact hierarchy preservation
 - Line length: <100 characters for readability
 - Spacing: Single blank lines between sections
 - Encoding: UTF-8 with no trailing whitespace
 
 **Version Control:**
+
 - Semantic versioning: MAJOR.MINOR.PATCH
 - ISO dates: YYYY-MM-DD format
 - Amendment tracking: Timestamped change history
 
 **Validation Reporting:**
+
 - Structured JSON output for automation integration
 - Human-readable summaries with actionable guidance
 - Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)

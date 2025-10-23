@@ -18,6 +18,7 @@ Specify supports two workflow modes that control development complexity, plus co
 - **`build` mode**: Lightweight approach focused on quick implementation and exploration
 
 **Framework Opinions** (configurable within each mode):
+
 - **TDD**: Test-Driven Development (tests before implementation)
 - **API Contracts**: Automatic contract generation during planning
 - **Data Models**: Automatic data model generation during planning
@@ -53,7 +54,7 @@ Specify supports two workflow modes that control development complexity, plus co
 
 **Example Command:**
 
-```
+```text
 /constitution "Assemble the constitution for this service. Import principles from @team/context_modules/principles/v1/stateless_services.md and @team/context_modules/principles/v1/zero_trust_security_model.md. Add the custom principle: 'All public APIs must be versioned.'"
 ```
 
@@ -77,7 +78,7 @@ Specify supports two workflow modes that control development complexity, plus co
 
 **Example Command:**
 
-```
+```text
 /specify "Generate the specification for the feature in @issue-tracker ISSUE-123. The target user is the @team/personas/v1/data_analyst.md. The operation must be asynchronous to handle large dashboards. The PDF title must include the dashboard name and an export timestamp."
 ```
 
@@ -131,7 +132,7 @@ Specify supports two workflow modes that control development complexity, plus co
 
 **Example Command:**
 
-```
+```text
 /levelup "Capture the FastAPI error-handling patterns we refined while closing ISSUE-123. Summarize why the retry strategy works, when to apply it, and provide links to the final implementation."
 ```
 
@@ -263,6 +264,7 @@ Your development needs may change as features evolve:
 ```
 
 **Indicators:**
+
 - Feature scope is growing beyond initial expectations
 - Multiple stakeholders need detailed documentation
 - Production deployment requires comprehensive testing
@@ -275,6 +277,7 @@ Your development needs may change as features evolve:
 ```
 
 **Indicators:**
+
 - Shifting to exploratory prototyping
 - Need to quickly validate a technical approach
 - Working on throwaway proof-of-concepts

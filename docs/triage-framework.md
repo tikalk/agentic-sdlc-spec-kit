@@ -13,7 +13,7 @@ The Triage Framework provides structured guidance for classifying implementation
 
 ## Decision Tree: Task Classification
 
-```
+```text
 START: New Implementation Task
     │
     ├── Is this task security-critical?
@@ -52,9 +52,11 @@ START: New Implementation Task
 ### [SYNC] Classifications (Human Execution Required)
 
 #### 1. Security Classification
+
 **When to Apply**: Tasks involving authentication, authorization, encryption, data protection, or compliance requirements.
 
 **Examples**:
+
 - User authentication flows
 - API key management
 - Data encryption/decryption
@@ -64,9 +66,11 @@ START: New Implementation Task
 **Rationale**: Security-critical code requires human expertise and cannot be delegated due to liability and compliance risks.
 
 #### 2. Integration Classification
+
 **When to Apply**: Tasks involving external APIs, legacy systems, third-party services, or complex data transformations.
 
 **Examples**:
+
 - Payment gateway integration
 - External API consumption
 - Legacy system migration
@@ -76,9 +80,11 @@ START: New Implementation Task
 **Rationale**: Integration complexity often requires domain expertise and error handling that agents cannot reliably implement.
 
 #### 3. Clarity Classification
+
 **When to Apply**: Tasks with ambiguous requirements, unclear acceptance criteria, or multiple interpretation possibilities.
 
 **Examples**:
+
 - Vague user story requirements
 - Missing edge case specifications
 - Conflicting stakeholder expectations
@@ -88,9 +94,11 @@ START: New Implementation Task
 **Rationale**: Ambiguous requirements need human clarification and interpretation before implementation.
 
 #### 4. Architecture Classification
+
 **When to Apply**: Tasks involving system design decisions, component boundaries, or architectural patterns.
 
 **Examples**:
+
 - Database schema design
 - API contract definition
 - Component architecture
@@ -100,9 +108,11 @@ START: New Implementation Task
 **Rationale**: Architectural decisions have long-term impact and require experienced design judgment.
 
 #### 5. Complexity Classification
+
 **When to Apply**: Tasks involving non-trivial algorithms, state machines, or complex business logic.
 
 **Examples**:
+
 - Custom algorithms
 - State machine implementations
 - Complex validation logic
@@ -114,9 +124,11 @@ START: New Implementation Task
 ### [ASYNC] Classifications (Agent Delegation Suitable)
 
 #### 1. Standard Pattern Classification
+
 **When to Apply**: Tasks following well-established patterns, frameworks, or standard implementations.
 
 **Examples**:
+
 - RESTful API endpoints
 - Standard CRUD operations
 - Form validation
@@ -126,9 +138,11 @@ START: New Implementation Task
 **Rationale**: Standard patterns have predictable implementations that agents can reliably generate.
 
 #### 2. Test Coverage Classification
+
 **When to Apply**: Tasks with comprehensive automated test coverage providing execution safeguards.
 
 **Examples**:
+
 - Components with >80% test coverage
 - TDD-developed features
 - Well-tested utility functions
@@ -137,9 +151,11 @@ START: New Implementation Task
 **Rationale**: Comprehensive testing provides confidence that agent-generated code meets requirements.
 
 #### 3. Independent Component Classification
+
 **When to Apply**: Tasks implementing self-contained components with minimal external dependencies.
 
 **Examples**:
+
 - Utility libraries
 - Standalone services
 - Independent UI components
@@ -151,23 +167,27 @@ START: New Implementation Task
 ## Triage Process Workflow
 
 ### Phase 1: Task Identification
+
 1. Break down feature into discrete, implementable tasks
 2. Estimate effort and dependencies for each task
 3. Identify task boundaries and interfaces
 
 ### Phase 2: Classification Assessment
+
 1. Apply decision tree to each task
 2. Document primary classification criteria
 3. Assess risk level of misclassification
 4. Record rationale for each decision
 
 ### Phase 3: Review and Validation
+
 1. Peer review of triage decisions
 2. Validate classification consistency
 3. Confirm risk assessments
 4. Document any overrides or exceptions
 
 ### Phase 4: Execution Planning
+
 1. Group tasks by classification
 2. Plan [SYNC] review checkpoints
 3. Configure [ASYNC] agent delegation
@@ -178,16 +198,19 @@ START: New Implementation Task
 ### Effectiveness Metrics
 
 #### Classification Accuracy
+
 - **Measurement**: Percentage of tasks correctly classified (validated post-implementation)
 - **Target**: >90% accuracy
 - **Tracking**: Monthly review of misclassifications
 
 #### Review Efficiency
+
 - **Measurement**: Time spent on [SYNC] reviews vs time saved by [ASYNC] delegation
 - **Target**: Net positive efficiency gain
 - **Tracking**: Per-feature analysis
 
 #### Quality Impact
+
 - **Measurement**: Defect rates by classification type
 - **Target**: [SYNC] defects <5%, [ASYNC] defects <15%
 - **Tracking**: Post-implementation defect analysis
@@ -195,11 +218,13 @@ START: New Implementation Task
 ### Continuous Improvement
 
 #### Learning Opportunities
+
 - **Common Patterns**: Identify frequently misclassified task types
 - **Training Updates**: Update decision trees based on lessons learned
 - **Tool Improvements**: Enhance triage guidance based on metrics
 
 #### Feedback Integration
+
 - **Developer Feedback**: Collect classification experience reports
 - **Review Feedback**: Analyze review findings for triage improvements
 - **Quality Metrics**: Use defect data to refine classification criteria
@@ -207,29 +232,37 @@ START: New Implementation Task
 ## Training Module: Triage Decision Making
 
 ### Module 1: Understanding Classifications
+
 **Objective**: Understand the difference between [SYNC] and [ASYNC] tasks
 **Content**:
+
 - Classification criteria with examples
 - Risk assessment frameworks
 - Common misclassification patterns
 
 ### Module 2: Decision Tree Application
+
 **Objective**: Practice applying the triage decision tree
 **Content**:
+
 - Interactive decision tree walkthrough
 - Real-world task classification exercises
 - Peer review of classification decisions
 
 ### Module 3: Risk Assessment
+
 **Objective**: Learn to assess misclassification risks
 **Content**:
+
 - Risk level determination
 - Impact analysis techniques
 - Mitigation strategy development
 
 ### Module 4: Metrics and Improvement
+
 **Objective**: Understand triage effectiveness measurement
 **Content**:
+
 - Metrics definition and calculation
 - Improvement opportunity identification
 - Feedback integration processes
@@ -237,6 +270,7 @@ START: New Implementation Task
 ## Implementation Checklist
 
 ### For Each Feature
+
 - [ ] All tasks classified as [SYNC] or [ASYNC]
 - [ ] Classification rationale documented
 - [ ] Risk assessment completed
@@ -244,6 +278,7 @@ START: New Implementation Task
 - [ ] Triage decisions approved
 
 ### For Each Sprint/Iteration
+
 - [ ] Classification accuracy measured
 - [ ] Review efficiency analyzed
 - [ ] Quality metrics collected
@@ -253,16 +288,19 @@ START: New Implementation Task
 ## Appendix: Common Misclassification Patterns
 
 ### False Positives ([SYNC] when should be [ASYNC])
+
 - Over-classifying standard CRUD operations
 - Treating well-tested components as high-risk
 - Misinterpreting "complex" as requiring human review
 
 ### False Negatives ([ASYNC] when should be [SYNC])
+
 - Underestimating integration complexity
 - Ignoring security implications
 - Delegating ambiguous requirements
 
 ### Mitigation Strategies
+
 - Regular calibration sessions
 - Peer review of classifications
 - Metrics-driven refinement

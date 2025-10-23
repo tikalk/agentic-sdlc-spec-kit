@@ -350,10 +350,12 @@ Command content with {SCRIPT} and {{args}} placeholders.
 The `--spec-sync` option enables automatic spec-code synchronization via git hooks. This feature is supported for both bash (Linux/macOS) and PowerShell (Windows) environments:
 
 ### Bash Implementation
+
 - **Scripts**: `scripts/bash/spec-hooks-install.sh`, `spec-sync-pre-commit.sh`, `spec-sync-post-commit.sh`, `spec-sync-pre-push.sh`
 - **Hooks**: Creates bash-based git hooks that call the PowerShell scripts when on Windows
 
 ### PowerShell Implementation
+
 - **Scripts**: `scripts/powershell/spec-hooks-install.ps1`, `spec-sync-pre-commit.ps1`, `spec-sync-post-commit.ps1`, `spec-sync-pre-push.ps1`
 - **Hooks**: Creates bash-based git hooks that call the PowerShell scripts using `powershell -ExecutionPolicy Bypass -File`
 

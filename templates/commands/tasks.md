@@ -21,12 +21,12 @@ Check mode configuration for risk-based testing. If enabled in `.specify/config/
 
 2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
-2. **Load design documents**: Read from FEATURE_DIR:
+3. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
    - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
-3. **Execute task generation workflow** (follow the template structure):
+4. **Execute task generation workflow** (follow the template structure):
     - Load plan.md and extract tech stack, libraries, project structure
     - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
     - If data-model.md exists: Extract entities → map to user stories
@@ -60,7 +60,7 @@ Check mode configuration for risk-based testing. If enabled in `.specify/config/
     - Create parallel execution examples per user story
     - Validate task completeness (each user story has all needed tasks, independently testable)
 
-4. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
+5. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
     - Correct feature name from plan.md
     - Phase 1: Setup tasks (project initialization)
     - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
@@ -78,12 +78,12 @@ Check mode configuration for risk-based testing. If enabled in `.specify/config/
     - Parallel execution examples per story
     - Implementation strategy section (MVP first, incremental delivery)
 
-5. **Apply Issue Tracker Labels**: If issue tracker MCP is configured and ASYNC tasks exist:
+6. **Apply Issue Tracker Labels**: If issue tracker MCP is configured and ASYNC tasks exist:
     - Apply `async-ready` and `agent-delegatable` labels to the associated issue
     - Update tasks_meta.json with labeling information
     - Enable automatic async agent triggering for qualifying tasks
 
-6. **Report**: Output path to generated tasks.md and summary:
+7. **Report**: Output path to generated tasks.md and summary:
     - Total task count
     - Task count per user story
     - Parallel opportunities identified

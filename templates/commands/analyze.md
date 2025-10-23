@@ -18,6 +18,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Perform consistency and quality analysis across artifacts and implementation with automatic context detection:
 
 **Auto-Detection Logic**:
+
 - **Pre-Implementation**: When tasks.md exists but no implementation artifacts detected
 - **Post-Implementation**: When implementation artifacts exist (source code, build outputs, etc.)
 
@@ -32,6 +33,7 @@ This command adapts its behavior based on project state and workflow mode.
 **STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
 
 **Auto-Detection Logic**:
+
 1. Check workflow mode (build vs spec) from `.specify/config/config.json` under `workflow.current_mode`
 2. Analyze project state:
    - **Pre-implementation**:
@@ -59,9 +61,10 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 ### 2. Auto-Detect Analysis Mode
 
 **Context Analysis**:
+
 1. **Check Workflow Mode**: Read current mode from `.specify/config/config.json` under `workflow.current_mode`
 2. **Analyze Project State**:
-   - Scan for implementation artifacts (src/, build/, dist/, *.js, *.py, etc.)
+   - Scan for implementation artifacts (src/, build/, dist/, *.js,*.py, etc.)
    - Check git history for implementation commits
    - Verify if `/implement` has been run recently
 3. **Determine Analysis Type**:
@@ -81,6 +84,7 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 Load available artifacts (build mode may have only spec.md):
 
 **From spec.md (required):**
+
 - Overview/Context
 - Functional Requirements
 - Non-Functional Requirements
@@ -88,12 +92,14 @@ Load available artifacts (build mode may have only spec.md):
 - Edge Cases (if present)
 
 **From plan.md (optional in build mode):**
+
 - Architecture/stack choices
 - Data Model references
 - Phases
 - Technical constraints
 
 **From tasks.md (optional in build mode):**
+
 - Task IDs
 - Descriptions
 - Phase grouping
@@ -104,16 +110,19 @@ Load available artifacts (build mode may have only spec.md):
 Load documentation artifacts plus analyze actual codebase:
 
 **From Documentation:**
+
 - All artifacts as above (if available)
 - Implementation notes and decisions
 
 **From Codebase:**
+
 - Scan source code for implemented functionality
 - Check for undocumented features or changes
 - Analyze performance patterns and architecture usage
 - Identify manual modifications not reflected in documentation
 
 **From constitution:**
+
 - Load `/memory/constitution.md` for principle validation (both modes)
 
 ### 3. Build Semantic Models
@@ -170,24 +179,28 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 #### Post-Implementation Detection Passes
 
 ##### G. Documentation Drift
+
 - Implemented features not documented in spec.md
 - Code architecture differing from plan.md
 - Manual changes not reflected in documentation
 - Deprecated code still referenced in docs
 
 ##### H. Implementation Quality
+
 - Performance bottlenecks not anticipated in spec
 - Security issues discovered during implementation
 - Scalability problems with current architecture
 - Code maintainability concerns
 
 ##### I. Real-World Usage Gaps
+
 - User experience issues not covered in requirements
 - Edge cases discovered during testing/usage
 - Integration problems with external systems
 - Data validation issues in production
 
 ##### J. Refinement Opportunities
+
 - Code optimizations possible
 - Architecture improvements identified
 - Testing gaps revealed
@@ -198,6 +211,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 **Purpose**: Ensure spec-to-issue traceability is maintained throughout the SDD workflow using `@issue-tracker ISSUE-123` syntax.
 
 **Detection Logic**:
+
 1. **Scan all artifacts** for existing `@issue-tracker` references
 2. **Extract issue IDs** from patterns like `@issue-tracker PROJ-123`, `@issue-tracker #456`, `@issue-tracker GITHUB-789`
 3. **Validate coverage**:
@@ -207,6 +221,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 4. **Check MCP configuration**: Verify `.mcp.json` exists and issue tracker is properly configured
 
 **Traceability Gaps to Detect**:
+
 - **Missing spec traces**: User stories or major features without `@issue-tracker` references
 - **Orphaned tasks**: Implementation tasks not linked to spec-level issues
 - **Inconsistent issue references**: Same feature referenced with different issue IDs across artifacts
@@ -214,6 +229,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - **MCP misconfiguration**: Issue tracker not configured in `.mcp.json`
 
 **Validation Rules**:
+
 - **Minimum coverage**: ≥80% of user stories/requirements should have traceable issue links
 - **Format validation**: Issue references must match configured tracker patterns (GitHub/Jira/Linear/GitLab)
 - **Consistency check**: Issue IDs should be consistent across spec.md → plan.md → tasks.md
@@ -224,12 +240,14 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 Use this heuristic to prioritize findings:
 
 **Pre-Implementation Severities:**
+
 - **CRITICAL**: Violates constitution MUST, missing spec.md, or requirement with zero coverage that blocks baseline functionality
 - **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
 - **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, missing plan.md/tasks.md (build mode only)
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
 **Post-Implementation Severities:**
+
 - **CRITICAL**: Security vulnerabilities, data corruption risks, or system stability issues
 - **HIGH**: Performance problems affecting user experience, undocumented breaking changes
 - **MEDIUM**: Code quality issues, missing tests, documentation drift
@@ -257,6 +275,7 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 **Unmapped Tasks:** (if any)
 
 **Metrics:**
+
 - Total Requirements
 - Total Tasks
 - Coverage % (requirements with >=1 task)
@@ -265,12 +284,13 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - Critical Issues Count
 
 **Traceability Validation:**
+
 - **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
 - **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
 - **Format Validation**: All issue references use valid formats
 - **Consistency Check**: Issue IDs consistent across artifacts
 
-#### Post-Implementation Report Structure
+### Post-Implementation Report Structure
 
 ## Post-Implementation Analysis Report
 
@@ -285,18 +305,21 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 | Authentication | JWT + OAuth2 | Basic auth only | Missing OAuth2 in spec |
 
 **Code Quality Metrics:**
+
 - Lines of code analyzed
 - Test coverage percentage
 - Performance bottlenecks identified
 - Security issues found
 
 **Refinement Opportunities:**
+
 - Performance optimizations
 - Architecture improvements
 - Testing enhancements
 - Documentation updates needed
 
 **Traceability Validation:**
+
 - **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
 - **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
 - **Format Validation**: All issue references use valid formats
@@ -307,6 +330,7 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 At end of report, output a concise Next Actions block based on detected mode and findings:
 
 **Pre-Implementation Next Actions:**
+
 - **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
 - **Spec Mode**: - If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
@@ -315,6 +339,7 @@ At end of report, output a concise Next Actions block based on detected mode and
 - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 **Post-Implementation Next Actions:**
+
 - If CRITICAL issues exist: Recommend immediate fixes for security/stability
 - If HIGH issues exist: Suggest prioritization for next iteration
 - **Traceability**: If gaps found: "Update issue status in tracker and ensure all implemented features are linked via @issue-tracker references"
@@ -332,17 +357,20 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 If the analysis reveals substantial implementation changes that should be reflected in documentation, offer to evolve the documentation:
 
 **Documentation Evolution Options:**
+
 - **Spec Updates**: Add newly discovered requirements, edge cases, or user experience insights
 - **Plan Updates**: Document architecture changes, performance optimizations, or integration decisions
 - **Task Updates**: Mark completed tasks, add follow-up tasks for refinements
 
 **Evolution Workflow:**
+
 1. **Identify Changes**: Flag implemented features not in spec.md, architecture deviations from plan.md
 2. **Propose Updates**: Suggest specific additions to documentation artifacts
 3. **Preserve Intent**: Ensure updates maintain original requirements while incorporating implementation learnings
 4. **Version Tracking**: Create new versions of documentation with clear change rationale
 
 **Evolution Triggers:**
+
 - New features implemented but not specified
 - Architecture changes for performance/security reasons
 - User experience improvements discovered during implementation
@@ -355,11 +383,13 @@ If the analysis reveals substantial implementation changes that should be reflec
 If post-implementation analysis identifies critical problems requiring rollback:
 
 **Rollback Options:**
+
 - **Task-Level Rollback**: Revert individual tasks while preserving completed work
 - **Feature Rollback**: Roll back entire feature implementation
 - **Documentation Preservation**: Keep documentation updates even when code is rolled back
 
 **Rollback Workflow:**
+
 1. **Assess Impact**: Determine which tasks/code to rollback
 2. **Preserve Documentation**: Keep spec/plan updates that reflect learnings
 3. **Clean Revert**: Remove problematic implementation while maintaining good changes

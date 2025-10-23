@@ -44,7 +44,6 @@ This fork represents the evolution from a development process to a complete orga
 
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
-- [📽️ Video Overview](#️-video-overview)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [📚 Core Philosophy](#-core-philosophy)
@@ -256,12 +255,14 @@ Specify supports two workflow modes that control the complexity level of the dev
 #### When to Use Each Mode
 
 **Use `build` mode for:**
+
 - Prototyping and exploration
 - Simple features with clear requirements
 - Quick validation of ideas
 - When you want to get something working fast
 
 **Use `spec` mode for:**
+
 - Complex features requiring thorough analysis
 - Team collaboration with detailed documentation
 - Production systems needing comprehensive validation
@@ -883,10 +884,12 @@ rm gcm-linux_amd64.2.6.1.deb
 ## 👥 Maintainers
 
 ### Original Repository
+
 - Den Delimarsky ([@localden](https://github.com/localden))
 - John Lam ([@jflam](https://github.com/jflam))
 
 ### Fork Maintainers (tikalk/agentic-sdlc-spec-kit)
+
 - Lior Kanfi ([@kanfil](https://github.com/kanfil))
 
 ## 💬 Support

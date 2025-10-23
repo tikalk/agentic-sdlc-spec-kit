@@ -129,7 +129,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      - Format: `[domain].md`
      - If file exists, append to existing file
    - Number items sequentially starting from CHK001
-   - Each `/speckit.checklist` run creates a NEW file (never overwrites existing checklists) 
+   - Each `/speckit.checklist` run creates a NEW file (never overwrites existing checklists)
    - For MCP validation: Include infrastructure quality checks when relevant to the checklist focus
 
    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
@@ -138,7 +138,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Clarity**: Are requirements unambiguous and specific?
    - **Consistency**: Do requirements align with each other?
    - **Measurability**: Can requirements be objectively verified?
-    - **Coverage**: Are all scenarios/edge cases addressed?
+   - **Coverage**: Are all scenarios/edge cases addressed?
 
     **HOW TO WRITE CHECKLIST ITEMS - "Unit Tests for English"**:
 
@@ -162,7 +162,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Focus on what's WRITTEN (or not written) in the spec/plan
    - Include quality dimension in brackets [Completeness/Clarity/Consistency/etc.]
    - Reference spec section `[Spec §X.Y]` when checking existing requirements
-    - Use `[Gap]` marker when checking for missing requirements
+      - Use `[Gap]` marker when checking for missing requirements
 
    **EXAMPLES BY QUALITY DIMENSION**:
 
@@ -289,9 +289,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - ✅ "Are [edge cases/scenarios] addressed in requirements?"
    - ✅ "Does the spec define [missing aspect]?"
 
-6. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
+7. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
 
-7. **Report**: Output full path to created checklist, item count, and remind user that each run creates a new file. Summarize:
+8. **Report**: Output full path to created checklist, item count, and remind user that each run creates a new file. Summarize:
      - Focus areas selected
      - Depth level
      - Actor/timing
@@ -353,6 +353,7 @@ Sample items:
 **MCP Configuration Quality:** `mcp.md`
 
 Sample items:
+
 - "Is .mcp.json file present and properly configured? [Completeness, Infrastructure]"
 - "Are MCP server URLs valid and accessible? [Clarity, Infrastructure]"
 - "Is issue tracker MCP server configured for the project's tracking system? [Coverage, Infrastructure]"
@@ -363,6 +364,7 @@ Sample items:
 **Framework Options Quality:** `options.md` (when mode options are enabled)
 
 Sample items (varies based on enabled options):
+
 - "Are test scenarios specified for all acceptance criteria? [Completeness, TDD]" (TDD enabled)
 - "Are API contract specifications complete with versioning? [Completeness, Contracts]" (contracts enabled)
 - "Are entity relationships and constraints fully documented? [Completeness, Data Models]" (data models enabled)
