@@ -29,6 +29,7 @@ $ARGUMENTS
     - **Perform macro-review**: Run `scripts/bash/tasks-meta-utils.sh review-macro "$FEATURE_DIR/tasks_meta.json"` to complete the dual execution loop.
 
 3. Draft the knowledge asset:
+    - **IMPORTANT**: The knowledge asset must be self-contained and focus ONLY on the feature implementation learnings. DO NOT include references to speckit commands, templates, framework internals, or the levelup process itself. The asset should be valuable to developers who are not using the speckit framework.
     - Determine a slug such as `{BRANCH}-levelup` and create a new markdown file under `KNOWLEDGE_DRAFTS/{slug}.md`.
     - Capture:
       - **Summary** of the feature and why the learning matters.
@@ -80,6 +81,7 @@ $ARGUMENTS
     - Report the exact commands executed and surface any failures so the developer can intervene manually.
 
 8. Summarize final status, including:
+    - **REMINDER**: Ensure the knowledge asset contains only feature implementation learnings, with no speckit framework references.
     - Knowledge asset path and commit SHA (if created).
     - Constitution amendment status (if applicable).
     - Pull request URL or instructions for manual creation.
