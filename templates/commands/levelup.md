@@ -17,7 +17,7 @@ $ARGUMENTS
 1. Run `{SCRIPT}` from the repo root and parse JSON for `FEATURE_DIR`, `BRANCH`, `SPEC_FILE`, `PLAN_FILE`, `TASKS_FILE`, `RESEARCH_FILE`, `QUICKSTART_FILE`, `KNOWLEDGE_ROOT`, and `KNOWLEDGE_DRAFTS`. All file paths must be absolute.
    - If any of `SPEC_FILE`, `PLAN_FILE`, or `TASKS_FILE` are missing, STOP and instruct the developer to complete Stages 1-3 before leveling up.
    - Before proceeding, analyze `TASKS_FILE` and confirm **all tasks are marked `[X]`** and no execution status indicates `[IN PROGRESS]`, `[BLOCKED]`, or other incomplete markers. If any tasks remain open or unchecked, STOP and instruct the developer to finish `/implement` first.
-   - If `KNOWLEDGE_ROOT` or `KNOWLEDGE_DRAFTS` are empty, STOP and direct the developer to rerun `/init --team-ai-directive ...` so the shared directives repository is cloned locally.
+    - If `KNOWLEDGE_ROOT` or `KNOWLEDGE_DRAFTS` are empty, STOP and direct the developer to rerun `specify init --team-ai-directive ...` so the shared directives repository is cloned locally.
 
 2. Load the implementation artifacts:
     - Read `SPEC_FILE` (feature intent and acceptance criteria).
