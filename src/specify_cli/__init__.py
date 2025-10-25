@@ -1,14 +1,4 @@
 #!/usr/bin/env python3
-# /// script
-# requires-python = ">=3.11"
-# dependencies = [
-#     "typer",
-#     "rich",
-#     "platformdirs",
-#     "readchar",
-#     "httpx",
-# ]
-# ///
 """
 Specify CLI - Setup tool for Specify projects
 

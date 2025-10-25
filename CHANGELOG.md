@@ -7,6 +7,12 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.21] - 2025-10-25
+
+### Fixed
+
+- Removed conflicting PEP 723 inline script metadata from `__init__.py` that was causing `uv` to ignore `requires-python` from `pyproject.toml` and default to `>=3.12`
+
 ## [0.0.20] - 2025-10-14
 
 ### Added
