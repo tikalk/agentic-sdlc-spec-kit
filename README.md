@@ -28,7 +28,7 @@ The original [github/spec-kit](https://github.com/github/spec-kit) repository fo
 - **Adding enterprise-grade features** like team AI directives, MCP server integration, and gateway configuration
 - **Enhancing tooling** with advanced CLI options, async agent support, comprehensive issue tracker integration, and spec-code synchronization
 - **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
-- **Providing organizational templates** and best practices for scaling AI-assisted development across teams
+- **Providing team templates** and best practices for scaling AI-assisted development across teams
 
 This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
 

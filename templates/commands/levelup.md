@@ -15,6 +15,7 @@ User input:
 $ARGUMENTS
 
 **MCP Integration Requirements:**
+
 - This command uses MCP (Model Context Protocol) tools for GitHub/GitLab operations instead of direct CLI commands
 - Requires `.mcp.json` configuration with:
   - Git platform MCP server (GitHub/GitLab) for PR/merge request operations
