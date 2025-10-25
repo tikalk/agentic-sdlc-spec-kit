@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if (-not $KnowledgeFile -and -not $Amendment -and -not $Validate) {
-    Write-Error "Must specify knowledge asset file or use -Amendment/-Validate mode"
+    Write-Error "Must specify AI session context file or use -Amendment/-Validate mode"
     exit 1
 }
 
@@ -18,66 +18,192 @@ if (-not $KnowledgeFile -and -not $Amendment -and -not $Validate) {
 
 $paths = Get-FeaturePathsEnv
 
-# Function to analyze knowledge asset for constitution-relevant rules
-function Analyze-ConstitutionRelevance {
-    param([string]$KnowledgeFile)
+# Function to analyze AI session context for team-ai-directives contributions
+function Analyze-TeamDirectivesContributions {
+    param([string]$ContextFile)
 
-    if (-not (Test-Path $KnowledgeFile)) {
-        Write-Error "Knowledge asset file not found: $KnowledgeFile"
+    if (-not (Test-Path $ContextFile)) {
+        Write-Error "AI session context file not found: $ContextFile"
         exit 1
     }
 
-    $content = Get-Content $KnowledgeFile -Raw
+    $content = Get-Content $ContextFile -Raw
 
-    # Extract the reusable rule/best practice section
-    $ruleSection = ""
-    if ($content -match '(?s)## Reusable rule or best practice(.*?)(?=^## )') {
-        $ruleSection = $matches[1]
-    } elseif ($content -match '(?s)### Reusable rule or best practice(.*?)(?=^## )') {
-        $ruleSection = $matches[1]
+    # Extract different sections for analysis
+    $sessionOverview = ""
+    if ($content -match '(?s)## Session Overview(.*?)(?=^## )') {
+        $sessionOverview = $matches[1]
     }
 
-    # Keywords that indicate constitution-level significance
-    $constitutionKeywords = @(
-        "must", "shall", "required", "mandatory", "always", "never",
-        "principle", "governance", "policy", "standard", "quality",
-        "security", "testing", "documentation", "architecture",
-        "compliance", "oversight", "review", "approval"
-    )
+    $decisionPatterns = ""
+    if ($content -match '(?s)## Decision Patterns(.*?)(?=^## )') {
+        $decisionPatterns = $matches[1]
+    }
 
-    $relevanceScore = 0
-    $matchedKeywords = @()
+    $executionContext = ""
+    if ($content -match '(?s)## Execution Context(.*?)(?=^## )') {
+        $executionContext = $matches[1]
+    }
 
+    $reusablePatterns = ""
+    if ($content -match '(?s)## Reusable Patterns(.*?)(?=^## )') {
+        $reusablePatterns = $matches[1]
+    }
+
+    # Analyze for different component contributions
+    $constitutionScore = 0
+    $rulesScore = 0
+    $personasScore = 0
+    $examplesScore = 0
+
+    $constitutionKeywords = @("must", "shall", "required", "mandatory", "always", "never", "principle", "governance", "policy", "standard", "quality", "security", "testing", "documentation", "architecture", "compliance", "oversight", "review", "approval")
+    $rulesKeywords = @("agent", "behavior", "interaction", "decision", "pattern", "approach", "strategy", "methodology", "tool", "execution")
+    $personasKeywords = @("role", "specialization", "capability", "expertise", "persona", "assistant", "specialist", "focus")
+    $examplesKeywords = @("example", "case", "study", "implementation", "usage", "reference", "demonstration", "scenario")
+
+    # Analyze constitution relevance
     foreach ($keyword in $constitutionKeywords) {
-        if ($ruleSection -match "(?i)$keyword") {
-            $relevanceScore++
-            $matchedKeywords += $keyword
+        if ($content -match "(?i)$keyword") {
+            $constitutionScore++
         }
     }
 
-    # Check for imperative language patterns
-    if ($ruleSection -match "(?m)^[ ]*-[ ]*[A-Z][a-z]*.*(?:must|shall|should|will)") {
-        $relevanceScore += 2
+    # Analyze rules relevance
+    foreach ($keyword in $rulesKeywords) {
+        if (($decisionPatterns + $reusablePatterns) -match "(?i)$keyword") {
+            $rulesScore++
+        }
     }
 
-    return "$relevanceScore|$($matchedKeywords -join ' ')|$ruleSection"
+    # Analyze personas relevance
+    foreach ($keyword in $personasKeywords) {
+        if (($sessionOverview + $executionContext) -match "(?i)$keyword") {
+            $personasScore++
+        }
+    }
+
+    # Analyze examples relevance
+    foreach ($keyword in $examplesKeywords) {
+        if (($executionContext + $reusablePatterns) -match "(?i)$keyword") {
+            $examplesScore++
+        }
+    }
+
+    # Check for imperative language patterns (constitution)
+    if ($content -match "(?m)^[ ]*-[ ]*[A-Z][a-z]*.*(?:must|shall|should|will)") {
+        $constitutionScore += 2
+    }
+
+    # Return analysis results: constitution|rules|personas|examples|content_sections
+    return "$constitutionScore|$rulesScore|$personasScore|$examplesScore|$sessionOverview|$decisionPatterns|$executionContext|$reusablePatterns"
 }
 
-# Function to generate constitution amendment proposal
-function New-AmendmentProposal {
-    param([string]$KnowledgeFile, [string]$AnalysisResult)
+# Function to generate team-ai-directives proposals
+function New-DirectivesProposals {
+    param([string]$ContextFile, [string]$AnalysisResult)
 
-    $parts = $AnalysisResult -split '\|', 3
-    $relevanceScore = [int]$parts[0]
-    $matchedKeywords = $parts[1]
-    $ruleSection = $parts[2]
-
-    if ($relevanceScore -lt 3) {
-        return "Rule does not appear constitution-level (score: $relevanceScore)"
-    }
+    $parts = $AnalysisResult -split '\|', 8
+    $constitutionScore = [int]$parts[0]
+    $rulesScore = [int]$parts[1]
+    $personasScore = [int]$parts[2]
+    $examplesScore = [int]$parts[3]
+    $sessionOverview = $parts[4]
+    $decisionPatterns = $parts[5]
+    $executionContext = $parts[6]
+    $reusablePatterns = $parts[7]
 
     # Extract feature name from file path
-    $featureName = [System.IO.Path]::GetFileNameWithoutExtension($KnowledgeFile) -replace '-levelup$', ''
+    $featureName = [System.IO.Path]::GetFileNameWithoutExtension($ContextFile) -replace '-session$', ''
+
+    $proposals = ""
+
+    # Generate constitution amendment if relevant
+    if ($constitutionScore -ge 3) {
+        $amendmentTitle = ($sessionOverview -split "`n" | Where-Object { $_ -notmatch "^#" } | Select-Object -First 1 | ForEach-Object { $_.TrimStart('- ').Substring(0, [Math]::Min(50, $_.Length)) })
+        if (-not $amendmentTitle) {
+            $amendmentTitle = "Constitution Amendment from $featureName"
+        }
+
+        $proposals += "**CONSTITUTION AMENDMENT PROPOSAL**
+
+**Proposed Principle:** $amendmentTitle
+
+**Description:**
+$($sessionOverview -replace '^#', '###')
+
+**Rationale:** This principle was derived from AI agent session in feature '$featureName'. The approach demonstrated governance and quality considerations that should be codified.
+
+**Evidence:** See AI session context at $ContextFile
+
+**Impact Assessment:**
+- Adds new governance requirement for AI agent sessions
+- May require updates to agent behavior guidelines
+- Enhances project quality and consistency
+- Should be reviewed by team before adoption
+
+---
+"
+    }
+
+    # Generate rules proposal if relevant
+    if ($rulesScore -ge 2) {
+        $proposals += "**RULES CONTRIBUTION**
+
+**Proposed Rule:** AI Agent Decision Pattern from $featureName
+
+**Pattern Description:**
+$($decisionPatterns -replace '^#', '###')
+
+**When to Apply:** Use this decision pattern when facing similar challenges in $featureName-type features.
+
+**Evidence:** See AI session context at $ContextFile
+
+---
+"
+    }
+
+    # Generate personas proposal if relevant
+    if ($personasScore -ge 2) {
+        $proposals += "**PERSONA DEFINITION**
+
+**Proposed Persona:** Specialized Agent for $featureName-type Features
+
+**Capabilities Demonstrated:**
+$($executionContext -replace '^#', '###')
+
+**Specialization:** $featureName implementation and similar complex feature development.
+
+**Evidence:** See AI session context at $ContextFile
+
+---
+"
+    }
+
+    # Generate examples proposal if relevant
+    if ($examplesScore -ge 2) {
+        $proposals += "**EXAMPLE CONTRIBUTION**
+
+**Example:** $featureName Implementation Approach
+
+**Scenario:** Complete feature development from spec to deployment.
+
+**Approach Used:**
+$($reusablePatterns -replace '^#', '###')
+
+**Outcome:** Successful implementation with quality gates passed.
+
+**Evidence:** See AI session context at $ContextFile
+
+---
+"
+    }
+
+    if (-not $proposals) {
+        return "No significant team-ai-directives contributions identified from this session."
+    }
+
+    return $proposals
+}
 
     # Generate amendment proposal
     $amendmentTitle = ""
@@ -164,22 +290,22 @@ function Test-Amendment {
 # Main logic
 if ($Validate) {
     if (-not $KnowledgeFile) {
-        Write-Error "Must specify amendment file for validation"
+        Write-Error "Must specify directives contributions file for validation"
         exit 1
     }
 
-    $amendmentContent = Get-Content $KnowledgeFile -Raw
-    if (Test-Amendment -Amendment $amendmentContent) {
+    $contributionsContent = Get-Content $KnowledgeFile -Raw
+    if (Test-Amendment -Amendment $contributionsContent) {
         if ($Json) {
             @{status="valid"; file=$KnowledgeFile} | ConvertTo-Json -Compress
         } else {
-            Write-Host "Amendment validation successful" -ForegroundColor Green
+            Write-Host "Directives contributions validation successful" -ForegroundColor Green
         }
     } else {
         if ($Json) {
             @{status="invalid"; file=$KnowledgeFile} | ConvertTo-Json -Compress
         } else {
-            Write-Host "Amendment validation failed" -ForegroundColor Red
+            Write-Host "Directives contributions validation failed" -ForegroundColor Red
         }
         exit 1
     }
@@ -188,20 +314,20 @@ if ($Validate) {
 
 if ($Amendment) {
     if (-not $KnowledgeFile) {
-        Write-Error "Must specify knowledge asset file for amendment generation"
+        Write-Error "Must specify AI session context file for directives proposals"
         exit 1
     }
 
-    $analysis = Analyze-ConstitutionRelevance -KnowledgeFile $KnowledgeFile
-    $proposal = New-AmendmentProposal -KnowledgeFile $KnowledgeFile -AnalysisResult $analysis
+    $analysis = Analyze-TeamDirectivesContributions -ContextFile $KnowledgeFile
+    $proposals = New-DirectivesProposals -ContextFile $KnowledgeFile -AnalysisResult $analysis
 
-    if ($proposal -notmatch "^Rule does not appear") {
+    if ($proposals -notmatch "^No significant team-ai-directives") {
         if ($Json) {
-            @{status="proposed"; file=$KnowledgeFile; proposal=$proposal} | ConvertTo-Json
+            @{status="proposed"; file=$KnowledgeFile; proposals=$proposals} | ConvertTo-Json
         } else {
-            Write-Host "Constitution Amendment Proposal:" -ForegroundColor Cyan
-            Write-Host "=================================" -ForegroundColor Cyan
-            Write-Host $proposal
+            Write-Host "Team-AI-Directives Contribution Proposals:" -ForegroundColor Cyan
+            Write-Host "==========================================" -ForegroundColor Cyan
+            Write-Host $proposals
             Write-Host ""
             Write-Host "To apply this amendment, run:" -ForegroundColor Yellow
             Write-Host "  constitution-amend --file amendment.md"
@@ -217,28 +343,51 @@ if ($Amendment) {
 }
 
 # Default: analyze mode
-$analysis = Analyze-ConstitutionRelevance -KnowledgeFile $KnowledgeFile
+$analysis = Analyze-TeamDirectivesContributions -ContextFile $KnowledgeFile
 
-$parts = $analysis -split '\|', 3
-$relevanceScore = [int]$parts[0]
-$matchedKeywords = $parts[1]
+$parts = $analysis -split '\|', 4
+$constitutionScore = [int]$parts[0]
+$rulesScore = [int]$parts[1]
+$personasScore = [int]$parts[2]
+$examplesScore = [int]$parts[3]
 
 if ($Json) {
     @{
         file = $KnowledgeFile
-        relevance_score = $relevanceScore
-        matched_keywords = $matchedKeywords
+        constitution_score = $constitutionScore
+        rules_score = $rulesScore
+        personas_score = $personasScore
+        examples_score = $examplesScore
     } | ConvertTo-Json -Compress
 } else {
-    Write-Host "Constitution Relevance Analysis for: $KnowledgeFile" -ForegroundColor Cyan
-    Write-Host "Relevance Score: $relevanceScore/10" -ForegroundColor White
-    Write-Host "Matched Keywords: $matchedKeywords" -ForegroundColor White
+    Write-Host "Team-AI-Directives Contribution Analysis for: $KnowledgeFile" -ForegroundColor Cyan
+    Write-Host "Constitution Score: $constitutionScore/10" -ForegroundColor White
+    Write-Host "Rules Score: $rulesScore/5" -ForegroundColor White
+    Write-Host "Personas Score: $personasScore/5" -ForegroundColor White
+    Write-Host "Examples Score: $examplesScore/5" -ForegroundColor White
     Write-Host ""
 
-    if ($relevanceScore -ge 3) {
-        Write-Host "✓ This learning appears constitution-level" -ForegroundColor Green
-        Write-Host "Run with -Amendment to generate a proposal" -ForegroundColor Yellow
+    $hasContributions = $false
+    if ($constitutionScore -ge 3) {
+        Write-Host "✓ Constitution contribution potential detected" -ForegroundColor Green
+        $hasContributions = $true
+    }
+    if ($rulesScore -ge 2) {
+        Write-Host "✓ Rules contribution potential detected" -ForegroundColor Green
+        $hasContributions = $true
+    }
+    if ($personasScore -ge 2) {
+        Write-Host "✓ Personas contribution potential detected" -ForegroundColor Green
+        $hasContributions = $true
+    }
+    if ($examplesScore -ge 2) {
+        Write-Host "✓ Examples contribution potential detected" -ForegroundColor Green
+        $hasContributions = $true
+    }
+
+    if ($hasContributions) {
+        Write-Host "Run with -Amendment to generate contribution proposals" -ForegroundColor Yellow
     } else {
-        Write-Host "ℹ This learning appears project-level, not constitution-level" -ForegroundColor Yellow
+        Write-Host "ℹ No significant team-ai-directives contributions identified" -ForegroundColor Yellow
     }
 }

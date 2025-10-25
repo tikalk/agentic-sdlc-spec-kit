@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+# Analyze AI session context for team-ai-directives contributions
+# This script evaluates AI agent session context packets for potential
+# contributions to team-ai-directives components: rules, constitution,
+# personas, and examples.
+
 set -e
 
 JSON_MODE=false
@@ -18,10 +23,10 @@ for arg in "$@"; do
             VALIDATE_MODE=true
             ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--amendment] [--validate] <knowledge_asset_file>"
+            echo "Usage: $0 [--json] [--amendment] [--validate] <ai_session_context_file>"
             echo "  --json        Output results in JSON format"
-            echo "  --amendment   Generate constitution amendment proposal"
-            echo "  --validate    Validate constitution amendment"
+            echo "  --amendment   Generate team-ai-directives contribution proposals"
+            echo "  --validate    Validate directives contributions"
             echo "  --help        Show this help message"
             exit 0
             ;;
@@ -37,109 +42,194 @@ source "$SCRIPT_DIR/common.sh"
 
 eval $(get_feature_paths)
 
-# Function to analyze knowledge asset for constitution-relevant rules
-analyze_constitution_relevance() {
-    local knowledge_file="$1"
+# Function to analyze AI session context for team-ai-directives contributions
+analyze_team_directives_contributions() {
+    local context_file="$1"
 
-    if [[ ! -f "$knowledge_file" ]]; then
-        echo "ERROR: Knowledge asset file not found: $knowledge_file"
+    if [[ ! -f "$context_file" ]]; then
+        echo "ERROR: AI session context file not found: $context_file"
         exit 1
     fi
 
-    # Read the knowledge asset
+    # Read the context file
     local content=""
-    content=$(cat "$knowledge_file")
+    content=$(cat "$context_file")
 
-    # Extract the reusable rule/best practice section
-    local rule_section=""
-    rule_section=$(echo "$content" | sed -n '/## Reusable rule or best practice/,/^## /p' | head -n -1)
+    # Extract different sections for analysis
+    local session_overview=""
+    session_overview=$(echo "$content" | sed -n '/## Session Overview/,/^## /p' | head -n -1)
 
-    if [[ -z "$rule_section" ]]; then
-        rule_section=$(echo "$content" | sed -n '/### Reusable rule or best practice/,/^## /p' | head -n -1)
-    fi
+    local decision_patterns=""
+    decision_patterns=$(echo "$content" | sed -n '/## Decision Patterns/,/^## /p' | head -n -1)
 
-    # Keywords that indicate constitution-level significance
-    local constitution_keywords=(
-        "must" "shall" "required" "mandatory" "always" "never"
-        "principle" "governance" "policy" "standard" "quality"
-        "security" "testing" "documentation" "architecture"
-        "compliance" "oversight" "review" "approval"
-    )
+    local execution_context=""
+    execution_context=$(echo "$content" | sed -n '/## Execution Context/,/^## /p' | head -n -1)
 
-    local relevance_score=0
-    local matched_keywords=()
+    local reusable_patterns=""
+    reusable_patterns=$(echo "$content" | sed -n '/## Reusable Patterns/,/^## /p' | head -n -1)
 
+    # Analyze for different component contributions
+    local constitution_score=0
+    local rules_score=0
+    local personas_score=0
+    local examples_score=0
+
+    local constitution_keywords=("must" "shall" "required" "mandatory" "always" "never" "principle" "governance" "policy" "standard" "quality" "security" "testing" "documentation" "architecture" "compliance" "oversight" "review" "approval")
+    local rules_keywords=("agent" "behavior" "interaction" "decision" "pattern" "approach" "strategy" "methodology" "tool" "execution")
+    local personas_keywords=("role" "specialization" "capability" "expertise" "persona" "assistant" "specialist" "focus")
+    local examples_keywords=("example" "case" "study" "implementation" "usage" "reference" "demonstration" "scenario")
+
+    # Analyze constitution relevance
     for keyword in "${constitution_keywords[@]}"; do
-        if echo "$rule_section" | grep -qi "$keyword"; then
-            relevance_score=$((relevance_score + 1))
-            matched_keywords+=("$keyword")
+        if echo "$content" | grep -qi "$keyword"; then
+            constitution_score=$((constitution_score + 1))
         fi
     done
 
-    # Check for imperative language patterns
-    if echo "$rule_section" | grep -q "^[[:space:]]*-[[:space:]]*[A-Z][a-z]*.*must\|shall\|should\|will"; then
-        relevance_score=$((relevance_score + 2))
+    # Analyze rules relevance
+    for keyword in "${rules_keywords[@]}"; do
+        if echo "$decision_patterns $reusable_patterns" | grep -qi "$keyword"; then
+            rules_score=$((rules_score + 1))
+        fi
+    done
+
+    # Analyze personas relevance
+    for keyword in "${personas_keywords[@]}"; do
+        if echo "$session_overview $execution_context" | grep -qi "$keyword"; then
+            personas_score=$((personas_score + 1))
+        fi
+    done
+
+    # Analyze examples relevance
+    for keyword in "${examples_keywords[@]}"; do
+        if echo "$execution_context $reusable_patterns" | grep -qi "$keyword"; then
+            examples_score=$((examples_score + 1))
+        fi
+    done
+
+    # Check for imperative language patterns (constitution)
+    if echo "$content" | grep -q "^[[:space:]]*-[[:space:]]*[A-Z][a-z]*.*must\|shall\|should\|will"; then
+        constitution_score=$((constitution_score + 2))
     fi
 
-    # Return analysis results
-    echo "$relevance_score|${matched_keywords[*]}|$rule_section"
+    # Return analysis results: constitution|rules|personas|examples|content_sections
+    echo "$constitution_score|$rules_score|$personas_score|$examples_score|$session_overview|$decision_patterns|$execution_context|$reusable_patterns"
 }
 
-# Function to generate constitution amendment proposal
-generate_amendment_proposal() {
-    local knowledge_file="$1"
+# Function to generate team-ai-directives proposals
+generate_directives_proposals() {
+    local context_file="$1"
     local analysis_result="$2"
 
-    local relevance_score=""
-    local matched_keywords=""
-    local rule_section=""
+    local constitution_score="" rules_score="" personas_score="" examples_score=""
+    local session_overview="" decision_patterns="" execution_context="" reusable_patterns=""
 
-    IFS='|' read -r relevance_score matched_keywords rule_section <<< "$analysis_result"
-
-    if [[ $relevance_score -lt 3 ]]; then
-        echo "Rule does not appear constitution-level (score: $relevance_score)"
-        return 1
-    fi
+    IFS='|' read -r constitution_score rules_score personas_score examples_score session_overview decision_patterns execution_context reusable_patterns <<< "$analysis_result"
 
     # Extract feature name from file path
     local feature_name=""
-    feature_name=$(basename "$knowledge_file" | sed 's/-levelup\.md$//')
+    feature_name=$(basename "$context_file" | sed 's/-session\.md$//')
 
-    # Generate amendment proposal
-    local amendment_title=""
-    local amendment_description=""
+    local proposals=""
 
-    # Try to extract a concise title from the rule
-    amendment_title=$(echo "$rule_section" | head -3 | grep -v "^#" | head -1 | sed 's/^[[:space:]]*-[[:space:]]*//' | cut -c1-50)
+    # Generate constitution amendment if relevant
+    if [[ $constitution_score -ge 3 ]]; then
+        local amendment_title=""
+        amendment_title=$(echo "$session_overview" | head -3 | grep -v "^#" | head -1 | sed 's/^[[:space:]]*-[[:space:]]*//' | cut -c1-50)
 
-    if [[ -z "$amendment_title" ]]; then
-        amendment_title="Amendment from $feature_name"
-    fi
+        if [[ -z "$amendment_title" ]]; then
+            amendment_title="Constitution Amendment from $feature_name"
+        fi
 
-    # Create full amendment description
-    amendment_description="**Proposed Principle:** $amendment_title
+        proposals="${proposals}**CONSTITUTION AMENDMENT PROPOSAL**
+
+**Proposed Principle:** $amendment_title
 
 **Description:**
-$(echo "$rule_section" | sed 's/^#/###/')
+$(echo "$session_overview" | sed 's/^#/###/')
 
-**Rationale:** This principle was derived from successful implementation of feature '$feature_name'. The rule addresses $(echo "$matched_keywords" | tr ' ' ', ') considerations identified during development.
+**Rationale:** This principle was derived from AI agent session in feature '$feature_name'. The approach demonstrated governance and quality considerations that should be codified.
 
-**Evidence:** See knowledge asset at $knowledge_file
+**Evidence:** See AI session context at $context_file
 
 **Impact Assessment:**
-- Adds new governance requirement
-- May require updates to existing processes
-- Enhances project quality/consistency
-- Should be reviewed by team before adoption"
+- Adds new governance requirement for AI agent sessions
+- May require updates to agent behavior guidelines
+- Enhances project quality and consistency
+- Should be reviewed by team before adoption
 
-    echo "$amendment_description"
+---
+"
+    fi
+
+    # Generate rules proposal if relevant
+    if [[ $rules_score -ge 2 ]]; then
+        proposals="${proposals}**RULES CONTRIBUTION**
+
+**Proposed Rule:** AI Agent Decision Pattern from $feature_name
+
+**Pattern Description:**
+$(echo "$decision_patterns" | sed 's/^#/###/')
+
+**When to Apply:** Use this decision pattern when facing similar challenges in $feature_name-type features.
+
+**Evidence:** See AI session context at $context_file
+
+---
+"
+    fi
+
+    # Generate personas proposal if relevant
+    if [[ $personas_score -ge 2 ]]; then
+        proposals="${proposals}**PERSONA DEFINITION**
+
+**Proposed Persona:** Specialized Agent for $feature_name-type Features
+
+**Capabilities Demonstrated:**
+$(echo "$execution_context" | sed 's/^#/###/')
+
+**Specialization:** $feature_name implementation and similar complex feature development.
+
+**Evidence:** See AI session context at $context_file
+
+---
+"
+    fi
+
+    # Generate examples proposal if relevant
+    if [[ $examples_score -ge 2 ]]; then
+        proposals="${proposals}**EXAMPLE CONTRIBUTION**
+
+**Example:** $feature_name Implementation Approach
+
+**Scenario:** Complete feature development from spec to deployment.
+
+**Approach Used:**
+$(echo "$reusable_patterns" | sed 's/^#/###/')
+
+**Outcome:** Successful implementation with quality gates passed.
+
+**Evidence:** See AI session context at $context_file
+
+---
+"
+    fi
+
+    if [[ -z "$proposals" ]]; then
+        echo "No significant team-ai-directives contributions identified from this session."
+        return 1
+    fi
+
+    echo "$proposals"
 }
 
-# Function to validate amendment against existing constitution
-validate_amendment() {
-    local amendment="$1"
+# Function to validate directives contributions
+validate_directives_contributions() {
+    local contributions="$1"
     local constitution_file="$REPO_ROOT/.specify/memory/constitution.md"
 
+    # For now, just check constitution conflicts if constitution file exists
+    # Future enhancement: check for conflicts in rules, personas, examples
     if [[ ! -f "$constitution_file" ]]; then
         echo "WARNING: No project constitution found at $constitution_file"
         return 0
@@ -148,28 +238,33 @@ validate_amendment() {
     local constitution_content=""
     constitution_content=$(cat "$constitution_file")
 
-    # Check for conflicts with existing principles
+    # Check for conflicts with existing principles (constitution amendments only)
     local conflicts=()
 
-    # Extract principle names from amendment
-    local amendment_principle=""
-    amendment_principle=$(echo "$amendment" | grep "^\*\*Proposed Principle:\*\*" | sed 's/.*: //' | head -1)
+    # Extract constitution amendment if present
+    local constitution_section=""
+    constitution_section=$(echo "$contributions" | sed -n '/\*\*CONSTITUTION AMENDMENT PROPOSAL\*\*/,/---/p' | head -n -1)
 
-    # Check if similar principle already exists
-    if echo "$constitution_content" | grep -qi "$amendment_principle"; then
-        conflicts+=("Similar principle already exists: $amendment_principle")
-    fi
+    if [[ -n "$constitution_section" ]]; then
+        local amendment_principle=""
+        amendment_principle=$(echo "$constitution_section" | grep "^\*\*Proposed Principle:\*\*" | sed 's/.*: //' | head -1)
 
-    # Check for contradictory language
-    local amendment_rules=""
-    amendment_rules=$(echo "$amendment" | sed -n '/^\*\*Description:\*\*/,/^\*\*Rationale:\*\*/p' | grep -E "^[[:space:]]*-[[:space:]]*[A-Z]")
-
-    for rule in $amendment_rules; do
-        # Look for contradictions in existing constitution
-        if echo "$constitution_content" | grep -qi "never.*$(echo "$rule" | sed 's/.* //')" || echo "$constitution_content" | grep -qi "must not.*$(echo "$rule" | sed 's/.* //')"; then
-            conflicts+=("Potential contradiction with existing rule: $rule")
+        # Check if similar principle already exists
+        if echo "$constitution_content" | grep -qi "$amendment_principle"; then
+            conflicts+=("Similar constitution principle already exists: $amendment_principle")
         fi
-    done
+
+        # Check for contradictory language
+        local amendment_rules=""
+        amendment_rules=$(echo "$constitution_section" | sed -n '/^\*\*Description:\*\*/,/^\*\*Rationale:\*\*/p' | grep -E "^[[:space:]]*-[[:space:]]*[A-Z]")
+
+        for rule in $amendment_rules; do
+            # Look for contradictions in existing constitution
+            if echo "$constitution_content" | grep -qi "never.*$(echo "$rule" | sed 's/.* //')" || echo "$constitution_content" | grep -qi "must not.*$(echo "$rule" | sed 's/.* //')"; then
+                conflicts+=("Potential contradiction with existing constitution rule: $rule")
+            fi
+        done
+    fi
 
     if [[ ${#conflicts[@]} -gt 0 ]]; then
         echo "VALIDATION ISSUES:"
@@ -178,7 +273,7 @@ validate_amendment() {
         done
         return 1
     else
-        echo "✓ Amendment validation passed - no conflicts detected"
+        echo "✓ Directives contributions validation passed - no conflicts detected"
         return 0
     fi
 }
@@ -191,22 +286,22 @@ fi
 
 if $VALIDATE_MODE; then
     if [[ -z "$KNOWLEDGE_FILE" ]]; then
-        echo "ERROR: Must specify amendment file for validation"
+        echo "ERROR: Must specify directives contributions file for validation"
         exit 1
     fi
 
-    amendment_content=$(cat "$KNOWLEDGE_FILE")
-    if validate_amendment "$amendment_content"; then
+    contributions_content=$(cat "$KNOWLEDGE_FILE")
+    if validate_directives_contributions "$contributions_content"; then
         if $JSON_MODE; then
             printf '{"status":"valid","file":"%s"}\n' "$KNOWLEDGE_FILE"
         else
-            echo "Amendment validation successful"
+            echo "Directives contributions validation successful"
         fi
     else
         if $JSON_MODE; then
             printf '{"status":"invalid","file":"%s"}\n' "$KNOWLEDGE_FILE"
         else
-            echo "Amendment validation failed"
+            echo "Directives contributions validation failed"
         fi
         exit 1
     fi
@@ -215,53 +310,76 @@ fi
 
 if $AMENDMENT_MODE; then
     if [[ -z "$KNOWLEDGE_FILE" ]]; then
-        echo "ERROR: Must specify knowledge asset file for amendment generation"
+        echo "ERROR: Must specify AI session context file for directives proposals"
         exit 1
     fi
 
-    analysis=$(analyze_constitution_relevance "$KNOWLEDGE_FILE")
-    proposal=$(generate_amendment_proposal "$KNOWLEDGE_FILE" "$analysis")
+    analysis=$(analyze_team_directives_contributions "$KNOWLEDGE_FILE")
+    proposals=$(generate_directives_proposals "$KNOWLEDGE_FILE" "$analysis")
 
     if [[ $? -eq 0 ]]; then
         if $JSON_MODE; then
-            printf '{"status":"proposed","file":"%s","proposal":%s}\n' "$KNOWLEDGE_FILE" "$(echo "$proposal" | jq -R -s .)"
+            printf '{"status":"proposed","file":"%s","proposals":%s}\n' "$KNOWLEDGE_FILE" "$(echo "$proposals" | jq -R -s .)"
         else
-            echo "Constitution Amendment Proposal:"
-            echo "================================="
-            echo "$proposal"
+            echo "Team-AI-Directives Contribution Proposals:"
+            echo "=========================================="
+            echo "$proposals"
             echo ""
-            echo "To apply this amendment, run:"
-            echo "  constitution-amend --file amendment.md"
+            echo "To apply these contributions, run:"
+            echo "  directives-update --file proposals.md"
         fi
     else
         if $JSON_MODE; then
-            printf '{"status":"not_constitution_level","file":"%s"}\n' "$KNOWLEDGE_FILE"
+            printf '{"status":"no_contributions","file":"%s"}\n' "$KNOWLEDGE_FILE"
         else
-            echo "$proposal"
+            echo "$proposals"
         fi
     fi
     exit 0
 fi
 
 # Default: analyze mode
-analysis=$(analyze_constitution_relevance "$KNOWLEDGE_FILE")
+analysis=$(analyze_team_directives_contributions "$KNOWLEDGE_FILE")
 
 if $JSON_MODE; then
-    relevance_score=$(echo "$analysis" | cut -d'|' -f1)
-    matched_keywords=$(echo "$analysis" | cut -d'|' -f2)
-    printf '{"file":"%s","relevance_score":%d,"matched_keywords":"%s"}\n' "$KNOWLEDGE_FILE" "$relevance_score" "$matched_keywords"
+    constitution_score=$(echo "$analysis" | cut -d'|' -f1)
+    rules_score=$(echo "$analysis" | cut -d'|' -f2)
+    personas_score=$(echo "$analysis" | cut -d'|' -f3)
+    examples_score=$(echo "$analysis" | cut -d'|' -f4)
+    printf '{"file":"%s","constitution_score":%d,"rules_score":%d,"personas_score":%d,"examples_score":%d}\n' "$KNOWLEDGE_FILE" "$constitution_score" "$rules_score" "$personas_score" "$examples_score"
 else
-    relevance_score=$(echo "$analysis" | cut -d'|' -f1)
-    matched_keywords=$(echo "$analysis" | cut -d'|' -f2)
+    constitution_score=$(echo "$analysis" | cut -d'|' -f1)
+    rules_score=$(echo "$analysis" | cut -d'|' -f2)
+    personas_score=$(echo "$analysis" | cut -d'|' -f3)
+    examples_score=$(echo "$analysis" | cut -d'|' -f4)
 
-    echo "Constitution Relevance Analysis for: $KNOWLEDGE_FILE"
-    echo "Relevance Score: $relevance_score/10"
-    echo "Matched Keywords: $matched_keywords"
+    echo "Team-AI-Directives Contribution Analysis for: $KNOWLEDGE_FILE"
+    echo "Constitution Score: $constitution_score/10"
+    echo "Rules Score: $rules_score/5"
+    echo "Personas Score: $personas_score/5"
+    echo "Examples Score: $examples_score/5"
 
-    if [[ $relevance_score -ge 3 ]]; then
-        echo "✓ This learning appears constitution-level"
-        echo "Run with --amendment to generate a proposal"
+    local has_contributions=false
+    if [[ $constitution_score -ge 3 ]]; then
+        echo "✓ Constitution contribution potential detected"
+        has_contributions=true
+    fi
+    if [[ $rules_score -ge 2 ]]; then
+        echo "✓ Rules contribution potential detected"
+        has_contributions=true
+    fi
+    if [[ $personas_score -ge 2 ]]; then
+        echo "✓ Personas contribution potential detected"
+        has_contributions=true
+    fi
+    if [[ $examples_score -ge 2 ]]; then
+        echo "✓ Examples contribution potential detected"
+        has_contributions=true
+    fi
+
+    if [[ "$has_contributions" == true ]]; then
+        echo "Run with --amendment to generate contribution proposals"
     else
-        echo "ℹ This learning appears project-level, not constitution-level"
+        echo "ℹ No significant team-ai-directives contributions identified"
     fi
 fi
