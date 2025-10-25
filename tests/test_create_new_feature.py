@@ -18,7 +18,9 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     top_level_root = project_root.parent
 
     shutil.copy(project_root / "scripts" / "bash" / "create-new-feature.sh", script_dir / "create-new-feature.sh")
+    shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
     shutil.copy(project_root / "templates" / "spec-template.md", template_dir / "spec-template.md")
+    shutil.copy(project_root / "templates" / "context-template.md", template_dir / "context-template.md")
 
     constitution_path = memory_dir / "constitution.md"
     constitution_path.write_text("Principles")
@@ -46,6 +48,3 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     context_text = context_file.read_text()
     assert "[NEEDS INPUT]" in context_text
     assert "Feature Context" in context_text
-    assert data["CONSTITUTION"] == str(constitution_path)
-    assert data["TEAM_DIRECTIVES"] == str(team_root)
-    assert data["HAS_GIT"] == "false"

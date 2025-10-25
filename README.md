@@ -26,10 +26,11 @@ The original [github/spec-kit](https://github.com/github/spec-kit) repository fo
 
 - **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
 - **Adding enterprise-grade features** like team AI directives, MCP server integration, and gateway configuration
-- **Enhancing tooling** with advanced CLI options, async agent support, and comprehensive issue tracker integration
+- **Enhancing tooling** with advanced CLI options, async agent support, comprehensive issue tracker integration, and spec-code synchronization
+- **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
 - **Providing organizational templates** and best practices for scaling AI-assisted development across teams
 
-This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development.
+This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
 
 <p align="center">
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
@@ -195,6 +196,16 @@ specify init my-project --async-agent async-copilot
 specify init my-project --async-agent async-codex
 ```
 
+#### Git Platform MCP Configuration
+
+```bash
+# Enable GitHub platform MCP for PR operations
+specify init my-project --git-platform github
+
+# Enable GitLab platform MCP for merge request operations
+specify init my-project --git-platform gitlab
+```
+
 #### Gateway Configuration
 
 ```bash
@@ -225,6 +236,10 @@ specify init my-project --debug
 
 # Use custom GitHub token
 specify init my-project --github-token $GITHUB_TOKEN
+
+# Enable automatic spec-code synchronization
+specify init my-project --spec-sync
+specify init my-project --ai claude --spec-sync
 ```
 
 ### Workflow Mode Management
@@ -391,9 +406,11 @@ The `specify` command supports the following options:
 | `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                               |
 | `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
 | `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
+| `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                     |
 | `--gateway-url`              | Option   | Central LLM gateway URL                                                    |
 | `--gateway-token`             | Option   | Gateway authentication token                                               |
 | `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
+| `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 
 ### `/mode` Arguments & Options
 

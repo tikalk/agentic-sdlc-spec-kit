@@ -186,6 +186,22 @@ ISSUE_TRACKER_CONFIG = {
     },
 }
 
+# Git platform MCP configuration for Git operations (PRs, branches, etc.)
+GIT_PLATFORM_CONFIG = {
+    "github": {
+        "name": "GitHub Platform",
+        "type": "http",
+        "url": "https://api.github.com/mcp/",
+        "description": "Connect to GitHub Platform API for PR creation, branch management, and Git operations",
+    },
+    "gitlab": {
+        "name": "GitLab Platform",
+        "type": "http",
+        "url": "https://gitlab.com/api/v4/mcp/",
+        "description": "Connect to GitLab Platform API for merge request creation, branch management, and Git operations",
+    },
+}
+
 # Agent MCP configuration for async coding agents that support autonomous task execution
 # These agents can receive tasks, execute them asynchronously, and create PRs
 AGENT_MCP_CONFIG = {
@@ -753,6 +769,61 @@ def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_
     with open(mcp_file, 'w') as f:
         json.dump(mcp_data, f, indent=2)
 
+def configure_git_platform_mcp_servers(project_path: Path, git_platform: str, team_directives_path: Path | None = None) -> None:
+    """Configure MCP servers for Git platform integration.
+
+    Creates or updates .mcp.json in the project root with the appropriate
+    MCP server configuration for the selected Git platform (GitHub/GitLab).
+    """
+    import json
+
+    mcp_file = project_path / ".mcp.json"
+    mcp_servers = {}
+
+    # Load existing .mcp.json if it exists
+    if mcp_file.exists():
+        try:
+            with open(mcp_file, 'r') as f:
+                data = json.load(f)
+                mcp_servers = data.get("mcpServers", {})
+        except json.JSONDecodeError:
+            # Reset if corrupted
+            mcp_servers = {}
+
+    # Load template from team directives if available
+    if team_directives_path:
+        template_file = team_directives_path / ".mcp.json"
+        if template_file.exists():
+            try:
+                with open(template_file, 'r') as f:
+                    template_data = json.load(f)
+                    template_servers = template_data.get("mcpServers", {})
+                    # Merge template servers (don't overwrite existing ones)
+                    for name, config in template_servers.items():
+                        if name not in mcp_servers:
+                            mcp_servers[name] = config
+            except json.JSONDecodeError:
+                # Skip template if corrupted
+                pass
+
+    # Get Git platform configuration
+    platform_config = GIT_PLATFORM_CONFIG.get(git_platform)
+    if not platform_config:
+        raise ValueError(f"Unknown Git platform: {git_platform}")
+
+    # Add Git platform server
+    server_name = f"git-platform-{git_platform}"
+    if server_name not in mcp_servers:
+        mcp_servers[server_name] = {
+            "type": platform_config["type"],
+            "url": platform_config["url"]
+        }
+
+    # Write updated configuration
+    mcp_data = {"mcpServers": mcp_servers}
+    with open(mcp_file, 'w') as f:
+        json.dump(mcp_data, f, indent=2)
+
 def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
@@ -1240,6 +1311,7 @@ def init(
     team_ai_directives: str = typer.Option(None, "--team-ai-directives", "--team-ai-directive", help="Clone or reference a team-ai-directives repository during setup"),
     issue_tracker: Optional[str] = typer.Option(None, "--issue-tracker", help="Enable issue tracker MCP integration: github, jira, linear, gitlab"),
     async_agent: Optional[str] = typer.Option(None, "--async-agent", help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex"),
+    git_platform: Optional[str] = typer.Option(None, "--git-platform", help="Enable Git platform MCP integration for PR operations: github, gitlab"),
     gateway_url: str = typer.Option(None, "--gateway-url", help="Populate gateway URL in .specify/config/config.json"),
     gateway_token: str = typer.Option(None, "--gateway-token", help="Populate gateway token in .specify/config/config.json"),
     gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set gateway.suppress_warning=true in config.json"),
@@ -1276,9 +1348,10 @@ def init(
         specify init my-project --team-ai-directives https://github.com/example/team-ai-directives.git
         specify init my-project --issue-tracker github
         specify init my-project --async-agent jules
+        specify init my-project --git-platform github
         specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
         specify init my-project --spec-sync
-        specify init my-project --ai claude --spec-sync --issue-tracker github
+        specify init my-project --ai claude --spec-sync --issue-tracker github --git-platform github
     """
 
     show_banner()
@@ -1505,6 +1578,18 @@ def init(
                     raise
             else:
                 tracker.skip("async-agent-mcp", "not requested")
+
+            # Git Platform MCP configuration step
+            if git_platform:
+                tracker.start("git-platform-mcp", "configuring")
+                try:
+                    configure_git_platform_mcp_servers(project_path, git_platform, resolved_team_directives if team_arg else None)
+                    tracker.complete("git-platform-mcp", "configured")
+                except Exception as e:
+                    tracker.error("git-platform-mcp", str(e))
+                    raise
+            else:
+                tracker.skip("git-platform-mcp", "not requested")
 
             # Spec-code synchronization setup
             if spec_sync:

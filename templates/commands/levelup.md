@@ -14,10 +14,22 @@ User input:
 
 $ARGUMENTS
 
+**MCP Integration Requirements:**
+- This command uses MCP (Model Context Protocol) tools for GitHub/GitLab operations instead of direct CLI commands
+- Requires `.mcp.json` configuration with:
+  - Git platform MCP server (GitHub/GitLab) for PR/merge request operations
+  - Issue tracker MCP server (GitHub/Jira/Linear/GitLab) for issue comment operations
+- Available MCP tools:
+  - `create_pull_request` / `create_merge_request` (from Git platform MCP)
+  - `add_issue_comment` (from issue tracker MCP)
+  - `get_pull_request`, `update_issue`
+- If MCP tools are unavailable, the command will provide drafted content for manual operations
+
 1. Run `{SCRIPT}` from the repo root and parse JSON for `FEATURE_DIR`, `BRANCH`, `SPEC_FILE`, `PLAN_FILE`, `TASKS_FILE`, `RESEARCH_FILE`, `QUICKSTART_FILE`, `KNOWLEDGE_ROOT`, and `KNOWLEDGE_DRAFTS`. All file paths must be absolute.
      - If any of `SPEC_FILE`, `PLAN_FILE`, or `TASKS_FILE` are missing, STOP and instruct the developer to complete Stages 1-3 before leveling up.
      - Before proceeding, analyze `TASKS_FILE` and confirm **all tasks are marked `[X]`** and no execution status indicates `[IN PROGRESS]`, `[BLOCKED]`, or other incomplete markers. If any tasks remain open or unchecked, STOP and instruct the developer to finish `/implement` first.
      - If `KNOWLEDGE_ROOT` or `KNOWLEDGE_DRAFTS` are empty, STOP and direct the developer to rerun `specify init --team-ai-directive ...` so the shared directives repository is cloned locally.
+     - **Check MCP configuration**: Verify `.mcp.json` exists with both Git platform MCP server (GitHub/GitLab for PR operations) and issue tracker MCP server (GitHub/Jira/Linear/GitLab for issue comments) configured. MCP tools will be used for GitHub/GitLab integration instead of direct CLI commands.
 
 2. Load the implementation artifacts:
      - Read `SPEC_FILE` (feature intent and acceptance criteria).
@@ -75,14 +87,19 @@ $ARGUMENTS
      - Move/copy the context packet from `KNOWLEDGE_DRAFTS/{slug}.md` into a permanent path (e.g., `context/{slug}.md`) inside `KNOWLEDGE_ROOT`.
      - If team-ai-directives contributions were proposed and approved: create/update the relevant component files (rules, constitution, personas, examples).
      - Run `git add` for the new/updated files and commit with a message like `Add AI session context for {BRANCH}`.
-     - If the repository has a configured `origin` remote and the `gh` CLI is available:
+     - If the repository has a configured `origin` remote:
          - Push the branch: `git push -u origin levelup/{slug}`
-         - Create a pull request via `gh pr create` populated with the drafted description (fall back to printing the command if `gh` is unavailable).
-     - If an issue identifier was provided, attempt to post the comprehensive session comment via `gh issue comment`; otherwise, print the comment text for manual posting.
-     - Report the exact commands executed and surface any failures so the developer can intervene manually.
+         - Use Git platform MCP tools to create a pull request:
+           - Call `create_pull_request` (GitHub) or `create_merge_request` (GitLab) tool with title "Add AI session context for {BRANCH}", body containing the drafted description, source branch "levelup/{slug}", target branch "main"
+           - If Git platform MCP tools are unavailable, provide the drafted PR description for manual creation.
+     - If an issue identifier was provided, use issue tracker MCP tools to post the comprehensive session comment:
+           - Call `add_issue_comment` tool with the issue ID and the drafted session summary
+           - If issue tracker MCP tools are unavailable, provide the drafted comment text for manual posting.
+     - Report the exact operations performed and surface any MCP tool failures so the developer can intervene manually.
 
 8. Summarize final status, including:
      - AI session context packet path and commit SHA (if created).
      - Team-ai-directives contributions status (rules, constitution, personas, examples).
-     - Pull request URL or instructions for manual creation.
-     - Issue tracker comment status or manual instructions.
+     - Pull request URL (from MCP) or instructions for manual creation.
+     - Issue tracker comment status (from MCP) or manual instructions.
+     - MCP tool execution status and any failures encountered.

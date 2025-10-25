@@ -115,6 +115,7 @@ check_existing_branches() {
 # to searching for repository markers so the workflow still functions in repositories that
 # were initialised with --no-git.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
     REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -246,6 +247,10 @@ mkdir -p "$FEATURE_DIR"
 TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+
+CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
+CONTEXT_FILE="$FEATURE_DIR/context.md"
+if [ -f "$CONTEXT_TEMPLATE" ]; then cp "$CONTEXT_TEMPLATE" "$CONTEXT_FILE"; else touch "$CONTEXT_FILE"; fi
 
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"
