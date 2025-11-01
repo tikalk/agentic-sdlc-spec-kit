@@ -175,6 +175,13 @@
 - ❌ **Layout Validation**: Consistency checking across team repositories
 - ❌ **Template Enforcement**: Standardized repository organization
 
+#### **Team Directives Directory Restructuring** *(0% Complete)* - **MEDIUM PRIORITY**
+
+- ❌ **Separate Cloning Location**: Move `--team-ai-directive` cloning from `.specify/` to dedicated `.team-directives/` directory to prevent repository mixture
+- ❌ **Directory Isolation**: Maintain clean separation between project scaffolding and team governance repositories
+- ❌ **Migration Support**: Provide migration utilities for existing projects with directives in `.specify/`
+- ❌ **Path Resolution Updates**: Update all team directive path resolution logic to use new directory structure
+
 #### **Spec Management & Cleanup** *(0% Complete)* - **MEDIUM PRIORITY**
 
 - ❌ **Spec Deletion Command**: `/delete-spec` command to safely remove spec with all associated files (spec.md, plan.md, tasks.md, context.md, feature branches)
@@ -202,11 +209,26 @@
 - ❌ **Lifecycle Trace Updates**: Automatic issue status updates during development lifecycle
 
 #### **Issue Tracker Labeling** *(0% Complete)* - **FUTURE ENHANCEMENT**
-
 - ❌ **Issue Label Application**: `apply_issue_labels()` for `async-ready` and `agent-delegatable` labels
 - ❌ **Spec vs Task Complexity**: Handle original spec issues vs. generated implementation tasks
 - ❌ **External Agent Integration**: Enable monitoring systems to pick up labeled issues
 - ❌ **Workflow Compatibility**: Ensure compatibility with natural language delegation approach
+
+#### **Agent-Optimized Testing Infrastructure** *(0% Complete)* - **MEDIUM PRIORITY**
+- ❌ **Selective Test Execution**: Enable agents to run targeted test subsets during development (pytest integration)
+- ❌ **Interactive Testing Support**: Development server startup guides and Playwright/curl integration for real-time testing
+- ❌ **Enhanced Error Messages**: Rich assertion failures with contextual debugging information for agent comprehension
+- ❌ **Test Suite Optimization**: Agent-friendly test organization and execution patterns
+
+#### **GitHub Issues Integration Enhancement** *(0% Complete)* - **MEDIUM PRIORITY**
+- ❌ **Direct Issue URL Processing**: Seamless integration of GitHub issue URLs into agent context
+- ❌ **Issue-Driven Development**: Enhanced workflow for issue-to-spec conversion and tracking
+- ❌ **Context Preservation**: Maintain issue relationships throughout development lifecycle
+
+#### **Code Quality Automation** *(0% Complete)* - **LOW PRIORITY**
+- ❌ **Agent-Driven Linting**: Automated code quality checks with agent-executable linters and formatters
+- ❌ **Type Checking Integration**: Real-time type validation during agent code generation
+- ❌ **Quality Gate Automation**: Pre-commit hooks for agent-generated code validation
 
 ---
 
@@ -231,6 +253,9 @@
 | **Enhanced Traceability** | 100% | ✅ Complete |
 | **Strategic Tooling** | 100% | 🔄 Current Phase |
 | **Spec Management** | 0% | 🔄 Current Phase |
+| **Agent Testing Infrastructure** | 0% | 🆕 Future Phase |
+| **GitHub Issues Enhancement** | 0% | 🆕 Future Phase |
+| **Code Quality Automation** | 0% | 🆕 Future Phase |
 | **Advanced MCP** | 0% | 🆕 Future Phase |
 | **IDE Integration** | 0% | 🆕 Future Phase |
 | **Evaluation Suite** | 0% | 🆕 Future Phase |
@@ -263,8 +288,11 @@
 3. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
-9. **LOW**: Feature-level mode configuration (0% → future consideration)
-10. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
+9. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+10. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+11. **LOW**: Code quality automation (0% → future consideration)
+12. **LOW**: Feature-level mode configuration (0% → future consideration)
+13. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
 
 ### **Implementation Timeline**
 
