@@ -136,7 +136,7 @@ Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.c
 
 | Agent                                                     | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
-| [Qoder CLI](https://docs.qoder.com/cli)                   | ✅ |                                                   |
+| [Qoder CLI](https://qoder.com/cli)                        | ✅ |                                                   |
 | [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
 | [GitHub Copilot](https://code.visualstudio.com/)          | ✅ |                                                   |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli) | ✅ |                                                   |
