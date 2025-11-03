@@ -161,7 +161,7 @@ The `specify` command supports the following options:
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
-| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`) |
+| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `qoder`) |
 
 ### `specify init` Arguments & Options
 
@@ -190,14 +190,14 @@ specify init my-project --ai claude
 # Initialize with Cursor support
 specify init my-project --ai cursor-agent
 
+# Initialize with Qoder support
+specify init my-project --ai qoder
+
 # Initialize with Windsurf support
 specify init my-project --ai windsurf
 
 # Initialize with Amp support
 specify init my-project --ai amp
-
-# Initialize with Qoder support
-specify init my-project --ai qoder
 
 # Initialize with PowerShell scripts (Windows/cross-platform)
 specify init my-project --ai copilot --script ps
