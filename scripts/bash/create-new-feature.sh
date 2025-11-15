@@ -292,21 +292,107 @@ mkdir -p "$FEATURE_DIR"
 MODE_FILE="$REPO_ROOT/.specify/config/config.json"
 CURRENT_MODE="spec"
 if [ -f "$MODE_FILE" ]; then
-    CURRENT_MODE=$(grep -o '"current_mode"[[:space:]]*:[[:space:]]*"[^"]*"' "$MODE_FILE" | cut -d'"' -f4 || echo "spec")
+    CURRENT_MODE=$(python3 -c "
+import json
+try:
+    with open('$MODE_FILE', 'r') as f:
+        data = json.load(f)
+    print(data.get('workflow', {}).get('current_mode', 'spec'))
+except:
+    print('spec')
+" 2>/dev/null || echo "spec")
 fi
-
-# Select template based on mode
 if [ "$CURRENT_MODE" = "build" ]; then
-    TEMPLATE="$REPO_ROOT/.specify/templates/spec-template-build.md"
+    TEMPLATE="$REPO_ROOT/templates/spec-template-build.md"
 else
-    TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
+    TEMPLATE="$REPO_ROOT/templates/spec-template.md"
 fi
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
-CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
+CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
-if [ -f "$CONTEXT_TEMPLATE" ]; then cp "$CONTEXT_TEMPLATE" "$CONTEXT_FILE"; else touch "$CONTEXT_FILE"; fi
+
+# Function to populate context.md with intelligent defaults (mode-aware)
+populate_context_file() {
+    local context_file="$1"
+    local feature_name="$2"
+    local feature_description="$3"
+    local mode="$4"
+
+    # Extract feature title (first line or first sentence)
+    local feature_title=$(echo "$feature_description" | head -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
+
+    # Extract mission (first sentence, limited to reasonable length)
+    local mission=$(echo "$feature_description" | grep -o '^[[:print:]]*[.!?]' | head -1 | sed 's/[.!?]$//')
+    if [ -z "$mission" ]; then
+        mission="$feature_description"
+    fi
+    # Limit mission length for readability
+    if [ ${#mission} -gt 200 ]; then
+        mission=$(echo "$mission" | cut -c1-200 | sed 's/[[:space:]]*$//' | sed 's/[[:space:]]*$/.../')
+    fi
+
+    # Mode-aware field population
+    if [ "$mode" = "build" ]; then
+        # Build mode: Minimal context, focus on core functionality
+        local code_paths="To be determined during implementation"
+        local directives="None (build mode)"
+        local research="Minimal research needed for lightweight implementation"
+        local gateway="None (build mode)"
+    else
+        # Spec mode: Comprehensive context for full specification
+        # Detect code paths (basic detection based on common patterns)
+        local code_paths="To be determined during planning phase"
+        if echo "$feature_description" | grep -qi "api\|endpoint\|service"; then
+            code_paths="api/, services/"
+        elif echo "$feature_description" | grep -qi "ui\|frontend\|component"; then
+            code_paths="src/components/, src/pages/"
+        elif echo "$feature_description" | grep -qi "database\|data\|model"; then
+            code_paths="src/models/, database/"
+        fi
+
+        # Read team directives if available
+        local directives="None"
+        local team_directives_file="$REPO_ROOT/.specify/memory/team-ai-directives/directives.md"
+        if [ -f "$team_directives_file" ]; then
+            directives="See team-ai-directives repository for applicable guidelines"
+        fi
+
+        # Set research needs
+        local research="To be identified during specification and planning phases"
+
+        # Read gateway configuration if available
+        local gateway="None"
+        local config_file="$REPO_ROOT/.specify/config/config.json"
+        if [ -f "$config_file" ]; then
+            local gateway_url=$(grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' "$config_file" 2>/dev/null | cut -d'"' -f4)
+            if [ -n "$gateway_url" ]; then
+                gateway="$gateway_url"
+            fi
+        fi
+    fi
+
+    # Create context.md with populated values
+    cat > "$context_file" << EOF
+# Feature Context
+
+**Feature**: $feature_title
+**Mission**: $mission
+**Code Paths**: $code_paths
+**Directives**: $directives
+**Research**: $research
+**Gateway**: $gateway
+
+EOF
+}
+
+# Populate context.md with intelligent defaults
+if [ -f "$CONTEXT_TEMPLATE" ]; then
+    populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION" "$CURRENT_MODE"
+else
+    touch "$CONTEXT_FILE"
+fi
 
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"

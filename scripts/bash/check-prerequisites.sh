@@ -224,7 +224,7 @@ fi
 # Check for plan.md (required in spec mode, optional in build mode)
 if [[ ! -f "$IMPL_PLAN" ]]; then
     # Get current mode to determine if plan.md is required
-    local current_mode="spec"
+    current_mode="spec"
     if [[ -f ".specify/config/config.json" ]]; then
         current_mode=$(python3 -c "
 import json

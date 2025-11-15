@@ -315,15 +315,107 @@ if (Test-Path $modeFile) {
 
 # Select template based on mode
 if ($currentMode -eq "build") {
-    $template = Join-Path $repoRoot '.specify/templates/spec-template-build.md'
+    $template = Join-Path $repoRoot 'templates/spec-template-build.md'
 } else {
-    $template = Join-Path $repoRoot '.specify/templates/spec-template.md'
+    $template = Join-Path $repoRoot 'templates/spec-template.md'
 }
 $specFile = Join-Path $featureDir 'spec.md'
-if (Test-Path $template) { 
-    Copy-Item $template $specFile -Force 
-} else { 
-    New-Item -ItemType File -Path $specFile | Out-Null 
+if (Test-Path $template) {
+    Copy-Item $template $specFile -Force
+} else {
+    New-Item -ItemType File -Path $specFile | Out-Null
+}
+
+# Function to populate context.md with intelligent defaults (mode-aware)
+function Populate-ContextFile {
+    param(
+        [string]$ContextFile,
+        [string]$FeatureName,
+        [string]$FeatureDescription,
+        [string]$Mode
+    )
+
+    # Extract feature title (first line or first sentence)
+    $featureTitle = ($featureDescription -split "`n")[0].Trim()
+
+    # Extract mission (first sentence, limited to reasonable length)
+    $mission = ($featureDescription -split '[.!?]')[0]
+    if (-not $mission) {
+        $mission = $featureDescription
+    }
+    # Limit mission length for readability
+    if ($mission.Length -gt 200) {
+        $mission = $mission.Substring(0, 200).TrimEnd() + "..."
+    }
+
+    # Mode-aware field population
+    if ($Mode -eq "build") {
+        # Build mode: Minimal context, focus on core functionality
+        $codePaths = "To be determined during implementation"
+        $directives = "None (build mode)"
+        $research = "Minimal research needed for lightweight implementation"
+        $gateway = "None (build mode)"
+    } else {
+        # Spec mode: Comprehensive context for full specification
+        # Detect code paths (basic detection based on common patterns)
+        $codePaths = "To be determined during planning phase"
+        if ($featureDescription -match "(?i)api|endpoint|service") {
+            $codePaths = "api/, services/"
+        } elseif ($featureDescription -match "(?i)ui|frontend|component") {
+            $codePaths = "src/components/, src/pages/"
+        } elseif ($featureDescription -match "(?i)database|data|model") {
+            $codePaths = "src/models/, database/"
+        }
+
+        # Read team directives if available
+        $directives = "None"
+        $teamDirectivesFile = Join-Path $repoRoot '.specify/memory/team-ai-directives/directives.md'
+        if (Test-Path $teamDirectivesFile) {
+            $directives = "See team-ai-directives repository for applicable guidelines"
+        }
+
+        # Set research needs
+        $research = "To be identified during specification and planning phases"
+
+        # Read gateway configuration if available
+        $gateway = "None"
+        $configFile = Join-Path $repoRoot '.specify/config/config.json'
+        if (Test-Path $configFile) {
+            try {
+                $config = Get-Content $configFile -Raw | ConvertFrom-Json
+                if ($config.gateway -and $config.gateway.url) {
+                    $gateway = $config.gateway.url
+                }
+            } catch {
+                # Fall back to None if JSON parsing fails
+                $gateway = "None"
+            }
+        }
+    }
+
+    # Create context.md with populated values
+    $contextContent = @"
+# Feature Context
+
+**Feature**: $featureTitle
+**Mission**: $mission
+**Code Paths**: $codePaths
+**Directives**: $directives
+**Research**: $research
+**Gateway**: $gateway
+
+"@
+
+    $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
+}
+
+# Populate context.md with intelligent defaults
+$contextTemplate = Join-Path $repoRoot 'templates/context-template.md'
+$contextFile = Join-Path $featureDir 'context.md'
+if (Test-Path $contextTemplate) {
+    Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription -Mode $currentMode
+} else {
+    New-Item -ItemType File -Path $contextFile | Out-Null
 }
 
 # Set the SPECIFY_FEATURE environment variable for the current session

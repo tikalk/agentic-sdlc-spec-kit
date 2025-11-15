@@ -229,9 +229,22 @@ Given that feature description, do this:
      - **Detailed Validation**: Check all requirement quality dimensions
      - **Success Criteria**: All requirements are clear, complete, and testable
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
-    - **Build Mode**: Ready for `/speckit.implement` (skip clarify/plan for lightweight execution)
-    - **Spec Mode**: Ready for `/speckit.clarify` or `/speckit.plan`
+ 7. **Context Population** (mode-aware):
+     - **Read the generated spec.md** and extract key information
+     - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
+       - **Feature**: Use the feature title/name from spec.md header
+       - **Mission**: Extract the core purpose/goal from the feature description
+       - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
+       - **Directives**: Reference applicable team directives from constitution/memory
+       - **Research**: List any external research needs identified during specification
+       - **Gateway**: Specify API gateway/service mesh requirements if applicable
+     - **Build Mode**: Populate Feature and Mission (minimum required)
+     - **Spec Mode**: Populate all 6 fields with detailed, accurate values
+     - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
+
+ 8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
+     - **Build Mode**: Ready for `/speckit.implement` (skip clarify/plan for lightweight execution)
+     - **Spec Mode**: Ready for `/speckit.clarify` or `/speckit.plan`
 
 8. **Mode Guidance & Transitions**:
     - **Build Mode Users**: This mode prioritizes speed over completeness. If your feature becomes more complex, consider switching to Spec mode with `/mode spec` for comprehensive planning.
