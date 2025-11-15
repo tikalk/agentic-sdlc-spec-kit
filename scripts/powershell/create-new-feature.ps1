@@ -298,7 +298,27 @@ if ($hasGit) {
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
-$template = Join-Path $repoRoot '.specify/templates/spec-template.md'
+# Mode-aware template selection
+$modeFile = Join-Path $repoRoot '.specify/config/config.json'
+$currentMode = "spec"
+if (Test-Path $modeFile) {
+    try {
+        $config = Get-Content $modeFile -Raw | ConvertFrom-Json
+        if ($config.PSObject.Properties['current_mode']) {
+            $currentMode = $config.current_mode
+        }
+    } catch {
+        # Fall back to default if JSON parsing fails
+        $currentMode = "spec"
+    }
+}
+
+# Select template based on mode
+if ($currentMode -eq "build") {
+    $template = Join-Path $repoRoot '.specify/templates/spec-template-build.md'
+} else {
+    $template = Join-Path $repoRoot '.specify/templates/spec-template.md'
+}
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) { 
     Copy-Item $template $specFile -Force 

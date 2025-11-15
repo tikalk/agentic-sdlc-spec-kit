@@ -94,37 +94,6 @@
 - ✅ **Factor VI-VIII (Governance)**: Great filter, quality gates, and risk-based testing implemented
 - ✅ **Factor IX-XII (Team Capability)**: Traceability, tooling, directives as code, and team learning supported
 
----
-
-## 🔄 **CURRENT PHASE** (In Progress - Complete After Next Phase)
-
-### **Enhanced Traceability Framework** *(100% Complete)* - **MEDIUM PRIORITY** - Core 12F Factor IX implementation
-
-- ✅ **MCP Configuration Foundation**: Issue tracker integration ready (GitHub/Jira/Linear/GitLab)
-- ✅ **@issue-tracker Prompt Parsing**: Automatic trace detection from `@issue-tracker ISSUE-123` syntax in command prompts
-- ✅ **Automatic Trace Creation**: Spec-issue links created automatically when issues referenced in `/specify` and other commands
-- ✅ **Smart Trace Validation**: Enhanced `/analyze` detects missing traces and suggests automatic linking
-
-#### **Strategic Tooling Improvements** *(100% Complete)* - **MEDIUM PRIORITY**
-
-- ✅ **Gateway Health Checks**: Basic framework established
-- ✅ **Tool Selection Guidance**: Implementation in CLI and scripts
-- ✅ **Config Consolidation**: Consolidate all `.specify/config/` files into a single unified configuration file to reduce complexity and improve maintainability
-
-#### **SDD Workflow Flexibility & Optimization** *(~90% Complete)* - **MEDIUM PRIORITY** - Core workflow Factors III-V alignment
-
-- ✅ **Basic Workflow Foundation**: 5-stage process documented
-- ✅ **Example Implementations**: Working feature examples in 12-factors specs/ directory
-- ✅ **SYNC/ASYNC Triage**: Classification framework implemented
-- ✅ **Mode Switching Command**: `/mode` command for workflow mode management - fully implemented
-- ✅ **Iterative Spec Development**: Implemented via `/clarify` command (incremental spec refinement with targeted questions)
-- ✅ **Enhanced Spec Review UX**: Implemented via `/analyze` (cross-artifact consistency analysis) and `/checklist` (requirements quality validation with mode-aware framework option checking)
-- ✅ **Git-Based Workflow**: Branch isolation, version control, and rollback already working
-
----
-
-## 🚀 **NEXT PHASE** (Immediate Priority - Complete Within 2-3 Months)
-
 ### **Iterative Development Support** *(100% Complete)* - **HIGH PRIORITY** - Addresses anti-iterative critique
 
 - ✅ **Git-Managed Documentation**: Specs stored in `specs/[feature-name]/` directories with full version control
@@ -151,7 +120,90 @@
 - ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional
 - ✅ **User-Driven Defaults**: Users can override mode defaults with custom settings
 
-#### **Command Prefix Migration** *(0% Complete)* - **HIGH PRIORITY** - Fork differentiation and user experience
+---
+
+## 🔄 **CURRENT PHASE** (Complete After Next Phase)
+
+### **Enhanced Traceability Framework** *(100% Complete)* - **MEDIUM PRIORITY** - Core 12F Factor IX implementation
+
+- ✅ **MCP Configuration Foundation**: Issue tracker integration ready (GitHub/Jira/Linear/GitLab)
+- ✅ **@issue-tracker Prompt Parsing**: Automatic trace detection from `@issue-tracker ISSUE-123` syntax in command prompts
+- ✅ **Automatic Trace Creation**: Spec-issue links created automatically when issues referenced in `/specify` and other commands
+- ✅ **Smart Trace Validation**: Enhanced `/analyze` detects missing traces and suggests automatic linking
+- ✅ **Task-to-Issues Command**: `/taskstoissues` command converts existing tasks into GitHub/Jira/Linear/GitLab issues with dependency ordering
+
+#### **Strategic Tooling Improvements** *(90% Complete)* - **MEDIUM PRIORITY**
+
+- ✅ **Gateway Health Checks**: Basic framework established
+- ✅ **Tool Selection Guidance**: Implementation in CLI and scripts
+- ✅ **Config Consolidation**: Consolidate all `.specify/config/` files into a single unified configuration file to reduce complexity and improve maintainability
+- ❌ **Gateway Config File Support**: Extend gateway configuration to support agents requiring baseURL in config files (opencode, others) in addition to environment variables
+
+#### **Persistent Issue ID Storage Enhancement** *(0% Complete)* - **HIGH PRIORITY** - Issue-tracker-first workflow improvement
+
+- ❌ **Add --issue Parameter to Specify**: Implement `--issue ISSUE-ID` parameter for specify command to fetch issue data from configured tracker
+- ❌ **Store Issue Context Persistently**: Save issue ID, tracker type, and metadata in context.md for automatic propagation
+- ❌ **Automatic Issue Propagation**: Subsequent commands (/clarify, /plan, /tasks, /analyze, /levelup) automatically use stored issue context
+- ❌ **Dynamic MCP Tool Resolution**: Use declarative tools pattern with configuration-driven tool selection based on detected issue tracker
+- ❌ **Multi-Tracker Support**: Support GitHub/Jira/Linear/GitLab issue formats with appropriate MCP tool routing
+
+#### **Context.md Population Bug Fix** *(0% Complete)* - **HIGH PRIORITY** - Critical workflow blocker
+
+- ❌ **Modify Specify Command Context Generation**: Update `/specify` command to populate `context.md` with derived values instead of `[NEEDS INPUT]` placeholders
+- ❌ **Context Field Population**: Generate Feature, Mission, Code Paths, Directives, Research, and Gateway fields from feature description and project context
+- ❌ **Mode-Aware Context**: Implement for both build and spec modes as integral part of specify command
+- ❌ **Validation Compliance**: Ensure populated context.md passes `check-prerequisites.sh` validation requirements
+
+#### **Levelup Command Build Mode Compatibility** *(0% Complete)* - **HIGH PRIORITY** - AI session context management blocker
+
+- ❌ **Make Levelup Mode-Aware**: Update `/levelup` command to work in both build and spec modes
+- ❌ **Build Mode Levelup Path**: Adapt levelup for build mode (only requires spec.md, skip plan.md/tasks.md validation)
+- ❌ **Spec Mode Levelup Path**: Maintain current comprehensive levelup for spec mode (requires all artifacts + task completion)
+- ❌ **Context Packet Adaptation**: Create appropriate AI session context packets for each mode's workflow patterns
+- ❌ **Test Both Mode Levelups**: Verify levelup works in build mode and maintains full functionality in spec mode
+
+#### **Build Mode Workflow Bug Fix** *(0% Complete)* - **HIGH PRIORITY** - Critical workflow blocker
+
+- ❌ **Fix Build Mode specify→implement Flow**: Implement command requires tasks.md but build mode skips plan/tasks phases
+- ❌ **Mode-Aware Task Validation**: Skip --require-tasks in build mode to enable lightweight specify→implement workflow
+- ❌ **Update implement.md Template**: Add build mode execution path that works without tasks.md
+- ❌ **Test Build Mode Workflow**: Verify specify → implement works in build mode without tasks.md
+
+#### **Async Task Context Delivery Architecture** *(0% Complete)* - **CRITICAL PRIORITY** - Makes async functionality non-functional
+
+- ❌ **MCP Task Submission Protocol**: Define standard MCP tools for async task submission (submit_task, check_status, get_result)
+- ❌ **Remote Context Delivery Mechanism**: Implement file upload, URL references, or embedded payload for spec content delivery to remote MCP servers
+- ❌ **Repository Context Provision**: Provide repository URL, branch, and authentication for remote agents to access committed specs
+- ❌ **Webhook/Callback Integration**: Establish completion notification and result retrieval from remote async agents
+- ❌ **Agent-Specific MCP Tool Implementation**: Custom MCP tool implementations for jules, async-copilot, async-codex
+
+#### **Multi-Tracker Task-to-Issues Extension** *(0% Complete)* - **MEDIUM PRIORITY** - Enhanced traceability
+
+- ❌ **Extend taskstoissues Command**: Update `/taskstoissues` command to support Jira/Linear/GitLab in addition to GitHub
+- ❌ **Dynamic Tracker Detection**: Add logic to detect configured issue tracker from `.mcp.json`
+- ❌ **Tracker-Specific MCP Tools**: Implement tracker-specific issue creation logic for each platform
+- ❌ **URL Validation Updates**: Update remote URL validation for different tracker types (Git-based vs non-Git-based)
+
+#### **Unified Spec Template Implementation** *(100% Complete)* - **MEDIUM PRIORITY** - Template maintenance reduction
+
+- ✅ **Mode-Aware Template Selection**: Implemented automatic template selection based on workflow mode (build vs spec)
+- ✅ **Script-Based Mode Detection**: Added mode detection logic to create-new-feature.sh and create-new-feature.ps1 scripts
+- ✅ **Template Selection Logic**: Build mode uses spec-template-build.md, spec mode uses spec-template.md
+- ✅ **Minimal Conflict Surface**: Changes isolated to fork-specific scripts, templates remain upstream-compatible
+- ✅ **Maintained Template Separation**: Analysis showed only 15-20% content overlap, separate templates remain optimal
+
+#### **Spec Management & Cleanup** *(0% Complete)* - **MEDIUM PRIORITY**
+
+- ❌ **Spec Deletion Command**: `/delete-spec` command to safely remove spec with all associated files (spec.md, plan.md, tasks.md, context.md, feature branches)
+- ❌ **Dependency Validation**: Check for dependent artifacts before deletion
+- ❌ **Archive Option**: Optional archiving instead of permanent deletion
+- ❌ **Cleanup Verification**: Confirm all related files and branches are removed
+
+---
+
+## 🚀 **NEXT PHASE** (Immediate Priority)
+
+#### **Command Prefix Migration** *(0% Complete)* - **CRITICAL PRIORITY** - Fork differentiation and user experience
 
 - ❌ **Prefix Change Implementation**: Migrate from `/speckit.*` to `/agenticsdlc.*` commands for clear fork identification
 - ❌ **Documentation Updates**: Update all references in README.md, docs, and templates (100+ instances)
@@ -182,12 +234,7 @@
 - ❌ **Migration Support**: Provide migration utilities for existing projects with directives in `.specify/`
 - ❌ **Path Resolution Updates**: Update all team directive path resolution logic to use new directory structure
 
-#### **Spec Management & Cleanup** *(0% Complete)* - **MEDIUM PRIORITY**
 
-- ❌ **Spec Deletion Command**: `/delete-spec` command to safely remove spec with all associated files (spec.md, plan.md, tasks.md, context.md, feature branches)
-- ❌ **Dependency Validation**: Check for dependent artifacts before deletion
-- ❌ **Archive Option**: Optional archiving instead of permanent deletion
-- ❌ **Cleanup Verification**: Confirm all related files and branches are removed
 
 #### **Feature-Level Mode Configuration** *(0% Complete)* - **FUTURE ENHANCEMENT**
 
@@ -252,10 +299,13 @@
 | **Risk-Based Testing** | 100% | ✅ Complete |
 | **12-Factor Alignment** | 100% | ✅ Complete |
 | **Command Prefix Migration** | 0% | 🚀 Next Phase |
-| **Iterative Development** | 100% | 🚀 Next Phase |
+| **Iterative Development** | 100% | ✅ Complete |
 
 | **Enhanced Traceability** | 100% | ✅ Complete |
-| **Strategic Tooling** | 100% | 🔄 Current Phase |
+| **Multi-Tracker Task-to-Issues** | 0% | 🔄 Current Phase |
+| **Strategic Tooling** | 90% | 🔄 Current Phase |
+| **Build Mode Bug Fix** | 0% | 🔄 Current Phase |
+| **Async Context Delivery** | 0% | 🔄 Current Phase |
 | **Spec Management** | 0% | 🔄 Current Phase |
 | **Agent Testing Infrastructure** | 0% | 🆕 Future Phase |
 | **GitHub Issues Enhancement** | 0% | 🆕 Future Phase |
@@ -275,7 +325,7 @@
 - **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, completed mode switching with auto-detection, and mode-aware checklist validation)
 - **Complexity Solutions**: ~100% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable options - HIGH PRIORITY response to user feedback)
 - **Next Phase Priorities**: 1 CRITICAL priority feature (command prefix migration) - **IMMEDIATE FOCUS**
-- **Current Phase Priorities**: 3 MEDIUM priority features (traceability, tooling, spec management) - **SECONDARY FOCUS**
+- **Current Phase Priorities**: 1 CRITICAL priority feature (async context delivery) + 4 HIGH priority features (workflow blockers) + 4 MEDIUM priority features - **SECONDARY FOCUS**
 - **Future Enhancements**: 0% Complete (minimal enterprise features only)
 - **Deferred Features**: IDE Integration & overkill enhancements (removed to maintain focus)
 
@@ -283,13 +333,20 @@
 
 ## 🎯 **PRIORITY RANKING** - Refined based on user impact and breaking changes
 
-**🚀 NEXT PHASE (Immediate - Complete Within 2-3 Months):**
+**🚀 NEXT PHASE (Immediate):**
 
 1. **CRITICAL**: Command prefix migration (0% → 100%) - **BREAKING CHANGE** - Immediate user impact, fork differentiation
 
 **🔄 CURRENT PHASE (Complete After Next Phase):**
-2. **MEDIUM**: Strategic tooling improvements (100% → 100%) - Tool health, guidance, and config consolidation
-3. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
+2. **CRITICAL**: Async task context delivery architecture (0% → 100%) - Makes async functionality completely non-functional
+3. **HIGH**: Context.md population bug fix (0% → 100%) - Critical workflow blocker preventing specify→implement flow
+4. **HIGH**: Build mode workflow bug fix (0% → 100%) - Critical workflow blocker preventing build mode usage
+5. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker
+6. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
+7. **MEDIUM**: Strategic tooling improvements (90% → 100%) - Tool health, guidance, and config consolidation
+8. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
+9. **MEDIUM**: Unified spec template implementation (100% → 100%) - Template maintenance reduction
+10. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
 9. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
@@ -298,22 +355,4 @@
 12. **LOW**: Feature-level mode configuration (0% → future consideration)
 13. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
 
-### **Implementation Timeline**
 
-**🚀 NEXT PHASE (Immediate - Complete Within 2-3 Months):**
-
-- **Command Prefix Migration** (CRITICAL - Start Immediately):
-  - Phase 1 (1 week): Update release script and core command generation
-  - Phase 2 (2 weeks): Update all documentation references (README, docs, templates)
-  - Phase 3 (1 week): Implement dual prefix support and migration guide
-
-**🔄 CURRENT PHASE (Complete After Next Phase):**
-
-- **Strategic Tooling Improvements** (MEDIUM PRIORITY):
-  - Phase 1 (2 weeks): Config consolidation - merge mode.json, spec-sync-enabled, spec-sync-queue.json, and gateway.env into single config.json
-  - Phase 2 (2 weeks): Performance monitoring implementation
-  - Phase 3 (2 weeks): Cost tracking and resource analytics
-
-- **Spec Management & Cleanup** (MEDIUM PRIORITY):
-  - Phase 1 (2 weeks): `/delete-spec` command infrastructure with dependency validation
-  - Phase 2 (1 week): Archive option and cleanup verification

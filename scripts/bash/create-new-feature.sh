@@ -288,7 +288,19 @@ fi
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
 mkdir -p "$FEATURE_DIR"
 
-TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
+# Mode-aware template selection
+MODE_FILE="$REPO_ROOT/.specify/config/config.json"
+CURRENT_MODE="spec"
+if [ -f "$MODE_FILE" ]; then
+    CURRENT_MODE=$(grep -o '"current_mode"[[:space:]]*:[[:space:]]*"[^"]*"' "$MODE_FILE" | cut -d'"' -f4 || echo "spec")
+fi
+
+# Select template based on mode
+if [ "$CURRENT_MODE" = "build" ]; then
+    TEMPLATE="$REPO_ROOT/.specify/templates/spec-template-build.md"
+else
+    TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
+fi
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
