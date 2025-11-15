@@ -132,12 +132,11 @@
 - ✅ **Smart Trace Validation**: Enhanced `/analyze` detects missing traces and suggests automatic linking
 - ✅ **Task-to-Issues Command**: `/taskstoissues` command converts existing tasks into GitHub/Jira/Linear/GitLab issues with dependency ordering
 
-#### **Strategic Tooling Improvements** *(90% Complete)* - **MEDIUM PRIORITY**
+#### **Strategic Tooling Improvements** *(100% Complete)* - **MEDIUM PRIORITY**
 
 - ✅ **Gateway Health Checks**: Basic framework established
 - ✅ **Tool Selection Guidance**: Implementation in CLI and scripts
 - ✅ **Config Consolidation**: Consolidate all `.specify/config/` files into a single unified configuration file to reduce complexity and improve maintainability
-- ❌ **Gateway Config File Support**: Extend gateway configuration to support agents requiring baseURL in config files (opencode, others) in addition to environment variables
 
 #### **Persistent Issue ID Storage Enhancement** *(0% Complete)* - **HIGH PRIORITY** - Issue-tracker-first workflow improvement
 
@@ -303,7 +302,7 @@
 
 | **Enhanced Traceability** | 100% | ✅ Complete |
 | **Multi-Tracker Task-to-Issues** | 0% | 🔄 Current Phase |
-| **Strategic Tooling** | 90% | 🔄 Current Phase |
+| **Strategic Tooling** | 100% | ✅ Complete |
 | **Build Mode Bug Fix** | 0% | 🔄 Current Phase |
 | **Async Context Delivery** | 0% | 🔄 Current Phase |
 | **Spec Management** | 0% | 🔄 Current Phase |
