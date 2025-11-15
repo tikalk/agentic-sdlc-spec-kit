@@ -6,6 +6,10 @@ scripts:
 validation_scripts:
    sh: scripts/bash/validate-constitution.sh
    ps: scripts/powershell/validate-constitution.ps1
+handoffs: 
+  - label: Build Specification
+    agent: speckit.specify
+    prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
 
 ## Role & Context
