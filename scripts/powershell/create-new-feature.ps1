@@ -210,7 +210,7 @@ if ($ShortName) {
 if ($Number -eq 0) {
     if ($hasGit) {
         # Check existing branches on remotes
-        $Number = Get-NextBranchNumber -ShortName $branchSuffix -SpecsDir $specsDir
+        $Number = Get-NextBranchNumber -SpecsDir $specsDir
     } else {
         # Fall back to local directory check
         $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
