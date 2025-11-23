@@ -4,7 +4,7 @@ This guide will help you get started with Spec-Driven Development using Spec Kit
 
 > NEW: All automation scripts now provide both Bash (`.sh`) and PowerShell (`.ps1`) variants. The `specify` CLI auto-selects based on OS unless you pass `--script sh|ps`.
 
-## The 4-Step Process
+## The 5-Step Process
 
 ### 1. Install Specify
 
@@ -21,7 +21,15 @@ uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME
 uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
-### 2. Create the Spec
+### 2. Define Your Constitution
+
+Use the `/speckit.constitution` command to establish the core rules and principles for your project. This ensures all future code and specifications adhere to your project's standards.
+
+```bash
+/speckit.constitution
+```
+
+### 3. Create the Spec
 
 Use the `/speckit.specify` command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
@@ -29,7 +37,7 @@ Use the `/speckit.specify` command to describe what you want to build. Focus on 
 /speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
-### 3. Create a Technical Implementation Plan
+### 4. Create a Technical Implementation Plan
 
 Use the `/speckit.plan` command to provide your tech stack and architecture choices.
 
@@ -37,7 +45,7 @@ Use the `/speckit.plan` command to provide your tech stack and architecture choi
 /speckit.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
-### 4. Break Down and Implement
+### 5. Break Down and Implement
 
 Use `/speckit.tasks` to create an actionable task list, then ask your agent to implement the feature.
 
@@ -45,7 +53,15 @@ Use `/speckit.tasks` to create an actionable task list, then ask your agent to i
 
 Here's a complete example of building a team productivity platform:
 
-### Step 1: Define Requirements with `/speckit.specify`
+### Step 1: Define Constitution
+
+Initialize the project's constitution to set ground rules:
+
+```bash
+/speckit.constitution
+```
+
+### Step 2: Define Requirements with `/speckit.specify`
 
 ```text
 Develop Taskify, a team productivity platform. It should allow users to create projects, add team members,
@@ -66,7 +82,7 @@ see yours. You can edit any comments that you make, but you can't edit comments 
 delete any comments that you made, but you can't delete comments anybody else made.
 ```
 
-### Step 2: Refine the Specification
+### Step 3: Refine the Specification
 
 After the initial specification is created, clarify any missing requirements:
 
@@ -82,7 +98,7 @@ Also validate the specification checklist:
 Read the review and acceptance checklist, and check off each item in the checklist if the feature spec meets the criteria. Leave it empty if it does not.
 ```
 
-### Step 3: Generate Technical Plan with `/speckit.plan`
+### Step 4: Generate Technical Plan with `/speckit.plan`
 
 Be specific about your tech stack and technical requirements:
 
@@ -92,7 +108,7 @@ Blazor server with drag-and-drop task boards, real-time updates. There should be
 tasks API, and a notifications API.
 ```
 
-### Step 4: Validate and Implement
+### Step 5: Validate and Implement
 
 Have your AI agent audit the implementation plan:
 
