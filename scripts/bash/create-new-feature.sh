@@ -128,8 +128,7 @@ get_highest_from_branches() {
 
 # Function to check existing branches (local and remote) and return next available number
 check_existing_branches() {
-    local short_name="$1"
-    local specs_dir="$2"
+    local specs_dir="$1"
 
     # Fetch all remotes to get latest branch info (suppress errors if no remotes)
     git fetch --all --prune 2>/dev/null || true
