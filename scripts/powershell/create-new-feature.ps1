@@ -101,7 +101,6 @@ function Get-HighestNumberFromBranches {
 
 function Get-NextBranchNumber {
     param(
-        [string]$ShortName,
         [string]$SpecsDir
     )
 
