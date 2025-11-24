@@ -138,6 +138,8 @@
 - ✅ **Tool Selection Guidance**: Implementation in CLI and scripts
 - ✅ **Config Consolidation**: Consolidate all `.specify/config/` files into a single unified configuration file to reduce complexity and improve maintainability
 
+**NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
+
 #### **Persistent Issue ID Storage Enhancement** *(0% Complete)* - **HIGH PRIORITY** - Issue-tracker-first workflow improvement
 
 - ❌ **Add --issue Parameter to Specify**: Implement `--issue ISSUE-ID` parameter for specify command to fetch issue data from configured tracker
@@ -166,6 +168,7 @@
 - ❌ **Fix Build Mode specify→implement Flow**: Implement command requires tasks.md but build mode skips plan/tasks phases
 - ❌ **Mode-Aware Task Validation**: Skip --require-tasks in build mode to enable lightweight specify→implement workflow
 - ❌ **Update implement.md Template**: Add build mode execution path that works without tasks.md
+- ❌ **Fix Build Mode Checking in Analyze and Clarify**: Ensure analyze and clarify commands properly check build mode before execution
 - ❌ **Test Build Mode Workflow**: Verify specify → implement works in build mode without tasks.md
 
 #### **Async Task Context Delivery Architecture** *(0% Complete)* - **CRITICAL PRIORITY** - Makes async functionality non-functional
@@ -213,6 +216,57 @@
 ---
 
 ## 🆕 **FUTURE PHASE** (New Items - Not Yet Started)
+
+#### **Hook-Based Tool Auto-Activation** *(0% Complete)* - **MEDIUM PRIORITY** - Extends Factor X Strategic Tooling
+- **Description**: Implement hook-based systems that automatically analyze user prompts and suggest relevant AI tools/agents based on project context, similar to Claude's UserPromptSubmit hooks. This reduces manual agent selection and ensures optimal tool usage.
+- **Key Components**:
+  - Prompt analysis hooks that detect context patterns (file types, project structure, task types)
+  - Automatic agent/tool suggestions based on skill-rules.json style configuration
+  - Integration with existing agent context files for seamless activation
+- **Benefits**: Eliminates "which agent should I use?" friction, improves workflow efficiency
+- **Implementation**: Add to Factor X with hook templates and activation rules, extending the current AGENTS.md framework
+- **Reference**: Based on patterns from https://github.com/diet103/claude-code-infrastructure-showcase
+
+#### **Progressive Context Disclosure (500-Line Rule)** *(0% Complete)* - **MEDIUM PRIORITY** - Enhances Factor II Context Scaffolding
+- **Description**: Implement modular context loading patterns where AI context is loaded progressively rather than all at once, preventing token limit issues while maintaining comprehensive guidance. Similar to Claude's skill architecture with main files + resource files.
+- **Key Components**:
+  - Hierarchical agent context files (overview + detailed resources)
+  - On-demand context expansion based on task complexity
+  - Token-aware context management for different agent types
+- **Benefits**: Manages context limits effectively across all supported agents, provides scalable context management
+- **Implementation**: Extend Factor II with progressive loading patterns, building on existing update-agent-context.sh infrastructure
+- **Reference**: Based on patterns from https://github.com/diet103/claude-code-infrastructure-showcase
+
+#### **Session Context Persistence Patterns** *(50% Complete)* - **LOW PRIORITY** - Supports Factor IX Process Documentation
+- **Description**: Enhance the existing dev docs patterns with auto-generation and session persistence, using structured file formats to maintain project context across AI tool sessions and prevent context resets.
+- **Key Components**:
+  - Auto-generation of three-file structure (plan.md, context.md, tasks.md) from session artifacts
+  - Session state preservation across agent interactions
+  - Integration with existing levelup command for comprehensive session capture
+- **Benefits**: Reduces context loss during complex development sessions, improves handoff between different AI agents
+- **Implementation**: Enhance Factor IX with auto-generation templates, building on existing levelup.md and agent context patterns
+- **Reference**: Based on patterns from https://github.com/diet103/claude-code-infrastructure-showcase
+
+#### **Agent Skill Modularization** *(0% Complete)* - **LOW PRIORITY** - Extends Factor XI Directives as Code
+- **Description**: Implement modular agent skill patterns where complex agent capabilities are broken into smaller, reusable skill modules that can be loaded progressively, similar to Claude's skill architecture.
+- **Key Components**:
+  - Skill module templates with main + resource file structure
+  - Agent-specific skill activation rules
+  - Version-controlled skill libraries for different agent types
+- **Benefits**: Enables complex agent behaviors without hitting context limits, improves skill reusability across projects
+- **Implementation**: Add to Factor XI with skill templates and modular loading patterns, extending the current agent file template system
+- **Reference**: Based on patterns from https://github.com/diet103/claude-code-infrastructure-showcase
+
+#### **Context Intelligence & Optimization** *(0% Complete)* - **HIGH PRIORITY** - Cost & Accuracy
+
+- ❌ **Smart Context Windowing**: Logic to slice `spec.md` and `plan.md` based on the active User Story phase during implementation to save tokens.
+- ❌ **Semantic Diffs**: `specify diff` command to summarize behavioral changes in specs rather than just line-diffs.
+- ❌ **Directive Embeddings**: (Future) Local vector index for `team-ai-directives` to support large governance repositories without context flooding.
+
+#### **Resilience & Self-Healing** *(0% Complete)* - **MEDIUM PRIORITY** - Automation robustness
+
+- ❌ **Triage Escalation Protocol**: Automated promotion of failing `[ASYNC]` tasks to `[SYNC]` status in `tasks_meta.json` with user notification.
+- ❌ **Connection Health Checks**: Enhance `specify check` to validate API connectivity to Gateway and MCP servers, not just binary presence.
 
 **Assessment**: Not currently needed. Core workflow (dual execution loop, MCP integration) should be completed first. Existing terminal interface with agent context files provides sufficient IDE support. Consider lightweight integration only after core adoption is proven.
 
@@ -306,6 +360,10 @@
 | **Build Mode Bug Fix** | 0% | 🔄 Current Phase |
 | **Async Context Delivery** | 0% | 🔄 Current Phase |
 | **Spec Management** | 0% | 🔄 Current Phase |
+| **Hook-Based Tool Auto-Activation** | 0% | 🆕 Future Phase |
+| **Progressive Context Disclosure** | 0% | 🆕 Future Phase |
+| **Session Context Persistence** | 50% | 🆕 Future Phase |
+| **Agent Skill Modularization** | 0% | 🆕 Future Phase |
 | **Agent Testing Infrastructure** | 0% | 🆕 Future Phase |
 | **GitHub Issues Enhancement** | 0% | 🆕 Future Phase |
 | **Code Quality Automation** | 0% | 🆕 Future Phase |
@@ -313,6 +371,8 @@
 | **IDE Integration** | 0% | 🆕 Future Phase |
 | **Evaluation Suite** | 0% | 🆕 Future Phase |
 | **Context Engineering** | 0% | 🆕 Future Phase |
+| **Context Intelligence & Optimization** | 0% | 🆕 Future Phase |
+| **Resilience & Self-Healing** | 0% | 🆕 Future Phase |
 
 **Overall Implementation Status**: ~100% Complete
 
@@ -348,10 +408,16 @@
 10. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
-9. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
-10. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
-11. **LOW**: Code quality automation (0% → future consideration)
-12. **LOW**: Feature-level mode configuration (0% → future consideration)
-13. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
+9. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
+10. **MEDIUM**: Progressive context disclosure (500-line rule) (0% → future consideration)
+11. **LOW**: Session context persistence patterns (50% → future consideration)
+12. **LOW**: Agent skill modularization (0% → future consideration)
+13. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+14. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+15. **LOW**: Code quality automation (0% → future consideration)
+16. **HIGH**: Context Intelligence & Optimization (0% → future consideration)  # New addition
+17. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)  # New addition
+18. **LOW**: Feature-level mode configuration (0% → future consideration)
+19. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
 
 
