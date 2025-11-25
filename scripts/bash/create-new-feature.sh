@@ -246,7 +246,7 @@ if [ -z "$BRANCH_NUMBER" ]; then
     fi
 fi
 
-# Force base-10 interpretation to prevent octal conversion (027 → 23)
+# Force base-10 interpretation to prevent octal conversion (e.g., 010 → 8 in octal, but should be 10 in decimal)
 FEATURE_NUM=$(printf "%03d" "$((10#$BRANCH_NUMBER))")
 BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
 
