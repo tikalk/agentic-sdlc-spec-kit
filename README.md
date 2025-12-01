@@ -136,10 +136,10 @@ Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.c
 
 | Agent                                                     | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
-| [Qoder CLI](https://qoder.com/cli)                        | ✅ |     
+| [Qoder CLI](https://qoder.com/cli)                        | ✅ |    |  
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 | [Amp](https://ampcode.com/)                               | ✅ | |
-| [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ | |                    
+| [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |                 
 | [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
 | [CodeBuddy CLI](https://www.codebuddy.ai/cli)             | ✅ |                                                   |
 | [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
