@@ -387,6 +387,7 @@ function Update-SpecificAgent {
         'amp'      { Update-AgentFile -TargetFile $AMP_FILE      -AgentName 'Amp' }
         'shai'     { Update-AgentFile -TargetFile $SHAI_FILE     -AgentName 'SHAI' }
         'q'        { Update-AgentFile -TargetFile $Q_FILE        -AgentName 'Amazon Q Developer CLI' }
+        'bob'      { Update-AgentFile -TargetFile $BOB_FILE      -AgentName 'IBM Bob' }
         default { Write-Err "Unknown agent type '$Type'"; Write-Err 'Expected: claude|gemini|copilot|cursor-agent|qwen|opencode|codex|windsurf|kilocode|auggie|roo|codebuddy|amp|shai|q|bob|qoder'; return $false }
     }
 }
