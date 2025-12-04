@@ -57,7 +57,15 @@ uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 Then use the tool directly:
 
 ```bash
+# Create new project
 specify init <PROJECT_NAME>
+
+# Or initialize in existing project
+specify init . --ai claude
+# or
+specify init --here --ai claude
+
+# Check installed tools
 specify check
 ```
 
