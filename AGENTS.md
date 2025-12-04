@@ -410,4 +410,4 @@ When adding new agents:
 
 ---
 
-_This documentation should be updated whenever new agents are added to maintain accuracy and completeness._
+*This documentation should be updated whenever new agents are added to maintain accuracy and completeness.*
