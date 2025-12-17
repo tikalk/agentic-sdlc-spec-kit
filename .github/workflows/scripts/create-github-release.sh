@@ -19,7 +19,7 @@ TAG_PREFIX="agentic-sdlc-v"
 VERSION_NO_V=${VERSION#v}
 
 ASSETS=()
-AGENTS=(copilot claude gemini cursor-agent opencode qwen windsurf codex kilocode auggie roo codebuddy amp shai q)
+AGENTS=(copilot claude gemini cursor-agent opencode qwen windsurf codex kilocode auggie roo codebuddy qoder amp shai q bob)
 SCRIPTS=(sh ps)
 
 for agent in "${AGENTS[@]}"; do
