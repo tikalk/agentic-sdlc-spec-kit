@@ -229,7 +229,7 @@ Given that feature description, do this:
      - **Detailed Validation**: Check all requirement quality dimensions
      - **Success Criteria**: All requirements are clear, complete, and testable
 
- 7. **Context Population** (mode-aware):
+7. **Context Population** (mode-aware):
      - **Read the generated spec.md** and extract key information
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
@@ -242,11 +242,11 @@ Given that feature description, do this:
      - **Spec Mode**: Populate all 6 fields with detailed, accurate values
      - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
 
- 8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
+8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
      - **Build Mode**: Ready for `/speckit.implement` (skip clarify/plan for lightweight execution)
      - **Spec Mode**: Ready for `/speckit.clarify` or `/speckit.plan`
 
-8. **Mode Guidance & Transitions**:
+9. **Mode Guidance & Transitions**:
     - **Build Mode Users**: This mode prioritizes speed over completeness. If your feature becomes more complex, consider switching to Spec mode with `/mode spec` for comprehensive planning.
     - **Spec Mode Users**: This mode provides thorough validation. If you need to quickly prototype, you can switch to Build mode with `/mode build`.
 
