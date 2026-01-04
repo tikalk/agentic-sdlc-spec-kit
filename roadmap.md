@@ -219,6 +219,24 @@
 
 ### **Future Enhancement Categories**
 
+### **Architecture Description Command (/architect)** *(0% Complete)* - **HIGH PRIORITY** - Structural integrity for complex systems
+
+- **Description**: Implement `/architect` command following Rozanski & Woods methodology to generate comprehensive Architecture Descriptions (ADs) that move beyond "Vibe Coding" and ensure structural integrity in complex systems (like the CNE Agent). This command focuses on global system boundaries and operational concerns, unlike feature-specific `/plan`.
+- **Rozanski & Woods Viewpoints**:
+  - Context View: Defines system scope and external entity interactions (Users, APIs, Cloud Providers)
+  - Functional View: Details functional elements, responsibilities, and interfaces
+  - Information View: Manages data storage, movement, and lifecycle
+  - Concurrency View: Describes runtime processes, threading, and coordination
+  - Development View: Sets constraints for developers (code organization, dependencies, CI/CD)
+  - Deployment View: Defines physical environment (EKS clusters, VPCs, network interconnections)
+  - Operational View: Covers operations, support, and maintenance in production
+- **Architectural Perspectives (Cross-Cutting Qualities)**: Security, Performance & Scalability, Availability & Resilience, Evolution
+- **BMAD Integration**: Operates at "A" (Architecture) layer, creates global context inherited by `/specify` and `/plan`
+- **Traceability**: Establishes clear links from Stakeholder Concerns to Architectural Views (Factor IX implementation)
+- **Output Location**: Generates artifacts in parallel `/architecture` folder separate from feature implementation specs
+- **Benefits**: Transforms AI from simple coder to System Architect capable of describing complex, production-ready ecosystems
+- **Implementation**: Template engine for 7 viewpoints, constraint injection into constitution.md, cross-view analysis linter in `/analyze`
+
 ### **Hook-Based Tool Auto-Activation** *(0% Complete)* - **MEDIUM PRIORITY** - Extends Factor X Strategic Tooling
 
 - **Description**: Implement hook-based systems that automatically analyze user prompts and suggest relevant AI tools/agents based on project context, similar to Claude's UserPromptSubmit hooks. This reduces manual agent selection and ensures optimal tool usage.
@@ -371,6 +389,7 @@
 |**Agent Testing Infrastructure**|0%|🆕 Future Phase|
 |**GitHub Issues Enhancement**|0%|🆕 Future Phase|
 |**Code Quality Automation**|0%|🆕 Future Phase|
+|**Architecture Description Command**|0%|🆕 Future Phase|
 |**Advanced MCP**|0%|🆕 Future Phase|
 |**IDE Integration**|0%|🆕 Future Phase|
 |**Evaluation Suite**|0%|🆕 Future Phase|
@@ -412,14 +431,15 @@
 10. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
-9. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
-10. **MEDIUM**: Progressive context disclosure (500-line rule) (0% → future consideration)
-11. **LOW**: Session context persistence patterns (50% → future consideration)
-12. **LOW**: Agent skill modularization (0% → future consideration)
-13. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
-14. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
-15. **LOW**: Code quality automation (0% → future consideration)
-16. **HIGH**: Context Intelligence & Optimization (0% → future consideration)  # New addition
-17. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)  # New addition
+9. **HIGH**: Architecture Description Command (/architect) (0% → future consideration)
+10. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
+11. **MEDIUM**: Progressive context disclosure (500-line rule) (0% → future consideration)
+12. **LOW**: Session context persistence patterns (50% → future consideration)
+13. **LOW**: Agent skill modularization (0% → future consideration)
+14. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+15. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+16. **LOW**: Code quality automation (0% → future consideration)
+17. **HIGH**: Context Intelligence & Optimization (0% → future consideration)  # New addition
+18. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)  # New addition
 18. **LOW**: Feature-level mode configuration (0% → future consideration)
 19. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
