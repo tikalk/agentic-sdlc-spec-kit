@@ -56,7 +56,7 @@ Specify supports two workflow modes that control development complexity, plus co
 **Example Command:**
 
 ```text
-/constitution "Assemble the constitution for this service. Import principles from @team/context_modules/principles/v1/stateless_services.md and @team/context_modules/principles/v1/zero_trust_security_model.md. Add the custom principle: 'All public APIs must be versioned.'"
+/constitution "Assemble the constitution for this service. Import principles from @team/context_modules/principles/stateless_services.md and @team/context_modules/principles/zero_trust_security_model.md. Add the custom principle: 'All public APIs must be versioned.'"
 ```
 
 **Outcome:** The IDE is fully integrated with the Orchestration Hub, and a committed `constitution.md` anchors all future automation.
@@ -80,7 +80,7 @@ Specify supports two workflow modes that control development complexity, plus co
 **Example Command:**
 
 ```text
-/specify "Generate the specification for the feature in @issue-tracker ISSUE-123. The target user is the @team/personas/v1/data_analyst.md. The operation must be asynchronous to handle large dashboards. The PDF title must include the dashboard name and an export timestamp."
+/specify "Generate the specification for the feature in @issue-tracker ISSUE-123. The target user is the @team/personas/data_analyst.md. The operation must be asynchronous to handle large dashboards. The PDF title must include the dashboard name and an export timestamp."
 ```
 
 **Outcome:** A committed `spec.md` ready to drive planning in Stage 2.
