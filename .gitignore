@@ -57,3 +57,8 @@ evals/datasets/analysis-results/*.txt
 evals/datasets/analysis-results/automated-analysis-*.csv
 evals/datasets/analysis-results/promptfoo-analysis-*.csv
 evals/datasets/analysis-results/summary-*.txt
+
+# Annotation tool artifacts
+evals/annotation-tool/.venv/
+evals/annotation-tool/annotations.json
+evals/annotation-tool/annotations_export_*.json

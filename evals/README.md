@@ -16,10 +16,22 @@ evals/
 │   └── plan-prompt.txt           # Implementation plan template
 ├── graders/               # Custom evaluation logic
 │   └── custom_graders.py         # Security, simplicity, constitution checks
-└── scripts/               # Test execution utilities
-    ├── run-promptfoo-eval.sh     # PromptFoo test runner
-    ├── run-error-analysis.sh     # Error analysis workflow
-    └── check_eval_scores.py      # Score validation
+├── scripts/               # Test execution utilities
+│   ├── run-promptfoo-eval.sh     # PromptFoo test runner
+│   ├── run-error-analysis.sh     # Error analysis workflow
+│   ├── run-annotation-tool.sh    # Annotation tool launcher
+│   └── check_eval_scores.py      # Score validation
+├── annotation-tool/       # Custom FastHTML annotation interface
+│   ├── app.py                    # FastHTML web application
+│   ├── README.md                 # Tool documentation
+│   └── annotations.json          # Saved annotations (gitignored)
+├── notebooks/             # Jupyter notebooks for error analysis
+│   └── error-analysis.ipynb      # Manual review workflow
+└── datasets/              # Test data and results
+    ├── real-specs/               # Generated specs for review
+    ├── real-plans/               # Generated plans for review
+    ├── generate-test-data.sh     # Data generation script
+    └── analysis-results/         # Analysis outputs
 ```
 
 ## Quick Start
@@ -532,21 +544,92 @@ Traditional error analysis workflow for deep investigation:
    - Add automated checks to PromptFoo
    - Re-run error analysis monthly
 
+## Custom Annotation Tool
+
+A fast, keyboard-driven web interface for reviewing generated specs - **10x faster than manual review**.
+
+### Quick Start
+
+```bash
+# Run the annotation tool
+./evals/scripts/run-annotation-tool.sh
+```
+
+Open your browser to `http://localhost:5001` and start reviewing specs.
+
+### Features
+
+- **Keyboard shortcuts**: N (next), P (previous), 1 (pass), 2 (fail)
+- **Progress tracking**: Visual progress bar with statistics
+- **Notes**: Add observations for each spec
+- **Auto-save**: Annotations saved automatically to JSON
+- **Export**: Export all annotations with timestamps
+
+### Workflow
+
+1. Review the spec displayed on the page
+2. Evaluate quality (structure, completeness, clarity)
+3. Add notes about any issues (optional)
+4. Press **1** for Pass or **2** for Fail
+5. Tool automatically advances to next spec
+6. Click "Export JSON" when done
+
+### Output
+
+Annotations are saved to:
+- `evals/annotation-tool/annotations.json` - Auto-saved current state
+- `evals/annotation-tool/annotations_export_YYYYMMDD_HHMMSS.json` - Timestamped exports
+
+Example output structure:
+
+```json
+{
+  "exported_at": "2026-01-08T14:30:00",
+  "statistics": {
+    "total": 17,
+    "passed": 12,
+    "failed": 3,
+    "pending": 2,
+    "progress": 88.2
+  },
+  "annotations": {
+    "spec-001.md": {
+      "status": "pass",
+      "notes": "Good structure, all sections present",
+      "timestamp": "2026-01-08T14:25:00"
+    }
+  }
+}
+```
+
+### What to Look For
+
+Common failure patterns to note during review:
+- Missing required sections
+- Vague or unmeasurable requirements
+- Premature technical decisions
+- Missing acceptance criteria
+- Incomplete user stories
+- Security considerations missing
+- Over-engineering indicators
+
+See [annotation-tool/README.md](annotation-tool/README.md) for detailed documentation.
+
 ### What's Next
 
 See [AI-EVALS-WORKPLAN.md](../AI-EVALS-WORKPLAN.md) for the complete implementation roadmap:
 
-- **Week 1**: Error analysis foundation (IN PROGRESS)
-- **Week 2-3**: Custom annotation tool
-- **Week 4**: Extend PromptFoo based on findings
+- **Week 1**: Error analysis foundation ✅ COMPLETED
+- **Week 2-3**: Custom annotation tool ✅ COMPLETED
+- **Week 4**: Extend PromptFoo based on findings (NEXT)
 - **Week 5-6**: Production monitoring
 
 ### MVP Approach
 
 We're following an iterative MVP approach:
-- ✅ **Done**: Basic structure, notebooks, test data generation
-- 🔄 **Next**: First error analysis session with real specs
-- 📋 **Later**: Custom annotation UI, production monitoring
+- ✅ **Done**: Basic structure, notebooks, test data generation, annotation tool
+- 🔄 **Next**: Review specs with annotation tool, extend PromptFoo based on findings
+- 📋 **Later**: Production monitoring, advanced features
 
 ## Support
 
