@@ -54,6 +54,14 @@ fi
 
 echo -e "${GREEN}✓${NC} ANTHROPIC_AUTH_TOKEN set"
 
+# Set default Claude model if not specified
+if [ -z "$CLAUDE_MODEL" ]; then
+    export CLAUDE_MODEL="claude-sonnet-4-5-20250929"
+    echo -e "${GREEN}✓${NC} CLAUDE_MODEL defaulted to ${CLAUDE_MODEL}"
+else
+    echo -e "${GREEN}✓${NC} CLAUDE_MODEL set to ${CLAUDE_MODEL}"
+fi
+
 # Check if we're in the repo root (look for config files)
 if [ ! -f "evals/configs/promptfooconfig-spec.js" ] || [ ! -f "evals/configs/promptfooconfig-plan.js" ]; then
     echo -e "${RED}❌ Config files not found${NC}"

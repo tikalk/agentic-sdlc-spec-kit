@@ -5,8 +5,8 @@ module.exports = {
   // Configure LiteLLM Claude provider using OpenAI-compatible endpoint
   providers: [
     {
-      id: `openai:chat:claude-sonnet-4-5-20250929`,
-      label: 'Claude Sonnet 4.5 (via LiteLLM)',
+      id: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
+      label: `Claude ${process.env.CLAUDE_MODEL || 'Sonnet 4.5'} (via LiteLLM)`,
       config: {
         // LiteLLM exposes an OpenAI-compatible endpoint at /chat/completions
         apiBaseUrl: process.env.ANTHROPIC_BASE_URL,
@@ -25,7 +25,7 @@ module.exports = {
   // Default test configuration
   defaultTest: {
     options: {
-      provider: 'openai:chat:claude-sonnet-4-5-20250929',
+      provider: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
   },
 
