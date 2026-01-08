@@ -43,4 +43,9 @@ env/
 # Spec Kit-specific files
 .genreleases/
 *.zip
-sdd-*/
+sdd-*
+
+# Evaluation artifacts
+eval-results*.json
+*.backup
+.promptfoo/

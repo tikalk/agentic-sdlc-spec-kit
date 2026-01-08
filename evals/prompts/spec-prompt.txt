@@ -1,0 +1,25 @@
+You are tasked with creating a detailed feature specification.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a comprehensive feature specification document that includes:
+
+1. **Overview Section**: Brief description of the feature
+2. **User Stories**: 5+ prioritized user stories (P1, P2, P3) with:
+   - Clear "As a [role], I want [feature], so that [benefit]" format
+   - Detailed acceptance criteria in Given/When/Then format
+   - Independent testability for each story
+3. **Functional Requirements**: Specific, measurable, testable requirements (FR-001, FR-002, etc.)
+4. **Non-Functional Requirements**: Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
+5. **Edge Cases**: Document boundary conditions and error scenarios
+6. **Success Criteria**: Measurable outcomes (SC-001, SC-002, etc.)
+
+IMPORTANT CONSTRAINTS:
+- Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
+- Focus on WHAT needs to be built, not HOW to build it
+- All requirements must be measurable and testable
+- Mark any vague or unclear requirements with [NEEDS CLARIFICATION]
+
+OUTPUT: A complete feature specification document.

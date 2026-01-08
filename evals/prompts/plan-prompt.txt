@@ -1,0 +1,27 @@
+You are tasked with creating an implementation plan.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a detailed implementation plan that includes:
+
+1. **Overview**: Brief description of what will be implemented
+2. **Project Structure**: Break down into ≤3 projects (simplicity gate)
+3. **For Each Project**:
+   - Clear scope and boundaries
+   - Key tasks and milestones
+   - Dependencies on other projects
+   - Testing strategy
+4. **Development Approach**: Phasing, deployment strategy
+5. **Verification Steps**: How to validate each project
+
+IMPORTANT CONSTRAINTS (Constitution Principles):
+- Keep it SIMPLE: ≤3 projects maximum
+- No over-engineering: Avoid unnecessary complexity
+- No premature optimization: Choose simple solutions first
+- No microservices for simple apps
+- No Kubernetes/service mesh unless truly needed
+- Direct framework usage - no unnecessary abstractions
+
+OUTPUT: A complete implementation plan document.
