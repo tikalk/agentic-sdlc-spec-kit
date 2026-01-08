@@ -49,3 +49,11 @@ sdd-*
 eval-results*.json
 *.backup
 .promptfoo/
+evals/.venv/
+evals/notebooks/.venv/
+evals/notebooks/.ipynb_checkpoints/
+evals/datasets/analysis-results/*.csv
+evals/datasets/analysis-results/*.txt
+evals/datasets/analysis-results/automated-analysis-*.csv
+evals/datasets/analysis-results/promptfoo-analysis-*.csv
+evals/datasets/analysis-results/summary-*.txt

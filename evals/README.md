@@ -17,7 +17,8 @@ evals/
 ├── graders/               # Custom evaluation logic
 │   └── custom_graders.py         # Security, simplicity, constitution checks
 └── scripts/               # Test execution utilities
-    ├── run-eval.sh               # Main test runner
+    ├── run-promptfoo-eval.sh     # PromptFoo test runner
+    ├── run-error-analysis.sh     # Error analysis workflow
     └── check_eval_scores.py      # Score validation
 ```
 
@@ -50,17 +51,17 @@ source ~/.zshrc  # or source ~/.bashrc
 ### 3. Run Evaluations
 
 ```bash
-# From repo root - run all tests
-./evals/scripts/run-eval.sh
+# From repo root - run all PromptFoo tests
+./evals/scripts/run-promptfoo-eval.sh
 
 # Run with JSON output
-./evals/scripts/run-eval.sh --json
+./evals/scripts/run-promptfoo-eval.sh --json
 
 # Run and open web UI
-./evals/scripts/run-eval.sh --view
+./evals/scripts/run-promptfoo-eval.sh --view
 
 # Filter specific tests
-./evals/scripts/run-eval.sh --filter "Spec Template"
+./evals/scripts/run-promptfoo-eval.sh --filter "Spec Template"
 ```
 
 ## Test Suite
@@ -251,7 +252,7 @@ jobs:
           ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
           CLAUDE_MODEL: claude-sonnet-4-5-20250929
         run: |
-          ./evals/scripts/run-eval.sh --json
+          ./evals/scripts/run-promptfoo-eval.sh --json
 
       - name: Check Minimum Pass Rate
         run: |
@@ -348,7 +349,7 @@ export ANTHROPIC_AUTH_TOKEN="your-token"
 ```bash
 # Make sure you're in repo root
 cd /path/to/agentic-sdlc-spec-kit
-./evals/scripts/run-eval.sh
+./evals/scripts/run-promptfoo-eval.sh
 ```
 
 **Error: "Could not connect to API"**
@@ -393,7 +394,7 @@ print(result)
 ### Development Workflow
 
 1. Make template changes locally
-2. Run eval: `./evals/scripts/run-eval.sh`
+2. Run eval: `./evals/scripts/run-promptfoo-eval.sh`
 3. Fix failures
 4. Commit changes
 5. PR triggers eval in CI
@@ -413,6 +414,139 @@ Current thresholds (adjust in config files):
 - **LiteLLM Docs**: https://docs.litellm.ai
 - **Custom Graders Guide**: https://promptfoo.dev/docs/configuration/expected-outputs/python
 - **Claude Models**: https://docs.anthropic.com/claude/docs/models-overview
+
+## Error Analysis Workflow (NEW)
+
+PromptFoo provides automated regression testing, but **error analysis on real outputs** is the most important evaluation activity. According to AI evaluation best practices:
+
+> "We spent 60-80% of our development time on error analysis and evaluation. Expect most of your effort to go toward understanding failures (i.e. looking at data) rather than building automated checks."
+
+### Quick Start
+
+```bash
+# 1. Generate test data
+cd evals/datasets
+./generate-test-data.sh  # Creates 17 diverse test case templates
+
+# 2. Run error analysis workflow (sets up environment + launches Jupyter)
+cd ../scripts
+./run-error-analysis.sh
+
+# 4. Run error analysis session (30-60 minutes)
+# - Load specs
+# - Review and annotate (pass/fail, issues, categories)
+# - Categorize failures
+# - Prioritize fixes
+```
+
+### Directory Structure
+
+```
+evals/
+├── notebooks/              # Error analysis
+│   ├── error-analysis.ipynb       # Main analysis notebook (manual)
+│   └── .venv/                     # Virtual environment
+├── scripts/                # Automation scripts
+│   ├── run-promptfoo-eval.sh      # PromptFoo test runner
+│   ├── run-error-analysis.sh      # Manual error analysis (Jupyter)
+│   ├── run-auto-error-analysis.sh # Automated error analysis (Claude API)
+│   ├── run-automated-error-analysis.py  # Python script for automation
+│   └── check_eval_scores.py       # Score validation
+└── datasets/               # Test data
+    ├── real-specs/                # Generated specs for review (17 templates)
+    ├── real-plans/                # Generated plans for review
+    ├── generate-test-data.sh      # Data generation script
+    └── analysis-results/          # Analysis output (CSV, summaries)
+        ├── automated-analysis-*.csv     # Automated eval results
+        ├── summary-*.txt                # Summary reports
+        └── error-analysis-results.csv   # Manual review results
+```
+
+### The 80/20 Rule
+
+**80% of value** comes from:
+1. ✅ Jupyter notebooks for error analysis (manual review)
+2. ✅ Custom annotation tools (planned - Week 2)
+3. ✅ PromptFoo for CI/CD (already working)
+
+**20% of value** comes from:
+- Production monitoring (planned - Week 5-6)
+- Advanced features (clustering, AI assistance)
+
+### Error Analysis Process
+
+You can run error analysis in two ways:
+
+#### Option 1: Automated Analysis (Using Claude API)
+
+Uses Claude API to automatically evaluate specs and categorize failures:
+
+```bash
+# Run automated error analysis
+./evals/scripts/run-auto-error-analysis.sh
+
+# Requirements:
+# - ANTHROPIC_API_KEY environment variable set
+# - Generated specs in evals/datasets/real-specs/
+
+# Output:
+# - Detailed CSV: evals/datasets/analysis-results/automated-analysis-<timestamp>.csv
+# - Summary report: evals/datasets/analysis-results/summary-<timestamp>.txt
+```
+
+**Features:**
+- Evaluates all specs automatically using Claude
+- Binary pass/fail with reasoning
+- Categorizes failures (incomplete requirements, ambiguous specs, etc.)
+- Generates comprehensive reports
+- Saves time on initial review
+
+#### Option 2: Manual Analysis (Using Jupyter Notebook)
+
+Traditional error analysis workflow for deep investigation:
+
+```bash
+# Launch Jupyter Lab
+./evals/scripts/run-error-analysis.sh
+
+# In Jupyter:
+# 1. Load specs from datasets/real-specs/
+# 2. Review and annotate manually
+# 3. Categorize failures
+# 4. Export results
+```
+
+**Process:**
+1. **Open Coding** (Week 1)
+   - Domain expert reviews 10-20 real specs/plans
+   - Notes issues without categorization yet
+   - Binary pass/fail (no Likert scales)
+
+2. **Axial Coding** (Week 1-2)
+   - Group similar failures into categories
+   - Count frequency of each failure mode
+   - Prioritize by impact
+
+3. **Fix & Iterate** (Ongoing)
+   - Fix high-frequency failure modes
+   - Add automated checks to PromptFoo
+   - Re-run error analysis monthly
+
+### What's Next
+
+See [AI-EVALS-WORKPLAN.md](../AI-EVALS-WORKPLAN.md) for the complete implementation roadmap:
+
+- **Week 1**: Error analysis foundation (IN PROGRESS)
+- **Week 2-3**: Custom annotation tool
+- **Week 4**: Extend PromptFoo based on findings
+- **Week 5-6**: Production monitoring
+
+### MVP Approach
+
+We're following an iterative MVP approach:
+- ✅ **Done**: Basic structure, notebooks, test data generation
+- 🔄 **Next**: First error analysis session with real specs
+- 📋 **Later**: Custom annotation UI, production monitoring
 
 ## Support
 
