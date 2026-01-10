@@ -311,6 +311,17 @@
 - ❌ **Migration Support**: Provide migration utilities for existing projects with directives in `.specify/`
 - ❌ **Path Resolution Updates**: Update all team directive path resolution logic to use new directory structure
 
+#### **Referenceable Cross-Referencing System** *(0% Complete)* - **HIGH PRIORITY**
+
+- **Description**: Implement a structured reference format (`@rule:relative_filepath`) for cross-referencing within team-ai-directives to eliminate duplication, improve navigation, and enable future tooling integration.
+- **Key Components**:
+  - Define reference syntax: `@rule:path/relative/to/rules/dir.md` for rules, extend to `@example:`, `@persona:` as needed
+  - Update existing files to use references instead of duplicating content (start with null safety overlap)
+  - Add validation in CONTRIBUTING.md or CI to enforce references and prevent broken links
+  - Enable tooling integration for automatic link resolution and IDE support
+- **Benefits**: Eliminates duplication across atomic/composite sections, enhances maintainability, enables scalable directive repositories, supports Factor XI Directives as Code
+- **Implementation**: Establish conventions, apply to overlap fixes, integrate with governance process, build tooling support
+
 #### **Feature-Level Mode Configuration** *(0% Complete)* - **FUTURE ENHANCEMENT**
 
 - ❌ **Per-Feature Mode Settings**: Allow different workflow modes (build/spec) per feature instead of project-wide
