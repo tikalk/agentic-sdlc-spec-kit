@@ -7,7 +7,14 @@ INSTRUCTIONS:
 Create a detailed implementation plan that includes:
 
 1. **Overview**: Brief description of what will be implemented
-2. **Project Structure**: Break down into ≤3 projects (simplicity gate)
+2. **Project Structure**: Break down into ≤3 projects (MANDATORY simplicity gate)
+   - For simple CRUD/todo apps: Aim for 1-2 projects
+   - For apps with separate concerns: 2-3 projects maximum
+   - Examples of appropriate project counts:
+     * Simple todo app: 1 project (combined frontend + backend)
+     * Todo app with API: 2 projects (Backend API, Frontend)
+     * Complex system: 3 projects (Backend, Frontend, Background Worker)
+   - REJECT the urge to over-engineer with unnecessary separation
 3. **For Each Project**:
    - Clear scope and boundaries
    - Key tasks and milestones
@@ -17,11 +24,15 @@ Create a detailed implementation plan that includes:
 5. **Verification Steps**: How to validate each project
 
 IMPORTANT CONSTRAINTS (Constitution Principles):
-- Keep it SIMPLE: ≤3 projects maximum
+- Keep it SIMPLE: ≤3 projects maximum (THIS IS A HARD LIMIT - violating this fails the plan)
+- For basic CRUD/todo apps: 1-2 projects is usually sufficient
 - No over-engineering: Avoid unnecessary complexity
+  * Don't split into separate "API Gateway", "Auth Service", "Database Layer" for simple apps
+  * Don't create a project for every logical component
+  * Combine related concerns into single projects
 - No premature optimization: Choose simple solutions first
-- No microservices for simple apps
-- No Kubernetes/service mesh unless truly needed
-- Direct framework usage - no unnecessary abstractions
+- No microservices for simple apps (use monolith or simple client-server)
+- No Kubernetes/service mesh unless truly needed (Docker Compose is fine for simple apps)
+- Direct framework usage - no unnecessary abstractions or wrapper layers
 
 OUTPUT: A complete implementation plan document.

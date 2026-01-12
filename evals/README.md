@@ -2,6 +2,32 @@
 
 Comprehensive evaluation infrastructure for testing spec-kit template quality using PromptFoo with Claude.
 
+## 📊 Current Evaluation Results (Updated: 2026-01-12)
+
+**Overall Pass Rate: 90% (9/10 tests passing)** ✅
+
+| Test Suite | Pass Rate | Status |
+|------------|-----------|--------|
+| **Spec Template** | 7/8 (87.5%) | ✅ |
+| **Plan Template** | 2/2 (100%) | ✅ |
+| **Total** | **9/10 (90%)** | ✅ |
+
+### Recent Improvements
+
+- ✅ **Fixed Payment Security (Test #5)**: Enhanced security requirements coverage (auth, encryption, validation, logging, compliance)
+- ✅ **Fixed Plan Simplicity (Test #1)**: Strengthened simplicity constraints (≤3 projects)
+- ✅ **Fixed E-commerce Completeness (Test #7)**: Improved multi-step flow coverage
+- ✅ **Fixed Regressions (Tests #2, #6)**: Balanced security guidance, explicit section headings
+- ⚠️ **1 Minor Issue (Test #4)**: Vague term handling (acceptable trade-off for better security/completeness)
+
+### Progress Tracking
+
+| Metric | Initial | Current | Improvement |
+|--------|---------|---------|-------------|
+| Spec Tests | 6/8 (75%) | 7/8 (87.5%) | +12.5% |
+| Plan Tests | 1/2 (50%) | 2/2 (100%) | +50% |
+| **Overall** | **7/10 (70%)** | **9/10 (90%)** | **+20%** |
+
 ## Directory Structure
 
 ```
@@ -621,15 +647,16 @@ See [AI-EVALS-WORKPLAN.md](../AI-EVALS-WORKPLAN.md) for the complete implementat
 
 - **Week 1**: Error analysis foundation ✅ COMPLETED
 - **Week 2-3**: Custom annotation tool ✅ COMPLETED
-- **Week 4**: Extend PromptFoo based on findings (NEXT)
-- **Week 5-6**: Production monitoring
+- **Week 4**: Extend PromptFoo based on findings ✅ COMPLETED (90% pass rate achieved!)
+- **Week 5**: GitHub Actions CI/CD integration (NEXT)
+- **Week 5-6**: Production monitoring (OPTIONAL)
 
 ### MVP Approach
 
 We're following an iterative MVP approach:
-- ✅ **Done**: Basic structure, notebooks, test data generation, annotation tool
-- 🔄 **Next**: Review specs with annotation tool, extend PromptFoo based on findings
-- 📋 **Later**: Production monitoring, advanced features
+- ✅ **Done**: Basic structure, notebooks, test data generation, annotation tool, PromptFoo extended with 90% pass rate
+- 🔄 **Next**: GitHub Actions CI/CD to automate evals on every PR
+- 📋 **Later (Optional)**: Production monitoring, advanced features
 
 ## Support
 

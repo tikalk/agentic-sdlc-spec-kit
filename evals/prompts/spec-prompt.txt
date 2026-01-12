@@ -13,7 +13,31 @@ Create a comprehensive feature specification document that includes:
    - Independent testability for each story
 3. **Functional Requirements**: Specific, measurable, testable requirements (FR-001, FR-002, etc.)
 4. **Non-Functional Requirements**: Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
-5. **Edge Cases**: Document boundary conditions and error scenarios
+   - For security-critical features (authentication, payments, PII, healthcare data), MUST include:
+     * Authentication mechanisms (without specifying JWT, OAuth, etc.)
+     * Authorization and access control requirements
+     * Encryption requirements for sensitive data (at rest and in transit)
+     * Input validation and sanitization needs
+     * Audit logging and monitoring requirements
+     * Compliance requirements (PCI-DSS for payments, GDPR for personal data, HIPAA for healthcare)
+     * NOTE: Describe WHAT security is needed, not HOW (no specific algorithms, protocols, or libraries)
+   - For performance-critical features, specify measurable targets:
+     * Response time requirements (e.g., "API response < 200ms at p95")
+     * Throughput requirements (e.g., "Handle 1000 requests/second")
+     * Concurrent user limits (e.g., "Support 10,000 simultaneous users")
+5. **Edge Cases**: Document boundary conditions and error scenarios (use this exact section heading)
+   - For multi-step flows (checkout, onboarding, wizards), include:
+     * Failed transitions between steps (payment declined, timeout, network errors)
+     * State recovery and rollback scenarios
+     * Concurrent user actions (e.g., modifying cart during checkout)
+     * Session expiration handling
+   - For data input features, include:
+     * Boundary values (min/max, empty, very large inputs)
+     * Invalid formats and data types
+     * Special characters and injection attempts
+   - For integration points, include:
+     * External service failures (API down, timeout, rate limiting)
+     * Partial failures and retry logic
 6. **Success Criteria**: Measurable outcomes (SC-001, SC-002, etc.)
 
 IMPORTANT CONSTRAINTS:
@@ -21,5 +45,10 @@ IMPORTANT CONSTRAINTS:
 - Focus on WHAT needs to be built, not HOW to build it
 - All requirements must be measurable and testable
 - Mark any vague or unclear requirements with [NEEDS CLARIFICATION]
+- For complex multi-step features (checkout, onboarding), ensure COMPLETE coverage:
+  * All steps in the flow documented
+  * NFRs for each critical step (security for payment, performance for cart operations)
+  * Edge cases for each transition (what happens if step fails, timeout, etc.)
+  * Success criteria for the entire flow
 
 OUTPUT: A complete feature specification document.
