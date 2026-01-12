@@ -16,7 +16,7 @@
 
 | Phase | Status | Pass Rate |
 |-------|--------|-----------|
-| Week 1: Error Analysis Foundation | ✅ Complete | - |
+| Week 1: Error Analysis Foundation | ✅ Complete | **Plan Analysis: 100% (2/2)** |
 | Week 2-3: Custom Annotation Tool | ✅ Complete | - |
 | Week 4: Extend PromptFoo | ✅ Complete | **90% (9/10 tests)** |
 | Week 5: GitHub Actions CI/CD | 📋 TODO | - |
@@ -24,7 +24,8 @@
 
 **Latest Evaluation Results (2026-01-12):**
 - **Spec Template Tests:** 7/8 passed (87.5%)
-- **Plan Template Tests:** 2/2 passed (100%)
+- **Plan Template Tests:** 2/2 passed (100%) ✅ **Infrastructure completed today**
+- **Plan Error Analysis:** 2/2 passed (100%) ✅ **NEW - automated analysis ready**
 - **Overall:** 9/10 tests passing (90%)
 - **Improvement:** +20% from initial 70% baseline
 
@@ -33,7 +34,44 @@
 - ✅ Fixed plan simplicity constraints
 - ✅ Fixed e-commerce completeness
 - ✅ Maintained quality while adding guidance
+- ✅ **NEW**: Plan error analysis infrastructure complete (2026-01-12)
+  - Automated plan evaluation scripts operational
+  - 100% pass rate on initial test cases
+  - Ready for expansion to 10-20 test scenarios
 - ⚠️ 1 minor regression (vague term handling) - acceptable trade-off
+
+### 🎯 Latest Addition: Plan Error Analysis Foundation (2026-01-12)
+
+Successfully extended error analysis infrastructure to support **implementation plan evaluation**.
+
+**What Was Built:**
+- ✅ `generate-real-plans.py` - Generate plan test data from eval results
+- ✅ `run-automated-plan-analysis.py` - Claude-powered automated plan evaluation
+- ✅ `run-auto-plan-analysis.sh` - Shell wrapper for easy execution
+- ✅ 2 initial test cases in `evals/datasets/real-plans/`
+- ✅ Plan-specific evaluation criteria (simplicity gate, constitution compliance)
+- ✅ Automated failure categorization and reporting
+
+**Results:**
+- 100% pass rate on 2 initial test cases
+- Project count analysis working (1 project for simple apps ✓)
+- Constitution compliance verified (no over-engineering detected)
+- Integration with existing PromptFoo plan tests (2/2 passing)
+
+**Common Failure Categories Identified:**
+- Too many projects (>3)
+- Over-engineering
+- Missing verification steps
+- Unclear project boundaries
+- Microservices for simple apps
+- Premature optimization
+- Missing testing strategy
+
+**Next Steps:**
+- Expand test cases to 10-20 diverse scenarios
+- Add negative test cases (should fail)
+- Test edge cases (exactly 3 projects)
+- Integrate with GitHub Actions (Week 5)
 
 ### Week 1: Error Analysis Foundation ✅ **COMPLETED**
 - [x] **Directory structure** created: `evals/notebooks/`, `evals/datasets/`
@@ -44,18 +82,29 @@
   - MVP: Manual review workflow with open coding → axial coding
   - Dataframe-based analysis with visualization
 - [x] **Environment setup** using uv: `evals/scripts/run-error-analysis.sh`
-- [x] **Automated error analysis** created: `evals/scripts/run-auto-error-analysis.sh`
+- [x] **Automated error analysis for specs** created: `evals/scripts/run-auto-error-analysis.sh`
   - Uses Claude API to automatically evaluate specs
   - Binary pass/fail with categorization
   - Generates detailed CSV reports and summaries
   - Alternative to manual Jupyter workflow
+- [x] **Automated error analysis for plans** created: `evals/scripts/run-auto-plan-analysis.sh`
+  - Plan-specific error analysis infrastructure
+  - Evaluates simplicity gate (≤3 projects), constitution compliance
+  - Automated categorization of plan failures
+  - `evals/scripts/run-automated-plan-analysis.py` for execution
+  - `evals/scripts/generate-real-plans.py` for test data generation
 - [x] **Real test specs generated** - 17 specs in `evals/datasets/real-specs/`
+- [x] **Real test plans generated** - 2 plans in `evals/datasets/real-plans/` (expandable)
 - [x] **First error analysis session** - Completed through PromptFoo evaluation runs
   - Identified 3 initial failures, fixed iteratively
   - Documented in evaluation reports
+- [x] **Plan error analysis results** - 100% pass rate on initial test cases
+  - Project count analysis (1 project for simple apps ✓)
+  - Constitution compliance verified
+  - Analysis reports generated
 - [x] **Document findings** - Results documented in this file and README
 
-**Status:** Week 1 infrastructure completed and actively used in Week 4 evaluation work
+**Status:** Week 1 infrastructure completed and actively used in Week 4 evaluation work. Plan error analysis foundation added 2026-01-12.
 
 ### Week 2-3: Custom Annotation Tool 📋 ✅ **COMPLETED**
 - [x] Basic FastHTML annotation app (MVP)
@@ -1675,9 +1724,19 @@ Translation: PromptFoo = 20%, Notebooks + Annotation = 80%
 
 ---
 
-**Document Status:** v2.3 (Week 4 Completed - 90% Pass Rate Achieved)
+**Document Status:** v2.4 (Plan Error Analysis Foundation Added)
 **Owner:** [Assign owner]
 **Last Updated:** 2026-01-12
+
+**Key Changes in v2.4:**
+- Added Plan Error Analysis Foundation (2026-01-12)
+- Created automated plan evaluation infrastructure (3 new scripts)
+- Generated 2 initial plan test cases with 100% pass rate
+- Updated Week 1 tasks to include plan error analysis completion
+- Updated status summary table with plan analysis pass rate
+- Added "Latest Addition" section documenting plan analysis work
+- Updated evals/README.md with plan analysis documentation
+- Updated .gitignore for plan analysis artifacts
 
 **Key Changes in v2.3:**
 - Updated Week 4 status to COMPLETED with 90% pass rate (9/10 tests)

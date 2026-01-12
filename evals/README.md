@@ -485,17 +485,22 @@ evals/
 │   ├── error-analysis.ipynb       # Main analysis notebook (manual)
 │   └── .venv/                     # Virtual environment
 ├── scripts/                # Automation scripts
-│   ├── run-promptfoo-eval.sh      # PromptFoo test runner
-│   ├── run-error-analysis.sh      # Manual error analysis (Jupyter)
-│   ├── run-auto-error-analysis.sh # Automated error analysis (Claude API)
-│   ├── run-automated-error-analysis.py  # Python script for automation
-│   └── check_eval_scores.py       # Score validation
+│   ├── run-promptfoo-eval.sh              # PromptFoo test runner
+│   ├── run-error-analysis.sh              # Manual error analysis (Jupyter)
+│   ├── run-auto-error-analysis.sh         # Automated error analysis for specs (Claude API)
+│   ├── run-automated-error-analysis.py    # Python script for spec automation
+│   ├── run-auto-plan-analysis.sh          # Automated error analysis for plans
+│   ├── run-automated-plan-analysis.py     # Python script for plan automation
+│   ├── generate-real-plans.py             # Generate plan test data
+│   └── check_eval_scores.py               # Score validation
 └── datasets/               # Test data
     ├── real-specs/                # Generated specs for review (17 templates)
-    ├── real-plans/                # Generated plans for review
-    ├── generate-test-data.sh      # Data generation script
+    ├── real-plans/                # Generated plans for review (2 templates, expandable)
+    ├── generate-test-data.sh      # Data generation script for specs
     └── analysis-results/          # Analysis output (CSV, summaries)
-        ├── automated-analysis-*.csv     # Automated eval results
+        ├── automated-analysis-*.csv     # Automated spec eval results
+        ├── plan-analysis-*.csv          # Automated plan eval results
+        ├── plan-eval-analysis-*.txt     # Plan evaluation analysis reports
         ├── summary-*.txt                # Summary reports
         └── error-analysis-results.csv   # Manual review results
 ```
@@ -569,6 +574,54 @@ Traditional error analysis workflow for deep investigation:
    - Fix high-frequency failure modes
    - Add automated checks to PromptFoo
    - Re-run error analysis monthly
+
+### Plan Error Analysis (NEW)
+
+In addition to spec evaluation, we now support error analysis for **implementation plans**.
+
+#### Quick Start - Plan Analysis
+
+```bash
+# 1. Generate plan test data
+cd evals/scripts
+ANTHROPIC_BASE_URL="your-url" \
+ANTHROPIC_AUTH_TOKEN="your-token" \
+./evals/.venv/bin/python generate-real-plans.py
+
+# 2. Run automated plan analysis
+export ANTHROPIC_API_KEY="your-anthropic-key"
+./run-auto-plan-analysis.sh
+
+# Output:
+# - evals/datasets/analysis-results/plan-analysis-<timestamp>.csv
+# - evals/datasets/analysis-results/plan-summary-<timestamp>.txt
+```
+
+#### Plan Analysis Features
+
+**Evaluation Criteria:**
+- **Simplicity Gate**: ≤3 projects (CRITICAL - Constitution compliance)
+- **Completeness**: All necessary components and phases defined
+- **Clarity**: Project boundaries, tasks, and milestones clear
+- **Appropriateness**: Simple architecture, no over-engineering
+- **Constitution Compliance**: No microservices for simple apps, no premature optimization
+- **Testability**: Testing strategy and verification steps included
+
+**Common Failure Categories for Plans:**
+- Too many projects (>3)
+- Over-engineering
+- Missing verification steps
+- Unclear project boundaries
+- Microservices for simple app
+- Premature optimization
+- Missing testing strategy
+- Tech stack mismatch
+- Incomplete milestones
+
+**Current Status:**
+- Plan evaluation integrated with PromptFoo (100% pass rate on 2 test cases)
+- Error analysis infrastructure ready for expansion
+- Support for both automated (Claude API) and manual review workflows
 
 ## Custom Annotation Tool
 

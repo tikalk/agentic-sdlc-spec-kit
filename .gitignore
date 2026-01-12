@@ -55,6 +55,9 @@ evals/notebooks/.ipynb_checkpoints/
 evals/datasets/analysis-results/*.csv
 evals/datasets/analysis-results/*.txt
 evals/datasets/analysis-results/automated-analysis-*.csv
+evals/datasets/analysis-results/plan-analysis-*.csv
+evals/datasets/analysis-results/plan-eval-analysis-*.txt
+evals/datasets/analysis-results/plan-summary-*.txt
 evals/datasets/analysis-results/promptfoo-analysis-*.csv
 evals/datasets/analysis-results/summary-*.txt
 
