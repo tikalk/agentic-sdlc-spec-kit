@@ -62,3 +62,4 @@ evals/datasets/analysis-results/summary-*.txt
 evals/annotation-tool/.venv/
 evals/annotation-tool/annotations.json
 evals/annotation-tool/annotations_export_*.json
+evals/annotation-tool/.sesskey
