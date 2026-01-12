@@ -56,7 +56,6 @@ evals/
 └── datasets/              # Test data and results
     ├── real-specs/               # Generated specs for review
     ├── real-plans/               # Generated plans for review
-    ├── generate-test-data.sh     # Data generation script
     └── analysis-results/         # Analysis outputs
 ```
 
@@ -463,7 +462,7 @@ PromptFoo provides automated regression testing, but **error analysis on real ou
 
 ```bash
 # 1. Generate test data
-cd evals/datasets
+cd evals/scripts
 ./generate-test-data.sh  # Creates 17 diverse test case templates
 
 # 2. Run error analysis workflow (sets up environment + launches Jupyter)
@@ -496,7 +495,6 @@ evals/
 └── datasets/               # Test data
     ├── real-specs/                # Generated specs for review (17 templates)
     ├── real-plans/                # Generated plans for review (2 templates, expandable)
-    ├── generate-test-data.sh      # Data generation script for specs
     └── analysis-results/          # Analysis output (CSV, summaries)
         ├── automated-analysis-*.csv     # Automated spec eval results
         ├── plan-analysis-*.csv          # Automated plan eval results

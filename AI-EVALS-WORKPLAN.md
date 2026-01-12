@@ -75,7 +75,7 @@ Successfully extended error analysis infrastructure to support **implementation 
 
 ### Week 1: Error Analysis Foundation ✅ **COMPLETED**
 - [x] **Directory structure** created: `evals/notebooks/`, `evals/datasets/`
-- [x] **Test data generation script** created: `evals/datasets/generate-test-data.sh`
+- [x] **Test data generation script** created: `evals/scripts/generate-test-data.sh`
   - Generated 17 diverse test case templates (can expand to 100+ later)
   - Covers: simple/medium/complex, web/api/enterprise, multiple tech stacks
 - [x] **Error analysis notebook** created: `evals/notebooks/error-analysis.ipynb`
@@ -1049,7 +1049,7 @@ Debug: Why did Plan fail? Check if Spec was incomplete.
 mkdir -p evals/{notebooks,datasets/real-specs,datasets/real-plans}
 
 # 2. Generate 100 REAL outputs (diverse prompts)
-cd evals/datasets
+cd evals/scripts
 ./generate-test-data.sh  # Create this script
 
 # 3. Install notebook environment
