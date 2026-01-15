@@ -4,15 +4,24 @@ USER REQUIREMENTS:
 {{ user_input }}
 
 INSTRUCTIONS:
-Create a comprehensive feature specification document that includes:
+Create a comprehensive feature specification document with the following structure.
 
-1. **Overview Section**: Brief description of the feature
-2. **User Stories**: 5+ prioritized user stories (P1, P2, P3) with:
+IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
+
+## 1. Overview Section
+Brief description of the feature
+
+## 2. User Stories
+5+ prioritized user stories (P1, P2, P3) with:
    - Clear "As a [role], I want [feature], so that [benefit]" format
    - Detailed acceptance criteria in Given/When/Then format
    - Independent testability for each story
-3. **Functional Requirements**: Specific, measurable, testable requirements (FR-001, FR-002, etc.)
-4. **Non-Functional Requirements**: Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
+
+## 3. Functional Requirements
+Specific, measurable, testable requirements (FR-001, FR-002, etc.)
+
+## 4. Non-Functional Requirements
+Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
    - For security-critical features (authentication, payments, PII, healthcare data), MUST include:
      * Authentication mechanisms (without specifying JWT, OAuth, etc.)
      * Authorization and access control requirements
@@ -25,7 +34,9 @@ Create a comprehensive feature specification document that includes:
      * Response time requirements (e.g., "API response < 200ms at p95")
      * Throughput requirements (e.g., "Handle 1000 requests/second")
      * Concurrent user limits (e.g., "Support 10,000 simultaneous users")
-5. **Edge Cases**: Document boundary conditions and error scenarios (use this exact section heading)
+
+## 5. Edge Cases
+Document boundary conditions and error scenarios:
    - For multi-step flows (checkout, onboarding, wizards), include:
      * Failed transitions between steps (payment declined, timeout, network errors)
      * State recovery and rollback scenarios
@@ -38,7 +49,9 @@ Create a comprehensive feature specification document that includes:
    - For integration points, include:
      * External service failures (API down, timeout, rate limiting)
      * Partial failures and retry logic
-6. **Success Criteria**: Measurable outcomes (SC-001, SC-002, etc.)
+
+## 6. Success Criteria
+Measurable outcomes (SC-001, SC-002, etc.)
 
 IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)

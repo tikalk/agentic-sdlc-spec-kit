@@ -36,31 +36,25 @@ fi
 echo -e "${GREEN}✓${NC} npx available"
 
 # Check environment variables
-if [ -z "$ANTHROPIC_BASE_URL" ]; then
-    echo -e "${RED}❌ ANTHROPIC_BASE_URL not set${NC}"
+if [ -z "$LLM_BASE_URL" ]; then
+    echo -e "${RED}❌ LLM_BASE_URL not set${NC}"
     echo ""
-    echo "Set with: export ANTHROPIC_BASE_URL='your-litellm-url'"
+    echo "Set with: export LLM_BASE_URL='your-llm-base-url'"
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} ANTHROPIC_BASE_URL set"
+echo -e "${GREEN}✓${NC} LLM_BASE_URL set"
 
-if [ -z "$ANTHROPIC_AUTH_TOKEN" ]; then
-    echo -e "${RED}❌ ANTHROPIC_AUTH_TOKEN not set${NC}"
+if [ -z "$LLM_API_KEY" ]; then
+    echo -e "${RED}❌ LLM_API_KEY not set${NC}"
     echo ""
-    echo "Set with: export ANTHROPIC_AUTH_TOKEN='your-token'"
+    echo "Set with: export LLM_API_KEY='your-token'"
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} ANTHROPIC_AUTH_TOKEN set"
+echo -e "${GREEN}✓${NC} LLM_API_KEY set"
 
-# Set default Claude model if not specified
-if [ -z "$CLAUDE_MODEL" ]; then
-    export CLAUDE_MODEL="claude-sonnet-4-5-20250929"
-    echo -e "${GREEN}✓${NC} CLAUDE_MODEL defaulted to ${CLAUDE_MODEL}"
-else
-    echo -e "${GREEN}✓${NC} CLAUDE_MODEL set to ${CLAUDE_MODEL}"
-fi
+# Note: Model will be set after parsing command line arguments
 
 # Check if we're in the repo root (look for config files)
 if [ ! -f "evals/configs/promptfooconfig-spec.js" ] || [ ! -f "evals/configs/promptfooconfig-plan.js" ]; then
@@ -74,8 +68,8 @@ fi
 echo -e "${GREEN}✓${NC} Configuration files found"
 
 # Export OpenAI-compatible env vars for PromptFoo
-export OPENAI_API_KEY="${ANTHROPIC_AUTH_TOKEN}"
-export OPENAI_BASE_URL="${ANTHROPIC_BASE_URL}"
+export OPENAI_API_KEY="${LLM_API_KEY}"
+export OPENAI_BASE_URL="${LLM_BASE_URL}"
 
 echo ""
 
@@ -83,6 +77,7 @@ echo ""
 FILTER=""
 OUTPUT_JSON=false
 VIEW_RESULTS=false
+MODEL=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -98,6 +93,10 @@ while [[ $# -gt 0 ]]; do
             VIEW_RESULTS=true
             shift
             ;;
+        --model)
+            MODEL="$2"
+            shift 2
+            ;;
         --help)
             echo "Usage: ./evals/scripts/run-eval.sh [OPTIONS]"
             echo ""
@@ -105,12 +104,14 @@ while [[ $# -gt 0 ]]; do
             echo "  --filter TEXT    Run only tests matching TEXT"
             echo "  --json           Output results as JSON"
             echo "  --view           Open web UI after running"
+            echo "  --model MODEL    Specify model to use (default: claude-sonnet-4-5-20250929)"
             echo "  --help           Show this help message"
             echo ""
             echo "Examples:"
             echo "  ./evals/scripts/run-eval.sh                    # Run all tests"
             echo "  ./evals/scripts/run-eval.sh --filter 'Spec'   # Run only spec template tests"
             echo "  ./evals/scripts/run-eval.sh --json --view     # Run tests, save JSON, open UI"
+            echo "  ./evals/scripts/run-eval.sh --model claude-opus-4-5-20251101  # Use Opus 4.5"
             exit 0
             ;;
         *)
@@ -120,6 +121,17 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# Set Claude model (priority: --model flag > env var > default)
+if [ -n "$MODEL" ]; then
+    export LLM_MODEL="$MODEL"
+    echo -e "${GREEN}✓${NC} LLM_MODEL set to ${LLM_MODEL} (from --model flag)"
+elif [ -z "$LLM_MODEL" ]; then
+    export LLM_MODEL="claude-sonnet-4-5-20250929"
+    echo -e "${GREEN}✓${NC} LLM_MODEL defaulted to ${LLM_MODEL}"
+else
+    echo -e "${GREEN}✓${NC} LLM_MODEL set to ${LLM_MODEL} (from environment)"
+fi
 
 # Build filter argument if provided
 FILTER_ARG=""

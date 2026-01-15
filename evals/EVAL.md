@@ -262,4 +262,4 @@ evals/
 
 - [README.md](README.md) - Complete setup and configuration guide
 - [annotation-tool/README.md](annotation-tool/README.md) - Annotation tool detailed documentation
-- [AI-EVALS-WORKPLAN.md](../AI-EVALS-WORKPLAN.md) - Implementation roadmap
+- [AI-EVALS-WORKPLAN.md](docs/AI-EVALS-WORKPLAN.md) - Implementation roadmap

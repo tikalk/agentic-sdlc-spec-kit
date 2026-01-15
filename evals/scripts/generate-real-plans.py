@@ -88,7 +88,6 @@ def main():
         print(f"  🤖 Generating plan...")
 
         try:
-            # Use OpenAI-compatible endpoint format for LiteLLM
             response = requests.post(
                 f"{api_url}/v1/chat/completions",
                 headers={

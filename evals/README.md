@@ -1,5 +1,7 @@
 # Spec-Kit Evaluation Framework
 
+[![AI Evals](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml/badge.svg)](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml)
+
 Comprehensive evaluation infrastructure for testing spec-kit template quality using PromptFoo with Claude.
 
 ## 📊 Current Evaluation Results (Updated: 2026-01-12)
@@ -61,6 +63,8 @@ evals/
 
 ## Quick Start
 
+> **💡 New to the eval framework?** Check out [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) for a one-page overview of all commands, files, and workflows!
+
 ### 1. Prerequisites
 
 ```bash
@@ -77,9 +81,9 @@ npx --version   # Comes with Node.js
 
 ```bash
 # Add to ~/.bashrc or ~/.zshrc
-export ANTHROPIC_BASE_URL="your-litellm-proxy-url"
-export ANTHROPIC_AUTH_TOKEN="your-litellm-auth-token"
-export CLAUDE_MODEL="claude-sonnet-4-5-20250929"  # Optional, defaults to Sonnet 4.5
+export LLM_BASE_URL="your-llm-base-url"
+export LLM_API_KEY="your-api-key"
+export LLM_MODEL="claude-sonnet-4-5-20250929"  # Optional, defaults to Sonnet 4.5
 
 # Reload shell
 source ~/.zshrc  # or source ~/.bashrc
@@ -99,6 +103,9 @@ source ~/.zshrc  # or source ~/.bashrc
 
 # Filter specific tests
 ./evals/scripts/run-promptfoo-eval.sh --filter "Spec Template"
+
+# Use a specific model (overrides CLAUDE_MODEL env var)
+./evals/scripts/run-promptfoo-eval.sh --model claude-opus-4-5-20251101
 ```
 
 ## Test Suite
@@ -131,21 +138,44 @@ The evaluation includes **10 automated tests** covering:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `ANTHROPIC_BASE_URL` | **Yes** | - | LiteLLM proxy URL |
-| `ANTHROPIC_AUTH_TOKEN` | **Yes** | - | LiteLLM authentication token |
-| `CLAUDE_MODEL` | No | `claude-sonnet-4-5-20250929` | Claude model identifier |
+| `LLM_BASE_URL` | **Yes** | - | AI API Gateway URL |
+| `LLM_API_KEY` | **Yes** | - | API authentication key |
+| `LLM_MODEL` | No | `claude-sonnet-4-5-20250929` | Model identifier |
 
 ### Changing the Model
 
+You can specify which model to use in three ways:
+
+**Option 1: Command-line flag (recommended for one-time use)**
 ```bash
-# Use Claude Opus instead
-export CLAUDE_MODEL="claude-opus-4-5-20241101"
-./evals/scripts/run-eval.sh
+# Use Claude Opus
+./evals/scripts/run-promptfoo-eval.sh --model claude-opus-4-5-20251101
 
 # Use Claude Haiku for faster/cheaper evals
-export CLAUDE_MODEL="claude-3-5-haiku-20241022"
-./evals/scripts/run-eval.sh
+./evals/scripts/run-promptfoo-eval.sh --model claude-3-5-haiku-20241022
+
+# For automated analysis scripts
+./evals/scripts/run-auto-error-analysis.sh --model claude-opus-4-5-20251101
+./evals/scripts/run-auto-plan-analysis.sh --model claude-3-5-haiku-20241022
 ```
+
+**Option 2: Environment variable (recommended for persistent use)**
+```bash
+# Set for current session
+export LLM_MODEL="claude-opus-4-5-20251101"
+./evals/scripts/run-promptfoo-eval.sh
+
+# Add to ~/.bashrc or ~/.zshrc for permanent use
+echo 'export LLM_MODEL="claude-opus-4-5-20251101"' >> ~/.zshrc
+```
+
+**Option 3: GitHub Actions workflow input**
+- Go to **Actions** tab → **AI Evals** workflow
+- Click **Run workflow**
+- Enter model name in the **Model** input field
+- Click **Run workflow**
+
+**Priority order:** `--model` flag > `LLM_MODEL` env var > default (`claude-sonnet-4-5-20250929`)
 
 ### Config Files
 
@@ -253,58 +283,63 @@ Running the full test suite (10 tests) with Claude Sonnet 4.5:
    export CLAUDE_MODEL="claude-3-5-haiku-20241022"
    ```
 
-3. **Leverage caching**: LiteLLM caches responses (reflected in token counts)
+3. **Leverage caching**: AI API Gateway caches responses (reflected in token counts)
 
 4. **Run locally**: Only run in CI for important PRs
 
 ## CI/CD Integration
 
-### GitHub Actions Example
+GitHub Actions workflow is **ready and configured** at `.github/workflows/eval.yml`.
 
-Create `.github/workflows/eval.yml`:
+### Quick Setup
 
-```yaml
-name: Evaluate Templates
+1. **Configure Secrets** (Required):
+   ```bash
+   # Go to: Repository Settings → Secrets and variables → Actions
+   # Add these two secrets:
+   # - LLM_BASE_URL: Your AI API Gateway URL
+   # - LLM_API_KEY: Your API authentication key
+   ```
 
-on:
-  pull_request:
-    paths:
-      - 'team-ai-directives/**'
-      - 'evals/**'
+2. **Run the Workflow Manually**:
+   - Go to **Actions** tab in GitHub
+   - Select **AI Evals** workflow
+   - Click **Run workflow** button
+   - Select branch (usually `main`)
+   - Click **Run workflow** to start
+   - View results in the workflow run logs and artifacts
 
-jobs:
-  eval:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+### Features
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
+✅ **Manual Execution**: Run evaluations on-demand from Actions tab
+✅ **Quality Gates**: Enforces minimum 70% pass rate
+✅ **Detailed Results**: Comprehensive evaluation reports with pass/fail status
+✅ **Artifacts**: Saves detailed results for 30 days
+✅ **Threshold Validation**: Automatic quality checks with configurable thresholds
+✅ **Token Tracking**: Monitor API usage and costs per run
 
-      - name: Run Evaluations
-        env:
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
-          CLAUDE_MODEL: claude-sonnet-4-5-20250929
-        run: |
-          ./evals/scripts/run-promptfoo-eval.sh --json
+### Status Badge
 
-      - name: Check Minimum Pass Rate
-        run: |
-          python3 evals/scripts/check_eval_scores.py \
-            --results eval-results.json \
-            --min-pass-rate 0.70
+The badge at the top of this README shows the current status of the eval workflow:
+- ✅ Green: All evaluations passing
+- ❌ Red: Some evaluations failing
 
-      - name: Upload Results
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: eval-results
-          path: |
-            eval-results*.json
-```
+### Detailed Setup Guide
+
+See [GITHUB_ACTIONS_SETUP.md](./GITHUB_ACTIONS_SETUP.md) for complete instructions including:
+- Setting up required secrets
+- Configuring branch protection
+- Troubleshooting common issues
+- Cost estimation and optimization
+- Viewing and monitoring results
+
+### Local Testing
+
+Want to test the workflow before pushing? See [LOCAL_TESTING.md](docs/LOCAL_TESTING.md) for:
+- Installing and using `act` to run workflows locally
+- Testing specific scenarios and edge cases
+- Debugging workflow issues
+- Best practices for iterative development
 
 ## Adding New Tests
 
@@ -372,14 +407,14 @@ assert: [
 
 ### Common Issues
 
-**Error: "ANTHROPIC_BASE_URL not set"**
+**Error: "LLM_BASE_URL not set"**
 ```bash
 # Check env vars
-env | grep ANTHROPIC
+env | grep LLM
 
 # Set if missing
-export ANTHROPIC_BASE_URL="your-url"
-export ANTHROPIC_AUTH_TOKEN="your-token"
+export LLM_BASE_URL="your-url"
+export LLM_API_KEY="your-key"
 ```
 
 **Error: "Config files not found"**
@@ -391,9 +426,9 @@ cd /path/to/agentic-sdlc-spec-kit
 
 **Error: "Could not connect to API"**
 ```bash
-# Test LiteLLM endpoint directly
-curl -X POST ${ANTHROPIC_BASE_URL}/chat/completions \
-  -H "Authorization: Bearer ${ANTHROPIC_AUTH_TOKEN}" \
+# Test API Gateway endpoint directly
+curl -X POST ${LLM_BASE_URL}/chat/completions \
+  -H "Authorization: Bearer ${LLM_API_KEY}" \
   -H "Content-Type: application/json" \
   -d '{
     "model": "claude-sonnet-4-5-20250929",
@@ -415,8 +450,8 @@ print(result)
 
 **Tests taking too long**
 - Reduce `max_tokens` in config (default: 4000)
-- Use faster model: `export CLAUDE_MODEL="claude-3-5-haiku-20241022"`
-- Check LiteLLM proxy isn't rate limiting
+- Use faster model: `export LLM_MODEL="claude-3-5-haiku-20241022"`
+- Check AI API Gateway isn't rate limiting
 
 ## Best Practices
 
@@ -448,7 +483,6 @@ Current thresholds (adjust in config files):
 ## Resources
 
 - **PromptFoo Docs**: https://promptfoo.dev/docs/intro
-- **LiteLLM Docs**: https://docs.litellm.ai
 - **Custom Graders Guide**: https://promptfoo.dev/docs/configuration/expected-outputs/python
 - **Claude Models**: https://docs.anthropic.com/claude/docs/models-overview
 
@@ -523,8 +557,11 @@ You can run error analysis in two ways:
 Uses Claude API to automatically evaluate specs and categorize failures:
 
 ```bash
-# Run automated error analysis
+# Run automated error analysis (uses default model)
 ./evals/scripts/run-auto-error-analysis.sh
+
+# Use a specific model
+./evals/scripts/run-auto-error-analysis.sh --model claude-opus-4-5-20251101
 
 # Requirements:
 # - ANTHROPIC_API_KEY environment variable set
@@ -582,13 +619,16 @@ In addition to spec evaluation, we now support error analysis for **implementati
 ```bash
 # 1. Generate plan test data
 cd evals/scripts
-ANTHROPIC_BASE_URL="your-url" \
-ANTHROPIC_AUTH_TOKEN="your-token" \
+LLM_BASE_URL="your-url" \
+LLM_API_KEY="your-key" \
 ./evals/.venv/bin/python generate-real-plans.py
 
-# 2. Run automated plan analysis
+# 2. Run automated plan analysis (uses default model)
 export ANTHROPIC_API_KEY="your-anthropic-key"
 ./run-auto-plan-analysis.sh
+
+# Or use a specific model
+./run-auto-plan-analysis.sh --model claude-opus-4-5-20251101
 
 # Output:
 # - evals/datasets/analysis-results/plan-analysis-<timestamp>.csv
@@ -694,20 +734,20 @@ See [annotation-tool/README.md](annotation-tool/README.md) for detailed document
 
 ### What's Next
 
-See [AI-EVALS-WORKPLAN.md](../AI-EVALS-WORKPLAN.md) for the complete implementation roadmap:
+See [AI-EVALS-WORKPLAN.md](docs/AI-EVALS-WORKPLAN.md) for the complete implementation roadmap:
 
 - **Week 1**: Error analysis foundation ✅ COMPLETED
 - **Week 2-3**: Custom annotation tool ✅ COMPLETED
 - **Week 4**: Extend PromptFoo based on findings ✅ COMPLETED (90% pass rate achieved!)
-- **Week 5**: GitHub Actions CI/CD integration (NEXT)
-- **Week 5-6**: Production monitoring (OPTIONAL)
+- **Week 5**: GitHub Actions CI/CD integration ✅ COMPLETED
+- **Week 5-6**: Production monitoring (OPTIONAL - NEXT)
 
 ### MVP Approach
 
 We're following an iterative MVP approach:
-- ✅ **Done**: Basic structure, notebooks, test data generation, annotation tool, PromptFoo extended with 90% pass rate
-- 🔄 **Next**: GitHub Actions CI/CD to automate evals on every PR
-- 📋 **Later (Optional)**: Production monitoring, advanced features
+- ✅ **Done**: Basic structure, notebooks, test data generation, annotation tool, PromptFoo extended with 90% pass rate, GitHub Actions CI/CD
+- 📋 **Next (Optional)**: Production monitoring for live generation quality tracking
+- 📋 **Later (Optional)**: Advanced features (clustering, AI assistance, dashboards)
 
 ## Support
 

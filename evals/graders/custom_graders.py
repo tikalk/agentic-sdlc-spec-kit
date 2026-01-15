@@ -52,24 +52,39 @@ def check_simplicity_gate(output: str, context: dict) -> dict:
     Returns:
         dict with 'pass', 'score', and 'reason' keys
     """
-    # Count projects in the plan
+    # Count unique projects in the plan
     # Look for patterns like "Project 1:", "## Project", etc.
     import re
 
-    # Pattern 1: "Project N:" or "Project: Name"
-    project_pattern1 = re.compile(r'(?:^|\n)(?:#+\s*)?Project\s*(?:\d+|:)', re.IGNORECASE)
-    # Pattern 2: "## ProjectName" or "# ProjectName"
-    project_pattern2 = re.compile(r'(?:^|\n)#+\s*\w+Project\w*', re.IGNORECASE)
+    # Extract project numbers to avoid counting duplicates
+    # Pattern: "Project" followed by a number
+    project_number_pattern = re.compile(r'Project\s+(\d+)', re.IGNORECASE)
+    project_numbers = project_number_pattern.findall(output)
 
-    matches1 = project_pattern1.findall(output)
-    matches2 = project_pattern2.findall(output)
+    # Get unique project numbers
+    unique_projects = set(project_numbers)
+    project_count = len(unique_projects)
 
-    # Take max to avoid undercounting
-    project_count = max(len(matches1), len(matches2))
-
-    # If no clear project markers, assume single project
+    # If no numbered projects found, look for "Project Structure" section
+    # and try to extract count from table or list
     if project_count == 0:
-        project_count = 1
+        # Look for table format: "| Project 1" or "| **Project 1"
+        table_project_pattern = re.compile(r'\|\s*\*?\*?Project\s+(\d+)', re.IGNORECASE)
+        table_numbers = table_project_pattern.findall(output)
+        if table_numbers:
+            unique_projects = set(table_numbers)
+            project_count = len(unique_projects)
+
+    # If still no projects found, look for explicit project count in text
+    if project_count == 0:
+        count_pattern = re.compile(r'(\d+)\s+projects?', re.IGNORECASE)
+        count_matches = count_pattern.findall(output)
+        if count_matches:
+            # Take the first explicit count mentioned
+            project_count = int(count_matches[0])
+        else:
+            # Assume single project if nothing found
+            project_count = 1
 
     passed = project_count <= 3
     score = 1.0 if passed else max(0, 1 - (project_count - 3) * 0.2)
@@ -105,7 +120,10 @@ def check_constitution_compliance(output: str, context: dict) -> dict:
     if not simplicity_result['pass']:
         violations.append(simplicity_result['reason'])
 
-    # Check for over-engineering patterns
+    # Check for over-engineering patterns (context-aware)
+    # Only flag if NOT in a negative context (e.g., "no microservices", "avoiding kubernetes")
+    import re
+
     over_engineering_terms = [
         'microservices',
         'kubernetes',
@@ -118,10 +136,27 @@ def check_constitution_compliance(output: str, context: dict) -> dict:
     ]
     over_engineering_terms = [t for t in over_engineering_terms if t]  # Remove None
 
-    found_overengineering = [
-        term for term in over_engineering_terms
-        if term in output_lower
-    ]
+    found_overengineering = []
+    for term in over_engineering_terms:
+        if term not in output_lower:
+            continue
+
+        # Check if term is in a negative context
+        # Look for patterns like "no X", "avoid X", "not X", "without X"
+        negative_patterns = [
+            rf'\b(no|avoid|avoiding|not|without)\s+\w*\s*{re.escape(term)}',
+            rf'{re.escape(term)}\s*\w*\s*(avoided|rejected|unnecessary)'
+        ]
+
+        is_negative = False
+        for pattern in negative_patterns:
+            if re.search(pattern, output_lower, re.IGNORECASE):
+                is_negative = True
+                break
+
+        # Only flag if NOT in negative context
+        if not is_negative:
+            found_overengineering.append(term)
 
     if found_overengineering:
         violations.append(f"Over-engineering detected: {', '.join(found_overengineering)}")
@@ -224,6 +259,70 @@ def check_vague_terms(output: str, context: dict) -> dict:
         'pass': quantified_ratio >= 0.7,
         'score': quantified_ratio,
         'reason': f'Found {len(vague_found)} vague terms, {quantified_count} properly quantified/flagged'
+    }
+
+
+def check_edge_cases_coverage(output: str, context: dict) -> dict:
+    """
+    Check if edge cases section has comprehensive coverage.
+
+    Args:
+        output: The generated specification text
+        context: Additional context with vars (user_input)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    output_lower = output.lower()
+
+    # Define categories of edge cases to check
+    edge_case_categories = {
+        'boundary_values': [
+            'empty', 'min', 'max', 'limit', 'boundary', 'zero', 'negative',
+            'very large', 'exceed'
+        ],
+        'invalid_inputs': [
+            'invalid', 'malformed', 'incorrect', 'wrong', 'unsupported',
+            'malicious', 'corrupt'
+        ],
+        'network_failures': [
+            'network', 'timeout', 'connection', 'disconnect', 'offline',
+            'latency', 'fail'
+        ],
+        'concurrent_actions': [
+            'concurrent', 'simultaneous', 'parallel', 'race condition',
+            'multiple users'
+        ],
+        'state_issues': [
+            'session', 'expire', 'recovery', 'rollback', 'partial',
+            'inconsistent', 'state'
+        ]
+    }
+
+    # Count how many categories are covered
+    covered_categories = 0
+    found_terms = []
+
+    for category, terms in edge_case_categories.items():
+        for term in terms:
+            if term in output_lower:
+                covered_categories += 1
+                found_terms.append(f"{category}: {term}")
+                break  # Count each category only once
+
+    # Calculate score based on coverage
+    total_categories = len(edge_case_categories)
+    score = covered_categories / total_categories
+
+    # Pass if at least 3 out of 5 categories covered
+    passed = covered_categories >= 3
+
+    return {
+        'pass': passed,
+        'score': score,
+        'reason': f'Covered {covered_categories}/{total_categories} edge case categories ({", ".join(found_terms[:3])}{"..." if len(found_terms) > 3 else ""})'
     }
 
 

@@ -78,8 +78,11 @@ def extract_spec_content(file_path):
     return prompt, spec
 
 
-def evaluate_spec(prompt, spec, model="claude-sonnet-4-5-20250929"):
+def evaluate_spec(prompt, spec, model=None):
     """Use Claude to evaluate a spec"""
+    if model is None:
+        model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+
     try:
         message = client.messages.create(
             model=model,
@@ -127,6 +130,11 @@ def main():
         print("❌ Error: ANTHROPIC_API_KEY not set")
         print("   Set it with: export ANTHROPIC_API_KEY=your-key")
         return 1
+
+    # Get model from environment or use default
+    model = os.environ.get("CLAUDE_MODEL", "claude-sonnet-4-5-20250929")
+    print(f"🤖 Using model: {model}")
+    print()
 
     # Load spec files
     spec_files = sorted(glob.glob(str(DATASET_DIR / 'spec-*.md')))
@@ -211,7 +219,7 @@ def main():
         f.write(f"Automated Error Analysis Report\n")
         f.write(f"{'=' * 60}\n\n")
         f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"Model: claude-sonnet-4-5-20250929\n\n")
+        f.write(f"Model: {model}\n\n")
         f.write(f"Results:\n")
         f.write(f"  Total specs: {total}\n")
         f.write(f"  Passed: {passed}\n")

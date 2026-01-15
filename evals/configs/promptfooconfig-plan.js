@@ -5,27 +5,27 @@ module.exports = {
   // Plan prompt only
   prompts: ['file://../prompts/plan-prompt.txt'],
 
-  // Configure LiteLLM Claude provider using OpenAI-compatible endpoint
+  // Configure LLM provider using OpenAI-compatible endpoint
   providers: [
     {
-      id: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `Claude ${process.env.CLAUDE_MODEL || 'Sonnet 4.5'} (via LiteLLM)`,
+      id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
+      label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
       config: {
-        apiBaseUrl: process.env.ANTHROPIC_BASE_URL,
-        apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
+        apiBaseUrl: process.env.LLM_BASE_URL,
+        apiKey: process.env.LLM_API_KEY,
         temperature: 0.7,
         max_tokens: 4000,
       },
       env: {
-        OPENAI_API_KEY: process.env.ANTHROPIC_AUTH_TOKEN,
-        OPENAI_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+        OPENAI_API_KEY: process.env.LLM_API_KEY,
+        OPENAI_BASE_URL: process.env.LLM_BASE_URL,
       },
     },
   ],
 
   defaultTest: {
     options: {
-      provider: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
+      provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
   },
 
@@ -38,8 +38,8 @@ module.exports = {
       },
       assert: [
         { type: 'python', value: 'file://../graders/custom_graders.py:check_simplicity_gate' },
-        { type: 'not-icontains', value: 'microservices' },
-        { type: 'not-icontains', value: 'kubernetes' },
+        // Note: Removed not-icontains checks - our custom grader is context-aware
+        // and handles "no microservices" vs "use microservices" correctly
       ],
     },
 

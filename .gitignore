@@ -34,6 +34,9 @@ env/
 .DS_Store
 *.tmp
 
+# Github
+.github/workflows/.secrets
+
 # Project specific
 *.log
 .env

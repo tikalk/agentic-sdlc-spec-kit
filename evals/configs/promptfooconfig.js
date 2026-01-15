@@ -2,22 +2,22 @@
 module.exports = {
   description: 'Spec-Kit Quality Evaluation',
 
-  // Configure LiteLLM Claude provider using OpenAI-compatible endpoint
+  // Configure LLM provider using OpenAI-compatible endpoint
   providers: [
     {
-      id: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `Claude ${process.env.CLAUDE_MODEL || 'Sonnet 4.5'} (via LiteLLM)`,
+      id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
+      label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
       config: {
-        // LiteLLM exposes an OpenAI-compatible endpoint at /chat/completions
-        apiBaseUrl: process.env.ANTHROPIC_BASE_URL,
-        apiKey: process.env.ANTHROPIC_AUTH_TOKEN,
+        // AI API Gateway exposes an OpenAI-compatible endpoint at /chat/completions
+        apiBaseUrl: process.env.LLM_BASE_URL,
+        apiKey: process.env.LLM_API_KEY,
         temperature: 0.7,
         max_tokens: 4000,
       },
       // Also set the env vars that PromptFoo looks for
       env: {
-        OPENAI_API_KEY: process.env.ANTHROPIC_AUTH_TOKEN,
-        OPENAI_BASE_URL: process.env.ANTHROPIC_BASE_URL,
+        OPENAI_API_KEY: process.env.LLM_API_KEY,
+        OPENAI_BASE_URL: process.env.LLM_BASE_URL,
       },
     },
   ],
@@ -25,7 +25,7 @@ module.exports = {
   // Default test configuration
   defaultTest: {
     options: {
-      provider: `openai:chat:${process.env.CLAUDE_MODEL || 'claude-sonnet-4-5-20250929'}`,
+      provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
   },
 
@@ -137,12 +137,8 @@ module.exports = {
       },
       assert: [
         { type: 'icontains', value: 'edge case' },
-        {
-          type: 'llm-rubric',
-          value:
-            'Check if edge cases section covers:\n1. File size limits exceeded\n2. Invalid file types\n3. Network failures during upload\n4. Concurrent uploads\nReturn 1.0 if 3+ edge cases covered, 0.5 if 1-2, 0.0 if none.',
-          threshold: 0.6,
-        },
+        // Using Python grader instead of LLM rubric for more reliable results
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_edge_cases_coverage' },
       ],
     },
 
@@ -157,8 +153,8 @@ module.exports = {
       },
       assert: [
         { type: 'python', value: 'file://../graders/custom_graders.py:check_simplicity_gate' },
-        { type: 'not-icontains', value: 'microservices' },
-        { type: 'not-icontains', value: 'kubernetes' },
+        // Note: Removed not-icontains checks - our custom grader is context-aware
+        // and handles "no microservices" vs "use microservices" correctly
       ],
     },
 
