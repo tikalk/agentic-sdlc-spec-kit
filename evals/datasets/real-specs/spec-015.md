@@ -1,16 +1,18 @@
 # Test Spec 15
 
 ## Prompt
+
 Build a HIPAA-compliant healthcare appointment scheduling system
 
 ## Generated Spec
-# Feature Specification Document
 
-## 1. Overview Section
+## Feature Specification Document
+
+### 1. Overview Section
 
 **Feature Name:** [NEEDS CLARIFICATION - No user requirements provided]
 
-**Description:** 
+**Description:**
 No user input was provided for this feature specification. This document serves as a template structure that should be populated once user requirements are submitted.
 
 **Problem Statement:** [NEEDS CLARIFICATION]
@@ -26,11 +28,13 @@ No user input was provided for this feature specification. This document serves 
 ### P1 - Critical Priority
 
 **US-001: [NEEDS CLARIFICATION]**
+
 - **As a** [user role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
 - **When** [action taken]
 - **Then** [expected outcome]
@@ -38,11 +42,13 @@ No user input was provided for this feature specification. This document serves 
 ---
 
 **US-002: [NEEDS CLARIFICATION]**
+
 - **As a** [user role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
 - **When** [action taken]
 - **Then** [expected outcome]
@@ -52,11 +58,13 @@ No user input was provided for this feature specification. This document serves 
 ### P2 - High Priority
 
 **US-003: [NEEDS CLARIFICATION]**
+
 - **As a** [user role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
 - **When** [action taken]
 - **Then** [expected outcome]
@@ -64,11 +72,13 @@ No user input was provided for this feature specification. This document serves 
 ---
 
 **US-004: [NEEDS CLARIFICATION]**
+
 - **As a** [user role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
 - **When** [action taken]
 - **Then** [expected outcome]
@@ -78,11 +88,13 @@ No user input was provided for this feature specification. This document serves 
 ### P3 - Medium Priority
 
 **US-005: [NEEDS CLARIFICATION]**
+
 - **As a** [user role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
 - **When** [action taken]
 - **Then** [expected outcome]
@@ -282,8 +294,8 @@ No user input was provided for this feature specification. This document serves 
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** [Date]  
+**Document Version:** 1.0
+**Last Updated:** [Date]
 **Next Review Date:** [NEEDS CLARIFICATION]
 
 ---
@@ -308,4 +320,3 @@ Once requirements are provided, this template will be populated with specific, m
 - [ ] Pass/Fail:
 - [ ] Issues found:
 - [ ] Failure category:
-

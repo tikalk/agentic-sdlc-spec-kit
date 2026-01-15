@@ -1,16 +1,19 @@
 # Test Plan 2
 
 ## Prompt
+
 Plan a basic REST API for CRUD operations on a todo list
 
 ## Generated Plan
-# Implementation Plan: Todo List REST API
 
-## 1. Overview
+## Implementation Plan: Todo List REST API
+
+### 1. Overview
 
 A simple REST API service for managing a todo list with full CRUD (Create, Read, Update, Delete) operations. The API will allow users to create todos, retrieve them (individually or as a list), update their status and content, and delete them. This will be implemented as a single, straightforward backend service with persistent storage.
 
 **Technology Stack:**
+
 - **Runtime:** Node.js with Express.js (simple, well-documented, ideal for REST APIs)
 - **Database:** SQLite (file-based, zero configuration, perfect for todo apps)
 - **Validation:** Express-validator (built-in request validation)
@@ -19,6 +22,7 @@ A simple REST API service for managing a todo list with full CRUD (Create, Read,
 ## 2. Project Structure
 
 ### Project 1: Todo API Service
+
 **Single monolithic backend service** - All API logic, data access, and business rules in one deployable unit.
 
 **Rationale:** A todo list CRUD API is a straightforward application with no complex domain separation. Splitting into multiple services would introduce unnecessary complexity, deployment overhead, and inter-service communication without any real benefit.
@@ -30,6 +34,7 @@ A simple REST API service for managing a todo list with full CRUD (Create, Read,
 ### Project 1: Todo API Service
 
 #### Scope and Boundaries
+
 - RESTful API endpoints for todo management
 - Data persistence layer (SQLite database)
 - Input validation and error handling
@@ -37,7 +42,8 @@ A simple REST API service for managing a todo list with full CRUD (Create, Read,
 - API documentation (inline comments + README)
 
 #### File Structure
-```
+
+```text
 todo-api/
 ├── src/
 │   ├── index.js              # Entry point, server setup
@@ -68,6 +74,7 @@ todo-api/
 | DELETE | `/api/todos/:id` | Delete a todo |
 
 #### Data Model
+
 ```javascript
 Todo {
   id: INTEGER (auto-increment, primary key)
@@ -81,14 +88,16 @@ Todo {
 
 #### Key Tasks and Milestones
 
-**Phase 1: Foundation (Day 1)**
+##### Phase 1: Foundation (Day 1)
+
 - [ ] Initialize Node.js project with Express
 - [ ] Set up SQLite database connection
 - [ ] Create todos table schema with migration
 - [ ] Implement basic server with health check endpoint (`/health`)
 - [ ] Configure environment variables (port, database path)
 
-**Phase 2: Core CRUD Operations (Day 2)**
+##### Phase 2: Core CRUD Operations (Day 2)
+
 - [ ] Implement POST `/api/todos` - Create todo
 - [ ] Implement GET `/api/todos` - List all todos
 - [ ] Implement GET `/api/todos/:id` - Get single todo
@@ -96,14 +105,16 @@ Todo {
 - [ ] Implement DELETE `/api/todos/:id` - Delete todo
 - [ ] Add data access layer for database operations
 
-**Phase 3: Validation & Error Handling (Day 3)**
+##### Phase 3: Validation & Error Handling (Day 3)
+
 - [ ] Add input validation middleware (title required, length limits)
 - [ ] Implement global error handler
 - [ ] Add 404 handling for non-existent resources
 - [ ] Validate ID parameters (numeric, exists in DB)
 - [ ] Return appropriate HTTP status codes (200, 201, 400, 404, 500)
 
-**Phase 4: Testing & Documentation (Day 4)**
+##### Phase 4: Testing & Documentation (Day 4)
+
 - [ ] Write unit tests for data access layer
 - [ ] Write integration tests for all API endpoints
 - [ ] Test error scenarios (invalid input, missing resources)
@@ -111,6 +122,7 @@ Todo {
 - [ ] Add example requests/responses
 
 #### Dependencies
+
 - **External:** None (standalone service)
 - **NPM Packages:**
   - `express` - Web framework
@@ -122,11 +134,13 @@ Todo {
 #### Testing Strategy
 
 **Unit Tests:**
+
 - Database operations (CRUD functions in isolation)
 - Validation logic
 - Error handling utilities
 
 **Integration Tests:**
+
 - Full request/response cycle for each endpoint
 - Test successful operations (200, 201 responses)
 - Test error cases (400, 404 responses)
@@ -134,11 +148,13 @@ Todo {
 - Test query parameters (filtering by completed status)
 
 **Test Coverage Goals:**
+
 - Minimum 80% code coverage
 - 100% endpoint coverage
 - All error paths tested
 
 **Testing Tools:**
+
 ```bash
 # Run all tests
 npm test
@@ -156,25 +172,29 @@ npm run test:watch
 
 ### Phasing Strategy
 
-**Phase 1: MVP (Minimum Viable Product) - Days 1-2**
+#### Phase 1: MVP (Minimum Viable Product) - Days 1-2
+
 - Basic CRUD operations working
 - Data persists in SQLite
 - Manual testing via Postman/curl
 - **Deliverable:** Functional API with all endpoints
 
-**Phase 2: Hardening - Days 3-4**
+#### Phase 2: Hardening - Days 3-4
+
 - Add validation and error handling
 - Write comprehensive tests
 - Document API
 - **Deliverable:** Production-ready service with tests
 
-**Phase 3: Enhancements (Optional/Future)**
+#### Phase 3: Enhancements (Optional/Future)
+
 - Add pagination for GET `/api/todos`
 - Add search/filter capabilities
 - Add due dates to todos
 - Add priority levels
 
 ### Development Workflow
+
 1. Create feature branch from `main`
 2. Implement functionality
 3. Write tests (aim for test-first when possible)
@@ -185,28 +205,33 @@ npm run test:watch
 ### Deployment Strategy
 
 **Local Development:**
+
 ```bash
 npm install
 npm run dev  # Uses nodemon for auto-reload
 ```
 
 **Production Deployment:**
+
 ```bash
 npm install --production
 npm start
 ```
 
 **Environment Configuration:**
+
 - `PORT` - Server port (default: 3000)
 - `DATABASE_PATH` - SQLite file location (default: `./todos.db`)
 - `NODE_ENV` - Environment (development/production)
 
 **Deployment Options:**
+
 - **Simple:** Run directly on VPS with PM2 process manager
 - **Containerized:** Docker container (single Dockerfile)
 - **Platform:** Deploy to Heroku, Railway, or Render (all support Node.js natively)
 
 **Docker Setup (Optional):**
+
 ```dockerfile
 FROM node:18-alpine
 WORKDIR /app
@@ -225,13 +250,15 @@ CMD ["node", "src/index.js"]
 
 #### Functional Verification
 
-**Step 1: Health Check**
+##### Step 1: Health Check
+
 ```bash
 curl http://localhost:3000/health
 # Expected: {"status": "ok"}
 ```
 
-**Step 2: Create Todo**
+##### Step 2: Create Todo
+
 ```bash
 curl -X POST http://localhost:3000/api/todos \
   -H "Content-Type: application/json" \
@@ -239,19 +266,22 @@ curl -X POST http://localhost:3000/api/todos \
 # Expected: 201 status, returns created todo with ID
 ```
 
-**Step 3: List Todos**
+##### Step 3: List Todos
+
 ```bash
 curl http://localhost:3000/api/todos
 # Expected: 200 status, array containing created todo
 ```
 
-**Step 4: Get Single Todo**
+##### Step 4: Get Single Todo
+
 ```bash
 curl http://localhost:3000/api/todos/1
 # Expected: 200 status, returns todo with ID 1
 ```
 
-**Step 5: Update Todo**
+##### Step 5: Update Todo
+
 ```bash
 curl -X PUT http://localhost:3000/api/todos/1 \
   -H "Content-Type: application/json" \
@@ -259,13 +289,15 @@ curl -X PUT http://localhost:3000/api/todos/1 \
 # Expected: 200 status, returns updated todo
 ```
 
-**Step 6: Delete Todo**
+##### Step 6: Delete Todo
+
 ```bash
 curl -X DELETE http://localhost:3000/api/todos/1
 # Expected: 204 status, no content
 ```
 
-**Step 7: Verify Deletion**
+##### Step 7: Verify Deletion
+
 ```bash
 curl http://localhost:3000/api/todos/1
 # Expected: 404 status, error message
@@ -274,6 +306,7 @@ curl http://localhost:3000/api/todos/1
 #### Error Handling Verification
 
 **Test Invalid Input:**
+
 ```bash
 curl -X POST http://localhost:3000/api/todos \
   -H "Content-Type: application/json" \
@@ -282,12 +315,14 @@ curl -X POST http://localhost:3000/api/todos \
 ```
 
 **Test Non-existent Resource:**
+
 ```bash
 curl http://localhost:3000/api/todos/99999
 # Expected: 404 status, "Todo not found" message
 ```
 
 **Test Invalid ID:**
+
 ```bash
 curl http://localhost:3000/api/todos/invalid
 # Expected: 400 status, "Invalid ID" message

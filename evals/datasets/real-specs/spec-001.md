@@ -1,19 +1,22 @@
 # Test Spec 1
 
 ## Prompt
+
 Build a simple todo list web application with task creation, editing, and deletion
 
 ## Generated Spec
-# Feature Specification Document
 
-## 1. Overview Section
+## Feature Specification Document
+
+### 1. Overview Section
 
 [NEEDS CLARIFICATION: No user requirements provided]
 
 **Feature Name:** [Awaiting Input]
 
-**Description:** 
+**Description:**
 This section will contain a brief description of the feature once user requirements are provided. The overview should explain:
+
 - What the feature does
 - Who will use it
 - Why it's needed
@@ -32,11 +35,13 @@ This section will contain a brief description of the feature once user requireme
 ### Priority 1 (P1) - Must Have
 
 **US-001: [Awaiting User Input]**
+
 - **As a** [role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
   **When** [action occurs]
   **Then** [expected outcome]
@@ -46,11 +51,13 @@ This section will contain a brief description of the feature once user requireme
 ### Priority 2 (P2) - Should Have
 
 **US-002: [Awaiting User Input]**
+
 - **As a** [role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
   **When** [action occurs]
   **Then** [expected outcome]
@@ -60,11 +67,13 @@ This section will contain a brief description of the feature once user requireme
 ### Priority 3 (P3) - Nice to Have
 
 **US-003: [Awaiting User Input]**
+
 - **As a** [role]
 - **I want** [capability]
 - **So that** [benefit]
 
 **Acceptance Criteria:**
+
 - **Given** [initial context]
   **When** [action occurs]
   **Then** [expected outcome]
@@ -220,4 +229,3 @@ This section will contain a brief description of the feature once user requireme
 - [ ] Pass/Fail:
 - [ ] Issues found:
 - [ ] Failure category:
-

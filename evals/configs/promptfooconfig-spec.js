@@ -12,12 +12,12 @@ module.exports = {
       label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
       config: {
         apiBaseUrl: process.env.LLM_BASE_URL,
-        apiKey: process.env.LLM_API_KEY,
+        apiKey: process.env.LLM_AUTH_TOKEN,
         temperature: 0.7,
         max_tokens: 4000,
       },
       env: {
-        OPENAI_API_KEY: process.env.LLM_API_KEY,
+        OPENAI_API_KEY: process.env.LLM_AUTH_TOKEN,
         OPENAI_BASE_URL: process.env.LLM_BASE_URL,
       },
     },

@@ -45,14 +45,14 @@ fi
 
 echo -e "${GREEN}✓${NC} LLM_BASE_URL set"
 
-if [ -z "$LLM_API_KEY" ]; then
-    echo -e "${RED}❌ LLM_API_KEY not set${NC}"
+if [ -z "$LLM_AUTH_TOKEN" ]; then
+    echo -e "${RED}❌ LLM_AUTH_TOKEN not set${NC}"
     echo ""
-    echo "Set with: export LLM_API_KEY='your-token'"
+    echo "Set with: export LLM_AUTH_TOKEN='your-token'"
     exit 1
 fi
 
-echo -e "${GREEN}✓${NC} LLM_API_KEY set"
+echo -e "${GREEN}✓${NC} LLM_AUTH_TOKEN set"
 
 # Note: Model will be set after parsing command line arguments
 
@@ -68,7 +68,7 @@ fi
 echo -e "${GREEN}✓${NC} Configuration files found"
 
 # Export OpenAI-compatible env vars for PromptFoo
-export OPENAI_API_KEY="${LLM_API_KEY}"
+export OPENAI_API_KEY="${LLM_AUTH_TOKEN}"
 export OPENAI_BASE_URL="${LLM_BASE_URL}"
 
 echo ""

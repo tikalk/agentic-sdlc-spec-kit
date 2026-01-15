@@ -67,7 +67,7 @@ Create `.github/workflows/.secrets` (gitignored):
 # Create the secrets file
 cat > .github/workflows/.secrets << 'EOF'
 LLM_BASE_URL=your-llm-base-url
-LLM_API_KEY=your-api-key
+LLM_AUTH_TOKEN=your-api-key
 EOF
 
 # Secure the file
@@ -149,12 +149,12 @@ act pull_request \
 ```bash
 # Export secrets as environment variables
 export LLM_BASE_URL="your-url"
-export LLM_API_KEY="your-token"
+export LLM_AUTH_TOKEN="your-token"
 
 # Run with -s flag for each secret
 act pull_request \
   -s LLM_BASE_URL \
-  -s LLM_API_KEY
+  -s LLM_AUTH_TOKEN
 ```
 
 ## Testing Specific Scenarios

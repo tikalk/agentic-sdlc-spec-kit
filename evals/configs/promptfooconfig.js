@@ -10,13 +10,13 @@ module.exports = {
       config: {
         // AI API Gateway exposes an OpenAI-compatible endpoint at /chat/completions
         apiBaseUrl: process.env.LLM_BASE_URL,
-        apiKey: process.env.LLM_API_KEY,
+        apiKey: process.env.LLM_AUTH_TOKEN,
         temperature: 0.7,
         max_tokens: 4000,
       },
       // Also set the env vars that PromptFoo looks for
       env: {
-        OPENAI_API_KEY: process.env.LLM_API_KEY,
+        OPENAI_API_KEY: process.env.LLM_AUTH_TOKEN,
         OPENAI_BASE_URL: process.env.LLM_BASE_URL,
       },
     },

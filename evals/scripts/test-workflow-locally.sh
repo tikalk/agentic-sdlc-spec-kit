@@ -53,7 +53,7 @@ if [ ! -f "$SECRETS_FILE" ]; then
 # DO NOT COMMIT THIS FILE!
 
 LLM_BASE_URL=your-llm-base-url
-LLM_API_KEY=your-auth-token
+LLM_AUTH_TOKEN=your-auth-token
 EOF
     chmod 600 "$SECRETS_FILE"
 
@@ -66,7 +66,7 @@ fi
 echo -e "${GREEN}✓${NC} Secrets file exists"
 
 # Verify secrets have values
-if grep -q "your-llm-base-url" "$SECRETS_FILE" || grep -q "your-api-key" "$SECRETS_FILE"; then
+if grep -q "your-llm-base-url" "$SECRETS_FILE" || grep -q "your-auth-token" "$SECRETS_FILE"; then
     echo -e "${YELLOW}⚠️  Warning: Secrets file contains placeholder values${NC}"
     echo ""
     read -p "Continue anyway? (y/N): " -n 1 -r

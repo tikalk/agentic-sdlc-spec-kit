@@ -51,7 +51,7 @@ python3 evals/scripts/check_eval_scores.py \
 ### For GitHub Actions (Production)
 
 - [ ] Add `LLM_BASE_URL` secret to GitHub
-- [ ] Add `LLM_API_KEY` secret to GitHub
+- [ ] Add `LLM_AUTH_TOKEN` secret to GitHub
 - [ ] Run workflow manually from Actions tab
 - [ ] Verify results in workflow logs
 - [ ] Download and review artifacts
@@ -128,8 +128,8 @@ act pull_request --secret-file .github/workflows/.secrets -v
 | **Full Setup Guide** | [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) |
 | **Local Testing** | [LOCAL_TESTING.md](LOCAL_TESTING.md) |
 | **Eval Framework** | [README.md](../README.md) |
-| **act Documentation** | https://github.com/nektos/act |
-| **GitHub Actions** | https://docs.github.com/en/actions |
+| **act Documentation** | <https://github.com/nektos/act> |
+| **GitHub Actions** | <https://docs.github.com/en/actions> |
 
 ## 💡 Pro Tips
 
@@ -166,7 +166,7 @@ act pull_request --secret-file .github/workflows/.secrets --shell
 1. Check [LOCAL_TESTING.md](LOCAL_TESTING.md) troubleshooting section
 2. Check [GITHUB_ACTIONS_SETUP.md](GITHUB_ACTIONS_SETUP.md) common issues
 3. Review workflow logs in GitHub Actions tab
-4. Open issue: https://github.com/tikalk/agentic-sdlc-spec-kit/issues
+4. Open issue: <https://github.com/tikalk/agentic-sdlc-spec-kit/issues>
 
 ## ✅ Current Status
 

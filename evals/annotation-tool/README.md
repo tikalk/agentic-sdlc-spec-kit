@@ -53,6 +53,7 @@ Then open your browser to `http://localhost:5001` (or the port shown in the term
 ### Output
 
 Annotations are saved to:
+
 - `annotations.json` - Current annotations (auto-saved)
 - `annotations_export_YYYYMMDD_HHMMSS.json` - Exported snapshots
 
@@ -96,6 +97,7 @@ SPECS_DIR = Path("path/to/your/specs")
 ### Add Filtering
 
 The MVP doesn't include filtering by status yet. To add:
+
 1. Add filter buttons in the UI
 2. Modify `get_current_spec()` to filter specs list
 3. Reset index when filter changes
@@ -103,6 +105,7 @@ The MVP doesn't include filtering by status yet. To add:
 ### Add Semantic Search
 
 For advanced features, you can extend with:
+
 - Vector embeddings for similar spec clustering
 - AI-powered categorization suggestions
 - Bulk operations
@@ -117,6 +120,7 @@ For advanced features, you can extend with:
 ## Next Steps
 
 After using this tool for initial reviews:
+
 1. Export annotations for error analysis in Jupyter
 2. Use findings to extend PromptFoo tests
 3. Build LLM-as-Judge evaluators based on failure patterns

@@ -37,7 +37,7 @@ jobs:
       - name: Run Evaluations
         env:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
-          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
           LLM_MODEL: ${{ github.event.inputs.model || 'claude-sonnet-4-5-20250929' }}
         run: |
           chmod +x ./evals/scripts/run-promptfoo-eval.sh

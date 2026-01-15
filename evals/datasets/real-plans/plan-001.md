@@ -1,16 +1,19 @@
 # Test Plan 1
 
 ## Prompt
+
 Plan a simple todo app with Node.js and SQLite
 
 ## Generated Plan
-# Implementation Plan: Simple Todo App with Node.js and SQLite
 
-## 1. Overview
+## Implementation Plan: Simple Todo App with Node.js and SQLite
+
+### 1. Overview
 
 A straightforward todo application built with Node.js and SQLite that allows users to create, read, update, and delete todo items. The application will feature a web-based interface with a RESTful API backend, all integrated into a single cohesive project for simplicity.
 
 **Technology Stack:**
+
 - Backend: Node.js with Express.js
 - Database: SQLite3
 - Frontend: HTML, CSS, vanilla JavaScript (served by Express)
@@ -31,12 +34,14 @@ A straightforward todo application built with Node.js and SQLite that allows use
 ### Project: `todo-app`
 
 **Scope:**
+
 - RESTful API endpoints for todo operations
 - SQLite database for data persistence
 - Static frontend interface served by Express
 - Basic error handling and validation
 
 **Boundaries:**
+
 - Single-user application (no multi-tenancy)
 - No authentication/authorization (Phase 1)
 - No external integrations
@@ -44,11 +49,13 @@ A straightforward todo application built with Node.js and SQLite that allows use
 
 #### Key Tasks and Milestones
 
-**Milestone 1: Project Setup (Day 1)**
+#### Milestone 1: Project Setup (Day 1)
+
 - [ ] Initialize Node.js project with npm
 - [ ] Install dependencies: express, sqlite3, body-parser
 - [ ] Create folder structure:
-  ```
+
+```json
   todo-app/
   ├── server.js           # Express server entry point
   ├── database.js         # SQLite connection and queries
@@ -60,13 +67,16 @@ A straightforward todo application built with Node.js and SQLite that allows use
   │   └── app.js          # Frontend JavaScript
   ├── package.json
   └── .gitignore
-  ```
+```
+
 - [ ] Set up basic Express server
 - [ ] Configure SQLite database connection
 
-**Milestone 2: Database Layer (Day 1-2)**
+#### Milestone 2: Database Layer (Day 1-2)
+
 - [ ] Create todos table schema:
-  ```sql
+
+```sql
   CREATE TABLE todos (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     title TEXT NOT NULL,
@@ -75,7 +85,8 @@ A straightforward todo application built with Node.js and SQLite that allows use
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
-  ```
+```
+
 - [ ] Implement database initialization function
 - [ ] Create CRUD query functions:
   - `getAllTodos()`
@@ -84,7 +95,8 @@ A straightforward todo application built with Node.js and SQLite that allows use
   - `updateTodo(id, updates)`
   - `deleteTodo(id)`
 
-**Milestone 3: API Endpoints (Day 2-3)**
+#### Milestone 3: API Endpoints (Day 2-3)
+
 - [ ] `GET /api/todos` - Retrieve all todos
 - [ ] `GET /api/todos/:id` - Retrieve single todo
 - [ ] `POST /api/todos` - Create new todo
@@ -93,7 +105,8 @@ A straightforward todo application built with Node.js and SQLite that allows use
 - [ ] Add input validation middleware
 - [ ] Implement error handling middleware
 
-**Milestone 4: Frontend Interface (Day 3-4)**
+#### Milestone 4: Frontend Interface (Day 3-4)
+
 - [ ] Create HTML structure with:
   - Input form for new todos
   - List display for existing todos
@@ -108,7 +121,8 @@ A straightforward todo application built with Node.js and SQLite that allows use
   - Delete todo with confirmation
   - Handle API errors gracefully
 
-**Milestone 5: Testing & Polish (Day 4-5)**
+#### Milestone 5: Testing & Polish (Day 4-5)
+
 - [ ] Manual testing of all CRUD operations
 - [ ] Test edge cases (empty inputs, special characters)
 - [ ] Add loading states in UI
@@ -117,11 +131,13 @@ A straightforward todo application built with Node.js and SQLite that allows use
 - [ ] Code cleanup and comments
 
 #### Dependencies
+
 - None (standalone project)
 
 #### Testing Strategy
 
 **Manual Testing:**
+
 1. **Database Operations:**
    - Verify table creation on first run
    - Test each CRUD function directly
@@ -140,6 +156,7 @@ A straightforward todo application built with Node.js and SQLite that allows use
    - Check console for JavaScript errors
 
 **Optional: Automated Testing (if time permits):**
+
 - Unit tests for database functions using Jest
 - API endpoint tests using Supertest
 - Simple integration tests
@@ -149,11 +166,13 @@ A straightforward todo application built with Node.js and SQLite that allows use
 ## 4. Development Approach
 
 ### Phase 1: Core Functionality (Days 1-5)
+
 - Complete all milestones listed above
 - Focus on working features over perfection
 - Keep code simple and readable
 
 ### Phase 2: Enhancements (Optional, Future)
+
 - Add user authentication
 - Implement todo categories/tags
 - Add due dates and priorities
@@ -163,6 +182,7 @@ A straightforward todo application built with Node.js and SQLite that allows use
 ### Deployment Strategy
 
 **Local Development:**
+
 ```bash
 npm install
 npm start
@@ -170,12 +190,14 @@ npm start
 ```
 
 **Simple Production Deployment:**
+
 - Option 1: VPS with Node.js (DigitalOcean, Linode)
 - Option 2: Platform-as-a-Service (Heroku, Render.com)
 - Use environment variables for configuration
 - SQLite file persisted in mounted volume
 
 **Deployment Steps:**
+
 1. Set `NODE_ENV=production`
 2. Configure port via environment variable
 3. Ensure SQLite database directory is writable
@@ -189,18 +211,21 @@ npm start
 ### Project Verification Checklist
 
 **✓ Setup Verification:**
+
 - [ ] `npm install` runs without errors
 - [ ] Server starts on configured port
 - [ ] Database file is created automatically
 - [ ] Frontend loads at root URL
 
 **✓ Database Verification:**
+
 - [ ] Todos table exists with correct schema
 - [ ] Can insert data directly via SQL
 - [ ] Data persists after server restart
 - [ ] No SQL injection vulnerabilities
 
 **✓ API Verification:**
+
 - [ ] All endpoints return correct status codes
 - [ ] POST creates todo and returns new ID
 - [ ] GET retrieves all todos correctly
@@ -210,6 +235,7 @@ npm start
 - [ ] Malformed requests return 400
 
 **✓ Frontend Verification:**
+
 - [ ] Page loads without console errors
 - [ ] Can add new todo via form
 - [ ] Todos display immediately after creation
@@ -220,12 +246,14 @@ npm start
 - [ ] Error messages display appropriately
 
 **✓ Integration Verification:**
+
 - [ ] Frontend and backend communicate correctly
 - [ ] CORS issues resolved (if applicable)
 - [ ] Data consistency between UI and database
 - [ ] No race conditions in concurrent operations
 
 **✓ Code Quality Verification:**
+
 - [ ] Code is properly commented
 - [ ] No hardcoded configuration values
 - [ ] Error handling covers edge cases
@@ -254,6 +282,7 @@ The implementation is complete when:
 - **Complexity:** Low to Medium
 
 **Daily Breakdown:**
+
 - Day 1: Setup + Database (4-6 hours)
 - Day 2: API Development (4-6 hours)
 - Day 3: Frontend Development (4-6 hours)

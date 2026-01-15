@@ -23,7 +23,7 @@ Your LiteLLM proxy URL or other LLM provider API base URL.
 - AI API Gateway: `https://your-llm-provider.com/v1`
 - Direct API: `https://api.anthropic.com/v1`
 
-### 2. LLM_API_KEY
+### 2. LLM_AUTH_TOKEN
 
 Your authentication token for the API.
 
@@ -48,13 +48,13 @@ For each secret:
 3. Paste the secret value
 4. Click **Add secret**
 
-Repeat for both `LLM_BASE_URL` and `LLM_API_KEY`.
+Repeat for both `LLM_BASE_URL` and `LLM_AUTH_TOKEN`.
 
 ### Step 3: Verify Secrets
 
 After adding both secrets, you should see them listed on the Secrets page:
 - `LLM_BASE_URL` (Updated X time ago)
-- `LLM_API_KEY` (Updated X time ago)
+- `LLM_AUTH_TOKEN` (Updated X time ago)
 
 ## Running the Workflow
 
