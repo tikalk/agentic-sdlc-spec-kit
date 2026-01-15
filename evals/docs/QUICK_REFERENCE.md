@@ -53,6 +53,7 @@ python3 evals/scripts/check_eval_scores.py \
 - [ ] Add `LLM_BASE_URL` secret to GitHub
 - [ ] Add `LLM_AUTH_TOKEN` secret to GitHub
 - [ ] Run workflow manually from Actions tab
+- [ ] (Optional) Set `LLM_MODEL` in the workflow dispatch UI.
 - [ ] Verify results in workflow logs
 - [ ] Download and review artifacts
 
@@ -83,7 +84,7 @@ Run manually from GitHub Actions tab when you need quality validation.
 |--------|-----------|------------------|
 | Average Score | ≥ 0.70 | ❌ Workflow fails |
 | Pass Rate | ≥ 70% | ❌ Workflow fails |
-| Overall | 9/10 tests pass | ✅ Currently passing |
+| Overall | 10/10 tests pass | ✅ Currently passing |
 
 ## 🐛 Troubleshooting
 
@@ -110,17 +111,6 @@ act pull_request --secret-file .github/workflows/.secrets -v
 - Test locally first with `act`
 - Ensure API credentials are valid
 
-## 📈 Cost Estimate
-
-| Usage (Manual Only) | Tokens | Cost |
-|---------------------|--------|------|
-| Single run | ~60-70K | ~$0.60-$0.80 |
-| Weekly runs (4/month) | ~240-280K | ~$2.40-$2.80 |
-| Bi-weekly (2/month) | ~120-140K | ~$1.20-$1.40 |
-| **Monthly run** | **~60-70K** | **~$0.60-$0.80** |
-
-**You control costs** - workflow only runs when you manually trigger it.
-
 ## 🎓 Learning Resources
 
 | Topic | Link |
@@ -130,36 +120,6 @@ act pull_request --secret-file .github/workflows/.secrets -v
 | **Eval Framework** | [README.md](../README.md) |
 | **act Documentation** | <https://github.com/nektos/act> |
 | **GitHub Actions** | <https://docs.github.com/en/actions> |
-
-## 💡 Pro Tips
-
-### Speed Up Local Testing
-
-```bash
-# Use --reuse for faster iterations (keeps containers)
-./evals/scripts/test-workflow-locally.sh --reuse
-
-# Skip steps that don't work locally
-./evals/scripts/test-workflow-locally.sh --skip-pr-comment
-```
-
-### Reduce CI Costs
-
-```bash
-# Only run on template changes (already configured)
-# Use Haiku for dev branches (edit workflow file)
-# Leverage AI API Gateway caching
-```
-
-### Debug Workflow Issues
-
-```bash
-# View detailed workflow logs
-act pull_request --secret-file .github/workflows/.secrets -v -v
-
-# Interactive debugging
-act pull_request --secret-file .github/workflows/.secrets --shell
-```
 
 ## 📞 Getting Help
 
@@ -172,6 +132,6 @@ act pull_request --secret-file .github/workflows/.secrets --shell
 
 [![AI Evals](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml/badge.svg)](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml)
 
-- **Pass Rate:** 90% (9/10 tests)
+- **Pass Rate:** 100% (10/10 tests)
 - **Status:** ✅ Production ready
 - **Last Updated:** 2026-01-14
