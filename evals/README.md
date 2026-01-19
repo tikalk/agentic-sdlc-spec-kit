@@ -61,6 +61,7 @@ source ~/.zshrc  # or source ~/.bashrc
 ## Test Suite
 
 The evaluation includes **10 automated tests** covering:
+
 - **Spec Template (8 tests)**: Structure, clarity, security, completeness
 - **Plan Template (2 tests)**: Simplicity, constitution compliance
 
@@ -76,8 +77,10 @@ For more advanced use cases, see our detailed workflow guides:
 ## Support
 
 For evaluation framework issues:
+
 - PromptFoo Discord: <https://discord.gg/promptfoo>
 - PromptFoo GitHub: <https://github.com/promptfoo/promptfoo>
 
 For spec-kit specific questions:
+
 - Open issue: <https://github.com/tikalk/agentic-sdlc-spec-kit/issues>
