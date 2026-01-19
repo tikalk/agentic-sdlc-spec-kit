@@ -1,0 +1,176 @@
+name: AI Evals
+
+on:
+  workflow_dispatch:  # Manual trigger only
+    inputs:
+      model:
+        description: 'Model to use for evaluation'
+        required: false
+        default: 'claude-sonnet-4-5-20250929'
+        type: string
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # For posting PR comments
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          # No requirements.txt needed for check_eval_scores.py (uses stdlib only)
+
+      - name: Run Evaluations
+        env:
+          LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
+          LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
+          LLM_MODEL: ${{ github.event.inputs.model || 'claude-sonnet-4-5-20250929' }}
+        run: |
+          chmod +x ./evals/scripts/run-promptfoo-eval.sh
+          ./evals/scripts/run-promptfoo-eval.sh --json
+
+      - name: Check Quality Thresholds
+        id: check_thresholds
+        run: |
+          python3 evals/scripts/check_eval_scores.py \
+            --results eval-results.json \
+            --min-score 0.70 \
+            --min-pass-rate 0.70 \
+            --verbose || echo "threshold_failed=true" >> $GITHUB_OUTPUT
+
+      - name: Generate Summary
+        if: always()
+        id: summary
+        run: |
+          if [ -f eval-results.json ]; then
+            python3 << 'EOF'
+          import json
+          import os
+
+          with open('eval-results.json', 'r') as f:
+              data = json.load(f)
+
+          results = data.get('results', {})
+          stats = results.get('stats', {})
+
+          total = stats.get('successes', 0) + stats.get('failures', 0)
+          passed = stats.get('successes', 0)
+          failed = stats.get('failures', 0)
+          pass_rate = (passed / total * 100) if total > 0 else 0
+
+          # Token usage
+          tokens = stats.get('tokenUsage', {})
+          total_tokens = tokens.get('total', 0)
+          cached_tokens = tokens.get('cached', 0)
+
+          summary = f"""## 📊 Eval Results
+
+          **Overall:** {passed}/{total} tests passed ({pass_rate:.0f}%)
+
+          | Metric | Value |
+          |--------|-------|
+          | ✅ Passed | {passed} |
+          | ❌ Failed | {failed} |
+          | 📈 Pass Rate | {pass_rate:.0f}% |
+          | 🪙 Total Tokens | {total_tokens:,} |
+          | 💾 Cached Tokens | {cached_tokens:,} |
+
+          """
+
+          # List failed tests
+          if failed > 0:
+              summary += "\n### ❌ Failed Tests\n\n"
+              for result in results.get('results', []):
+                  if not result.get('success', False):
+                      test_name = result.get('description', 'Unknown')
+                      score = result.get('score', 0)
+                      summary += f"- {test_name} (score: {score:.2f})\n"
+
+          # Success message
+          if pass_rate >= 70:
+              summary += "\n✅ **Quality thresholds met!**"
+          else:
+              summary += "\n⚠️ **Quality thresholds not met.** Please review failures."
+
+          # Write to output file for PR comment
+          with open('eval_summary.txt', 'w') as f:
+              f.write(summary)
+
+          print(summary)
+          EOF
+          else
+            echo "⚠️ No evaluation results found" > eval_summary.txt
+          fi
+
+      - name: Comment PR with Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let summary = '## 📊 Eval Results\n\n⚠️ Evaluation failed to complete.';
+
+            if (fs.existsSync('eval_summary.txt')) {
+              summary = fs.readFileSync('eval_summary.txt', 'utf8');
+            }
+
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('📊 Eval Results')
+            );
+
+            if (botComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: summary
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary
+              });
+            }
+
+      - name: Upload Results Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-results
+          path: |
+            eval-results*.json
+            eval_summary.txt
+          retention-days: 30
+
+      - name: Fail if thresholds not met
+        if: steps.check_thresholds.outputs.threshold_failed == 'true'
+        run: |
+          echo "❌ Quality thresholds not met"
+          exit 1

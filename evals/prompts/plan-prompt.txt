@@ -1,0 +1,38 @@
+You are tasked with creating an implementation plan.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a detailed implementation plan that includes:
+
+1. **Overview**: Brief description of what will be implemented
+2. **Project Structure**: Break down into ≤3 projects (MANDATORY simplicity gate)
+   - For simple CRUD/todo apps: Aim for 1-2 projects
+   - For apps with separate concerns: 2-3 projects maximum
+   - Examples of appropriate project counts:
+     * Simple todo app: 1 project (combined frontend + backend)
+     * Todo app with API: 2 projects (Backend API, Frontend)
+     * Complex system: 3 projects (Backend, Frontend, Background Worker)
+   - REJECT the urge to over-engineer with unnecessary separation
+3. **For Each Project**:
+   - Clear scope and boundaries
+   - Key tasks and milestones
+   - Dependencies on other projects
+   - Testing strategy
+4. **Development Approach**: Phasing, deployment strategy
+5. **Verification Steps**: How to validate each project
+
+IMPORTANT CONSTRAINTS (Constitution Principles):
+- Keep it SIMPLE: ≤3 projects maximum (THIS IS A HARD LIMIT - violating this fails the plan)
+- For basic CRUD/todo apps: 1-2 projects is usually sufficient
+- Avoid over-engineering and unnecessary complexity:
+  * Don't split into too many services (separate API Gateway, Auth Service, Database Layer) for simple apps
+  * Don't create a project for every logical component
+  * Combine related concerns into single projects
+- Choose simple solutions first - no premature optimization
+- For simple apps: Use monolith or simple client-server architecture
+- For deployment: Simple solutions like Docker Compose work well for basic apps
+- Use frameworks directly without unnecessary abstractions or wrapper layers
+
+OUTPUT: A complete implementation plan document.

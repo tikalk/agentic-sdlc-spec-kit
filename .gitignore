@@ -34,6 +34,9 @@ env/
 .DS_Store
 *.tmp
 
+# Github
+.github/workflows/.secrets
+
 # Project specific
 *.log
 .env
@@ -43,4 +46,26 @@ env/
 # Spec Kit-specific files
 .genreleases/
 *.zip
-sdd-*/
+sdd-*
+
+# Evaluation artifacts
+eval-results*.json
+*.backup
+.promptfoo/
+evals/.venv/
+evals/notebooks/.venv/
+evals/notebooks/.ipynb_checkpoints/
+evals/datasets/analysis-results/*.csv
+evals/datasets/analysis-results/*.txt
+evals/datasets/analysis-results/automated-analysis-*.csv
+evals/datasets/analysis-results/plan-analysis-*.csv
+evals/datasets/analysis-results/plan-eval-analysis-*.txt
+evals/datasets/analysis-results/plan-summary-*.txt
+evals/datasets/analysis-results/promptfoo-analysis-*.csv
+evals/datasets/analysis-results/summary-*.txt
+
+# Annotation tool artifacts
+evals/annotation-tool/.venv/
+evals/annotation-tool/annotations.json
+evals/annotation-tool/annotations_export_*.json
+evals/annotation-tool/.sesskey
