@@ -1,4 +1,14 @@
 // PromptFoo configuration for Plan Template tests only
+
+// Transform to strip thinking/reasoning sections from model output
+function stripThinkingSection(output) {
+  if (typeof output !== 'string') return output;
+  return output
+    .replace(/^Thinking:[\s\S]*?(?=^#|\n\n)/m, '')
+    .replace(/^思考:[\s\S]*?(?=^#|\n\n)/m, '')
+    .trim();
+}
+
 module.exports = {
   description: 'Plan Template Quality Evaluation',
 
@@ -28,6 +38,7 @@ module.exports = {
   ],
 
   defaultTest: {
+    transform: (output) => stripThinkingSection(output),
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },

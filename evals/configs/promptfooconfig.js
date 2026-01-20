@@ -1,4 +1,17 @@
 // PromptFoo configuration using JavaScript for environment variable support
+
+// Transform to strip thinking/reasoning sections from model output
+// This ensures assertions only check the actual content, not chain-of-thought
+function stripThinkingSection(output) {
+  if (typeof output !== 'string') return output;
+  // Remove "Thinking: ..." sections (handles Chinese and English)
+  // Matches from "Thinking:" until the first markdown header (## or #) or double newline
+  return output
+    .replace(/^Thinking:[\s\S]*?(?=^#|\n\n)/m, '')
+    .replace(/^思考:[\s\S]*?(?=^#|\n\n)/m, '')
+    .trim();
+}
+
 module.exports = {
   description: 'Spec-Kit Quality Evaluation',
 
@@ -28,6 +41,8 @@ module.exports = {
 
   // Default test configuration
   defaultTest: {
+    // Strip thinking/reasoning sections before running assertions
+    transform: (output) => stripThinkingSection(output),
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
