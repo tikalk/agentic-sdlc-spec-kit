@@ -1,12 +1,14 @@
 name: AI Evals
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger still available
     inputs:
       model:
         description: 'Model to use for evaluation'
         required: false
-        default: 'claude-sonnet-4-5-20250929'
+        default: 'GLM-4.6V-Flash'
         type: string
 
 jobs:
@@ -38,7 +40,7 @@ jobs:
         env:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
-          LLM_MODEL: ${{ github.event.inputs.model || 'claude-sonnet-4-5-20250929' }}
+          LLM_MODEL: ${{ github.event.inputs.model || 'cGLM-4.6V-Flash' }}
         run: |
           chmod +x ./evals/scripts/run-promptfoo-eval.sh
           ./evals/scripts/run-promptfoo-eval.sh --json
