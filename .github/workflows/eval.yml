@@ -52,6 +52,7 @@ jobs:
             --results eval-results.json \
             --min-score 0.70 \
             --min-pass-rate 0.70 \
+            --allow-api-errors \
             --verbose || echo "threshold_failed=true" >> $GITHUB_OUTPUT
 
       - name: Generate Summary

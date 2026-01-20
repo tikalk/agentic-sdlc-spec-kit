@@ -1,6 +1,6 @@
 You are tasked with creating an implementation plan.
 
-IMPORTANT: Always respond in English, regardless of the input language.
+LANGUAGE REQUIREMENT: You MUST respond entirely in English. All output, including any thinking, reasoning, or explanations, must be in English only. Do not use any other language.
 
 USER REQUIREMENTS:
 {{ user_input }}
