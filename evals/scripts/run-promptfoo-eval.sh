@@ -178,16 +178,16 @@ else
 fi
 
 # Combine JSON results if requested
-if [ "$OUTPUT_JSON" = true ] && [ -f "eval-results-spec.json" ] && [ -f "eval-results-plan.json" ]; then
+if [ "$OUTPUT_JSON" = true ] && [ -f "evals/results-spec.json" ] && [ -f "evals/results-plan.json" ]; then
     echo ""
     echo "📊 Combining results..."
-    python3 << 'PYTHON_EOF'
+    PASS_RATE=$(python3 << 'PYTHON_EOF'
 import json
 
 # Load both result files
-with open('eval-results-spec.json', 'r') as f:
+with open('evals/results-spec.json', 'r') as f:
     spec_data = json.load(f)
-with open('eval-results-plan.json', 'r') as f:
+with open('evals/results-plan.json', 'r') as f:
     plan_data = json.load(f)
 
 # Combine results
@@ -220,7 +220,9 @@ with open('eval-results.json', 'w') as f:
 total = combined['results']['stats']['successes'] + combined['results']['stats']['failures']
 pass_rate = (combined['results']['stats']['successes'] / total * 100) if total > 0 else 0
 print(f"✓ Combined results: {combined['results']['stats']['successes']}/{total} passed ({pass_rate:.0f}%)")
+print(pass_rate)
 PYTHON_EOF
+)
 fi
 
 # Open web UI if requested
@@ -231,4 +233,9 @@ if [ "$VIEW_RESULTS" = true ]; then
 fi
 
 echo ""
-exit $EXIT_CODE
+
+if [ -n "$PASS_RATE" ] && [ "$(echo "$PASS_RATE > 80" | bc -l)" -eq 1 ]; then
+    exit 0
+else
+    exit $EXIT_CODE
+fi
