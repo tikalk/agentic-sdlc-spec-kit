@@ -27,6 +27,10 @@ def load_results(file_path: str) -> Dict[str, Any]:
 
 def is_api_error(result: Dict[str, Any]) -> bool:
     """Check if a result is an API error (rate limit, timeout, etc.)."""
+    # Safety check: ensure result is a dictionary
+    if not isinstance(result, dict):
+        return False
+
     error = result.get('error', '')
     if isinstance(error, str):
         return 'Rate limited' in error or '429' in error or 'timeout' in error.lower()
@@ -35,7 +39,12 @@ def is_api_error(result: Dict[str, Any]) -> bool:
 
 def calculate_stats(results: Dict[str, Any], exclude_api_errors: bool = False) -> Dict[str, Any]:
     """Calculate statistics from evaluation results."""
-    test_results = results.get('results', [])
+    # Navigate to the actual test results array
+    results_data = results.get('results', {})
+    if isinstance(results_data, dict):
+        test_results = results_data.get('results', [])
+    else:
+        test_results = []
 
     if not test_results:
         return {
@@ -95,7 +104,9 @@ def print_summary(stats: Dict[str, Any], results: Dict[str, Any]) -> None:
     # Show failed tests
     if stats['failed'] > 0:
         print("\n❌ Failed Tests:")
-        for i, result in enumerate(results.get('results', []), 1):
+        results_data = results.get('results', {})
+        test_results = results_data.get('results', []) if isinstance(results_data, dict) else []
+        for i, result in enumerate(test_results, 1):
             if not result.get('success', False):
                 test_name = result.get('description', f'Test {i}')
                 score = result.get('score', 0)
@@ -176,7 +187,9 @@ def main():
         print("\n" + "="*60)
         print("📋 Detailed Results")
         print("="*60)
-        for i, result in enumerate(results.get('results', []), 1):
+        results_data = results.get('results', {})
+        test_results = results_data.get('results', []) if isinstance(results_data, dict) else []
+        for i, result in enumerate(test_results, 1):
             test_name = result.get('description', f'Test {i}')
             success = result.get('success', False)
             score = result.get('score', 0)
