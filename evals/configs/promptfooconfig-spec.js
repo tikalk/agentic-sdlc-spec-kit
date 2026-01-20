@@ -104,12 +104,8 @@ module.exports = {
         user_input: 'Build a fast, scalable, user-friendly dashboard with good performance',
       },
       assert: [
-        {
-          type: 'llm-rubric',
-          value:
-            'Check if vague terms like "fast", "scalable", "user-friendly", "good performance"\nare either:\n1. Quantified with specific metrics (e.g., "response time < 200ms")\n2. Marked with [NEEDS CLARIFICATION] or similar flags\n\nReturn 1.0 if all vague terms are handled properly, 0.0 if none are.',
-          threshold: 0.7,
-        },
+        // Using Python grader instead of LLM rubric for deterministic results
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_vague_terms' },
       ],
     },
 
@@ -145,12 +141,8 @@ module.exports = {
         user_input: 'Build an e-commerce checkout flow with cart, payment, and order confirmation',
       },
       assert: [
-        {
-          type: 'llm-rubric',
-          value:
-            'Grade completeness (0-1):\n1. Are functional requirements complete? (cart operations, payment, confirmation)\n2. Are user stories covering main flows?\n3. Are non-functional requirements specified? (performance, security)\n4. Are edge cases identified? (payment failures, session timeout)\nReturn average score 0-1.',
-          threshold: 0.75,
-        },
+        // Using Python grader instead of LLM rubric for deterministic results
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_completeness' },
       ],
     },
 
