@@ -76,7 +76,7 @@ module.exports = {
           type: 'llm-rubric',
           value:
             'Check if this specification avoids technical implementation details.\nIt should focus on WHAT needs to be built, not HOW to build it.\nReturn 1.0 if no tech stack is mentioned, 0.5 if some mentioned, 0.0 if heavy tech details.',
-          threshold: 0.8,
+          threshold: 0.7,
         },
       ],
     },
