@@ -12,10 +12,15 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 
 ## 1. Overview Section
 Brief description of the feature
-   - CRITICAL: Avoid vague terms like "fast", "scalable", "user-friendly", "good performance", "efficient", "reliable"
-   - If such terms appear in user requirements, either:
-     * Replace with specific metrics (e.g., "response time < 200ms" instead of "fast")
-     * Mark with [NEEDS CLARIFICATION] if metrics are unknown (e.g., "fast [NEEDS CLARIFICATION]")
+   - CRITICAL: Do NOT use vague, unmeasurable terms in the Overview
+   - Prohibited terms: "fast", "quick", "scalable", "user-friendly", "good performance", "efficient", "reliable", "robust", "easy", "simple", "intuitive", "high availability"
+   - If user input contains vague terms:
+     * Option 1 (PREFERRED): Omit the vague term entirely from Overview, describe concrete features instead
+     * Option 2: Replace immediately with specific metrics (e.g., "API response < 200ms" instead of "fast")
+     * Option 3: Mark IMMEDIATELY after the term with [NEEDS CLARIFICATION] (e.g., "fast [NEEDS CLARIFICATION]")
+   - Example BAD: "This feature provides a fast, scalable dashboard..."
+   - Example GOOD: "This feature provides a dashboard with API response times < 200ms at p95, supporting 10,000 concurrent users..."
+   - Example GOOD: "This feature provides a dashboard [performance requirements in NFR section]"
 
 ## 2. User Stories
 5+ prioritized user stories (P1, P2, P3) with:
@@ -63,11 +68,17 @@ IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
 - Focus on WHAT needs to be built, not HOW to build it
 - All requirements must be measurable and testable
-- CRITICAL: Eliminate vague terms throughout the entire document (especially in Overview Section):
-  * Vague terms include: "fast", "scalable", "user-friendly", "good performance", "efficient", "reliable", "high quality", "robust", "flexible", "easy to use"
-  * Either replace with specific, quantified metrics OR mark with [NEEDS CLARIFICATION]
-  * Example: Change "fast response time" to "API response < 200ms at p95" or "fast [NEEDS CLARIFICATION]"
-  * This applies to ALL sections, not just Non-Functional Requirements
+- CRITICAL: NO vague terms anywhere in the document (ESPECIALLY in Overview Section):
+  * Prohibited vague terms: "fast", "quick", "scalable", "user-friendly", "good performance", "efficient", "reliable", "robust", "easy", "simple", "intuitive", "high availability", "high quality", "flexible"
+  * For EVERY vague term in user input, you MUST either:
+    a) Omit it entirely (describe concrete features instead)
+    b) Replace with specific metrics (e.g., "API response < 200ms" not "fast")
+    c) Add [NEEDS CLARIFICATION] IMMEDIATELY after the term (within same sentence)
+  * The clarification marker must be ADJACENT to the vague term, not in a different section
+  * Example BAD: "Build a fast dashboard" (Overview) + "Response time < 200ms" (NFR section)
+  * Example GOOD: "Build a dashboard [performance targets in NFR section]" (Overview)
+  * Example GOOD: "Build a fast [NEEDS CLARIFICATION] dashboard" (Overview)
+  * This applies to ALL sections: Overview, User Stories, Functional Requirements, etc.
 - Mark any vague or unclear requirements with [NEEDS CLARIFICATION]
 - For complex multi-step features (checkout, onboarding), ensure COMPLETE coverage:
   * All steps in the flow documented
