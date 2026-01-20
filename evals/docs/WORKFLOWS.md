@@ -255,4 +255,4 @@ Common failure patterns to note during review:
 - Security considerations missing
 - Over-engineering indicators
 
-See [annotation-tool/README.md](annotation-tool/README.md) for detailed documentation.
+See [annotation-tool/README.md](../annotation-tool/README.md) for detailed documentation.
