@@ -12,6 +12,10 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 
 ## 1. Overview Section
 Brief description of the feature
+   - CRITICAL: Avoid vague terms like "fast", "scalable", "user-friendly", "good performance", "efficient", "reliable"
+   - If such terms appear in user requirements, either:
+     * Replace with specific metrics (e.g., "response time < 200ms" instead of "fast")
+     * Mark with [NEEDS CLARIFICATION] if metrics are unknown (e.g., "fast [NEEDS CLARIFICATION]")
 
 ## 2. User Stories
 5+ prioritized user stories (P1, P2, P3) with:
@@ -59,6 +63,11 @@ IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
 - Focus on WHAT needs to be built, not HOW to build it
 - All requirements must be measurable and testable
+- CRITICAL: Eliminate vague terms throughout the entire document (especially in Overview Section):
+  * Vague terms include: "fast", "scalable", "user-friendly", "good performance", "efficient", "reliable", "high quality", "robust", "flexible", "easy to use"
+  * Either replace with specific, quantified metrics OR mark with [NEEDS CLARIFICATION]
+  * Example: Change "fast response time" to "API response < 200ms at p95" or "fast [NEEDS CLARIFICATION]"
+  * This applies to ALL sections, not just Non-Functional Requirements
 - Mark any vague or unclear requirements with [NEEDS CLARIFICATION]
 - For complex multi-step features (checkout, onboarding), ensure COMPLETE coverage:
   * All steps in the flow documented
