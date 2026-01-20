@@ -40,7 +40,7 @@ jobs:
         env:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
-          LLM_MODEL: ${{ github.event.inputs.model || 'cGLM-4.6V-Flash' }}
+          LLM_MODEL: ${{ github.event.inputs.model || 'GLM-4.6V-Flash' }}
         run: |
           chmod +x ./evals/scripts/run-promptfoo-eval.sh
           ./evals/scripts/run-promptfoo-eval.sh --json

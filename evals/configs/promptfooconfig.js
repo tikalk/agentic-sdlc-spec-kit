@@ -6,7 +6,7 @@ module.exports = {
   providers: [
     {
       id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
+      label: `${process.env.LLM_MODEL || 'Default Model'} (via AI API Gateway)`,
       config: {
         // AI API Gateway exposes an OpenAI-compatible endpoint at /chat/completions
         apiBaseUrl: process.env.LLM_BASE_URL,
