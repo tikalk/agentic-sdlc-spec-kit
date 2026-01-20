@@ -1,5 +1,7 @@
 You are tasked with creating a detailed feature specification.
 
+IMPORTANT: Always respond in English, regardless of the input language.
+
 USER REQUIREMENTS:
 {{ user_input }}
 

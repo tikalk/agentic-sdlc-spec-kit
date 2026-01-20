@@ -2,6 +2,10 @@
 module.exports = {
   description: 'Plan Template Quality Evaluation',
 
+  // Rate limiting protection - run tests sequentially with delay
+  maxConcurrency: 1,
+  delay: 2000, // 2 second delay between tests
+
   // Plan prompt only
   prompts: ['file://../prompts/plan-prompt.txt'],
 

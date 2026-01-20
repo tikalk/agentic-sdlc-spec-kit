@@ -1,5 +1,7 @@
 You are tasked with creating an implementation plan.
 
+IMPORTANT: Always respond in English, regardless of the input language.
+
 USER REQUIREMENTS:
 {{ user_input }}
 

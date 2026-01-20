@@ -2,6 +2,10 @@
 module.exports = {
   description: 'Spec-Kit Quality Evaluation',
 
+  // Rate limiting protection - run tests sequentially with delay
+  maxConcurrency: 1,
+  delay: 2000, // 2 second delay between tests
+
   // Configure LLM provider using OpenAI-compatible endpoint
   providers: [
     {
