@@ -35,8 +35,14 @@ function log_error {
 $script_dir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $project_root = Split-Path -Parent (Split-Path -Parent $script_dir)
 
-# Check if spec sync is enabled
-$config_file = Join-Path $project_root ".specify/config/config.json"
+# Check if spec sync is enabled (global config)
+if ($env:XDG_CONFIG_HOME) {
+    $config_file = Join-Path $env:XDG_CONFIG_HOME "specify" "config.json"
+} elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
+    $config_file = Join-Path $env:APPDATA "specify" "config.json"
+} else {
+    $config_file = Join-Path $HOME ".config" "specify" "config.json"
+}
 if (Test-Path $config_file) {
     try {
         $config = Get-Content $config_file -Raw | ConvertFrom-Json
@@ -54,8 +60,7 @@ if (Test-Path $config_file) {
 
 log_info "Checking spec sync status before push..."
 
-# Check if there are any pending spec updates in the queue
-$config_file = Join-Path $project_root ".specify/config/config.json"
+# Check if there are any pending spec updates in the queue (global config)
 if (Test-Path $config_file) {
     try {
         $config = Get-Content $config_file -Raw | ConvertFrom-Json

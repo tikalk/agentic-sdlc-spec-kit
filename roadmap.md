@@ -5,7 +5,6 @@
 ### **CLI Infrastructure & Theming**
 
 - ✅ **Orange Theme Restoration**: Centralized `ACCENT_COLOR` and `BANNER_COLORS` constants in CLI
-- ~~**Gateway Configuration**~~: Removed in favor of direct agent-based configuration and MCP server integration
 - ✅ **Team Directives Integration**: Local path support and remote cloning for team-ai-directives
 - ✅ **Context Readiness Enforcement**: `/specify`, `/plan`, `/tasks`, `/implement` validate `context.md` completeness
 
@@ -142,9 +141,8 @@
 - ❌ **Mode Documentation**: Update `templates/commands/mode.md` to include AD mode description.
 - ❌ **Codebase Mapper**: Implement `/map` command to scan existing code and auto-populate `memory/architecture.md` (Context View) and `memory/tech-stack.md`. Essential for Brownfield projects (legacy code analysis and documentation).
 
-#### **Strategic Tooling Improvements** *(30% Complete)* - **MEDIUM PRIORITY**
+#### **Strategic Tooling Improvements** *(60% Complete)* - **MEDIUM PRIORITY**
 
-- ❌ **Gateway Health Checks**: Only basic configuration exists, no health check implementation
 - ❌ **Tool Selection Guidance**: Claims implementation but no actual guidance logic found
 - ✅ **Global Configuration Support**: All configuration now stored globally in `~/.config/specify/config.json` (XDG compliant). Single shared configuration across all projects. Linux: `$XDG_CONFIG_HOME/specify/config.json`, macOS: `~/Library/Application Support/specify/config.json`, Windows: `%APPDATA%\specify\config.json`.
 - ✅ **CLI Config Refactor**: Updated `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution.
@@ -229,15 +227,17 @@
 
 ---
 
-## 🚀 **NEXT PHASE** (Immediate Priority)
+## 🚀 **NEXT PHASE** (Deferred - Complete After Current Phase)
 
-### **Command Prefix Migration** *(0% Complete)* - **CRITICAL PRIORITY** - Fork differentiation and user experience
+### **Command Prefix Migration** *(0% Complete)* - **MEDIUM PRIORITY** - Fork differentiation and user experience
 
 - ❌ **Prefix Change Implementation**: Migrate from `/speckit.*` to `/agenticsdlc.*` commands for clear fork identification
 - ❌ **Documentation Updates**: Update all references in README.md, docs, and templates (100+ instances)
 - ❌ **Release Script Modification**: Update `.github/workflows/scripts/create-release-packages.sh` to generate new prefix
 - ❌ **Migration Support**: Dual prefix support during transition with deprecation warnings
 - ❌ **User Communication**: Migration guide for existing projects and clear differentiation messaging
+
+**Note**: Deferred to focus on fixing workflow blockers first. Breaking change can be applied after core functionality is stable.
 
 ---
 
@@ -294,7 +294,6 @@
 #### **Resilience & Self-Healing** *(0% Complete)* - **MEDIUM PRIORITY** - Automation robustness
 
 - ❌ **Triage Escalation Protocol**: Automated promotion of failing `[ASYNC]` tasks to `[SYNC]` status in `tasks_meta.json` with user notification.
-- ❌ **Connection Health Checks**: Enhance `specify check` to validate API connectivity to Gateway and MCP servers, not just binary presence.
 
 **Assessment**: Not currently needed. Core workflow (dual execution loop, MCP integration) should be completed first. Existing terminal interface with agent context files provides sufficient IDE support. Consider lightweight integration only after core adoption is proven.
 
@@ -392,27 +391,25 @@
 |**Iterative Development**|100%|✅ Complete|
 
 |**Enhanced Traceability**|60%|⚠️ Partially Complete|
-|**Multi-Tracker Task-to-Issues**|0%|🔄 Current Phase|
-|**Strategic Tooling**|30%|⚠️ Partially Complete|
-|**Build Mode "GSD" Upgrade**|0%|🔄 Current Phase|
-|**Context Intelligence & Optimization**|0%|🔄 Current Phase|
-|**Workflow Utilities**|0%|🔄 Current Phase|
+|**Strategic Tooling**|60%|⚠️ Partially Complete|
+|**Async Context Delivery**|0%|🔄 Current Phase (CRITICAL)|
 |**Build Mode Bug Fix**|0%|🔄 Current Phase|
-|**Async Context Delivery**|0%|🔄 Current Phase|
+|**Levelup Build Mode**|0%|🔄 Current Phase|
+|**Persistent Issue ID**|0%|🔄 Current Phase|
+|**Build Mode "GSD" Upgrade**|0%|🔄 Current Phase|
+|**Architecture Description (AD) Mode**|0%|🔄 Current Phase|
+|**Context Intelligence & Optimization**|0%|🔄 Current Phase|
+|**Multi-Tracker Task-to-Issues**|0%|🔄 Current Phase|
 |**Spec Management**|0%|🔄 Current Phase|
+|**Workflow Utilities**|0%|🔄 Current Phase|
+|**Command Prefix Migration**|0%|🚀 Next Phase (Deferred)|
 |**Hook-Based Tool Auto-Activation**|0%|🆕 Future Phase|
-|**Progressive Context Disclosure**|0%|🆕 Future Phase|
 |**Agent Skill Modularization**|0%|🆕 Future Phase|
 |**Agent Testing Infrastructure**|0%|🆕 Future Phase|
 |**GitHub Issues Enhancement**|0%|🆕 Future Phase|
 |**Code Quality Automation**|0%|🆕 Future Phase|
-|**Architecture Description Command**|0%|🆕 Future Phase|
-|**Advanced MCP**|0%|🆕 Future Phase|
-|**IDE Integration**|0%|🆕 Future Phase|
-|**Evaluation Suite**|0%|🆕 Future Phase|
-|**Context Engineering**|0%|🆕 Future Phase|
-|**Context Intelligence & Optimization**|0%|🆕 Future Phase|
 |**Resilience & Self-Healing**|0%|🆕 Future Phase|
+|**IDE Integration**|0%|🆕 Future Phase|
 
 **Overall Implementation Status**: ~85% Complete
 
@@ -423,8 +420,8 @@
 - **MCP Infrastructure**: 100% Complete (issue tracker, async agent, and git platform integrations)
 - **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, completed mode switching with auto-detection, and mode-aware checklist validation)
 - **Complexity Solutions**: ~90% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable options - HIGH PRIORITY response to user feedback; some automation features still need implementation)
-- **Next Phase Priorities**: 1 CRITICAL priority feature (command prefix migration) - **IMMEDIATE FOCUS**
-- **Current Phase Priorities**: 1 CRITICAL priority feature (async context delivery) + 4 HIGH priority features (workflow blockers) + 4 MEDIUM priority features - **SECONDARY FOCUS**
+- **Current Phase Priorities**: 1 CRITICAL (async context delivery) + 5 HIGH (workflow blockers) + 4 MEDIUM features - **PRIMARY FOCUS**
+- **Next Phase Priorities**: Command prefix migration (deferred to reduce churn while fixing blockers)
 - **Future Enhancements**: 0% Complete (minimal enterprise features only)
 - **Deferred Features**: IDE Integration & overkill enhancements (removed to maintain focus)
 
@@ -432,34 +429,32 @@
 
 **Verification Status**: Core infrastructure is well-implemented and verified, but some automation features (particularly in traceability and strategic tooling) require additional development to reach full completion. The roadmap now accurately reflects the distinction between configuration scaffolding and functional automation.
 
-## 🎯 **PRIORITY RANKING** - Refined based on user impact and breaking changes
+## 🎯 **PRIORITY RANKING** - Refined based on user impact and workflow blockers
 
-**🚀 NEXT PHASE (Immediate):**
+**🔄 CURRENT PHASE (Primary Focus):**
 
-1. **CRITICAL**: Command prefix migration (0% → 100%) - **BREAKING CHANGE** - Immediate user impact, fork differentiation
+1. **CRITICAL**: Async task context delivery architecture (0% → 100%) - Makes async functionality completely non-functional
+2. **HIGH**: Build mode workflow bug fix (0% → 100%) - Critical workflow blocker preventing build mode usage
+3. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker (depends on #2)
+4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
+5. **HIGH**: Build Mode "GSD" Upgrade (0% → 100%) - High-velocity execution mode (depends on #2)
+6. **HIGH**: Architecture Description (AD) Mode (0% → 100%) - Enterprise Architecture Support
+7. **MEDIUM**: Context Intelligence & Optimization (0% → 100%) - Directives scanner + compliance validation
+8. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
+9. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
+10. **MEDIUM**: Workflow Utilities (0% → 100%) - /debug and /todo commands
 
-**🔄 CURRENT PHASE (Complete After Next Phase):**
-2. **CRITICAL**: Async task context delivery architecture (0% → 100%) - Makes async functionality completely non-functional
-3. **HIGH**: Context.md population bug fix (0% → 100%) - Critical workflow blocker preventing specify→implement flow
-4. **HIGH**: Build mode workflow bug fix (0% → 100%) - Critical workflow blocker preventing build mode usage
-5. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker
-6. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
-7. **HIGH**: Architecture Description (AD) Mode (0% → 100%) - Enterprise Architecture Support
-8. **MEDIUM**: Strategic tooling improvements (30% → 100%) - Tool health, guidance, and config consolidation
-9. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
-10. **MEDIUM**: Unified spec template implementation (100% → 100%) - Template maintenance reduction
-11. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
+**🚀 NEXT PHASE (Deferred):**
+
+11. **MEDIUM**: Command prefix migration (0% → 100%) - Breaking change, fork differentiation (deferred to reduce churn)
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
-9. **HIGH**: Architecture Description Command (/architect) (0% → future consideration)
-10. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
-11. **MEDIUM**: Progressive context disclosure (500-line rule) (0% → future consideration)
-12. **LOW**: Session context persistence patterns (50% → future consideration)
-13. **LOW**: Agent skill modularization (0% → future consideration)
-14. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
-15. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
-16. **LOW**: Code quality automation (0% → future consideration)
-17. **HIGH**: Context Intelligence & Optimization (0% → future consideration)  # New addition
-18. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)  # New addition
+
+12. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
+13. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+14. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+15. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)
+16. **LOW**: Agent skill modularization (0% → future consideration)
+17. **LOW**: Code quality automation (0% → future consideration)
 18. **LOW**: Feature-level mode configuration (0% → future consideration)
 19. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)

@@ -27,6 +27,7 @@ from typing import Optional, Tuple
 
 import typer
 import httpx
+import platformdirs
 from rich.console import Console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
@@ -309,31 +310,75 @@ SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 # Consolidated Configuration Management
 
 
-def get_config_path(project_path: Path) -> Path:
-    """Get the path to the consolidated config file."""
-    return project_path / ".specify" / "config" / "config.json"
+def get_global_config_path() -> Path:
+    """Get the global config path using XDG Base Directory spec.
+
+    Platform-specific locations:
+    - Linux: ~/.config/specify/config.json
+    - macOS: ~/Library/Application Support/specify/config.json
+    - Windows: %APPDATA%\\specify\\config.json
+    """
+    config_dir = Path(platformdirs.user_config_dir("specify"))
+    return config_dir / "config.json"
 
 
-def load_config(project_path: Path) -> dict:
-    """Load the consolidated configuration file."""
-    config_path = get_config_path(project_path)
+def get_config_path(project_path: Optional[Path] = None) -> Path:
+    """Get the path to the global configuration file.
+
+    Args:
+        project_path: (Ignored - kept for backward compatibility)
+
+    Returns:
+        Path to global config.json
+    """
+    return get_global_config_path()
+
+
+def load_config(project_path: Optional[Path] = None) -> dict:
+    """Load the global configuration file.
+
+    Args:
+        project_path: (Ignored - global config is used for all projects)
+
+    Returns:
+        Configuration dict or defaults if config doesn't exist
+    """
+    config_path = get_global_config_path()
     if not config_path.exists():
         return get_default_config()
 
     try:
         with open(config_path, "r") as f:
             return json.load(f)
-    except (json.JSONDecodeError, IOError):
+    except (json.JSONDecodeError, IOError) as e:
         console.print(
-            f"[yellow]Warning:[/yellow] Could not load config file {config_path}, using defaults"
+            f"[yellow]Warning:[/yellow] Could not load config file {config_path}: {e}"
         )
+        console.print("[yellow]Using default configuration[/yellow]")
         return get_default_config()
 
 
-def save_config(project_path: Path, config: dict) -> None:
-    """Save the consolidated configuration file."""
-    config_path = get_config_path(project_path)
-    config_path.parent.mkdir(parents=True, exist_ok=True)
+def save_config(
+    project_path: Optional[Path] = None, config: Optional[dict] = None
+) -> None:
+    """Save the configuration to global location.
+
+    Args:
+        project_path: (Ignored - global config is used for all projects)
+        config: Configuration dict to save
+    """
+    if config is None:
+        config = {}
+
+    config_path = get_global_config_path()
+
+    try:
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        console.print(
+            f"[red]Error:[/red] Could not create config directory {config_path.parent}: {e}"
+        )
+        return
 
     # Update last_modified timestamp
     if "project" not in config:
@@ -344,8 +389,13 @@ def save_config(project_path: Path, config: dict) -> None:
         __import__("datetime").datetime.now().isoformat()
     )
 
-    with open(config_path, "w") as f:
-        json.dump(config, f, indent=2)
+    try:
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+    except OSError as e:
+        console.print(
+            f"[red]Error:[/red] Could not write config file {config_path}: {e}"
+        )
 
 
 def get_default_config() -> dict:
@@ -360,7 +410,6 @@ def get_default_config() -> dict:
         "workflow": {
             "current_mode": "spec",
             "default_mode": "spec",
-            "mode_history": [],
         },
         "options": {
             "tdd_enabled": False,
