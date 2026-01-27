@@ -446,15 +446,15 @@
 
 **🚀 NEXT PHASE (Deferred):**
 
-11. **MEDIUM**: Command prefix migration (0% → 100%) - Breaking change, fork differentiation (deferred to reduce churn)
+1. **MEDIUM**: Command prefix migration (0% → 100%) - Breaking change, fork differentiation (deferred to reduce churn)
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
 
-12. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
-13. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
-14. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
-15. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)
-16. **LOW**: Agent skill modularization (0% → future consideration)
-17. **LOW**: Code quality automation (0% → future consideration)
-18. **LOW**: Feature-level mode configuration (0% → future consideration)
-19. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
+1. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
+2. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+3. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+4. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)
+5. **LOW**: Agent skill modularization (0% → future consideration)
+6. **LOW**: Code quality automation (0% → future consideration)
+7. **LOW**: Feature-level mode configuration (0% → future consideration)
+8. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
