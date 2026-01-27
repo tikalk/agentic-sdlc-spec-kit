@@ -253,7 +253,7 @@ fi
 
 if grep -q "\[NEEDS INPUT\]" "$CONTEXT"; then
     echo "ERROR: context.md contains unresolved [NEEDS INPUT] markers." >&2
-    echo "Update $CONTEXT with current mission, code paths, directives, research, and gateway details before proceeding." >&2
+    echo "Update $CONTEXT with current mission, code paths, directives, and research details before proceeding." >&2
     exit 1
 fi
 

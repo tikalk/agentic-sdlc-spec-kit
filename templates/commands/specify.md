@@ -237,9 +237,8 @@ Given that feature description, do this:
        - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
        - **Directives**: Reference applicable team directives from constitution/memory
        - **Research**: List any external research needs identified during specification
-       - **Gateway**: Specify API gateway/service mesh requirements if applicable
      - **Build Mode**: Populate Feature and Mission (minimum required)
-     - **Spec Mode**: Populate all 6 fields with detailed, accurate values
+     - **Spec Mode**: Populate all 5 fields with detailed, accurate values
      - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
 
 8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:

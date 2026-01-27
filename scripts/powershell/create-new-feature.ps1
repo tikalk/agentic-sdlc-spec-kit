@@ -325,7 +325,6 @@ function Populate-ContextFile {
         $codePaths = "To be determined during implementation"
         $directives = "None (build mode)"
         $research = "Minimal research needed for lightweight implementation"
-        $gateway = "None (build mode)"
     } else {
         # Spec mode: Comprehensive context for full specification
         # Detect code paths (basic detection based on common patterns)
@@ -347,21 +346,6 @@ function Populate-ContextFile {
 
         # Set research needs
         $research = "To be identified during specification and planning phases"
-
-        # Read gateway configuration if available
-        $gateway = "None"
-        $configFile = Join-Path $repoRoot '.specify/config/config.json'
-        if (Test-Path $configFile) {
-            try {
-                $config = Get-Content $configFile -Raw | ConvertFrom-Json
-                if ($config.gateway -and $config.gateway.url) {
-                    $gateway = $config.gateway.url
-                }
-            } catch {
-                # Fall back to None if JSON parsing fails
-                $gateway = "None"
-            }
-        }
     }
 
     # Create context.md with populated values
@@ -373,7 +357,6 @@ function Populate-ContextFile {
 **Code Paths**: $codePaths
 **Directives**: $directives
 **Research**: $research
-**Gateway**: $gateway
 
 "@
 

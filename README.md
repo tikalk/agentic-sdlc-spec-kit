@@ -214,16 +214,6 @@ specify init my-project --git-platform github
 specify init my-project --git-platform gitlab
 ```
 
-#### Gateway Configuration
-
-```bash
-# Configure central LLM gateway
-specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
-
-# Suppress gateway warnings
-specify init my-project --gateway-suppress-warning
-```
-
 #### Advanced Options
 
 ```bash
@@ -309,9 +299,7 @@ specify init my-project \
   --script sh \
   --team-ai-directives https://github.com/your-org/team-ai-directives.git \
   --issue-tracker github \
-  --async-agent jules \
-  --gateway-url https://proxy.internal \
-  --gateway-token $TOKEN
+  --async-agent jules
 ```
 
 ### 2. Establish project principles
@@ -419,9 +407,6 @@ The `specify` command supports the following options:
 | `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
 | `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
 | `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                     |
-| `--gateway-url`              | Option   | Central LLM gateway URL                                                    |
-| `--gateway-token`             | Option   | Gateway authentication token                                               |
-| `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
 | `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 
 ### `/mode` Arguments & Options
@@ -491,11 +476,8 @@ specify init my-project --ai claude --team-ai-directives https://github.com/your
 # Initialize with async agent support for autonomous task execution
 specify init my-project --ai claude --async-agent jules
 
-# Initialize with central LLM gateway configuration
-specify init my-project --ai claude --gateway-url https://proxy.internal --gateway-token $TOKEN
-
 # Complex example: Enterprise setup with all integrations
-specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --gateway-url https://llm-gateway.company.com --gateway-token $GATEWAY_TOKEN --github-token $GH_TOKEN
+specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --github-token $GH_TOKEN
 
 # Check system requirements
 specify check

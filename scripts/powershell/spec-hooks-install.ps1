@@ -167,11 +167,6 @@ function create_config {
       "pending": [],
       "processed": []
     }
-  },
-  "gateway": {
-    "url": null,
-    "token": null,
-    "suppress_warning": false
   }
 }
 "@

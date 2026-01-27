@@ -101,14 +101,6 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent async-codex
 ```
 
-### Configure Central LLM Gateway
-
-Set up proxy configuration for centralized AI model access:
-
-```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --gateway-url https://proxy.internal --gateway-token $TOKEN
-```
-
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:

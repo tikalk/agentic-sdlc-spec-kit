@@ -4,37 +4,6 @@
 # Shared constants
 TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
 
-# Load gateway configuration and export helper environment variables
-load_gateway_config() {
-    local config_dir=".specify/config"
-    local config_file="$config_dir/config.json"
-
-    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
-        # Read gateway config from consolidated config
-        SPECIFY_GATEWAY_URL=$(jq -r '.gateway.url // empty' "$config_file" 2>/dev/null)
-        SPECIFY_GATEWAY_TOKEN=$(jq -r '.gateway.token // empty' "$config_file" 2>/dev/null)
-        SPECIFY_SUPPRESS_GATEWAY_WARNING=$(jq -r '.gateway.suppress_warning // false' "$config_file" 2>/dev/null)
-
-        # Export token if set
-        if [[ -n "$SPECIFY_GATEWAY_TOKEN" ]]; then
-            export SPECIFY_GATEWAY_TOKEN
-        fi
-    fi
-
-    if [[ -n "${SPECIFY_GATEWAY_URL:-}" ]]; then
-        export SPECIFY_GATEWAY_URL
-        export SPECIFY_GATEWAY_ACTIVE="true"
-        [[ -z "${ANTHROPIC_BASE_URL:-}" ]] && export ANTHROPIC_BASE_URL="$SPECIFY_GATEWAY_URL"
-        [[ -z "${GEMINI_BASE_URL:-}" ]] && export GEMINI_BASE_URL="$SPECIFY_GATEWAY_URL"
-        [[ -z "${OPENAI_BASE_URL:-}" ]] && export OPENAI_BASE_URL="$SPECIFY_GATEWAY_URL"
-    else
-        export SPECIFY_GATEWAY_ACTIVE="false"
-        if [[ "$SPECIFY_SUPPRESS_GATEWAY_WARNING" != "true" ]]; then
-            echo "[specify] Warning: Gateway URL not configured. Set gateway.url in .specify/config/config.json." >&2
-        fi
-    fi
-}
-
 load_team_directives_config() {
     local repo_root="$1"
 
@@ -181,7 +150,6 @@ find_feature_dir_by_prefix() {
 
 get_feature_paths() {
     local repo_root=$(get_repo_root)
-    load_gateway_config "$repo_root"
     load_team_directives_config "$repo_root"
     local current_branch=$(get_current_branch)
     local has_git_repo="false"

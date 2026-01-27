@@ -52,19 +52,24 @@ BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_wh
 
 TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 
+
 def _github_token(cli_token: str | None = None) -> str | None:
     """Return sanitized GitHub token (cli arg takes precedence) or None."""
-    return ((cli_token or os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()) or None
+    return (
+        (cli_token or os.getenv("GH_TOKEN") or os.getenv("GITHUB_TOKEN") or "").strip()
+    ) or None
+
 
 def _github_auth_headers(cli_token: str | None = None) -> dict:
     """Return Authorization header dict only when a non-empty token exists."""
     token = _github_token(cli_token)
     return {"Authorization": f"Bearer {token}"} if token else {}
 
+
 def _parse_rate_limit_headers(headers: httpx.Headers) -> dict:
     """Extract and parse GitHub rate-limit headers."""
     info = {}
-    
+
     # Standard GitHub rate-limit headers
     if "X-RateLimit-Limit" in headers:
         info["limit"] = headers.get("X-RateLimit-Limit")
@@ -77,7 +82,7 @@ def _parse_rate_limit_headers(headers: httpx.Headers) -> dict:
             info["reset_epoch"] = reset_epoch
             info["reset_time"] = reset_time
             info["reset_local"] = reset_time.astimezone()
-    
+
     # Retry-After header (seconds or HTTP-date)
     if "Retry-After" in headers:
         retry_after = headers.get("Retry-After")
@@ -86,16 +91,17 @@ def _parse_rate_limit_headers(headers: httpx.Headers) -> dict:
         except ValueError:
             # HTTP-date format - not implemented, just store as string
             info["retry_after"] = retry_after
-    
+
     return info
+
 
 def _format_rate_limit_error(status_code: int, headers: httpx.Headers, url: str) -> str:
     """Format a user-friendly error message with rate-limit information."""
     rate_info = _parse_rate_limit_headers(headers)
-    
+
     lines = [f"GitHub API returned status {status_code} for {url}"]
     lines.append("")
-    
+
     if rate_info:
         lines.append("[bold]Rate Limit Information:[/bold]")
         if "limit" in rate_info:
@@ -108,15 +114,22 @@ def _format_rate_limit_error(status_code: int, headers: httpx.Headers, url: str)
         if "retry_after_seconds" in rate_info:
             lines.append(f"  • Retry after: {rate_info['retry_after_seconds']} seconds")
         lines.append("")
-    
+
     # Add troubleshooting guidance
     lines.append("[bold]Troubleshooting Tips:[/bold]")
-    lines.append("  • If you're on a shared CI or corporate environment, you may be rate-limited.")
-    lines.append("  • Consider using a GitHub token via --github-token or the GH_TOKEN/GITHUB_TOKEN")
+    lines.append(
+        "  • If you're on a shared CI or corporate environment, you may be rate-limited."
+    )
+    lines.append(
+        "  • Consider using a GitHub token via --github-token or the GH_TOKEN/GITHUB_TOKEN"
+    )
     lines.append("    environment variable to increase rate limits.")
-    lines.append("  • Authenticated requests have a limit of 5,000/hour vs 60/hour for unauthenticated.")
-    
+    lines.append(
+        "  • Authenticated requests have a limit of 5,000/hour vs 60/hour for unauthenticated."
+    )
+
     return "\n".join(lines)
+
 
 # Agent configuration with name, folder, install URL, and CLI tool requirement
 AGENT_CONFIG = {
@@ -295,9 +308,11 @@ SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 # Consolidated Configuration Management
 
+
 def get_config_path(project_path: Path) -> Path:
     """Get the path to the consolidated config file."""
     return project_path / ".specify" / "config" / "config.json"
+
 
 def load_config(project_path: Path) -> dict:
     """Load the consolidated configuration file."""
@@ -306,11 +321,14 @@ def load_config(project_path: Path) -> dict:
         return get_default_config()
 
     try:
-        with open(config_path, 'r') as f:
+        with open(config_path, "r") as f:
             return json.load(f)
     except (json.JSONDecodeError, IOError):
-        console.print(f"[yellow]Warning:[/yellow] Could not load config file {config_path}, using defaults")
+        console.print(
+            f"[yellow]Warning:[/yellow] Could not load config file {config_path}, using defaults"
+        )
         return get_default_config()
+
 
 def save_config(project_path: Path, config: dict) -> None:
     """Save the consolidated configuration file."""
@@ -322,65 +340,55 @@ def save_config(project_path: Path, config: dict) -> None:
         config["project"] = {}
     if not isinstance(config["project"], dict):
         config["project"] = {}
-    config["project"]["last_modified"] = __import__('datetime').datetime.now().isoformat()
+    config["project"]["last_modified"] = (
+        __import__("datetime").datetime.now().isoformat()
+    )
 
-    with open(config_path, 'w') as f:
+    with open(config_path, "w") as f:
         json.dump(config, f, indent=2)
+
 
 def get_default_config() -> dict:
     """Get the default configuration structure."""
     from datetime import datetime
+
     now = datetime.now().isoformat()
 
     return {
         "version": "1.0",
-        "project": {
-            "created": now,
-            "last_modified": now
-        },
+        "project": {"created": now, "last_modified": now},
         "workflow": {
             "current_mode": "spec",
             "default_mode": "spec",
-            "mode_history": []
+            "mode_history": [],
         },
         "options": {
             "tdd_enabled": False,
             "contracts_enabled": False,
             "data_models_enabled": False,
-            "risk_tests_enabled": False
+            "risk_tests_enabled": False,
         },
         "mode_defaults": {
             "build": {
                 "tdd_enabled": False,
                 "contracts_enabled": False,
                 "data_models_enabled": False,
-                "risk_tests_enabled": False
+                "risk_tests_enabled": False,
             },
             "spec": {
                 "tdd_enabled": True,
                 "contracts_enabled": True,
                 "data_models_enabled": True,
-                "risk_tests_enabled": True
-            }
+                "risk_tests_enabled": True,
+            },
         },
         "spec_sync": {
             "enabled": False,
-            "queue": {
-                "version": "1.0",
-                "created": now,
-                "pending": [],
-                "processed": []
-            }
+            "queue": {"version": "1.0", "created": now, "pending": [], "processed": []},
         },
-        "gateway": {
-            "url": None,
-            "token": None,
-            "suppress_warning": False
-        },
-        "team_directives": {
-            "path": None
-        }
+        "team_directives": {"path": None},
     }
+
 
 # Workflow mode configuration
 
@@ -397,14 +405,23 @@ BANNER = """
 """
 
 TAGLINE = "Agentic SDLC Spec Kit - Spec-Driven Development Toolkit"
+
+
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.
     """
+
     def __init__(self, title: str):
         self.title = title
         self.steps = []  # list of dicts: {key, label, status, detail}
-        self.status_order = {"pending": 0, "running": 1, "done": 2, "error": 3, "skipped": 4}
+        self.status_order = {
+            "pending": 0,
+            "running": 1,
+            "done": 2,
+            "error": 3,
+            "skipped": 4,
+        }
         self._refresh_cb = None  # callable to trigger UI refresh
 
     def attach_refresh(self, cb):
@@ -412,7 +429,9 @@ class StepTracker:
 
     def add(self, key: str, label: str):
         if key not in [s["key"] for s in self.steps]:
-            self.steps.append({"key": key, "label": label, "status": "pending", "detail": ""})
+            self.steps.append(
+                {"key": key, "label": label, "status": "pending", "detail": ""}
+            )
             self._maybe_refresh()
 
     def start(self, key: str, detail: str = ""):
@@ -436,7 +455,9 @@ class StepTracker:
                 self._maybe_refresh()
                 return
 
-        self.steps.append({"key": key, "label": key, "status": status, "detail": detail})
+        self.steps.append(
+            {"key": key, "label": key, "status": status, "detail": detail}
+        )
         self._maybe_refresh()
 
     def _maybe_refresh(self):
@@ -469,7 +490,9 @@ class StepTracker:
             if status == "pending":
                 # Entire line light gray (pending)
                 if detail_text:
-                    line = f"{symbol} [bright_black]{label} ({detail_text})[/bright_black]"
+                    line = (
+                        f"{symbol} [bright_black]{label} ({detail_text})[/bright_black]"
+                    )
                 else:
                     line = f"{symbol} [bright_black]{label}[/bright_black]"
             else:
@@ -482,35 +505,39 @@ class StepTracker:
             tree.add(line)
         return tree
 
+
 def get_key():
     """Get a single keypress in a cross-platform way using readchar."""
     key = readchar.readkey()
 
     if key == readchar.key.UP or key == readchar.key.CTRL_P:
-        return 'up'
+        return "up"
     if key == readchar.key.DOWN or key == readchar.key.CTRL_N:
-        return 'down'
+        return "down"
 
     if key == readchar.key.ENTER:
-        return 'enter'
+        return "enter"
 
     if key == readchar.key.ESC:
-        return 'escape'
+        return "escape"
 
     if key == readchar.key.CTRL_C:
         raise KeyboardInterrupt
 
     return key
 
-def select_with_arrows(options: dict, prompt_text: str = "Select an option", default_key: str = None) -> str:
+
+def select_with_arrows(
+    options: dict, prompt_text: str = "Select an option", default_key: str = None
+) -> str:
     """
     Interactive selection using arrow keys with Rich Live display.
-    
+
     Args:
         options: Dict with keys as option keys and values as descriptions
         prompt_text: Text to show above the options
         default_key: Default option key to start with
-        
+
     Returns:
         Selected option key
     """
@@ -530,36 +557,49 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]")
+                table.add_row(
+                    "▶",
+                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
+                )
             else:
-                table.add_row(" ", f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]")
+                table.add_row(
+                    " ",
+                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
+                )
 
         table.add_row("", "")
-        table.add_row("", "[dim]Use ↑/↓ to navigate, Enter to select, Esc to cancel[/dim]")
+        table.add_row(
+            "", "[dim]Use ↑/↓ to navigate, Enter to select, Esc to cancel[/dim]"
+        )
 
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
             border_style=ACCENT_COLOR,
-            padding=(1, 2)
+            padding=(1, 2),
         )
 
     console.print()
 
     def run_selection_loop():
         nonlocal selected_key, selected_index
-        with Live(create_selection_panel(), console=console, transient=True, auto_refresh=False) as live:
+        with Live(
+            create_selection_panel(),
+            console=console,
+            transient=True,
+            auto_refresh=False,
+        ) as live:
             while True:
                 try:
                     key = get_key()
-                    if key == 'up':
+                    if key == "up":
                         selected_index = (selected_index - 1) % len(option_keys)
-                    elif key == 'down':
+                    elif key == "down":
                         selected_index = (selected_index + 1) % len(option_keys)
-                    elif key == 'enter':
+                    elif key == "enter":
                         selected_key = option_keys[selected_index]
                         break
-                    elif key == 'escape':
+                    elif key == "escape":
                         console.print("\n[yellow]Selection cancelled[/yellow]")
                         raise typer.Exit(1)
 
@@ -577,7 +617,9 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
 
     return selected_key
 
+
 console = Console()
+
 
 class BannerGroup(TyperGroup):
     """Custom group that shows banner before help."""
@@ -596,9 +638,10 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
+
 def show_banner():
     """Display the ASCII art banner."""
-    banner_lines = BANNER.strip().split('\n')
+    banner_lines = BANNER.strip().split("\n")
     colors = BANNER_COLORS
 
     styled_banner = Text()
@@ -610,19 +653,34 @@ def show_banner():
     console.print(Align.center(Text(TAGLINE, style=f"italic {ACCENT_COLOR}")))
     console.print()
 
+
 @app.callback()
 def callback(ctx: typer.Context):
     """Show banner when no subcommand is provided."""
-    if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
+    if (
+        ctx.invoked_subcommand is None
+        and "--help" not in sys.argv
+        and "-h" not in sys.argv
+    ):
         show_banner()
-        console.print(Align.center("[dim]Run 'specify --help' for usage information[/dim]"))
+        console.print(
+            Align.center("[dim]Run 'specify --help' for usage information[/dim]")
+        )
         console.print()
 
-def run_command(cmd: list[str], check_return: bool = True, capture: bool = False, shell: bool = False) -> Optional[str]:
+
+def run_command(
+    cmd: list[str],
+    check_return: bool = True,
+    capture: bool = False,
+    shell: bool = False,
+) -> Optional[str]:
     """Run a shell command and optionally capture output."""
     try:
         if capture:
-            result = subprocess.run(cmd, check=check_return, capture_output=True, text=True, shell=shell)
+            result = subprocess.run(
+                cmd, check=check_return, capture_output=True, text=True, shell=shell
+            )
             return result.stdout.strip()
         else:
             subprocess.run(cmd, check=check_return, shell=shell)
@@ -631,18 +689,19 @@ def run_command(cmd: list[str], check_return: bool = True, capture: bool = False
         if check_return:
             console.print(f"[red]Error running command:[/red] {' '.join(cmd)}")
             console.print(f"[red]Exit code:[/red] {e.returncode}")
-            if hasattr(e, 'stderr') and e.stderr:
+            if hasattr(e, "stderr") and e.stderr:
                 console.print(f"[red]Error output:[/red] {e.stderr}")
             raise
         return None
 
+
 def check_tool(tool: str, tracker: StepTracker = None) -> bool:
     """Check if a tool is installed. Optionally update tracker.
-    
+
     Args:
         tool: Name of the tool to check
         tracker: Optional StepTracker to update with results
-        
+
     Returns:
         True if tool is found, False otherwise
     """
@@ -656,19 +715,21 @@ def check_tool(tool: str, tracker: StepTracker = None) -> bool:
             if tracker:
                 tracker.complete(tool, "available")
             return True
-    
+
     found = shutil.which(tool) is not None
-    
+
     if tracker:
         if found:
             tracker.complete(tool, "available")
         else:
             tracker.error(tool, "not found")
-    
+
     return found
 
 
-def _run_git_command(args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
+def _run_git_command(
+    args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
     """Run a git command with optional working directory and environment overrides."""
     cmd = ["git"]
     if cwd is not None:
@@ -677,7 +738,9 @@ def _run_git_command(args: list[str], cwd: Path | None = None, *, env: dict[str,
     return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
 
 
-def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool = False) -> tuple[str, Path]:
+def sync_team_ai_directives(
+    repo_url: str, project_root: Path, *, skip_tls: bool = False
+) -> tuple[str, Path]:
     """Clone or update the team-ai-directives repository.
 
     When repo_url points to a local directory, return it without cloning.
@@ -701,18 +764,28 @@ def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool
 
     try:
         if destination.exists() and any(destination.iterdir()):
-            _run_git_command(["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env)
+            _run_git_command(
+                ["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env
+            )
             try:
-                existing_remote = _run_git_command([
-                    "config",
-                    "--get",
-                    "remote.origin.url",
-                ], cwd=destination, env=git_env).stdout.strip()
+                existing_remote = _run_git_command(
+                    [
+                        "config",
+                        "--get",
+                        "remote.origin.url",
+                    ],
+                    cwd=destination,
+                    env=git_env,
+                ).stdout.strip()
             except subprocess.CalledProcessError:
                 existing_remote = ""
 
             if existing_remote and existing_remote != repo_url:
-                _run_git_command(["remote", "set-url", "origin", repo_url], cwd=destination, env=git_env)
+                _run_git_command(
+                    ["remote", "set-url", "origin", repo_url],
+                    cwd=destination,
+                    env=git_env,
+                )
 
             _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
             return ("updated", destination)
@@ -727,7 +800,10 @@ def sync_team_ai_directives(repo_url: str, project_root: Path, *, skip_tls: bool
         message = exc.stderr.strip() if exc.stderr else str(exc)
         raise RuntimeError(f"Git operation failed: {message}") from exc
 
-def configure_mcp_servers(project_path: Path, issue_tracker: str, team_directives_path: Path | None = None) -> None:
+
+def configure_mcp_servers(
+    project_path: Path, issue_tracker: str, team_directives_path: Path | None = None
+) -> None:
     """Configure MCP servers for issue tracker integration.
 
     Creates or updates .mcp.json in the project root with the appropriate
@@ -741,7 +817,7 @@ def configure_mcp_servers(project_path: Path, issue_tracker: str, team_directive
     # Load existing .mcp.json if it exists
     if mcp_file.exists():
         try:
-            with open(mcp_file, 'r') as f:
+            with open(mcp_file, "r") as f:
                 data = json.load(f)
                 mcp_servers = data.get("mcpServers", {})
         except (json.JSONDecodeError, IOError):
@@ -753,7 +829,7 @@ def configure_mcp_servers(project_path: Path, issue_tracker: str, team_directive
         template_file = team_directives_path / ".mcp.json"
         if template_file.exists():
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, "r") as f:
                     template_data = json.load(f)
                     template_servers = template_data.get("mcpServers", {})
                     # Merge template servers (template takes precedence for conflicts)
@@ -773,15 +849,18 @@ def configure_mcp_servers(project_path: Path, issue_tracker: str, team_directive
     if server_name not in mcp_servers:
         mcp_servers[server_name] = {
             "type": tracker_config["type"],
-            "url": tracker_config["url"]
+            "url": tracker_config["url"],
         }
 
     # Write updated configuration
     mcp_data = {"mcpServers": mcp_servers}
-    with open(mcp_file, 'w') as f:
+    with open(mcp_file, "w") as f:
         json.dump(mcp_data, f, indent=2)
 
-def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_path: Path | None = None) -> None:
+
+def configure_agent_mcp_servers(
+    project_path: Path, agent: str, team_directives_path: Path | None = None
+) -> None:
     """Configure MCP servers for AI agent integration.
 
     Creates or updates .mcp.json in the project root with the appropriate
@@ -795,7 +874,7 @@ def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_
     # Load existing .mcp.json if it exists
     if mcp_file.exists():
         try:
-            with open(mcp_file, 'r') as f:
+            with open(mcp_file, "r") as f:
                 data = json.load(f)
                 mcp_servers = data.get("mcpServers", {})
         except (json.JSONDecodeError, IOError):
@@ -807,7 +886,7 @@ def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_
         template_file = team_directives_path / ".mcp.json"
         if template_file.exists():
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, "r") as f:
                     template_data = json.load(f)
                     template_servers = template_data.get("mcpServers", {})
                     # Merge template servers (template takes precedence for conflicts)
@@ -827,15 +906,18 @@ def configure_agent_mcp_servers(project_path: Path, agent: str, team_directives_
     if server_name not in mcp_servers:
         mcp_servers[server_name] = {
             "type": agent_config["type"],
-            "url": agent_config["url"]
+            "url": agent_config["url"],
         }
 
     # Write updated configuration
     mcp_data = {"mcpServers": mcp_servers}
-    with open(mcp_file, 'w') as f:
+    with open(mcp_file, "w") as f:
         json.dump(mcp_data, f, indent=2)
 
-def configure_git_platform_mcp_servers(project_path: Path, git_platform: str, team_directives_path: Path | None = None) -> None:
+
+def configure_git_platform_mcp_servers(
+    project_path: Path, git_platform: str, team_directives_path: Path | None = None
+) -> None:
     """Configure MCP servers for Git platform integration.
 
     Creates or updates .mcp.json in the project root with the appropriate
@@ -849,7 +931,7 @@ def configure_git_platform_mcp_servers(project_path: Path, git_platform: str, te
     # Load existing .mcp.json if it exists
     if mcp_file.exists():
         try:
-            with open(mcp_file, 'r') as f:
+            with open(mcp_file, "r") as f:
                 data = json.load(f)
                 mcp_servers = data.get("mcpServers", {})
         except json.JSONDecodeError:
@@ -861,7 +943,7 @@ def configure_git_platform_mcp_servers(project_path: Path, git_platform: str, te
         template_file = team_directives_path / ".mcp.json"
         if template_file.exists():
             try:
-                with open(template_file, 'r') as f:
+                with open(template_file, "r") as f:
                     template_data = json.load(f)
                     template_servers = template_data.get("mcpServers", {})
                     # Merge template servers (don't overwrite existing ones)
@@ -882,13 +964,14 @@ def configure_git_platform_mcp_servers(project_path: Path, git_platform: str, te
     if server_name not in mcp_servers:
         mcp_servers[server_name] = {
             "type": platform_config["type"],
-            "url": platform_config["url"]
+            "url": platform_config["url"],
         }
 
     # Write updated configuration
     mcp_data = {"mcpServers": mcp_servers}
-    with open(mcp_file, 'w') as f:
+    with open(mcp_file, "w") as f:
         json.dump(mcp_data, f, indent=2)
+
 
 def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
@@ -911,16 +994,15 @@ def is_git_repo(path: Path = None) -> bool:
         return False
 
 
-
-
-
-def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Optional[str]]:
+def init_git_repo(
+    project_path: Path, quiet: bool = False
+) -> Tuple[bool, Optional[str]]:
     """Initialize a git repository in the specified path.
-    
+
     Args:
         project_path: Path to initialize git repository in
         quiet: if True suppress console output (tracker handles status)
-    
+
     Returns:
         Tuple of (success: bool, error_message: Optional[str])
     """
@@ -931,7 +1013,12 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Option
             console.print("[{ACCENT_COLOR}]Initializing git repository...[/cyan]")
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
-        subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True, text=True)
+        subprocess.run(
+            ["git", "commit", "-m", "Initial commit from Specify template"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
         if not quiet:
             console.print("[green]✓[/green] Git repository initialized")
         return True, None
@@ -942,28 +1029,34 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> Tuple[bool, Option
             error_msg += f"\nError: {e.stderr.strip()}"
         elif e.stdout:
             error_msg += f"\nOutput: {e.stdout.strip()}"
-        
+
         if not quiet:
             console.print(f"[red]Error initializing git repository:[/red] {e}")
         return False, error_msg
     finally:
         os.chdir(original_cwd)
 
-def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker=None) -> None:
+
+def handle_vscode_settings(
+    sub_item, dest_file, rel_path, verbose=False, tracker=None
+) -> None:
     """Handle merging or copying of .vscode/settings.json files."""
+
     def log(message, color="green"):
         if verbose and not tracker:
             console.print(f"[{color}]{message}[/] {rel_path}")
 
     try:
-        with open(sub_item, 'r', encoding='utf-8') as f:
+        with open(sub_item, "r", encoding="utf-8") as f:
             new_settings = json.load(f)
 
         if dest_file.exists():
-            merged = merge_json_files(dest_file, new_settings, verbose=verbose and not tracker)
-            with open(dest_file, 'w', encoding='utf-8') as f:
+            merged = merge_json_files(
+                dest_file, new_settings, verbose=verbose and not tracker
+            )
+            with open(dest_file, "w", encoding="utf-8") as f:
                 json.dump(merged, f, indent=4)
-                f.write('\n')
+                f.write("\n")
             log("Merged:", "green")
         else:
             shutil.copy2(sub_item, dest_file)
@@ -973,7 +1066,10 @@ def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker
         log(f"Warning: Could not merge, copying instead: {e}", "yellow")
         shutil.copy2(sub_item, dest_file)
 
-def merge_json_files(existing_path: Path, new_content: dict, verbose: bool = False) -> dict:
+
+def merge_json_files(
+    existing_path: Path, new_content: dict, verbose: bool = False
+) -> dict:
     """Merge new JSON content into existing JSON file.
 
     Performs a deep merge where:
@@ -991,7 +1087,7 @@ def merge_json_files(existing_path: Path, new_content: dict, verbose: bool = Fal
         Merged JSON content as dict
     """
     try:
-        with open(existing_path, 'r', encoding='utf-8') as f:
+        with open(existing_path, "r", encoding="utf-8") as f:
             existing_content = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         # If file doesn't exist or is invalid, just use new content
@@ -1001,7 +1097,11 @@ def merge_json_files(existing_path: Path, new_content: dict, verbose: bool = Fal
         """Recursively merge update dict into base dict."""
         result = base.copy()
         for key, value in update.items():
-            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            if (
+                key in result
+                and isinstance(result[key], dict)
+                and isinstance(value, dict)
+            ):
                 # Recursively merge nested dictionaries
                 result[key] = deep_merge(result[key], value)
             else:
@@ -1016,14 +1116,27 @@ def merge_json_files(existing_path: Path, new_content: dict, verbose: bool = Fal
 
     return merged
 
-def download_template_from_github(ai_assistant: str, download_dir: Path, *, script_type: str = "sh", verbose: bool = True, show_progress: bool = True, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Tuple[Path, dict]:
+
+def download_template_from_github(
+    ai_assistant: str,
+    download_dir: Path,
+    *,
+    script_type: str = "sh",
+    verbose: bool = True,
+    show_progress: bool = True,
+    client: httpx.Client = None,
+    debug: bool = False,
+    github_token: str = None,
+) -> Tuple[Path, dict]:
     repo_owner = "tikalk"
     repo_name = "agentic-sdlc-spec-kit"
     if client is None:
         client = httpx.Client(verify=ssl_context)
 
     if verbose:
-        console.print(f"[{ACCENT_COLOR}]Fetching latest release information...[/{ACCENT_COLOR}]")
+        console.print(
+            f"[{ACCENT_COLOR}]Fetching latest release information...[/{ACCENT_COLOR}]"
+        )
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
 
     try:
@@ -1043,7 +1156,9 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         try:
             release_data = response.json()
         except ValueError as je:
-            raise RuntimeError(f"Failed to parse release JSON: {je}\nRaw (truncated 400): {response.text[:400]}")
+            raise RuntimeError(
+                f"Failed to parse release JSON: {je}\nRaw (truncated 400): {response.text[:400]}"
+            )
     except Exception as e:
         console.print(f"[red]Error fetching release information[/red]")
         console.print(Panel(str(e), title="Fetch Error", border_style="red"))
@@ -1052,16 +1167,25 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     assets = release_data.get("assets", [])
     pattern = f"agentic-sdlc-spec-kit-template-{ai_assistant}-{script_type}"
     matching_assets = [
-        asset for asset in assets
+        asset
+        for asset in assets
         if pattern in asset["name"] and asset["name"].endswith(".zip")
     ]
 
     asset = matching_assets[0] if matching_assets else None
 
     if asset is None:
-        console.print(f"[red]No matching release asset found[/red] for [bold]{ai_assistant}[/bold] (expected pattern: [bold]{pattern}[/bold])")
-        asset_names = [a.get('name', '?') for a in assets]
-        console.print(Panel("\n".join(asset_names) or "(no assets)", title="Available Assets", border_style="yellow"))
+        console.print(
+            f"[red]No matching release asset found[/red] for [bold]{ai_assistant}[/bold] (expected pattern: [bold]{pattern}[/bold])"
+        )
+        asset_names = [a.get("name", "?") for a in assets]
+        console.print(
+            Panel(
+                "\n".join(asset_names) or "(no assets)",
+                title="Available Assets",
+                border_style="yellow",
+            )
+        )
         raise typer.Exit(1)
 
     download_url = asset["browser_download_url"]
@@ -1071,7 +1195,9 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
     if verbose:
         console.print(f"[{ACCENT_COLOR}]Found template:[/{ACCENT_COLOR}] {filename}")
         console.print(f"[{ACCENT_COLOR}]Size:[/{ACCENT_COLOR}] {file_size:,} bytes")
-        console.print(f"[{ACCENT_COLOR}]Release:[/{ACCENT_COLOR}] {release_data['tag_name']}")
+        console.print(
+            f"[{ACCENT_COLOR}]Release:[/{ACCENT_COLOR}] {release_data['tag_name']}"
+        )
 
     zip_path = download_dir / filename
     if verbose:
@@ -1087,12 +1213,14 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         ) as response:
             if response.status_code != 200:
                 # Handle rate-limiting on download as well
-                error_msg = _format_rate_limit_error(response.status_code, response.headers, download_url)
+                error_msg = _format_rate_limit_error(
+                    response.status_code, response.headers, download_url
+                )
                 if debug:
                     error_msg += f"\n\n[dim]Response body (truncated 400):[/dim]\n{response.text[:400]}"
                 raise RuntimeError(error_msg)
-            total_size = int(response.headers.get('content-length', 0))
-            with open(zip_path, 'wb') as f:
+            total_size = int(response.headers.get("content-length", 0))
+            with open(zip_path, "wb") as f:
                 if total_size == 0:
                     for chunk in response.iter_bytes(chunk_size=8192):
                         f.write(chunk)
@@ -1126,11 +1254,23 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, scri
         "filename": filename,
         "size": file_size,
         "release": release_data["tag_name"],
-        "asset_url": download_url
+        "asset_url": download_url,
     }
     return zip_path, metadata
 
-def download_and_extract_template(project_path: Path, ai_assistant: str, script_type: str, is_current_dir: bool = False, *, verbose: bool = True, tracker: StepTracker | None = None, client: httpx.Client = None, debug: bool = False, github_token: str = None) -> Path:
+
+def download_and_extract_template(
+    project_path: Path,
+    ai_assistant: str,
+    script_type: str,
+    is_current_dir: bool = False,
+    *,
+    verbose: bool = True,
+    tracker: StepTracker | None = None,
+    client: httpx.Client = None,
+    debug: bool = False,
+    github_token: str = None,
+) -> Path:
     """Download the latest release and extract it to create a new project.
     Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
     """
@@ -1147,12 +1287,14 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             show_progress=(tracker is None),
             client=client,
             debug=debug,
-            github_token=github_token
+            github_token=github_token,
         )
         if tracker:
-            tracker.complete("fetch", f"release {meta['release']} ({meta['size']:,} bytes)")
+            tracker.complete(
+                "fetch", f"release {meta['release']} ({meta['size']:,} bytes)"
+            )
             tracker.add("download", "Download template")
-            tracker.complete("download", meta['filename'])
+            tracker.complete("download", meta["filename"])
     except Exception as e:
         if tracker:
             tracker.error("fetch", str(e))
@@ -1171,13 +1313,15 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
         if not is_current_dir:
             project_path.mkdir(parents=True)
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
             zip_contents = zip_ref.namelist()
             if tracker:
                 tracker.start("zip-list")
                 tracker.complete("zip-list", f"{len(zip_contents)} entries")
             elif verbose:
-                console.print(f"[{ACCENT_COLOR}]ZIP contains {len(zip_contents)} items[/{ACCENT_COLOR}]")
+                console.print(
+                    f"[{ACCENT_COLOR}]ZIP contains {len(zip_contents)} items[/{ACCENT_COLOR}]"
+                )
 
             if is_current_dir:
                 with tempfile.TemporaryDirectory() as temp_dir:
@@ -1187,9 +1331,13 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                     extracted_items = list(temp_path.iterdir())
                     if tracker:
                         tracker.start("extracted-summary")
-                        tracker.complete("extracted-summary", f"temp {len(extracted_items)} items")
+                        tracker.complete(
+                            "extracted-summary", f"temp {len(extracted_items)} items"
+                        )
                     elif verbose:
-                        console.print(f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to temp location[/{ACCENT_COLOR}]")
+                        console.print(
+                            f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to temp location[/{ACCENT_COLOR}]"
+                        )
 
                     source_dir = temp_path
                     if len(extracted_items) == 1 and extracted_items[0].is_dir():
@@ -1198,43 +1346,68 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                             tracker.add("flatten", "Flatten nested directory")
                             tracker.complete("flatten")
                         elif verbose:
-                            console.print(f"[{ACCENT_COLOR}]Found nested directory structure[/{ACCENT_COLOR}]")
+                            console.print(
+                                f"[{ACCENT_COLOR}]Found nested directory structure[/{ACCENT_COLOR}]"
+                            )
 
                     for item in source_dir.iterdir():
                         dest_path = project_path / item.name
                         if item.is_dir():
                             if dest_path.exists():
                                 if verbose and not tracker:
-                                    console.print(f"[yellow]Merging directory:[/yellow] {item.name}")
-                                for sub_item in item.rglob('*'):
+                                    console.print(
+                                        f"[yellow]Merging directory:[/yellow] {item.name}"
+                                    )
+                                for sub_item in item.rglob("*"):
                                     if sub_item.is_file():
                                         rel_path = sub_item.relative_to(item)
                                         dest_file = dest_path / rel_path
-                                        dest_file.parent.mkdir(parents=True, exist_ok=True)
+                                        dest_file.parent.mkdir(
+                                            parents=True, exist_ok=True
+                                        )
                                         # Special handling for .vscode/settings.json - merge instead of overwrite
-                                        if dest_file.name == "settings.json" and dest_file.parent.name == ".vscode":
-                                            handle_vscode_settings(sub_item, dest_file, rel_path, verbose, tracker)
+                                        if (
+                                            dest_file.name == "settings.json"
+                                            and dest_file.parent.name == ".vscode"
+                                        ):
+                                            handle_vscode_settings(
+                                                sub_item,
+                                                dest_file,
+                                                rel_path,
+                                                verbose,
+                                                tracker,
+                                            )
                                         else:
                                             shutil.copy2(sub_item, dest_file)
                             else:
                                 shutil.copytree(item, dest_path)
                         else:
                             if dest_path.exists() and verbose and not tracker:
-                                console.print(f"[yellow]Overwriting file:[/yellow] {item.name}")
+                                console.print(
+                                    f"[yellow]Overwriting file:[/yellow] {item.name}"
+                                )
                             shutil.copy2(item, dest_path)
                     if verbose and not tracker:
-                        console.print(f"[{ACCENT_COLOR}]Template files merged into current directory[/{ACCENT_COLOR}]")
+                        console.print(
+                            f"[{ACCENT_COLOR}]Template files merged into current directory[/{ACCENT_COLOR}]"
+                        )
             else:
                 zip_ref.extractall(project_path)
 
                 extracted_items = list(project_path.iterdir())
                 if tracker:
                     tracker.start("extracted-summary")
-                    tracker.complete("extracted-summary", f"{len(extracted_items)} top-level items")
+                    tracker.complete(
+                        "extracted-summary", f"{len(extracted_items)} top-level items"
+                    )
                 elif verbose:
-                    console.print(f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to {project_path}:[/{ACCENT_COLOR}]")
+                    console.print(
+                        f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to {project_path}:[/{ACCENT_COLOR}]"
+                    )
                     for item in extracted_items:
-                        console.print(f"  - {item.name} ({'dir' if item.is_dir() else 'file'})")
+                        console.print(
+                            f"  - {item.name} ({'dir' if item.is_dir() else 'file'})"
+                        )
 
                 if len(extracted_items) == 1 and extracted_items[0].is_dir():
                     nested_dir = extracted_items[0]
@@ -1249,7 +1422,9 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
                         tracker.add("flatten", "Flatten nested directory")
                         tracker.complete("flatten")
                     elif verbose:
-                        console.print(f"[{ACCENT_COLOR}]Flattened nested directory structure[/{ACCENT_COLOR}]")
+                        console.print(
+                            f"[{ACCENT_COLOR}]Flattened nested directory structure[/{ACCENT_COLOR}]"
+                        )
 
     except Exception as e:
         if tracker:
@@ -1258,7 +1433,9 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
             if verbose:
                 console.print(f"[red]Error extracting template:[/red] {e}")
                 if debug:
-                    console.print(Panel(str(e), title="Extraction Error", border_style="red"))
+                    console.print(
+                        Panel(str(e), title="Extraction Error", border_style="red")
+                    )
 
         if not is_current_dir and project_path.exists():
             shutil.rmtree(project_path)
@@ -1280,49 +1457,9 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     return project_path
 
 
-def ensure_gateway_config(
-    project_path: Path,
-    selected_ai: str,
-    *,
-    tracker: StepTracker | None = None,
-    gateway_url: str | None = None,
-    gateway_token: str | None = None,
-    suppress_warning: bool | None = None,
+def ensure_executable_scripts(
+    project_path: Path, tracker: StepTracker | None = None
 ) -> None:
-    """Ensure gateway configuration exists in consolidated config and optionally hydrate it with provided values."""
-    config = load_config(project_path)
-
-    # Check if gateway config already exists and no new values provided
-    gateway_config = config.get("gateway", {})
-    has_existing_config = any([
-        gateway_config.get("url"),
-        gateway_config.get("token"),
-        gateway_config.get("suppress_warning", False)
-    ])
-
-    if has_existing_config and not any([gateway_url, gateway_token, suppress_warning]):
-        if tracker:
-            tracker.skip("gateway", "using existing config")
-        return
-
-    # Update gateway configuration
-    if "gateway" not in config:
-        config["gateway"] = {}
-    if not isinstance(config["gateway"], dict):
-        config["gateway"] = {}
-    if gateway_url is not None:
-        config["gateway"]["url"] = gateway_url
-    if gateway_token is not None:
-        config["gateway"]["token"] = gateway_token
-    if suppress_warning is not None:
-        config["gateway"]["suppress_warning"] = suppress_warning
-
-    save_config(project_path, config)
-
-    if tracker:
-        tracker.complete("gateway", "configured")
-
-def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
         return  # Windows: skip silently
@@ -1341,13 +1478,17 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
                         continue
             except Exception:
                 continue
-            st = script.stat(); mode = st.st_mode
+            st = script.stat()
+            mode = st.st_mode
             if mode & 0o111:
                 continue
             new_mode = mode
-            if mode & 0o400: new_mode |= 0o100
-            if mode & 0o040: new_mode |= 0o010
-            if mode & 0o004: new_mode |= 0o001
+            if mode & 0o400:
+                new_mode |= 0o100
+            if mode & 0o040:
+                new_mode |= 0o010
+            if mode & 0o004:
+                new_mode |= 0o001
             if not (new_mode & 0o100):
                 new_mode |= 0o100
             os.chmod(script, new_mode)
@@ -1355,53 +1496,108 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         except Exception as e:
             failures.append(f"{script.relative_to(scripts_root)}: {e}")
     if tracker:
-        detail = f"{updated} updated" + (f", {len(failures)} failed" if failures else "")
+        detail = f"{updated} updated" + (
+            f", {len(failures)} failed" if failures else ""
+        )
         tracker.add("chmod", "Set script permissions recursively")
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
         if updated:
-            console.print(f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]")
+            console.print(
+                f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]"
+            )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
             for f in failures:
                 console.print(f"  - {f}")
 
+
 @app.command()
 def init(
-    project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder "),
-    script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
-    ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
-    no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
-    here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
-    force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
-    skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
-    debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
-    github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
-    team_ai_directives: str = typer.Option(None, "--team-ai-directives", "--team-ai-directive", help="Clone or reference a team-ai-directives repository during setup"),
-    issue_tracker: Optional[str] = typer.Option(None, "--issue-tracker", help="Enable issue tracker MCP integration: github, jira, linear, gitlab"),
-    async_agent: Optional[str] = typer.Option(None, "--async-agent", help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex"),
-    git_platform: Optional[str] = typer.Option(None, "--git-platform", help="Enable Git platform MCP integration for PR operations: github, gitlab"),
-    gateway_url: str = typer.Option(None, "--gateway-url", help="Populate gateway URL in .specify/config/config.json"),
-    gateway_token: str = typer.Option(None, "--gateway-token", help="Populate gateway token in .specify/config/config.json"),
-    gateway_suppress_warning: bool = typer.Option(False, "--gateway-suppress-warning", help="Set gateway.suppress_warning=true in config.json"),
-    spec_sync: bool = typer.Option(False, "--spec-sync", help="Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes)"),
+    project_name: str = typer.Argument(
+        None,
+        help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
+    ),
+    ai_assistant: str = typer.Option(
+        None,
+        "--ai",
+        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder ",
+    ),
+    script_type: str = typer.Option(
+        None, "--script", help="Script type to use: sh or ps"
+    ),
+    ignore_agent_tools: bool = typer.Option(
+        False,
+        "--ignore-agent-tools",
+        help="Skip checks for AI agent tools like Claude Code",
+    ),
+    no_git: bool = typer.Option(
+        False, "--no-git", help="Skip git repository initialization"
+    ),
+    here: bool = typer.Option(
+        False,
+        "--here",
+        help="Initialize project in the current directory instead of creating a new one",
+    ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help="Force merge/overwrite when using --here (skip confirmation)",
+    ),
+    skip_tls: bool = typer.Option(
+        False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"
+    ),
+    debug: bool = typer.Option(
+        False,
+        "--debug",
+        help="Show verbose diagnostic output for network and extraction failures",
+    ),
+    github_token: str = typer.Option(
+        None,
+        "--github-token",
+        help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)",
+    ),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        "--team-ai-directive",
+        help="Clone or reference a team-ai-directives repository during setup",
+    ),
+    issue_tracker: Optional[str] = typer.Option(
+        None,
+        "--issue-tracker",
+        help="Enable issue tracker MCP integration: github, jira, linear, gitlab",
+    ),
+    async_agent: Optional[str] = typer.Option(
+        None,
+        "--async-agent",
+        help="Enable async coding agent MCP integration for autonomous task execution: jules, async-copilot, async-codex",
+    ),
+    git_platform: Optional[str] = typer.Option(
+        None,
+        "--git-platform",
+        help="Enable Git platform MCP integration for PR operations: github, gitlab",
+    ),
+    spec_sync: bool = typer.Option(
+        False,
+        "--spec-sync",
+        help="Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes)",
+    ),
 ):
     """
     Initialize a new Specify project from the latest template.
-    
+
     This command will:
     1. Check that required tools are installed (git is optional)
     2. Let you choose your AI assistant
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally scaffold central gateway configuration
-    7. Optionally clone or reference a shared team-ai-directives repository
-    8. Optionally configure MCP servers for issue tracker integration
-    9. Optionally configure MCP servers for AI agent integration
-    10. Capture learnings after delivery with /speckit.levelup
-    
+    6. Optionally clone or reference a shared team-ai-directives repository
+    7. Optionally configure MCP servers for issue tracker integration
+    8. Optionally configure MCP servers for AI agent integration
+    9. Capture learnings after delivery with /speckit.levelup
+
     Examples:
         specify init my-project
         specify init my-project --ai claude
@@ -1419,7 +1615,6 @@ def init(
         specify init my-project --issue-tracker github
         specify init my-project --async-agent jules
         specify init my-project --git-platform github
-        specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
         specify init my-project --spec-sync
         specify init my-project --ai claude --spec-sync --issue-tracker github --git-platform github
     """
@@ -1431,11 +1626,15 @@ def init(
         project_name = None  # Clear project_name to use existing validation logic
 
     if here and project_name:
-        console.print("[red]Error:[/red] Cannot specify both project name and --here flag")
+        console.print(
+            "[red]Error:[/red] Cannot specify both project name and --here flag"
+        )
         raise typer.Exit(1)
 
     if not here and not project_name:
-        console.print("[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag")
+        console.print(
+            "[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag"
+        )
         raise typer.Exit(1)
 
     if here:
@@ -1444,10 +1643,16 @@ def init(
 
         existing_items = list(project_path.iterdir())
         if existing_items:
-            console.print(f"[{ACCENT_COLOR}]Warning:[/{ACCENT_COLOR}] Current directory is not empty ({len(existing_items)} items)")
-            console.print(f"[{ACCENT_COLOR}]Template files will be merged with existing content and may overwrite existing files[/{ACCENT_COLOR}]")
+            console.print(
+                f"[{ACCENT_COLOR}]Warning:[/{ACCENT_COLOR}] Current directory is not empty ({len(existing_items)} items)"
+            )
+            console.print(
+                f"[{ACCENT_COLOR}]Template files will be merged with existing content and may overwrite existing files[/{ACCENT_COLOR}]"
+            )
             if force:
-                console.print(f"[{ACCENT_COLOR}]--force supplied: skipping confirmation and proceeding with merge[/{ACCENT_COLOR}]")
+                console.print(
+                    f"[{ACCENT_COLOR}]--force supplied: skipping confirmation and proceeding with merge[/{ACCENT_COLOR}]"
+                )
             else:
                 response = typer.confirm("Do you want to continue?")
                 if not response:
@@ -1461,7 +1666,7 @@ def init(
                 "Please choose a different project name or remove the existing directory.",
                 title="[red]Directory Conflict[/red]",
                 border_style="red",
-                padding=(1, 2)
+                padding=(1, 2),
             )
             console.print()
             console.print(error_panel)
@@ -1480,10 +1685,14 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(Panel("\n".join(setup_lines), border_style=ACCENT_COLOR, padding=(1, 2)))
+    console.print(
+        Panel("\n".join(setup_lines), border_style=ACCENT_COLOR, padding=(1, 2))
+    )
 
     git_required_for_init = not no_git
-    git_required_for_directives = bool(team_ai_directives and team_ai_directives.strip())
+    git_required_for_directives = bool(
+        team_ai_directives and team_ai_directives.strip()
+    )
     git_required = git_required_for_init or git_required_for_directives
     git_available = True
 
@@ -1491,40 +1700,48 @@ def init(
     if not no_git:
         should_init_git = check_tool("git")
         if not should_init_git:
-            console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
+            console.print(
+                "[yellow]Git not found - will skip repository initialization[/yellow]"
+            )
     if git_required:
         git_available = check_tool("git")
         if not git_available:
             if git_required_for_directives:
-                console.print("[red]Error:[/red] Git is required to sync team-ai-directives. Install git or omit --team-ai-directive.")
+                console.print(
+                    "[red]Error:[/red] Git is required to sync team-ai-directives. Install git or omit --team-ai-directive."
+                )
                 raise typer.Exit(1)
     if git_available and git_required_for_init:
         should_init_git = True
 
     if ai_assistant:
         if ai_assistant not in AGENT_CONFIG:
-            console.print(f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AGENT_CONFIG.keys())}")
+            console.print(
+                f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AGENT_CONFIG.keys())}"
+            )
             raise typer.Exit(1)
         selected_ai = ai_assistant
     else:
         # Create options dict for selection (agent_key: display_name)
         ai_choices = {key: config["name"] for key, config in AGENT_CONFIG.items()}
         selected_ai = select_with_arrows(
-            ai_choices,
-            "Choose your AI assistant:",
-            "copilot"
+            ai_choices, "Choose your AI assistant:", "copilot"
         )
 
     # Validate issue tracker option
     if issue_tracker:
         if issue_tracker not in ISSUE_TRACKER_CONFIG:
-            console.print(f"[red]Error:[/red] Invalid issue tracker '{issue_tracker}'. Choose from: {', '.join(ISSUE_TRACKER_CONFIG.keys())}")
+            console.print(
+                f"[red]Error:[/red] Invalid issue tracker '{issue_tracker}'. Choose from: {', '.join(ISSUE_TRACKER_CONFIG.keys())}"
+            )
             raise typer.Exit(1)
 
     # Validate async agent option
     if async_agent:
         if async_agent not in AGENT_MCP_CONFIG:
-            console.print(f"[red]Error:[/red] Invalid async agent '{async_agent}'. Choose from: {', '.join(AGENT_MCP_CONFIG.keys())}")
+            console.print(
+                f"[red]Error:[/red] Invalid async agent '{async_agent}'. Choose from: {', '.join(AGENT_MCP_CONFIG.keys())}"
+            )
             raise typer.Exit(1)
 
     if not ignore_agent_tools:
@@ -1539,7 +1756,7 @@ def init(
                     "Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
-                    padding=(1, 2)
+                    padding=(1, 2),
                 )
                 console.print()
                 console.print(error_panel)
@@ -1547,19 +1764,29 @@ def init(
 
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
-            console.print(f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}")
+            console.print(
+                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"
+            )
             raise typer.Exit(1)
         selected_script = script_type
     else:
         default_script = "ps" if os.name == "nt" else "sh"
 
         if sys.stdin.isatty():
-            selected_script = select_with_arrows(SCRIPT_TYPE_CHOICES, "Choose script type (or press Enter)", default_script)
+            selected_script = select_with_arrows(
+                SCRIPT_TYPE_CHOICES,
+                "Choose script type (or press Enter)",
+                default_script,
+            )
         else:
             selected_script = default_script
 
-    console.print(f"[{ACCENT_COLOR}]Selected AI assistant:[/{ACCENT_COLOR}] {selected_ai}")
-    console.print(f"[{ACCENT_COLOR}]Selected script type:[/{ACCENT_COLOR}] {selected_script}")
+    console.print(
+        f"[{ACCENT_COLOR}]Selected AI assistant:[/{ACCENT_COLOR}] {selected_ai}"
+    )
+    console.print(
+        f"[{ACCENT_COLOR}]Selected script type:[/{ACCENT_COLOR}] {selected_script}"
+    )
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -1583,7 +1810,7 @@ def init(
         ("cleanup", "Cleanup"),
         ("directives", "Sync team directives"),
         ("git", "Initialize git repository"),
-        ("final", "Finalize")
+        ("final", "Finalize"),
     ]:
         tracker.add(key, label)
 
@@ -1593,30 +1820,36 @@ def init(
     # Track git error message outside Live context so it persists
     git_error_message = None
 
-    with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
+    with Live(
+        tracker.render(), console=console, refresh_per_second=8, transient=True
+    ) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
             verify = not skip_tls
             local_ssl_context = ssl_context if verify else False
             local_client = httpx.Client(verify=local_ssl_context)
 
-            download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
-
-            ensure_executable_scripts(project_path, tracker=tracker)
-            ensure_gateway_config(
+            download_and_extract_template(
                 project_path,
                 selected_ai,
+                selected_script,
+                here,
+                verbose=False,
                 tracker=tracker,
-                gateway_url=gateway_url,
-                gateway_token=gateway_token,
-                suppress_warning=gateway_suppress_warning,
+                client=local_client,
+                debug=debug,
+                github_token=github_token,
             )
+
+            ensure_executable_scripts(project_path, tracker=tracker)
 
             team_arg = team_ai_directives.strip() if team_ai_directives else ""
             if team_arg:
                 tracker.start("directives", "syncing")
                 try:
-                    status, resolved_path = sync_team_ai_directives(team_arg, project_path, skip_tls=skip_tls)
+                    status, resolved_path = sync_team_ai_directives(
+                        team_arg, project_path, skip_tls=skip_tls
+                    )
                     resolved_team_directives = resolved_path
                     tracker.complete("directives", status)
                 except Exception as e:
@@ -1629,7 +1862,11 @@ def init(
             if issue_tracker:
                 tracker.start("mcp", "configuring")
                 try:
-                    configure_mcp_servers(project_path, issue_tracker, resolved_team_directives if team_arg else None)
+                    configure_mcp_servers(
+                        project_path,
+                        issue_tracker,
+                        resolved_team_directives if team_arg else None,
+                    )
                     tracker.complete("mcp", "configured")
                 except Exception as e:
                     tracker.error("mcp", str(e))
@@ -1641,7 +1878,11 @@ def init(
             if async_agent:
                 tracker.start("async-agent-mcp", "configuring")
                 try:
-                    configure_agent_mcp_servers(project_path, async_agent, resolved_team_directives if team_arg else None)
+                    configure_agent_mcp_servers(
+                        project_path,
+                        async_agent,
+                        resolved_team_directives if team_arg else None,
+                    )
                     tracker.complete("async-agent-mcp", "configured")
                 except Exception as e:
                     tracker.error("async-agent-mcp", str(e))
@@ -1653,7 +1894,11 @@ def init(
             if git_platform:
                 tracker.start("git-platform-mcp", "configuring")
                 try:
-                    configure_git_platform_mcp_servers(project_path, git_platform, resolved_team_directives if team_arg else None)
+                    configure_git_platform_mcp_servers(
+                        project_path,
+                        git_platform,
+                        resolved_team_directives if team_arg else None,
+                    )
                     tracker.complete("git-platform-mcp", "configured")
                 except Exception as e:
                     tracker.error("git-platform-mcp", str(e))
@@ -1678,12 +1923,21 @@ def init(
                         raise ValueError(f"Unsupported script type: {selected_script}")
 
                     # Run the spec hooks installation script directly
-                    script_path = Path(__file__).parent.parent.parent / "scripts" / script_dir / f"spec-hooks-install{script_ext}"
-                    run_command([script_cmd, str(script_path)], check_return=True, capture=True)
+                    script_path = (
+                        Path(__file__).parent.parent.parent
+                        / "scripts"
+                        / script_dir
+                        / f"spec-hooks-install{script_ext}"
+                    )
+                    run_command(
+                        [script_cmd, str(script_path)], check_return=True, capture=True
+                    )
                     tracker.complete("spec_sync", "hooks installed")
                 except Exception as e:
                     tracker.error("spec_sync", f"failed to install hooks: {str(e)}")
-                    console.print(f"[yellow]Warning:[/yellow] Spec sync setup failed: {str(e)}")
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Spec sync setup failed: {str(e)}"
+                    )
             else:
                 tracker.skip("spec_sync", "not requested")
 
@@ -1706,7 +1960,11 @@ def init(
             tracker.complete("final", "project ready")
         except Exception as e:
             tracker.error("final", str(e))
-            console.print(Panel(f"Initialization failed: {e}", title="Failure", border_style="red"))
+            console.print(
+                Panel(
+                    f"Initialization failed: {e}", title="Failure", border_style="red"
+                )
+            )
             if debug:
                 _env_pairs = [
                     ("Python", sys.version.split()[0]),
@@ -1714,8 +1972,17 @@ def init(
                     ("CWD", str(Path.cwd())),
                 ]
                 _label_width = max(len(k) for k, _ in _env_pairs)
-                env_lines = [f"{k.ljust(_label_width)} → [bright_black]{v}[/bright_black]" for k, v in _env_pairs]
-                console.print(Panel("\n".join(env_lines), title="Debug Environment", border_style="magenta"))
+                env_lines = [
+                    f"{k.ljust(_label_width)} → [bright_black]{v}[/bright_black]"
+                    for k, v in _env_pairs
+                ]
+                console.print(
+                    Panel(
+                        "\n".join(env_lines),
+                        title="Debug Environment",
+                        border_style="magenta",
+                    )
+                )
             if not here and project_path.exists():
                 shutil.rmtree(project_path)
             raise typer.Exit(1)
@@ -1724,7 +1991,7 @@ def init(
 
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
-    
+
     # Show git error details if initialization failed
     if git_error_message:
         console.print()
@@ -1735,15 +2002,17 @@ def init(
             f"[cyan]cd {project_path if not here else '.'}[/cyan]\n"
             f"[cyan]git init[/cyan]\n"
             f"[cyan]git add .[/cyan]\n"
-            f"[cyan]git commit -m \"Initial commit\"[/cyan]",
+            f'[cyan]git commit -m "Initial commit"[/cyan]',
             title="[red]Git Initialization Failed[/red]",
             border_style="red",
-            padding=(1, 2)
+            padding=(1, 2),
         )
         console.print(git_error_panel)
 
     if resolved_team_directives is None:
-        default_directives = project_path / ".specify" / "memory" / TEAM_DIRECTIVES_DIRNAME
+        default_directives = (
+            project_path / ".specify" / "memory" / TEAM_DIRECTIVES_DIRNAME
+        )
         if default_directives.exists():
             resolved_team_directives = default_directives
 
@@ -1767,14 +2036,16 @@ def init(
             f"Consider adding [{ACCENT_COLOR}]{agent_folder}[/{ACCENT_COLOR}] (or parts of it) to [{ACCENT_COLOR}].gitignore[/{ACCENT_COLOR}] to prevent accidental credential leakage.",
             title=f"[{ACCENT_COLOR}]Agent Folder Security[/{ACCENT_COLOR}]",
             border_style=ACCENT_COLOR,
-            padding=(1, 2)
+            padding=(1, 2),
         )
         console.print()
         console.print(security_notice)
 
     steps_lines = []
     if not here:
-        steps_lines.append(f"1. Go to the project folder: [{ACCENT_COLOR}]cd {project_name}[/{ACCENT_COLOR}]")
+        steps_lines.append(
+            f"1. Go to the project folder: [{ACCENT_COLOR}]cd {project_name}[/{ACCENT_COLOR}]"
+        )
         step_num = 2
     else:
         steps_lines.append("1. You're already in the project directory!")
@@ -1788,20 +2059,39 @@ def init(
             cmd = f"setx CODEX_HOME {quoted_path}"
         else:  # Unix-like systems
             cmd = f"export CODEX_HOME={quoted_path}"
-        
-        steps_lines.append(f"{step_num}. Set [{ACCENT_COLOR}]CODEX_HOME[/{ACCENT_COLOR}] environment variable before running Codex: [{ACCENT_COLOR}]{cmd}[/{ACCENT_COLOR}]")
+
+        steps_lines.append(
+            f"{step_num}. Set [{ACCENT_COLOR}]CODEX_HOME[/{ACCENT_COLOR}] environment variable before running Codex: [{ACCENT_COLOR}]{cmd}[/{ACCENT_COLOR}]"
+        )
         step_num += 1
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
-    steps_lines.append(f"   2.1 [{ACCENT_COLOR}]/speckit.constitution[/{ACCENT_COLOR}] - Establish project principles")
-    steps_lines.append(f"   2.2 [{ACCENT_COLOR}]/speckit.specify[/{ACCENT_COLOR}] - Create baseline specification")
-    steps_lines.append(f"   2.3 [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] - Create implementation plan")
-    steps_lines.append(f"   2.4 [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}] - Generate actionable tasks")
-    steps_lines.append(f"   2.5 [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}] - Execute implementation")
-    steps_lines.append(f"   2.6 [{ACCENT_COLOR}]/speckit.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets")
+    steps_lines.append(
+        f"   2.1 [{ACCENT_COLOR}]/speckit.constitution[/{ACCENT_COLOR}] - Establish project principles"
+    )
+    steps_lines.append(
+        f"   2.2 [{ACCENT_COLOR}]/speckit.specify[/{ACCENT_COLOR}] - Create baseline specification"
+    )
+    steps_lines.append(
+        f"   2.3 [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] - Create implementation plan"
+    )
+    steps_lines.append(
+        f"   2.4 [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
+    )
+    steps_lines.append(
+        f"   2.5 [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}] - Execute implementation"
+    )
+    steps_lines.append(
+        f"   2.6 [{ACCENT_COLOR}]/speckit.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
+    )
 
-    steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=ACCENT_COLOR, padding=(1,2))
+    steps_panel = Panel(
+        "\n".join(steps_lines),
+        title="Next Steps",
+        border_style=ACCENT_COLOR,
+        padding=(1, 2),
+    )
     console.print()
     console.print(steps_panel)
 
@@ -1810,11 +2100,17 @@ def init(
         "",
         f"○ [{ACCENT_COLOR}]/speckit.clarify[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] if used)",
         f"○ [{ACCENT_COLOR}]/speckit.analyze[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}])",
-        f"○ [{ACCENT_COLOR}]/speckit.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}])"
+        f"○ [{ACCENT_COLOR}]/speckit.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}])",
     ]
-    enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style=ACCENT_COLOR, padding=(1,2))
+    enhancements_panel = Panel(
+        "\n".join(enhancement_lines),
+        title="Enhancement Commands",
+        border_style=ACCENT_COLOR,
+        padding=(1, 2),
+    )
     console.print()
     console.print(enhancements_panel)
+
 
 @app.command()
 def check():
@@ -1858,14 +2154,15 @@ def check():
     if not any(agent_results.values()):
         console.print("[dim]Tip: Install an AI assistant for the best experience[/dim]")
 
+
 @app.command()
 def version():
     """Display version and system information."""
     import platform
     import importlib.metadata
-    
+
     show_banner()
-    
+
     # Get CLI version from package metadata
     cli_version = "unknown"
     try:
@@ -1874,6 +2171,7 @@ def version():
         # Fallback: try reading from pyproject.toml if running from source
         try:
             import tomllib
+
             pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
             if pyproject_path.exists():
                 with open(pyproject_path, "rb") as f:
@@ -1881,15 +2179,15 @@ def version():
                     cli_version = data.get("project", {}).get("version", "unknown")
         except Exception:
             pass
-    
+
     # Fetch latest template release version
     repo_owner = "github"
     repo_name = "spec-kit"
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-    
+
     template_version = "unknown"
     release_date = "unknown"
-    
+
     try:
         response = client.get(
             api_url,
@@ -1907,7 +2205,7 @@ def version():
             if release_date != "unknown":
                 # Format the date nicely
                 try:
-                    dt = datetime.fromisoformat(release_date.replace('Z', '+00:00'))
+                    dt = datetime.fromisoformat(release_date.replace("Z", "+00:00"))
                     release_date = dt.strftime("%Y-%m-%d")
                 except Exception:
                     pass
@@ -1931,15 +2229,16 @@ def version():
         info_table,
         title="[bold cyan]Specify CLI Information[/bold cyan]",
         border_style="cyan",
-        padding=(1, 2)
+        padding=(1, 2),
     )
 
     console.print(panel)
     console.print()
 
+
 def main():
     app()
 
+
 if __name__ == "__main__":
     main()
-

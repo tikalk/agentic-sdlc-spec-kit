@@ -5,7 +5,7 @@
 ### **CLI Infrastructure & Theming**
 
 - ✅ **Orange Theme Restoration**: Centralized `ACCENT_COLOR` and `BANNER_COLORS` constants in CLI
-- ✅ **Gateway Configuration**: `--gateway-url`/`--gateway-token` support with `.specify/config/gateway.env` scaffolding
+- ~~**Gateway Configuration**~~: Removed in favor of direct agent-based configuration and MCP server integration
 - ✅ **Team Directives Integration**: Local path support and remote cloning for team-ai-directives
 - ✅ **Context Readiness Enforcement**: `/specify`, `/plan`, `/tasks`, `/implement` validate `context.md` completeness
 
@@ -132,13 +132,46 @@
 - ❌ **Smart Trace Validation**: Enhanced `/analyze` claims trace detection but implementation not found
 - ❌ **Task-to-Issues Command**: Template exists but actual implementation script missing
 
+### **Architecture Description (AD) Mode** *(0% Complete)* - **HIGH PRIORITY** - Enterprise Architecture Support
+
+- ❌ **CLI Config Update**: Add `ad` to `mode_defaults` in `src/specify_cli/__init__.py` with all options enabled by default.
+- ❌ **Architecture Templates**: Create `templates/architecture-template.md` (Global V&P Context) and `templates/plan-template-ad.md` (Feature V&P Zoom-in).
+- ❌ **Architect Command**: Create `templates/commands/architect.md` for generating the global `memory/architecture.md`.
+- ❌ **Setup Scripts**: Create `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`.
+- ❌ **Plan Script Updates**: Update `scripts/bash/setup-plan.sh` and `scripts/powershell/setup-plan.ps1` to detect `ad` mode and use the new templates.
+- ❌ **Mode Documentation**: Update `templates/commands/mode.md` to include AD mode description.
+- ❌ **Codebase Mapper**: Implement `/map` command to scan existing code and auto-populate `memory/architecture.md` (Context View) and `memory/tech-stack.md`. Essential for Brownfield projects (legacy code analysis and documentation).
+
 #### **Strategic Tooling Improvements** *(30% Complete)* - **MEDIUM PRIORITY**
 
 - ❌ **Gateway Health Checks**: Only basic configuration exists, no health check implementation
 - ❌ **Tool Selection Guidance**: Claims implementation but no actual guidance logic found
+- ❌ **Global Configuration Support**: Implement hierarchical config loading (Local `.specify/config/config.json` overrides Global `~/.config/specify/config.json`).
+- ❌ **CLI Config Refactor**: Update `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution and deep merging logic.
+- ❌ **Script Config Resolution**: Update `common.sh` and `common.ps1` helper functions to check global paths if local config is missing values.
 - ✅ **Config Consolidation**: Successfully implemented as single unified configuration file to reduce complexity and improve maintainability
+- ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec/ad) with per-mode override capability.
+- ❌ **Execution Logic**: Update `scripts/bash/tasks-meta-utils.sh` and `scripts/powershell/common.ps1` to read `atomic_commits` config and inject constraint into `generate_delegation_prompt()` when enabled.
 
 **NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
+
+#### **Build Mode "GSD" Upgrade** *(0% Complete)* - **HIGH PRIORITY** - High-velocity execution mode
+
+- ❌ **GSD Defaults**: Update `src/specify_cli/__init__.py` to set `atomic_commits: true` by default specifically for `build` mode (while keeping it `false` for `spec` and `ad` modes).
+- ❌ **Senior Engineer Templates**: Overhaul `templates/spec-template-build.md` and `templates/plan-template-build.md` to use the "Senior Engineer" persona (brief, technical, imperative) and remove all "filler" sections (motivation, context narrative, etc.).
+- ❌ **No-Verify Logic**: Update `implement` scripts (`scripts/bash/implement.sh` and `scripts/powershell/implement.ps1`) to skip the "Micro-Review" step when in `build` mode (trusted execution), relying solely on Atomic Commit verification for quality assurance.
+- ❌ **Documentation**: Update `templates/commands/mode.md` to rebrand Build Mode as "GSD Mode: High velocity, atomic commits, minimal documentation."
+
+#### **Context Intelligence & Optimization** *(0% Complete)* - **MEDIUM PRIORITY** - Smart context management and compliance validation
+
+- ❌ **Directives Scanner**: Create `scripts/bash/scan-directives.sh` (and ps1) to list all available assets in `team-ai-directives` as JSON.
+- ❌ **Silent Context Injection**: Update `/speckit.specify` to run the scanner and *silently* populate `context.md` with relevant Directives based on the user prompt (no user interaction required).
+- ❌ **Compliance Gate**: Update `/speckit.clarify` to validate the generated Spec against the Directives in `context.md` and pause ONLY if contradictions are found.
+
+#### **Workflow Utilities** *(0% Complete)* - **MEDIUM PRIORITY** - Specialized workflow commands for focused development
+
+- ❌ **Systematic Debugging**: Implement `/debug` command with a "Scientific Method" workflow (Symptoms -> Hypothesis -> Test) that runs in a persistent session.
+- ❌ **Idea Backlog**: Implement `/todo` command to capture out-of-context ideas to a separate list without derailing the current active task.
 
 #### **Persistent Issue ID Storage Enhancement** *(0% Complete)* - **HIGH PRIORITY** - Issue-tracker-first workflow improvement
 
@@ -147,13 +180,6 @@
 - ❌ **Automatic Issue Propagation**: Subsequent commands (/clarify, /plan, /tasks, /analyze, /levelup) automatically use stored issue context
 - ❌ **Dynamic MCP Tool Resolution**: Use declarative tools pattern with configuration-driven tool selection based on detected issue tracker
 - ❌ **Multi-Tracker Support**: Support GitHub/Jira/Linear/GitLab issue formats with appropriate MCP tool routing
-
-#### **Context.md Population Bug Fix** *(0% Complete)* - **HIGH PRIORITY** - Critical workflow blocker
-
-- ❌ **Modify Specify Command Context Generation**: Update `/specify` command to populate `context.md` with derived values instead of `[NEEDS INPUT]` placeholders
-- ❌ **Context Field Population**: Generate Feature, Mission, Code Paths, Directives, Research, and Gateway fields from feature description and project context
-- ❌ **Mode-Aware Context**: Implement for both build and spec modes as integral part of specify command
-- ❌ **Validation Compliance**: Ensure populated context.md passes `check-prerequisites.sh` validation requirements
 
 #### **Levelup Command Build Mode Compatibility** *(0% Complete)* - **HIGH PRIORITY** - AI session context management blocker
 
@@ -246,28 +272,6 @@
   - Integration with existing agent context files for seamless activation
 - **Benefits**: Eliminates "which agent should I use?" friction, improves workflow efficiency
 - **Implementation**: Add to Factor X with hook templates and activation rules, extending the current AGENTS.md framework
-- **Reference**: Based on patterns from <https://github.com/diet103/claude-code-infrastructure-showcase>
-
-### **Progressive Context Disclosure (500-Line Rule)** *(0% Complete)* - **MEDIUM PRIORITY** - Enhances Factor II Context Scaffolding
-
-- **Description**: Implement modular context loading patterns where AI context is loaded progressively rather than all at once, preventing token limit issues while maintaining comprehensive guidance. Similar to Claude's skill architecture with main files + resource files.
-- **Key Components**:
-  - Hierarchical agent context files (overview + detailed resources)
-  - On-demand context expansion based on task complexity
-  - Token-aware context management for different agent types
-- **Benefits**: Manages context limits effectively across all supported agents, provides scalable context management
-- **Implementation**: Extend Factor II with progressive loading patterns, building on existing update-agent-context.sh infrastructure
-- **Reference**: Based on patterns from <https://github.com/diet103/claude-code-infrastructure-showcase>
-
-### **Session Context Persistence Patterns** *(50% Complete)* - **LOW PRIORITY** - Supports Factor IX Process Documentation
-
-- **Description**: Enhance the existing dev docs patterns with auto-generation and session persistence, using structured file formats to maintain project context across AI tool sessions and prevent context resets.
-- **Key Components**:
-  - Auto-generation of three-file structure (plan.md, context.md, tasks.md) from session artifacts
-  - Session state preservation across agent interactions
-  - Integration with existing levelup command for comprehensive session capture
-- **Benefits**: Reduces context loss during complex development sessions, improves handoff between different AI agents
-- **Implementation**: Enhance Factor IX with auto-generation templates, building on existing levelup.md and agent context patterns
 - **Reference**: Based on patterns from <https://github.com/diet103/claude-code-infrastructure-showcase>
 
 ### **Agent Skill Modularization** *(0% Complete)* - **LOW PRIORITY** - Extends Factor XI Directives as Code
@@ -390,12 +394,14 @@
 |**Enhanced Traceability**|60%|⚠️ Partially Complete|
 |**Multi-Tracker Task-to-Issues**|0%|🔄 Current Phase|
 |**Strategic Tooling**|30%|⚠️ Partially Complete|
+|**Build Mode "GSD" Upgrade**|0%|🔄 Current Phase|
+|**Context Intelligence & Optimization**|0%|🔄 Current Phase|
+|**Workflow Utilities**|0%|🔄 Current Phase|
 |**Build Mode Bug Fix**|0%|🔄 Current Phase|
 |**Async Context Delivery**|0%|🔄 Current Phase|
 |**Spec Management**|0%|🔄 Current Phase|
 |**Hook-Based Tool Auto-Activation**|0%|🆕 Future Phase|
 |**Progressive Context Disclosure**|0%|🆕 Future Phase|
-|**Session Context Persistence**|50%|🆕 Future Phase|
 |**Agent Skill Modularization**|0%|🆕 Future Phase|
 |**Agent Testing Infrastructure**|0%|🆕 Future Phase|
 |**GitHub Issues Enhancement**|0%|🆕 Future Phase|
@@ -438,10 +444,11 @@
 4. **HIGH**: Build mode workflow bug fix (0% → 100%) - Critical workflow blocker preventing build mode usage
 5. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker
 6. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
-7. **MEDIUM**: Strategic tooling improvements (30% → 100%) - Tool health, guidance, and config consolidation
-8. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
-9. **MEDIUM**: Unified spec template implementation (100% → 100%) - Template maintenance reduction
-10. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
+7. **HIGH**: Architecture Description (AD) Mode (0% → 100%) - Enterprise Architecture Support
+8. **MEDIUM**: Strategic tooling improvements (30% → 100%) - Tool health, guidance, and config consolidation
+9. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
+10. **MEDIUM**: Unified spec template implementation (100% → 100%) - Template maintenance reduction
+11. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
 9. **HIGH**: Architecture Description Command (/architect) (0% → future consideration)

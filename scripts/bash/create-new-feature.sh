@@ -351,7 +351,6 @@ populate_context_file() {
         local code_paths="To be determined during implementation"
         local directives="None (build mode)"
         local research="Minimal research needed for lightweight implementation"
-        local gateway="None (build mode)"
     else
         # Spec mode: Comprehensive context for full specification
         # Detect code paths (basic detection based on common patterns)
@@ -373,16 +372,6 @@ populate_context_file() {
 
         # Set research needs
         local research="To be identified during specification and planning phases"
-
-        # Read gateway configuration if available
-        local gateway="None"
-        local config_file="$REPO_ROOT/.specify/config/config.json"
-        if [ -f "$config_file" ]; then
-            local gateway_url=$(grep -o '"url"[[:space:]]*:[[:space:]]*"[^"]*"' "$config_file" 2>/dev/null | cut -d'"' -f4)
-            if [ -n "$gateway_url" ]; then
-                gateway="$gateway_url"
-            fi
-        fi
     fi
 
     # Create context.md with populated values
@@ -394,7 +383,6 @@ populate_context_file() {
 **Code Paths**: $code_paths
 **Directives**: $directives
 **Research**: $research
-**Gateway**: $gateway
 
 EOF
 }
