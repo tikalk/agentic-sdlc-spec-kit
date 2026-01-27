@@ -269,6 +269,18 @@ if (Test-Path $modeFile) {
     }
 }
 
+# Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
+function Replace-DatePlaceholders {
+    param([string]$FilePath)
+    
+    if (Test-Path $FilePath) {
+        $currentDate = Get-Date -Format "yyyy-MM-dd"
+        $content = Get-Content -Path $FilePath -Raw
+        $content = $content -replace '\[DATE\]', $currentDate
+        Set-Content -Path $FilePath -Value $content -NoNewline
+    }
+}
+
 # Select template based on mode
 if ($currentMode -eq "build") {
     $template = Join-Path $repoRoot 'templates/spec-template-build.md'
@@ -281,6 +293,9 @@ if (Test-Path $template) {
 } else {
     New-Item -ItemType File -Path $specFile | Out-Null
 }
+
+# Replace [DATE] placeholders with current date
+Replace-DatePlaceholders -FilePath $specFile
 
 # Function to populate context.md with intelligent defaults (mode-aware)
 function Populate-ContextFile {

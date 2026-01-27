@@ -280,6 +280,23 @@ fi
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
 mkdir -p "$FEATURE_DIR"
 
+# Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
+replace_date_placeholders() {
+    local file="$1"
+    local current_date=$(date +%Y-%m-%d)
+    
+    if [ -f "$file" ]; then
+        # Use sed to replace [DATE] with current date
+        if [[ "$OSTYPE" == "darwin"* ]]; then
+            # macOS requires empty string for -i
+            sed -i '' "s/\[DATE\]/${current_date}/g" "$file"
+        else
+            # Linux/other systems
+            sed -i "s/\[DATE\]/${current_date}/g" "$file"
+        fi
+    fi
+}
+
 # Mode-aware template selection
 MODE_FILE="$REPO_ROOT/.specify/config/config.json"
 CURRENT_MODE="spec"
@@ -301,6 +318,9 @@ else
 fi
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+
+# Replace [DATE] placeholders with current date
+replace_date_placeholders "$SPEC_FILE"
 
 CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
