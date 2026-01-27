@@ -149,7 +149,8 @@ PY
 
 # Extract mode configuration
 get_mode_config() {
-    local config_file=".specify/config/config.json"
+    local config_file
+    config_file=$(get_global_config_path)
 
     # Extract current mode and options from consolidated config
     python3 - "$config_file" <<'PY'
@@ -225,11 +226,12 @@ fi
 if [[ ! -f "$IMPL_PLAN" ]]; then
     # Get current mode to determine if plan.md is required
     current_mode="spec"
-    if [[ -f ".specify/config/config.json" ]]; then
+    global_config=$(get_global_config_path)
+    if [[ -f "$global_config" ]]; then
         current_mode=$(python3 -c "
 import json
 try:
-    with open('.specify/config/config.json', 'r') as f:
+    with open('$global_config', 'r') as f:
         data = json.load(f)
     print(data.get('workflow', {}).get('current_mode', 'spec'))
 except:

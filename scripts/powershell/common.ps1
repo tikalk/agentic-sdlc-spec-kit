@@ -1,6 +1,22 @@
 #!/usr/bin/env pwsh
 # Common PowerShell functions analogous to common.sh
 
+# Get the global config path using XDG Base Directory spec
+# Platform-specific locations:
+# - Linux: ~/.config/specify/config.json
+# - macOS: ~/Library/Application Support/specify/config.json (but we use XDG for consistency)
+# - Windows: %APPDATA%\specify\config.json
+function Get-GlobalConfigPath {
+    if ($env:XDG_CONFIG_HOME) {
+        $configDir = $env:XDG_CONFIG_HOME
+    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        $configDir = $env:APPDATA
+    } else {
+        $configDir = Join-Path $HOME ".config"
+    }
+    return Join-Path $configDir "specify" "config.json"
+}
+
 function Get-RepoRoot {
     try {
         $result = git rev-parse --show-toplevel 2>$null

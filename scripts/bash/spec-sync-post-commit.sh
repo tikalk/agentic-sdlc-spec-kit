@@ -32,8 +32,8 @@ log_error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Check if spec sync is enabled
-CONFIG_FILE="$PROJECT_ROOT/.specify/config/config.json"
+# Check if spec sync is enabled (global config)
+CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/specify/config.json"
 if [[ ! -f "$CONFIG_FILE" ]]; then
     exit 0
 fi

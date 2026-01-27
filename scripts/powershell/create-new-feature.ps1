@@ -11,6 +11,18 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# Get the global config path using XDG Base Directory spec
+function Get-GlobalConfigPath {
+    if ($env:XDG_CONFIG_HOME) {
+        $configDir = $env:XDG_CONFIG_HOME
+    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        $configDir = $env:APPDATA
+    } else {
+        $configDir = Join-Path $HOME ".config"
+    }
+    return Join-Path $configDir "specify" "config.json"
+}
+
 # Show help if requested
 if ($Help) {
     Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] <feature description>"
@@ -254,14 +266,14 @@ if ($hasGit) {
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
-# Mode-aware template selection
-$modeFile = Join-Path $repoRoot '.specify/config/config.json'
+# Mode-aware template selection (using global config)
+$modeFile = Get-GlobalConfigPath
 $currentMode = "spec"
 if (Test-Path $modeFile) {
     try {
         $config = Get-Content $modeFile -Raw | ConvertFrom-Json
-        if ($config.PSObject.Properties['current_mode']) {
-            $currentMode = $config.current_mode
+        if ($config.workflow -and $config.workflow.PSObject.Properties['current_mode']) {
+            $currentMode = $config.workflow.current_mode
         }
     } catch {
         # Fall back to default if JSON parsing fails

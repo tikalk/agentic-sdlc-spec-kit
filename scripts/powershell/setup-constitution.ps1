@@ -9,6 +9,18 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# Get the global config path using XDG Base Directory spec
+function Get-GlobalConfigPath {
+    if ($env:XDG_CONFIG_HOME) {
+        $configDir = $env:XDG_CONFIG_HOME
+    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        $configDir = $env:APPDATA
+    } else {
+        $configDir = Join-Path $HOME ".config"
+    }
+    return Join-Path $configDir "specify" "config.json"
+}
+
 if ($Help) {
     Write-Output "Usage: ./setup-constitution.ps1 [-Json] [-Validate] [-Scan] [-Help]"
     Write-Output "  -Json     Output results in JSON format"
@@ -30,10 +42,10 @@ if ($Help) {
     throw "Could not determine repository root"
 }
 
-# Get team directives path
+# Get team directives path (from global config)
 function Get-TeamDirectivesPath {
     $repoRoot = Get-RepositoryRoot
-    $configFile = Join-Path $repoRoot ".specify\config\config.json"
+    $configFile = Get-GlobalConfigPath
 
     if (Test-Path $configFile) {
         try {

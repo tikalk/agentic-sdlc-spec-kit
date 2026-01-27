@@ -146,9 +146,9 @@
 
 - ❌ **Gateway Health Checks**: Only basic configuration exists, no health check implementation
 - ❌ **Tool Selection Guidance**: Claims implementation but no actual guidance logic found
-- ❌ **Global Configuration Support**: Implement hierarchical config loading (Local `.specify/config/config.json` overrides Global `~/.config/specify/config.json`).
-- ❌ **CLI Config Refactor**: Update `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution and deep merging logic.
-- ❌ **Script Config Resolution**: Update `common.sh` and `common.ps1` helper functions to check global paths if local config is missing values.
+- ✅ **Global Configuration Support**: All configuration now stored globally in `~/.config/specify/config.json` (XDG compliant). Single shared configuration across all projects. Linux: `$XDG_CONFIG_HOME/specify/config.json`, macOS: `~/Library/Application Support/specify/config.json`, Windows: `%APPDATA%\specify\config.json`.
+- ✅ **CLI Config Refactor**: Updated `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution.
+- ✅ **Script Config Resolution**: Updated `common.sh` and `common.ps1` with `get_global_config_path()` / `Get-GlobalConfigPath` helper functions.
 - ✅ **Config Consolidation**: Successfully implemented as single unified configuration file to reduce complexity and improve maintainability
 - ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec/ad) with per-mode override capability.
 - ❌ **Execution Logic**: Update `scripts/bash/tasks-meta-utils.sh` and `scripts/powershell/common.ps1` to read `atomic_commits` config and inject constraint into `generate_delegation_prompt()` when enabled.

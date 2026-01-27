@@ -4,10 +4,20 @@
 # Shared constants
 TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
 
+# Get the global config path using XDG Base Directory spec
+# Platform-specific locations:
+# - Linux: ~/.config/specify/config.json
+# - macOS: ~/Library/Application Support/specify/config.json (but we use XDG for consistency)
+get_global_config_path() {
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    echo "$config_home/specify/config.json"
+}
+
 load_team_directives_config() {
     local repo_root="$1"
 
-    local config_file="$repo_root/.specify/config/config.json"
+    local config_file
+    config_file=$(get_global_config_path)
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local path
         path=$(jq -r '.team_directives.path // empty' "$config_file" 2>/dev/null)

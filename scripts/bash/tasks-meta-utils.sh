@@ -3,6 +3,12 @@
 # Task Meta Utilities for Agentic SDLC
 # Handles task classification, delegation, and status tracking
 
+# Get the global config path using XDG Base Directory spec
+get_global_config_path() {
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    echo "$config_home/specify/config.json"
+}
+
 # Initialize tasks_meta.json for a feature
 init_tasks_meta() {
     local feature_dir="$1"
@@ -654,9 +660,10 @@ execute_mode_aware_rollback() {
 # Get framework options configuration
 get_framework_opinions() {
     local mode="${1:-spec}"
-    local config_file=".specify/config/config.json"
+    local config_file
+    config_file=$(get_global_config_path)
 
-    # Read from consolidated config
+    # Read from consolidated config (global)
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local user_tdd
         user_tdd=$(jq -r ".options.tdd_enabled" "$config_file" 2>/dev/null || echo "null")

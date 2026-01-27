@@ -154,7 +154,7 @@ if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
     # Get current mode to determine if plan.md is required
     $currentMode = "spec"
-    $configFile = ".specify/config/config.json"
+    $configFile = Get-GlobalConfigPath
     if (Test-Path $configFile) {
         try {
             $configData = Get-Content $configFile | ConvertFrom-Json

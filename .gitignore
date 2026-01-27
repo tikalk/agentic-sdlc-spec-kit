@@ -48,6 +48,10 @@ env/
 *.zip
 sdd-*
 
+# User-specific configuration (now stored globally in ~/.config/specify/)
+# Old local config directory is kept for backward compatibility but should not be used
+.specify/config/
+
 # Evaluation artifacts
 eval-results*.json
 *.backup

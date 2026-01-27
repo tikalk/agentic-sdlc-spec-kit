@@ -7,6 +7,25 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.23] - 2025-01-28
+
+### Changed
+
+- **Global Configuration Support**: Configuration now stored globally in `~/.config/specify/config.json` (XDG Base Directory compliant)
+  - Linux: `$XDG_CONFIG_HOME/specify/config.json` (defaults to `~/.config/specify/config.json`)
+  - macOS: `~/Library/Application Support/specify/config.json`
+  - Windows: `%APPDATA%\specify\config.json`
+  - All projects share a single global configuration file
+  - Uses `platformdirs` for cross-platform path resolution
+  - Updated Python CLI (`src/specify_cli/__init__.py`) with `get_global_config_path()` function
+  - Updated bash scripts (`scripts/bash/common.sh`) with `get_global_config_path()` helper
+  - Updated PowerShell scripts (`scripts/powershell/common.ps1`) with `Get-GlobalConfigPath` function
+  - Old local `.specify/config/` directories are now ignored (added to `.gitignore`)
+
+### Removed
+
+- **`mode_history` from configuration**: Removed `workflow.mode_history` field from config structure (was unused)
+
 ## [0.0.22] - 2025-11-07
 
 - Support for VS Code/Copilot agents, and moving away from prompts to proper agents with hand-offs.

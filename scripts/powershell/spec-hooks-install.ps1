@@ -87,20 +87,23 @@ set -euo pipefail
 SCRIPT_DIR="`$(cd "`$(dirname "`${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="`$(cd "`$SCRIPT_DIR/../.." && pwd)"
 
+# Get the global config path using XDG Base Directory spec
+GLOBAL_CONFIG="`${XDG_CONFIG_HOME:-`$HOME/.config}/specify/config.json"
+
 # Check if spec sync is enabled for this project
-if [[ ! -f "`$PROJECT_ROOT/.specify/config/config.json" ]]; then
+if [[ ! -f "`$GLOBAL_CONFIG" ]]; then
     exit 0
 fi
 
 # Check if spec sync is enabled in config
 if command -v jq >/dev/null 2>&1; then
-    enabled=\$(jq -r '.spec_sync.enabled // false' "`$PROJECT_ROOT/.specify/config/config.json" 2>/dev/null)
+    enabled=\$(jq -r '.spec_sync.enabled // false' "`$GLOBAL_CONFIG" 2>/dev/null)
     if [[ "\$enabled" != "true" ]]; then
         exit 0
     fi
 else
     # Fallback: check if enabled exists in config (simple grep)
-    if ! grep -q '"enabled":\s*true' "`$PROJECT_ROOT/.specify/config/config.json" 2>/dev/null; then
+    if ! grep -q '"enabled":\s*true' "`$GLOBAL_CONFIG" 2>/dev/null; then
         exit 0
     fi
 fi
@@ -119,9 +122,16 @@ fi
     log_success "Installed $hook_name hook"
 }
 
-# Create spec sync configuration
+# Create spec sync configuration (in global config location)
 function create_config {
-    $config_dir = ".specify/config"
+    # Use XDG Base Directory spec for global config
+    if ($env:XDG_CONFIG_HOME) {
+        $config_dir = Join-Path $env:XDG_CONFIG_HOME "specify"
+    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
+        $config_dir = Join-Path $env:APPDATA "specify"
+    } else {
+        $config_dir = Join-Path $HOME ".config" "specify"
+    }
     $config_file = Join-Path $config_dir "config.json"
     New-Item -ItemType Directory -Path $config_dir -Force | Out-Null
 
@@ -136,8 +146,7 @@ function create_config {
   },
   "workflow": {
     "current_mode": "spec",
-    "default_mode": "spec",
-    "mode_history": []
+    "default_mode": "spec"
   },
   "options": {
     "tdd_enabled": false,
@@ -183,7 +192,7 @@ function create_config {
         }
     }
 
-    log_success "Created/updated spec sync configuration"
+    log_success "Created/updated spec sync configuration at $config_file"
 }
 
 # Main installation function

@@ -174,6 +174,12 @@ fi
 
 cd "$REPO_ROOT"
 
+# Get the global config path using XDG Base Directory spec
+get_global_config_path() {
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    echo "$config_home/specify/config.json"
+}
+
 SPECS_DIR="$REPO_ROOT/specs"
 mkdir -p "$SPECS_DIR"
 
@@ -298,7 +304,7 @@ replace_date_placeholders() {
 }
 
 # Mode-aware template selection
-MODE_FILE="$REPO_ROOT/.specify/config/config.json"
+MODE_FILE=$(get_global_config_path)
 CURRENT_MODE="spec"
 if [ -f "$MODE_FILE" ]; then
     CURRENT_MODE=$(python3 -c "
