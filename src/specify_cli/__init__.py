@@ -430,6 +430,12 @@ def get_default_config() -> dict:
                 "data_models_enabled": True,
                 "risk_tests_enabled": True,
             },
+            "ad": {
+                "tdd_enabled": True,
+                "contracts_enabled": True,
+                "data_models_enabled": True,
+                "risk_tests_enabled": True,
+            },
         },
         "spec_sync": {
             "enabled": False,

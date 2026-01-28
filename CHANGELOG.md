@@ -7,6 +7,21 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Architecture Description (AD) Mode**: New workflow mode for architecture-first development
+  - New `/speckit.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
+  - 7 Core Viewpoints: Context, Functional, Information, Concurrency, Development, Deployment, Operational
+  - 2 Cross-cutting Perspectives: Security, Performance & Scalability
+  - Four actions: `init` (greenfield), `map` (brownfield/reverse-engineering), `update` (sync with changes), `review` (validation)
+  - Language-agnostic codebase scanning for brownfield projects
+  - Generates `memory/architecture.md` as central architecture artifact
+  - AD mode added to mode configuration alongside `build` and `spec` modes
+  - Templates: `templates/architecture-template.md` and `templates/commands/architect.md`
+  - Scripts: `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`
+
 ## [0.0.23] - 2025-01-28
 
 ### Changed

@@ -1,0 +1,273 @@
+---
+description: Generate or update Architecture Description using Rozanski & Woods methodology
+handoffs:
+  - label: Create Spec
+    agent: speckit.specify
+    prompt: Create specification for feature within this architecture
+    send: false
+  - label: Analyze Architecture
+    agent: speckit.analyze
+    prompt: Analyze architecture for consistency and completeness
+    send: true
+scripts:
+    sh: scripts/bash/setup-architecture.sh {ARGS}
+    ps: scripts/powershell/setup-architecture.ps1 {ARGS}
+agent_scripts:
+    sh: scripts/bash/update-agent-context.sh __AGENT__
+    ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+---
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Mode Detection
+
+1. Check current workflow mode from `.specify/config/config.json`
+2. **Recommended**: Use `ad` (Architecture-Driven) mode for architecture work
+3. If not in `ad` mode, inform user that `/mode ad` is recommended for architecture-first development
+
+## Goal
+
+Generate, update, or validate comprehensive Architecture Descriptions following the Rozanski & Woods "Software Systems Architecture" methodology. Transform AI from a simple coder into a System Architect capable of describing complex, production-ready systems with structural integrity.
+
+## Role & Context
+
+You are acting as a **System Architect** responsible for creating and maintaining the global architecture that governs all feature development. Your architecture description serves as:
+
+- **Strategic Context** for all `/speckit.specify` and `/speckit.plan` commands
+- **Governance Framework** ensuring features align with system boundaries
+- **Communication Tool** for stakeholders across technical and business domains
+- **Decision Record** capturing architectural rationale and trade-offs
+
+## Operating Constraints
+
+### Architecture Hierarchy
+- Architecture operates at the **system level**, above individual features
+- The `memory/architecture.md` file provides **global context** inherited by all feature specs
+- Features must **validate against** architectural boundaries and constraints
+- Architecture can be **updated incrementally** as features reveal new requirements
+
+### Rozanski & Woods Methodology
+- **7 Core Viewpoints**: Context, Functional, Information, Concurrency, Development, Deployment, Operational
+- **2 Perspectives**: Security, Performance & Scalability (cross-cutting quality concerns)
+- Each viewpoint addresses **specific stakeholder concerns**
+- Architecture must be **traceable** to stakeholder needs
+
+### Integration Points
+- `context.md` for features will include **architecture summary**
+- `/speckit.plan` reads architecture for **Global Constraints** validation
+- Architecture updates trigger **impact analysis** across existing features
+
+## Execution Steps
+
+### Parse Action from User Input
+
+The command supports four actions:
+
+| Action | Purpose | When to Use |
+|--------|---------|-------------|
+| `init` | Initialize new architecture from template | Greenfield projects, new systems |
+| `map` | Scan existing codebase to populate architecture | Brownfield projects, reverse engineering |
+| `update` | Update architecture based on code/spec changes | After feature implementation |
+| `review` | Validate architecture against constitution | Before major milestones |
+
+**If no action specified**: Default to `init` for new projects, `update` for existing architecture.
+
+### Phase 0: Context Discovery (for `init` and `map`)
+
+**Objective**: Establish stakeholders, concerns, and system scope
+
+1. **Identify Stakeholders**:
+   - Read `memory/constitution.md` if it exists
+   - Prompt user to identify key stakeholders (Product Owner, Operations, Security, End Users)
+   - Document their primary concerns
+
+2. **Define System Scope**:
+   - What problem does this system solve?
+   - What is explicitly IN scope?
+   - What is explicitly OUT of scope?
+
+3. **Load Team Directives**:
+   - Check for team-ai-directives in project
+   - Extract architectural principles and constraints
+   - Incorporate into Global Constraints section
+
+### Phase 1: Generate Architecture Views (for `init`)
+
+Generate each viewpoint systematically, starting with Context View (which informs the others):
+
+#### Order of Generation:
+1. **Context View** (external boundaries)
+2. **Functional View** (internal components)
+3. **Information View** (data flow)
+4. **Concurrency View** (runtime behavior)
+5. **Development View** (code organization)
+6. **Deployment View** (infrastructure)
+7. **Operational View** (operations)
+
+**For each viewpoint**:
+- Use the template structure from `templates/architecture-template.md`
+- Fill in specific details based on user input or codebase analysis
+- Use tables for structured data, diagrams for relationships
+- Keep descriptions concise but complete
+
+### Phase 2: Brownfield Mapping (for `map` action)
+
+**Objective**: Reverse-engineer architecture from existing codebase
+
+The script will scan the codebase and output structured findings. Use these to populate:
+
+1. **Development View**:
+   - Directory structure → Code Organization
+   - Package files → Module Dependencies
+   - CI/CD configs → Build & CI/CD
+
+2. **Deployment View**:
+   - `docker-compose.yml`, `Dockerfile` → Runtime Environments
+   - Kubernetes manifests → Network Topology
+   - Terraform/CloudFormation → Infrastructure
+
+3. **Functional View**:
+   - API routes, CLI commands → Functional Elements
+   - Class/module structure → Element Interactions
+
+4. **Information View**:
+   - Database schemas, ORM models → Data Entities
+   - Migration files → Data Lifecycle
+
+**Fill gaps with user interaction**: Ask clarifying questions for aspects that cannot be inferred from code.
+
+### Phase 3: Apply Perspectives (Security & Performance)
+
+For each perspective, analyze how architectural decisions address quality concerns:
+
+#### Security Perspective
+- Review each viewpoint for security implications
+- Document authentication/authorization approach
+- Identify threat model and mitigations
+- Validate against constitution security requirements
+
+#### Performance & Scalability Perspective
+- Define performance requirements (latency, throughput)
+- Document scalability model (horizontal/vertical)
+- Identify capacity planning approach
+- Map performance concerns to specific views (Concurrency, Deployment)
+
+### Phase 4: Update Loop (for `update` action)
+
+**Objective**: Keep architecture synchronized with implementation reality
+
+1. **Diff Analysis**:
+   - Compare current `memory/architecture.md` with recent code/spec changes
+   - Identify what changed since last architecture update
+
+2. **Impact Analysis**:
+   - New database table? → Update **Information View**
+   - New microservice? → Update **Functional View** and **Deployment View**
+   - New message queue? → Update **Concurrency View**
+   - New dependency? → Update **Development View**
+
+3. **Refinement**:
+   - Update affected sections with specific changes
+   - Add ADR (Architecture Decision Record) if significant decision made
+   - Update "Last Updated" timestamp
+
+### Phase 5: Review & Validation (for `review` action)
+
+1. **Constitution Alignment**:
+   - Load `memory/constitution.md`
+   - Verify architecture adheres to all constitutional principles
+   - Report violations or conflicts
+
+2. **Perspective Coverage**:
+   - Validate Security perspective is addressed in all relevant views
+   - Validate Performance perspective is addressed
+   - Identify gaps or insufficient detail
+
+3. **Completeness Check**:
+   - All 7 viewpoints present?
+   - All mandatory sections filled in?
+   - Stakeholder concerns addressed?
+
+4. **Report**:
+   - Summary of findings
+   - List of gaps or issues
+   - Recommendations for improvement
+
+## Output Format
+
+### File Location
+- **Primary Output**: `memory/architecture.md`
+- **Tech Stack Reference**: Extract to `memory/tech-stack.md` (optional, for brownfield)
+
+### Architecture Document Structure
+Follow the template structure exactly:
+1. Introduction (Purpose, Scope, Definitions)
+2. Stakeholders & Concerns (table)
+3. Architectural Views (7 viewpoints)
+4. Architectural Perspectives (2 perspectives)
+5. Global Constraints & Principles
+6. Architecture Decision Records (ADRs)
+7. Appendix (Glossary, References, Tech Stack)
+
+### Progress Updates
+During generation, provide progress indicators:
+- "✅ Context View completed"
+- "✅ Functional View completed"
+- "🔄 Scanning codebase for deployment configuration..."
+- "✅ Architecture generated: memory/architecture.md"
+
+## Key Rules
+
+### Constitution Compliance
+- Architecture MUST align with `memory/constitution.md` principles
+- Document any deviations as ADRs with justification
+- Constitutional violations are blocking issues
+
+### Traceability
+- Each architectural decision should trace back to stakeholder concern
+- Use ADRs to document significant decisions and trade-offs
+- Cross-reference between views when elements appear in multiple places
+
+### Practical Architecture
+- Focus on **decisions that matter** - avoid boilerplate
+- Use **concrete examples** over generic descriptions
+- Include **diagrams** (ASCII art is fine) for complex relationships
+- Keep it **maintainable** - architecture should evolve with system
+
+### Mode-Aware Behavior
+- In `ad` mode: Architecture is **required** before `/speckit.specify`
+- In `spec` mode: Architecture is **optional** enhancement
+- In `build` mode: Architecture is **not recommended** (too heavyweight)
+
+## Mode Guidance & Transitions
+
+### After `/speckit.architect init`
+Recommended next steps:
+1. Review generated architecture with stakeholders
+2. Refine sections that need more detail
+3. Run `/speckit.architect review` to validate
+4. Switch to normal workflow: `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`
+
+### After `/speckit.architect map`
+For brownfield projects:
+1. Review extracted architecture for accuracy
+2. Fill in gaps that couldn't be inferred
+3. Add missing perspectives and constraints
+4. Use as baseline for modernization planning
+
+### After `/speckit.architect update`
+After implementing features:
+1. Verify architecture reflects current reality
+2. Check for architectural drift
+3. Update ADRs if significant decisions changed
+4. Consider running `/speckit.architect review`
+
+## Context
+
+{ARGS}

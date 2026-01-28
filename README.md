@@ -248,6 +248,7 @@ Specify supports two workflow modes that control the complexity level of the dev
 
 - **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
 - **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
+- **`ad` mode**: Architecture-first workflow using Rozanski & Woods methodology for complex enterprise systems
 
 #### Mode Commands
 
@@ -260,6 +261,9 @@ Specify supports two workflow modes that control the complexity level of the dev
 
 # Switch to spec mode (comprehensive development)
 /mode spec
+
+# Switch to AD mode (architecture-driven development)
+/mode ad
 
 # Show detailed information about all modes
 /mode --info
@@ -281,6 +285,13 @@ Specify supports two workflow modes that control the complexity level of the dev
 - Production systems needing comprehensive validation
 - When you need full traceability and quality gates
 
+**Use `ad` mode for:**
+
+- Complex enterprise systems requiring formal architecture documentation
+- Brownfield/modernization projects needing existing system mapping
+- Microservices architectures with multiple stakeholders
+- Systems with strict security, performance, or compliance requirements
+
 #### Mode-Aware Commands
 
 All slash commands adapt their behavior based on the current mode:
@@ -301,6 +312,52 @@ specify init my-project \
   --issue-tracker github \
   --async-agent jules
 ```
+
+### Architecture-Driven Development (AD Mode)
+
+For complex enterprise systems, use Architecture-Driven Development to establish system-level architecture before feature implementation.
+
+#### AD Mode Workflow
+
+```bash
+# 1. Switch to AD mode
+/mode ad
+
+# 2. Initialize architecture (greenfield)
+/speckit.architect init
+
+# 3. Or map existing codebase (brownfield)
+/speckit.architect map
+
+# 4. Review architecture against constitution
+/speckit.architect review
+
+# 5. Then proceed with normal workflow
+/speckit.specify "Feature within this architecture"
+```
+
+#### Architecture Actions
+
+| Action | Description |
+|--------|-------------|
+| `init` | Initialize new `memory/architecture.md` from Rozanski & Woods template |
+| `map` | Reverse-engineer architecture from existing codebase (brownfield) |
+| `update` | Update architecture based on codebase/spec changes with impact analysis |
+| `review` | Validate architecture against constitution and perspectives |
+
+#### Rozanski & Woods Viewpoints
+
+The `/speckit.architect` command generates documentation covering:
+
+1. **Context View** - System scope and external interactions
+2. **Functional View** - Functional elements and responsibilities
+3. **Information View** - Data storage, management, and flow
+4. **Concurrency View** - Runtime processes and coordination
+5. **Development View** - Code organization and CI/CD
+6. **Deployment View** - Physical infrastructure and environments
+7. **Operational View** - Operations, monitoring, and support
+
+Plus cross-cutting **Perspectives**: Security, Performance & Scalability
 
 ### 2. Establish project principles
 
@@ -413,7 +470,7 @@ The `specify` command supports the following options:
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
-| `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
+| `<mode>`        | Argument | Workflow mode: `build` (lightweight), `spec` (comprehensive), or `ad` (architecture-driven) - leave empty to show current mode |
 | `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
 | `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
@@ -486,6 +543,7 @@ specify check
 /mode                    # Show current mode
 /mode build             # Switch to lightweight build mode
 /mode spec              # Switch to comprehensive spec mode
+/mode ad                # Switch to architecture-driven mode
 /mode --info            # Show detailed mode information
 ```
 
@@ -499,6 +557,7 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
+| `/speckit.architect`     | Generate Architecture Description using Rozanski & Woods methodology (7 viewpoints + perspectives) |
 | `/speckit.constitution`  | Create or update project governing principles and development guidelines |
 | `/speckit.specify`       | Define what you want to build (requirements and user stories)        |
 | `/speckit.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |

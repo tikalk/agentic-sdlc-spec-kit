@@ -32,7 +32,7 @@ Control the complexity level of the Agentic SDLC workflow by setting workflow mo
 **Command Patterns:**
 
 - No arguments: Display current mode and option settings
-- `build|spec`: Switch to specified workflow mode
+- `build|spec|ad`: Switch to specified workflow mode
 - `--tdd|--no-tdd`: Enable/disable TDD
 - `--contracts|--no-contracts`: Enable/disable API contracts
 - `--data-models|--no-data-models`: Enable/disable data models
@@ -124,6 +124,18 @@ Risk-based testing disabled
 - Framework options: All enabled by default
 - Focus: Thorough planning and structured development
 - Artifacts: Complete documentation, rigorous validation
+
+### AD Mode (Architecture-Driven)
+
+#### Architecture-first workflow for complex enterprise systems
+
+- Framework options: All enabled by default
+- Focus: System-level architectural design before feature implementation
+- Workflow: `/speckit.architect` → `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`
+- Ideal for: Enterprise systems, brownfield modernization, microservices architectures
+- Key artifact: `memory/architecture.md` (Rozanski & Woods 7 viewpoints + 2 perspectives)
+- Architecture Command: Use `/speckit.architect init` to generate comprehensive architecture description
+- Brownfield Support: Use `/speckit.architect map` to reverse-engineer architecture from existing code
 
 ## Framework Options
 
