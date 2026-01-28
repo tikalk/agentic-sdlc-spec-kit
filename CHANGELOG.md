@@ -22,6 +22,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Templates: `templates/architecture-template.md` and `templates/commands/architect.md`
   - Scripts: `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`
 
+## [0.0.26] - 2026-01-28
+
+### Changed
+
+- **Command Template Alignment**: Aligned `templates/commands/architect.md` structure with `templates/commands/specify.md` for consistency
+  - Fixed YAML frontmatter indentation (2-space consistent across all sections)
+  - Added quotes around {ARGS} parameter in scripts section
+  - Added new "Outline" section explaining script execution approach
+  - Expanded "Mode Detection" section with 3 detailed subsections matching specify.md narrative depth
+  - Reorganized "Operating Constraints" into "Role & Context" subsections for better organization
+  - Verified heading levels (##, ###, ####) are consistent throughout document
+  - Maintained Rozanski & Woods methodology while improving document structure
+
 ## [0.0.25] - 2026-01-28
 
 ### Fixed

@@ -10,11 +10,11 @@ handoffs:
     prompt: Analyze architecture for consistency and completeness
     send: true
 scripts:
-    sh: scripts/bash/setup-architecture.sh {ARGS}
-    ps: scripts/powershell/setup-architecture.ps1 {ARGS}
+  sh: scripts/bash/setup-architecture.sh "{ARGS}"
+  ps: scripts/powershell/setup-architecture.ps1 "{ARGS}"
 agent_scripts:
-    sh: scripts/bash/update-agent-context.sh __AGENT__
-    ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: scripts/bash/update-agent-context.sh __AGENT__
+  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
 ## User Input
@@ -25,11 +25,41 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Outline
+
+The text the user typed after `/speckit.architect` in the triggering message **is** the architecture action (init/map/update/review) and context. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+
+Given that input, do this:
+
+1. **Parse the Action**: Determine if user wants:
+   - `init` - Initialize new architecture from scratch (greenfield)
+   - `map` - Scan existing codebase (brownfield/reverse-engineering)
+   - `update` - Sync architecture with recent changes
+   - `review` - Validate architecture against constitution
+
+2. **Load Current State**:
+   - Check if `memory/architecture.md` exists
+   - Load `memory/constitution.md` for alignment validation
+   - Check for team directives if available
+
+3. **Execute Appropriate Phase**: Run Phases 0-5 based on action type
+
+4. **Generate or Update Architecture**: Write/update `memory/architecture.md`
+
+5. **Produce Output**: Report generation results, ADRs created, and next steps
+
+**NOTE:** The script creates or updates the architecture file before execution. You are responsible for populating it with substantial content following the Rozanski & Woods structure.
+
 ## Mode Detection
 
-1. Check current workflow mode from `.specify/config/config.json`
-2. **Recommended**: Use `ad` (Architecture-Driven) mode for architecture work
-3. If not in `ad` mode, inform user that `/mode ad` is recommended for architecture-first development
+1. **Check Current Workflow Mode**: Determine if the user is in "ad" (Architecture-Driven), "spec", or "build" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+
+2. **Mode-Aware Behavior**:
+   - **AD Mode** (Architecture-Driven): Architecture is **required before feature development**. All features must align with the global architecture established here. This mode prioritizes structural integrity and system-wide consistency.
+   - **Spec Mode**: Architecture is **optional enhancement**. Helpful for complex systems with multiple services or intricate data flows, but not mandatory. Features can be developed with or without explicit architecture documentation.
+   - **Build Mode**: Architecture is **not recommended** (too heavyweight). Use `/specify` for rapid feature exploration instead.
+
+3. **Recommendation**: If user is not in `ad` mode, inform them that `/mode ad` is recommended for architecture-first development, especially for new systems or significant architectural decisions.
 
 ## Goal
 
@@ -43,8 +73,6 @@ You are acting as a **System Architect** responsible for creating and maintainin
 - **Governance Framework** ensuring features align with system boundaries
 - **Communication Tool** for stakeholders across technical and business domains
 - **Decision Record** capturing architectural rationale and trade-offs
-
-## Operating Constraints
 
 ### Architecture Hierarchy
 
