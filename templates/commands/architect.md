@@ -47,18 +47,21 @@ You are acting as a **System Architect** responsible for creating and maintainin
 ## Operating Constraints
 
 ### Architecture Hierarchy
+
 - Architecture operates at the **system level**, above individual features
 - The `memory/architecture.md` file provides **global context** inherited by all feature specs
 - Features must **validate against** architectural boundaries and constraints
 - Architecture can be **updated incrementally** as features reveal new requirements
 
 ### Rozanski & Woods Methodology
+
 - **7 Core Viewpoints**: Context, Functional, Information, Concurrency, Development, Deployment, Operational
 - **2 Perspectives**: Security, Performance & Scalability (cross-cutting quality concerns)
 - Each viewpoint addresses **specific stakeholder concerns**
 - Architecture must be **traceable** to stakeholder needs
 
 ### Integration Points
+
 - `context.md` for features will include **architecture summary**
 - `/speckit.plan` reads architecture for **Global Constraints** validation
 - Architecture updates trigger **impact analysis** across existing features
@@ -101,7 +104,8 @@ The command supports four actions:
 
 Generate each viewpoint systematically, starting with Context View (which informs the others):
 
-#### Order of Generation:
+#### Order of Generation
+
 1. **Context View** (external boundaries)
 2. **Functional View** (internal components)
 3. **Information View** (data flow)
@@ -111,6 +115,7 @@ Generate each viewpoint systematically, starting with Context View (which inform
 7. **Operational View** (operations)
 
 **For each viewpoint**:
+
 - Use the template structure from `templates/architecture-template.md`
 - Fill in specific details based on user input or codebase analysis
 - Use tables for structured data, diagrams for relationships
@@ -147,12 +152,14 @@ The script will scan the codebase and output structured findings. Use these to p
 For each perspective, analyze how architectural decisions address quality concerns:
 
 #### Security Perspective
+
 - Review each viewpoint for security implications
 - Document authentication/authorization approach
 - Identify threat model and mitigations
 - Validate against constitution security requirements
 
 #### Performance & Scalability Perspective
+
 - Define performance requirements (latency, throughput)
 - Document scalability model (horizontal/vertical)
 - Identify capacity planning approach
@@ -202,11 +209,14 @@ For each perspective, analyze how architectural decisions address quality concer
 ## Output Format
 
 ### File Location
+
 - **Primary Output**: `memory/architecture.md`
 - **Tech Stack Reference**: Extract to `memory/tech-stack.md` (optional, for brownfield)
 
 ### Architecture Document Structure
+
 Follow the template structure exactly:
+
 1. Introduction (Purpose, Scope, Definitions)
 2. Stakeholders & Concerns (table)
 3. Architectural Views (7 viewpoints)
@@ -216,7 +226,9 @@ Follow the template structure exactly:
 7. Appendix (Glossary, References, Tech Stack)
 
 ### Progress Updates
+
 During generation, provide progress indicators:
+
 - "✅ Context View completed"
 - "✅ Functional View completed"
 - "🔄 Scanning codebase for deployment configuration..."
@@ -225,22 +237,26 @@ During generation, provide progress indicators:
 ## Key Rules
 
 ### Constitution Compliance
+
 - Architecture MUST align with `memory/constitution.md` principles
 - Document any deviations as ADRs with justification
 - Constitutional violations are blocking issues
 
 ### Traceability
+
 - Each architectural decision should trace back to stakeholder concern
 - Use ADRs to document significant decisions and trade-offs
 - Cross-reference between views when elements appear in multiple places
 
 ### Practical Architecture
+
 - Focus on **decisions that matter** - avoid boilerplate
 - Use **concrete examples** over generic descriptions
 - Include **diagrams** (ASCII art is fine) for complex relationships
 - Keep it **maintainable** - architecture should evolve with system
 
 ### Mode-Aware Behavior
+
 - In `ad` mode: Architecture is **required** before `/speckit.specify`
 - In `spec` mode: Architecture is **optional** enhancement
 - In `build` mode: Architecture is **not recommended** (too heavyweight)
@@ -248,21 +264,27 @@ During generation, provide progress indicators:
 ## Mode Guidance & Transitions
 
 ### After `/speckit.architect init`
+
 Recommended next steps:
+
 1. Review generated architecture with stakeholders
 2. Refine sections that need more detail
 3. Run `/speckit.architect review` to validate
 4. Switch to normal workflow: `/speckit.specify` → `/speckit.plan` → `/speckit.tasks` → `/speckit.implement`
 
 ### After `/speckit.architect map`
+
 For brownfield projects:
+
 1. Review extracted architecture for accuracy
 2. Fill in gaps that couldn't be inferred
 3. Add missing perspectives and constraints
 4. Use as baseline for modernization planning
 
 ### After `/speckit.architect update`
+
 After implementing features:
+
 1. Verify architecture reflects current reality
 2. Check for architectural drift
 3. Update ADRs if significant decisions changed

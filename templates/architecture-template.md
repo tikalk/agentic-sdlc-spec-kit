@@ -8,16 +8,20 @@
 ## 1. Introduction
 
 ### 1.1 Purpose
+
 [Describe why this system exists - the business/technical problem it solves]
 
 ### 1.2 Scope
+
 [Define what is in-scope and explicitly out-of-scope for this system]
 
 **In Scope:**
+
 - [Feature/capability 1]
 - [Feature/capability 2]
 
 **Out of Scope:**
+
 - [Explicitly excluded feature/capability 1]
 - [Explicitly excluded feature/capability 2]
 
@@ -48,6 +52,7 @@
 **Purpose**: Define system scope and external interactions
 
 #### 3.1.1 System Scope
+
 [High-level description of what the system does and its boundaries]
 
 #### 3.1.2 External Entities
@@ -114,10 +119,12 @@ Example flow:
 #### 3.2.3 Functional Boundaries
 
 **What this system DOES:**
+
 - [Functionality 1]
 - [Functionality 2]
 
 **What this system does NOT do (explicit exclusions):**
+
 - [Excluded functionality 1]
 - [Excluded functionality 2]
 
@@ -139,6 +146,7 @@ Example flow:
 [Describe how information moves through the system]
 
 **Key Data Flows:**
+
 1. **[Flow Name]**: [Source] → [Transformation] → [Destination]
 2. **[Flow Name]**: [Description of data movement]
 
@@ -208,6 +216,7 @@ project-root/
 [Dependency graph or key dependency rules]
 
 **Dependency Rules:**
+
 - API layer depends on Services layer (not vice versa)
 - Services layer depends on Repositories layer
 - No circular dependencies allowed
@@ -447,11 +456,13 @@ Internet
 **Decision**: [What was decided? State it clearly and concisely.]
 
 **Consequences**:
+
 - **Positive**: [Benefits of this decision]
 - **Negative**: [Trade-offs and costs]
 - **Risks**: [Known risks and mitigation strategies]
 
 **Alternatives Considered**:
+
 1. [Alternative 1]: [Why rejected]
 2. [Alternative 2]: [Why rejected]
 
