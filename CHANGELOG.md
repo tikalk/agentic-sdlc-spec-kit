@@ -22,7 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Templates: `templates/architecture-template.md` and `templates/commands/architect.md`
   - Scripts: `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`
 
-## [0.0.23] - 2025-01-28
+## [0.0.25] - 2026-01-28
+
+### Fixed
+
+- **Constitution Template Example Dates**: Updated example dates in `memory/constitution.md` from 2025 to 2026 to reflect current year
+
+## [0.0.24] - 2026-01-28
+
+### Added
+
+- Architecture Description (AD) Mode implementation
+- Setup scripts for architecture workflow
+
+## [0.0.23] - 2026-01-28
 
 ### Changed
 
