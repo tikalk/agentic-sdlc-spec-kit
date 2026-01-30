@@ -145,10 +145,7 @@ Architecture support is now available in all workflow modes as optional commands
 - ✅ **Constitution Support**: Optional project principles via `/constitution` command
 - ✅ **Single Source of Truth**: `architecture.md` Section C contains tech stack (no separate files)
 
-**Future Enhancements** *(Deferred - Not Blocking)*:
-
-- **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder
-- **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: Automated detection of spec-code misalignment in `/analyze` command
+**Note**: Schema generation and drift detection features are documented in the Future Phase section as nice-to-have enhancements with no current implementation plans.
 
 ---
 
@@ -159,9 +156,8 @@ Architecture support is now available in all workflow modes as optional commands
 - ✅ **CLI Config Refactor**: Updated `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution.
 - ✅ **Script Config Resolution**: Updated `common.sh` and `common.ps1` with `get_global_config_path()` / `Get-GlobalConfigPath` helper functions.
 - ✅ **Config Consolidation**: Successfully implemented as single unified configuration file to reduce complexity and improve maintainability
-- ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec/ad) with per-mode override capability.
+- ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec) with per-mode override capability.
 - ❌ **Execution Logic**: Update `scripts/bash/tasks-meta-utils.sh` and `scripts/powershell/common.ps1` to read `atomic_commits` config and inject constraint into `generate_delegation_prompt()` when enabled.
-- ❌ **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: Implement a validation utility (part of `/analyze`) that compares the implementation (Code/API) against the `plan.md` definitions (Contracts/Schemas) to flag divergences. This enables proactive identification of spec-code misalignment and ensures executable specifications remain in sync with actual implementation.
 
 **NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
 
@@ -256,6 +252,34 @@ Architecture support is now available in all workflow modes as optional commands
 ## 🆕 **FUTURE PHASE** (New Items - Not Yet Started)
 
 ### **Future Enhancement Categories**
+
+### **Executable Specifications** *(0% Complete)* - **NICE-TO-HAVE** - No implementation planned
+
+**Status**: Deferred to focus on core workflow stability and high-priority items.
+
+#### **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*
+
+- **Description**: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder to make specifications "executable" and enable automated API validation
+- **Status**: ❌ Not planned for implementation
+- **Rationale**: 
+  - Deferred to prioritize core workflow fixes (Build Mode bugs, async context delivery)
+  - Manual contract creation is sufficient for current use cases
+  - Can be revisited after core functionality is stable and proven in production
+- **Potential Value**: Would enable contract-driven development and automated API testing
+- **Complexity**: Medium (requires plan.md parsing, schema generation, template integration)
+
+#### **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*
+
+- **Description**: Automated detection of spec-code misalignment in `/analyze` command to catch divergences between documented requirements and actual implementation
+- **Status**: ❌ Not planned for implementation
+- **Rationale**: 
+  - Deferred to prioritize core workflow stability
+  - Manual code reviews and `/analyze` command provide sufficient validation for now
+  - Requires Schema Generation (above) as prerequisite
+  - Can be revisited after core functionality is stable
+- **Potential Value**: Would enable proactive identification of spec-code misalignment
+- **Complexity**: Medium-High (requires code parsing, AST analysis, pattern matching)
+- **Dependencies**: Would benefit from Schema Generation being implemented first
 
 ### **Architecture Description Command (/architect)** *(0% Complete)* - **HIGH PRIORITY** - Structural integrity for complex systems
 
