@@ -312,14 +312,26 @@ The toolkit includes comprehensive architecture documentation support that works
 # Initialize architecture documentation (greenfield projects)
 /speckit.architect init
 
+# Or provide context directly for better results
+/speckit.architect init "B2B SaaS platform for real-time supply chain management"
+
 # Map existing codebase architecture (brownfield projects)
 /speckit.architect map
+
+# Add system description to guide the mapping
+/speckit.architect map "Django monolith with PostgreSQL, React frontend, deployed on AWS ECS"
 
 # Review architecture against constitution
 /speckit.architect review
 
+# Specify review focus areas
+/speckit.architect review "Validate security compliance and data privacy requirements"
+
 # Update architecture as system evolves
 /speckit.architect update
+
+# Describe what changed for targeted analysis
+/speckit.architect update "Migrated to microservices, added event sourcing and message queue"
 
 # Then proceed with normal workflow
 /speckit.specify "Feature within this architecture"
@@ -333,6 +345,13 @@ The toolkit includes comprehensive architecture documentation support that works
 | `map` | Reverse-engineer architecture from existing codebase (brownfield) |
 | `update` | Update architecture based on codebase/spec changes with impact analysis |
 | `review` | Validate architecture against constitution and perspectives |
+
+**Pro Tip**: Add context/prompts directly after the action for better results. For example:
+
+- `init "Enterprise healthcare SaaS for compliance tracking"` - AI understands system scope from the start
+- `map "Node.js microservices on Kubernetes"` - Combines codebase scan with your description
+- `update "Added authentication service and event sourcing"` - Focuses analysis on specific changes
+- `review "Focus on security and performance"` - Prioritizes specific architectural concerns
 
 #### Rozanski & Woods Viewpoints
 

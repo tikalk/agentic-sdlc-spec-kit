@@ -25,6 +25,15 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Examples of User Input**:
+
+- `init "B2B SaaS platform for supply chain management"`
+- `map "Django monolith with PostgreSQL, React frontend, AWS deployment"`
+- `update "Migrated to microservices, added event sourcing and Kafka"`
+- `review "Focus on security compliance and performance scalability"`
+
+When users provide context like this, use it to inform your architecture work. This context helps you understand system scope, constraints, and focus areas without needing to ask basic questions.
+
 ## Outline
 
 The text the user typed after `/speckit.architect` in the triggering message **is** the architecture action (init/map/update/review) and context. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
@@ -105,6 +114,10 @@ The command supports four actions:
 ### Phase 0: Context Discovery (for `init` and `map`)
 
 **Objective**: Establish stakeholders, concerns, and system scope
+
+**If user provided context in {ARGS}**: Parse it for system description, scope, and constraints. Use this to skip basic questions and focus on clarifying details.
+
+**If user provided minimal/no context**: Follow full discovery process below.
 
 1. **Identify Stakeholders**:
    - Read `memory/constitution.md` if it exists

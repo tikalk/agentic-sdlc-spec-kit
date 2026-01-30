@@ -16,7 +16,7 @@ for arg in "$@"; do
             ACTION="$arg"
             ;;
         --help|-h)
-            echo "Usage: $0 [action] [--json]"
+            echo "Usage: $0 [action] [context] [--json]"
             echo ""
             echo "Actions:"
             echo "  init     Initialize new memory/architecture.md from template"
@@ -27,6 +27,15 @@ for arg in "$@"; do
             echo "Options:"
             echo "  --json   Output results in JSON format"
             echo "  --help   Show this help message"
+            echo ""
+            echo "Examples:"
+            echo "  $0 init \"B2B SaaS for supply chain management\""
+            echo "  $0 map \"Django monolith with PostgreSQL and React\""
+            echo "  $0 update \"Added microservices and event sourcing\""
+            echo "  $0 review \"Focus on security and performance\""
+            echo ""
+            echo "Pro Tip: Add context/description after the action for better results."
+            echo "The AI will use your input to understand system scope and constraints."
             exit 0
             ;;
         *)

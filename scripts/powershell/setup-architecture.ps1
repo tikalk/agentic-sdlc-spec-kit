@@ -11,7 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Output "Usage: ./setup-architecture.ps1 [action] [-Json] [-Help]"
+    Write-Output "Usage: ./setup-architecture.ps1 [action] [context] [-Json] [-Help]"
     Write-Output ""
     Write-Output "Actions:"
     Write-Output "  init     Initialize new memory/architecture.md from template"
@@ -22,6 +22,15 @@ if ($Help) {
     Write-Output "Options:"
     Write-Output "  -Json    Output results in JSON format"
     Write-Output "  -Help    Show this help message"
+    Write-Output ""
+    Write-Output "Examples:"
+    Write-Output "  ./setup-architecture.ps1 init `"B2B SaaS for supply chain management`""
+    Write-Output "  ./setup-architecture.ps1 map `"Django monolith with PostgreSQL and React`""
+    Write-Output "  ./setup-architecture.ps1 update `"Added microservices and event sourcing`""
+    Write-Output "  ./setup-architecture.ps1 review `"Focus on security and performance`""
+    Write-Output ""
+    Write-Output "Pro Tip: Add context/description after the action for better results."
+    Write-Output "The AI will use your input to understand system scope and constraints."
     exit 0
 }
 
