@@ -390,7 +390,17 @@ Use **`/speckit.implement`** to execute all tasks and build your feature accordi
 /speckit.implement
 ```
 
-### 7. Level up and contribute knowledge
+### 7. Generate session trace (optional)
+
+Use **`/speckit.trace`** to generate comprehensive AI session execution traces capturing decisions, patterns, and outcomes.
+
+```bash
+/speckit.trace
+```
+
+**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/speckit.levelup` context packets when present.
+
+### 8. Level up and contribute knowledge
 
 Use **`/speckit.levelup`** to capture learnings from completed work and contribute reusable knowledge back to your team's shared repository.
 
@@ -551,6 +561,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/speckit.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
 | `/speckit.tasks`         | Generate actionable task lists for implementation     |
 | `/speckit.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
+| `/speckit.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup`) |
 | `/speckit.levelup`       | Capture learnings and contribute to team knowledge repository        |
 
 #### Optional Commands

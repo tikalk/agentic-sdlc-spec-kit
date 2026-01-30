@@ -187,6 +187,21 @@ Architecture support is now available in all workflow modes as optional commands
 - ❌ **Dynamic MCP Tool Resolution**: Use declarative tools pattern with configuration-driven tool selection based on detected issue tracker
 - ❌ **Multi-Tracker Support**: Support GitHub/Jira/Linear/GitLab issue formats with appropriate MCP tool routing
 
+#### **Session Trace Command (/trace)** *(100% Complete)* - **HIGH PRIORITY** - AI session documentation and learning
+
+- ✅ **Trace Generation Scripts**: Created bash and PowerShell scripts to generate traces from tasks_meta.json and feature artifacts
+- ✅ **Trace Validation Scripts**: Implemented validation for section completeness, coverage percentage, and quality gate statistics
+- ✅ **Command Template**: Created `/trace` command template with generation and validation workflows
+- ✅ **Trace Template**: Defined 5-section trace structure (Session Overview, Decision Patterns, Execution Context, Reusable Patterns, Evidence Links)
+- ✅ **Levelup Integration**: Modified `/levelup` to consume trace.md if exists (optional enrichment)
+- ✅ **Mode Support**: Works in both build and spec modes with appropriate trace depth
+- ✅ **Storage Location**: Traces stored in specs/{BRANCH}/trace.md with feature artifacts
+- ✅ **Overwrite Behavior**: Re-running `/trace` overwrites previous trace (single latest version)
+
+**Purpose**: Generate comprehensive AI session execution traces for knowledge sharing, pattern identification, and learning. Traces capture decision-making patterns, execution outcomes, quality gate results, and evidence links. Optional but enriches `/levelup` context packets when present.
+
+**Workflow**: `/implement` → `/trace` (generate session trace) → `/levelup` (consume trace for directives analysis)
+
 #### **Levelup Command Build Mode Compatibility** *(0% Complete)* - **HIGH PRIORITY** - AI session context management blocker
 
 - ❌ **Make Levelup Mode-Aware**: Update `/levelup` command to work in both build and spec modes
@@ -298,6 +313,79 @@ Architecture support is now available in all workflow modes as optional commands
 - **Output Location**: Generates artifacts in parallel `/architecture` folder separate from feature implementation specs
 - **Benefits**: Transforms AI from simple coder to System Architect capable of describing complex, production-ready ecosystems
 - **Implementation**: Template engine for 7 viewpoints, constraint injection into constitution.md, cross-view analysis linter in `/analyze`
+
+### **Architecture Enhancements** *(0% Complete)* - **NICE-TO-HAVE** - Visual and methodology improvements
+
+#### **Mermaid Diagram Auto-Generation** *(0% Complete)* - **NICE-TO-HAVE** - Visual architecture documentation
+
+- **Description**: Automatically generate Mermaid diagrams from architecture.md viewpoints to provide visual representation of system architecture alongside text descriptions
+- **Key Components**:
+  - Auto-generate Mermaid diagrams from architecture viewpoints (Context, Functional, Information, Concurrency, Deployment views)
+  - Support multiple diagram types: system context diagrams, component diagrams, sequence diagrams, deployment diagrams
+  - Embed generated diagrams directly in architecture.md sections for integrated documentation
+  - Update `/architect map` to generate diagrams when reverse-engineering from existing codebases
+  - Integrate diagram validation in `/architect review` command
+- **Benefits**: 
+  - Visual communication for stakeholders who prefer diagrams over text
+  - Enables architecture validation through visual inspection
+  - Improves architecture documentation accessibility for non-technical audiences
+  - Supports standard Mermaid syntax for version control and diffing
+- **Implementation**: 
+  - Add diagram generation logic to `scripts/bash/setup-architecture.sh` and PowerShell equivalent
+  - Create template snippets for each viewpoint's Mermaid diagram structure
+  - Update `templates/architecture-template.md` with diagram placeholders
+  - Integrate with existing `/architect` command workflow
+- **Status**: ❌ Not planned for immediate implementation (deferred as enhancement)
+- **Rationale**: Current text-based architecture documentation is sufficient; visual enhancements can be added after core workflow stability is proven
+
+#### **C4 Model Template Support** *(0% Complete)* - **NICE-TO-HAVE** - Alternative architecture methodology
+
+- **Description**: Add support for C4 Model (Context, Container, Component, Code) as an alternative to Rozanski & Woods methodology, allowing users to choose their preferred architecture documentation approach
+- **Key Components**:
+  - Create `templates/architecture-template-c4.md` following C4 Model structure with 4 levels (Context, Container, Component, Code)
+  - Add methodology selection to `/architect init` command with `--methodology` parameter (choices: rozanski-woods, c4)
+  - Store methodology preference in `.specify/config/config.json` under `architecture.methodology`
+  - Update `/architect map`, `/architect update`, and `/architect review` to respect selected methodology
+  - Support methodology-specific diagram generation when combined with Mermaid enhancement above
+- **C4 Model Structure**:
+  - **Level 1 - System Context**: Show system in context of users and other systems
+  - **Level 2 - Container**: Show high-level technology choices and how containers communicate
+  - **Level 3 - Component**: Show components within containers and their interactions
+  - **Level 4 - Code**: Optional detailed class/component diagrams (typically generated from code)
+- **Benefits**:
+  - Provides scalable architecture visualization approach favored by many organizations
+  - Simpler structure than Rozanski & Woods for smaller/medium systems
+  - Better support for microservices and containerized architectures
+  - Natural integration with Mermaid diagram generation (C4 diagrams are widely supported)
+- **Implementation**:
+  - Create new C4 template with appropriate sections and placeholders
+  - Add methodology detection to architecture scripts
+  - Update CLI to support `--methodology` parameter in init command
+  - Maintain backward compatibility with existing Rozanski & Woods default
+- **Status**: ❌ Not planned for immediate implementation (deferred as enhancement)
+- **Rationale**: Rozanski & Woods provides comprehensive enterprise coverage; C4 Model support can be added based on user demand after core adoption
+
+#### **Architecture Methodology Selection Framework** *(0% Complete)* - **NICE-TO-HAVE** - Extensible methodology support
+
+- **Description**: Create extensible framework for supporting multiple architecture methodologies beyond Rozanski & Woods and C4 Model, allowing future addition of TOGAF, ADR-style, or custom methodologies
+- **Key Components**:
+  - Methodology registry system in configuration
+  - Template discovery and validation mechanism
+  - User-configurable default methodology per project
+  - Methodology migration utilities (`/architect convert --from rozanski-woods --to c4`)
+  - Validation rules per methodology in `/architect review`
+- **Benefits**:
+  - Future-proof architecture support for emerging methodologies
+  - Enables teams to use organization-preferred frameworks
+  - Supports methodology transitions during project lifecycle
+- **Implementation**:
+  - Abstract methodology-specific logic into pluggable handlers
+  - Create methodology interface/contract for template authors
+  - Support custom template directories for organization-specific methodologies
+- **Status**: ❌ Not planned for immediate implementation (deferred as enhancement)
+- **Rationale**: Single methodology (Rozanski & Woods) sufficient for now; extensibility can be added if multiple methodologies are commonly requested
+
+**Cross-Reference**: These enhancements extend the **Optional Architecture Support** section (lines 135-148) which currently provides Rozanski & Woods templates. All enhancements maintain backward compatibility with existing architecture.md files.
 
 ### **Hook-Based Tool Auto-Activation** *(0% Complete)* - **MEDIUM PRIORITY** - Extends Factor X Strategic Tooling
 
@@ -430,6 +518,7 @@ Architecture support is now available in all workflow modes as optional commands
 
 |**Enhanced Traceability**|60%|⚠️ Partially Complete|
 |**Strategic Tooling**|60%|⚠️ Partially Complete|
+|**Session Trace Command**|100%|✅ Complete|
 |**Async Context Delivery**|0%|🔄 Current Phase (CRITICAL)|
 |**Build Mode Bug Fix**|0%|🔄 Current Phase|
 |**Levelup Build Mode**|0%|🔄 Current Phase|
@@ -441,6 +530,7 @@ Architecture support is now available in all workflow modes as optional commands
 |**Spec Management**|0%|🔄 Current Phase|
 |**Workflow Utilities**|0%|🔄 Current Phase|
 |**Command Prefix Migration**|0%|🚀 Next Phase (Deferred)|
+|**Architecture Enhancements**|0%|🆕 Future Phase (Nice-to-have)|
 |**Hook-Based Tool Auto-Activation**|0%|🆕 Future Phase|
 |**Agent Skill Modularization**|0%|🆕 Future Phase|
 |**Agent Testing Infrastructure**|0%|🆕 Future Phase|
@@ -493,11 +583,15 @@ Architecture support is now available in all workflow modes as optional commands
 
 **🆕 FUTURE PHASE (Complete After Current Phase):**
 
-1. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
-2. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
-3. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
-4. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)
-5. **LOW**: Agent skill modularization (0% → future consideration)
-6. **LOW**: Code quality automation (0% → future consideration)
-7. **LOW**: Feature-level mode configuration (0% → future consideration)
-8. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)
+1. **NICE-TO-HAVE**: Architecture enhancements (0% → future consideration)
+   - Mermaid diagram auto-generation for visual architecture documentation
+   - C4 Model template support as alternative to Rozanski & Woods
+   - Architecture methodology selection framework for extensibility
+2. **MEDIUM**: Hook-based tool auto-activation (0% → future consideration)
+3. **MEDIUM**: Agent-optimized testing infrastructure (0% → future consideration)
+4. **MEDIUM**: GitHub issues integration enhancement (0% → future consideration)
+5. **MEDIUM**: Resilience & Self-Healing (0% → future consideration)
+6. **LOW**: Agent skill modularization (0% → future consideration)
+7. **LOW**: Code quality automation (0% → future consideration)
+8. **LOW**: Feature-level mode configuration (0% → future consideration)
+9. **LOW**: IDE Integration & advanced cockpit features (0% → future consideration)

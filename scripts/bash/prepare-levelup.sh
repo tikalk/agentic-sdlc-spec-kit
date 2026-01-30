@@ -44,9 +44,15 @@ else
     KNOWLEDGE_ROOT=""
 fi
 
+# Check for trace file (optional)
+TRACE_FILE="$FEATURE_DIR/trace.md"
+if [[ ! -f "$TRACE_FILE" ]]; then
+    TRACE_FILE=""
+fi
+
 if $JSON_MODE; then
-    printf '{"FEATURE_DIR":"%s","BRANCH":"%s","SPEC_FILE":"%s","PLAN_FILE":"%s","TASKS_FILE":"%s","RESEARCH_FILE":"%s","QUICKSTART_FILE":"%s","KNOWLEDGE_ROOT":"%s","KNOWLEDGE_DRAFTS":"%s"}\n' \
-        "$FEATURE_DIR" "$CURRENT_BRANCH" "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" "$RESEARCH" "$QUICKSTART" "$KNOWLEDGE_ROOT" "$KNOWLEDGE_DRAFTS"
+    printf '{"FEATURE_DIR":"%s","BRANCH":"%s","SPEC_FILE":"%s","PLAN_FILE":"%s","TASKS_FILE":"%s","RESEARCH_FILE":"%s","QUICKSTART_FILE":"%s","TRACE_FILE":"%s","KNOWLEDGE_ROOT":"%s","KNOWLEDGE_DRAFTS":"%s"}\n' \
+        "$FEATURE_DIR" "$CURRENT_BRANCH" "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" "$RESEARCH" "$QUICKSTART" "$TRACE_FILE" "$KNOWLEDGE_ROOT" "$KNOWLEDGE_DRAFTS"
 else
     echo "FEATURE_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
@@ -55,6 +61,11 @@ else
     echo "TASKS_FILE: $TASKS"
     echo "RESEARCH_FILE: $RESEARCH"
     echo "QUICKSTART_FILE: $QUICKSTART"
+    if [[ -n "$TRACE_FILE" ]]; then
+        echo "TRACE_FILE: $TRACE_FILE"
+    else
+        echo "TRACE_FILE: (missing - optional)"
+    fi
     if [[ -n "$KNOWLEDGE_ROOT" ]]; then
         echo "KNOWLEDGE_ROOT: $KNOWLEDGE_ROOT"
         echo "KNOWLEDGE_DRAFTS: $KNOWLEDGE_DRAFTS"
