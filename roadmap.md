@@ -141,7 +141,7 @@
 - ✅ **Setup Scripts (Bash)**: `scripts/bash/setup-architecture.sh` (449 lines) with tech detection, directory mapping, API scanning - production-ready.
 - ✅ **Setup Scripts (PS1)**: `scripts/powershell/setup-architecture.ps1` - PowerShell equivalent complete.
 - ✅ **Mode Documentation**: `templates/commands/mode.md:128-138` - AD mode workflow fully documented with use cases and artifacts.
-- ✅ **Codebase Mapper (/map)**: `/architect map` action fully implemented with language, framework, database, and infrastructure detection for brownfield projects.
+- ✅ **Codebase Mapper (/map)**: `/architect map` action fully implemented with language, framework, database, and infrastructure detection for brownfield projects. **[DESIGN DECISION LOCKED - Option A]**: Detects technologies and **populates `architecture.md` Section C** (Tech Stack Summary) directly. Single source of truth: `architecture.md` Section C (no separate `tech-stack.md` file). Enables Constitution validation against architecture.
 - ⚠️ **Plan Script Updates**: `scripts/bash/setup-plan.sh:46` hardcoded to `plan-template.md` - **MISSING MODE DETECTION** (critical blocker).
 - ⚠️ **plan-template-ad.md**: **DOES NOT EXIST** - template file missing (blocks schema generation guidance).
 - ❌ **Mode Detection Utility**: No `get_current_mode()` function in `scripts/bash/common.sh` - needed by setup-plan.sh.
@@ -163,6 +163,14 @@
 4. Add `Get-CurrentMode` to `scripts/powershell/common.ps1` (2-3 hours)
 5. Update `scripts/powershell/setup-plan.ps1` with mode detection (1-2 hours)
 6. Update `src/specify_cli/__init__.py` help text to mention AD mode (1 hour)
+7. **[NEW] Modify `scripts/bash/setup-architecture.sh` action_map()** to populate `architecture.md` Section C (2-3 hours)
+   - Parse architecture.md and locate Section C: Tech Stack Summary
+   - Replace [PLACEHOLDER] values with detected technologies
+   - Update architecture.md directly (single source of truth)
+   - **REMOVE tech-stack.md generation** (no separate inventory file)
+   - Add PowerShell equivalent in `scripts/powershell/setup-architecture.ps1`
+
+**Total Phase 1: ~12-17 hours (~3 days)** (was 10-13 hours; design improvement adds proper integration)
 
 **Phase 2 Decisions (Before Implementation)**:
 - Which schema formats? (Recommendation: OpenAPI 3.1 + JSON Schema)
@@ -173,6 +181,32 @@
 - Drift scope? (Recommendation: API endpoints focus, expand to database later)
 - Detection strategy? (Recommendation: Language-specific pattern matching)
 - Integration? (Recommendation: Both auto in /analyze + on-demand command)
+
+**🎯 CRITICAL DESIGN DECISION - SINGLE SOURCE OF TRUTH FOR TECH STACK** *(User-Identified & Locked)*:
+
+**Issue Identified**: architecture.md already has Section C (Tech Stack Summary), but `/architect map` was creating separate `memory/tech-stack.md` → redundancy and broken Constitution validation.
+
+**Decision LOCKED - Option A** ✅:
+- `/architect map` detects tech from codebase (existing ✅)
+- **POPULATES `architecture.md` Section C directly** (NEW)
+- **NO separate `tech-stack.md` file** (removed from design)
+- **Single source of truth**: `architecture.md` Section C
+- **Constitution can validate** against official architecture doc
+
+**Rationale**:
+- ✅ One authoritative system design document (architecture.md)
+- ✅ Constitution validation path clear (references architecture.md Section C)
+- ✅ Complete architecture docs (no [PLACEHOLDER] format)
+- ✅ Phases 2 & 3 can reference unified tech context
+- ✅ Easier maintenance (no file sync needed)
+
+**Implementation Impact**:
+- Phase 1 Task 7 (NEW): Modify setup-architecture.sh action_map() to populate architecture.md Section C
+- Phase 1F adds 2-3 hours → total Phase 1 now 12-17 hours
+- Both Bash and PowerShell scripts updated
+
+**Phase 2 Benefit**: Schema generation references architecture.md Section C for tech context
+**Phase 3 Benefit**: /analyze validates code against architecture.md Section C AND constitution
 
 ---
 
