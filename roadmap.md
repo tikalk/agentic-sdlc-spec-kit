@@ -114,10 +114,11 @@
 #### **Configurable Framework Options** *(100% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
 
 - ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via `/mode` command
-- ✅ **Consolidated Configuration**: Unified `mode.json` with `options` section (renamed from `opinions.json`)
+- ✅ **Consolidated Configuration**: Unified `config.json` with `options` section
 - ✅ **Mode-Based Preferences**: Different defaults for build vs spec modes
 - ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional
 - ✅ **User-Driven Defaults**: Users can override mode defaults with custom settings
+- ✅ **Architecture Support**: Optional architecture documentation available in all modes via `/architect` commands
 
 ---
 
@@ -131,82 +132,22 @@
 - ❌ **Smart Trace Validation**: Enhanced `/analyze` claims trace detection but implementation not found
 - ❌ **Task-to-Issues Command**: Template exists but actual implementation script missing
 
-### **Architecture Description (AD) Mode** *(40% Complete)* - **HIGH PRIORITY** - Enterprise Architecture Support
+### **Optional Architecture Support** *(100% Complete)* - **COMPLETED** - Enterprise Architecture Features
 
-**Codebase Status**: Infrastructure 90% complete; critical blocker preventing user adoption. See implementation plan below.
+Architecture support is now available in all workflow modes as optional commands. The `/architect` and `/constitution` commands work silently in any mode, with no warnings if files are missing.
 
-- ✅ **CLI Config Update**: AD mode in `src/specify_cli/__init__.py:433-438` with all options enabled by default.
-- ✅ **Architecture Templates**: `templates/architecture-template.md` complete with 7 Rozanski & Woods viewpoints + 2 perspectives (Security, Performance & Scalability).
-- ✅ **Architect Command**: `templates/commands/architect.md` fully implemented with init/map/update/review actions + handoffs.
-- ✅ **Setup Scripts (Bash)**: `scripts/bash/setup-architecture.sh` (449 lines) with tech detection, directory mapping, API scanning - production-ready.
-- ✅ **Setup Scripts (PS1)**: `scripts/powershell/setup-architecture.ps1` - PowerShell equivalent complete.
-- ✅ **Mode Documentation**: `templates/commands/mode.md:128-138` - AD mode workflow fully documented with use cases and artifacts.
-- ✅ **Codebase Mapper (/map)**: `/architect map` action fully implemented with language, framework, database, and infrastructure detection for brownfield projects. **[DESIGN DECISION LOCKED - Option A]**: Detects technologies and **populates `architecture.md` Section C** (Tech Stack Summary) directly. Single source of truth: `architecture.md` Section C (no separate `tech-stack.md` file). Enables Constitution validation against architecture.
-- ⚠️ **Plan Script Updates**: `scripts/bash/setup-plan.sh:46` hardcoded to `plan-template.md` - **MISSING MODE DETECTION** (critical blocker).
-- ⚠️ **plan-template-ad.md**: **DOES NOT EXIST** - template file missing (blocks schema generation guidance).
-- ❌ **Mode Detection Utility**: No `get_current_mode()` function in `scripts/bash/common.sh` - needed by setup-plan.sh.
-- ❌ **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*: Enhance `plan` templates in AD mode to explicitly output standard schema formats (OpenAPI, JSON Schema, AsyncAPI) into the `contracts/` folder, making the spec "executable." Templates exist but no generation logic or `/contracts/` scaffolding. **Phase 2 feature (design + decision required)**.
-- ❌ **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: No drift detection in `/analyze` command. **Phase 3 feature (design + decision required)**.
+- ✅ **Architecture Templates**: Complete Rozanski & Woods 7 viewpoints + 2 perspectives (Security, Performance & Scalability)
+- ✅ **Architect Command**: `/architect` with init/map/update/review actions fully implemented
+- ✅ **Setup Scripts**: Both bash and PowerShell implementations complete
+- ✅ **Brownfield Support**: `/architect map` detects technologies and populates `architecture.md` Section C directly
+- ✅ **Mode Integration**: Architecture commands available in both build and spec modes
+- ✅ **Silent Operation**: No errors or warnings when architecture.md missing
+- ✅ **Constitution Support**: Optional project principles via `/constitution` command
+- ✅ **Single Source of Truth**: `architecture.md` Section C contains tech stack (no separate files)
 
-**🎯 AD Mode Implementation Plan** *(3-Phase Critical Path - See Below)*
-
-| Phase | Duration | Blocker | Result |
-|-------|----------|---------|--------|
-| **Phase 1: Enable AD Mode** | 2-3 days | Mode detection + templates | Users can use `/mode ad` → `/plan` → get AD-specific template |
-| **Phase 2: Schema Generation** | 3-4 days | Format decisions (OpenAPI? + JSON Schema?) | `/contracts/openapi.yaml` + schema generation working |
-| **Phase 3: Drift Detection** | 4-5 days | Scope decisions (API only?) | `/analyze` reports spec-code misalignment |
-
-**Phase 1 Tasks (CRITICAL - Must Complete First)**:
-1. Add `get_current_mode()` function to `scripts/bash/common.sh` (2-3 hours)
-2. Update `scripts/bash/setup-plan.sh` with mode detection logic (1-2 hours)
-3. Create `templates/plan-template-ad.md` with schema guidance (3-4 hours)
-4. Add `Get-CurrentMode` to `scripts/powershell/common.ps1` (2-3 hours)
-5. Update `scripts/powershell/setup-plan.ps1` with mode detection (1-2 hours)
-6. Update `src/specify_cli/__init__.py` help text to mention AD mode (1 hour)
-7. **[NEW] Modify `scripts/bash/setup-architecture.sh` action_map()** to populate `architecture.md` Section C (2-3 hours)
-   - Parse architecture.md and locate Section C: Tech Stack Summary
-   - Replace [PLACEHOLDER] values with detected technologies
-   - Update architecture.md directly (single source of truth)
-   - **REMOVE tech-stack.md generation** (no separate inventory file)
-   - Add PowerShell equivalent in `scripts/powershell/setup-architecture.ps1`
-
-**Total Phase 1: ~12-17 hours (~3 days)** (was 10-13 hours; design improvement adds proper integration)
-
-**Phase 2 Decisions (Before Implementation)**:
-- Which schema formats? (Recommendation: OpenAPI 3.1 + JSON Schema)
-- When to generate? (Recommendation: On-demand + optional auto during /plan)
-- How to generate? (Recommendation: AI generation from plan.md description)
-
-**Phase 3 Decisions (Before Implementation)**:
-- Drift scope? (Recommendation: API endpoints focus, expand to database later)
-- Detection strategy? (Recommendation: Language-specific pattern matching)
-- Integration? (Recommendation: Both auto in /analyze + on-demand command)
-
-**🎯 CRITICAL DESIGN DECISION - SINGLE SOURCE OF TRUTH FOR TECH STACK** *(User-Identified & Locked)*:
-
-**Issue Identified**: architecture.md already has Section C (Tech Stack Summary), but `/architect map` was creating separate `memory/tech-stack.md` → redundancy and broken Constitution validation.
-
-**Decision LOCKED - Option A** ✅:
-- `/architect map` detects tech from codebase (existing ✅)
-- **POPULATES `architecture.md` Section C directly** (NEW)
-- **NO separate `tech-stack.md` file** (removed from design)
-- **Single source of truth**: `architecture.md` Section C
-- **Constitution can validate** against official architecture doc
-
-**Rationale**:
-- ✅ One authoritative system design document (architecture.md)
-- ✅ Constitution validation path clear (references architecture.md Section C)
-- ✅ Complete architecture docs (no [PLACEHOLDER] format)
-- ✅ Phases 2 & 3 can reference unified tech context
-- ✅ Easier maintenance (no file sync needed)
-
-**Implementation Impact**:
-- Phase 1 Task 7 (NEW): Modify setup-architecture.sh action_map() to populate architecture.md Section C
-- Phase 1F adds 2-3 hours → total Phase 1 now 12-17 hours
-- Both Bash and PowerShell scripts updated
-
-**Phase 2 Benefit**: Schema generation references architecture.md Section C for tech context
-**Phase 3 Benefit**: /analyze validates code against architecture.md Section C AND constitution
+**Future Enhancements** *(Deferred - Not Blocking)*:
+- **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder
+- **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: Automated detection of spec-code misalignment in `/analyze` command
 
 ---
 
@@ -402,6 +343,8 @@
 - ❌ **Mode Compatibility Validation**: Ensure feature modes are compatible with project infrastructure
 - ❌ **Mode Migration Support**: Tools to change feature modes mid-development
 
+**Note**: Architecture support is now available in all modes, not tied to specific workflow modes.
+
 #### **Issue Tracker Automation** *(0% Complete)* - **FUTURE ENHANCEMENT** - Separate from documentation updates
 
 - ❌ **Automated Status Updates**: Sync documentation changes with issue status (GitHub/Jira/Linear)
@@ -508,10 +451,12 @@
 3. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker (depends on #2)
 4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
 5. **HIGH**: Build Mode "GSD" Upgrade (0% → 100%) - High-velocity execution mode (depends on #2)
-6. **HIGH**: Architecture Description (AD) Mode - Phase 1 (40% → 100%) - **CRITICAL BLOCKER: Mode detection + plan-template-ad.md** (2-3 days work unlocks enterprise architecture support)
-   - Phase 1 (2-3 days): Mode detection utility + plan-template-ad.md → AD mode becomes USABLE
-   - Phase 2 (3-4 days): Schema generation design + implementation → EXECUTABLE SPECIFICATIONS
-   - Phase 3 (4-5 days): Drift detection design + implementation → SPEC-CODE SYNC
+6. **COMPLETED**: Optional Architecture Support (100%) - Architecture commands now available in all modes
+   - ✅ Mode detection utilities implemented (get_current_mode functions)
+   - ✅ Architecture loading matches constitution pattern
+   - ✅ Silent operation - no warnings when files missing
+   - ⏭️  Schema generation (deferred - future enhancement)
+   - ⏭️  Drift detection (deferred - future enhancement)
 7. **MEDIUM**: Context Intelligence & Optimization (0% → 100%) - Directives scanner + compliance validation
 8. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
 9. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance

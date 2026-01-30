@@ -9,16 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-01-30
+
+### Changed
+
+- **BREAKING: Removed AD Mode**: Architecture support is now optional and available in all workflow modes
+  - Removed "ad" mode option from `/mode` command
+  - Only `build` and `spec` workflow modes remain
+  - `/speckit.architect` and `/speckit.constitution` commands now work in all modes
+  - Architecture and constitution files load silently when present, with no warnings if missing
+  - Automatic migration: existing "ad" mode configurations treated as "spec" mode
+  - Added `get_current_mode()` / `Get-CurrentMode` functions to bash and PowerShell scripts
+  - Updated `setup-plan.sh` and `setup-plan.ps1` to detect mode and load architecture automatically
+
 ### Added
 
-- **Architecture Description (AD) Mode**: New workflow mode for architecture-first development
-  - New `/speckit.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
+- **Optional Architecture Support**: Architecture documentation available in all modes
+  - `/speckit.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
   - 7 Core Viewpoints: Context, Functional, Information, Concurrency, Development, Deployment, Operational
   - 2 Cross-cutting Perspectives: Security, Performance & Scalability
   - Four actions: `init` (greenfield), `map` (brownfield/reverse-engineering), `update` (sync with changes), `review` (validation)
   - Language-agnostic codebase scanning for brownfield projects
   - Generates `memory/architecture.md` as central architecture artifact
-  - AD mode added to mode configuration alongside `build` and `spec` modes
+  - Works silently in both build and spec modes
   - Templates: `templates/architecture-template.md` and `templates/commands/architect.md`
   - Scripts: `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`
 

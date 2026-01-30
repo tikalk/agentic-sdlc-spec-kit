@@ -31,8 +31,15 @@ if (-not (Test-FeatureBranch -Branch $paths.CURRENT_BRANCH -HasGit $paths.HAS_GI
 # Ensure the feature directory exists
 New-Item -ItemType Directory -Path $paths.FEATURE_DIR -Force | Out-Null
 
-# Copy plan template if it exists, otherwise note it or create empty file
-$template = Join-Path $paths.REPO_ROOT '.specify/templates/plan-template.md'
+# Detect current workflow mode and select appropriate plan template
+$currentMode = Get-CurrentMode
+
+if ($currentMode -eq 'build') {
+    $template = Join-Path $paths.REPO_ROOT '.specify/templates/plan-template-build.md'
+} else {
+    $template = Join-Path $paths.REPO_ROOT '.specify/templates/plan-template.md'
+}
+
 if (Test-Path $template) { 
     Copy-Item $template $paths.IMPL_PLAN -Force
     Write-Output "Copied plan template to $($paths.IMPL_PLAN)"
@@ -62,6 +69,17 @@ if (Test-Path $teamDirectives) {
     $teamDirectives = ''
 }
 
+# Resolve architecture path (prefer env override, silent if missing)
+$architectureFile = $env:SPECIFY_ARCHITECTURE
+if (-not $architectureFile) {
+    $architectureFile = Join-Path $paths.REPO_ROOT '.specify/memory/architecture.md'
+}
+if (Test-Path $architectureFile) {
+    $env:SPECIFY_ARCHITECTURE = $architectureFile
+} else {
+    $architectureFile = ''
+}
+
 # Output results
 if ($Json) {
     $result = [PSCustomObject]@{ 
@@ -72,6 +90,7 @@ if ($Json) {
         HAS_GIT = $paths.HAS_GIT
         CONSTITUTION = $constitutionFile
         TEAM_DIRECTIVES = $teamDirectives
+        ARCHITECTURE = $architectureFile
     }
     $result | ConvertTo-Json -Compress
 } else {
@@ -89,5 +108,10 @@ if ($Json) {
         Write-Output "TEAM_DIRECTIVES: $teamDirectives"
     } else {
         Write-Output "TEAM_DIRECTIVES: (missing)"
+    }
+    if ($architectureFile) {
+        Write-Output "ARCHITECTURE: $architectureFile"
+    } else {
+        Write-Output "ARCHITECTURE: (missing)"
     }
 }

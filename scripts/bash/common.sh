@@ -13,6 +13,30 @@ get_global_config_path() {
     echo "$config_home/specify/config.json"
 }
 
+# Get current workflow mode from global config (build or spec)
+# Defaults to "spec" if config doesn't exist or mode is invalid
+get_current_mode() {
+    local config_file
+    config_file=$(get_global_config_path)
+    
+    # Default to spec mode if no config exists
+    if [[ ! -f "$config_file" ]] || ! command -v jq >/dev/null 2>&1; then
+        echo "spec"
+        return
+    fi
+    
+    # Read mode from config, default to spec
+    local mode
+    mode=$(jq -r '.workflow.current_mode // "spec"' "$config_file" 2>/dev/null)
+    
+    # Validate mode (only build or spec allowed, treat "ad" as spec for migration)
+    if [[ "$mode" == "build" || "$mode" == "spec" ]]; then
+        echo "$mode"
+    else
+        echo "spec"  # Fallback for invalid values including "ad"
+    fi
+}
+
 load_team_directives_config() {
     local repo_root="$1"
 

@@ -17,6 +17,31 @@ function Get-GlobalConfigPath {
     return Join-Path $configDir "specify" "config.json"
 }
 
+# Get current workflow mode from global config (build or spec)
+# Defaults to "spec" if config doesn't exist or mode is invalid
+function Get-CurrentMode {
+    $configFile = Get-GlobalConfigPath
+    
+    # Default to spec mode if no config exists
+    if (-not (Test-Path $configFile)) {
+        return 'spec'
+    }
+    
+    try {
+        $config = Get-Content $configFile -Raw | ConvertFrom-Json
+        $mode = $config.workflow.current_mode
+        
+        # Validate mode (only build or spec allowed, treat "ad" as spec for migration)
+        if ($mode -eq 'build' -or $mode -eq 'spec') {
+            return $mode
+        }
+        return 'spec'  # Fallback for invalid values including "ad"
+    }
+    catch {
+        return 'spec'  # Fallback on any error
+    }
+}
+
 function Get-RepoRoot {
     try {
         $result = git rev-parse --show-toplevel 2>$null

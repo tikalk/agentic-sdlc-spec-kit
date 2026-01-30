@@ -42,8 +42,15 @@ fi
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
 
-# Copy plan template if it exists
-TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
+# Detect current workflow mode and select appropriate plan template
+CURRENT_MODE=$(get_current_mode)
+
+if [[ "$CURRENT_MODE" == "build" ]]; then
+    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template-build.md"
+else
+    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
+fi
+
 if [[ -f "$TEMPLATE" ]]; then
     cp "$TEMPLATE" "$IMPL_PLAN"
     echo "Copied plan template to $IMPL_PLAN"
@@ -90,10 +97,21 @@ else
     TEAM_DIRECTIVES_DIR=""
 fi
 
+# Resolve architecture path (prefer env override, silent if missing)
+ARCHITECTURE_FILE="${SPECIFY_ARCHITECTURE:-}"
+if [[ -z "$ARCHITECTURE_FILE" ]]; then
+    ARCHITECTURE_FILE="$REPO_ROOT/.specify/memory/architecture.md"
+fi
+if [[ -f "$ARCHITECTURE_FILE" ]]; then
+    export SPECIFY_ARCHITECTURE="$ARCHITECTURE_FILE"
+else
+    ARCHITECTURE_FILE=""
+fi
+
 # Output results
 if $JSON_MODE; then
-    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","CONTEXT_FILE":"%s"}\n' \
-        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$CONTEXT_FILE"
+    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","ARCHITECTURE":"%s","CONTEXT_FILE":"%s"}\n' \
+        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$ARCHITECTURE_FILE" "$CONTEXT_FILE"
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
     echo "IMPL_PLAN: $IMPL_PLAN" 
@@ -109,6 +127,11 @@ else
         echo "TEAM_DIRECTIVES: $TEAM_DIRECTIVES_DIR"
     else
         echo "TEAM_DIRECTIVES: (missing)"
+    fi
+    if [[ -n "$ARCHITECTURE_FILE" ]]; then
+        echo "ARCHITECTURE: $ARCHITECTURE_FILE"
+    else
+        echo "ARCHITECTURE: (missing)"
     fi
     echo "CONTEXT_FILE: $CONTEXT_FILE"
 fi

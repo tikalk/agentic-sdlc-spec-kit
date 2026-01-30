@@ -248,7 +248,6 @@ Specify supports two workflow modes that control the complexity level of the dev
 
 - **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
 - **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
-- **`ad` mode**: Architecture-first workflow using Rozanski & Woods methodology for complex enterprise systems
 
 #### Mode Commands
 
@@ -261,9 +260,6 @@ Specify supports two workflow modes that control the complexity level of the dev
 
 # Switch to spec mode (comprehensive development)
 /mode spec
-
-# Switch to AD mode (architecture-driven development)
-/mode ad
 
 # Show detailed information about all modes
 /mode --info
@@ -284,13 +280,6 @@ Specify supports two workflow modes that control the complexity level of the dev
 - Team collaboration with detailed documentation
 - Production systems needing comprehensive validation
 - When you need full traceability and quality gates
-
-**Use `ad` mode for:**
-
-- Complex enterprise systems requiring formal architecture documentation
-- Brownfield/modernization projects needing existing system mapping
-- Microservices architectures with multiple stakeholders
-- Systems with strict security, performance, or compliance requirements
 
 #### Mode-Aware Commands
 
@@ -313,26 +302,26 @@ specify init my-project \
   --async-agent jules
 ```
 
-### Architecture-Driven Development (AD Mode)
+### Optional Architecture Support
 
-For complex enterprise systems, use Architecture-Driven Development to establish system-level architecture before feature implementation.
+The toolkit includes comprehensive architecture documentation support that works with both build and spec modes. Architecture commands are optional and can be used at any time, regardless of workflow mode.
 
-#### AD Mode Workflow
+#### Architecture Workflow
 
 ```bash
-# 1. Switch to AD mode
-/mode ad
-
-# 2. Initialize architecture (greenfield)
+# Initialize architecture documentation (greenfield projects)
 /speckit.architect init
 
-# 3. Or map existing codebase (brownfield)
+# Map existing codebase architecture (brownfield projects)
 /speckit.architect map
 
-# 4. Review architecture against constitution
+# Review architecture against constitution
 /speckit.architect review
 
-# 5. Then proceed with normal workflow
+# Update architecture as system evolves
+/speckit.architect update
+
+# Then proceed with normal workflow
 /speckit.specify "Feature within this architecture"
 ```
 
@@ -470,7 +459,7 @@ The `specify` command supports the following options:
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
-| `<mode>`        | Argument | Workflow mode: `build` (lightweight), `spec` (comprehensive), or `ad` (architecture-driven) - leave empty to show current mode |
+| `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
 | `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
 | `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
@@ -543,7 +532,6 @@ specify check
 /mode                    # Show current mode
 /mode build             # Switch to lightweight build mode
 /mode spec              # Switch to comprehensive spec mode
-/mode ad                # Switch to architecture-driven mode
 /mode --info            # Show detailed mode information
 ```
 

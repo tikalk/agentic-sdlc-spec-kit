@@ -50,16 +50,9 @@ Given that input, do this:
 
 **NOTE:** The script creates or updates the architecture file before execution. You are responsible for populating it with substantial content following the Rozanski & Woods structure.
 
-## Mode Detection
+## Availability
 
-1. **Check Current Workflow Mode**: Determine if the user is in "ad" (Architecture-Driven), "spec", or "build" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
-
-2. **Mode-Aware Behavior**:
-   - **AD Mode** (Architecture-Driven): Architecture is **required before feature development**. All features must align with the global architecture established here. This mode prioritizes structural integrity and system-wide consistency.
-   - **Spec Mode**: Architecture is **optional enhancement**. Helpful for complex systems with multiple services or intricate data flows, but not mandatory. Features can be developed with or without explicit architecture documentation.
-   - **Build Mode**: Architecture is **not recommended** (too heavyweight). Use `/specify` for rapid feature exploration instead.
-
-3. **Recommendation**: If user is not in `ad` mode, inform them that `/mode ad` is recommended for architecture-first development, especially for new systems or significant architectural decisions.
+Architecture commands are available in all workflow modes (build and spec). They operate silently - no errors or warnings if architecture.md or related files are missing. Architecture documentation is optional and can be used whenever system-level design is beneficial.
 
 ## Goal
 
@@ -285,11 +278,12 @@ During generation, provide progress indicators:
 
 ### Mode-Aware Behavior
 
-- In `ad` mode: Architecture is **required** before `/speckit.specify`
-- In `spec` mode: Architecture is **optional** enhancement
-- In `build` mode: Architecture is **not recommended** (too heavyweight)
+Architecture documentation is optional in all modes:
+- Use when system complexity requires formal documentation
+- Skip for simple, single-service applications
+- Architecture commands work silently regardless of mode
 
-## Mode Guidance & Transitions
+## Workflow Guidance & Transitions
 
 ### After `/speckit.architect init`
 
