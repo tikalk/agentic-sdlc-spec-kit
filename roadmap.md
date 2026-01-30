@@ -146,6 +146,7 @@ Architecture support is now available in all workflow modes as optional commands
 - ✅ **Single Source of Truth**: `architecture.md` Section C contains tech stack (no separate files)
 
 **Future Enhancements** *(Deferred - Not Blocking)*:
+
 - **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder
 - **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: Automated detection of spec-code misalignment in `/analyze` command
 

@@ -279,6 +279,7 @@ During generation, provide progress indicators:
 ### Mode-Aware Behavior
 
 Architecture documentation is optional in all modes:
+
 - Use when system complexity requires formal documentation
 - Skip for simple, single-service applications
 - Architecture commands work silently regardless of mode
