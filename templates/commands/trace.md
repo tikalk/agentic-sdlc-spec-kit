@@ -13,6 +13,7 @@ validation_script:
 The `/trace` command generates comprehensive AI session execution traces from implementation metadata and feature artifacts. Traces include a **human-friendly Summary** (Problem → Key Decisions → Final Solution) followed by detailed technical sections for tool integration and learning.
 
 **Purpose**:
+
 - **Narrative summary** - Quick scan of what happened (Problem/Decisions/Solution)
 - Document AI agent session for reusability
 - Capture decision-making patterns and problem-solving approaches
@@ -28,7 +29,7 @@ The `/trace` command generates comprehensive AI session execution traces from im
 
 Run `/trace` after completing `/implement` to capture the full execution session:
 
-```
+```text
 /implement → tasks_meta.json created
      ↓
 /trace → Generate session trace
@@ -39,6 +40,7 @@ specs/{BRANCH}/trace.md created
 ```
 
 **Best Practices**:
+
 - Run after all tasks complete and quality gates pass
 - Generate before `/levelup` for richer context packets
 - Re-run to update trace as understanding evolves
@@ -64,14 +66,17 @@ If any prerequisite fails, **STOP** with clear error message directing user to r
 The generation script automatically extracts:
 
 #### Summary Section (NEW)
+
 Human-friendly 3-part narrative placed at the top:
 
 **Problem**:
+
 - Extracted from spec mission + all user stories
 - Synthesized into 1-2 sentence goal statement
 - Example: "Implement user authentication with JWT tokens and refresh token rotation"
 
 **Key Decisions** (chronologically):
+
 - Architecture decisions (framework, design choices)
 - Technology choices (libraries, tools)
 - Testing strategy (TDD, risk-based)
@@ -82,6 +87,7 @@ Human-friendly 3-part narrative placed at the top:
 - Example: "1. Chose React with TypeScript 2. Implemented TDD approach 3. Applied dual execution loop..."
 
 **Final Solution**:
+
 - Outcome statement with key metrics
 - Quality gate pass rate
 - User story completion count
@@ -92,27 +98,32 @@ Human-friendly 3-part narrative placed at the top:
 ---
 
 #### Section 1: Session Overview
+
 - Feature title and mission
 - Key architectural decisions from plan
 - Implementation approach summary
 
 #### Section 2: Decision Patterns
+
 - Triage classification (SYNC vs ASYNC breakdown)
 - Technology choices and stack
 - Problem-solving approaches used
 
 #### Section 3: Execution Context
+
 - Quality gate statistics (passed/failed/total)
 - Execution modes distribution (SYNC/ASYNC)
 - Review status (micro-reviewed/macro-reviewed)
 - MCP job tracking (if applicable)
 
 #### Section 4: Reusable Patterns
+
 - Effective methodologies (ASYNC delegation success, micro-review patterns)
 - Testing approaches (TDD, risk-based testing)
 - Applicable contexts for pattern reuse
 
 #### Section 5: Evidence Links
+
 - Implementation commits and messages
 - Issue tracker references (@issue-tracker links)
 - Modified code paths
@@ -132,15 +143,18 @@ Human-friendly 3-part narrative placed at the top:
 #### Validation Criteria
 
 **Section Completeness**:
+
 - ✅ Each section exists and has ≥5 lines
 - ✅ All 5 sections present (80%+ coverage required)
 
 **Quality Indicators**:
+
 - Quality gate pass rate ≥80% (warning if lower)
 - Evidence links include commits and issues
 - Reusable patterns identified
 
 **Coverage Thresholds**:
+
 - **100%**: All sections complete - Excellent
 - **80-99%**: Most sections complete - Good
 - **<80%**: Incomplete trace - Needs improvement
@@ -149,7 +163,7 @@ Human-friendly 3-part narrative placed at the top:
 
 Display validation report including:
 
-```
+```text
 ✅ Trace generation complete
    File: specs/001-feature-name/trace.md
    Sections: Summary + 5 sections (6/6)
@@ -171,7 +185,7 @@ Quality Gates:
 
 If validation fails (coverage <80%), show warnings and recommendations:
 
-```
+```text
 ⚠️  Warnings:
   - Reusable Patterns section missing or incomplete
   
@@ -182,12 +196,14 @@ If validation fails (coverage <80%), show warnings and recommendations:
 ## Mode Awareness
 
 ### Build Mode
+
 - Trace generation supported
 - Lighter context capture
 - Focused on core execution data
 - Suitable for lightweight learning
 
 ### Spec Mode
+
 - Comprehensive trace generation
 - Full decision pattern analysis
 - Detailed evidence linking
@@ -198,17 +214,20 @@ If validation fails (coverage <80%), show warnings and recommendations:
 ## Key Features
 
 **Automatic Extraction**:
+
 - No manual input required
 - Parses tasks_meta.json for execution data
 - Reads spec, plan, tasks for context
 - Extracts git history and issue references
 
 **Idempotent Operation**:
+
 - Re-running `/trace` overwrites previous trace
 - Always reflects latest execution state
 - Single trace.md per feature (latest)
 
 **Integration Points**:
+
 - `/levelup` reads trace.md if exists (optional)
 - `/analyze` can validate trace completeness
 - Version-controlled with feature artifacts
@@ -216,14 +235,16 @@ If validation fails (coverage <80%), show warnings and recommendations:
 ## Common Scenarios
 
 ### Scenario 1: Post-Implementation Trace
-```
+
+```text
 User: /trace
 Agent: [Generates trace from tasks_meta.json]
 Result: specs/001-feature/trace.md created with 5 sections
 ```
 
 ### Scenario 2: Trace Before Levelup
-```
+
+```text
 User: /trace
 Agent: [Generates comprehensive trace]
 User: /levelup
@@ -231,7 +252,8 @@ Agent: [Reads trace.md for enriched context packet]
 ```
 
 ### Scenario 3: Update Existing Trace
-```
+
+```text
 User: /trace
 Agent: [Overwrites previous trace with latest execution data]
 Result: Updated trace reflects current implementation state
@@ -240,18 +262,21 @@ Result: Updated trace reflects current implementation state
 ## Error Handling
 
 **Missing Prerequisites**:
-```
+
+```text
 ERROR: tasks_meta.json not found
 Please run /implement before generating a trace.
 ```
 
 **Invalid JSON**:
-```
+
+```text
 ERROR: tasks_meta.json is not valid JSON
 Check execution metadata for corruption.
 ```
 
 **Validation Failures**:
+
 - Non-blocking: Trace still generated
 - Warnings displayed with recommendations
 - User can address gaps and re-run `/trace`

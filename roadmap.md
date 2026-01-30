@@ -276,7 +276,7 @@ Architecture support is now available in all workflow modes as optional commands
 
 - **Description**: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder to make specifications "executable" and enable automated API validation
 - **Status**: ❌ Not planned for implementation
-- **Rationale**: 
+- **Rationale**:
   - Deferred to prioritize core workflow fixes (Build Mode bugs, async context delivery)
   - Manual contract creation is sufficient for current use cases
   - Can be revisited after core functionality is stable and proven in production
@@ -287,7 +287,7 @@ Architecture support is now available in all workflow modes as optional commands
 
 - **Description**: Automated detection of spec-code misalignment in `/analyze` command to catch divergences between documented requirements and actual implementation
 - **Status**: ❌ Not planned for implementation
-- **Rationale**: 
+- **Rationale**:
   - Deferred to prioritize core workflow stability
   - Manual code reviews and `/analyze` command provide sufficient validation for now
   - Requires Schema Generation (above) as prerequisite
@@ -325,12 +325,12 @@ Architecture support is now available in all workflow modes as optional commands
   - Embed generated diagrams directly in architecture.md sections for integrated documentation
   - Update `/architect map` to generate diagrams when reverse-engineering from existing codebases
   - Integrate diagram validation in `/architect review` command
-- **Benefits**: 
+- **Benefits**:
   - Visual communication for stakeholders who prefer diagrams over text
   - Enables architecture validation through visual inspection
   - Improves architecture documentation accessibility for non-technical audiences
   - Supports standard Mermaid syntax for version control and diffing
-- **Implementation**: 
+- **Implementation**:
   - Add diagram generation logic to `scripts/bash/setup-architecture.sh` and PowerShell equivalent
   - Create template snippets for each viewpoint's Mermaid diagram structure
   - Update `templates/architecture-template.md` with diagram placeholders
