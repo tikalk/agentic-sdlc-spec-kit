@@ -131,15 +131,50 @@
 - ❌ **Smart Trace Validation**: Enhanced `/analyze` claims trace detection but implementation not found
 - ❌ **Task-to-Issues Command**: Template exists but actual implementation script missing
 
-### **Architecture Description (AD) Mode** *(0% Complete)* - **HIGH PRIORITY** - Enterprise Architecture Support
+### **Architecture Description (AD) Mode** *(40% Complete)* - **HIGH PRIORITY** - Enterprise Architecture Support
 
-- ❌ **CLI Config Update**: Add `ad` to `mode_defaults` in `src/specify_cli/__init__.py` with all options enabled by default.
-- ❌ **Architecture Templates**: Create `templates/architecture-template.md` (Global V&P Context) and `templates/plan-template-ad.md` (Feature V&P Zoom-in).
-- ❌ **Architect Command**: Create `templates/commands/architect.md` for generating the global `memory/architecture.md`.
-- ❌ **Setup Scripts**: Create `scripts/bash/setup-architecture.sh` and `scripts/powershell/setup-architecture.ps1`.
-- ❌ **Plan Script Updates**: Update `scripts/bash/setup-plan.sh` and `scripts/powershell/setup-plan.ps1` to detect `ad` mode and use the new templates.
-- ❌ **Mode Documentation**: Update `templates/commands/mode.md` to include AD mode description.
-- ❌ **Codebase Mapper**: Implement `/map` command to scan existing code and auto-populate `memory/architecture.md` (Context View) and `memory/tech-stack.md`. Essential for Brownfield projects (legacy code analysis and documentation).
+**Codebase Status**: Infrastructure 90% complete; critical blocker preventing user adoption. See implementation plan below.
+
+- ✅ **CLI Config Update**: AD mode in `src/specify_cli/__init__.py:433-438` with all options enabled by default.
+- ✅ **Architecture Templates**: `templates/architecture-template.md` complete with 7 Rozanski & Woods viewpoints + 2 perspectives (Security, Performance & Scalability).
+- ✅ **Architect Command**: `templates/commands/architect.md` fully implemented with init/map/update/review actions + handoffs.
+- ✅ **Setup Scripts (Bash)**: `scripts/bash/setup-architecture.sh` (449 lines) with tech detection, directory mapping, API scanning - production-ready.
+- ✅ **Setup Scripts (PS1)**: `scripts/powershell/setup-architecture.ps1` - PowerShell equivalent complete.
+- ✅ **Mode Documentation**: `templates/commands/mode.md:128-138` - AD mode workflow fully documented with use cases and artifacts.
+- ✅ **Codebase Mapper (/map)**: `/architect map` action fully implemented with language, framework, database, and infrastructure detection for brownfield projects.
+- ⚠️ **Plan Script Updates**: `scripts/bash/setup-plan.sh:46` hardcoded to `plan-template.md` - **MISSING MODE DETECTION** (critical blocker).
+- ⚠️ **plan-template-ad.md**: **DOES NOT EXIST** - template file missing (blocks schema generation guidance).
+- ❌ **Mode Detection Utility**: No `get_current_mode()` function in `scripts/bash/common.sh` - needed by setup-plan.sh.
+- ❌ **Schema Generation** *(ThoughtWorks SDD - Executable Specifications)*: Enhance `plan` templates in AD mode to explicitly output standard schema formats (OpenAPI, JSON Schema, AsyncAPI) into the `contracts/` folder, making the spec "executable." Templates exist but no generation logic or `/contracts/` scaffolding. **Phase 2 feature (design + decision required)**.
+- ❌ **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: No drift detection in `/analyze` command. **Phase 3 feature (design + decision required)**.
+
+**🎯 AD Mode Implementation Plan** *(3-Phase Critical Path - See Below)*
+
+| Phase | Duration | Blocker | Result |
+|-------|----------|---------|--------|
+| **Phase 1: Enable AD Mode** | 2-3 days | Mode detection + templates | Users can use `/mode ad` → `/plan` → get AD-specific template |
+| **Phase 2: Schema Generation** | 3-4 days | Format decisions (OpenAPI? + JSON Schema?) | `/contracts/openapi.yaml` + schema generation working |
+| **Phase 3: Drift Detection** | 4-5 days | Scope decisions (API only?) | `/analyze` reports spec-code misalignment |
+
+**Phase 1 Tasks (CRITICAL - Must Complete First)**:
+1. Add `get_current_mode()` function to `scripts/bash/common.sh` (2-3 hours)
+2. Update `scripts/bash/setup-plan.sh` with mode detection logic (1-2 hours)
+3. Create `templates/plan-template-ad.md` with schema guidance (3-4 hours)
+4. Add `Get-CurrentMode` to `scripts/powershell/common.ps1` (2-3 hours)
+5. Update `scripts/powershell/setup-plan.ps1` with mode detection (1-2 hours)
+6. Update `src/specify_cli/__init__.py` help text to mention AD mode (1 hour)
+
+**Phase 2 Decisions (Before Implementation)**:
+- Which schema formats? (Recommendation: OpenAPI 3.1 + JSON Schema)
+- When to generate? (Recommendation: On-demand + optional auto during /plan)
+- How to generate? (Recommendation: AI generation from plan.md description)
+
+**Phase 3 Decisions (Before Implementation)**:
+- Drift scope? (Recommendation: API endpoints focus, expand to database later)
+- Detection strategy? (Recommendation: Language-specific pattern matching)
+- Integration? (Recommendation: Both auto in /analyze + on-demand command)
+
+---
 
 #### **Strategic Tooling Improvements** *(60% Complete)* - **MEDIUM PRIORITY**
 
@@ -150,6 +185,7 @@
 - ✅ **Config Consolidation**: Successfully implemented as single unified configuration file to reduce complexity and improve maintainability
 - ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec/ad) with per-mode override capability.
 - ❌ **Execution Logic**: Update `scripts/bash/tasks-meta-utils.sh` and `scripts/powershell/common.ps1` to read `atomic_commits` config and inject constraint into `generate_delegation_prompt()` when enabled.
+- ❌ **Spec-Code Drift Detector** *(ThoughtWorks SDD - Drift Detection)*: Implement a validation utility (part of `/analyze`) that compares the implementation (Code/API) against the `plan.md` definitions (Contracts/Schemas) to flag divergences. This enables proactive identification of spec-code misalignment and ensures executable specifications remain in sync with actual implementation.
 
 **NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
 
@@ -397,7 +433,7 @@
 |**Levelup Build Mode**|0%|🔄 Current Phase|
 |**Persistent Issue ID**|0%|🔄 Current Phase|
 |**Build Mode "GSD" Upgrade**|0%|🔄 Current Phase|
-|**Architecture Description (AD) Mode**|0%|🔄 Current Phase|
+|**Architecture Description (AD) Mode**|40%|⚠️ Partially Complete (blocker: mode detection)|
 |**Context Intelligence & Optimization**|0%|🔄 Current Phase|
 |**Multi-Tracker Task-to-Issues**|0%|🔄 Current Phase|
 |**Spec Management**|0%|🔄 Current Phase|
@@ -438,7 +474,10 @@
 3. **HIGH**: Levelup command build mode compatibility (0% → 100%) - AI session context management blocker (depends on #2)
 4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
 5. **HIGH**: Build Mode "GSD" Upgrade (0% → 100%) - High-velocity execution mode (depends on #2)
-6. **HIGH**: Architecture Description (AD) Mode (0% → 100%) - Enterprise Architecture Support
+6. **HIGH**: Architecture Description (AD) Mode - Phase 1 (40% → 100%) - **CRITICAL BLOCKER: Mode detection + plan-template-ad.md** (2-3 days work unlocks enterprise architecture support)
+   - Phase 1 (2-3 days): Mode detection utility + plan-template-ad.md → AD mode becomes USABLE
+   - Phase 2 (3-4 days): Schema generation design + implementation → EXECUTABLE SPECIFICATIONS
+   - Phase 3 (4-5 days): Drift detection design + implementation → SPEC-CODE SYNC
 7. **MEDIUM**: Context Intelligence & Optimization (0% → 100%) - Directives scanner + compliance validation
 8. **MEDIUM**: Multi-tracker task-to-issues extension (0% → 100%) - Enhanced traceability across platforms
 9. **MEDIUM**: Spec management & cleanup (0% → 100%) - Workflow maintenance
