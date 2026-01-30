@@ -56,7 +56,6 @@ mkdir -p "$REPO_ROOT/memory"
 
 ARCHITECTURE_FILE="$REPO_ROOT/memory/architecture.md"
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
-TECH_STACK_FILE="$REPO_ROOT/memory/tech-stack.md"
 
 # Function to detect tech stack from codebase
 detect_tech_stack() {
@@ -291,17 +290,13 @@ action_map() {
     echo "" >&2
     extract_api_endpoints >&2
     
-    # Save tech stack summary
-    echo "$tech_stack" > "$TECH_STACK_FILE"
-    echo "" >&2
-    echo "✅ Tech stack summary saved to: $TECH_STACK_FILE" >&2
-    
-    # Output structured data for AI agent to populate architecture.md
+    # Output structured data for AI agent to populate architecture.md Section C
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"map\",\"tech_stack_file\":\"$TECH_STACK_FILE\",\"tech_stack\":\"$tech_stack\",\"directory_structure\":\"$dir_structure\"}"
+        echo "{\"status\":\"success\",\"action\":\"map\",\"tech_stack\":\"$tech_stack\",\"directory_structure\":\"$dir_structure\"}"
     else
         echo "" >&2
         echo "📋 Mapping complete. Use this information to populate memory/architecture.md:" >&2
+        echo "  - Section C (Tech Stack Summary): Use detected technologies above" >&2
         echo "  - Development View: Use directory structure above" >&2
         echo "  - Deployment View: Check docker-compose.yml, k8s configs, terraform" >&2
         echo "  - Functional View: Use API endpoints detected" >&2

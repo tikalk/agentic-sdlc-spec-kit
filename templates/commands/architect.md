@@ -232,7 +232,9 @@ For each perspective, analyze how architectural decisions address quality concer
 ### File Location
 
 - **Primary Output**: `memory/architecture.md`
-- **Tech Stack Reference**: Extract to `memory/tech-stack.md` (optional, for brownfield)
+- **Tech Stack Location**: Section C (Tech Stack Summary) within architecture.md
+
+**Note**: Tech stack information is populated directly in architecture.md Section C. No separate tech-stack.md file is generated.
 
 ### Architecture Document Structure
 

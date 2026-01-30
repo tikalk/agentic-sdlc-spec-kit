@@ -230,7 +230,7 @@ function Invoke-Init {
 
 # Map action (brownfield)
 function Invoke-Map {
-    param($repoRoot, $techStackFile)
+    param($repoRoot)
     
     Write-Host "🔍 Mapping existing codebase to architecture..." -ForegroundColor Cyan
     
@@ -246,22 +246,18 @@ function Invoke-Map {
     $dirStructure = Get-DirectoryStructure
     Write-Host $dirStructure
     
-    # Save tech stack summary
-    $techStack | Out-File $techStackFile -Encoding UTF8
-    Write-Host ""
-    Write-Host "✅ Tech stack summary saved to: $techStackFile" -ForegroundColor Green
-    
+    # Output structured data for AI agent to populate architecture.md Section C
     if ($Json) {
         @{
             status="success"
             action="map"
-            tech_stack_file=$techStackFile
             tech_stack=$techStack
             directory_structure=$dirStructure
         } | ConvertTo-Json
     } else {
         Write-Host ""
         Write-Host "📋 Mapping complete. Use this information to populate memory/architecture.md:"
+        Write-Host "  - Section C (Tech Stack Summary): Use detected technologies above"
         Write-Host "  - Development View: Use directory structure above"
         Write-Host "  - Deployment View: Check docker-compose.yml, k8s configs, terraform"
         Write-Host "  - Functional View: Use API endpoints detected"
@@ -398,7 +394,6 @@ try {
     
     $architectureFile = Join-Path $repoRoot "memory\architecture.md"
     $templateFile = Join-Path $repoRoot ".specify\templates\architecture-template.md"
-    $techStackFile = Join-Path $repoRoot "memory\tech-stack.md"
     
     # Default action if not specified
     if (-not $Action) {
@@ -415,7 +410,7 @@ try {
             Invoke-Init -repoRoot $repoRoot -architectureFile $architectureFile -templateFile $templateFile
         }
         'map' {
-            Invoke-Map -repoRoot $repoRoot -techStackFile $techStackFile
+            Invoke-Map -repoRoot $repoRoot
         }
         'update' {
             Invoke-Update -repoRoot $repoRoot -architectureFile $architectureFile
