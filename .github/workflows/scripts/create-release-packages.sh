@@ -39,6 +39,14 @@ rewrite_paths() {
     -e 's@(/?)templates/@.specify/templates/@g'
 }
 
+escape_sed_replacement() {
+  # Escape special characters in sed replacement text:
+  # - & (expands to matched pattern)
+  # - | (our delimiter)
+  # - \ (escape character)
+  sed 's/[&\|\\]/\\&/g'
+}
+
 generate_commands() {
   local agent=$1 ext=$2 arg_format=$3 output_dir=$4 script_variant=$5
   mkdir -p "$output_dir"
@@ -71,11 +79,13 @@ generate_commands() {
     ')
     
     # Replace {SCRIPT} placeholder with the script command
-    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${script_command}|g")
+    escaped_script=$(printf '%s\n' "$script_command" | escape_sed_replacement)
+    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${escaped_script}|g")
     
     # Replace {AGENT_SCRIPT} placeholder with the agent script command if found
     if [[ -n $agent_script_command ]]; then
-      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${agent_script_command}|g")
+      escaped_agent=$(printf '%s\n' "$agent_script_command" | escape_sed_replacement)
+      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${escaped_agent}|g")
     fi
     
     # Remove the scripts: and agent_scripts: sections from frontmatter while preserving YAML structure
