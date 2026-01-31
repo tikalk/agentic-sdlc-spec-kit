@@ -2212,7 +2212,7 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [{ACCENT_COLOR}]/mode[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Manage workflow modes and framework opinions for development complexity control",
+        f"○ [{ACCENT_COLOR}]/speckit.mode[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Manage workflow modes and framework opinions for development complexity control",
         f"○ [{ACCENT_COLOR}]/speckit.clarify[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] if used)",
         f"○ [{ACCENT_COLOR}]/speckit.analyze[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}])",
         f"○ [{ACCENT_COLOR}]/speckit.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}])",
