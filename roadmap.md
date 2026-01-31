@@ -299,20 +299,172 @@ Architecture support is now available in all workflow modes as optional commands
 - ❌ **Fix Build Mode Checking in Analyze and Clarify**: Ensure analyze and clarify commands properly check build mode before execution
 - ❌ **Test Build Mode Workflow**: Verify specify → implement works in build mode without tasks.md
 
-#### **Async Task Context Delivery Architecture** *(0% Complete)* - **CRITICAL PRIORITY** - Makes async functionality non-functional
+#### **Tier 1 (CRITICAL): Async Task Context Delivery & Remote Agent Integration** *(0% Complete)* - **CRITICAL PRIORITY** - Unblocks full async workflow
 
-- ❌ **MCP Task Submission Protocol**: Define standard MCP tools for async task submission (submit_task, check_status, get_result)
-- ❌ **Remote Context Delivery Mechanism**: Implement file upload, URL references, or embedded payload for spec content delivery to remote MCP servers
-- ❌ **Repository Context Provision**: Provide repository URL, branch, and authentication for remote agents to access committed specs
-- ❌ **Webhook/Callback Integration**: Establish completion notification and result retrieval from remote async agents
-- ❌ **Agent-Specific MCP Tool Implementation**: Custom MCP tool implementations for jules, async-copilot, async-codex
+Consolidates: Former "Async Task Context Delivery Architecture" + "Multi-Tracker Task-to-Issues Extension" + context purity enforcement from Claude Code article insights
 
-#### **Multi-Tracker Task-to-Issues Extension** *(0% Complete)* - **MEDIUM PRIORITY** - Enhanced traceability
+**Purpose**: Enable remote async agents (async-copilot, async-codex, jules) to receive complete spec contexts and support multi-tracker issue creation for enhanced traceability.
 
-- ❌ **Extend taskstoissues Command**: Update `/taskstoissues` command to support Jira/Linear/GitLab in addition to GitHub
-- ❌ **Dynamic Tracker Detection**: Add logic to detect configured issue tracker from `.mcp.json`
-- ❌ **Tracker-Specific MCP Tools**: Implement tracker-specific issue creation logic for each platform
-- ❌ **URL Validation Updates**: Update remote URL validation for different tracker types (Git-based vs non-Git-based)
+**Tier 1.1 - Artifact Context Packaging**
+- ❌ **Spec Context Bundling**: Create `scripts/bash/package-spec-context.sh` to bundle spec.md + plan.md + research.md + context.md as unified delivery unit
+- ❌ **Payload Strategy Selection**: Support embedded payload for specs < 150K tokens; URL references for larger repos
+- ❌ **Git Metadata Inclusion**: Include repo URL, branch, commit SHA in package for remote context
+- ❌ **PowerShell Equivalent**: Implement `scripts/powershell/Package-SpecContext.ps1` with cross-platform parity
+
+**Tier 1.2 - Remote MCP Task Submission Protocol**
+- ❌ **Standard MCP Tools**: Define `submit_async_task`, `check_task_status`, `get_task_result` tools in MCP schema
+- ❌ **Agent Type Support**: Implement endpoints for async-copilot, async-codex, jules, and custom agents
+- ❌ **Endpoint Registration**: Extend `.mcp.json` configuration to register remote agent endpoints per type
+- ❌ **Model Parameter Passthrough**: Allow `--model` parameter to flow through to remote agent execution (e.g., `--model opus` on `/implement` passes to async agent)
+- ❌ **Agent Selection Logic**: Route tasks to appropriate agent based on `/tasks` metadata (ASYNC tag + agent type)
+
+**Tier 1.3 - Repository Context Provision**
+- ❌ **Git Credential Handling**: Support SSH keys, personal tokens, git-credential-helper for remote auth
+- ❌ **Branch Context**: Pass feature branch reference so remote agents work with correct isolated specs
+- ❌ **Commit History**: Include recent commit history and related issue references in context metadata
+- ❌ **Authentication Testing**: Validate credentials before submitting tasks to prevent failures
+
+**Tier 1.4 - Webhook/Callback Integration**
+- ❌ **Webhook Listener**: Implement listener for async agent completion events (status, output, error info)
+- ❌ **Result Storage**: Store completion status + output path in `tasks_meta.json` (keyed by job_id from remote agent)
+- ❌ **Integration Checking**: During `/implement` execution, check for completed async tasks and retrieve results
+- ❌ **Error Handling**: Detect failures and escalate ASYNC tasks to SYNC with user notification
+
+**Tier 1.5 - Multi-Tracker Issue Creation** *(Consolidated from Multi-Tracker Task-to-Issues)*
+- ❌ **Extended `/taskstoissues`**: Update command to support GitHub, Jira, Linear, GitLab (not just GitHub)
+- ❌ **Dynamic Tracker Detection**: Auto-detect configured issue tracker from `.mcp.json` configuration
+- ❌ **Tracker-Specific MCP Tools**: Invoke correct platform-specific MCP tool per tracker type
+- ❌ **URL Validation**: Handle different URL formats (GitHub SSH/HTTPS, Jira REST, Linear API, GitLab REST)
+- ❌ **Task-to-Issue Linking**: Establish bidirectional links between tasks.md and created issues for traceability
+
+**Tier 1.6 - Context Purity Enforcement** *(From Claude Code article insights)*
+- ❌ **Full Artifact Delivery**: Remote agents receive complete spec.md/plan.md/research.md (not summaries)
+- ❌ **Compression Thresholds**: Only compress when artifacts exceed 150K tokens (configurable in config.json)
+- ❌ **Attention Mechanism Preservation**: Ensure agents can perform pair-wise reasoning across context via full document loading
+- ❌ **Token Cost Visibility**: Log context size and token costs in delegation prompts for transparency
+
+---
+
+#### **Tier 2 (HIGH): Sub-Agent Coordination Framework** *(0% Complete)* - **HIGH PRIORITY** - Intelligent local & remote task orchestration
+
+Consolidates: Sub-agent spawning logic from dual execution loop + background observability + failure escalation + agent type selection guidance
+
+**Purpose**: Unified framework for spawning, coordinating, and monitoring local sub-agents (Explore, Plan, general-purpose) and remote async agents with context-aware selection.
+
+**Tier 2.1 - Sub-Agent Type Selection Matrix**
+- ❌ **Explore Agent Documentation**: Create decision guidance for read-only codebase search (Glob, Grep, Read, bash read-only only)
+  - ✓ When: Finding files, searching keywords, understanding architecture
+  - ✗ Don't: Use for modification tasks, complex reasoning
+  - Context: Fresh slate (no conversation history) - faster + focused
+  - Model override: Support `--model sonnet` for deeper analysis
+- ❌ **Plan Agent Documentation**: Design/implementation planning with full tools
+  - ✓ When: Complex multi-file implementations, architecture decisions
+  - ✗ Don't: Simple CRUD operations, straightforward fixes
+  - Context: Full inheritance (pair-wise reasoning enabled)
+  - Model override: Support `--model opus` for critical planning
+- ❌ **General-Purpose Agent Documentation**: Complex multi-step task execution
+  - ✓ When: Tasks requiring tool sequencing, decision-making
+  - ✗ Don't: Single-tool operations, trivial tasks
+  - Context: Full inheritance
+  - Model override: User-configurable per task
+- ❌ **Integration with Task Tool**: Embed selection guidance in Task tool schema (system prompt injection)
+- ❌ **Model Parameter Support**: Document model override capability for each agent type
+
+**Tier 2.2 - Context Inheritance Rules**
+- ❌ **Context Inheritance Matrix**: Document which agents inherit vs start fresh
+  - Explore: Fresh slate (enables fast codebase search without prior context bloat)
+  - Plan/General-purpose: Full context inheritance (enables pair-wise attention relationships)
+- ❌ **Main Agent Reading Pattern**: Document guidance that main agent should read relevant files itself (not rely on agent summaries) for better reasoning (from Claude Code article)
+- ❌ **Team Directive Integration**: Store preferred context inheritance per organization in `team-ai-directives`
+- ❌ **Configuration Option**: Allow per-project override of inheritance rules
+
+**Tier 2.3 - "When NOT to Spawn" Guidelines** *(Reduces context bloat)*
+- ❌ **Anti-Pattern Documentation**: 
+  - ❌ Don't spawn Explore if file paths already known → use Read tool directly
+  - ❌ Don't spawn if task < 3 steps → execute directly with tools
+  - ❌ Don't spawn for simple CRUD → handle inline
+  - ❌ Don't spawn multiple agents serially → coordinate with parallel spawning
+- ❌ **Negative Guidance in Task Tool**: Inject anti-patterns into system prompt to prevent unnecessary spawns
+- ❌ **Token Cost Awareness**: Log when direct execution used instead of spawn (context saved)
+
+**Tier 2.4 - Background Agent Observability**
+- ❌ **Background Task Spawning**: Support `run_in_background: true` in Task tool for long-running processes
+- ❌ **Monitoring Hooks**: Log output from background tasks (process execution, test runs, compilations)
+- ❌ **Result Retrieval**: Implement `TaskOutput` tool for retrieving background task results
+- ❌ **Error Tracking**: Surface background task failures with clear error context
+- ❌ **Use Case Documentation**: Guide when background spawning is appropriate (e.g., watching test output)
+
+**Tier 2.5 - Parallel Sub-Agent Coordination** *(Enhances existing [P] markers)*
+- ❌ **[P] Marker Enhancement**: Ensure [P] markers in tasks.md are recognized for parallel spawning
+- ❌ **File-Based Sequencing**: Maintain rule that tasks touching same files run sequentially despite [P]
+- ❌ **Phase-Based Execution**: Ensure phases (setup → tests → core → integration → polish) complete in order
+- ❌ **Parallel Spawn Coordination**: Manage multiple simultaneous sub-agents without context window flooding
+- ❌ **Integration Testing**: Verify [P] parallelization works with both Tier 1 remote tasks and local Explore agents
+
+**Tier 2.6 - Sub-Agent Failure Escalation**
+- ❌ **Async Escalation Logic**: When remote ASYNC sub-agent fails, promote parent task to SYNC with user notification
+- ❌ **Model Retry Strategy**: Support escalation with model upgrade (Haiku → Sonnet → Opus) for failed tasks
+- ❌ **Rollback Mechanism**: Option to rollback failed agent's changes and retry with different approach
+- ❌ **Escalation Logging**: Detailed logging of why escalation occurred (timeout, tool failure, reasoning error)
+- ❌ **User Control**: Allow user to choose: retry, escalate, skip, or restart phase
+
+---
+
+#### **Tier 3 (MEDIUM): Model Selection Strategy per Command** *(0% Complete)* - **MEDIUM PRIORITY** - Optimize cost & performance
+
+Consolidates: Command-level model selection + context budgeting + two-model review pattern + cost optimization guidance
+
+**Purpose**: Systematic approach to model selection per core command, enabling cost optimization while maintaining quality gates.
+
+**Tier 3.1 - Core & Admin Command Model Selection Matrix**
+- ❌ **Core Workflow Commands**:
+  - `/specify`: Default Opus → Options: Sonnet (faster but less conversational quality)
+  - `/clarify`: Default Opus → Options: Sonnet (validation still works well)
+  - `/plan`: Default Sonnet → Options: Opus (complexity), Haiku (exploration)
+  - `/implement`: Default Sonnet → Options: Opus (analysis), Haiku (lightweight)
+  - `/analyze`: Default Opus → Options: Sonnet (time-constrained)
+  - `/trace`: Default Haiku → Options: Sonnet (richer traces)
+  - `/levelup`: Default Sonnet → Options: Opus (comprehensive packets)
+- ❌ **Admin Commands**:
+  - `/architect`: Default Sonnet → Options: Opus (critical systems), Haiku (exploration)
+  - `/constitution`: Default Sonnet → Options: Opus (complex governance)
+  - `/mode`: Haiku (config is lightweight)
+  - `/checklist`: Haiku (validation is formulaic)
+- ❌ **Integration**: Add `--model [opus|sonnet|haiku|gpt-5-codex]` parameter to all commands above
+
+**Tier 3.2 - Model-Aware Context Budgeting** *(Inform users of token costs)*
+- ❌ **Context Window Limits**: Document effective context windows per model (Opus: ~120K effective of 200K, Sonnet: ~100K of 200K, Haiku: ~80K of 200K)
+- ❌ **Token Cost Calculator**: Implement utility to estimate tokens for spec.md + plan.md + tasks.md
+- ❌ **Recommendation Engine**: Show "context utilization: 58% - OK" or "context: 72% - consider compaction" during execution
+- ❌ **Model Downgrade Suggestions**: Auto-suggest Haiku when context > 70% for non-critical tasks
+- ❌ **Transparency in Prompts**: Log context size in delegation prompts (e.g., "using Sonnet to preserve 22K tokens")
+
+**Tier 3.3 - Two-Model Review Strategy** *(From Claude Code article)*
+- ❌ **Review Model Configuration**: Store preferred review model in config.json (configurable: gpt-5-codex, Sonnet, etc.)
+- ❌ **Quality Gate Integration**: Invoke review model for ASYNC task validation (bug-finding, style checking)
+- ❌ **SYNC vs ASYNC Review**: Apply two-model review only to critical SYNC tasks (cost optimization)
+- ❌ **User Override**: Support `--review-model` parameter to force specific reviewer (cross-vendor validation)
+- ❌ **Review Quality Thresholds**: Document when review model is invoked (P1/P2 risk level, SYNC tasks, security code)
+
+**Tier 3.4 - Cost Optimization Guidance**
+- ❌ **Usage Documentation**: Create guide on when to use each tier:
+  - Haiku: Trace generation, exploration, formatting, config updates
+  - Sonnet: Execution, general-purpose tasks, balanced cost/quality
+  - Opus: Complex reasoning, architecture decisions, critical paths
+- ❌ **Cost Calculator**: Implement simple calculator (Opus costs ~3x Sonnet, 5x Haiku) with examples
+- ❌ **Budget Tracking**: Optional logging of model usage per project/team
+- ❌ **Org Policy Templates**: Provide templates for enforcing model choices per team
+
+**Tier 3.5 - Model Preference in Team Directives**
+- ❌ **Directive Format**: Define structure in `team-ai-directives` for model preferences per command
+- ❌ **Fallback Hierarchy**: Implement precedence: user CLI override → project config → team directive → hardcoded default
+- ❌ **Org-Wide Defaults**: Enable shared model policies across projects via team directives
+
+**Tier 3.6 - Command-Level --model Parameter Implementation**
+- ❌ **CLI Parameter Addition**: Add `--model` to all command templates (specify.md, clarify.md, plan.md, implement.md, analyze.md, architect.md, constitution.md, trace.md, levelup.md)
+- ❌ **Config Validation**: Validate model choice against available models
+- ❌ **Preference Persistence**: Store user's recent model choice per command for convenience
+- ❌ **Documentation**: Update quickstart and command help text with model selection guidance
 
 #### **Unified Spec Template Implementation** *(100% Complete)* - **MEDIUM PRIORITY** - Template maintenance reduction
 
@@ -605,7 +757,9 @@ Architecture support is now available in all workflow modes as optional commands
 |**Enhanced Traceability**|60%|⚠️ Partially Complete|
 |**Strategic Tooling**|70%|⚠️ Partially Complete|
 |**Session Trace Command**|100%|✅ Complete|
-|**Async Context Delivery**|0%|🔄 Current Phase (CRITICAL)|
+|**Tier 1: Async Context Delivery & Remote Integration**|0%|🔄 Current Phase (CRITICAL)|
+|**Tier 2: Sub-Agent Coordination Framework**|0%|🔄 Current Phase (HIGH)|
+|**Tier 3: Model Selection Strategy**|0%|🔄 Current Phase (MEDIUM)|
 |**Build Mode Bug Fix**|100%|✅ Complete|
 |**Levelup Build Mode**|100%|✅ Complete|
 |**Persistent Issue ID**|0%|🔄 Current Phase|
@@ -613,7 +767,6 @@ Architecture support is now available in all workflow modes as optional commands
 |**Architecture Support + Mermaid Diagrams**|100%|✅ Complete|
 |**Three-Pillar Validation**|100%|✅ Complete|
 |**Context Intelligence & Optimization**|0%|🔄 Current Phase|
-|**Multi-Tracker Task-to-Issues**|0%|🔄 Current Phase|
 |**Spec Management**|0%|🔄 Current Phase|
 |**Workflow Utilities**|0%|🔄 Current Phase|
 |**Command Prefix Migration**|0%|🚀 Next Phase (Deferred)|
@@ -635,7 +788,7 @@ Architecture support is now available in all workflow modes as optional commands
 - **MCP Infrastructure**: 100% Complete (issue tracker, async agent, and git platform integrations)
 - **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, completed mode switching with auto-detection, and mode-aware checklist validation)
 - **Complexity Solutions**: ~90% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable options - HIGH PRIORITY response to user feedback; some automation features still need implementation)
-- **Current Phase Priorities**: 1 CRITICAL (async context delivery) + 5 HIGH (workflow blockers) + 4 MEDIUM features - **PRIMARY FOCUS**
+- **Current Phase Priorities**: 3 TIERED INITIATIVES (Tier 1: CRITICAL async delivery, Tier 2: HIGH sub-agent coordination, Tier 3: MEDIUM model selection) + 1 HIGH (persistent issue ID) + 3 MEDIUM features - **PRIMARY FOCUS with parallel development**
 - **Next Phase Priorities**: Command prefix migration (deferred to reduce churn while fixing blockers)
 - **Future Enhancements**: 0% Complete (minimal enterprise features only)
 - **Deferred Features**: IDE Integration & overkill enhancements (removed to maintain focus)
@@ -648,12 +801,14 @@ Architecture support is now available in all workflow modes as optional commands
 
 **🔄 CURRENT PHASE (Primary Focus):**
 
-1. **CRITICAL**: Async task context delivery architecture (0% → 100%) - Makes async functionality completely non-functional
-2. **✅ COMPLETED**: Build mode workflow bug fix (100%) - Fixed --require-tasks conditional logic
-3. **✅ COMPLETED**: Levelup command build mode compatibility (100%) - Mode-aware file requirements implemented
+1. **CRITICAL**: Tier 1 - Async Context Delivery & Remote Agent Integration (0% → 100%) - Unblocks full async workflow with remote agents + multi-tracker issue creation
+2. **HIGH**: Tier 2 - Sub-Agent Coordination Framework (0% → 100%) - Intelligent local & remote task orchestration with context-aware selection
+3. **MEDIUM**: Tier 3 - Model Selection Strategy per Command (0% → 100%) - Cost optimization & performance tuning across all workflow commands
 4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
-5. **✅ COMPLETED**: Build Mode "GSD" Upgrade (100%) - All functionality complete including template refactoring
-6. **COMPLETED**: Optional Architecture Support (100%) - Architecture commands now available in all modes
+5. **✅ COMPLETED**: Build mode workflow bug fix (100%) - Fixed --require-tasks conditional logic
+6. **✅ COMPLETED**: Levelup command build mode compatibility (100%) - Mode-aware file requirements implemented
+7. **✅ COMPLETED**: Build Mode "GSD" Upgrade (100%) - All functionality complete including template refactoring
+8. **✅ COMPLETED**: Optional Architecture Support (100%) - Architecture commands now available in all modes
    - ✅ Mode detection utilities implemented (get_current_mode functions)
    - ✅ Architecture loading matches constitution pattern
    - ✅ Silent operation - no warnings when files missing
