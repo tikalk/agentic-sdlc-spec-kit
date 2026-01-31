@@ -1,61 +1,44 @@
 # Feature Specification: [FEATURE NAME] (Build Mode)
 
-**Feature Branch**: `[###-feature-name]`
-**Created**: [DATE]
-**Status**: Draft
-**Mode**: Build (Lightweight)
-**Input**: User description: "$ARGUMENTS"
+**Branch**: `[###-feature-name]`  
+**Created**: [DATE]  
+**Mode**: Build (Fast iteration)  
+**Input**: "$ARGUMENTS"
 
-## Core User Journey *(required)*
+## Core User Journey
 
-<!-- Build mode focuses on one primary user journey that demonstrates the core value -->
+### Primary Story: [Brief Title]
 
-### Primary User Story - [Brief Title]
+[One-sentence user journey]
 
-[Describe the main user journey in plain language - keep it simple and focused]
+**Value**: [Business outcome]
 
-**Value**: [Why this matters to users - 1-2 sentences]
+**Test**: [Action] → [Expected result]
 
-**Basic Test**: [How to verify it works - simple action and expected result]
+**Acceptance**:
 
-**Acceptance Scenarios** (Keep it simple):
+1. **Given** [state], **When** [action], **Then** [outcome]
+2. **Given** [state], **When** [action], **Then** [outcome]
 
-1. **Given** [basic starting state], **When** [user action], **Then** [expected outcome]
-2. **Given** [another state], **When** [user action], **Then** [expected outcome]
+## Requirements
 
-## Key Requirements *(required)*
+### Functional
 
-<!-- Focus on 3-5 essential requirements that make the feature work -->
-
-### Functional Requirements
-
-- **FR-001**: System MUST [core functionality - keep it simple]
+- **FR-001**: System MUST [core capability]
 - **FR-002**: Users MUST be able to [essential interaction]
-- **FR-003**: System MUST [basic behavior or data handling]
+- **FR-003**: System MUST [data handling]
 
-## Success Criteria *(required)*
+## Success Criteria
 
-<!-- 2-3 measurable outcomes focused on the core functionality -->
+- **SC-001**: [Measurable outcome]
+- **SC-002**: [Performance/usability metric]
 
-### Basic Outcomes
+## Scope
 
-- **SC-001**: [Simple measurable success - e.g., "Users can complete the primary task successfully"]
-- **SC-002**: [Basic performance or usability metric - e.g., "Feature works without errors"]
+**Assumptions**: [Reasonable defaults]
 
-## Notes
-
-<!-- Optional: Any assumptions or scope limitations -->
-
-**Assumptions**:
-
-- [Any reasonable defaults or assumptions made]
-
-**Out of Scope**:
-
-- [What we're explicitly NOT building in this lightweight version]
+**Out of Scope**: [What we're NOT building]
 
 ---
 
-*This is a Build Mode specification - lightweight and focused on getting something working quickly. For comprehensive specifications with detailed requirements, use Spec Mode.*</content>
-</xai:function_call name="edit">
-<parameter name="filePath">/home/lior/dev/agentic-sdlc/agentic-sdlc-spec-kit/templates/commands/clarify.md
+*Build Mode: Fast iteration, minimal docs. Use Spec Mode for comprehensive requirements.*

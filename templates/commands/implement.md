@@ -1,8 +1,22 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
-  ps: scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+  sh: |
+    source scripts/bash/common.sh
+    MODE=$(get_current_mode)
+    if [ "$MODE" = "spec" ]; then
+      scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
+    else
+      scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --include-tasks)"
+    fi
+  ps: |
+    . scripts/powershell/common.ps1
+    $mode = Get-CurrentMode
+    if ($mode -eq 'spec') {
+      scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+    } else {
+      scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks)"
+    }
 ---
 
 ## Mode Detection

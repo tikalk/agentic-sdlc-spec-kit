@@ -423,12 +423,20 @@ def get_default_config() -> dict:
                 "contracts_enabled": False,
                 "data_models_enabled": False,
                 "risk_tests_enabled": False,
+                # GSD execution characteristics
+                "atomic_commits": True,
+                "skip_micro_review": True,
+                "minimal_documentation": True,
             },
             "spec": {
                 "tdd_enabled": True,
                 "contracts_enabled": True,
                 "data_models_enabled": True,
                 "risk_tests_enabled": True,
+                # Spec mode review characteristics
+                "atomic_commits": False,
+                "skip_micro_review": False,
+                "minimal_documentation": False,
             },
         },
         "spec_sync": {
@@ -436,7 +444,61 @@ def get_default_config() -> dict:
             "queue": {"version": "1.0", "created": now, "pending": [], "processed": []},
         },
         "team_directives": {"path": None},
+        "architecture": {
+            "diagram_format": "mermaid",  # Options: "mermaid" or "ascii"
+        },
     }
+
+
+def get_architecture_diagram_format(project_path: Optional[Path] = None) -> str:
+    """Get the configured architecture diagram format.
+
+    Args:
+        project_path: (Ignored - global config is used)
+
+    Returns:
+        Diagram format: "mermaid" or "ascii" (defaults to "mermaid")
+    """
+    config = load_config(project_path)
+
+    # Ensure architecture section exists
+    if "architecture" not in config:
+        config["architecture"] = {"diagram_format": "mermaid"}
+        save_config(project_path, config)
+        return "mermaid"
+
+    # Get diagram format with fallback to mermaid
+    return config.get("architecture", {}).get("diagram_format", "mermaid")
+
+
+def set_architecture_diagram_format(
+    diagram_format: str, project_path: Optional[Path] = None
+) -> None:
+    """Set the architecture diagram format.
+
+    Args:
+        diagram_format: "mermaid" or "ascii"
+        project_path: (Ignored - global config is used)
+    """
+    if diagram_format not in ["mermaid", "ascii"]:
+        console.print(
+            f"[red]Error:[/red] Invalid diagram format '{diagram_format}'. "
+            f"Must be 'mermaid' or 'ascii'."
+        )
+        return
+
+    config = load_config(project_path)
+
+    # Ensure architecture section exists
+    if "architecture" not in config:
+        config["architecture"] = {}
+
+    config["architecture"]["diagram_format"] = diagram_format
+    save_config(project_path, config)
+
+    console.print(
+        f"[green]✓[/green] Architecture diagram format set to: {diagram_format}"
+    )
 
 
 # Workflow mode configuration

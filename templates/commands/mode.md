@@ -109,21 +109,29 @@ Risk-based testing disabled
 
 ## Mode Descriptions
 
-### Build Mode
+### Build Mode (GSD - Get Sh*t Done)
 
-#### Lightweight approach for quick implementation and validation
+#### High-velocity execution for fast iteration and trusted autonomy
 
-- Framework options: All disabled by default
-- Focus: Rapid prototyping and exploration
-- Artifacts: Minimal documentation, flexible structure
+- **Framework options**: All disabled by default
+- **Review gates**: Non-blocking post-hoc (no real-time approval checkpoints)
+- **Atomic commits**: Self-contained, independently reviewable commits
+- **Documentation**: Spec-only workflow (plan.md/tasks.md optional)
+- **Focus**: Rapid iteration, quick wins, senior engineer autonomy
+- **Artifacts**: Minimal docs, fast feedback loops, atomic git history
+- **Best for**: Individual developers, lead engineers, rapid exploration
 
 ### Spec Mode
 
-#### Full specification-driven workflow with comprehensive planning
+#### Comprehensive specification-driven workflow with deliberate planning
 
-- Framework options: All enabled by default
-- Focus: Thorough planning and structured development
-- Artifacts: Complete documentation, rigorous validation
+- **Framework options**: All enabled by default (TDD, contracts, data models, risk tests)
+- **Review gates**: Blocking real-time approval checkpoints (micro-review)
+- **Quality thresholds**: 80%/60% coverage requirements enforced
+- **Documentation**: Complete workflow (spec → plan → tasks → implement)
+- **Focus**: Thorough planning, team coordination, structured development
+- **Artifacts**: Comprehensive docs, validated quality gates, full traceability
+- **Best for**: Feature teams, complex systems, collaborative development
 
 ### Architecture Support (Available in All Modes)
 

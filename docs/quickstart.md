@@ -15,8 +15,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 
 Specify supports two workflow modes that control development complexity, plus configurable framework opinions:
 
-- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
-- **`build` mode**: Lightweight approach focused on quick implementation and exploration
+- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, validation, and blocking review gates for team coordination
+- **`build` mode (GSD - Get Sh*t Done)**: High-velocity execution with atomic commits, non-blocking post-hoc review, and minimal documentation for rapid iteration
 
 **Framework Opinions** (configurable within each mode):
 
@@ -44,7 +44,11 @@ Specify supports two workflow modes that control development complexity, plus co
 /mode --info
 ```
 
-**Recommendation:** Start with `build` mode for exploration, switch to `spec` mode when features become complex or need thorough documentation.
+**Recommendation:**
+
+- Use **`build` mode** for: Individual development, rapid prototyping, quick wins, senior engineer autonomy
+- Use **`spec` mode** for: Team collaboration, complex systems, comprehensive documentation, rigorous validation
+- Switch between modes as needed: `/mode build` for fast iteration, `/mode spec` for thorough planning
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  

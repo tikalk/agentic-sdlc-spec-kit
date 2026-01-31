@@ -19,10 +19,10 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Auto-Detection Logic**:
 
-- **Pre-Implementation**: When tasks.md exists but no implementation artifacts detected
+- **Pre-Implementation**: When spec.md exists but no implementation artifacts detected (tasks.md required in spec mode, optional in build mode)
 - **Post-Implementation**: When implementation artifacts exist (source code, build outputs, etc.)
 
-**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit.tasks` has successfully produced a complete `tasks.md`.
+**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (`spec.md` required, `plan.md` and `tasks.md` optional in build mode, all required in spec mode) before implementation. In spec mode, this command should run after `/speckit.tasks` has successfully produced a complete `tasks.md`.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -69,8 +69,8 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
    - Verify if `/implement` has been run recently
 3. **Determine Analysis Type**:
    - **Pre-Implementation**:
-     - **Build mode**: No implementation artifacts (regardless of plan.md/tasks.md status)
-     - **Spec mode**: No implementation artifacts + tasks.md exists
+     - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
+     - **Spec mode**: spec.md + tasks.md exist, no implementation artifacts (plan.md recommended)
    - **Post-Implementation**: Implementation artifacts exist
 4. **Apply Mode-Aware Depth**:
    - **Build Mode**: Focus on core functionality and quick iterations

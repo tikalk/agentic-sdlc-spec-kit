@@ -64,24 +64,27 @@
 
 #### 3.1.3 Context Diagram
 
-```text
-[ASCII diagram or reference to Mermaid/PlantUML diagram]
+**Note**: Diagrams are auto-generated based on your configured format (mermaid or ascii).
+To change format, edit `~/.config/specify/config.json` and set `architecture.diagram_format`.
 
-Example:
-┌─────────────┐
-│   Users     │──────┐
-└─────────────┘      │
-                     ▼
-┌─────────────┐  ┌──────────────┐  ┌─────────────┐
-│ External    │──│   System     │──│  Database   │
-│   APIs      │  │              │  │             │
-└─────────────┘  └──────────────┘  └─────────────┘
-                     │
-                     ▼
-                 ┌─────────────┐
-                 │  Cloud      │
-                 │  Services   │
-                 └─────────────┘
+```mermaid
+graph TD
+    Users["👥 Users"]
+    System["🏢 System<br/>(Main Application)"]
+    Database["🗄️ Database"]
+    ExternalAPI["🌐 External APIs"]
+    CloudServices["☁️ Cloud Services"]
+    
+    Users -->|Requests| System
+    System -->|Queries| Database
+    System -->|Integrates| ExternalAPI
+    System -->|Deploys to| CloudServices
+    
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:2px,color:#fff
+    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
+    
+    class System systemNode
+    class Users,Database,ExternalAPI,CloudServices externalNode
 ```
 
 #### 3.1.4 External Dependencies
@@ -106,14 +109,28 @@ Example:
 
 #### 3.2.2 Element Interactions
 
-```text
-[Sequence diagram or interaction description]
+**Note**: Auto-generated diagram based on configured format.
 
-Example flow:
-1. User → API Gateway → Authentication Service
-2. Authentication Service → User Database (verify credentials)
-3. Authentication Service → Token Service (generate JWT)
-4. Token Service → User (return token)
+```mermaid
+graph TD
+    APIGateway["API Gateway"]
+    AuthService["Authentication<br/>Service"]
+    BusinessLogic["Business Logic<br/>Layer"]
+    DataAccess["Data Access<br/>Layer"]
+    Cache["Cache Layer"]
+    
+    APIGateway -->|Routes| AuthService
+    APIGateway -->|Routes| BusinessLogic
+    AuthService -->|Validates| BusinessLogic
+    BusinessLogic -->|Queries| DataAccess
+    BusinessLogic -->|Caches| Cache
+    DataAccess -->|Reads/Writes| Cache
+    
+    classDef serviceNode fill:#4a9eff,stroke:#333,stroke-width:2px,color:#fff
+    classDef dataNode fill:#66c2a5,stroke:#333,stroke-width:2px,color:#fff
+    
+    class APIGateway,AuthService,BusinessLogic serviceNode
+    class DataAccess,Cache dataNode
 ```
 
 #### 3.2.3 Functional Boundaries
@@ -257,37 +274,54 @@ project-root/
 
 #### 3.6.2 Network Topology
 
-```text
-[Network diagram - VPCs, subnets, load balancers, firewalls]
+**Note**: Auto-generated deployment diagram based on configured format.
 
-Example:
-Internet
-    │
-    ▼
-┌─────────────────────────────────────┐
-│  Load Balancer (ALB)                │
-└─────────────────────────────────────┘
-    │
-    ├──────────────┬──────────────┐
-    ▼              ▼              ▼
-┌────────┐    ┌────────┐    ┌────────┐
-│ Web 1  │    │ Web 2  │    │ Web 3  │
-│(Public)│    │(Public)│    │(Public)│
-└────────┘    └────────┘    └────────┘
-    │              │              │
-    └──────────────┴──────────────┘
-               │
-               ▼
-    ┌──────────────────┐
-    │  App Tier        │
-    │  (Private)       │
-    └──────────────────┘
-               │
-               ▼
-    ┌──────────────────┐
-    │  Database        │
-    │  (Private)       │
-    └──────────────────┘
+```mermaid
+graph TB
+    subgraph "Production Environment"
+        LB["⚖️ Load Balancer"]
+        
+        subgraph "Application Tier"
+            Web1["Web Server 1"]
+            Web2["Web Server 2"]
+            Web3["Web Server 3"]
+        end
+        
+        subgraph "Data Tier"
+            DB_Primary["🗄️ Database<br/>Primary"]
+            DB_Replica["🗄️ Database<br/>Replica"]
+            Cache["💾 Redis Cache"]
+        end
+        
+        subgraph "Storage Tier"
+            S3["☁️ Object Storage"]
+        end
+    end
+    
+    Internet["🌐 Internet"] -->|HTTPS| LB
+    LB -->|Distributes| Web1
+    LB -->|Distributes| Web2
+    LB -->|Distributes| Web3
+    
+    Web1 -->|Reads/Writes| DB_Primary
+    Web2 -->|Reads/Writes| DB_Primary
+    Web3 -->|Reads/Writes| DB_Primary
+    
+    DB_Primary -->|Replicates to| DB_Replica
+    
+    Web1 -->|Caches| Cache
+    Web2 -->|Caches| Cache
+    Web3 -->|Caches| Cache
+    
+    Web1 -->|Stores files| S3
+    Web2 -->|Stores files| S3
+    Web3 -->|Stores files| S3
+    
+    classDef infraNode fill:#e74c3c,stroke:#333,stroke-width:2px,color:#fff
+    classDef dataNode fill:#3498db,stroke:#333,stroke-width:2px,color:#fff
+    
+    class LB,Web1,Web2,Web3 infraNode
+    class DB_Primary,DB_Replica,Cache,S3 dataNode
 ```
 
 #### 3.6.3 Hardware Requirements

@@ -27,9 +27,45 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
+Goal: Detect and reduce ambiguity or missing decision points in the active feature specification. Validate spec against project constitution and architecture (three-pillar validation). Record clarifications directly in the spec file.
 
 Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/speckit.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+
+## Three-Pillar Validation
+
+This command validates the spec across three pillars:
+
+1. **Specification Completeness** (existing) - Functional scope, data model, UX, non-functionals, constraints
+2. **Constitution Alignment** (NEW) - Compliance with team principles, patterns, and governance
+3. **Architecture Alignment** (NEW) - Fit within system boundaries, component patterns, and diagram consistency
+
+**Load Order**:
+
+- Parse JSON from `{SCRIPT}` to get paths including `CONSTITUTION`, `ARCHITECTURE`, and existence flags
+- If `CONSTITUTION_EXISTS: true`, load constitution rules and validate spec against them
+- If `ARCHITECTURE_EXISTS: true`, load architecture views/diagrams and validate spec alignment
+- If both missing, fall back to spec-only validation (current behavior)
+
+**Priority Order** (highest impact first):
+
+1. Architecture boundary violations (blocks system design)
+2. Constitution constraint violations (blocks governance)
+3. Diagram-text inconsistencies (architecture quality)
+4. Missing architecture integration points (scalability/operational impact)
+5. Spec completeness gaps (lowest priority)
+
+**Question Limit**:
+
+- No architecture present: max 5 questions (build: 2, spec: 5)
+- Architecture present: max 10 questions (build: 2, spec: 10) - expanded capacity
+
+**Auto-Fix Capability**:
+When detecting diagram-text inconsistency, automatically:
+
+- Suggest specific diagram update
+- Regenerate diagram block with corrections
+- Record change in clarifications section
+- Skip asking question if auto-fix covers it
 
 Execution steps:
 
@@ -40,7 +76,30 @@ Execution steps:
    - If JSON parsing fails, abort and instruct user to re-run `/speckit.specify` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+2. Load governance and architecture documents (if available):
+
+   **Constitution Loading** (if `CONSTITUTION_EXISTS: true`):
+   - Load constitution from path provided in JSON
+   - Extract principles, constraints, and patterns using `CONSTITUTION_RULES`
+   - Prepare for cross-validation with spec
+
+   **Architecture Loading** (if `ARCHITECTURE_EXISTS: true`):
+   - Load architecture.md from path provided in JSON
+   - Extract 7 viewpoints using `ARCHITECTURE_VIEWS`
+   - Extract diagrams using `ARCHITECTURE_DIAGRAMS`
+   - Identify components, entities, and integration points
+   - Prepare for alignment validation
+
+   **Graceful Degradation**:
+   - If constitution missing: Skip constitution validation
+   - If architecture missing: Skip architecture validation
+   - If both missing: Proceed with spec-only validation (current behavior)
+
+3. Load the current spec file. Perform three-pillar validation scan:
+
+   **PILLAR 1: Specification Completeness** (existing taxonomy)
+
+   For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization.
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -96,7 +155,90 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-3. Generate (internally) a prioritized queue of candidate clarification questions (mode-aware limits):
+   **PILLAR 2: Constitution Alignment** (NEW - if constitution exists)
+
+   Validate spec against constitutional rules:
+
+   Principle Compliance:
+   - Does spec respect declared team principles?
+   - Are standard architectural patterns applied?
+   - Is coding philosophy consistent with constitution?
+
+   Constraint Adherence:
+   - Technical constraints: Does spec violate technology/platform restrictions?
+   - Security constraints: Does spec meet required security posture?
+   - Operational constraints: Does spec respect deployment/operational requirements?
+   - Compliance constraints: Are regulatory requirements addressed?
+
+   Pattern Consistency:
+   - Are approved architectural patterns followed?
+   - Do component designs match constitutional patterns?
+   - Is error handling consistent with established patterns?
+
+   **Flag conflicts** where spec contradicts constitution:
+   - Record as HIGH PRIORITY issues (blocking governance)
+   - Example: Constitution requires OAuth2, spec uses API keys
+   - Example: Constitution mandates audit logging, spec doesn't mention it
+
+   **PILLAR 3: Architecture Alignment** (NEW - if architecture exists)
+
+   Validate spec against architectural boundaries:
+
+   System Boundaries (Context View):
+   - Does spec operate within defined external entity interactions?
+   - Are new external dependencies within acceptable scope?
+   - Do integration points match Context View?
+
+   Component Alignment (Functional View):
+   - Do new/modified components fit existing architecture?
+   - Are component responsibilities clear and non-overlapping?
+   - Do interactions follow established patterns?
+
+   Data Model Consistency (Information View):
+   - Do entities/relationships align with Information View?
+   - Are data lifecycle requirements considered?
+   - Do data flows match architectural design?
+
+   Process Coordination (Concurrency View):
+   - Are concurrency requirements architecturally feasible?
+   - Do threading/async patterns match Concurrency View?
+   - Are synchronization mechanisms appropriate?
+
+   Code Organization (Development View):
+   - Does spec respect code organization structure?
+   - Are module dependencies appropriate?
+   - Does testing approach align with Development View?
+
+   Deployment Feasibility (Deployment View):
+   - Can performance requirements be met with current deployment?
+   - Are scalability expectations realistic?
+   - Do infrastructure needs match Deployment View?
+
+   Operational Readiness (Operational View):
+   - Are monitoring/alerting requirements specified?
+   - Is operational complexity acceptable?
+   - Are backup/recovery needs considered?
+
+   **Diagram Consistency Check**:
+   - Compare architecture diagram content with textual descriptions
+   - Detect missing components: Functional View text mentions component not in diagram
+   - Detect missing entities: Information View entities missing from ER diagram
+   - Detect flow mismatches: Concurrency View text/diagram inconsistencies
+
+   **Auto-Fix Capability**:
+   When diagram inconsistency detected:
+   - Generate updated diagram code (mermaid or ascii based on format)
+   - Insert corrected diagram in place of outdated one
+   - Record in clarifications: "Auto-updated [View] diagram to include [component]"
+   - Skip asking question since auto-fix resolved it
+
+   **Flag architectural issues**:
+   - Boundary violations: HIGH PRIORITY (system design impact)
+   - Component misalignments: MEDIUM PRIORITY (refactoring needed)
+   - Diagram inconsistencies: MEDIUM PRIORITY (auto-fixable)
+   - Missing integration details: LOW PRIORITY (can defer to planning)
+
+4. Generate (internally) a prioritized queue of candidate clarification questions (mode-aware limits):
 
      **Build Mode Question Generation:**
      - Maximum of 2 total questions across the whole session
@@ -105,14 +247,21 @@ Execution steps:
      - Prioritize: core functionality > basic UX > essential data requirements
 
      **Spec Mode Question Generation:**
-     - Maximum of 10 total questions across the whole session
+     - Maximum of 5 questions if no architecture present
+     - Maximum of 10 questions if architecture present (expanded capacity)
      - Each question must be answerable with EITHER:
         - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
         - A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words")
      - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation
-     - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved
-     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests
-     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic
+     - **Three-Pillar Priority Order** (highest impact first):
+       1. Architecture boundary violations
+       2. Constitution constraint violations
+       3. Diagram-text inconsistencies (auto-fixable)
+       4. Missing architecture integration points
+       5. Spec completeness gaps
+     - Ensure pillar coverage balance: prioritize constitutional/architectural issues over spec gaps
+     - Favor clarifications that reduce downstream rework risk or prevent governance violations
+     - If more than 10 issues remain (when architecture present), select top 10 by priority order above
 
 4. Sequential questioning loop (interactive, mode-aware):
 
@@ -154,7 +303,7 @@ Execution steps:
      - Stop asking further questions when:
         - All critical ambiguities resolved early (remaining queued items become unnecessary), OR
         - User signals completion ("done", "good", "no more"), OR
-        - You reach 5 asked questions
+        - You reach question limit (5 without architecture, 10 with architecture)
      - Never reveal future queued questions in advance
 
 5. Sequential questioning loop (interactive):
@@ -216,21 +365,28 @@ Execution steps:
     - Suggested next command: `/speckit.implement` (skip formal planning)
 
     **Spec Mode Completion:**
-    - Number of questions asked & answered
+    - Number of questions asked & answered (max: 5 or 10 depending on architecture)
     - Path to updated spec
     - Sections touched (list names)
-    - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact)
+    - **Three-Pillar Validation Summary**:
+      - **Spec Completeness**: Coverage summary table with Status per category
+      - **Constitution Alignment**: Verified / Issues Found / Not Available (if missing)
+      - **Architecture Alignment**: Verified / Issues Found / Not Available (if missing)
+      - **Diagram Consistency**: List any auto-fixes applied
     - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan
     - Suggested next command
 
 Behavior rules:
 
-- If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
+- If no meaningful ambiguities found across all three pillars, respond: "No critical ambiguities detected worth formal clarification. Constitution and architecture validated." and suggest proceeding.
 - If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
-- Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
-- Avoid speculative tech stack questions unless the absence blocks functional clarity.
-- Respect user early termination signals ("stop", "done", "proceed").
-  - If no questions asked due to full coverage, output a compact coverage summary (all categories Clear) then suggest advancing.
+- Never exceed question limit: 5 (no architecture) or 10 (with architecture) total asked questions
+- Clarification retries for a single question do not count as new questions
+- Avoid speculative tech stack questions unless the absence blocks functional clarity
+- Respect user early termination signals ("stop", "done", "proceed")
+- If no questions asked due to full coverage across all pillars, output compact three-pillar summary then suggest advancing
+- **Constitution/Architecture graceful handling**: If files missing, skip those pillars without error
+- **Auto-fix diagrams silently**: When fixing diagram inconsistencies, apply update and note in clarifications (don't ask user)
 
 1. **Mode Guidance & Transitions**:
     - **Build Mode**: Limited clarification (max 2 questions) focuses on critical blockers only

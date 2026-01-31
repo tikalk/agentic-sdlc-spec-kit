@@ -202,8 +202,8 @@ check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
 if $PATHS_ONLY; then
     if $JSON_MODE; then
         # Minimal JSON paths payload (no validation performed)
-        printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s"}\n' \
-            "$REPO_ROOT" "$CURRENT_BRANCH" "$FEATURE_DIR" "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS"
+        printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s","CONSTITUTION":"%s","ARCHITECTURE":"%s"}\n' \
+            "$REPO_ROOT" "$CURRENT_BRANCH" "$FEATURE_DIR" "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" "$CONSTITUTION" "$ARCHITECTURE"
     else
         echo "REPO_ROOT: $REPO_ROOT"
         echo "BRANCH: $CURRENT_BRANCH"
@@ -211,6 +211,8 @@ if $PATHS_ONLY; then
         echo "FEATURE_SPEC: $FEATURE_SPEC"
         echo "IMPL_PLAN: $IMPL_PLAN"
         echo "TASKS: $TASKS"
+        echo "CONSTITUTION: $CONSTITUTION"
+        echo "ARCHITECTURE: $ARCHITECTURE"
     fi
     exit 0
 fi
@@ -298,7 +300,29 @@ if $JSON_MODE; then
     SPEC_RISKS=$(extract_risks "$FEATURE_SPEC")
     PLAN_RISKS=$(extract_risks "$IMPL_PLAN")
     MODE_CONFIG=$(get_mode_config)
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"MODE_CONFIG":%s}\n' "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" "$MODE_CONFIG"
+    
+    # Check for constitution and architecture (optional governance documents)
+    CONSTITUTION_EXISTS="false"
+    ARCHITECTURE_EXISTS="false"
+    CONSTITUTION_RULES="[]"
+    ARCHITECTURE_VIEWS="{}"
+    ARCHITECTURE_DIAGRAMS="[]"
+    
+    if [[ -f "$CONSTITUTION" ]]; then
+        CONSTITUTION_EXISTS="true"
+        CONSTITUTION_RULES=$(extract_constitution_rules "$CONSTITUTION")
+    fi
+    
+    if [[ -f "$ARCHITECTURE" ]]; then
+        ARCHITECTURE_EXISTS="true"
+        ARCHITECTURE_VIEWS=$(extract_architecture_views "$ARCHITECTURE")
+        ARCHITECTURE_DIAGRAMS=$(extract_architecture_diagrams "$ARCHITECTURE")
+    fi
+    
+    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"MODE_CONFIG":%s,"CONSTITUTION":"%s","CONSTITUTION_EXISTS":%s,"CONSTITUTION_RULES":%s,"ARCHITECTURE":"%s","ARCHITECTURE_EXISTS":%s,"ARCHITECTURE_VIEWS":%s,"ARCHITECTURE_DIAGRAMS":%s}\n' \
+        "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" "$MODE_CONFIG" \
+        "$CONSTITUTION" "$CONSTITUTION_EXISTS" "$CONSTITUTION_RULES" \
+        "$ARCHITECTURE" "$ARCHITECTURE_EXISTS" "$ARCHITECTURE_VIEWS" "$ARCHITECTURE_DIAGRAMS"
 else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"
@@ -335,4 +359,10 @@ PY
 
     echo "SPEC_RISKS: $spec_risks_count"
     echo "PLAN_RISKS: $plan_risks_count"
+    
+    # Show governance document status
+    echo ""
+    echo "GOVERNANCE DOCUMENTS:"
+    check_file "$CONSTITUTION" "constitution.md (optional)"
+    check_file "$ARCHITECTURE" "architecture.md (optional)"
 fi

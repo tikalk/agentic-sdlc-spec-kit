@@ -42,6 +42,9 @@ if (-not (Test-Path $traceFile)) {
     $traceFile = ''
 }
 
+# Get current workflow mode
+$workflowMode = Get-CurrentMode
+
 if ($Json) {
     $result = [PSCustomObject]@{
         FEATURE_DIR      = $paths.FEATURE_DIR
@@ -54,11 +57,13 @@ if ($Json) {
         TRACE_FILE       = $traceFile
         KNOWLEDGE_ROOT   = $knowledgeRoot
         KNOWLEDGE_DRAFTS = $knowledgeDrafts
+        WORKFLOW_MODE    = $workflowMode
     }
     $result | ConvertTo-Json -Compress
 } else {
     Write-Output "FEATURE_DIR: $($paths.FEATURE_DIR)"
     Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
+    Write-Output "WORKFLOW_MODE: $workflowMode"
     Write-Output "SPEC_FILE: $($paths.FEATURE_SPEC)"
     Write-Output "PLAN_FILE: $($paths.IMPL_PLAN)"
     Write-Output "TASKS_FILE: $($paths.TASKS)"

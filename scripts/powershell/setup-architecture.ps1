@@ -207,6 +207,61 @@ function Get-DirectoryStructure {
     return $structure -join "`n"
 }
 
+# Generate and insert diagrams into architecture.md
+function New-ArchitectureDiagrams {
+    param(
+        [string]$ArchitectureFile,
+        [string]$SystemName = "System"
+    )
+    
+    Write-Host "📊 Generating architecture diagrams..." -ForegroundColor Cyan
+    
+    # Get diagram format from config
+    $diagramFormat = Get-ArchitectureDiagramFormat
+    
+    Write-Host "   Using diagram format: $diagramFormat"
+    
+    # Source diagram generators
+    $scriptDir = Split-Path $PSCommandPath -Parent
+    if ($diagramFormat -eq 'mermaid') {
+        . "$scriptDir\Mermaid-Generator.ps1"
+    } else {
+        . "$scriptDir\ASCII-Generator.ps1"
+    }
+    
+    # Array of views to generate diagrams for
+    $views = @('context', 'functional', 'information', 'concurrency', 'development', 'deployment', 'operational')
+    
+    # Generate each diagram
+    foreach ($view in $views) {
+        Write-Host "   Generating $view view diagram..."
+        
+        try {
+            $diagramCode = if ($diagramFormat -eq 'mermaid') {
+                New-MermaidDiagram -ViewType $view -SystemName $SystemName
+                
+                # Validate Mermaid syntax
+                if (-not (Test-MermaidSyntax -MermaidCode $diagramCode)) {
+                    Write-Host "   ⚠️  Mermaid validation failed for $view view, using ASCII fallback" -ForegroundColor Yellow
+                    . "$scriptDir\ASCII-Generator.ps1"
+                    New-AsciiDiagram -ViewType $view -SystemName $SystemName
+                }
+                else {
+                    $diagramCode
+                }
+            }
+            else {
+                New-AsciiDiagram -ViewType $view -SystemName $SystemName
+            }
+        }
+        catch {
+            Write-Host "   ⚠️  Error generating $view diagram: $_" -ForegroundColor Yellow
+        }
+    }
+    
+    Write-Host "✅ Diagram generation complete" -ForegroundColor Green
+}
+
 # Initialize action
 function Invoke-Init {
     param($repoRoot, $architectureFile, $templateFile)
@@ -223,6 +278,9 @@ function Invoke-Init {
     
     Write-Host "📐 Initializing architecture from template..." -ForegroundColor Cyan
     Copy-Item $templateFile $architectureFile
+    
+    # Generate diagrams based on user config
+    New-ArchitectureDiagrams -ArchitectureFile $architectureFile -SystemName "System"
     
     Write-Host "✅ Created: $architectureFile" -ForegroundColor Green
     Write-Host ""
@@ -296,6 +354,9 @@ function Invoke-Update {
     Write-Host ""
     Write-Host "Current Tech Stack:" -ForegroundColor Yellow
     Get-TechStack
+    
+    # Regenerate diagrams with current format
+    New-ArchitectureDiagrams -ArchitectureFile $architectureFile -SystemName "System"
     
     Write-Host ""
     Write-Host "✅ Update analysis complete" -ForegroundColor Green

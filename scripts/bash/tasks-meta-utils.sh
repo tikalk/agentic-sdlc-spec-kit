@@ -165,6 +165,25 @@ generate_delegation_prompt() {
 
 ${agent_context}"
 
+    # Add atomic commits guidance if enabled
+    local atomic_commits
+    atomic_commits=$(get_mode_config "atomic_commits")
+    
+    if [[ "$atomic_commits" == "true" ]]; then
+        full_context="${full_context}
+
+## COMMIT STRUCTURE GUIDANCE
+Create atomic commits following this pattern:
+- Each commit represents one logical unit of work
+- Independently reviewable (can understand from commit message + diff)
+- Self-contained (feature complete or milestone complete)
+- Descriptive message: \"[Feature]: What was accomplished\"
+Example: \"[auth]: Implement JWT token validation\"
+
+This enables post-execution review and rollback capability.
+"
+    fi
+
     # Substitute variables using awk to handle multiline content safely
     local prompt
     prompt=$(awk -v agent_type="$agent_type" \

@@ -63,6 +63,77 @@ Given that input, do this:
 
 Architecture commands are available in all workflow modes (build and spec). They operate silently - no errors or warnings if architecture.md or related files are missing. Architecture documentation is optional and can be used whenever system-level design is beneficial.
 
+## Diagram Generation (Automatic)
+
+Architecture diagrams are automatically generated for all 7 viewpoints based on your configured diagram format:
+
+- **Mermaid** (default): Professional diagrams that render in GitHub/GitLab markdown
+- **ASCII**: Plain text diagrams that work everywhere, including terminals
+
+**Diagram Format Configuration:**
+
+The diagram format is configured globally at `~/.config/specify/config.json`:
+
+```json
+{
+  "architecture": {
+    "diagram_format": "mermaid"  // or "ascii"
+  }
+}
+```
+
+**To change the diagram format:**
+
+1. Edit your global config file
+2. Change `diagram_format` to either `"mermaid"` or `"ascii"`
+3. Run `/speckit.architect update` to regenerate diagrams
+
+**Diagram Types Generated:**
+
+| View | Mermaid Type | ASCII Alternative |
+|------|--------------|-------------------|
+| Context | Graph (system boundary) | Box diagram with entities |
+| Functional | Component diagram | ASCII component boxes |
+| Information | ER diagram | Table-like entity relationships |
+| Concurrency | Sequence diagram | Timeline notation |
+| Development | Dependency graph | Directory tree with arrows |
+| Deployment | Infrastructure graph | Network diagram |
+| Operational | Flowchart | Workflow steps |
+
+**Diagram Validation:**
+
+Mermaid diagrams are validated using lightweight syntax checking. If validation fails, the system automatically falls back to ASCII format for that specific diagram.
+
+**Example Mermaid Diagram (Context View):**
+
+```mermaid
+graph TD
+    Users["👥 Users"]
+    System["🏢 System"]
+    Database["🗄️ Database"]
+    
+    Users -->|Requests| System
+    System -->|Queries| Database
+```
+
+**Example ASCII Diagram (Context View):**
+
+```text
+    ┌──────────────┐
+    │    Users     │
+    └──────┬───────┘
+           │
+           ▼
+┌──────────────────┐
+│     System       │
+└──────┬───────────┘
+       │
+       ▼
+┌──────────────────┐
+│    Database      │
+└──────────────────┘
+```
+
 ## Goal
 
 Generate, update, or validate comprehensive Architecture Descriptions following the Rozanski & Woods "Software Systems Architecture" methodology. Transform AI from a simple coder into a System Architect capable of describing complex, production-ready systems with structural integrity.

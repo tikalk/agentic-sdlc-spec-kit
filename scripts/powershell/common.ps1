@@ -42,6 +42,99 @@ function Get-CurrentMode {
     }
 }
 
+# Get a specific mode configuration value
+# Usage: Get-ModeConfig "atomic_commits" → returns "true" or "false"
+# Usage: Get-ModeConfig "skip_micro_review" → returns "true" or "false"
+function Get-ModeConfig {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Key
+    )
+    
+    $configFile = Get-GlobalConfigPath
+    
+    # Default to false if no config exists
+    if (-not (Test-Path $configFile)) {
+        return 'false'
+    }
+    
+    try {
+        $config = Get-Content $configFile -Raw | ConvertFrom-Json
+        $mode = Get-CurrentMode
+        
+        # Read mode-specific config value, default to false
+        $value = $config.mode_defaults.$mode.$Key
+        
+        if ($null -eq $value) {
+            return 'false'
+        }
+        
+        # Convert to lowercase string for consistency with bash
+        return $value.ToString().ToLower()
+    }
+    catch {
+        return 'false'  # Fallback on any error
+    }
+}
+
+# Get architecture diagram format from global config (mermaid or ascii)
+# Defaults to "mermaid" if config doesn't exist or format is invalid
+function Get-ArchitectureDiagramFormat {
+    $configFile = Get-GlobalConfigPath
+    
+    # Default to mermaid if no config exists
+    if (-not (Test-Path $configFile)) {
+        return 'mermaid'
+    }
+    
+    try {
+        $config = Get-Content $configFile -Raw | ConvertFrom-Json
+        $format = $config.architecture.diagram_format
+        
+        # Validate format (only mermaid or ascii allowed)
+        if ($format -eq 'mermaid' -or $format -eq 'ascii') {
+            return $format
+        }
+        return 'mermaid'  # Fallback for invalid values
+    }
+    catch {
+        return 'mermaid'  # Fallback on any error
+    }
+}
+
+# Validate Mermaid diagram syntax (lightweight regex validation)
+# Returns $true if valid, $false if invalid
+# Args: MermaidCode - Mermaid code string
+function Test-MermaidSyntax {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$MermaidCode
+    )
+    
+    # Check if empty
+    if ([string]::IsNullOrWhiteSpace($MermaidCode)) {
+        return $false
+    }
+    
+    # Check for basic Mermaid diagram types
+    if ($MermaidCode -notmatch '^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph|mindmap|timeline)') {
+        return $false
+    }
+    
+    # Check for balanced brackets/parentheses (simplified)
+    $openBrackets = ([regex]::Matches($MermaidCode, '\[')).Count
+    $closeBrackets = ([regex]::Matches($MermaidCode, '\]')).Count
+    $openParens = ([regex]::Matches($MermaidCode, '\(')).Count
+    $closeParens = ([regex]::Matches($MermaidCode, '\)')).Count
+    
+    if ($openBrackets -ne $closeBrackets -or $openParens -ne $closeParens) {
+        return $false
+    }
+    
+    # Basic syntax passed
+    return $true
+}
+
 function Get-RepoRoot {
     try {
         $result = git rev-parse --show-toplevel 2>$null
@@ -139,6 +232,11 @@ function Get-FeaturePathsEnv {
     $hasGit = Test-HasGit
     $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
     
+    # Project-level governance documents
+    $memoryDir = Join-Path $repoRoot '.specify/memory'
+    $constitutionFile = Join-Path $memoryDir 'constitution.md'
+    $architectureFile = Join-Path $memoryDir 'architecture.md'
+    
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
         CURRENT_BRANCH = $currentBranch
@@ -151,6 +249,8 @@ function Get-FeaturePathsEnv {
         DATA_MODEL    = Join-Path $featureDir 'data-model.md'
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
+        CONSTITUTION  = $constitutionFile
+        ARCHITECTURE  = $architectureFile
     }
 }
 
@@ -173,6 +273,139 @@ function Test-DirHasFiles {
     } else {
         Write-Output "  ✗ $Description"
         return $false
+    }
+}
+
+# Extract constitution principles and constraints
+# Returns array of rules
+function Get-ConstitutionRules {
+    param([string]$ConstitutionFile)
+    
+    if (-not (Test-Path $ConstitutionFile)) {
+        return @()
+    }
+    
+    try {
+        $content = Get-Content $ConstitutionFile -Raw
+        $rules = @()
+        
+        foreach ($line in $content -split "`n") {
+            $trimmed = $line.Trim()
+            if ($trimmed -match '^\s*-\s+\*\*(Principle|PRINCIPLE|Constraint|CONSTRAINT|Pattern|PATTERN)') {
+                $type = 'principle'
+                if ($trimmed -match 'Constraint|CONSTRAINT') { $type = 'constraint' }
+                if ($trimmed -match 'Pattern|PATTERN') { $type = 'pattern' }
+                
+                $rules += @{
+                    type = $type
+                    text = $trimmed
+                }
+            }
+        }
+        
+        return $rules
+    }
+    catch {
+        return @()
+    }
+}
+
+# Extract architecture viewpoints from architecture.md
+# Returns hashtable with view names and presence status
+function Get-ArchitectureViews {
+    param([string]$ArchitectureFile)
+    
+    if (-not (Test-Path $ArchitectureFile)) {
+        return @{}
+    }
+    
+    try {
+        $content = Get-Content $ArchitectureFile -Raw
+        $views = @{}
+        
+        $viewPatterns = @{
+            'context' = '###\s+3\.1\s+Context\s+View'
+            'functional' = '###\s+3\.2\s+Functional\s+View'
+            'information' = '###\s+3\.3\s+Information\s+View'
+            'concurrency' = '###\s+3\.4\s+Concurrency\s+View'
+            'development' = '###\s+3\.5\s+Development\s+View'
+            'deployment' = '###\s+3\.6\s+Deployment\s+View'
+            'operational' = '###\s+3\.7\s+Operational\s+View'
+        }
+        
+        foreach ($viewName in $viewPatterns.Keys) {
+            $pattern = $viewPatterns[$viewName]
+            if ($content -match $pattern) {
+                $views[$viewName] = @{ present = $true }
+            }
+            else {
+                $views[$viewName] = @{ present = $false }
+            }
+        }
+        
+        return $views
+    }
+    catch {
+        return @{}
+    }
+}
+
+# Extract diagram blocks from architecture.md
+# Returns array of diagrams with type and format
+function Get-ArchitectureDiagrams {
+    param([string]$ArchitectureFile)
+    
+    if (-not (Test-Path $ArchitectureFile)) {
+        return @()
+    }
+    
+    try {
+        $content = Get-Content $ArchitectureFile -Raw
+        $diagrams = @()
+        
+        # Find all code blocks (mermaid or text)
+        $codeBlockPattern = '```(mermaid|text)\r?\n(.*?)\r?\n```'
+        $matches = [regex]::Matches($content, $codeBlockPattern, 'Singleline')
+        
+        foreach ($match in $matches) {
+            $diagramFormat = $match.Groups[1].Value
+            $diagramContent = $match.Groups[2].Value
+            
+            # Find which view this diagram belongs to
+            $startPos = $match.Index
+            $precedingText = $content.Substring(0, $startPos)
+            
+            # Find the most recent view heading
+            $viewName = 'unknown'
+            $viewPatterns = @(
+                @{ pattern = '###\s+3\.1\s+Context\s+View'; name = 'context' },
+                @{ pattern = '###\s+3\.2\s+Functional\s+View'; name = 'functional' },
+                @{ pattern = '###\s+3\.3\s+Information\s+View'; name = 'information' },
+                @{ pattern = '###\s+3\.4\s+Concurrency\s+View'; name = 'concurrency' },
+                @{ pattern = '###\s+3\.5\s+Development\s+View'; name = 'development' },
+                @{ pattern = '###\s+3\.6\s+Deployment\s+View'; name = 'deployment' },
+                @{ pattern = '###\s+3\.7\s+Operational\s+View'; name = 'operational' }
+            )
+            
+            foreach ($vp in $viewPatterns) {
+                $viewMatches = [regex]::Matches($precedingText, $vp.pattern, 'IgnoreCase')
+                if ($viewMatches.Count -gt 0) {
+                    $viewName = $vp.name
+                    # Keep looking for the last (most recent) match
+                }
+            }
+            
+            $diagrams += @{
+                view = $viewName
+                format = $diagramFormat
+                line_count = ($diagramContent -split "`n").Count
+            }
+        }
+        
+        return $diagrams
+    }
+    catch {
+        return @()
     }
 }
 
