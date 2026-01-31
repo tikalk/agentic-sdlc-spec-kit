@@ -180,6 +180,25 @@ get_global_config_path() {
     echo "$config_home/specify/config.json"
 }
 
+# Get project-level config path (.specify/config.json)
+get_project_config_path() {
+    echo "$REPO_ROOT/.specify/config.json"
+}
+
+# Get config path with hierarchical resolution
+get_config_path() {
+    local project_config=$(get_project_config_path)
+    local user_config=$(get_global_config_path)
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        echo "$project_config"
+    fi
+}
+
 SPECS_DIR="$REPO_ROOT/specs"
 mkdir -p "$SPECS_DIR"
 
@@ -304,7 +323,7 @@ replace_date_placeholders() {
 }
 
 # Mode-aware template selection
-MODE_FILE=$(get_global_config_path)
+MODE_FILE=$(get_config_path)
 CURRENT_MODE="spec"
 if [ -f "$MODE_FILE" ]; then
     CURRENT_MODE=$(python3 -c "

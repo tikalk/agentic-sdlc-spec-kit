@@ -9,6 +9,30 @@ get_global_config_path() {
     echo "$config_home/specify/config.json"
 }
 
+# Get project-level config path (.specify/config.json)
+get_project_config_path() {
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        local repo_root=$(git rev-parse --show-toplevel)
+        echo "$repo_root/.specify/config.json"
+    else
+        echo ".specify/config.json"
+    fi
+}
+
+# Get config path with hierarchical resolution
+get_config_path() {
+    local project_config=$(get_project_config_path)
+    local user_config=$(get_global_config_path)
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        echo "$project_config"
+    fi
+}
+
 # Initialize tasks_meta.json for a feature
 init_tasks_meta() {
     local feature_dir="$1"
@@ -680,9 +704,9 @@ execute_mode_aware_rollback() {
 get_framework_opinions() {
     local mode="${1:-spec}"
     local config_file
-    config_file=$(get_global_config_path)
+    config_file=$(get_config_path)
 
-    # Read from consolidated config (global)
+    # Read from consolidated config (hierarchical)
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local user_tdd
         user_tdd=$(jq -r ".options.tdd_enabled" "$config_file" 2>/dev/null || echo "null")

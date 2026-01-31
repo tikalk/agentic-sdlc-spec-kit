@@ -25,9 +25,9 @@
 
 ### **Workflow Modes Feature** - **COMPLETED**
 
-- ✅ **Mode Switching Command**: `/mode` command to set build/spec workflow modes and framework options (spec mode is default)
+- ✅ **Mode Switching Command**: `/speckit.mode` command to set build/spec workflow modes and framework options (spec mode is default)
 - ✅ **Consolidated Configuration**: Unified `.specify/config/mode.json` with `options` section replacing separate `opinions.json`
-- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via `/mode` command
+- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via `/speckit.mode` command
 - ✅ **Mode State Persistence**: Store current mode, options, and history in single config file
 - ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands adapted for mode-aware behavior
 - ✅ **Mode Validation**: Commands validate mode compatibility and provide guidance
@@ -64,7 +64,7 @@
 
 - ✅ **Risk Extraction**: Standardized severity levels (Critical/High/Medium/Low) in `check-prerequisites.sh`
 - ✅ **Automated Test Generation**: `generate-risk-tests.sh` creates targeted test tasks
-- ✅ **Mode Integration**: Risk-based testing configurable via `/mode --risk-tests` command
+- ✅ **Mode Integration**: Risk-based testing configurable via `/speckit.mode --risk-tests` command
 - ✅ **Test Evidence Capture**: `/implement` preserves risk mitigation validation
 
 #### **Dual Execution Loop Infrastructure**
@@ -114,7 +114,7 @@
 
 #### **Configurable Framework Options** *(100% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
 
-- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via `/mode` command
+- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via `/speckit.mode` command
 - ✅ **Consolidated Configuration**: Unified `config.json` with `options` section
 - ✅ **Mode-Based Preferences**: Different defaults for build vs spec modes
 - ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional

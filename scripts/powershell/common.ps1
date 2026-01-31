@@ -17,10 +17,33 @@ function Get-GlobalConfigPath {
     return Join-Path $configDir "specify" "config.json"
 }
 
-# Get current workflow mode from global config (build or spec)
+function Get-ProjectConfigPath {
+    $repoRoot = Get-RepoRoot
+    return Join-Path $repoRoot ".specify" "config.json"
+}
+
+function Get-ConfigPath {
+    <#
+    .SYNOPSIS
+    Get config path with hierarchical resolution
+    Priority: 1) Project config  2) User config  3) Default to project
+    #>
+    $projectConfig = Get-ProjectConfigPath
+    $userConfig = Get-GlobalConfigPath
+    
+    if (Test-Path $projectConfig) {
+        return $projectConfig
+    } elseif (Test-Path $userConfig) {
+        return $userConfig
+    } else {
+        return $projectConfig
+    }
+}
+
+# Get current workflow mode from config (build or spec)
 # Defaults to "spec" if config doesn't exist or mode is invalid
 function Get-CurrentMode {
-    $configFile = Get-GlobalConfigPath
+    $configFile = Get-ConfigPath
     
     # Default to spec mode if no config exists
     if (-not (Test-Path $configFile)) {
@@ -46,12 +69,12 @@ function Get-CurrentMode {
 # Usage: Get-ModeConfig "atomic_commits" → returns "true" or "false"
 # Usage: Get-ModeConfig "skip_micro_review" → returns "true" or "false"
 function Get-ModeConfig {
-    param(
+    param (
         [Parameter(Mandatory=$true)]
         [string]$Key
     )
     
-    $configFile = Get-GlobalConfigPath
+    $configFile = Get-ConfigPath
     
     # Default to false if no config exists
     if (-not (Test-Path $configFile)) {
@@ -80,7 +103,7 @@ function Get-ModeConfig {
 # Get architecture diagram format from global config (mermaid or ascii)
 # Defaults to "mermaid" if config doesn't exist or format is invalid
 function Get-ArchitectureDiagramFormat {
-    $configFile = Get-GlobalConfigPath
+    $configFile = Get-ConfigPath
     
     # Default to mermaid if no config exists
     if (-not (Test-Path $configFile)) {

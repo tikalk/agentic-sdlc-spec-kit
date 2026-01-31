@@ -322,16 +322,47 @@ def get_global_config_path() -> Path:
     return config_dir / "config.json"
 
 
-def get_config_path(project_path: Optional[Path] = None) -> Path:
-    """Get the path to the global configuration file.
+def get_project_config_path(project_path: Optional[Path] = None) -> Path:
+    """Get project-level config path (.specify/config.json).
 
     Args:
-        project_path: (Ignored - kept for backward compatibility)
+        project_path: Path to project root (default: current directory)
 
     Returns:
-        Path to global config.json
+        Path to .specify/config.json in the specified project
     """
-    return get_global_config_path()
+    if project_path is None:
+        project_path = Path.cwd()
+    return project_path / ".specify" / "config.json"
+
+
+def get_config_path(project_path: Optional[Path] = None) -> Path:
+    """Get config path with hierarchical resolution.
+
+    Priority order:
+    1. Project-level config: .specify/config.json
+    2. User-level config: ~/.config/specify/config.json (backward compat)
+    3. Default to project-level path (will be created on save)
+
+    Args:
+        project_path: Path to project root (default: current directory)
+
+    Returns:
+        Path to config file (project-level preferred)
+    """
+    project_config = get_project_config_path(project_path)
+    user_config = get_global_config_path()
+
+    # Project config takes precedence if it exists
+    if project_config.exists():
+        return project_config
+
+    # Fallback to user config for backward compatibility
+    if user_config.exists():
+        return user_config
+
+    # Default to project-level config (will be created on write)
+    return project_config
 
 
 def load_config(project_path: Optional[Path] = None) -> dict:
@@ -361,16 +392,16 @@ def load_config(project_path: Optional[Path] = None) -> dict:
 def save_config(
     project_path: Optional[Path] = None, config: Optional[dict] = None
 ) -> None:
-    """Save the configuration to global location.
+    """Save the configuration to project-level location.
 
     Args:
-        project_path: (Ignored - global config is used for all projects)
+        project_path: Path to project root (default: current directory)
         config: Configuration dict to save
     """
     if config is None:
         config = {}
 
-    config_path = get_global_config_path()
+    config_path = get_project_config_path(project_path)
 
     try:
         config_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1564,6 +1595,25 @@ def download_and_extract_template(
                 tracker.complete("cleanup")
             elif verbose:
                 console.print(f"Cleaned up: {zip_path.name}")
+
+    # Create project-level config in .specify directory
+    if tracker:
+        tracker.add("config", "Create project configuration")
+        tracker.start("config")
+
+    project_config_path = get_project_config_path(project_path)
+    project_config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Generate default config
+    default_config = get_default_config()
+    save_config(project_path, default_config)
+
+    if tracker:
+        tracker.complete("config", ".specify/config.json")
+    elif verbose:
+        console.print(
+            f"[green]✓[/green] Created project configuration: {project_config_path.relative_to(project_path)}"
+        )
 
     return project_path
 

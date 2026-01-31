@@ -122,7 +122,7 @@ load_implementation_context() {
     # Get current workflow mode
     local workflow_mode="spec"  # Default
     local global_config
-    global_config=$(get_global_config_path)
+    global_config=$(get_config_path)
     if [[ -f "$global_config" ]]; then
         workflow_mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
     fi
@@ -444,7 +444,7 @@ handle_task_failure() {
     # Get workflow mode for mode-aware rollback
     local mode="spec"  # Default
     local global_config
-    global_config=$(get_global_config_path)
+    global_config=$(get_config_path)
     if [[ -f "$global_config" ]]; then
         mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
     fi

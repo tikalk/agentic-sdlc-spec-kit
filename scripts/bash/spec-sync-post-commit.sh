@@ -32,8 +32,22 @@ log_error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Check if spec sync is enabled (global config)
-CONFIG_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/specify/config.json"
+# Get config path with hierarchical resolution
+get_config_path() {
+    local project_config="$PROJECT_ROOT/.specify/config.json"
+    local user_config="${XDG_CONFIG_HOME:-$HOME/.config}/specify/config.json"
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        echo "$project_config"
+    fi
+}
+
+# Check if spec sync is enabled
+CONFIG_FILE=$(get_config_path)
 if [[ ! -f "$CONFIG_FILE" ]]; then
     exit 0
 fi

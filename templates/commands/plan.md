@@ -292,5 +292,5 @@ $ARGUMENTS
 
 **Mode Transitions:**
 
-- Build → Spec: Use `/mode spec` when feature complexity increases or comprehensive planning is needed
-- Spec → Build: Use `/mode build` for rapid prototyping or when detailed planning creates overhead
+- Build → Spec: Use `/speckit.mode spec` when feature complexity increases or comprehensive planning is needed
+- Spec → Build: Use `/speckit.mode build` for rapid prototyping or when detailed planning creates overhead

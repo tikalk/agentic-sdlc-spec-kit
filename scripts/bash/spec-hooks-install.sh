@@ -77,8 +77,39 @@ set -euo pipefail
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="\$(cd "\$SCRIPT_DIR/../.." && pwd)"
 
-# Get the global config path using XDG Base Directory spec
-GLOBAL_CONFIG="\${XDG_CONFIG_HOME:-\$HOME/.config}/specify/config.json"
+# Get config path with hierarchical resolution (project-level preferred)
+get_repo_root() {
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        git rev-parse --show-toplevel
+    else
+        pwd
+    fi
+}
+
+get_project_config_path() {
+    local repo_root=$(get_repo_root)
+    echo "$repo_root/.specify/config.json"
+}
+
+get_global_config_path() {
+    local config_home="\${XDG_CONFIG_HOME:-\$HOME/.config}"
+    echo "$config_home/specify/config.json"
+}
+
+get_config_path() {
+    local project_config=$(get_project_config_path)
+    local user_config=$(get_global_config_path)
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        echo "$project_config"
+    fi
+}
+
+GLOBAL_CONFIG=$(get_config_path)
 
 # Check if spec sync is enabled for this project
 if [[ ! -f "\$GLOBAL_CONFIG" ]]; then

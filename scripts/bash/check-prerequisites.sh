@@ -150,7 +150,7 @@ PY
 # Extract mode configuration
 get_mode_config() {
     local config_file
-    config_file=$(get_global_config_path)
+    config_file=$(get_config_path)
 
     # Extract current mode and options from consolidated config
     python3 - "$config_file" <<'PY'
@@ -228,7 +228,7 @@ fi
 if [[ ! -f "$IMPL_PLAN" ]]; then
     # Get current mode to determine if plan.md is required
     current_mode="spec"
-    global_config=$(get_global_config_path)
+    global_config=$(get_config_path)
     if [[ -f "$global_config" ]]; then
         current_mode=$(python3 -c "
 import json

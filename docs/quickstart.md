@@ -29,26 +29,26 @@ Specify supports two workflow modes that control development complexity, plus co
 /mode
 
 # Switch to lightweight mode for prototyping
-/mode build
+/speckit.mode build
 
 # Switch to comprehensive mode for production features
-/mode spec
+/speckit.mode spec
 
 # Customize framework opinions
-/mode --no-contracts  # Disable API contracts
-/mode --tdd           # Enable TDD
-/mode --risk-tests    # Enable risk-based testing
-/mode --reset-opinions  # Reset to mode defaults
+/speckit.mode --no-contracts  # Disable API contracts
+/speckit.mode --tdd           # Enable TDD
+/speckit.mode --risk-tests    # Enable risk-based testing
+/speckit.mode --reset-opinions  # Reset to mode defaults
 
 # Learn more about modes and opinions
-/mode --info
+/speckit.mode --info
 ```
 
 **Recommendation:**
 
 - Use **`build` mode** for: Individual development, rapid prototyping, quick wins, senior engineer autonomy
 - Use **`spec` mode** for: Team collaboration, complex systems, comprehensive documentation, rigorous validation
-- Switch between modes as needed: `/mode build` for fast iteration, `/mode spec` for thorough planning
+- Switch between modes as needed: `/speckit.mode build` for fast iteration, `/speckit.mode spec` for thorough planning
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
@@ -304,7 +304,7 @@ Your development needs may change as features evolve:
 ### When to Switch from Build to Spec Mode
 
 ```bash
-/mode spec
+/speckit.mode spec
 ```
 
 **Indicators:**
@@ -317,7 +317,7 @@ Your development needs may change as features evolve:
 ### When to Switch from Spec to Build Mode
 
 ```bash
-/mode build
+/speckit.mode build
 ```
 
 **Indicators:**

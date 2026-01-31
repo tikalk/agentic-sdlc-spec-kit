@@ -13,11 +13,33 @@ get_global_config_path() {
     echo "$config_home/specify/config.json"
 }
 
-# Get current workflow mode from global config (build or spec)
+# Get project-level config path (.specify/config.json)
+get_project_config_path() {
+    local repo_root=$(get_repo_root)
+    echo "$repo_root/.specify/config.json"
+}
+
+# Get config path with hierarchical resolution
+# Priority: 1) Project config  2) User config  3) Default to project
+get_config_path() {
+    local project_config=$(get_project_config_path)
+    local user_config=$(get_global_config_path)
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        # Default to project-level config
+        echo "$project_config"
+    fi
+}
+
+# Get current workflow mode from config (build or spec)
 # Defaults to "spec" if config doesn't exist or mode is invalid
 get_current_mode() {
     local config_file
-    config_file=$(get_global_config_path)
+    config_file=$(get_config_path)
     
     # Default to spec mode if no config exists
     if [[ ! -f "$config_file" ]] || ! command -v jq >/dev/null 2>&1; then
@@ -43,7 +65,7 @@ get_current_mode() {
 get_mode_config() {
     local key="$1"
     local config_file
-    config_file=$(get_global_config_path)
+    config_file=$(get_config_path)
     
     # Default to false if no config exists or jq not available
     if [[ ! -f "$config_file" ]] || ! command -v jq >/dev/null 2>&1; then
@@ -62,11 +84,11 @@ get_mode_config() {
     echo "$value"
 }
 
-# Get architecture diagram format from global config (mermaid or ascii)
+# Get architecture diagram format from config (mermaid or ascii)
 # Defaults to "mermaid" if config doesn't exist or format is invalid
 get_architecture_diagram_format() {
     local config_file
-    config_file=$(get_global_config_path)
+    config_file=$(get_config_path)
     
     # Default to mermaid if no config exists or jq not available
     if [[ ! -f "$config_file" ]] || ! command -v jq >/dev/null 2>&1; then
