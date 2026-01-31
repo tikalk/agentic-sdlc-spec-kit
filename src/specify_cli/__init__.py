@@ -2179,22 +2179,25 @@ def init(
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
     steps_lines.append(
-        f"   2.1 [{ACCENT_COLOR}]/speckit.constitution[/{ACCENT_COLOR}] - Establish project principles"
+        f"   2.1 [{ACCENT_COLOR}]/speckit.architect[/{ACCENT_COLOR}] - Generate Architecture Description using Rozanski & Woods methodology (7 viewpoints + perspectives)"
     )
     steps_lines.append(
-        f"   2.2 [{ACCENT_COLOR}]/speckit.specify[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   2.2 [{ACCENT_COLOR}]/speckit.constitution[/{ACCENT_COLOR}] - Establish project principles"
     )
     steps_lines.append(
-        f"   2.3 [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] - Create implementation plan"
+        f"   2.3 [{ACCENT_COLOR}]/speckit.specify[/{ACCENT_COLOR}] - Create baseline specification"
     )
     steps_lines.append(
-        f"   2.4 [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
+        f"   2.4 [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] - Create implementation plan"
     )
     steps_lines.append(
-        f"   2.5 [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}] - Execute implementation"
+        f"   2.5 [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   2.6 [{ACCENT_COLOR}]/speckit.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
+        f"   2.6 [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}] - Execute implementation"
+    )
+    steps_lines.append(
+        f"   2.7 [{ACCENT_COLOR}]/speckit.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
     )
 
     steps_panel = Panel(
@@ -2209,6 +2212,7 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
+        f"○ [{ACCENT_COLOR}]/mode[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Manage workflow modes and framework opinions for development complexity control",
         f"○ [{ACCENT_COLOR}]/speckit.clarify[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] if used)",
         f"○ [{ACCENT_COLOR}]/speckit.analyze[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}])",
         f"○ [{ACCENT_COLOR}]/speckit.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}])",
