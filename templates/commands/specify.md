@@ -272,9 +272,10 @@ Given that feature description, do this:
      - **Build Mode**: Ready for `/speckit.implement` (skip clarify/plan for lightweight execution)
      - **Spec Mode**: Ready for `/speckit.clarify` or `/speckit.plan`
 
-9. **Mode Guidance & Transitions**:
-    - **Build Mode Users**: This mode prioritizes speed over completeness. If your feature becomes more complex, consider switching to Spec mode with `/speckit.mode spec` for comprehensive planning.
-    - **Spec Mode Users**: This mode provides thorough validation. If you need to quickly prototype, you can switch to Build mode with `/speckit.mode build`.
+9. **Mode Guidance**:
+    - **Build Mode**: This mode prioritizes speed over completeness. Use `--mode=build` during specification for rapid prototyping.
+    - **Spec Mode**: This mode provides thorough validation. Use `--mode=spec` (default) during specification for comprehensive planning.
+    - **Changing Modes**: Create a new feature with the desired mode using `/speckit.specify --mode=build|spec` rather than trying to change an existing feature's mode.
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

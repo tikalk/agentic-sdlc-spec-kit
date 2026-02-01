@@ -235,4 +235,4 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
 
 - **Build Mode**: Lightweight implementation with basic validation - ideal for quick wins
 - **Spec Mode**: Full dual execution loop with comprehensive quality gates - ideal for robust delivery
-- **Mode Switching**: If Build mode implementation reveals gaps, switch to Spec mode with `/speckit.mode spec` for complete coverage
+- **Note**: Mode is determined by the current feature's spec.md and cannot be changed mid-feature; create a new feature in the desired mode if needed

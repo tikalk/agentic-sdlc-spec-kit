@@ -240,56 +240,90 @@ specify init my-project --spec-sync
 specify init my-project --ai claude --spec-sync
 ```
 
-### Workflow Mode Management
+### Per-Spec Workflow Mode Architecture
 
-Specify supports two workflow modes that control the complexity level of the development process:
+Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows. The mode is configured at the specification level and applies to all downstream commands.
 
 #### Available Modes
 
 - **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
 - **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
 
-#### Mode Commands
+#### Mode Configuration
+
+Modes are configured per-feature when creating the specification:
 
 ```bash
-# Show current mode and available options
-/mode
+# Create feature with specific mode
+/speckit.specify --mode=build "Quick API fix"
+/speckit.specify --mode=spec "Comprehensive user authentication"
 
-# Switch to build mode (lightweight development)
-/mode build
+# Override framework options per feature
+/speckit.specify --mode=build --tdd "Critical feature with tests"
+/speckit.specify --mode=spec --no-contracts "Feature without API contracts"
 
-# Switch to spec mode (comprehensive development)
-/mode spec
-
-# Show detailed information about all modes
-/mode --info
+# Mode-specific defaults automatically applied
+# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
+# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
 ```
+
+#### Framework Options
+
+Fine-grained control over development approach:
+
+```bash
+# Test-Driven Development
+--tdd / --no-tdd
+
+# Smart Contracts (API specifications)
+--contracts / --no-contracts
+
+# Data Models (entity relationships)
+--data-models / --no-data-models
+
+# Risk-Based Testing
+--risk-tests / --no-risk-tests
+```
+
+#### Mode Detection and Auto-Detection
+
+The mode is stored in the `spec.md` file metadata and automatically detected by downstream commands:
+
+- **`/speckit.plan`**, **`/speckit.tasks`**, **`/speckit.implement`**, **`/speckit.clarify`**, **`/speckit.analyze`**, **`/speckit.checklist`**: Auto-detect mode and framework options from the current feature's spec.md
+- **`/speckit.architect`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
 
 #### When to Use Each Mode
 
 **Use `build` mode for:**
 
-- Prototyping and exploration
-- Simple features with clear requirements
-- Quick validation of ideas
-- When you want to get something working fast
+- Individual development and rapid prototyping
+- Quick wins and simple features  
+- Senior engineers who prefer autonomy
+- Situations requiring fast iteration
 
 **Use `spec` mode for:**
 
-- Complex features requiring thorough analysis
-- Team collaboration with detailed documentation
-- Production systems needing comprehensive validation
-- When you need full traceability and quality gates
+- Team collaboration and complex systems
+- Production features requiring comprehensive validation
+- Situations where thorough documentation is critical
+- Projects with multiple stakeholders
 
-#### Mode-Aware Commands
+#### Mixed-Mode Workflows
 
-All slash commands adapt their behavior based on the current mode:
+The per-spec architecture enables advanced workflows:
 
-- **`/speckit.specify`**: Build mode uses simplified templates, spec mode uses comprehensive validation
-- **`/speckit.clarify`**: Build mode limits questions to 2, spec mode allows up to 5
-- **`/speckit.plan`**: Build mode creates lightweight plans, spec mode includes full research
-- **`/speckit.implement`**: Build mode focuses on core functionality, spec mode includes comprehensive quality gates
-- **`/speckit.analyze`**: Auto-detects pre vs post-implementation context based on project state
+```bash
+# Create multiple features with different modes in same project
+/speckit.specify --mode=build "Quick prototype feature"
+/speckit.specify --mode=spec "Production authentication system"
+/speckit.specify --mode=build "Bug fix"
+
+# Each feature operates independently with its configured mode
+/speckit.plan    # Auto-detects mode from current feature's spec.md
+/speckit.tasks   # Respects framework options from spec.md
+/speckit.implement # Adapts validation based on detected mode
+/speckit.analyze # Auto-detects pre vs post-implementation context based on project state
+```
 
 #### Complete Example
 
@@ -462,7 +496,6 @@ The `specify` command supports the following options:
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `shai`, `qoder`) |
-| `mode`      | Manage workflow modes and framework opinions for development complexity control |
 
 ### `specify init` Arguments & Options
 
@@ -484,17 +517,15 @@ The `specify` command supports the following options:
 | `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                     |
 | `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 
-### `/mode` Arguments & Options
+### `/speckit.specify` Mode & Framework Options
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
-| `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
+| `--mode`        | Option   | Workflow mode: `build` (lightweight) or `spec` (comprehensive, default) |
 | `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
 | `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
 | `--risk-tests/--no-risk-tests` | Option | Enable/disable risk-based test generation |
-| `--reset-opinions` | Option | Reset framework opinions to mode defaults |
-| `--info`, `-i`  | Flag     | Show detailed information about available modes                             |
 
 ### Examples
 
@@ -557,11 +588,10 @@ specify init enterprise-app --ai claude --script sh --team-ai-directives https:/
 # Check system requirements
 specify check
 
-# Workflow mode management
-/mode                    # Show current mode
-/mode build             # Switch to lightweight build mode
-/mode spec              # Switch to comprehensive spec mode
-/mode --info            # Show detailed mode information
+# Workflow mode management is per-feature during specification
+/speckit.specify --mode build "Quick prototype feature"      # Create feature in build mode
+/speckit.specify --mode spec "Complex feature"                # Create feature in spec mode (default)
+/speckit.specify --mode build --tdd "Feature with tests"     # Build mode with TDD enabled
 ```
 
 ### Available Slash Commands

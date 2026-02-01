@@ -388,10 +388,10 @@ Behavior rules:
 - **Constitution/Architecture graceful handling**: If files missing, skip those pillars without error
 - **Auto-fix diagrams silently**: When fixing diagram inconsistencies, apply update and note in clarifications (don't ask user)
 
-1. **Mode Guidance & Transitions**:
+1. **Mode Guidance**:
     - **Build Mode**: Limited clarification (max 2 questions) focuses on critical blockers only
     - **Spec Mode**: Comprehensive clarification (max 5 questions) ensures thorough understanding
-    - **Mode Switching**: If Build mode reveals unexpected complexity, suggest switching to Spec mode with `/speckit.mode spec`
+    - **Note**: Mode is determined by the current feature's spec.md and cannot be changed mid-feature; create a new feature in the desired mode if needed
 
 - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 

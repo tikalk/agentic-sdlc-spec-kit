@@ -13,18 +13,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING: Removed AD Mode**: Architecture support is now optional and available in all workflow modes
-  - Removed "ad" mode option from `/mode` command
-  - Only `build` and `spec` workflow modes remain
-  - `/speckit.architect` and `/speckit.constitution` commands now work in all modes
-  - Architecture and constitution files load silently when present, with no warnings if missing
-  - Automatic migration: existing "ad" mode configurations treated as "spec" mode
-  - Added `get_current_mode()` / `Get-CurrentMode` functions to bash and PowerShell scripts
-  - Updated `setup-plan.sh` and `setup-plan.ps1` to detect mode and load architecture automatically
+- **BREAKING: Removed Global Mode Management**: Replaced global mode switching with per-spec mode architecture
+  - **Deprecated**: `/mode` command removed (use `/specify` parameters instead)
+  - **Per-Spec Architecture**: Each feature can operate in different modes simultaneously
+  - **Auto-Detection System**: Commands automatically detect mode from spec.md metadata
+  - **Parameter-Based Configuration**: Modes and framework options set via `/specify` parameters during feature creation
+  - **Metadata Storage**: Mode and framework options stored in spec.md for traceability
+  - **Architecture Mode-Agnostic**: `/architect` command remains mode-agnostic (system-level architecture should not be constrained by feature-level modes)
+  - Added `detect_workflow_config()` / `Get-WorkflowConfig` functions to bash and PowerShell scripts
+  - Updated `setup-plan.sh` and `setup-plan.ps1` to auto-detect mode from spec.md
 
 ### Added
 
-- **Optional Architecture Support**: Architecture documentation available in all modes
+- **Per-Spec Mode Architecture**: Feature-level mode configuration with automatic detection
+  - **Mixed-Mode Workflows**: Different features can use different modes simultaneously in the same project
+  - **Optional Architecture Support**: Architecture documentation available in all modes
   - `/speckit.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
   - 7 Core Viewpoints: Context, Functional, Information, Concurrency, Development, Deployment, Operational
   - 2 Cross-cutting Perspectives: Security, Performance & Scalability

@@ -25,18 +25,18 @@
 
 ### **Workflow Modes Feature** - **COMPLETED**
 
-- ✅ **Mode Switching Command**: `/speckit.mode` command to set build/spec workflow modes and framework options (spec mode is default)
-- ✅ **Consolidated Configuration**: Unified `.specify/config/mode.json` with `options` section replacing separate `opinions.json`
-- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via `/speckit.mode` command
-- ✅ **Mode State Persistence**: Store current mode, options, and history in single config file
-- ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands adapted for mode-aware behavior
-- ✅ **Mode Validation**: Commands validate mode compatibility and provide guidance
-- ✅ **Complexity Reduction**: Allow users to choose workflow complexity level (spec-driven vs lightweight)
+- ✅ **Per-Spec Mode Architecture**: Mode configuration moved from global `/speckit.mode` command to per-feature specification level
+  - **Previous**: `/speckit.mode` command for global mode switching
+  - **Current**: `/speckit.specify --mode=build|spec` for feature-level mode configuration
+- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via feature-level mode parameters
+- ✅ **Mode State Persistence**: Mode and framework options stored in spec.md metadata for each feature
+- ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands auto-detect mode from spec.md
+- ✅ **Auto-Detection System**: Commands automatically detect mode using `detect_workflow_config()` function
+- ✅ **Complexity Reduction**: Users can choose workflow complexity level per-feature (build vs spec mode)
 - ✅ **Auto-Detection**: `/analyze` automatically detects pre vs post-implementation context
-- ✅ **Documentation**: Mode functionality documented in README.md and quickstart.md
+- ✅ **Documentation**: Per-spec mode architecture documented in README.md and quickstart.md
 - ✅ **12-Factors Integration**: Workflow modes documented in methodology documentation
-
-- ✅ **Checklist Integration**: `/checklist` command adapts validation based on enabled framework options
+- ✅ **Checklist Integration**: `/checklist` command adapts validation based on detected framework options
 
 ### **AI Session Context Management** *(100% Complete)* - **HIGH PRIORITY** - Knowledge management and team learning
 
@@ -64,7 +64,7 @@
 
 - ✅ **Risk Extraction**: Standardized severity levels (Critical/High/Medium/Low) in `check-prerequisites.sh`
 - ✅ **Automated Test Generation**: `generate-risk-tests.sh` creates targeted test tasks
-- ✅ **Mode Integration**: Risk-based testing configurable via `/speckit.mode --risk-tests` command
+- ✅ **Mode Integration**: Risk-based testing configurable via feature-level mode parameters (`--risk-tests` flag)
 - ✅ **Test Evidence Capture**: `/implement` preserves risk mitigation validation
 
 #### **Dual Execution Loop Infrastructure**
@@ -114,7 +114,7 @@
 
 #### **Configurable Framework Options** *(100% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
 
-- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via `/speckit.mode` command
+- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via feature-level mode parameters
 - ✅ **Consolidated Configuration**: Unified `config.json` with `options` section
 - ✅ **Mode-Based Preferences**: Different defaults for build vs spec modes
 - ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional

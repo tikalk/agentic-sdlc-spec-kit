@@ -164,8 +164,8 @@ $ARGUMENTS
 
 **Framework Opinions Check:**
 
-- Check current mode and opinion settings via `/mode`
-- Respect user configuration for contracts and data models
+- Detect current mode and framework options from spec.md metadata using `detect_workflow_config()`
+- Respect framework configuration for contracts and data models based on detected mode
 
 1. **Extract entities from feature spec** → `data-model.md` (if data models enabled):
     - Only generate if data models are enabled in current mode settings
@@ -292,7 +292,8 @@ $ARGUMENTS
 - Complete design artifacts and thorough triage
 - Suitable for: Complex features, team collaboration, production systems
 
-**Mode Transitions:**
+**Mode Guidance:**
 
-- Build → Spec: Use `/speckit.mode spec` when feature complexity increases or comprehensive planning is needed
-- Spec → Build: Use `/speckit.mode build` for rapid prototyping or when detailed planning creates overhead
+- Build Mode: Feature specified with `--mode=build` focuses on quick validation with minimal artifacts
+- Spec Mode: Feature specified with `--mode=spec` includes comprehensive planning and full artifact generation
+- To use a different mode: Create a new feature with the desired mode using `/speckit.specify --mode=build|spec`

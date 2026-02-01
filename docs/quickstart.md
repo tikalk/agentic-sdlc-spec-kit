@@ -11,44 +11,89 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
-### Choose Your Workflow Mode
+### Per-Spec Workflow Mode Architecture
 
-Specify supports two workflow modes that control development complexity, plus configurable framework opinions:
+Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows.
 
-- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, validation, and blocking review gates for team coordination
-- **`build` mode (GSD - Get Sh*t Done)**: High-velocity execution with atomic commits, non-blocking post-hoc review, and minimal documentation for rapid iteration
+#### Available Modes
 
-**Framework Opinions** (configurable within each mode):
+- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
+- **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
 
-- **TDD**: Test-Driven Development (tests before implementation)
-- **API Contracts**: Automatic contract generation during planning
-- **Data Models**: Automatic data model generation during planning
+#### Mode Configuration
+
+Modes are configured per-feature using parameters during specification:
 
 ```bash
-# Check current mode and opinions
-/mode
+# Create feature with specific mode
+/speckit.specify --mode=build "Quick API fix"
+/speckit.specify --mode=spec "Comprehensive user authentication"
 
-# Switch to lightweight mode for prototyping
-/speckit.mode build
+# Override framework options per feature
+/speckit.specify --mode=build --tdd "Critical feature with tests"
+/speckit.specify --mode=spec --no-contracts "Feature without API contracts"
 
-# Switch to comprehensive mode for production features
-/speckit.mode spec
-
-# Customize framework opinions
-/speckit.mode --no-contracts  # Disable API contracts
-/speckit.mode --tdd           # Enable TDD
-/speckit.mode --risk-tests    # Enable risk-based testing
-/speckit.mode --reset-opinions  # Reset to mode defaults
-
-# Learn more about modes and opinions
-/speckit.mode --info
+# Mode-specific defaults automatically applied
+# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
+# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
 ```
 
-**Recommendation:**
+#### Framework Options
 
-- Use **`build` mode** for: Individual development, rapid prototyping, quick wins, senior engineer autonomy
-- Use **`spec` mode** for: Team collaboration, complex systems, comprehensive documentation, rigorous validation
-- Switch between modes as needed: `/speckit.mode build` for fast iteration, `/speckit.mode spec` for thorough planning
+Fine-grained control over development approach:
+
+```bash
+# Test-Driven Development
+--tdd / --no-tdd
+
+# Smart Contracts (API specifications)
+--contracts / --no-contracts
+
+# Data Models (entity relationships)
+--data-models / --no-data-models
+
+# Risk-Based Testing
+--risk-tests / --no-risk-tests
+```
+
+#### Auto-Detection System
+
+Downstream commands automatically detect the mode from spec.md metadata:
+
+- **`/speckit.plan`**, **`/speckit.tasks`**, **`/speckit.implement`**, **`/speckit.clarify`**, **`/speckit.analyze`**, **`/speckit.checklist`**: Auto-detect mode and framework options from spec.md
+- **`/speckit.architect`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
+
+#### When to Use Each Mode
+
+**Use `build` mode for:**
+
+- Individual development and rapid prototyping
+- Quick wins and simple features
+- Senior engineers who prefer autonomy
+- Situations requiring fast iteration
+
+**Use `spec` mode for:**
+
+- Team collaboration and complex systems
+- Production features requiring comprehensive validation
+- Situations where thorough documentation is critical
+- Projects with multiple stakeholders
+
+#### Mixed-Mode Workflows
+
+The per-spec architecture enables advanced workflows:
+
+```bash
+# Create multiple features with different modes in same project
+/speckit.specify --mode=build "Quick prototype feature"
+/speckit.specify --mode=spec "Production authentication system"
+/speckit.specify --mode=build "Bug fix"
+
+# Each feature operates independently with its configured mode
+/speckit.plan    # Auto-detects mode from current feature's spec.md
+/speckit.tasks   # Respects framework options from spec.md
+/speckit.implement # Adapts validation based on detected mode
+```
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
@@ -152,7 +197,7 @@ Specify supports two workflow modes that control development complexity, plus co
 
 **In your terminal**, run the `specify` CLI command to initialize your project:
 
-> **Note:** All slash commands adapt their behavior based on your current workflow mode. Use `/mode` to check or change modes.
+> **Note:** All slash commands automatically detect the workflow mode from the current feature's spec.md metadata. No manual mode switching required.
 
 ```bash
 # Create a new project directory
@@ -297,35 +342,43 @@ Finally, implement the solution:
 - **Let the AI agent handle** the implementation details
 - **Choose your complexity level** with workflow modes (build for speed, spec for thoroughness)
 
-## Mode Transitions
+## Creating Features in Different Modes
 
-Your development needs may change as features evolve:
+Your development needs may vary between different features:
 
-### When to Switch from Build to Spec Mode
+### For Build Mode Features
 
-```bash
-/speckit.mode spec
-```
-
-**Indicators:**
-
-- Feature scope is growing beyond initial expectations
-- Multiple stakeholders need detailed documentation
-- Production deployment requires comprehensive testing
-- Integration with existing systems becomes complex
-
-### When to Switch from Spec to Build Mode
+Create lightweight features focused on quick validation:
 
 ```bash
-/speckit.mode build
+/speckit.specify --mode=build "Your feature description"
 ```
 
-**Indicators:**
+**Best for:**
 
-- Shifting to exploratory prototyping
-- Need to quickly validate a technical approach
-- Working on throwaway proof-of-concepts
-- Time pressure requires simplified process
+- Exploratory prototyping
+- Quick validation of technical approaches
+- Throwaway proof-of-concepts
+- Time-sensitive features
+
+### For Spec Mode Features (Default)
+
+Create comprehensive features with detailed planning and validation:
+
+```bash
+/speckit.specify --mode=spec "Your feature description"
+```
+
+**Best for:**
+
+- Features growing in scope
+- Multiple stakeholder involvement
+- Production-critical functionality
+- Complex system integration
+
+### Transitioning Between Modes
+
+If your feature needs change after initial creation, create a new feature spec with the appropriate mode rather than trying to modify the existing feature's mode. This preserves the original intent and decisions in the original spec.md.
 
 ## Next Steps
 
