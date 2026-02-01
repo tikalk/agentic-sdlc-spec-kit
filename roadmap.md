@@ -520,7 +520,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 **Implementation Roadmap** (5 Phases, 10 Weeks):
 
-##### Phase 1: Dependency Model & Parsing (Weeks 1-2)
+#### Phase 1: Dependency Model & Parsing (Weeks 1-2)
+
 - [ ] Update `templates/tasks-template.md` with `depends: [T001, T002]` syntax + examples
 - [ ] Create `scripts/bash/parse-dependencies.sh` with DAG validation (cycles, cross-phase violations, missing refs)
 - [ ] Create PowerShell equivalent: `scripts/powershell/Parse-Dependencies.ps1`
@@ -529,7 +530,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 **Testing**: Sample tasks.md with 10+ tasks across 3 phases; verify DAG validation
 
-##### Phase 2: Phase-Aware Orchestration (Weeks 3-4)
+#### Phase 2: Phase-Aware Orchestration (Weeks 3-4)
+
 - [ ] Create `scripts/bash/orchestrate-tasks.sh` with phase-sequential + [P] parallelization logic
 - [ ] Create PowerShell equivalent: `scripts/powershell/Orchestrate-Tasks.ps1`
 - [ ] Extend `/implement` template to call orchestration logic
@@ -537,7 +539,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 **Testing**: Full workflow on test project with 10+ tasks; verify sequential Setup, parallel Foundational
 
-##### Phase 3: Worktrunk Integration (Optional) (Weeks 5-6)
+#### Phase 3: Worktrunk Integration (Optional) (Weeks 5-6)
+
 - [ ] Create `scripts/bash/spawn-task-worktree.sh` with worktree creation + branch hierarchy
 - [ ] Create PowerShell equivalent: `scripts/powershell/Spawn-TaskWorktree.ps1`
 - [ ] Generate `.config/wt.toml` template with pre-merge dependency validation hooks
@@ -546,7 +549,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 **Testing**: Run with Worktrunk available and without; verify isolation and fallback
 
-##### Phase 4: Remote Async Agent Integration (Weeks 7-8) *(Tier 1.3 + 1.4 enablement)*
+#### Phase 4: Remote Async Agent Integration (Weeks 7-8) *(Tier 1.3 + 1.4 enablement)*
+
 - [ ] Extend `dispatch_async_task()` to include worktree branch SHA + path (if available)
 - [ ] Create `scripts/bash/package-task-context.sh` bundling spec, plan, research, task spec
 - [ ] Update delegation template with task dependency metadata
@@ -554,7 +558,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 **Testing**: Delegate ASYNC task with full worktree context; verify agent receives branch info
 
-##### Phase 5: Monitoring & Documentation (Weeks 9-10)
+#### Phase 5: Monitoring & Documentation (Weeks 9-10)
+
 - [ ] Create monitoring dashboard script: `scripts/bash/monitor-parallel-tasks.sh`
 - [ ] Update `/implement` output to show phase progress, pending dependencies, agent status
 - [ ] Create comprehensive guide: `docs/parallel-execution-guide.md`
@@ -598,7 +603,7 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 **References**:
 
 - incident.io: "Shipping faster with Claude Code and Git Worktrees" (Jun 2025) - validates multi-agent + worktree pattern
-- Worktrunk: https://github.com/max-sixty/worktrunk - git worktree management for parallel AI workflows
+- Worktrunk: [https://github.com/max-sixty/worktrunk](https://github.com/max-sixty/worktrunk) - git worktree management for parallel AI workflows
 - Existing SYNC/ASYNC triage (line 72-87) + [P] markers (line 56-61) provide foundation
 
 ---
@@ -621,8 +626,10 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 ### **Beads-Backed Task Execution Tracker** *(0% Complete)* - **MEDIUM PRIORITY** - Agent-native persistent work tracking
 
-**Problem Statement**: 
+**Problem Statement**:
+
 The `/tasks` command generates dependency-ordered tasks.md files, but agents lack persistent cross-session visibility into task state, dependencies, and execution progress. This leads to:
+
 - Agents losing context about task generation decisions across sessions (inter-session amnesia)
 - Inability to query ready-to-execute tasks without parsing markdown
 - Lost work discovery when agents encounter issues during implementation but lack structured recording mechanism
@@ -630,8 +637,9 @@ The `/tasks` command generates dependency-ordered tasks.md files, but agents lac
 
 Per Steve Yegge's Beads manifesto, agents naturally work better with issue trackers than markdown plans because structured dependency queries and persistent memory solve these problems.
 
-**Solution**: 
+**Solution**:
 Integrate Beads (native issue tracker) with `/tasks` command as dual-output system:
+
 - `/tasks` continues generating tasks.md (no breaking changes to current workflow)
 - **NEW**: `/tasks` also populates beads issues with explicit dependencies, SYNC/ASYNC classification, and phase structure
 - Agents can query beads during `/implement` for ready work: `bd ready --json --assignee me`
@@ -639,6 +647,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - Task status updates via `bd update` provide persistent progress tracking across sessions
 
 **Scope** (Conservative Approach - Option A):
+
 - ✅ `/tasks` generates beads issues in parallel with tasks.md (coexistence, not replacement)
 - ✅ Each task becomes a beads issue with:
   - Title: Task name from tasks.md
@@ -656,6 +665,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 **Integration Points**:
 
 | Component | Current | Change | Impact |
+
 |-----------|---------|--------|--------|
 | `/tasks` command | Generates tasks.md only | Also calls `bd create` for each task | Dual output, no breaking changes |
 | `tasks-meta-utils.sh` | Tracks task metadata in tasks_meta.json | Sync SYNC/ASYNC classification to beads issue labels | Beads becomes single source of execution mode truth |
@@ -666,59 +676,62 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 **Implementation Roadmap**:
 
 **Phase 1: Beads Issue Generation from `/tasks`** (Weeks 1-3)
+
 - ❌ Modify `/tasks` template to call `scripts/bash/tasks-to-beads.sh` after tasks.md generation
+
 - ❌ Create `scripts/bash/tasks-to-beads.sh` (+ PowerShell equivalent):
-  - Parse generated tasks.md 
+  - Parse generated tasks.md
   - Extract: task ID, title, description, phase, SYNC/ASYNC classification, dependencies
   - Call `bd create` with formatted issue + labels
   - Link parent/child tasks via beads dependency relationships
+
   - Handle duplicate runs (update existing issues vs. create new)
 - ❌ Add beads initialization to `/tasks` workflow: `bd init` if `.beads/` doesn't exist
 - ❌ Document beads setup in `/tasks` help text: "Beads database available at .beads/issues.jsonl"
 - ❌ Test with single feature: Generate tasks.md + beads issues, verify structure
-
 **Phase 2: Agent Work Discovery & Status Tracking** (Weeks 4-6, deferred)
 - ❌ Guide agents to use `bd create` when discovering issues during implementation
 - ❌ Inject prompt guidance into `/implement` delegation template about recording work
 - ❌ Enable agents to update task status: `bd update --status in_progress` as they work
 - ❌ Test: Run `/implement` with beads tracking, verify discovered issues recorded
-
 **Phase 3: Query-Based Task Fetching** (Weeks 7-9, deferred - Option B migration)
 - ❌ Modify `/implement` to use `bd ready --json` instead of parsing tasks.md
 - ❌ Implement task batching: agents fetch tasks in phases (Setup → Foundational → Stories)
 - ❌ Enable dynamic task re-ordering based on discovered blockers (via beads dependency updates)
-- ❌ This phase represents migration from Option A (coexistence) to Option B (full beads execution)
 
+- ❌ This phase represents migration from Option A (coexistence) to Option B (full beads execution)
 **Relationship to Async Work** (Tier 1.4 - Tier 1.6):
 - Beads issues can be tagged `async-ready` during `/tasks` generation (integrates with Tier 1.5)
 - Remote async agents query `bd ready --json --label async-ready` for delegatable work
 - Webhook callbacks from remote agents update beads issue status (Tier 1.4)
 - Full artifact context packaging (Tier 1.6) includes beads issue descriptions for agent briefing
-
 **Success Metrics**:
 - Phase 1 Complete: 100% of tasks.md tasks also exist as beads issues with correct dependencies
 - Phase 1 Quality: Agents report improved context retention across `/tasks` regenerations
+
 - Phase 2 Complete: Discovered issues automatically recorded to beads (no manual prompting)
 - Phase 3 Complete: Agents prefer `bd ready --json` queries over tasks.md parsing
-
 **Risks & Mitigation**:
 - Risk: Agents delete/corrupt beads database (like markdown plans in Yegge's experience)
   - Mitigation: Beads backed by git, easy recovery; document git workflow in guide
 - Risk: Tasks.md and beads get out of sync during development
   - Mitigation: Phase 1 only generates beads at `/tasks` time; `/implement` still uses tasks.md (Phase 3 solves this)
 - Risk: Beads adoption overhead for users
+
   - Mitigation: Optional feature (graceful fallback); native beads install keeps dependencies simple
 
 **Related Commands**:
+
 - Complements `/trace` command (which captures session decisions) by making them queryable
+
 - Enables future `/levelup` enhancements (extract patterns from beads issue history)
 - Works with existing `/implement` (Phase 1) and enhances it (Phase 2-3)
-
 **References**:
-- Beads Article: https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a
-- Beads GitHub: https://github.com/steveyegge/beads
+- Beads Article: [https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a](https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a)
+- Beads GitHub: [https://github.com/steveyegge/beads](https://github.com/steveyegge/beads)
 
 **Notes**:
+
 - Conservative scope (Option A) chosen to minimize risk: coexists with tasks.md, no breaking changes
 - Full vision (Option B) available for future consideration: agents work directly from beads queries
 - Implementation depends on users having `bd` CLI installed (documentation will cover setup)
