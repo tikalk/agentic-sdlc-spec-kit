@@ -61,9 +61,26 @@ function Get-CurrentMode {
         return 'spec'  # Fallback for invalid values including "ad"
     }
     catch {
-        return 'spec'  # Fallback on any error
+        return @()
     }
 }
+
+# Detect workflow mode and framework options from spec.md
+# Usage: Get-WorkflowConfig -SpecFile "path/to/spec.md"
+# Returns hashtable: @{mode="build|spec"; tdd=$true|$false; contracts=$true|$false; data_models=$true|$false; risk_tests=$true|$false}
+function Get-WorkflowConfig {
+    param(
+        [string]$SpecFile = "spec.md"
+    )
+    
+    # Source and execute the standalone script
+    $scriptDir = Split-Path -Parent $PSCommandPath
+    . "$scriptDir/Detect-WorkflowConfig.ps1"
+    
+    # Call the function
+    return Get-WorkflowConfig -SpecFile $SpecFile
+}
+
 
 # Get a specific mode configuration value
 # Usage: Get-ModeConfig "atomic_commits" → returns "true" or "false"

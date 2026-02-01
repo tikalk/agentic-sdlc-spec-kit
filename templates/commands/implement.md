@@ -3,7 +3,9 @@ description: Execute the implementation plan by processing and executing all tas
 scripts:
   sh: |
     source scripts/bash/common.sh
-    MODE=$(get_current_mode)
+    CONFIG=$(detect_workflow_config)
+    MODE=$(echo "$CONFIG" | jq -r '.mode // "spec"')
+    TDD=$(echo "$CONFIG" | jq -r '.tdd // false')
     if [ "$MODE" = "spec" ]; then
       scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
     else
@@ -11,7 +13,9 @@ scripts:
     fi
   ps: |
     . scripts/powershell/common.ps1
-    $mode = Get-CurrentMode
+    $config = Get-WorkflowConfig
+    $mode = $config.mode ?? "spec"
+    $tdd = $config.tdd ?? $false
     if ($mode -eq 'spec') {
       scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
     } else {
@@ -21,11 +25,13 @@ scripts:
 
 ## Mode Detection
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect the workflow mode and framework options from the current feature's `spec.md` file. This reads the `**Workflow Mode**` and `**Framework Options**` metadata lines.
 
 2. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight implementation focused on core functionality with simplified validation
    - **Spec Mode**: Full implementation with comprehensive quality gates and dual execution loop
+
+3. **Framework Options**: Respect detected framework options (tdd, contracts, data_models, risk_tests) when determining implementation approach and validation requirements.
 
 ## User Input
 

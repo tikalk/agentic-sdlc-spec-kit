@@ -409,9 +409,24 @@ try:
     
     print(json.dumps(views, ensure_ascii=False))
 except Exception as e:
-    print('{}')
+    print('[]')
 PY
 }
+
+# Detect workflow mode and framework options from spec.md
+# Usage: detect_workflow_config [path/to/spec.md]
+# Returns JSON: {"mode":"build|spec","tdd":true|false,"contracts":true|false,"data_models":true|false,"risk_tests":true|false}
+detect_workflow_config() {
+    local spec_file="${1:-spec.md}"
+    
+    # Source the standalone script
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "$script_dir/detect-workflow-config.sh"
+    
+    # Call the function
+    detect_workflow_config "$spec_file"
+}
+
 
 # Extract diagram blocks from architecture.md
 # Returns JSON array of diagrams with type and format

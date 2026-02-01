@@ -34,7 +34,7 @@ This command adapts its behavior based on project state and workflow mode.
 
 **Auto-Detection Logic**:
 
-1. Check workflow mode (build vs spec) from `.specify/config/config.json` under `workflow.current_mode`
+1. Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`
 2. Analyze project state:
    - **Pre-implementation**:
      - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
@@ -62,7 +62,7 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 
 **Context Analysis**:
 
-1. **Check Workflow Mode**: Read current mode from `.specify/config/config.json` under `workflow.current_mode`
+1. **Auto-Detect from Spec**: Use `detect_workflow_config()` to read mode and framework options from spec.md metadata
 2. **Analyze Project State**:
    - Scan for implementation artifacts (src/, build/, dist/, *.js,*.py, etc.)
    - Check git history for implementation commits

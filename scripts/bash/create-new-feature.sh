@@ -5,6 +5,11 @@ set -e
 JSON_MODE=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
+MODE="spec"
+TDD=""
+CONTRACTS=""
+DATA_MODELS=""
+RISK_TESTS=""
 ARGS=()
 i=1
 while [ $i -le $# ]; do
@@ -40,18 +45,73 @@ while [ $i -le $# ]; do
             fi
             BRANCH_NUMBER="$next_arg"
             ;;
+        --mode)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --mode requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --mode requires a value' >&2
+                exit 1
+            fi
+            MODE="$next_arg"
+            ;;
+        --tdd)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --tdd requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            TDD="${!i}"
+            ;;
+        --contracts)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --contracts requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            CONTRACTS="${!i}"
+            ;;
+        --data-models)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --data-models requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            DATA_MODELS="${!i}"
+            ;;
+        --risk-tests)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --risk-tests requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            RISK_TESTS="${!i}"
+            ;;
         --help|-h) 
-            echo "Usage: $0 [--json] [--short-name <name>] [--number N] <feature_description>"
+            echo "Usage: $0 [OPTIONS] <feature_description>"
             echo ""
             echo "Options:"
-            echo "  --json              Output in JSON format"
-            echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
-            echo "  --number N          Specify branch number manually (overrides auto-detection)"
-            echo "  --help, -h          Show this help message"
+            echo "  --json                  Output in JSON format"
+            echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
+            echo "  --number N              Specify branch number manually (overrides auto-detection)"
+            echo "  --mode <build|spec>     Workflow mode (default: spec)"
+            echo "  --tdd <true|false>      Enable TDD (default: mode-specific)"
+            echo "  --contracts <true|false> Enable API contracts (default: mode-specific)"
+            echo "  --data-models <true|false> Enable data models (default: mode-specific)"
+            echo "  --risk-tests <true|false> Enable risk-based testing (default: mode-specific)"
+            echo "  --help, -h              Show this help message"
+            echo ""
+            echo "Mode Defaults:"
+            echo "  build: tdd=false, contracts=false, data_models=false, risk_tests=false"
+            echo "  spec:  tdd=true, contracts=true, data_models=true, risk_tests=true"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
-            echo "  $0 'Implement OAuth2 integration for API' --number 5"
+            echo "  $0 --mode build 'Quick feature prototype'"
+            echo "  $0 --mode spec --no-tdd 'Feature without TDD' --number 5"
             exit 0
             ;;
         *) 
@@ -322,21 +382,41 @@ replace_date_placeholders() {
     fi
 }
 
-# Mode-aware template selection
-MODE_FILE=$(get_config_path)
-CURRENT_MODE="spec"
-if [ -f "$MODE_FILE" ]; then
-    CURRENT_MODE=$(python3 -c "
-import json
-try:
-    with open('$MODE_FILE', 'r') as f:
-        data = json.load(f)
-    print(data.get('workflow', {}).get('current_mode', 'spec'))
-except:
-    print('spec')
-" 2>/dev/null || echo "spec")
+# Apply mode-specific defaults for options if not explicitly set
+if [ -z "$TDD" ]; then
+    if [ "$MODE" = "build" ]; then
+        TDD="false"
+    else
+        TDD="true"
+    fi
 fi
-if [ "$CURRENT_MODE" = "build" ]; then
+
+if [ -z "$CONTRACTS" ]; then
+    if [ "$MODE" = "build" ]; then
+        CONTRACTS="false"
+    else
+        CONTRACTS="true"
+    fi
+fi
+
+if [ -z "$DATA_MODELS" ]; then
+    if [ "$MODE" = "build" ]; then
+        DATA_MODELS="false"
+    else
+        DATA_MODELS="true"
+    fi
+fi
+
+if [ -z "$RISK_TESTS" ]; then
+    if [ "$MODE" = "build" ]; then
+        RISK_TESTS="false"
+    else
+        RISK_TESTS="true"
+    fi
+fi
+
+# Mode-aware template selection (use passed MODE, not config file)
+if [ "$MODE" = "build" ]; then
     TEMPLATE="$REPO_ROOT/templates/spec-template-build.md"
 else
     TEMPLATE="$REPO_ROOT/templates/spec-template.md"
@@ -346,6 +426,20 @@ if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"
 
 # Replace [DATE] placeholders with current date
 replace_date_placeholders "$SPEC_FILE"
+
+# Replace mode and options metadata in spec.md
+# Templates already have placeholders, but we need to ensure values are set correctly
+if [ -f "$SPEC_FILE" ]; then
+    # The templates already have the correct defaults, but if we're regenerating
+    # or if template format changes, explicitly set the values
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        sed -i '' "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: $MODE/" "$SPEC_FILE"
+        sed -i '' "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
+    else
+        sed -i "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: $MODE/" "$SPEC_FILE"
+        sed -i "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
+    fi
+fi
 
 CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"

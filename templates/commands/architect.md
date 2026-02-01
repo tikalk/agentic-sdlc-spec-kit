@@ -34,6 +34,30 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 When users provide context like this, use it to inform your architecture work. This context helps you understand system scope, constraints, and focus areas without needing to ask basic questions.
 
+## Command Actions
+
+The `/architect` command accepts one of the following actions as the first parameter:
+
+```bash
+/architect [action] [description]
+```
+
+**Available Actions**:
+
+- `init`: Initialize new architecture from scratch (greenfield project)
+- `map`: Scan existing codebase to reverse-engineer architecture (brownfield project)
+- `update`: Update architecture based on recent code/spec changes
+- `review`: Validate architecture against constitution and best practices
+
+**Action Descriptions**:
+
+- **init**: Creates `memory/architecture.md` from template when no architecture exists
+- **map**: Analyzes existing codebase and populates architecture with detected technologies and structure
+- **update**: Synchronizes architecture with current implementation state and recent changes
+- **review**: Validates architecture completeness, consistency, and constitution compliance
+
+The description after the action provides context for the architecture work (system scope, constraints, focus areas).
+
 ## Outline
 
 The text the user typed after `/speckit.architect` in the triggering message **is** the architecture action (init/map/update/review) and context. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.

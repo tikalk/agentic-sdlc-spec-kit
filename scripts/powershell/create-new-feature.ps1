@@ -6,6 +6,15 @@ param(
     [string]$ShortName,
     [int]$Number = 0,
     [switch]$Help,
+    [string]$Mode = "spec",
+    [switch]$Tdd,
+    [switch]$NoTdd,
+    [switch]$Contracts,
+    [switch]$NoContracts,
+    [switch]$DataModels,
+    [switch]$NoDataModels,
+    [switch]$RiskTests,
+    [switch]$NoRiskTests,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
@@ -25,17 +34,31 @@ function Get-GlobalConfigPath {
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] [-Mode <mode>] [-Tdd] [-NoTdd] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] [-RiskTests] [-NoRiskTests] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
+    Write-Host "  -Mode <mode>        Workflow mode: spec (default) or build"
+    Write-Host "  -Tdd                Enable Test-Driven Development (overrides mode default)"
+    Write-Host "  -NoTdd              Disable Test-Driven Development (overrides mode default)"
+    Write-Host "  -Contracts          Enable smart contracts (overrides mode default)"
+    Write-Host "  -NoContracts        Disable smart contracts (overrides mode default)"
+    Write-Host "  -DataModels         Enable data models (overrides mode default)"
+    Write-Host "  -NoDataModels       Disable data models (overrides mode default)"
+    Write-Host "  -RiskTests          Enable risk tests (overrides mode default)"
+    Write-Host "  -NoRiskTests        Disable risk tests (overrides mode default)"
     Write-Host "  -Help               Show this help message"
+    Write-Host ""
+    Write-Host "Mode-specific defaults:"
+    Write-Host "  spec mode:   tdd=true, contracts=true, data_models=true, risk_tests=true"
+    Write-Host "  build mode:  tdd=false, contracts=false, data_models=false, risk_tests=false"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  ./create-new-feature.ps1 'Add user authentication system' -ShortName 'user-auth'"
-    Write-Host "  ./create-new-feature.ps1 'Implement OAuth2 integration for API'"
+    Write-Host "  ./create-new-feature.ps1 'Quick API fix' -Mode build -Tdd"
+    Write-Host "  ./create-new-feature.ps1 'Implement OAuth2 integration' -NoContracts"
     exit 0
 }
 
@@ -266,19 +289,22 @@ if ($hasGit) {
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 
-# Mode-aware template selection (using global config)
-$modeFile = Get-GlobalConfigPath
-$currentMode = "spec"
-if (Test-Path $modeFile) {
-    try {
-        $config = Get-Content $modeFile -Raw | ConvertFrom-Json
-        if ($config.workflow -and $config.workflow.PSObject.Properties['current_mode']) {
-            $currentMode = $config.workflow.current_mode
-        }
-    } catch {
-        # Fall back to default if JSON parsing fails
-        $currentMode = "spec"
-    }
+# Apply mode-specific defaults and parameter overrides
+$currentMode = if ($Mode -in @("spec", "build")) { $Mode } else { "spec" }
+
+# Framework options with mode-specific defaults
+if ($currentMode -eq "build") {
+    # Build mode defaults: all false
+    $tdd = if ($Tdd.IsPresent) { $true } elseif ($NoTdd.IsPresent) { $false } else { $false }
+    $contracts = if ($Contracts.IsPresent) { $true } elseif ($NoContracts.IsPresent) { $false } else { $false }
+    $dataModels = if ($DataModels.IsPresent) { $true } elseif ($NoDataModels.IsPresent) { $false } else { $false }
+    $riskTests = if ($RiskTests.IsPresent) { $true } elseif ($NoRiskTests.IsPresent) { $false } else { $false }
+} else {
+    # Spec mode defaults: all true
+    $tdd = if ($NoTdd.IsPresent) { $false } elseif ($Tdd.IsPresent) { $true } else { $true }
+    $contracts = if ($NoContracts.IsPresent) { $false } elseif ($Contracts.IsPresent) { $true } else { $true }
+    $dataModels = if ($NoDataModels.IsPresent) { $false } elseif ($DataModels.IsPresent) { $true } else { $true }
+    $riskTests = if ($NoRiskTests.IsPresent) { $false } elseif ($RiskTests.IsPresent) { $true } else { $true }
 }
 
 # Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
@@ -308,6 +334,20 @@ if (Test-Path $template) {
 
 # Replace [DATE] placeholders with current date
 Replace-DatePlaceholders -FilePath $specFile
+
+# Replace metadata placeholders with actual values
+if (Test-Path $specFile) {
+    $content = Get-Content -Path $specFile -Raw
+    
+    # Replace mode metadata
+    $content = $content -replace '\*\*Workflow Mode\*\*: spec', "**Workflow Mode**: $currentMode"
+    
+    # Replace framework options metadata
+    $frameworkOptions = "tdd=$([bool]$tdd.ToString().ToLower()), contracts=$([bool]$contracts.ToString().ToLower()), data_models=$([bool]$dataModels.ToString().ToLower()), risk_tests=$([bool]$riskTests.ToString().ToLower())"
+    $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**: $frameworkOptions"
+    
+    Set-Content -Path $specFile -Value $content -NoNewline
+}
 
 # Function to populate context.md with intelligent defaults (mode-aware)
 function Populate-ContextFile {

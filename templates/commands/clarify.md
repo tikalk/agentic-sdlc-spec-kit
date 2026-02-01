@@ -19,7 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Mode Detection
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect the workflow mode and framework options from the current feature's `spec.md` file. This reads the `**Workflow Mode**` and `**Framework Options**` metadata lines.
 
 2. **Mode-Aware Behavior**:
    - **Build Mode**: Minimal clarification - focus only on critical blockers, limit to 1-2 questions maximum

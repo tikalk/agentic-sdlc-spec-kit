@@ -1,9 +1,11 @@
-# Feature Specification: [FEATURE NAME] (Build Mode)
+# Feature Specification: [FEATURE NAME]
 
-**Branch**: `[###-feature-name]`  
+**Feature Branch**: `[###-feature-name]`  
+**Workflow Mode**: build  
+**Framework Options**: tdd=false, contracts=false, data_models=false, risk_tests=false  
 **Created**: [DATE]  
-**Mode**: Build (Fast iteration)  
-**Input**: "$ARGUMENTS"
+**Status**: Draft  
+**Input**: User description: "$ARGUMENTS"
 
 ## Core User Journey
 

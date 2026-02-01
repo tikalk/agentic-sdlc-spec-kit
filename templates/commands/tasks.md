@@ -22,7 +22,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Check mode configuration for risk-based testing. If enabled in `.specify/config/config.json` under `options.risk_tests_enabled`, enable risk-based test generation.
+Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`. Enable risk-based test generation if risk_tests=true is detected.
 
 ## Outline
 

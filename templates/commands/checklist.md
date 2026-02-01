@@ -36,10 +36,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution Steps
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR, AVAILABLE_DOCS, and MODE_CONFIG.
+1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS.
     - All file paths must be absolute.
     - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-    - Parse MODE_CONFIG to determine current workflow mode and enabled framework options
+    - Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
@@ -93,31 +93,31 @@ You **MUST** consider the user input before proceeding (if not empty).
      - If source docs are large, generate interim summary items instead of embedding raw text
      - For MCP validation: Check .mcp.json structure and server configurations
 
-5. **Apply Mode-Aware Checklist Generation**: Use MODE_CONFIG to adapt checklist content based on enabled framework options:
+5. **Apply Mode-Aware Checklist Generation**: Use detected workflow config to adapt checklist content based on enabled framework options:
 
-     **Parse MODE_CONFIG JSON**:
-     - `current_mode`: "build" or "spec" (affects default option values)
-     - `options.tdd_enabled`: true/false - include TDD requirement checks
-     - `options.contracts_enabled`: true/false - include API contract checks
-     - `options.data_models_enabled`: true/false - include data model checks
-     - `options.risk_tests_enabled`: true/false - include risk-based testing checks
+     **Parse Workflow Config JSON**:
+     - `mode`: "build" or "spec" (affects default option values)
+     - `tdd`: true/false - include TDD requirement checks
+     - `contracts`: true/false - include API contract checks
+     - `data_models`: true/false - include data model checks
+     - `risk_tests`: true/false - include risk-based testing checks
 
-     **TDD Option (if options.tdd_enabled)**:
+     **TDD Option (if tdd=true)**:
      - Include items checking if test requirements are specified in the spec
      - Validate that acceptance criteria are testable
      - Check for test scenario coverage in requirements
 
-     **API Contracts Option (if options.contracts_enabled)**:
+     **API Contracts Option (if contracts=true)**:
      - Include items validating OpenAPI/GraphQL contract requirements
      - Check for API specification completeness and clarity
      - Validate contract versioning and compatibility requirements
 
-     **Data Models Option (if options.data_models_enabled)**:
+     **Data Models Option (if data_models=true)**:
      - Include items checking entity and relationship specifications
      - Validate data model completeness and consistency
      - Check for data validation and constraint requirements
 
-     **Risk-Based Testing Option (if options.risk_tests_enabled)**:
+     **Risk-Based Testing Option (if risk_tests=true)**:
      - Include items validating risk assessment coverage
      - Check for mitigation strategy specifications
      - Validate edge case and failure scenario requirements

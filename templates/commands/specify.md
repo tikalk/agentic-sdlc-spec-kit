@@ -21,11 +21,36 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Mode Detection
+## Parameters
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+Parse the following parameters from `$ARGUMENTS`:
 
-2. **Mode-Aware Behavior**:
+- `--mode=build|spec`: Workflow mode (default: spec)
+- `--tdd`: Enable TDD (overrides mode default)
+- `--no-tdd`: Disable TDD (overrides mode default)
+- `--contracts`: Enable API contracts (overrides mode default)
+- `--no-contracts`: Disable API contracts (overrides mode default)
+- `--data-models`: Enable data models (overrides mode default)
+- `--no-data-models`: Disable data models (overrides mode default)
+- `--risk-tests`: Enable risk-based testing (overrides mode default)
+- `--no-risk-tests`: Disable risk-based testing (overrides mode default)
+
+**Mode-Specific Defaults**:
+- **Build Mode**: tdd=false, contracts=false, data_models=false, risk_tests=false
+- **Spec Mode**: tdd=true, contracts=true, data_models=true, risk_tests=true
+
+After parsing, extract the feature description (everything after parameters).
+
+## Mode & Options Resolution
+
+1. **Determine Effective Mode**: Parse `--mode` from arguments, default to "spec" if not specified
+
+2. **Determine Effective Options**: 
+   - Start with mode-specific defaults
+   - Override with explicit flags (e.g., `--no-tdd` overrides default)
+   - Pass to script as: `--mode build --tdd false --contracts false --data-models false --risk-tests false`
+
+3. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight, conversational specification focused on quick validation and exploration
    - **Spec Mode**: Full structured specification with comprehensive requirements and validation
 
@@ -65,16 +90,17 @@ Given that feature description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   d. Run the script `{SCRIPT}` with the calculated number and short-name:
-      - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description
-      - Bash example: `{SCRIPT} --json --number 5 --short-name "user-auth" "Add user authentication"`
-      - PowerShell example: `{SCRIPT} -Json -Number 5 -ShortName "user-auth" "Add user authentication"`
+   d. Run the script `{SCRIPT}` with the calculated number, short-name, mode, and options:
+      - Pass `--number N+1`, `--short-name "your-short-name"`, `--mode`, `--tdd`, `--contracts`, `--data-models`, `--risk-tests`, and feature description
+      - Bash example: `{SCRIPT} --json --number 5 --short-name "user-auth" --mode spec --tdd true --contracts true --data-models true --risk-tests true "Add user authentication"`
+      - PowerShell example: `{SCRIPT} -Json -Number 5 -ShortName "user-auth" -Mode spec -Tdd $true -Contracts $true -DataModels $true -RiskTests $true "Add user authentication"`
 
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, specs directories) to find the highest number
    - Only match branches/directories with the exact short-name pattern
    - If no existing branches/directories found with this short-name, start with number 1
    - You must only ever run this script once per feature
+   - Pass mode and all four options (tdd, contracts, data_models, risk_tests) as boolean values
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
