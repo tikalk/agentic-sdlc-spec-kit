@@ -36,6 +36,7 @@ Parse the following parameters from `$ARGUMENTS`:
 - `--no-risk-tests`: Disable risk-based testing (overrides mode default)
 
 **Mode-Specific Defaults**:
+
 - **Build Mode**: tdd=false, contracts=false, data_models=false, risk_tests=false
 - **Spec Mode**: tdd=true, contracts=true, data_models=true, risk_tests=true
 
@@ -45,7 +46,7 @@ After parsing, extract the feature description (everything after parameters).
 
 1. **Determine Effective Mode**: Parse `--mode` from arguments, default to "spec" if not specified
 
-2. **Determine Effective Options**: 
+2. **Determine Effective Options**:
    - Start with mode-specific defaults
    - Override with explicit flags (e.g., `--no-tdd` overrides default)
    - Pass to script as: `--mode build --tdd false --contracts false --data-models false --risk-tests false`

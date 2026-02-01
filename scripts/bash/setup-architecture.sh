@@ -58,7 +58,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
-eval $(get_feature_paths)
+eval "$(get_feature_paths)"
 
 # Ensure the memory directory exists
 mkdir -p "$REPO_ROOT/memory"
@@ -161,7 +161,8 @@ detect_tech_stack() {
         tech_stack+="**Containerization**: Docker\n"
     fi
     
-    if [[ -d "kubernetes" ]] || [[ -d "k8s" ]] || [[ -f "*.yaml" ]] && grep -q "apiVersion:" *.yaml 2>/dev/null; then
+    local yaml_files=(*.yaml)
+    if [[ -d "kubernetes" ]] || [[ -d "k8s" ]] || [[ -f "${yaml_files[0]}" ]] && grep -q "apiVersion:" *.yaml 2>/dev/null; then
         tech_stack+="**Orchestration**: Kubernetes\n"
     fi
     
@@ -169,7 +170,9 @@ detect_tech_stack() {
         tech_stack+="**IaC**: Terraform\n"
     fi
     
-    if [[ -f ".github/workflows/"*.yml ]] || [[ -f ".github/workflows/"*.yaml ]]; then
+    local github_yml_files=(".github/workflows/"*.yml)
+    local github_yaml_files=(".github/workflows/"*.yaml)
+    if [[ -f "${github_yml_files[0]}" ]] || [[ -f "${github_yaml_files[0]}" ]]; then
         tech_stack+="**CI/CD**: GitHub Actions\n"
     fi
     

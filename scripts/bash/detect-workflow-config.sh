@@ -20,10 +20,12 @@ detect_workflow_config() {
   fi
   
   # Extract mode (look for line: **Workflow Mode**: build|spec)
-  local mode_line=$(grep "^\*\*Workflow Mode\*\*:" "$spec_file" | head -1)
-  if [[ -n "$mode_line" ]]; then
-    mode=$(echo "$mode_line" | sed 's/.*: *\([^ ]*\).*/\1/' | tr -d '[:space:]')
-  fi
+local mode_line
+    mode_line=$(grep "^\*\*Workflow Mode\*\*:" "$spec_file" | head -1)
+    local mode="spec"
+    if [[ -n "$mode_line" ]]; then
+        mode=$(echo "$mode_line" | sed 's/.*: *\(.*\)/\1/' | tr -d '[:space:]')
+    fi
   
   # Validate mode (must be build or spec)
   if [[ ! "$mode" =~ ^(build|spec)$ ]]; then
@@ -40,21 +42,19 @@ detect_workflow_config() {
   
   # Extract and override with explicit options
   # Look for line: **Framework Options**: tdd=true, contracts=false, ...
-  local options_line=$(grep "^\*\*Framework Options\*\*:" "$spec_file" | head -1 | sed 's/.*: *\(.*\)/\1/')
-  
-  if [[ -n "$options_line" ]]; then
-    # Parse: tdd=true, contracts=false, data_models=true, risk_tests=true
-    local tdd_val=$(echo "$options_line" | grep -o "tdd=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
-    local contracts_val=$(echo "$options_line" | grep -o "contracts=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
-    local data_models_val=$(echo "$options_line" | grep -o "data_models=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
-    local risk_tests_val=$(echo "$options_line" | grep -o "risk_tests=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
+local options_line
+    options_line=$(grep "^\*\*Framework Options\*\*:" "$spec_file" | head -1 | sed 's/.*: *\(.*\)/\1/')
+    local tdd_val="true"
+    local contracts_val="true"
+    local data_models_val="true"
+    local risk_tests_val="true"
     
-    # Override defaults if explicitly set
-    [[ -n "$tdd_val" ]] && tdd="$tdd_val"
-    [[ -n "$contracts_val" ]] && contracts="$contracts_val"
-    [[ -n "$data_models_val" ]] && data_models="$data_models_val"
-    [[ -n "$risk_tests_val" ]] && risk_tests="$risk_tests_val"
-  fi
+    if [[ -n "$options_line" ]]; then
+        tdd_val=$(echo "$options_line" | grep -o "tdd=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
+        contracts_val=$(echo "$options_line" | grep -o "contracts=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
+        data_models_val=$(echo "$options_line" | grep -o "data_models=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
+        risk_tests_val=$(echo "$options_line" | grep -o "risk_tests=[^,]*" | cut -d= -f2 | tr -d '[:space:]')
+    fi
   
   # Return as JSON
   echo "{\"mode\":\"$mode\",\"tdd\":$tdd,\"contracts\":$contracts,\"data_models\":$data_models,\"risk_tests\":$risk_tests}"
