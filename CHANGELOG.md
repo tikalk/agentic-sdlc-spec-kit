@@ -52,7 +52,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `evaluation_required`: false
   - **Init Integration**: `specify init` now:
     - Creates `.specify/skills.json` manifest
-     - Auto-installs team required skills (if `auto_install_required: true`)
+    - Auto-installs team required skills (if `auto_install_required: true`)
     - Displays recommended skills panel after init completion
   - New module: `src/specify_cli/skills/discovery.py` for auto-discovery engine
   - References: skills.sh Registry (<https://skills.sh>)
