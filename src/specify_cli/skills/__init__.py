@@ -1,9 +1,9 @@
 """
 Skills Package Manager for Agentic SDLC
 
-A developer-grade package manager for agent skills inspired by Tessl's approach.
-Treats skills as versioned software dependencies with evaluation, lifecycle
-management, and dual registry integration.
+A developer-grade package manager for agent skills treating them as versioned
+software dependencies with evaluation, lifecycle management, and dual registry
+integration.
 
 Architecture:
 - skills.sh (Discovery Only) - Community registry for search
@@ -11,7 +11,6 @@ Architecture:
 - .specify/skills.json - Project's installed skills
 
 References:
-- Tessl Skills: https://tessl.io/
 - skills.sh Registry: https://skills.sh
 - Agent Skills Format: https://agentskills.io/
 """

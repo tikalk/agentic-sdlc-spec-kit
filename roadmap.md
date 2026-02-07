@@ -865,7 +865,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 
 ### **Skills Package Manager** *(100% Complete)* - **COMPLETED** - Extends Factor XI Directives as Code
 
-**Inspired by**: skills.sh Registry (https://skills.sh)
+**Inspired by**: skills.sh Registry (<https://skills.sh>)
 
 **Description**: A developer-grade package manager for agent skills that treats skills as versioned software dependencies with evaluation, lifecycle management, and dual registry integration. Enables teams to curate internal skills while leveraging the public skills.sh ecosystem.
 
@@ -873,7 +873,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 
 #### **Architecture Overview**
 
-```
+```text
 ┌────────────────────────────────────────────┐
 │         skills.sh (Discovery Only)         │
 │    Community registry (46K+ skills)        │
@@ -907,6 +907,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 #### **Implementation Components**
 
 ##### Phase 1: Core Infrastructure
+
 - [ ] **Skills Manifest System** (skills.json)
   - Version: "1.0.0"
   - Skills registry with metadata
@@ -920,18 +921,20 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
   - Cross-platform support (bash/PowerShell)
 
 - [ ] **CLI Commands**
-  ```bash
-  specify skill search <query>          # Search skills.sh API
-  specify skill install <ref>            # Install from GitHub
-  specify skill list                     # Show installed
-  specify skill remove <name>            # Remove skill
-  specify skill update                   # Update skills
-  specify skill check-updates            # Check team updates
-  specify skill sync-team                # Sync with team manifest
-  specify skill eval <skill>             # Evaluate skill quality
-  ```
+
+   ```bash
+   specify skill search <query>          # Search skills.sh API
+   specify skill install <ref>            # Install from GitHub
+   specify skill list                     # Show installed
+   specify skill remove <name>            # Remove skill
+   specify skill update                   # Update skills
+   specify skill check-updates            # Check team updates
+   specify skill sync-team                # Sync with team manifest
+   specify skill eval <skill>             # Evaluate skill quality
+   ```
 
 ##### Phase 2: Dual Registry Integration
+
 - [ ] **skills.sh API Client**
   - Search endpoint: `GET /api/search?q={query}`
   - Skill metadata: ratings, installs, categories
@@ -939,40 +942,42 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
   - Cache search results locally
 
 - [ ] **Team-AI-Directives Integration**
-  ```json
-  // team-ai-directives/skills.json
-  {
-    "version": "1.0.0",
-    "source": "team-ai-directives",
-    "skills": {
-      "required": {
-        "github:vercel-labs/agent-skills/react-best-practices": "^1.2.0"
-      },
-      "recommended": {
-        "github:vercel-labs/agent-skills/web-design-guidelines": "~1.0.0"
-      },
-      "internal": {
-        "local:./skills/dbt-workflow": "*"
-      },
-      "blocked": [
-        "github:unsafe-org/deprecated-skill"
-      ]
-    },
-    "policy": {
-      "auto_install_required": true,
-      "enforce_blocked": true,
-      "allow_project_override": true
-    }
-  }
-  ```
+
+   ```json
+   // team-ai-directives/skills.json
+   {
+     "version": "1.0.0",
+     "source": "team-ai-directives",
+     "skills": {
+       "required": {
+         "github:vercel-labs/agent-skills/react-best-practices": "^1.2.0"
+       },
+       "recommended": {
+         "github:vercel-labs/agent-skills/web-design-guidelines": "~1.0.0"
+       },
+       "internal": {
+         "local:./skills/dbt-workflow": "*"
+       },
+       "blocked": [
+         "github:unsafe-org/deprecated-skill"
+       ]
+     },
+     "policy": {
+       "auto_install_required": true,
+       "enforce_blocked": true,
+       "allow_project_override": true
+     }
+   }
+   ```
 
 - [ ] **Sync Workflow**
-  - `specify init` → Auto-install team required skills
-  - `specify skill sync-team` → Update to team versions
-  - `specify skill check-updates` → Preview changes
-  - Policy enforcement: Blocked skills rejected with clear error
+   - `specify init` → Auto-install team required skills
+   - `specify skill sync-team` → Update to team versions
+   - `specify skill check-updates` → Preview changes
+   - Policy enforcement: Blocked skills rejected with clear error
 
 ##### Phase 3: Per-Feature Skill Activation
+
 - [ ] **Auto-Discovery Engine**
   - During `/speckit.specify`: Analyze feature description
   - Calculate relevance score for each installed skill
@@ -980,23 +985,25 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
   - Completely silent activation (no user prompts)
 
 - [ ] **Context Injection**
-  ```markdown
-  ## specs/{feature}/context.md
-  
-  ## Relevant Skills (Auto-Detected)
-  - react-best-practices@1.2.0 (confidence: 0.95)
-  - typescript-guidelines@1.0.0 (confidence: 0.82)
-  - security-rules@2.0.1 (confidence: 0.78)
-  
-  *These skills were automatically selected based on your feature description.*
-  ```
+
+   ```markdown
+   ## specs/{feature}/context.md
+   
+   ## Relevant Skills (Auto-Detected)
+   - react-best-practices@1.2.0 (confidence: 0.95)
+   - typescript-guidelines@1.0.0 (confidence: 0.82)
+   - security-rules@2.0.1 (confidence: 0.78)
+   
+   *These skills were automatically selected based on your feature description.*
+   ```
 
 - [ ] **User Override Support**
-  - Manual edits to context.md preserved on re-run
-  - Config: `preserve_user_edits: true`
-  - Optional: `specify skill activate <skill>` for manual selection
+   - Manual edits to context.md preserved on re-run
+   - Config: `preserve_user_edits: true`
+   - Optional: `specify skill activate <skill>` for manual selection
 
 ##### Phase 4: Skill Evaluation Framework
+
 - [ ] **Review Evaluation (Structure Quality)**
   - Frontmatter validation (20 pts)
   - Content organization (30 pts)
@@ -1013,11 +1020,12 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
   - **Rationale**: Reuse existing PromptFoo + annotation tool infrastructure instead of building separate evaluation system
 
 - [ ] **Evaluation CLI**
-  ```bash
-  specify skill eval --review ./my-skill
-  specify skill eval --task ./my-skill --scenarios ./tests/
-  specify skill eval --full ./my-skill
-  ```
+
+   ```bash
+   specify skill eval --review ./my-skill
+   specify skill eval --task ./my-skill --scenarios ./tests/
+   specify skill eval --full ./my-skill
+   ```
 
 #### **Configuration**
 
@@ -1061,8 +1069,8 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 
 #### **References**
 
-- Skills.sh Registry: https://skills.sh
-- Agent Skills Format: https://agentskills.io/
+- Skills.sh Registry: <https://skills.sh>
+- Agent Skills Format: <https://agentskills.io/>
 - Existing Implementation: `.opencode/plans/skill-*.md`, `skill_manager.py`
 
 #### **Future Enhancements**
@@ -1072,18 +1080,21 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 **Description**: Support for self-hosted or enterprise-specific skill registries beyond public GitHub/skills.sh. Enables organizations to host proprietary internal skills in private repositories.
 
 **Examples**:
+
 - **Internal GitHub/GitLab Enterprise**: `github:company-internal.domain.com/org/repo/skill`
 - **Nexus/Artifactory**: Self-hosted package manager for versioned skill artifacts
 - **Private skills.sh instance**: Enterprise deployment of skills registry API
 - **S3/Cloud storage**: Versioned skill artifacts with metadata indexing
 
 **Current Support**:
+
 - ✅ GitHub Enterprise (via `github:host.com/org/repo/skill`)
 - ✅ GitLab self-hosted (via `gitlab:host.com/org/repo/skill`)
 - ✅ Local paths (via `local:./path`)
 - ❌ Private registry API (Nexus, Artifactory, custom APIs)
 
 **Implementation Requirements**:
+
 - Registry API client abstraction (extend `SkillsRegistryClient`)
 - Authentication handling (tokens, SSH keys, credential helpers)
 - Version resolution for private registries
@@ -1091,6 +1102,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - Configuration for registry endpoints in `config.json`
 
 **Configuration Example**:
+
 ```json
 {
   "skills": {
