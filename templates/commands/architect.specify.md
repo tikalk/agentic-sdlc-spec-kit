@@ -10,8 +10,8 @@ handoffs:
     prompt: Generate full architecture description from ADRs
     send: false
 scripts:
-  sh: scripts/bash/setup-adr.sh "{ARGS}"
-  ps: scripts/powershell/setup-adr.ps1 "{ARGS}"
+  sh: scripts/bash/setup-architecture.sh "specify {ARGS}"
+  ps: scripts/powershell/setup-architecture.ps1 "specify {ARGS}"
 agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__

@@ -10,8 +10,11 @@ handoffs:
     prompt: Analyze architecture for consistency and completeness
     send: false
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --paths-only
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
+  sh: scripts/bash/setup-architecture.sh "clarify {ARGS}"
+  ps: scripts/powershell/setup-architecture.ps1 "clarify {ARGS}"
+agent_scripts:
+  sh: scripts/bash/update-agent-context.sh __AGENT__
+  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
 ## User Input

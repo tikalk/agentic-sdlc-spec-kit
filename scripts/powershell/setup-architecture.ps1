@@ -2,8 +2,10 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet('init', 'map', 'update', 'review', '')]
+    [ValidateSet('init', 'map', 'update', 'review', 'specify', 'clarify', 'implement', '')]
     [string]$Action = '',
+    [Parameter(Position=1, ValueFromRemainingArguments=$true)]
+    [string[]]$Context,
     [switch]$Json,
     [switch]$Help
 )
@@ -14,8 +16,11 @@ if ($Help) {
     Write-Output "Usage: ./setup-architecture.ps1 [action] [context] [-Json] [-Help]"
     Write-Output ""
     Write-Output "Actions:"
-    Write-Output "  init     Initialize new memory/architecture.md from template"
-    Write-Output "  map      Reverse-engineer architecture from existing codebase"
+    Write-Output "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
+    Write-Output "  clarify  Refine and resolve ambiguities in existing ADRs"
+    Write-Output "  init     Reverse-engineer architecture from existing codebase (brownfield)"
+    Write-Output "  implement Generate full Architecture Description (AD.md) from ADRs"
+    Write-Output "  map      (alias for init) Reverse-engineer architecture from existing codebase"
     Write-Output "  update   Update architecture based on code/spec changes"
     Write-Output "  review   Validate architecture against constitution"
     Write-Output ""
@@ -24,8 +29,10 @@ if ($Help) {
     Write-Output "  -Help    Show this help message"
     Write-Output ""
     Write-Output "Examples:"
-    Write-Output "  ./setup-architecture.ps1 init `"B2B SaaS for supply chain management`""
-    Write-Output "  ./setup-architecture.ps1 map `"Django monolith with PostgreSQL and React`""
+    Write-Output "  ./setup-architecture.ps1 specify `"B2B SaaS for supply chain management`""
+    Write-Output "  ./setup-architecture.ps1 clarify `"Focus on authentication and data persistence decisions`""
+    Write-Output "  ./setup-architecture.ps1 init `"Django monolith with PostgreSQL and React`""
+    Write-Output "  ./setup-architecture.ps1 implement `"Generate full AD.md from ADRs`""
     Write-Output "  ./setup-architecture.ps1 update `"Added microservices and event sourcing`""
     Write-Output "  ./setup-architecture.ps1 review `"Focus on security and performance`""
     Write-Output ""
@@ -262,7 +269,141 @@ function New-ArchitectureDiagrams {
     Write-Host "✅ Diagram generation complete" -ForegroundColor Green
 }
 
-# Initialize action
+# Specify action (greenfield - interactive PRD exploration to create ADRs)
+function Invoke-Specify {
+    param($repoRoot, $contextArgs)
+    
+    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrTemplate = Join-Path $repoRoot ".specify\templates\adr-template.md"
+    
+    Write-Host "📐 Setting up for interactive ADR creation..." -ForegroundColor Cyan
+    
+    # Ensure memory directory exists
+    $memoryDir = Join-Path $repoRoot "memory"
+    if (-not (Test-Path $memoryDir)) {
+        New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
+    }
+    
+    # Initialize ADR file from template if it doesn't exist
+    if (-not (Test-Path $adrFile)) {
+        if (Test-Path $adrTemplate) {
+            Write-Host "Creating ADR file from template..." -ForegroundColor Cyan
+            Copy-Item $adrTemplate $adrFile
+            Write-Host "✅ Created: $adrFile" -ForegroundColor Green
+        } else {
+            # Create minimal ADR file
+            $minimalAdr = @"
+# Architecture Decision Records
+
+## ADR Index
+
+| ID | Decision | Status | Date | Owner |
+|----|----------|--------|------|-------|
+
+---
+
+"@
+            Set-Content -Path $adrFile -Value $minimalAdr
+            Write-Host "✅ Created minimal ADR file: $adrFile" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "✅ ADR file already exists: $adrFile" -ForegroundColor Green
+    }
+    
+    Write-Host ""
+    Write-Host "Ready for interactive PRD exploration."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Analyze your PRD/requirements input"
+    Write-Host "  2. Ask clarifying questions about architecture"
+    Write-Host "  3. Create ADRs for each key decision"
+    Write-Host "  4. Save decisions to memory/adr.md"
+    Write-Host ""
+    Write-Host "After completion, run '/architect.implement' to generate full AD.md"
+    
+    if ($Json) {
+        @{status="success"; action="specify"; adr_file=$adrFile; context=($contextArgs -join " ")} | ConvertTo-Json
+    }
+}
+
+# Clarify action (refine existing ADRs)
+function Invoke-Clarify {
+    param($repoRoot, $contextArgs)
+    
+    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    
+    if (-not (Test-Path $adrFile)) {
+        Write-Error "ADR file does not exist: $adrFile`nRun '/architect.specify' or '/architect.init' first"
+        exit 1
+    }
+    
+    Write-Host "🔍 Loading existing ADRs for clarification..." -ForegroundColor Cyan
+    
+    # Count existing ADRs
+    $content = Get-Content $adrFile -Raw
+    $adrCount = ([regex]::Matches($content, "^## ADR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    Write-Host "Found $adrCount ADR(s) in $adrFile"
+    
+    Write-Host ""
+    Write-Host "Ready for ADR refinement."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Review existing ADRs"
+    Write-Host "  2. Ask targeted clarification questions"
+    Write-Host "  3. Update ADRs based on your responses"
+    Write-Host "  4. Flag any inconsistencies or gaps"
+    
+    if ($Json) {
+        @{status="success"; action="clarify"; adr_file=$adrFile; adr_count=$adrCount; context=($contextArgs -join " ")} | ConvertTo-Json
+    }
+}
+
+# Implement action (generate full AD.md from ADRs)
+function Invoke-Implement {
+    param($repoRoot, $contextArgs)
+    
+    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adFile = Join-Path $repoRoot "AD.md"
+    $adTemplate = Join-Path $repoRoot ".specify\templates\AD-template.md"
+    
+    if (-not (Test-Path $adrFile)) {
+        Write-Error "ADR file does not exist: $adrFile`nRun '/architect.specify' or '/architect.init' first"
+        exit 1
+    }
+    
+    Write-Host "📐 Setting up for Architecture Description generation..." -ForegroundColor Cyan
+    
+    # Initialize AD.md from template if it doesn't exist
+    if (-not (Test-Path $adFile)) {
+        if (Test-Path $adTemplate) {
+            Write-Host "Creating AD.md from template..." -ForegroundColor Cyan
+            Copy-Item $adTemplate $adFile
+            Write-Host "✅ Created: $adFile" -ForegroundColor Green
+        } else {
+            Write-Host "⚠️  AD template not found: $adTemplate" -ForegroundColor Yellow
+            Write-Host "The AI agent will create AD.md from scratch"
+        }
+    } else {
+        Write-Host "✅ AD.md already exists, will be updated: $adFile" -ForegroundColor Green
+    }
+    
+    # Count ADRs for context
+    $content = Get-Content $adrFile -Raw
+    $adrCount = ([regex]::Matches($content, "^## ADR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    
+    Write-Host ""
+    Write-Host "Ready for Architecture Description generation."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Read all $adrCount ADR(s) from memory/adr.md"
+    Write-Host "  2. Generate 7 Rozanski & Woods viewpoints"
+    Write-Host "  3. Apply Security and Performance perspectives"
+    Write-Host "  4. Create Mermaid diagrams for each view"
+    Write-Host "  5. Write complete AD.md to project root"
+    
+    if ($Json) {
+        @{status="success"; action="implement"; adr_file=$adrFile; ad_file=$adFile; adr_count=$adrCount; context=($contextArgs -join " ")} | ConvertTo-Json
+    }
+}
+
+# Initialize action (brownfield - reverse-engineer from codebase)
 function Invoke-Init {
     param($repoRoot, $architectureFile, $templateFile)
     
@@ -476,11 +617,20 @@ try {
     
     # Execute action
     switch ($Action) {
+        'specify' {
+            Invoke-Specify -repoRoot $repoRoot -contextArgs $Context
+        }
+        'clarify' {
+            Invoke-Clarify -repoRoot $repoRoot -contextArgs $Context
+        }
         'init' {
             Invoke-Init -repoRoot $repoRoot -architectureFile $architectureFile -templateFile $templateFile
         }
         'map' {
             Invoke-Map -repoRoot $repoRoot
+        }
+        'implement' {
+            Invoke-Implement -repoRoot $repoRoot -contextArgs $Context
         }
         'update' {
             Invoke-Update -repoRoot $repoRoot -architectureFile $architectureFile

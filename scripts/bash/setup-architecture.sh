@@ -12,15 +12,18 @@ for arg in "$@"; do
         --json)
             JSON_MODE=true
             ;;
-        init|map|update|review)
+        init|map|update|review|specify|implement|clarify)
             ACTION="$arg"
             ;;
         --help|-h)
             echo "Usage: $0 [action] [context] [--json]"
             echo ""
             echo "Actions:"
-            echo "  init     Initialize new memory/architecture.md from template"
-            echo "  map      Reverse-engineer architecture from existing codebase"
+            echo "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
+            echo "  clarify  Refine and resolve ambiguities in existing ADRs"
+            echo "  init     Reverse-engineer architecture from existing codebase (brownfield)"
+            echo "  implement Generate full Architecture Description (AD.md) from ADRs"
+            echo "  map      (alias for init) Reverse-engineer architecture from existing codebase"
             echo "  update   Update architecture based on code/spec changes"
             echo "  review   Validate architecture against constitution"
             echo ""
@@ -29,8 +32,10 @@ for arg in "$@"; do
             echo "  --help   Show this help message"
             echo ""
             echo "Examples:"
-            echo "  $0 init \"B2B SaaS for supply chain management\""
-            echo "  $0 map \"Django monolith with PostgreSQL and React\""
+            echo "  $0 specify \"B2B SaaS for supply chain management\""
+            echo "  $0 clarify \"Focus on authentication and data persistence decisions\""
+            echo "  $0 init \"Django monolith with PostgreSQL and React\""
+            echo "  $0 implement \"Generate full AD.md from ADRs\""
             echo "  $0 update \"Added microservices and event sourcing\""
             echo "  $0 review \"Focus on security and performance\""
             echo ""
@@ -316,7 +321,133 @@ $diagram_code
     echo "✅ Diagram generation complete" >&2
 }
 
-# Action: Initialize
+# Action: Specify (greenfield - interactive PRD exploration to create ADRs)
+action_specify() {
+    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
+    
+    echo "📐 Setting up for interactive ADR creation..." >&2
+    
+    # Ensure memory directory exists
+    mkdir -p "$REPO_ROOT/memory"
+    
+    # Initialize ADR file from template if it doesn't exist
+    if [[ ! -f "$adr_file" ]]; then
+        if [[ -f "$adr_template" ]]; then
+            echo "Creating ADR file from template..." >&2
+            cp "$adr_template" "$adr_file"
+            echo "✅ Created: $adr_file" >&2
+        else
+            # Create minimal ADR file
+            cat > "$adr_file" << 'EOF'
+# Architecture Decision Records
+
+## ADR Index
+
+| ID | Decision | Status | Date | Owner |
+|----|----------|--------|------|-------|
+
+---
+
+EOF
+            echo "✅ Created minimal ADR file: $adr_file" >&2
+        fi
+    else
+        echo "✅ ADR file already exists: $adr_file" >&2
+    fi
+    
+    echo "" >&2
+    echo "Ready for interactive PRD exploration." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Analyze your PRD/requirements input" >&2
+    echo "  2. Ask clarifying questions about architecture" >&2
+    echo "  3. Create ADRs for each key decision" >&2
+    echo "  4. Save decisions to memory/adr.md" >&2
+    echo "" >&2
+    echo "After completion, run '/architect.implement' to generate full AD.md" >&2
+    
+    if $JSON_MODE; then
+        echo "{\"status\":\"success\",\"action\":\"specify\",\"adr_file\":\"$adr_file\",\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
+# Action: Clarify (refine existing ADRs)
+action_clarify() {
+    local adr_file="$REPO_ROOT/memory/adr.md"
+    
+    if [[ ! -f "$adr_file" ]]; then
+        echo "❌ ADR file does not exist: $adr_file" >&2
+        echo "Run '/architect.specify' or '/architect.init' first" >&2
+        exit 1
+    fi
+    
+    echo "🔍 Loading existing ADRs for clarification..." >&2
+    
+    # Count existing ADRs
+    local adr_count
+    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
+    echo "Found $adr_count ADR(s) in $adr_file" >&2
+    
+    echo "" >&2
+    echo "Ready for ADR refinement." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Review existing ADRs" >&2
+    echo "  2. Ask targeted clarification questions" >&2
+    echo "  3. Update ADRs based on your responses" >&2
+    echo "  4. Flag any inconsistencies or gaps" >&2
+    
+    if $JSON_MODE; then
+        echo "{\"status\":\"success\",\"action\":\"clarify\",\"adr_file\":\"$adr_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
+# Action: Implement (generate full AD.md from ADRs)
+action_implement() {
+    local adr_file="$REPO_ROOT/memory/adr.md"
+    local ad_file="$REPO_ROOT/AD.md"
+    local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
+    
+    if [[ ! -f "$adr_file" ]]; then
+        echo "❌ ADR file does not exist: $adr_file" >&2
+        echo "Run '/architect.specify' or '/architect.init' first" >&2
+        exit 1
+    fi
+    
+    echo "📐 Setting up for Architecture Description generation..." >&2
+    
+    # Initialize AD.md from template if it doesn't exist
+    if [[ ! -f "$ad_file" ]]; then
+        if [[ -f "$ad_template" ]]; then
+            echo "Creating AD.md from template..." >&2
+            cp "$ad_template" "$ad_file"
+            echo "✅ Created: $ad_file" >&2
+        else
+            echo "⚠️  AD template not found: $ad_template" >&2
+            echo "The AI agent will create AD.md from scratch" >&2
+        fi
+    else
+        echo "✅ AD.md already exists, will be updated: $ad_file" >&2
+    fi
+    
+    # Count ADRs for context
+    local adr_count
+    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
+    
+    echo "" >&2
+    echo "Ready for Architecture Description generation." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Read all $adr_count ADR(s) from memory/adr.md" >&2
+    echo "  2. Generate 7 Rozanski & Woods viewpoints" >&2
+    echo "  3. Apply Security and Performance perspectives" >&2
+    echo "  4. Create Mermaid diagrams for each view" >&2
+    echo "  5. Write complete AD.md to project root" >&2
+    
+    if $JSON_MODE; then
+        echo "{\"status\":\"success\",\"action\":\"implement\",\"adr_file\":\"$adr_file\",\"ad_file\":\"$ad_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
+# Action: Initialize (brownfield - reverse-engineer from codebase)
 action_init() {
     if [[ -f "$ARCHITECTURE_FILE" ]]; then
         echo "❌ Architecture already exists: $ARCHITECTURE_FILE" >&2
@@ -504,11 +635,17 @@ action_review() {
 
 # Execute action
 case "$ACTION" in
-    init)
+    specify)
+        action_specify
+        ;;
+    clarify)
+        action_clarify
+        ;;
+    init|map)
         action_init
         ;;
-    map)
-        action_map
+    implement)
+        action_implement
         ;;
     update)
         action_update
