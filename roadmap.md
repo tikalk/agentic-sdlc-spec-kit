@@ -998,9 +998,9 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
    ```
 
 - [ ] **User Override Support**
-   - Manual edits to context.md preserved on re-run
-   - Config: `preserve_user_edits: true`
-   - Optional: `specify skill activate <skill>` for manual selection
+  - Manual edits to context.md preserved on re-run
+  - Config: `preserve_user_edits: true`
+  - Optional: `specify skill activate <skill>` for manual selection
 
 ##### Phase 4: Skill Evaluation Framework
 

@@ -262,8 +262,8 @@ Given that feature description, do this:
        - Analyze the feature description against installed skills in `.specify/skills/`
        - Use relevance scoring (keyword overlap: 60% description, 40% content)
        - Include skills with score >= threshold (default: 0.7, configurable)
-       - Maximum 3 skills (configurable via `max_auto_skills`)
-        - Format for context.md:
+        - Maximum 3 skills (configurable via `max_auto_skills`)
+       - Format for context.md:
 
           ```markdown
           ## Relevant Skills (Auto-Detected)
@@ -271,7 +271,7 @@ Given that feature description, do this:
             - Skill description here
           ```
 
-        - If `preserve_user_edits: true`, merge with existing skills section
+       - If `preserve_user_edits: true`, merge with existing skills section
        - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
