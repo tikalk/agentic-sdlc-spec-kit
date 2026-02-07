@@ -1468,6 +1468,32 @@ def show_banner():
     console.print()
 
 
+def show_skills_banner():
+    """Display the Skills Package Manager banner with key features."""
+    skills_info = Panel(
+        "[bold]📦 Skills Package Manager[/bold]\n"
+        "[dim]Auto-discover and inject relevant agent skills based on feature descriptions[/dim]\n\n"
+        "[bold green]Key Features:[/bold green]\n"
+        "  • [cyan]Auto-Discovery[/cyan] - Automatically matched skills to features (60% description, 40% content)\n"
+        "  • [cyan]Dual Registry[/cyan] - Search skills.sh registry + install from GitHub/local paths\n"
+        "  • [cyan]Team Curation[/cyan] - Required/recommended/blocked skills via team-ai-directives\n"
+        "  • [cyan]Quality Evaluation[/cyan] - Built-in 100-point review scoring framework\n"
+        "  • [cyan]Zero Dependencies[/cyan] - Direct GitHub installation, no npm required\n\n"
+        "[bold]Available Commands:[/bold]\n"
+        "  [yellow]specify skill search <query>[/yellow]     Search public skills registry\n"
+        "  [yellow]specify skill install <ref>[/yellow]      Install from GitHub/GitLab\n"
+        "  [yellow]specify skill list[/yellow]              Show installed skills\n"
+        "  [yellow]specify skill eval <path>[/yellow]       Evaluate skill quality\n"
+        "  [yellow]specify skill sync-team[/yellow]         Sync with team manifest\n\n"
+        "[dim]Learn more: <https://github.com/tikalk/agentic-sdlc-spec-kit>[/dim]",
+        border_style=ACCENT_COLOR,
+        padding=(1, 2),
+        title="[bold]🚀 Skill-Powered Development[/bold]",
+    )
+    console.print(skills_info)
+    console.print()
+
+
 @app.callback()
 def callback(ctx: typer.Context):
     """Show banner when no subcommand is provided."""
@@ -2453,6 +2479,7 @@ def init(
     """
 
     show_banner()
+    show_skills_banner()
 
     if project_name == ".":
         here = True

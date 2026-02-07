@@ -486,6 +486,150 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
 
+## 📦 Skills Package Manager
+
+The Specify toolkit includes a **Skills Package Manager** - a developer-grade package manager for agent skills that treats skills as versioned software dependencies. Skills enable AI agents to follow team practices, coding standards, and domain-specific guidelines.
+
+### What Are Skills?
+
+Skills are reusable, versioned knowledge packages that guide AI agents in making consistent technical decisions. They can cover:
+
+- **Best Practices**: Framework patterns, testing strategies, code organization
+- **Team Standards**: Coding conventions, naming patterns, architectural principles
+- **Domain Knowledge**: Business logic, compliance requirements, domain patterns
+- **Quality Guidelines**: Performance optimization, security hardening, accessibility standards
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Auto-Discovery** | Skills automatically matched to features based on descriptions (60% keyword overlap, 40% content analysis) |
+| **Dual Registry** | Search public [skills.sh](https://skills.sh) registry + install from GitHub, GitLab, or local paths |
+| **Team Curation** | Define required skills (auto-installed), recommended skills, and blocked skills in `team-ai-directives/skills.json` |
+| **Quality Evaluation** | Built-in 100-point scoring framework: frontmatter (20pts), content organization (30pts), self-containment (30pts), documentation (20pts) |
+| **Zero Dependencies** | Direct GitHub installation with no npm or external tool dependencies |
+| **Policy Enforcement** | Team-level policies for auto-installation, version constraints, and skill blocking |
+
+### Available Commands
+
+```bash
+# Search the public skills registry
+specify skill search "react best practices"
+
+# Install a skill from GitHub
+specify skill install github:vercel-labs/agent-skills/react-best-practices
+
+# List all installed skills
+specify skill list --json
+
+# Evaluate skill quality
+specify skill eval ./my-skill --review        # Structure quality (100-point score)
+specify skill eval ./my-skill --task          # Behavioral impact via test scenarios
+specify skill eval ./my-skill --full          # Complete evaluation
+
+# Manage skills
+specify skill update [name|--all]              # Update to latest versions
+specify skill remove <name>                    # Uninstall a skill
+specify skill sync-team                        # Sync with team manifest
+specify skill check-updates                    # Check for available updates
+specify skill config [key] [value]             # View/modify configuration
+```
+
+### Team Skills Manifest
+
+Define your team's skill strategy in `team-ai-directives/skills.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "source": "team-ai-directives",
+  "skills": {
+    "required": {
+      "github:vercel-labs/agent-skills/react-best-practices": "^1.2.0",
+      "github:your-org/internal-skills/company-patterns": "~2.0.0"
+    },
+    "recommended": {
+      "github:vercel-labs/agent-skills/web-design-guidelines": "~1.0.0"
+    },
+    "internal": {
+      "local:./skills/dbt-workflow": "*"
+    },
+    "blocked": [
+      "github:unsafe-org/deprecated-skill"
+    ]
+  },
+  "policy": {
+    "auto_install_required": true,
+    "enforce_blocked": true,
+    "allow_project_override": true
+  }
+}
+```
+
+### Skill Auto-Discovery Workflow
+
+When you run `/speckit.specify`, the Skills Package Manager automatically:
+
+1. **Analyzes** your feature description against installed skills
+2. **Scores** relevance using keyword matching (60% description, 40% content)
+3. **Selects** top 3 skills above threshold (default 0.7, configurable)
+4. **Injects** relevant skills into `specs/{feature}/context.md`
+
+Example auto-discovery output:
+
+```markdown
+## Relevant Skills (Auto-Detected)
+
+- **react-best-practices**@1.2.0 (confidence: 0.95)
+  - React component patterns, hooks best practices, performance optimization
+  
+- **typescript-guidelines**@1.0.0 (confidence: 0.82)
+  - Type safety patterns, interface design, error handling
+  
+- **testing-strategies**@2.0.1 (confidence: 0.78)
+  - Test organization, coverage targets, mocking patterns
+```
+
+### Configuration
+
+Skills configuration is stored in `~/.config/specify/config.json`:
+
+```json
+{
+  "skills": {
+    "auto_activation_threshold": 0.7,
+    "max_auto_skills": 3,
+    "preserve_user_edits": true,
+    "registry_url": "https://skills.sh/api",
+    "evaluation_required": false
+  }
+}
+```
+
+### Integration Points
+
+- **`specify init`** - Auto-installs team required skills during project setup
+- **`/speckit.specify`** - Auto-discovers and injects relevant skills per feature
+- **`/speckit.plan`** - References activated skills in planning
+- **`/speckit.implement`** - Agent applies skill guidance during implementation
+- **`team-ai-directives/skills.json`** - Central skill registry alongside MCP configuration
+
+### Benefits
+
+1. **Consistency** - All team members follow same practices and patterns
+2. **Quality** - Skills embed best practices and quality standards
+3. **Speed** - Auto-discovery eliminates manual guidance searching
+4. **Learning** - Skills capture team knowledge for reuse and growth
+5. **Governance** - Team policies enforce standards while allowing overrides
+
+### Learning More
+
+- **[Skills Registry](https://skills.sh)** - Discover public skills from the community
+- **[Agent Skills Format](https://agentskills.io/)** - Standard format for creating skills
+- **[Roadmap Details](./roadmap.md#-skills-package-manager--100-complete---completed---extends-factor-xi-directives-as-code)** - Technical implementation details
+
+---
+
 ## 🔧 Specify CLI Reference
 
 The `specify` command supports the following options:
@@ -496,6 +640,7 @@ The `specify` command supports the following options:
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `shai`, `qoder`) |
+| `skill`     | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
 
@@ -527,7 +672,62 @@ The `specify` command supports the following options:
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
 | `--risk-tests/--no-risk-tests` | Option | Enable/disable risk-based test generation |
 
+### `specify skill` Commands & Options
+
+The Skills Package Manager is accessed via the `specify skill` subcommand:
+
+| Command                          | Description                                                            |
+|----------------------------------|------------------------------------------------------------------------|
+| `search <query>`                 | Search the public skills.sh registry for matching skills              |
+| `install <ref>`                  | Install a skill (GitHub: `github:owner/repo/skill`, GitLab: `gitlab:host/owner/repo/skill`, Local: `local:./path`) |
+| `list [--outdated\|--json]`     | List installed skills with optional filtering                         |
+| `eval <path> [--review\|--task\|--full\|--report]` | Evaluate skill quality: review (structure), task (behavior), full (both), or report (HTML) |
+| `update [name\|--all]`           | Update specified skill or all skills to latest versions               |
+| `remove <name>`                  | Uninstall a skill                                                      |
+| `sync-team [--dry-run]`          | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
+| `check-updates`                  | Check for available skill updates                                     |
+| `config [key] [value]`           | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`) |
+
 ### Examples
+
+#### Skills Commands
+
+```bash
+# Search for skills in the public registry
+specify skill search "react best practices"
+specify skill search "typescript"
+
+# Install skills from GitHub
+specify skill install github:vercel-labs/agent-skills/react-best-practices
+specify skill install github:your-org/internal-skills/company-patterns
+
+# Install local skills
+specify skill install local:./skills/my-custom-skill
+
+# List installed skills
+specify skill list
+specify skill list --outdated
+specify skill list --json
+
+# Evaluate skill quality
+specify skill eval ./my-skill --review      # 100-point structure score
+specify skill eval ./my-skill --task        # Behavioral impact testing
+specify skill eval ./my-skill --full        # Complete evaluation
+
+# Update skills
+specify skill update react-best-practices
+specify skill update --all
+
+# Manage team skills
+specify skill sync-team --dry-run            # Preview changes
+specify skill sync-team                      # Apply changes
+specify skill check-updates
+
+# Configure skills
+specify skill config auto_activation_threshold 0.8
+specify skill config max_auto_skills 5
+
+#### Project Initialization
 
 ```bash
 # Basic project initialization
