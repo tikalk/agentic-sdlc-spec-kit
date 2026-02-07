@@ -260,8 +260,8 @@ Given that feature description, do this:
      - **Read the generated spec.md** and extract key information
      - **Skills Auto-Discovery**:
        - Analyze the feature description against installed skills in `.specify/skills/`
-       - Use relevance scoring (keyword overlap: 60% description, 40% content)
-        - Include skills with score >= threshold (default: 0.7, configurable)
+        - Use relevance scoring (keyword overlap: 60% description, 40% content)
+       - Include skills with score >= threshold (default: 0.7, configurable)
        - Maximum 3 skills (configurable via `max_auto_skills`)
        - Format for context.md:
 
