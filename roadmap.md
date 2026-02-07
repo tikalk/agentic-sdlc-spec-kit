@@ -25,9 +25,9 @@
 
 ### **Workflow Modes Feature** - **COMPLETED**
 
-- ✅ **Per-Spec Mode Architecture**: Mode configuration moved from global `/speckit.mode` command to per-feature specification level
-  - **Previous**: `/speckit.mode` command for global mode switching
-  - **Current**: `/speckit.specify --mode=build|spec` for feature-level mode configuration
+- ✅ **Per-Spec Mode Architecture**: Mode configuration moved from global `/spec.mode` command to per-feature specification level
+  - **Previous**: `/spec.mode` command for global mode switching
+  - **Current**: `/spec.specify --mode=build|spec` for feature-level mode configuration
 - ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via feature-level mode parameters
 - ✅ **Mode State Persistence**: Mode and framework options stored in spec.md metadata for each feature
 - ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands auto-detect mode from spec.md
@@ -179,6 +179,124 @@ Architecture support is now available in all workflow modes as optional commands
 - ✅ **Single Source of Truth**: `architecture.md` Section C contains tech stack (no separate files)
 - ✅ **Mermaid Diagram Support**: Auto-generates professional diagrams for all 7 viewpoints (Jan 2026)
 
+### **Architecture Command Restructuring** *(100% Complete)* - **COMPLETED** - ArcKit-aligned governance workflow
+
+**Context**: Based on ArcKit (arckit.org) concepts and workshop discussions (Feb 2026), restructure the current `/spec.architect` command into a new `architect` command prefix with sub-commands that support interactive exploration before documentation.
+
+**Key Insight**: The current architect command jumps too quickly to generating architecture - there should be a discussion/exploration phase first where users can explore possible solutions, weigh trade-offs, and make decisions before committing to formal documentation.
+
+#### **Two-Level Architecture System**
+
+| Level | Location | ADR File | Architecture Description | Commands |
+|-------|----------|----------|--------------------------|----------|
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | `architect.*` |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `spec.plan --architecture` |
+
+**Note**: `AD.md` (Architecture Description) is placed at root level similar to `README.md` to emphasize its importance. It contains all 7 Rozanski & Woods viewpoints (Context, Functional, Information, Concurrency, Development, Deployment, Operational) plus 2 perspectives (Security, Performance & Scalability).
+
+#### **New Command Structure**
+
+| Command | Purpose | Input | Output |
+|---------|---------|-------|--------|
+| `architect.specify` | Interactive PRD exploration, create system ADRs | PRD (inline) + constitution | `memory/adr.md` |
+| `architect.clarify` | Resolve ambiguities in system ADRs | `memory/adr.md` + constitution | Updated `memory/adr.md` |
+| `architect.init` | Brownfield: reverse-engineer from codebase + PRD | Codebase + PRD (if found) | `memory/adr.md` |
+| `architect.implement` | Generate full Rozanski & Woods architecture | `memory/adr.md` | `AD.md` (root) - all 7 viewpoints + 2 perspectives |
+| `spec.plan` (enhanced) | Generate feature architecture when `--architecture` flag or `architecture=true` | spec.md + system adr.md | `specs/{feature}/AD.md` + `specs/{feature}/adr.md` |
+| `spec.analyze` (enhanced) | Cross-validate features against AD.md | All artifacts | Analysis report |
+
+#### **ADR Format (MADR)**
+
+All ADRs follow Markdown Architecture Decision Record format:
+
+- **Context**: Issue/problem requiring decision
+- **Decision**: What was decided
+- **Consequences**: Positive, Negative, Risks
+- **Alternatives Considered**: Options evaluated with rejection reasons
+
+#### **Feature Architecture Inheritance**
+
+Feature-level ADRs are auto-validated against system-level ADRs:
+
+- Conflicts flagged as VIOLATION requiring resolution
+- Aligned decisions noted with "Aligns with ADR-XXX"
+- New patterns create feature-specific ADRs
+
+#### **Implementation Phases**
+
+- ✅ **Phase 1**: `architect.specify` - Core innovation (interactive PRD → ADRs)
+- ✅ **Phase 2**: `architect.clarify` - ADR refinement workflow
+- ✅ **Phase 3**: `architect.init` - Brownfield support
+- ✅ **Phase 4**: `architect.implement` - Full architecture generation
+- ✅ **Phase 5**: `spec.plan` enhancement - Add `--architecture` flag and feature-level output
+- ✅ **Phase 6**: `spec.specify` enhancement - Add `architecture` to Framework Options
+- ✅ **Phase 7**: `spec.analyze` enhancement - Architecture cross-reference validation
+- ✅ **Phase 8**: Migration & cleanup - Old `/spec.architect` command removed
+
+#### **Files Created** (Feb 2026)
+
+| File | Purpose | Status |
+|------|---------|--------|
+| `templates/commands/architect.specify.md` | Interactive ADR creation command | ✅ Created |
+| `templates/commands/architect.clarify.md` | ADR refinement command | ✅ Created |
+| `templates/commands/architect.init.md` | Brownfield initialization command | ✅ Created |
+| `templates/commands/architect.implement.md` | Architecture document generation | ✅ Created |
+| `templates/adr-template.md` | MADR format template | ✅ Created |
+| `templates/AD-template.md` | Full Architecture Description (7 viewpoints + 2 perspectives) | ✅ Created |
+| `templates/feature-AD-template.md` | Feature-level Architecture Description | ✅ Created |
+
+#### **Migration Path**
+
+| Old Command | New Command | Notes |
+|-------------|-------------|-------|
+| `/spec.architect init` | `/architect.specify` | Now interactive with PRD input |
+| `/spec.architect map` | `/architect.init` | Brownfield unchanged |
+| `/spec.architect update` | `/architect.clarify` | Now follows clarify pattern |
+| `/spec.architect review` | `/spec.analyze` | Merged into analyze |
+
+| Old File | New File | Notes |
+|----------|----------|-------|
+| `memory/architecture.md` | `AD.md` (root) + `memory/adr.md` | Split into ADRs and full Architecture Description |
+| `templates/commands/architect.md` | `templates/commands/architect.*.md` | Split into 4 focused commands |
+
+**Note**: The old `/spec.architect` command has been removed. Use the new `architect.*` commands instead.
+
+#### **Configuration**
+
+Feature-level architecture controlled via:
+
+1. **Command line flag**: `/spec.plan --architecture`
+2. **Framework Options in spec.md**: `architecture=true`
+3. **Global config**: `~/.config/specify/config.json` → `options.architecture`
+
+**Default**: `architecture=false` in plan mode (opt-in feature)
+
+#### **Implementation Details** (Feb 2026)
+
+- Created 4 new command templates (`architect.specify.md`, `architect.clarify.md`, `architect.init.md`, `architect.implement.md`)
+- Created 3 new document templates (`adr-template.md`, `AD-template.md`, `feature-AD-template.md`)
+- Enhanced `spec.plan.md` with `--architecture` flag and feature-level architecture generation
+- Enhanced `spec.specify.md` with `architecture` Framework Option
+- Enhanced `spec.analyze.md` with architecture cross-validation (Section K)
+- MADR format follows Markdown Architecture Decision Record standard
+- Feature ADRs auto-validate against system ADRs with VIOLATION/Alignment markers
+
+**Benefits**:
+
+- Interactive exploration before committing to architectural decisions
+- Two-level architecture (system + feature) for governance at appropriate granularity
+- ADRs capture rationale and alternatives, not just final decisions
+- Feature architecture inherits from and validates against system architecture
+- Cross-validation in `/spec.analyze` catches architectural drift early
+
+**References**:
+
+- ArcKit: <https://arckit.org/> (Enterprise Architecture Governance Toolkit)
+- Discussion: AI:T:L AaC Workshop (Feb 2026) - Lior Kanfi, Yanai Franchi
+- Rozanski & Woods: "Software Systems Architecture" methodology (7 viewpoints + 2 perspectives)
+
+---
+
 ### **Mermaid Diagram Auto-Generation** *(100% Complete)* - **COMPLETED** - Visual architecture documentation
 
 - ✅ **Automatic Diagram Generation**: Auto-generates Mermaid diagrams for all 7 architecture viewpoints
@@ -251,8 +369,8 @@ Architecture support is now available in all workflow modes as optional commands
 #### **Context Intelligence & Optimization** *(0% Complete)* - **MEDIUM PRIORITY** - Smart context management and compliance validation
 
 - ❌ **Directives Scanner**: Create `scripts/bash/scan-directives.sh` (and ps1) to list all available assets in `team-ai-directives` as JSON.
-- ❌ **Silent Context Injection**: Update `/speckit.specify` to run the scanner and *silently* populate `context.md` with relevant Directives based on the user prompt (no user interaction required).
-- ❌ **Compliance Gate**: Update `/speckit.clarify` to validate the generated Spec against the Directives in `context.md` and pause ONLY if contradictions are found.
+- ❌ **Silent Context Injection**: Update `/spec.specify` to run the scanner and *silently* populate `context.md` with relevant Directives based on the user prompt (no user interaction required).
+- ❌ **Compliance Gate**: Update `/spec.clarify` to validate the generated Spec against the Directives in `context.md` and pause ONLY if contradictions are found.
 
 #### **Workflow Utilities** *(0% Complete)* - **MEDIUM PRIORITY** - Specialized workflow commands for focused development
 
@@ -610,7 +728,7 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 ### **Command Prefix Migration** *(0% Complete)* - **MEDIUM PRIORITY** - Fork differentiation and user experience
 
-- ❌ **Prefix Change Implementation**: Migrate from `/speckit.*` to `/agenticsdlc.*` commands for clear fork identification
+- ❌ **Prefix Change Implementation**: Migrate from `/spec.*` to `/agenticsdlc.*` commands for clear fork identification
 - ❌ **Documentation Updates**: Update all references in README.md, docs, and templates (100+ instances)
 - ❌ **Release Script Modification**: Update `.github/workflows/scripts/create-release-packages.sh` to generate new prefix
 - ❌ **Migration Support**: Dual prefix support during transition with deprecation warnings
@@ -979,7 +1097,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 ##### Phase 3: Per-Feature Skill Activation
 
 - [ ] **Auto-Discovery Engine**
-  - During `/speckit.specify`: Analyze feature description
+  - During `/spec.specify`: Analyze feature description
   - Calculate relevance score for each installed skill
   - Select top 3 skills above threshold (default 0.7, configurable)
   - Completely silent activation (no user prompts)
@@ -1054,7 +1172,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 #### **Integration Points**
 
 - **specify init**: Creates skills.json, installs team required skills
-- **/speckit.specify**: Auto-discovers and injects relevant skills
+- **/spec.specify**: Auto-discovers and injects relevant skills
 - **/plan, /implement**: Loads activated skills from context.md
 - **team-ai-directives**: Skills.json alongside .mcp.json
 - **evals/**: Task evaluation scenarios and graders
@@ -1265,6 +1383,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 |**Persistent Issue ID**|0%|🔄 Current Phase|
 |**Build Mode "GSD" Upgrade**|100%|✅ Complete|
 |**Architecture Support + Mermaid Diagrams**|100%|✅ Complete|
+|**Architecture Command Restructuring**|0%|🔄 Current Phase (HIGH)|
 |**Three-Pillar Validation**|100%|✅ Complete|
 |**Context Intelligence & Optimization**|0%|🔄 Current Phase|
 |**Spec Management**|0%|🔄 Current Phase|
@@ -1305,7 +1424,8 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 2. **HIGH**: Tier 2 - Sub-Agent Coordination Framework (0% → 100%) - Intelligent local & remote task orchestration with context-aware selection
 3. **MEDIUM**: Tier 3 - Model Selection Strategy per Command (0% → 100%) - Cost optimization & performance tuning across all workflow commands
 4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
-5. **✅ COMPLETED**: Build mode workflow bug fix (100%) - Fixed --require-tasks conditional logic
+5. **HIGH**: Architecture Command Restructuring (0% → 100%) - ArcKit-aligned governance with interactive ADR workflow
+6. **✅ COMPLETED**: Build mode workflow bug fix (100%) - Fixed --require-tasks conditional logic
 6. **✅ COMPLETED**: Levelup command build mode compatibility (100%) - Mode-aware file requirements implemented
 7. **✅ COMPLETED**: Build Mode "GSD" Upgrade (100%) - All functionality complete including template refactoring
 8. **✅ COMPLETED**: Optional Architecture Support (100%) - Architecture commands now available in all modes

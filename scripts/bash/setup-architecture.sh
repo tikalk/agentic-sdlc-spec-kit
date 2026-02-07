@@ -341,7 +341,7 @@ action_init() {
     echo "1. Review and customize the architecture document" >&2
     echo "2. Fill in stakeholder concerns and system scope" >&2
     echo "3. Complete each viewpoint section with your system details" >&2
-    echo "4. Run '/speckit.architect review' to validate" >&2
+    echo "4. Run '/architect.implement' to generate full AD.md" >&2
     
     if $JSON_MODE; then
         echo "{\"status\":\"success\",\"action\":\"init\",\"file\":\"$ARCHITECTURE_FILE\"}"
@@ -386,7 +386,7 @@ action_map() {
 action_update() {
     if [[ ! -f "$ARCHITECTURE_FILE" ]]; then
         echo "❌ Architecture does not exist: $ARCHITECTURE_FILE" >&2
-        echo "Run '/speckit.architect init' first" >&2
+        echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
     
@@ -425,7 +425,7 @@ action_update() {
 action_review() {
     if [[ ! -f "$ARCHITECTURE_FILE" ]]; then
         echo "❌ Architecture does not exist: $ARCHITECTURE_FILE" >&2
-        echo "Run '/speckit.architect init' first" >&2
+        echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
     

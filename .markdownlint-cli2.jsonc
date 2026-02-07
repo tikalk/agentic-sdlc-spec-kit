@@ -23,6 +23,8 @@
   },
   "ignores": [
     ".genreleases/",
-    "evals/docs"
+    "evals/docs",
+    "evals/.venv/",
+    ".opencode/node_modules/"
   ]
 }

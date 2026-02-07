@@ -2,7 +2,7 @@
 description: Identify underspecified areas in the current feature spec by asking up to 5 highly targeted clarification questions and encoding answers back into the spec.
 handoffs: 
   - label: Build Technical Plan
-    agent: speckit.plan
+    agent: spec.plan
     prompt: Create a plan for the spec. I am building with...
 scripts:
    sh: scripts/bash/check-prerequisites.sh --json --paths-only
@@ -29,7 +29,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification. Validate spec against project constitution and architecture (three-pillar validation). Record clarifications directly in the spec file.
 
-Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/speckit.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/spec.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
 ## Three-Pillar Validation
 
@@ -73,7 +73,7 @@ Execution steps:
    - `FEATURE_DIR`
    - `FEATURE_SPEC`
    - (Optionally capture `IMPL_PLAN`, `TASKS` for future chained flows.)
-   - If JSON parsing fails, abort and instruct user to re-run `/speckit.specify` or verify feature branch environment.
+   - If JSON parsing fails, abort and instruct user to re-run `/spec.specify` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. Load governance and architecture documents (if available):
@@ -362,7 +362,7 @@ Execution steps:
     - Number of questions asked & answered (max 2)
     - Path to updated spec
     - Basic coverage summary (focus on core functionality)
-    - Suggested next command: `/speckit.implement` (skip formal planning)
+    - Suggested next command: `/spec.implement` (skip formal planning)
 
     **Spec Mode Completion:**
     - Number of questions asked & answered (max: 5 or 10 depending on architecture)
@@ -373,13 +373,13 @@ Execution steps:
       - **Constitution Alignment**: Verified / Issues Found / Not Available (if missing)
       - **Architecture Alignment**: Verified / Issues Found / Not Available (if missing)
       - **Diagram Consistency**: List any auto-fixes applied
-    - If any Outstanding or Deferred remain, recommend whether to proceed to `/speckit.plan` or run `/speckit.clarify` again later post-plan
+    - If any Outstanding or Deferred remain, recommend whether to proceed to `/spec.plan` or run `/spec.clarify` again later post-plan
     - Suggested next command
 
 Behavior rules:
 
 - If no meaningful ambiguities found across all three pillars, respond: "No critical ambiguities detected worth formal clarification. Constitution and architecture validated." and suggest proceeding.
-- If spec file missing, instruct user to run `/speckit.specify` first (do not create a new spec here).
+- If spec file missing, instruct user to run `/spec.specify` first (do not create a new spec here).
 - Never exceed question limit: 5 (no architecture) or 10 (with architecture) total asked questions
 - Clarification retries for a single question do not count as new questions
 - Avoid speculative tech stack questions unless the absence blocks functional clarity

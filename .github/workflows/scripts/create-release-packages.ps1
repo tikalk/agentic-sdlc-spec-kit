@@ -160,7 +160,7 @@ function Generate-Commands {
         $body = Rewrite-Paths -Content $body
         
         # Generate output file based on extension
-        $outputFile = Join-Path $OutputDir "speckit.$name.$Extension"
+        $outputFile = Join-Path $OutputDir "spec.$name.$Extension"
         
         switch ($Extension) {
             'toml' {
@@ -186,7 +186,7 @@ function Generate-CopilotPrompts {
     
     New-Item -ItemType Directory -Path $PromptsDir -Force | Out-Null
     
-    $agentFiles = Get-ChildItem -Path "$AgentsDir/speckit.*.agent.md" -File -ErrorAction SilentlyContinue
+    $agentFiles = Get-ChildItem -Path "$AgentsDir/spec.*.agent.md" -File -ErrorAction SilentlyContinue
     
     foreach ($agentFile in $agentFiles) {
         $basename = $agentFile.Name -replace '\.agent\.md$', ''

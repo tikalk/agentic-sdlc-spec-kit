@@ -105,15 +105,15 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 
 After initialization, you should see the following commands available in your AI agent:
 
-- `/speckit.constitution` - Establish project principles and assemble constitution
-- `/speckit.specify` - Create specifications
-- `/speckit.plan` - Generate implementation plans
-- `/speckit.tasks` - Break down into actionable tasks
-- `/speckit.implement` - Execute implementation with SYNC/ASYNC dual execution loops
-- `/speckit.levelup` - Capture learnings and contribute to team knowledge
-- `/speckit.analyze` - Cross-artifact consistency and alignment reports
-- `/speckit.checklist` - Generate quality checklists for requirements validation
-- `/speckit.clarify` - Structured questions to de-risk ambiguous areas
+- `/spec.constitution` - Establish project principles and assemble constitution
+- `/spec.specify` - Create specifications
+- `/spec.plan` - Generate implementation plans
+- `/spec.tasks` - Break down into actionable tasks
+- `/spec.implement` - Execute implementation with SYNC/ASYNC dual execution loops
+- `/spec.levelup` - Capture learnings and contribute to team knowledge
+- `/spec.analyze` - Cross-artifact consistency and alignment reports
+- `/spec.checklist` - Generate quality checklists for requirements validation
+- `/spec.clarify` - Structured questions to de-risk ambiguous areas
 
 The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts for automation, and `.mcp.json` will be configured for issue tracker and async agent integration if specified.
 

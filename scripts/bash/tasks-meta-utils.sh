@@ -756,8 +756,8 @@ set_framework_opinion() {
     local value="$2"
 
     echo "Framework opinions are now managed by feature-level mode configuration."
-    echo "Use '/speckit.specify --mode=build|spec --$opinion_type' to create features with specific framework settings."
-    echo "Run '/speckit.specify --help' for more information."
+    echo "Use '/spec.specify --mode=build|spec --$opinion_type' to create features with specific framework settings."
+    echo "Run '/spec.specify --help' for more information."
 }
 
 # Check if opinion is enabled

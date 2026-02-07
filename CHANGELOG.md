@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-02-08
+
+### Added
+
+- **Architecture Command Suite**: Split monolithic `/architect` command into 4 focused commands following the Rozanski & Woods methodology
+  - `/architect.specify` - Interactive PRD exploration to create system ADRs (greenfield projects)
+  - `/architect.clarify` - Refine and resolve ambiguities in existing ADRs
+  - `/architect.init` - Reverse-engineer architecture from existing codebase (brownfield projects)
+  - `/architect.implement` - Generate full Architecture Description (AD.md) from ADRs
+- **New Architecture Templates**:
+  - `templates/AD-template.md` - Full Architecture Description with 7 viewpoints + 2 perspectives
+  - `templates/adr-template.md` - MADR (Markdown Architecture Decision Record) format
+  - `templates/feature-AD-template.md` - Feature-level Architecture Description for `specs/{feature}/`
+- **Two-Level Architecture System**: System-level and feature-level architecture governance
+  - System ADRs in `memory/adr.md`, system AD in `AD.md` (root)
+  - Feature ADRs in `specs/{feature}/adr.md`, feature AD in `specs/{feature}/AD.md`
+  - Feature ADRs auto-validate against system ADRs (VIOLATION/Alignment markers)
+- **Feature Architecture Option**: `--architecture` flag for `/spec.plan` to generate feature-level architecture artifacts
+
+### Changed
+
+- **BREAKING: Command Naming Convention**: Renamed command prefix from `/speckit.*` to `/spec.*` for consistency
+  - `/speckit.specify` -> `/spec.specify`
+  - `/speckit.plan` -> `/spec.plan`
+  - `/speckit.tasks` -> `/spec.tasks`
+  - `/speckit.implement` -> `/spec.implement`
+  - `/speckit.analyze` -> `/spec.analyze`
+  - `/speckit.clarify` -> `/spec.clarify`
+  - `/speckit.checklist` -> `/spec.checklist`
+  - `/speckit.constitution` -> `/spec.constitution`
+  - `/speckit.levelup` -> `/spec.levelup`
+- **BREAKING: Architect Command Split**: Removed monolithic `/spec.architect` command
+  - Old `/spec.architect init` -> `/architect.specify` (interactive ADR creation)
+  - Old `/spec.architect map` -> `/architect.init` (brownfield reverse-engineering)
+  - Old `/spec.architect update` -> `/architect.clarify` (ADR refinement)
+  - Old `/spec.architect review` -> `/spec.analyze` (merged into analyze)
+
+### Removed
+
+- `templates/commands/architect.md` - Replaced by `architect.specify.md`, `architect.clarify.md`, `architect.init.md`, `architect.implement.md`
+
 ## [0.2.0] - 2026-02-07
 
 ### Added
@@ -24,11 +65,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `specify skill sync-team [--dry-run]` - Sync with team manifest (install required, show recommended)
     - `specify skill check-updates` - Check for available skill updates
     - `specify skill config [key] [value]` - View/modify skills configuration
-  - **Auto-Discovery**: Skills automatically matched to features based on descriptions during `/speckit.specify`
+  - **Auto-Discovery**: Skills automatically matched to features based on descriptions during `/spec.specify`
     - Keyword extraction with stop word filtering
     - Relevance scoring: 60% description overlap, 40% content overlap
     - Configurable threshold (default: 0.7) and max skills (default: 3)
-    - Integration with `/speckit.specify` template (Step 7: Context Population)
+    - Integration with `/spec.specify` template (Step 7: Context Population)
   - **Team Skills Manifest**: Support for `team-ai-directives/skills.json` with:
     - `required` skills - auto-installed during init if `auto_install_required: true`
     - `recommended` skills - suggested to users during init
@@ -76,7 +117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Per-Spec Mode Architecture**: Feature-level mode configuration with automatic detection
   - **Mixed-Mode Workflows**: Different features can use different modes simultaneously in the same project
   - **Optional Architecture Support**: Architecture documentation available in all modes
-  - `/speckit.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
+  - `/spec.architect` command implementing Rozanski & Woods "Software Systems Architecture" methodology
   - 7 Core Viewpoints: Context, Functional, Information, Concurrency, Development, Deployment, Operational
   - 2 Cross-cutting Perspectives: Security, Performance & Scalability
   - Four actions: `init` (greenfield), `map` (brownfield/reverse-engineering), `update` (sync with changes), `review` (validation)
@@ -188,14 +229,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Support for using `.` as a shorthand for current directory in `specify init .` command, equivalent to `--here` flag but more intuitive for users.
-- Use the `/speckit.` command prefix to easily discover Spec Kit-related commands.
+- Use the `/spec.` command prefix to easily discover Spec Kit-related commands.
 - Refactor the prompts and templates to simplify their capabilities and how they are tracked. No more polluting things with tests when they are not needed.
 - Ensure that tasks are created per user story (simplifies testing and validation).
 - Add support for Visual Studio Code prompt shortcuts and automatic script execution.
 
 ### Changed
 
-- All command files now prefixed with `speckit.` (e.g., `speckit.specify.md`, `speckit.plan.md`) for better discoverability and differentiation in IDE/CLI command palettes and file explorers
+- All command files now prefixed with `spec.` (e.g., `spec.specify.md`, `spec.plan.md`) for better discoverability and differentiation in IDE/CLI command palettes and file explorers
 
 ## [0.0.17] - 2025-09-22
 

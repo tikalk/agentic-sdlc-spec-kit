@@ -53,4 +53,4 @@ src/
 
 ## Next Steps
 
-Ready for `/speckit.implement`. Can switch to Spec mode later for comprehensive planning.
+Ready for `/spec.implement`. Can switch to Spec mode later for comprehensive planning.

@@ -288,7 +288,7 @@ function Invoke-Init {
     Write-Host "1. Review and customize the architecture document"
     Write-Host "2. Fill in stakeholder concerns and system scope"
     Write-Host "3. Complete each viewpoint section with your system details"
-    Write-Host "4. Run '/speckit.architect review' to validate"
+    Write-Host "4. Run '/architect.implement' to generate full AD.md"
     
     if ($Json) {
         @{status="success"; action="init"; file=$architectureFile} | ConvertTo-Json
@@ -337,7 +337,7 @@ function Invoke-Update {
     param($repoRoot, $architectureFile)
     
     if (-not (Test-Path $architectureFile)) {
-        Write-Error "Architecture does not exist: $architectureFile`nRun '/speckit.architect init' first"
+        Write-Error "Architecture does not exist: $architectureFile`nRun '/architect.specify' or '/architect.init' first"
         exit 1
     }
     
@@ -377,7 +377,7 @@ function Invoke-Review {
     param($repoRoot, $architectureFile)
     
     if (-not (Test-Path $architectureFile)) {
-        Write-Error "Architecture does not exist: $architectureFile`nRun '/speckit.architect init' first"
+        Write-Error "Architecture does not exist: $architectureFile`nRun '/architect.specify' or '/architect.init' first"
         exit 1
     }
     

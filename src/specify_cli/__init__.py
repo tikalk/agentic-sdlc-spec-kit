@@ -1471,24 +1471,24 @@ def show_banner():
 def show_skills_banner():
     """Display the Skills Package Manager banner with key features."""
     skills_info = Panel(
-        "[bold]📦 Skills Package Manager[/bold]\n"
+        "[bold]Skills Package Manager[/bold]\n"
         "[dim]Auto-discover and inject relevant agent skills based on feature descriptions[/dim]\n\n"
         "[bold green]Key Features:[/bold green]\n"
-        "  • [cyan]Auto-Discovery[/cyan] - Automatically matched skills to features (60% description, 40% content)\n"
-        "  • [cyan]Dual Registry[/cyan] - Search skills.sh registry + install from GitHub/local paths\n"
-        "  • [cyan]Team Curation[/cyan] - Required/recommended/blocked skills via team-ai-directives\n"
-        "  • [cyan]Quality Evaluation[/cyan] - Built-in 100-point review scoring framework\n"
-        "  • [cyan]Zero Dependencies[/cyan] - Direct GitHub installation, no npm required\n\n"
+        "  [cyan]Auto-Discovery[/cyan] - Automatically matched skills to features (60% description, 40% content)\n"
+        "  [cyan]Dual Registry[/cyan] - Search skills.sh registry + install from GitHub/local paths\n"
+        "  [cyan]Team Curation[/cyan] - Required/recommended/blocked skills via team-ai-directives\n"
+        "  [cyan]Quality Evaluation[/cyan] - Built-in 100-point review scoring framework\n"
+        "  [cyan]Zero Dependencies[/cyan] - Direct GitHub installation, no npm required\n\n"
         "[bold]Available Commands:[/bold]\n"
         "  [yellow]specify skill search <query>[/yellow]     Search public skills registry\n"
         "  [yellow]specify skill install <ref>[/yellow]      Install from GitHub/GitLab\n"
         "  [yellow]specify skill list[/yellow]              Show installed skills\n"
         "  [yellow]specify skill eval <path>[/yellow]       Evaluate skill quality\n"
         "  [yellow]specify skill sync-team[/yellow]         Sync with team manifest\n\n"
-        "[dim]Learn more: <https://github.com/tikalk/agentic-sdlc-spec-kit>[/dim]",
+        "[dim]Learn more: https://github.com/tikalk/agentic-sdlc-spec-kit[/dim]",
         border_style=ACCENT_COLOR,
         padding=(1, 2),
-        title="[bold]🚀 Skill-Powered Development[/bold]",
+        title="[bold]Skill-Powered Development[/bold]",
     )
     console.print(skills_info)
     console.print()
@@ -2455,7 +2455,7 @@ def init(
     6. Optionally clone or reference a shared team-ai-directives repository
     7. Optionally configure MCP servers for issue tracker integration
     8. Optionally configure MCP servers for AI agent integration
-    9. Capture learnings after delivery with /speckit.levelup
+    9. Capture learnings after delivery with /spec.levelup
 
     Examples:
         specify init my-project
@@ -2973,25 +2973,25 @@ def init(
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
     steps_lines.append(
-        f"   2.1 [{ACCENT_COLOR}]/speckit.architect[/{ACCENT_COLOR}] - Generate Architecture Description using Rozanski & Woods methodology (7 viewpoints + perspectives)"
+        f"   2.1 [{ACCENT_COLOR}]/architect.specify[/{ACCENT_COLOR}] - Interactive PRD exploration to create system ADRs"
     )
     steps_lines.append(
-        f"   2.2 [{ACCENT_COLOR}]/speckit.constitution[/{ACCENT_COLOR}] - Establish project principles"
+        f"   2.2 [{ACCENT_COLOR}]/spec.constitution[/{ACCENT_COLOR}] - Establish project principles"
     )
     steps_lines.append(
-        f"   2.3 [{ACCENT_COLOR}]/speckit.specify[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   2.3 [{ACCENT_COLOR}]/spec.specify[/{ACCENT_COLOR}] - Create baseline specification"
     )
     steps_lines.append(
-        f"   2.4 [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] - Create implementation plan"
+        f"   2.4 [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] - Create implementation plan"
     )
     steps_lines.append(
-        f"   2.5 [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
+        f"   2.5 [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   2.6 [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}] - Execute implementation"
+        f"   2.6 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
     )
     steps_lines.append(
-        f"   2.7 [{ACCENT_COLOR}]/speckit.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
+        f"   2.7 [{ACCENT_COLOR}]/spec.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
     )
 
     steps_panel = Panel(
@@ -3006,9 +3006,9 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        f"○ [{ACCENT_COLOR}]/speckit.clarify[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}] if used)",
-        f"○ [{ACCENT_COLOR}]/speckit.analyze[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/speckit.tasks[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]/speckit.implement[/{ACCENT_COLOR}])",
-        f"○ [{ACCENT_COLOR}]/speckit.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/speckit.plan[/{ACCENT_COLOR}])",
+        f"○ [{ACCENT_COLOR}]/spec.clarify[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] if used)",
+        f"○ [{ACCENT_COLOR}]/spec.analyze[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}])",
+        f"○ [{ACCENT_COLOR}]/spec.checklist[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}])",
     ]
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
@@ -3018,9 +3018,6 @@ def init(
     )
     console.print()
     console.print(enhancements_panel)
-
-    # Show skills package manager banner after Enhancement Commands
-    show_skills_banner()
 
     # Display recommended skills from team manifest if any
     if recommended_skills_info:
@@ -3048,6 +3045,9 @@ def init(
         )
         console.print()
         console.print(skills_panel)
+
+    # Show skills package manager banner at the end
+    show_skills_banner()
 
 
 @app.command()

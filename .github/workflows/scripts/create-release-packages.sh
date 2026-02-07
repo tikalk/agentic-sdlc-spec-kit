@@ -104,11 +104,11 @@ generate_commands() {
     case $ext in
       toml)
         body=$(printf '%s\n' "$body" | sed 's/\\/\\\\/g')
-        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/speckit.$name.$ext" ;;
+        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/spec.$name.$ext" ;;
       md)
-        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
+        echo "$body" > "$output_dir/spec.$name.$ext" ;;
       agent.md)
-        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
+        echo "$body" > "$output_dir/spec.$name.$ext" ;;
     esac
   done
 }
@@ -118,7 +118,7 @@ generate_copilot_prompts() {
   mkdir -p "$prompts_dir"
   
   # Generate a .prompt.md file for each .agent.md file
-  for agent_file in "$agents_dir"/speckit.*.agent.md; do
+  for agent_file in "$agents_dir"/spec.*.agent.md; do
     [[ -f "$agent_file" ]] || continue
     
     local basename=$(basename "$agent_file" .agent.md)

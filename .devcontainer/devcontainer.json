@@ -61,11 +61,11 @@
 		// Specify settings for Github Copilot
 		"git.autofetch": true,
 		"chat.promptFilesRecommendations": {
-			"speckit.constitution": true,
-			"speckit.specify": true,
-			"speckit.plan": true,
-			"speckit.tasks": true,
-			"speckit.implement": true
+			"spec.constitution": true,
+			"spec.specify": true,
+			"spec.plan": true,
+			"spec.tasks": true,
+			"spec.implement": true
 		},
 		"chat.tools.terminal.autoApprove": {
 			".specify/scripts/bash/": true,
