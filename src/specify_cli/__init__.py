@@ -2479,7 +2479,6 @@ def init(
     """
 
     show_banner()
-    show_skills_banner()
 
     if project_name == ".":
         here = True
@@ -3019,6 +3018,9 @@ def init(
     )
     console.print()
     console.print(enhancements_panel)
+
+    # Show skills package manager banner after Enhancement Commands
+    show_skills_banner()
 
     # Display recommended skills from team manifest if any
     if recommended_skills_info:
