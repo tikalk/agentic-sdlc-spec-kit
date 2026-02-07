@@ -159,8 +159,15 @@ function Generate-Commands {
         $body = $body -replace '__AGENT__', $Agent
         $body = Rewrite-Paths -Content $body
         
+        # Determine output filename - architect commands don't get spec. prefix
+        if ($name -like 'architect.*') {
+            $outputName = $name
+        } else {
+            $outputName = "spec.$name"
+        }
+        
         # Generate output file based on extension
-        $outputFile = Join-Path $OutputDir "spec.$name.$Extension"
+        $outputFile = Join-Path $OutputDir "$outputName.$Extension"
         
         switch ($Extension) {
             'toml' {
