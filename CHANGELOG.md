@@ -48,14 +48,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `auto_activation_threshold`: 0.7 (minimum relevance score)
     - `max_auto_skills`: 3 (maximum skills to inject)
     - `preserve_user_edits`: true (merge with user-added skills)
-     - `registry_url`: <https://skills.sh/api>
+    - `registry_url`: <https://skills.sh/api>
     - `evaluation_required`: false
   - **Init Integration**: `specify init` now:
     - Creates `.specify/skills.json` manifest
     - Auto-installs team required skills (if `auto_install_required: true`)
-    - Displays recommended skills panel after init completion
-   - New module: `src/specify_cli/skills/discovery.py` for auto-discovery engine
-   - References: skills.sh Registry (<https://skills.sh>)
+     - Displays recommended skills panel after init completion
+  - New module: `src/specify_cli/skills/discovery.py` for auto-discovery engine
+  - References: skills.sh Registry (<https://skills.sh>)
 
 ## [0.1.0] - 2026-01-30
 

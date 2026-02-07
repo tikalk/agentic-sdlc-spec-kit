@@ -971,10 +971,10 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
    ```
 
 - [ ] **Sync Workflow**
-   - `specify init` → Auto-install team required skills
-   - `specify skill sync-team` → Update to team versions
-   - `specify skill check-updates` → Preview changes
-   - Policy enforcement: Blocked skills rejected with clear error
+  - `specify init` → Auto-install team required skills
+  - `specify skill sync-team` → Update to team versions
+  - `specify skill check-updates` → Preview changes
+  - Policy enforcement: Blocked skills rejected with clear error
 
 ##### Phase 3: Per-Feature Skill Activation
 
