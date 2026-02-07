@@ -9,6 +9,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-07
+
+### Added
+
+- **Skills Package Manager**: A developer-grade package manager for agent skills inspired by Tessl's approach
+  - **CLI Commands**:
+    - `specify skill search <query>` - Search skills.sh registry with keyword filtering
+    - `specify skill install <ref>` - Install from GitHub/GitLab/local paths
+    - `specify skill update [name|--all]` - Update installed skills
+    - `specify skill remove <name>` - Remove installed skill
+    - `specify skill list [--outdated|--json]` - List installed skills
+    - `specify skill eval <path> [--review|--task|--full|--report]` - Evaluate skill quality
+    - `specify skill sync-team [--dry-run]` - Sync with team manifest (install required, show recommended)
+    - `specify skill check-updates` - Check for available skill updates
+    - `specify skill config [key] [value]` - View/modify skills configuration
+  - **Auto-Discovery**: Skills automatically matched to features based on descriptions during `/speckit.specify`
+    - Keyword extraction with stop word filtering
+    - Relevance scoring: 60% description overlap, 40% content overlap
+    - Configurable threshold (default: 0.7) and max skills (default: 3)
+    - Integration with `/speckit.specify` template (Step 7: Context Population)
+  - **Team Skills Manifest**: Support for `team-ai-directives/skills.json` with:
+    - `required` skills - auto-installed during init if `auto_install_required: true`
+    - `recommended` skills - suggested to users during init
+    - `blocked` skills - prevented from installation (with `--skip-blocked-check` override)
+    - `internal` skills - local team skills
+    - Policy enforcement: `enforce_blocked`, `allow_project_override`
+  - **Dual Registry**: Search skills.sh registry and install from GitHub/GitLab/local paths
+  - **Evaluation Framework**: Review evaluation with 100-point scoring:
+    - Frontmatter validation (20 pts): name, description, trigger keywords
+    - Content organization (30 pts): line count, sections, headers
+    - Self-containment (30 pts): no @rule:/@persona:/@example: references
+    - Documentation quality (20 pts): headers, code examples, references, setup
+  - **Policy Enforcement**: Team-level policy for required skills auto-installation and blocking
+    - Install command checks blocked skills before installation
+    - `--skip-blocked-check` flag for override (not recommended)
+  - **Global Config Integration**: Skills config in `~/.config/specify/config.json`:
+    - `auto_activation_threshold`: 0.7 (minimum relevance score)
+    - `max_auto_skills`: 3 (maximum skills to inject)
+    - `preserve_user_edits`: true (merge with user-added skills)
+    - `registry_url`: "https://skills.sh/api"
+    - `evaluation_required`: false
+  - **Init Integration**: `specify init` now:
+    - Creates `.specify/skills.json` manifest
+    - Auto-installs team required skills (if `auto_install_required: true`)
+    - Displays recommended skills panel after init completion
+  - New module: `src/specify_cli/skills/discovery.py` for auto-discovery engine
+  - References: Tessl Skills (https://tessl.io/), skills.sh Registry (https://skills.sh)
+
 ## [0.1.0] - 2026-01-30
 
 ### Changed

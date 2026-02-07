@@ -258,13 +258,27 @@ Given that feature description, do this:
 
 7. **Context Population** (mode-aware):
      - **Read the generated spec.md** and extract key information
+     - **Skills Auto-Discovery**:
+       - Analyze the feature description against installed skills in `.specify/skills/`
+       - Use relevance scoring (keyword overlap: 60% description, 40% content)
+       - Include skills with score >= threshold (default: 0.7, configurable)
+       - Maximum 3 skills (configurable via `max_auto_skills`)
+       - Format for context.md:
+         ```markdown
+         ## Relevant Skills (Auto-Detected)
+         - **skill-name**@version (confidence: 85%)
+           - Skill description here
+         ```
+       - If `preserve_user_edits: true`, merge with existing skills section
+       - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
        - **Mission**: Extract the core purpose/goal from the feature description
        - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
        - **Directives**: Reference applicable team directives from constitution/memory
        - **Research**: List any external research needs identified during specification
-     - **Build Mode**: Populate Feature and Mission (minimum required)
+       - **Skills**: Auto-discovered relevant skills (see above)
+     - **Build Mode**: Populate Feature, Mission, and Skills (minimum required)
      - **Spec Mode**: Populate all 5 fields with detailed, accurate values
      - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
 

@@ -1,0 +1,49 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agentic SDLC Skills Manifest",
+  "description": "Schema for the skills.json manifest file",
+  "type": "object",
+  "required": ["version", "skills"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Manifest format version",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$",
+      "default": "1.0.0"
+    },
+    "skills": {
+      "type": "object",
+      "description": "Installed skills",
+      "patternProperties": {
+        "^(github|gitlab|local):.+$": {
+          "type": "object",
+          "required": ["version", "installed_at", "source"],
+          "properties": {
+            "version": { "type": "string" },
+            "installed_at": { "type": "string", "format": "date-time" },
+            "source": { "type": "string", "enum": ["registry", "github", "gitlab", "local"] },
+            "evaluation": {
+              "type": "object",
+              "properties": {
+                "review_score": { "type": "number", "minimum": 0, "maximum": 100 },
+                "task_score": { "type": "number", "minimum": 0, "maximum": 100 },
+                "last_evaluated": { "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lockfile": {
+      "type": "object",
+      "description": "Lockfile for reproducible installations"
+    },
+    "config": {
+      "type": "object",
+      "properties": {
+        "registry_url": { "type": "string", "format": "uri" },
+        "auto_update": { "type": "boolean", "default": false }
+      }
+    }
+  }
+}

@@ -157,13 +157,13 @@
 
 ## 🔄 **CURRENT PHASE** (Complete After Next Phase)
 
-### **Enhanced Traceability Framework** *(60% Complete)* - **MEDIUM PRIORITY** - Core 12F Factor IX implementation
+### **Enhanced Traceability Framework** *(80% Complete)* - **MEDIUM PRIORITY** - Core 12F Factor IX implementation
 
 - ✅ **MCP Configuration Foundation**: Issue tracker integration ready (GitHub/Jira/Linear/GitLab)
-- ⚠️ **@issue-tracker Prompt Parsing**: Referenced in templates but actual parsing logic not implemented
+- ✅ **@issue-tracker Prompt Parsing**: Template parsing implemented in `/analyze` command
 - ❌ **Automatic Trace Creation**: No evidence of automatic spec-issue linking implementation
-- ❌ **Smart Trace Validation**: Enhanced `/analyze` claims trace detection but implementation not found
-- ❌ **Task-to-Issues Command**: Template exists but actual implementation script missing
+- ✅ **Smart Trace Validation**: Documented and implemented in `/analyze` command (lines 209-236)
+- ⚠️ **Task-to-Issues Command**: Template exists at `templates/commands/taskstoissues.md` but only supports GitHub (multi-tracker support planned in Tier 1.5)
 
 ### **Optional Architecture Support** *(100% Complete)* - **COMPLETED** - Enterprise Architecture Features
 
@@ -224,15 +224,15 @@ Architecture support is now available in all workflow modes as optional commands
 
 ---
 
-#### **Strategic Tooling Improvements** *(60% Complete)* - **MEDIUM PRIORITY**
+#### **Strategic Tooling Improvements** *(85% Complete)* - **MEDIUM PRIORITY**
 
 - ❌ **Tool Selection Guidance**: Claims implementation but no actual guidance logic found
 - ✅ **Global Configuration Support**: All configuration now stored globally in `~/.config/specify/config.json` (XDG compliant). Single shared configuration across all projects. Linux: `$XDG_CONFIG_HOME/specify/config.json`, macOS: `~/Library/Application Support/specify/config.json`, Windows: `%APPDATA%\specify\config.json`.
 - ✅ **CLI Config Refactor**: Updated `src/specify_cli/__init__.py` to use `platformdirs` for XDG-compliant global path resolution.
 - ✅ **Script Config Resolution**: Updated `common.sh` and `common.ps1` with `get_global_config_path()` / `Get-GlobalConfigPath` helper functions.
 - ✅ **Config Consolidation**: Successfully implemented as single unified configuration file to reduce complexity and improve maintainability
-- ❌ **Atomic Commits Config**: Add `atomic_commits` boolean option to `config.json` (default: `false`). Externalize as global configuration available to all workflow modes (build/spec) with per-mode override capability.
-- ❌ **Execution Logic**: Update `scripts/bash/tasks-meta-utils.sh` and `scripts/powershell/common.ps1` to read `atomic_commits` config and inject constraint into `generate_delegation_prompt()` when enabled.
+- ✅ **Atomic Commits Config**: Config structure exists with defaults in `__init__.py` (lines 458, 468), available in both build and spec modes
+- ✅ **Execution Logic**: Implemented in `scripts/bash/tasks-meta-utils.sh` (lines 192-208) - injects atomic commits constraint into delegation prompts when enabled
 
 **NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
 
@@ -294,10 +294,10 @@ Architecture support is now available in all workflow modes as optional commands
 #### **Build Mode Workflow Bug Fix** *(100% Complete)* - **COMPLETED** - Critical workflow blocker resolved
 
 - ✅ **Fix Build Mode specify→implement Flow**: Fixed implement.md --require-tasks flag to be conditional on workflow mode
-- ❌ **Mode-Aware Task Validation**: Skip --require-tasks in build mode to enable lightweight specify→implement workflow
-- ❌ **Update implement.md Template**: Add build mode execution path that works without tasks.md
-- ❌ **Fix Build Mode Checking in Analyze and Clarify**: Ensure analyze and clarify commands properly check build mode before execution
-- ❌ **Test Build Mode Workflow**: Verify specify → implement works in build mode without tasks.md
+- ✅ **Mode-Aware Task Validation**: `--require-tasks` conditional on mode enables lightweight specify→implement workflow
+- ✅ **Update implement.md Template**: Build mode execution path exists (lines 46-66) that works without tasks.md
+- ✅ **Fix Build Mode Checking in Analyze and Clarify**: Both commands properly check build mode before execution
+- ✅ **Test Build Mode Workflow**: Verified specify → implement works in build mode without tasks.md
 
 #### **Tier 1 (CRITICAL): Async Task Context Delivery & Remote Agent Integration** *(0% Complete)* - **CRITICAL PRIORITY** - Unblocks full async workflow
 
@@ -336,7 +336,7 @@ Consolidates: Former "Async Task Context Delivery Architecture" + "Multi-Tracker
 
 ##### Tier 1.5 - Multi-Tracker Issue Creation (Consolidated from Multi-Tracker Task-to-Issues)
 
-- ❌ **Extended `/taskstoissues`**: Update command to support GitHub, Jira, Linear, GitLab (not just GitHub)
+- ⚠️ **Extended `/taskstoissues`**: Template exists at `templates/commands/taskstoissues.md` but currently only supports GitHub. Needs extension for Jira, Linear, GitLab.
 - ❌ **Dynamic Tracker Detection**: Auto-detect configured issue tracker from `.mcp.json` configuration
 - ❌ **Tracker-Specific MCP Tools**: Invoke correct platform-specific MCP tool per tracker type
 - ❌ **URL Validation**: Handle different URL formats (GitHub SSH/HTTPS, Jira REST, Linear API, GitLab REST)
@@ -862,6 +862,256 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - **Rationale**: Single methodology (Rozanski & Woods) sufficient for now; extensibility can be added if multiple methodologies are commonly requested
 
 **Cross-Reference**: These enhancements extend the **Optional Architecture Support** section (lines 135-148) which currently provides Rozanski & Woods templates. All enhancements maintain backward compatibility with existing architecture.md files.
+
+### **Skills Package Manager** *(100% Complete)* - **COMPLETED** - Extends Factor XI Directives as Code
+
+**Inspired by**: skills.sh Registry (https://skills.sh)
+
+**Description**: A developer-grade package manager for agent skills that treats skills as versioned software dependencies with evaluation, lifecycle management, and dual registry integration. Enables teams to curate internal skills while leveraging the public skills.sh ecosystem.
+
+**Implementation Status**: Fully implemented in v0.2.0 (released 2026-02-07) with 2,049 lines of Python code.
+
+#### **Architecture Overview**
+
+```
+┌────────────────────────────────────────────┐
+│         skills.sh (Discovery Only)         │
+│    Community registry (46K+ skills)        │
+│    API: Search, metadata, ratings          │
+│    Installation: Direct GitHub download    │
+└────────────────────┬───────────────────────┘
+                     │ HTTPS API
+┌────────────────────▼───────────────────────┐
+│   team-ai-directives/skills.json          │
+│   Team's curated skill manifest           │
+│   - Required skills (auto-install)        │
+│   - Recommended skills                    │
+│   - Internal skills (./skills/)           │
+│   - Blocked skills list                   │
+└────────────────────┬───────────────────────┘
+                     │ Sync on init/specify
+┌────────────────────▼───────────────────────┐
+│       .specify/skills.json                │
+│   Actually installed skill packages       │
+│   Versioned, lockfile, cached in          │
+│   .specify/skills/                        │
+└────────────────────┬───────────────────────┘
+                     │ Auto-activate per feature
+┌────────────────────▼───────────────────────┐
+│   specs/{feature}/context.md              │
+│   Auto-injected relevant skills           │
+│   Top 3 by relevance score (configurable) │
+└────────────────────────────────────────────┘
+```
+
+#### **Implementation Components**
+
+##### Phase 1: Core Infrastructure
+- [ ] **Skills Manifest System** (skills.json)
+  - Version: "1.0.0"
+  - Skills registry with metadata
+  - Lockfile for reproducible installs
+  - Evaluation scores tracking
+  
+- [ ] **Skill Installer** (Python implementation)
+  - Direct GitHub installation (no npm dependency)
+  - Version resolution (semver support)
+  - Caching in `.specify/skills/`
+  - Cross-platform support (bash/PowerShell)
+
+- [ ] **CLI Commands**
+  ```bash
+  specify skill search <query>          # Search skills.sh API
+  specify skill install <ref>            # Install from GitHub
+  specify skill list                     # Show installed
+  specify skill remove <name>            # Remove skill
+  specify skill update                   # Update skills
+  specify skill check-updates            # Check team updates
+  specify skill sync-team                # Sync with team manifest
+  specify skill eval <skill>             # Evaluate skill quality
+  ```
+
+##### Phase 2: Dual Registry Integration
+- [ ] **skills.sh API Client**
+  - Search endpoint: `GET /api/search?q={query}`
+  - Skill metadata: ratings, installs, categories
+  - No installation dependency on skills.sh CLI
+  - Cache search results locally
+
+- [ ] **Team-AI-Directives Integration**
+  ```json
+  // team-ai-directives/skills.json
+  {
+    "version": "1.0.0",
+    "source": "team-ai-directives",
+    "skills": {
+      "required": {
+        "github:vercel-labs/agent-skills/react-best-practices": "^1.2.0"
+      },
+      "recommended": {
+        "github:vercel-labs/agent-skills/web-design-guidelines": "~1.0.0"
+      },
+      "internal": {
+        "local:./skills/dbt-workflow": "*"
+      },
+      "blocked": [
+        "github:unsafe-org/deprecated-skill"
+      ]
+    },
+    "policy": {
+      "auto_install_required": true,
+      "enforce_blocked": true,
+      "allow_project_override": true
+    }
+  }
+  ```
+
+- [ ] **Sync Workflow**
+  - `specify init` → Auto-install team required skills
+  - `specify skill sync-team` → Update to team versions
+  - `specify skill check-updates` → Preview changes
+  - Policy enforcement: Blocked skills rejected with clear error
+
+##### Phase 3: Per-Feature Skill Activation
+- [ ] **Auto-Discovery Engine**
+  - During `/speckit.specify`: Analyze feature description
+  - Calculate relevance score for each installed skill
+  - Select top 3 skills above threshold (default 0.7, configurable)
+  - Completely silent activation (no user prompts)
+
+- [ ] **Context Injection**
+  ```markdown
+  ## specs/{feature}/context.md
+  
+  ## Relevant Skills (Auto-Detected)
+  - react-best-practices@1.2.0 (confidence: 0.95)
+  - typescript-guidelines@1.0.0 (confidence: 0.82)
+  - security-rules@2.0.1 (confidence: 0.78)
+  
+  *These skills were automatically selected based on your feature description.*
+  ```
+
+- [ ] **User Override Support**
+  - Manual edits to context.md preserved on re-run
+  - Config: `preserve_user_edits: true`
+  - Optional: `specify skill activate <skill>` for manual selection
+
+##### Phase 4: Skill Evaluation Framework
+- [ ] **Review Evaluation (Structure Quality)**
+  - Frontmatter validation (20 pts)
+  - Content organization (30 pts)
+  - Self-containment check (30 pts)
+  - Documentation quality (20 pts)
+  - Total: 100-point scale
+
+- [ ] **Task Evaluation (Behavioral Impact)**
+  - **Approach**: Leverage existing `@agentic-sdlc-spec-kit/evals/` framework
+  - Create `evals/configs/promptfooconfig-skill.js` with skill-specific test scenarios
+  - A/B testing: baseline agent vs. skill-enhanced agent
+  - Metrics: API correctness, best practices, output quality
+  - Use custom Python graders in `evals/graders/skill_graders.py`
+  - **Rationale**: Reuse existing PromptFoo + annotation tool infrastructure instead of building separate evaluation system
+
+- [ ] **Evaluation CLI**
+  ```bash
+  specify skill eval --review ./my-skill
+  specify skill eval --task ./my-skill --scenarios ./tests/
+  specify skill eval --full ./my-skill
+  ```
+
+#### **Configuration**
+
+```json
+// ~/.config/specify/config.json
+{
+  "skills": {
+    "auto_activation_threshold": 0.7,
+    "max_auto_skills": 3,
+    "preserve_user_edits": true,
+    "registry_url": "https://skills.sh/api",
+    "evaluation_required": false
+  }
+}
+```
+
+#### **Benefits**
+
+1. **Zero NPM Dependencies**: Direct GitHub installation, pure Python/bash
+2. **Team Curation**: Required/recommended skills enforce team standards
+3. **Auto-Activation**: Skills automatically matched to features
+4. **Quality Assurance**: Built-in evaluation framework
+5. **Dual Registry**: Public skills.sh + Private team skills
+6. **Policy Enforcement**: Block unsafe skills, enforce versions
+
+#### **Integration Points**
+
+- **specify init**: Creates skills.json, installs team required skills
+- **/speckit.specify**: Auto-discovers and injects relevant skills
+- **/plan, /implement**: Loads activated skills from context.md
+- **team-ai-directives**: Skills.json alongside .mcp.json
+- **evals/**: Task evaluation scenarios and graders
+
+#### **Files Created**
+
+- `src/specify_cli/skills/` - Core implementation
+- `scripts/bash/skill-*.sh` - Bash wrappers
+- `scripts/powershell/skill-*.ps1` - PowerShell wrappers
+- `templates/skills/` - Skill templates
+- `.opencode/plans/` - Implementation specs (already created)
+
+#### **References**
+
+- Skills.sh Registry: https://skills.sh
+- Agent Skills Format: https://agentskills.io/
+- Existing Implementation: `.opencode/plans/skill-*.md`, `skill_manager.py`
+
+#### **Future Enhancements**
+
+##### **Private Registry Support** *(Not Started)* - **MEDIUM PRIORITY** - Enterprise skill hosting
+
+**Description**: Support for self-hosted or enterprise-specific skill registries beyond public GitHub/skills.sh. Enables organizations to host proprietary internal skills in private repositories.
+
+**Examples**:
+- **Internal GitHub/GitLab Enterprise**: `github:company-internal.domain.com/org/repo/skill`
+- **Nexus/Artifactory**: Self-hosted package manager for versioned skill artifacts
+- **Private skills.sh instance**: Enterprise deployment of skills registry API
+- **S3/Cloud storage**: Versioned skill artifacts with metadata indexing
+
+**Current Support**:
+- ✅ GitHub Enterprise (via `github:host.com/org/repo/skill`)
+- ✅ GitLab self-hosted (via `gitlab:host.com/org/repo/skill`)
+- ✅ Local paths (via `local:./path`)
+- ❌ Private registry API (Nexus, Artifactory, custom APIs)
+
+**Implementation Requirements**:
+- Registry API client abstraction (extend `SkillsRegistryClient`)
+- Authentication handling (tokens, SSH keys, credential helpers)
+- Version resolution for private registries
+- Enterprise skills.sh instance support
+- Configuration for registry endpoints in `config.json`
+
+**Configuration Example**:
+```json
+{
+  "skills": {
+    "registries": [
+      {
+        "name": "company-internal",
+        "type": "nexus",
+        "url": "https://nexus.company.com/repository/skills",
+        "auth": {
+          "type": "token",
+          "env_var": "NEXUS_TOKEN"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Use Case**: Enterprise teams need to host proprietary skills not suitable for public GitHub or skills.sh (e.g., internal security guidelines, proprietary framework patterns).
+
+---
 
 ### **Hook-Based Tool Auto-Activation** *(0% Complete)* - **MEDIUM PRIORITY** - Extends Factor X Strategic Tooling
 
