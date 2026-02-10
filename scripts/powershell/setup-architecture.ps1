@@ -6,6 +6,8 @@ param(
     [string]$Action = '',
     [Parameter(Position=1, ValueFromRemainingArguments=$true)]
     [string[]]$Context,
+    [string]$Views = 'core',
+    [string]$AdrHeuristic = 'surprising',
     [switch]$Json,
     [switch]$Help
 )
@@ -13,7 +15,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Output "Usage: ./setup-architecture.ps1 [action] [context] [-Json] [-Help]"
+    Write-Output "Usage: ./setup-architecture.ps1 [action] [context] [-Views VIEWS] [-AdrHeuristic HEURISTIC] [-Json] [-Help]"
     Write-Output ""
     Write-Output "Actions:"
     Write-Output "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
@@ -25,13 +27,16 @@ if ($Help) {
     Write-Output "  review   Validate architecture against constitution"
     Write-Output ""
     Write-Output "Options:"
-    Write-Output "  -Json    Output results in JSON format"
-    Write-Output "  -Help    Show this help message"
+    Write-Output "  -Views VIEWS         Architecture views to generate: core (default), all, or comma-separated"
+    Write-Output "  -AdrHeuristic H      ADR generation heuristic: surprising (default), all, minimal"
+    Write-Output "  -Json                Output results in JSON format"
+    Write-Output "  -Help                Show this help message"
     Write-Output ""
     Write-Output "Examples:"
     Write-Output "  ./setup-architecture.ps1 specify `"B2B SaaS for supply chain management`""
-    Write-Output "  ./setup-architecture.ps1 clarify `"Focus on authentication and data persistence decisions`""
-    Write-Output "  ./setup-architecture.ps1 init `"Django monolith with PostgreSQL and React`""
+    Write-Output "  ./setup-architecture.ps1 init -Views all `"Django monolith with PostgreSQL`""
+    Write-Output "  ./setup-architecture.ps1 init -Views concurrency,operational `"Microservices architecture`""
+    Write-Output "  ./setup-architecture.ps1 clarify -AdrHeuristic all `"Document all decisions`""
     Write-Output "  ./setup-architecture.ps1 implement `"Generate full AD.md from ADRs`""
     Write-Output "  ./setup-architecture.ps1 update `"Added microservices and event sourcing`""
     Write-Output "  ./setup-architecture.ps1 review `"Focus on security and performance`""
@@ -214,11 +219,92 @@ function Get-DirectoryStructure {
     return $structure -join "`n"
 }
 
+# Function to scan existing docs for deduplication
+function Scan-ExistingDocs {
+    param([string]$RepoRoot = (Get-RepositoryRoot))
+    
+    Write-Host "Scanning existing documentation for deduplication..." -ForegroundColor Cyan
+    
+    $findings = @()
+    
+    # Check for existing architecture docs
+    if (Test-Path "$RepoRoot\AD.md") {
+        $findings += "EXISTING_AD: $RepoRoot\AD.md"
+    }
+    
+    if (Test-Path "$RepoRoot\docs\architecture.md") {
+        $findings += "EXISTING_ARCHITECTURE: $RepoRoot\docs\architecture.md"
+    }
+    
+    # Scan README for tech stack
+    if (Test-Path "$RepoRoot\README.md") {
+        $readme = Get-Content "$RepoRoot\README.md" -Raw
+        if ($readme -match "Tech Stack|Technology|Built with") {
+            $findings += "TECH_STACK_IN_README: $RepoRoot\README.md"
+        }
+        if ($readme -match "PostgreSQL|MySQL|MongoDB|Redis") {
+            $findings += "DATABASE_IN_README: $RepoRoot\README.md"
+        }
+        if ($readme -match "React|Vue|Angular") {
+            $findings += "FRONTEND_IN_README: $RepoRoot\README.md"
+        }
+    }
+    
+    # Scan AGENTS.md for context
+    if (Test-Path "$RepoRoot\AGENTS.md") {
+        $findings += "AGENTS_CONTEXT: $RepoRoot\AGENTS.md"
+    }
+    
+    # Scan CONTRIBUTING.md for dev guidelines
+    if (Test-Path "$RepoRoot\CONTRIBUTING.md") {
+        $findings += "DEV_GUIDELINES: $RepoRoot\CONTRIBUTING.md"
+    }
+    
+    return $findings -join "`n"
+}
+
+# Function to parse views parameter
+function Parse-Views {
+    param([string]$ViewsArg)
+    
+    switch ($ViewsArg.ToLower()) {
+        "all" { return "context functional information concurrency development deployment operational" }
+        "full" { return "context functional information concurrency development deployment operational" }
+        "core" { return "context functional information development deployment" }
+        "minimal" { return "context functional information development deployment" }
+        "" { return "context functional information development deployment" }
+        default {
+            # Parse comma-separated: "concurrency,operational"
+            $validViews = @()
+            $allViews = @("context", "functional", "information", "concurrency", "development", "deployment", "operational")
+            $requestedViews = $ViewsArg -split ","
+            
+            foreach ($view in $requestedViews) {
+                $view = $view.Trim().ToLower()
+                if ($allViews -contains $view) {
+                    $validViews += $view
+                }
+            }
+            
+            # Always include core views
+            $coreViews = @("context", "functional", "information", "development", "deployment")
+            foreach ($coreView in $coreViews) {
+                if ($validViews -notcontains $coreView) {
+                    $validViews += $coreView
+                }
+            }
+            
+            return $validViews -join " "
+        }
+    }
+}
+
 # Generate and insert diagrams into architecture.md
 function New-ArchitectureDiagrams {
     param(
         [string]$ArchitectureFile,
-        [string]$SystemName = "System"
+        [string]$SystemName = "System",
+        [string]$ViewsList = ""
     )
     
     Write-Host "📊 Generating architecture diagrams..." -ForegroundColor Cyan
@@ -236,8 +322,19 @@ function New-ArchitectureDiagrams {
         . "$scriptDir\ASCII-Generator.ps1"
     }
     
-    # Array of views to generate diagrams for
-    $views = @('context', 'functional', 'information', 'concurrency', 'development', 'deployment', 'operational')
+    # Determine which views to generate (use env var if ViewsList not provided)
+    if (-not $ViewsList) {
+        $ViewsList = $env:ARCHITECTURE_VIEWS
+    }
+    if (-not $ViewsList) {
+        $ViewsList = "core"
+    }
+    
+    # Parse views and convert to array
+    $parsedViews = Parse-Views -ViewsArg $ViewsList
+    $views = $parsedViews -split ' '
+    
+    Write-Host "   Generating views: $($views -join ', ')"
     
     # Generate each diagram
     foreach ($view in $views) {
@@ -418,6 +515,17 @@ function Invoke-Init {
     }
     
     Write-Host "📐 Initializing architecture from template..." -ForegroundColor Cyan
+    
+    # Scan existing docs for deduplication
+    Write-Host ""
+    $existingDocs = Scan-ExistingDocs -RepoRoot $repoRoot
+    if ($existingDocs) {
+        Write-Host "Existing Documentation Found:" -ForegroundColor Yellow
+        Write-Host $existingDocs
+        Write-Host ""
+        Write-Host "⚠️  Reference these instead of duplicating content" -ForegroundColor Yellow
+    }
+    
     Copy-Item $templateFile $architectureFile
     
     # Generate diagrams based on user config
@@ -442,6 +550,15 @@ function Invoke-Map {
     
     Write-Host "🔍 Mapping existing codebase to architecture..." -ForegroundColor Cyan
     
+    # Scan existing docs for deduplication
+    Write-Host ""
+    $existingDocs = Scan-ExistingDocs -RepoRoot $repoRoot
+    if ($existingDocs) {
+        Write-Host "Existing Documentation Found:" -ForegroundColor Yellow
+        Write-Host $existingDocs
+        Write-Host ""
+    }
+    
     # Detect tech stack
     Write-Host ""
     Write-Host "Tech Stack Detected:" -ForegroundColor Yellow
@@ -454,22 +571,24 @@ function Invoke-Map {
     $dirStructure = Get-DirectoryStructure
     Write-Host $dirStructure
     
-    # Output structured data for AI agent to populate architecture.md Section C
+    # Output structured data for AI agent to populate AD.md Section C
     if ($Json) {
         @{
             status="success"
             action="map"
             tech_stack=$techStack
             directory_structure=$dirStructure
+            existing_docs=$existingDocs
         } | ConvertTo-Json
     } else {
         Write-Host ""
-        Write-Host "📋 Mapping complete. Use this information to populate memory/architecture.md:"
+        Write-Host "📋 Mapping complete. Use this information to populate AD.md:"
         Write-Host "  - Section C (Tech Stack Summary): Use detected technologies above"
         Write-Host "  - Development View: Use directory structure above"
         Write-Host "  - Deployment View: Check docker-compose.yml, k8s configs, terraform"
         Write-Host "  - Functional View: Use API endpoints detected"
         Write-Host "  - Information View: Check database schemas, ORM models"
+        Write-Host "  - ⚠️  Reference existing docs instead of duplicating"
     }
 }
 
@@ -575,8 +694,12 @@ function Invoke-Review {
         }
     }
     
-    # Check constitution alignment
-    $constitutionFile = Join-Path $repoRoot ".specify\memory\constitution.md"
+    # Check constitution alignment (new path: memory/constitution.md)
+    $constitutionFile = Join-Path $repoRoot "memory\constitution.md"
+    if (-not (Test-Path $constitutionFile)) {
+        # Fallback to legacy path
+        $constitutionFile = Join-Path $repoRoot ".specify\memory\constitution.md"
+    }
     if (Test-Path $constitutionFile) {
         Write-Host ""
         Write-Host "📜 Checking constitution alignment..." -ForegroundColor Cyan
@@ -603,12 +726,19 @@ try {
         New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
     
-    $architectureFile = Join-Path $repoRoot "memory\architecture.md"
+    # Architecture files (new structure: AD.md at root, ADRs in memory/)
+    $adFile = Join-Path $repoRoot "AD.md"
+    $adrFile = Join-Path $repoRoot "memory\adr.md"
     $templateFile = Join-Path $repoRoot ".specify\templates\architecture-template.md"
+    $adTemplateFile = Join-Path $repoRoot ".specify\templates\AD-template.md"
+    
+    # Export for use in functions
+    $env:ARCHITECTURE_VIEWS = $Views
+    $env:ADR_HEURISTIC = $AdrHeuristic
     
     # Default action if not specified
     if (-not $Action) {
-        if (Test-Path $architectureFile) {
+        if (Test-Path $adFile) {
             $Action = "update"
         } else {
             $Action = "init"
@@ -624,7 +754,7 @@ try {
             Invoke-Clarify -repoRoot $repoRoot -contextArgs $Context
         }
         'init' {
-            Invoke-Init -repoRoot $repoRoot -architectureFile $architectureFile -templateFile $templateFile
+            Invoke-Init -repoRoot $repoRoot -architectureFile $adFile -templateFile $adTemplateFile
         }
         'map' {
             Invoke-Map -repoRoot $repoRoot
@@ -633,10 +763,10 @@ try {
             Invoke-Implement -repoRoot $repoRoot -contextArgs $Context
         }
         'update' {
-            Invoke-Update -repoRoot $repoRoot -architectureFile $architectureFile
+            Invoke-Update -repoRoot $repoRoot -architectureFile $adFile
         }
         'review' {
-            Invoke-Review -repoRoot $repoRoot -architectureFile $architectureFile
+            Invoke-Review -repoRoot $repoRoot -architectureFile $adFile
         }
         default {
             Write-Error "Unknown action: $Action`nUse -Help for usage information"

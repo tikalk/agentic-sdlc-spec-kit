@@ -477,6 +477,27 @@ def get_default_config() -> dict:
         "team_directives": {"path": None},
         "architecture": {
             "diagram_format": "mermaid",  # Options: "mermaid" or "ascii"
+            "views": "core",  # Options: "core", "all", or comma-separated list
+            "adr": {
+                "heuristic": "surprising",  # Options: "surprising" (default), "all", "minimal"
+                "check_constitution": True,  # Always check constitution for duplicates
+                "allow_overrides": True,  # Allow constitution overrides with justification
+                "duplication_threshold": "strict",  # Strict: no duplicates allowed
+                "max_adrs": 10,  # Maximum ADRs to generate
+                "custom_rules": {  # Project-specific obvious/surprising decisions
+                    "obvious": [],
+                    "surprising": [],
+                },
+            },
+            "deduplication": {
+                "enabled": True,
+                "scan_paths": [
+                    "docs/",
+                    "*.md",
+                ],  # Default: docs/ dir and root .md files
+                "reference_instead_of_duplicate": True,
+                "auto_merge_existing": True,  # Auto-merge when existing architecture found
+            },
         },
         "skills": {
             "auto_activation_threshold": 0.7,  # Minimum relevance score for auto-discovery
@@ -537,6 +558,84 @@ def set_architecture_diagram_format(
     console.print(
         f"[green]✓[/green] Architecture diagram format set to: {diagram_format}"
     )
+
+
+def get_architecture_views(project_path: Optional[Path] = None) -> str:
+    """Get the configured architecture views setting.
+
+    Args:
+        project_path: (Ignored - global config is used)
+
+    Returns:
+        Views setting: "core", "all", or comma-separated list (defaults to "core")
+    """
+    config = load_config(project_path)
+
+    if "architecture" not in config:
+        config["architecture"] = {"views": "core"}
+        save_config(project_path, config)
+        return "core"
+
+    return config.get("architecture", {}).get("views", "core")
+
+
+def get_adr_heuristic(project_path: Optional[Path] = None) -> str:
+    """Get the configured ADR heuristic.
+
+    Args:
+        project_path: (Ignored - global config is used)
+
+    Returns:
+        Heuristic: "surprising", "all", or "minimal" (defaults to "surprising")
+    """
+    config = load_config(project_path)
+
+    if "architecture" not in config or "adr" not in config.get("architecture", {}):
+        return "surprising"
+
+    return config.get("architecture", {}).get("adr", {}).get("heuristic", "surprising")
+
+
+def get_architecture_config(project_path: Optional[Path] = None) -> dict:
+    """Get the complete architecture configuration.
+
+    Args:
+        project_path: (Ignored - global config is used)
+
+    Returns:
+        Dictionary containing all architecture configuration
+    """
+    config = load_config(project_path)
+
+    default_config = {
+        "diagram_format": "mermaid",
+        "views": "core",
+        "adr": {
+            "heuristic": "surprising",
+            "check_constitution": True,
+            "allow_overrides": True,
+            "duplication_threshold": "strict",
+            "max_adrs": 10,
+            "custom_rules": {"obvious": [], "surprising": []},
+        },
+        "deduplication": {
+            "enabled": True,
+            "scan_paths": ["docs/", "*.md"],
+            "reference_instead_of_duplicate": True,
+            "auto_merge_existing": True,
+        },
+    }
+
+    if "architecture" not in config:
+        return default_config
+
+    arch_config = config.get("architecture", {})
+
+    # Merge with defaults
+    result = default_config.copy()
+    result.update({k: v for k, v in arch_config.items() if v is not None})
+
+    return result
 
 
 # Skills configuration helpers

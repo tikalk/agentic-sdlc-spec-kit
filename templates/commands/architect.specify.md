@@ -40,6 +40,18 @@ Transform a PRD (Product Requirements Document) or high-level system description
 
 **Key Insight**: Unlike direct architecture generation, this command prioritizes **discussion and exploration** before committing to formal documentation. The goal is to surface trade-offs, validate assumptions, and make informed decisions collaboratively.
 
+### Flags
+
+- `--views VIEWS`: Architecture views to include in final AD.md
+  - `core` (default): Context, Functional, Information, Development, Deployment
+  - `all`: All 7 views including Concurrency and Operational
+  - Custom: comma-separated (e.g., `concurrency,operational`)
+
+- `--adr-heuristic HEURISTIC`: ADR generation strategy
+  - `surprising` (default): Skip obvious ecosystem defaults
+  - `all`: Document all decisions discussed
+  - `minimal`: Only high-risk/unconventional decisions
+
 ## Role & Context
 
 You are acting as a **Solutions Architect** facilitating an architectural discovery session. Your role involves:
@@ -95,9 +107,15 @@ Given the PRD input, execute this workflow:
    - Regulatory or compliance requirements
 
 4. **Load Constitution**:
-   - Read `memory/constitution.md` if it exists
-   - Extract architectural principles that must be honored
-   - Note any constraints that limit architectural choices
+    - Read `memory/constitution.md` if it exists
+    - Extract architectural principles that must be honored
+    - Note any constraints that limit architectural choices
+
+5. **Check Existing Documentation**:
+    - Scan `README.md` for already-documented tech stack
+    - Check `AGENTS.md` for project context
+    - Review `CONTRIBUTING.md` for dev guidelines
+    - Note: Don't duplicate - reference existing docs
 
 **Output**: Internal summary of architectural drivers (do not write to file yet)
 
@@ -215,10 +233,15 @@ Proposed
 #### Risks
 - [Risk 1 with mitigation]
 
-### Alternatives Considered
+### Common Alternatives
 
-#### [Option Not Chosen]
-**Rejected because**: [Reason from discussion]
+#### Option A: [Alternative Name]
+**Description**: [Brief description]
+**Trade-offs**: [Neutral comparison - when this would be better/worse, not "rejected because"]
+
+#### Option B: [Alternative Name]
+**Description**: [Brief description]
+**Trade-offs**: [Neutral comparison]
 ```
 
 3. **Number ADRs sequentially**: Start from ADR-001 for new projects, or continue from highest existing number

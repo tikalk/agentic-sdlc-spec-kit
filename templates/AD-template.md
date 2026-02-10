@@ -160,10 +160,14 @@ graph TD
 - **Backup Strategy**: [Backup approach]
 
 ---
+<!-- OPTIONAL VIEW: Concurrency -->
+<!-- Include this section only if using --views=concurrency or --views=all -->
 
 ### 3.4 Concurrency View
 
 **Purpose**: Describe runtime processes, threads, and coordination
+
+**Note**: This is an optional view. Include for async/multi-threaded systems.
 
 #### 3.4.1 Process Structure
 
@@ -274,10 +278,14 @@ graph TB
 | Database | [Specs] | [Specs] | [Specs] |
 
 ---
+<!-- OPTIONAL VIEW: Operational -->
+<!-- Include this section only if using --views=operational or --views=all -->
 
 ### 3.7 Operational View
 
 **Purpose**: Operations, support, and maintenance in production
+
+**Note**: This is an optional view. Include for production systems with operations teams.
 
 #### 3.7.1 Operational Responsibilities
 
@@ -378,7 +386,26 @@ graph TB
 
 ---
 
-## 6. ADR Summary
+## 6. Constitution Alignment
+
+**Constitution Reference**: [memory/constitution.md](memory/constitution.md)
+
+### Alignment Status
+
+| Principle | Section | Alignment | Notes |
+|-----------|---------|-----------|-------|
+| [Principle 1] | §X.Y | ✅ Compliant / ⚠️ Deviation / ❌ Override | [Explanation] |
+| [Principle 2] | §X.Y | ✅ Compliant | [How AD implements this] |
+
+### Overrides (if applicable)
+
+| Principle | Justification | Approved By |
+|-----------|---------------|-------------|
+| [Principle] | [Why this AD deviates] | [Date/Approver] |
+
+---
+
+## 7. ADR Summary
 
 Detailed Architecture Decision Records are maintained in [memory/adr.md](memory/adr.md).
 

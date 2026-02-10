@@ -39,9 +39,21 @@ When users provide context, use it to focus the reverse-engineering effort.
 Reverse-engineer architecture from an existing codebase to create:
 
 1. **ADRs** documenting inferred architectural decisions in `memory/adr.md`
-2. **Architecture Description** overview in `memory/architecture.md` (legacy format)
+2. **Architecture Description** (`AD.md` at project root) with 7 Rozanski & Woods viewpoints
 
 This command is for **brownfield projects** where architecture exists in code but lacks documentation.
+
+### Flags
+
+- `--views VIEWS`: Architecture views to generate
+  - `core` (default): Context, Functional, Information, Development, Deployment
+  - `all`: All 7 views including Concurrency and Operational
+  - Custom: comma-separated (e.g., `concurrency,operational`)
+  
+- `--adr-heuristic HEURISTIC`: ADR generation strategy
+  - `surprising` (default): Skip obvious ecosystem defaults, document only surprising/risky decisions
+  - `all`: Document all discovered decisions
+  - `minimal`: Only high-risk decisions
 
 ## Role & Context
 
@@ -62,10 +74,11 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 ## Outline
 
 1. **Codebase Scan**: Analyze project structure and detect technologies
-2. **Pattern Detection**: Identify architectural patterns in use
-3. **ADR Generation**: Create ADRs for discovered decisions
-4. **Gap Analysis**: Identify areas where decisions are unclear
-5. **Output**: Write ADRs to `memory/adr.md`
+2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, etc.) to avoid repeating
+3. **Pattern Detection**: Identify architectural patterns in use
+4. **ADR Generation**: Create ADRs for discovered decisions
+5. **Gap Analysis**: Identify areas where decisions are unclear
+6. **Output**: Write ADRs to `memory/adr.md`
 
 ## Execution Steps
 
@@ -144,7 +157,35 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 | **gRPC** | `.proto` files, gRPC client/server setup |
 | **WebSocket** | Socket.io, WebSocket handlers |
 
-### Phase 3: ADR Generation
+### Phase 1.5: Documentation Deduplication
+
+**Objective**: Scan existing docs to avoid repeating documented information
+
+**Scan for**:
+
+- `AGENTS.md` - Project context, overview
+- `README.md` - Tech stack, project description
+- `CONTRIBUTING.md` - Development guidelines
+- `AD.md` or `docs/architecture.md` - Existing architecture
+- `LICENSE` - Legal context
+
+**Deduplication Rules**:
+
+| Finding | Action |
+|---------|--------|
+| Tech stack in README | Reference README in ADR, don't duplicate |
+| Architecture exists | Auto-merge or offer update vs. create new |
+| Guidelines in CONTRIBUTING | Reference in Development View |
+| Context in AGENTS.md | Link from Context View |
+
+**Process**:
+
+1. Run `{SCRIPT}` which calls `scan_existing_docs()`
+2. Parse findings from JSON output
+3. For each finding, determine: Skip ADR / Reference existing / Document new
+4. Report: "X decisions covered by existing docs, Y new ADRs created"
+
+### Phase 2: Pattern Detection
 
 **Objective**: Document discovered decisions as ADRs
 
@@ -190,24 +231,33 @@ Legacy/Inferred
 #### Risks
 - [Risk if this decision is not well understood]
 
-### Alternatives (Available at Decision Time)
-- [Alternative 1]: [Common alternative that wasn't chosen]
-- [Alternative 2]: [Another option]
+### Common Alternatives
+#### [Likely Alternative]
+**Description**: [What it is]
+**Trade-offs**: [Why it might have been considered, neutral assessment - NO "Rejected because"]
+← DO NOT fabricate rejection rationale - we don't know why it wasn't chosen
 
 ### Confidence Level
 [HIGH/MEDIUM/LOW] - [Explanation of confidence in inference]
 ```
 
-3. **ADR Categories to Generate**:
-   - **ADR-001**: System Architecture Style
-   - **ADR-002**: Primary Database Choice
-   - **ADR-003**: API Style
-   - **ADR-004**: Frontend Framework (if applicable)
-   - **ADR-005**: Deployment Platform
-   - **ADR-006**: CI/CD Approach
-   - Additional ADRs for significant patterns discovered
+3. **ADR Categories to Generate** (apply surprise-value heuristic):
 
-### Phase 4: Gap Analysis
+   **Skip if obvious** (heuristic: surprising):
+   - PostgreSQL for relational data → Covered by ecosystem default
+   - React for SPA frontend → Standard framework choice
+   - Docker for containerization → Conventional choice
+
+   **Document as ADRs**:
+   - **ADR-001**: System Architecture Style (monolith vs microservices)
+   - **ADR-002**: Database Choice (only if non-obvious for context)
+   - **ADR-003**: API Style (REST vs GraphQL vs gRPC)
+   - **ADR-004**: Frontend Framework (only if unconventional)
+   - **ADR-005**: Deployment Platform (serverless vs traditional)
+   - **ADR-006**: CI/CD Approach (GitHub Actions vs Jenkins)
+   - **Additional**: Any custom/in-house solutions, unusual patterns, risky choices
+
+### Phase 5: Gap Analysis
 
 **Objective**: Identify areas where decisions are unclear
 
@@ -224,12 +274,25 @@ After scanning, report:
 | Frontend | React 18 | MEDIUM | package.json, JSX files |
 | Cache | Redis | HIGH | redis imports, docker-compose |
 
-### ADRs Generated
-| ID | Decision | Confidence |
-|----|----------|------------|
-| ADR-001 | Monolithic Django architecture | HIGH |
-| ADR-002 | PostgreSQL as primary database | HIGH |
-| ADR-003 | REST API with Django REST Framework | MEDIUM |
+### Documentation Deduplication
+✓ README.md: Tech stack documented (lines 20-45)
+  → Referenced in Context View, skipping tech stack ADRs
+✓ CONTRIBUTING.md: Development workflow documented
+  → Referenced in Development View 3.5
+
+### ADRs Generated (Surprising/Risky decisions only)
+| ID | Decision | Confidence | Why Documented |
+|----|----------|------------|----------------|
+| ADR-001 | Monolithic Django architecture | HIGH | Architecture style choice |
+| ADR-002 | Custom JWT authentication | MEDIUM | Security risk, non-standard |
+| ADR-003 | Microservices for small team | HIGH | Scale mismatch, surprising |
+
+### Skipped (Covered by existing docs or obvious)
+| Decision | Reason |
+|----------|--------|
+| PostgreSQL choice | Ecosystem default + README covers |
+| React frontend | Standard framework + README covers |
+| Docker containerization | Conventional choice |
 
 ### Unclear Areas (Need Human Input)
 | Area | Question | Suggestion |
@@ -244,18 +307,20 @@ After scanning, report:
 3. Consider documenting [undocumented pattern]
 ```
 
-### Phase 5: Output Generation
+### Phase 6: Output Generation
 
 **Objective**: Write discoveries to files
 
 1. **Write ADRs**:
    - Create or update `memory/adr.md` with discovered ADRs
-   - Mark ADRs as "Discovered (Inferred)" status
+   - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
+   - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
 
-2. **Optionally Update Architecture**:
-   - If `memory/architecture.md` exists, update tech stack section
-   - If not, suggest running `/architect.implement` after clarification
+2. **Create/Update Architecture**:
+   - Create `AD.md` at project root (if not exists) from `AD-template.md`
+   - Include only views specified by `--views` flag (default: core 5)
+   - Mark optional views (Concurrency, Operational) if not included
 
 3. **Generate Summary**:
    - Technologies discovered
@@ -285,6 +350,13 @@ After scanning, report:
 - **Don't overwrite** existing ADRs without user approval
 - **Merge intelligently** with existing documentation
 - **Preserve manual additions** to architecture files
+
+### No Fabricated Rejection Rationale
+
+- **NEVER invent "Rejected because" reasons** for reverse-engineered ADRs
+- **Use "Common Alternatives" with neutral "Trade-offs" framing** instead
+- **Only document alternatives that were likely considered**
+- **Be honest**: "We don't know why X wasn't chosen" is acceptable
 
 ### Interactive When Needed
 

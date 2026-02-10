@@ -9,6 +9,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Lean Architecture Views**: Configurable view generation with core vs optional views
+  - Default "core" views: Context, Functional, Information, Development, Deployment
+  - Optional views: Concurrency, Operational (via `--views` flag)
+  - Support for: `--views all`, `--views core`, `--views concurrency,operational`
+  - Marked optional views in templates with HTML comments
+
+- **Surprise-Value Heuristic for ADRs**: Skip obvious ecosystem defaults, document only surprising/risky decisions
+  - Configurable via `--adr-heuristic` flag: `surprising` (default), `all`, `minimal`
+  - Heuristic rules distinguish obvious (PostgreSQL for relational) vs surprising (custom auth)
+  - Configuration in `config.json`: `architecture.adr.heuristic`
+
+- **Constitution Cross-Reference**: Strict checking for ADR/Constitution alignment
+  - Always enabled in `/architect.clarify`
+  - Detects duplicates (constitution already mandates), violations, unclear alignment
+  - **Option A (Amend Constitution) as PRIMARY resolution** for violations
+  - Adds "Constitution Alignment" section to ADR template
+
+- **ADR Template Improvements**:
+  - Renamed "Alternatives Considered" to "Common Alternatives"
+  - Changed framing from "Rejected because" to neutral "Trade-offs"
+  - Added "Discovered" status for reverse-engineered ADRs
+  - Removed fabricated rejection rationale requirement
+  - Added "Constitution Alignment" section with compliance tracking
+
+- **Existing Docs Deduplication**: Scan and reference instead of duplicate
+  - Scans `docs/` directory and root `*.md` files (configurable paths)
+  - References existing docs (README, AGENTS.md, CONTRIBUTING) instead of duplicating
+  - Auto-merges when existing architecture found (no prompt)
+  - New `scan_existing_docs()` function in setup-architecture.sh
+
+- **Risks & Gaps Analysis**: Cross-cutting analysis in `/architect.clarify`
+  - Identifies operational gaps, technical debt, SPOFs, security concerns
+  - Section-based gap IDs (e.g., `3.6.1` = Deployment view, gap #1)
+  - Runs BEFORE constitution cross-reference (Phase 2.5)
+  - Output integrated into existing view sections
+
+### Changed
+
+- **BREAKING: Architecture File Paths**: Updated to new two-file structure
+  - Architecture Description: `AD.md` at project root (was `memory/architecture.md`)
+  - Architecture Decision Records: `memory/adr.md` (unchanged)
+  - Updated all scripts: `setup-architecture.sh`, `setup-plan.sh`, `common.sh`
+  - Updated command templates: `architect.init.md`, `architect.specify.md`, `architect.clarify.md`
+
+- **Configuration**: Added comprehensive architecture configuration
+  - `architecture.views`: "core", "all", or comma-separated list
+  - `architecture.adr.heuristic`: "surprising", "all", "minimal"
+  - `architecture.adr.check_constitution`: true (always enabled)
+  - `architecture.deduplication.scan_paths`: ["docs/", "*.md"]
+  - Helper functions: `get_architecture_views()`, `get_adr_heuristic()`, `get_architecture_config()`
+
 ## [0.3.0] - 2026-02-08
 
 ### Added

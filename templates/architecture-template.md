@@ -176,9 +176,14 @@ graph TD
 
 ---
 
+<!-- OPTIONAL VIEW: Concurrency -->
+<!-- Include this section only if using --views=concurrency or --views=all -->
+
 ### 3.4 Concurrency View
 
 **Purpose**: Describe runtime processes, threads, and coordination
+
+**Note**: This is an optional view. Include for async/multi-threaded systems.
 
 #### 3.4.1 Process Structure
 
@@ -340,10 +345,14 @@ graph TB
 | [SERVICE_2] | [Provider] | [Purpose] | [SLA] | [Cost] |
 
 ---
+<!-- OPTIONAL VIEW: Operational -->
+<!-- Include this section only if using --views=operational or --views=all -->
 
 ### 3.7 Operational View
 
 **Purpose**: Operations, support, and maintenance in production
+
+**Note**: This is an optional view. Include for production systems with operations teams.
 
 #### 3.7.1 Operational Responsibilities
 

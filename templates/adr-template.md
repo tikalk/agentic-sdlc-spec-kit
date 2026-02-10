@@ -12,7 +12,7 @@
 
 ### Status
 
-**Proposed** | Accepted | Deprecated | Superseded by ADR-XXX
+**Proposed** | Accepted | Deprecated | Superseded by ADR-XXX | **Discovered** (Inferred from codebase)
 
 ### Date
 
@@ -62,17 +62,30 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 - [Risk 1 with mitigation strategy]
 - [Risk 2 with monitoring approach]
 
-### Alternatives Considered
+### Common Alternatives
 
 #### Option A: [Alternative Name]
 
 **Description:** [Brief description]
-**Rejected because:** [Reason for rejection]
+**Trade-offs:** [Neutral comparison - when this would be better/worse, not "rejected because"]
 
 #### Option B: [Alternative Name]
 
 **Description:** [Brief description]
-**Rejected because:** [Reason for rejection]
+**Trade-offs:** [Neutral comparison]
+
+### Constitution Alignment
+
+| Principle | Alignment | Notes |
+|-----------|-----------|-------|
+| [Principle Name] | ✅ Compliant / ⚠️ Deviation / ❌ Override | [Explanation] |
+
+**Constitution References**:
+
+- [Link to relevant constitutional principles]
+
+**Override Justification** (if applicable):
+[Why this ADR deviates from constitution guidance]
 
 ### Related ADRs
 
@@ -92,6 +105,7 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 - **Accepted**: Decision approved and in effect
 - **Deprecated**: Decision no longer applicable
 - **Superseded**: Replaced by newer decision (reference successor ADR)
+- **Discovered**: Inferred from existing codebase (brownfield reverse-engineering)
 
 **Good ADR Practices:**
 

@@ -380,6 +380,44 @@ The toolkit includes comprehensive architecture documentation support that works
 
 **Feature Architecture**: Use `/spec.plan --architecture` or set `architecture=true` in spec.md Framework Options to generate feature-level architecture (`specs/{feature}/AD.md` and `specs/{feature}/adr.md`).
 
+#### Architecture Configuration Options
+
+The architecture commands support additional configuration options for fine-tuned control:
+
+**Views Selection** (`--views`):
+
+- `core` (default) - Generate the essential 5 views: Context, Functional, Information, Development, Deployment
+- `all` - Include all 7 views including Concurrency and Operational
+- `concurrency,operational` - Custom selection (comma-separated), always includes core views
+
+```bash
+# Default core views
+/architect.init "E-commerce platform"
+
+# All views including concurrency and operational
+/architect.init --views all "High-throughput trading system"
+
+# Custom selection
+/architect.init --views concurrency "Real-time data processing pipeline"
+```
+
+**ADR Generation Heuristic** (`--adr-heuristic`):
+
+- `surprising` (default) - Only document decisions that deviate from obvious ecosystem defaults
+- `all` - Document every architectural decision
+- `minimal` - Document only high-risk or non-obvious decisions
+
+```bash
+# Skip documenting obvious choices (PostgreSQL for relational data, React for SPA)
+/architect.specify --adr-heuristic surprising "Standard web application"
+
+# Document every decision
+/architect.specify --adr-heuristic all "Complex multi-tenant system"
+
+# Minimal documentation
+/architect.specify --adr-heuristic minimal "Internal tool with simple requirements"
+```
+
 #### Rozanski & Woods Viewpoints
 
 The `architect.*` commands generate documentation covering:

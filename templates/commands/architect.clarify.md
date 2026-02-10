@@ -52,10 +52,12 @@ Each ADR should have:
 - [ ] Clear context explaining the problem/opportunity
 - [ ] Explicit decision statement
 - [ ] Positive AND negative consequences
-- [ ] At least 2 alternatives considered with rejection reasons
+- [ ] **Common Alternatives** documented (neutral trade-offs, not "Rejected because")
 - [ ] Risks identified with mitigation strategies
+- [ ] Status is accurate (Proposed/Accepted/Deprecated/Superseded/**Discovered**)
 - [ ] No conflicts with other ADRs
 - [ ] Alignment with constitution principles
+- [ ] **No fabricated rejection rationale** for reverse-engineered ADRs
 
 ## Outline
 
@@ -122,9 +124,48 @@ Each ADR should have:
    - Is terminology consistent?
 
 6. **Constitution Alignment**:
-   - Does decision comply with MUST principles?
-   - Are SHOULD principles addressed?
-   - Are violations explicitly justified?
+    - Does decision comply with MUST principles?
+    - Are SHOULD principles addressed?
+    - Are violations explicitly justified?
+
+### Phase 2.5: Risks & Gaps Analysis (Cross-Cutting)
+
+**Objective**: Identify operational gaps, technical debt, SPOFs, and security concerns NOT documented across all views
+
+**Analysis Dimensions**:
+
+| Dimension | Views to Check | What to Look For |
+|-----------|---------------|------------------|
+| **Operational Gaps** | Operational (3.7), Deployment (3.6) | Missing monitoring, undefined on-call, no runbooks, unclear rollback |
+| **Technical Debt** | Development (3.5), Information (3.3) | Deprecated dependencies, no tests, legacy code, schema debt |
+| **Single Points of Failure** | Deployment (3.6), Concurrency (3.4) | Single DB instance, no redundancy, critical path bottlenecks |
+| **Security Concerns** | All views | Unencrypted data, no auth, exposed secrets, missing audit trails |
+
+**Gap Identification Process**:
+
+1. **Scan Each View**: Check if view exists, identify missing critical sections, flag [TODO]/[TBD] areas
+2. **Cross-View Analysis**: Find inconsistencies (e.g., "high availability" stated but single instance shown)
+3. **Risk Severity**: CRITICAL (outage/breach/loss), HIGH (operational burden), MEDIUM (debt), LOW (documentation)
+
+**Gap ID Format**: Section-based (e.g., `3.6.1` = Deployment View, gap #1)
+
+### Phase 2.6: Constitution Cross-Reference
+
+**Objective**: Check ADRs against constitution for duplication and compliance
+
+**Analysis**:
+
+1. **Duplication Check**: Does ADR restate a constitutional principle? Is decision already mandated?
+2. **Compliance Check**: Does decision violate MUST principles? Ignore SHOULD without justification?
+3. **Override Classification**: Is this an intentional deviation? Justified sufficiently?
+
+**Constitution Cross-Reference Table**:
+
+| Issue Type | ADR | Constitution Principle | Action Required |
+|------------|-----|----------------------|-----------------|
+| Duplicate | ADR-002 | §DataStorage mandates PostgreSQL | Remove or convert to reference |
+| Violation | ADR-003 | §Security requires JWT | Add override justification or change |
+| Unclear | ADR-004 | Silent on caching | Clarify relationship |
 
 ### Phase 3: Gap Identification
 
@@ -192,11 +233,66 @@ For each gap requiring clarification:
 Reply with your choice or provide additional context.
 ```
 
+#### Constitution Cross-Reference Questions
+
+When constitution issues are detected:
+
+**For Duplicates**:
+
+```markdown
+## Clarification [N]: Constitution Duplication Detected
+
+**ADR**: ADR-XXX - [Title]
+**Constitution Principle**: §[Section] - [Principle Name]
+**Issue**: This ADR documents a decision already mandated by constitution
+
+**Options**:
+| Option | Action | Result |
+|--------|--------|--------|
+| A | Remove ADR | Decision covered by constitution only |
+| B | Convert to Reference | Keep ADR as "See Constitution §X" |
+| C | Add Context | Keep ADR with "Aligns with Constitution §X" |
+| D | Extend | Keep ADR as "Extends Constitution §X" |
+
+Reply with your choice (A/B/C/D).
+```
+
+**For Violations (Option A PRIMARY - Amend Constitution)**:
+
+```markdown
+## Clarification [N]: Constitution Violation Detected ⭐
+
+**ADR**: ADR-XXX - [Title]
+**Decision**: [What the ADR decides]
+**Constitution Principle**: §[Section] - [Principle]
+**Conflict**: [How they conflict]
+
+**The constitution should evolve with the project's needs.**
+
+**⭐ RECOMMENDED: A. Amend Constitution**
+Update constitution §[Section] to accommodate this decision. This establishes a new principle for future decisions.
+
+**Alternative Options**:
+B. Override in ADR - Document justification for deviation
+C. Revise ADR - Change decision to comply with constitution
+D. Remove ADR - Delete and follow existing constitution
+
+**Consider Amendment If**:
+- [ ] This decision will be used again in the future
+- [ ] Team's approach has evolved since constitution was written
+- [ ] Existing principle is too restrictive for current needs
+
+**Amendment Text**: [If choosing A, provide the specific constitutional amendment]
+
+Reply with: "A [amendment text]" or "B/C/D [reasoning]"
+```
+
 #### Clarification Rules
 
 - Present **one clarification at a time**
 - **Prioritize by severity** - address CRITICAL/HIGH gaps first
-- **Limit to 5 clarifications** per session
+- **For constitution violations, Option A (Amend) is PRIMARY**
+- **Limit to 5 clarifications** per session (increased to 10 if architecture present)
 - Allow user to **skip** non-critical clarifications
 - **Summarize changes** after each answer
 - User can say "done" to end clarification early
@@ -260,19 +356,30 @@ After clarification ends (all gaps addressed or user signals "done"):
 
 **Changes Made**:
 - ADR-001: Updated consequences section
-- ADR-002: Added 2 alternatives
+- ADR-002: Added Common Alternatives (neutral trade-offs)
 - ADR-003: Resolved conflict with ADR-001
+- Constitution: Amended §DataStorage to allow NoSQL for document flexibility
+
+**Risks & Gaps Status**:
+- Critical gaps identified: [N] → [N resolved]
+- High priority gaps: [N] → [N resolved]
+- Cross-view inconsistencies: [N] → [N resolved]
+- Integration with AD sections: [N updates]
 
 **Remaining Gaps** (deferred):
-- ADR-004: Minor context clarification (LOW)
+- 3.6.2: Minor operational documentation (LOW)
 
 **Cross-ADR Consistency**: ✅ Verified
 
-**Constitution Alignment**: ✅ Compliant
+**Constitution Alignment**:
+- Duplicates resolved: [N]
+- Violations addressed: [N]
+- Constitution amended: [N] (if applicable)
+- References added: [N]
 
 **Recommended Next Steps**:
 1. Review updated ADRs in `memory/adr.md`
-2. Run `/architect.implement` to generate Architecture Description
+2. Run `/architect.implement` to generate AD.md
 3. Or run `/spec.specify` to start feature development
 ```
 
