@@ -2463,14 +2463,50 @@ def ensure_executable_scripts(
         if updated:
             console.print(
                 f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]"
-            )
-        if failures:
-            console.print("[yellow]Some scripts could not be updated:[/yellow]")
-            for f in failures:
-                console.print(f"  - {f}")
+             )
+         if failures:
+             console.print("[yellow]Some scripts could not be updated:[/yellow]")
+             for f in failures:
+                 console.print(f"  - {f}")
 
+     return failures
 
-@app.command()
+ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker | None = None) -> None:
+     """Copy constitution template to memory if it doesn't exist (preserves existing constitution on reinitialization)."""
+     memory_constitution = project_path / ".specify" / "memory" / "constitution.md"
+     template_constitution = project_path / ".specify" / "templates" / "constitution-template.md"
+
+     # If constitution already exists in memory, preserve it
+     if memory_constitution.exists():
+         if tracker:
+             tracker.add("constitution", "Constitution setup")
+             tracker.skip("constitution", "existing file preserved")
+         return
+
+     # If template doesn't exist, something went wrong with extraction
+     if not template_constitution.exists():
+         if tracker:
+             tracker.add("constitution", "Constitution setup")
+             tracker.error("constitution", "template not found")
+         return
+
+     # Copy template to memory directory
+     try:
+         memory_constitution.parent.mkdir(parents=True, exist_ok=True)
+         shutil.copy2(template_constitution, memory_constitution)
+         if tracker:
+             tracker.add("constitution", "Constitution setup")
+             tracker.complete("constitution", "copied from template")
+         else:
+             console.print(f"[cyan]Initialized constitution from template[/cyan]")
+     except Exception as e:
+         if tracker:
+             tracker.add("constitution", "Constitution setup")
+             tracker.error("constitution", str(e))
+         else:
+             console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
+
+ @app.command()
 def init(
     project_name: str = typer.Argument(
         None,
@@ -2761,12 +2797,13 @@ def init(
         ("download", "Download template"),
         ("extract", "Extract template"),
         ("zip-list", "Archive contents"),
-        ("extracted-summary", "Extraction summary"),
-        ("chmod", "Ensure scripts executable"),
-        ("gateway", "Configure gateway"),
-        ("spec_sync", "Setup spec-code synchronization"),
-        ("skills", "Initialize skills manifest"),
-        ("cleanup", "Cleanup"),
+         ("extracted-summary", "Extraction summary"),
+         ("chmod", "Ensure scripts executable"),
+         ("gateway", "Configure gateway"),
+         ("spec_sync", "Setup spec-code synchronization"),
+         ("skills", "Initialize skills manifest"),
+         ("constitution", "Constitution setup"),
+         ("cleanup", "Cleanup"),
         ("directives", "Sync team directives"),
         ("git", "Initialize git repository"),
         ("final", "Finalize"),
@@ -2940,12 +2977,14 @@ def init(
                                     (skill_ref, version_spec)
                                 )
 
-                tracker.complete("skills", "manifest created")
-            except Exception as e:
-                tracker.error("skills", f"failed: {str(e)}")
-                # Non-fatal - continue with project setup
+                 tracker.complete("skills", "manifest created")
+             except Exception as e:
+                 tracker.error("skills", f"failed: {str(e)}")
+                 # Non-fatal - continue with project setup
 
-            if not no_git:
+             ensure_constitution_from_template(project_path, tracker=tracker)
+
+             if not no_git:
                 tracker.start("git")
                 if is_git_repo(project_path):
                     tracker.complete("git", "existing repo detected")
