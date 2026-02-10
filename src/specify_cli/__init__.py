@@ -825,7 +825,9 @@ def get_key():
 
 
 def select_with_arrows(
-    options: dict, prompt_text: str = "Select an option", default_key: str = None
+    options: dict,
+    prompt_text: str = "Select an option",
+    default_key: Optional[str] = None,
 ) -> str:
     """
     Interactive selection using arrow keys with Rich Live display.
@@ -943,7 +945,15 @@ skill_app = typer.Typer(
     name="skill",
     help="Manage agent skills - search, install, update, and evaluate skills",
     add_completion=False,
+    invoke_without_command=True,
 )
+
+
+@skill_app.callback()
+def skill_callback(ctx: typer.Context):
+    """Show skills banner when no subcommand is provided."""
+    if ctx.invoked_subcommand is None:
+        show_skills_banner()
 
 
 @skill_app.command("search")
@@ -1634,7 +1644,7 @@ def run_command(
         return None
 
 
-def check_tool(tool: str, tracker: StepTracker = None) -> bool:
+def check_tool(tool: str, tracker: Optional[StepTracker] = None) -> bool:
     """Check if a tool is installed. Optionally update tracker.
 
     Args:
@@ -1912,7 +1922,7 @@ def configure_git_platform_mcp_servers(
         json.dump(mcp_data, f, indent=2)
 
 
-def is_git_repo(path: Path = None) -> bool:
+def is_git_repo(path: Optional[Path] = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
         path = Path.cwd()
@@ -1945,8 +1955,8 @@ def init_git_repo(
     Returns:
         Tuple of (success: bool, error_message: Optional[str])
     """
+    original_cwd = Path.cwd()
     try:
-        original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
             console.print("[{ACCENT_COLOR}]Initializing git repository...[/cyan]")
@@ -2063,9 +2073,9 @@ def download_template_from_github(
     script_type: str = "sh",
     verbose: bool = True,
     show_progress: bool = True,
-    client: httpx.Client = None,
+    client: Optional[httpx.Client] = None,
     debug: bool = False,
-    github_token: str = None,
+    github_token: Optional[str] = None,
 ) -> Tuple[Path, dict]:
     repo_owner = "tikalk"
     repo_name = "agentic-sdlc-spec-kit"
@@ -2206,9 +2216,9 @@ def download_and_extract_template(
     *,
     verbose: bool = True,
     tracker: StepTracker | None = None,
-    client: httpx.Client = None,
+    client: Optional[httpx.Client] = None,
     debug: bool = False,
-    github_token: str = None,
+    github_token: Optional[str] = None,
 ) -> Path:
     """Download the latest release and extract it to create a new project.
     Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
@@ -2417,13 +2427,13 @@ def download_and_extract_template(
 
 def ensure_executable_scripts(
     project_path: Path, tracker: StepTracker | None = None
-) -> None:
+) -> List[str]:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
-        return  # Windows: skip silently
+        return []  # Windows: skip silently
     scripts_root = project_path / ".specify" / "scripts"
     if not scripts_root.is_dir():
-        return
+        return []
     failures: list[str] = []
     updated = 0
     for script in scripts_root.rglob("*.sh"):
@@ -2516,16 +2526,16 @@ def ensure_constitution_from_template(
 
 @app.command()
 def init(
-    project_name: str = typer.Argument(
+    project_name: Optional[str] = typer.Argument(
         None,
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
     ),
-    ai_assistant: str = typer.Option(
+    ai_assistant: Optional[str] = typer.Option(
         None,
         "--ai",
         help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder ",
     ),
-    script_type: str = typer.Option(
+    script_type: Optional[str] = typer.Option(
         None, "--script", help="Script type to use: sh or ps"
     ),
     ignore_agent_tools: bool = typer.Option(
@@ -2661,6 +2671,7 @@ def init(
                     console.print("[yellow]Operation cancelled[/yellow]")
                     raise typer.Exit(0)
     else:
+        assert project_name is not None  # Ensured by check above
         project_path = Path(project_name).resolve()
         if project_path.exists():
             error_panel = Panel(
@@ -2792,7 +2803,7 @@ def init(
 
     tracker = StepTracker("Initialize Specify Project")
 
-    sys._specify_tracker_active = True
+    setattr(sys, "_specify_tracker_active", True)
 
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
@@ -3122,22 +3133,25 @@ def init(
         f"   2.1 [{ACCENT_COLOR}]/architect.specify[/{ACCENT_COLOR}] - Interactive PRD exploration to create system ADRs"
     )
     steps_lines.append(
-        f"   2.2 [{ACCENT_COLOR}]/spec.constitution[/{ACCENT_COLOR}] - Establish project principles"
+        f"   2.2 [{ACCENT_COLOR}]/architect.implement[/{ACCENT_COLOR}] - Execute architecture implementation from ADRs"
     )
     steps_lines.append(
-        f"   2.3 [{ACCENT_COLOR}]/spec.specify[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   2.3 [{ACCENT_COLOR}]/spec.constitution[/{ACCENT_COLOR}] - Establish project principles"
     )
     steps_lines.append(
-        f"   2.4 [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] - Create implementation plan"
+        f"   2.4 [{ACCENT_COLOR}]/spec.specify[/{ACCENT_COLOR}] - Create baseline specification"
     )
     steps_lines.append(
-        f"   2.5 [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
+        f"   2.5 [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] - Create implementation plan"
     )
     steps_lines.append(
-        f"   2.6 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
+        f"   2.6 [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   2.7 [{ACCENT_COLOR}]/spec.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
+        f"   2.7 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
+    )
+    steps_lines.append(
+        f"   2.8 [{ACCENT_COLOR}]/spec.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
     )
 
     steps_panel = Panel(
@@ -3191,9 +3205,6 @@ def init(
         )
         console.print()
         console.print(skills_panel)
-
-    # Show skills package manager banner at the end
-    show_skills_banner()
 
 
 @app.command()
@@ -3871,6 +3882,9 @@ def extension_update(
         for ext_id in extensions_to_update:
             # Get installed version
             metadata = manager.registry.get(ext_id)
+            if metadata is None:
+                console.print(f"⚠  {ext_id}: Not found in registry (skipping)")
+                continue
             installed_version = pkg_version.Version(metadata["version"])
 
             # Get catalog info
@@ -3961,6 +3975,9 @@ def extension_enable(
 
     # Update registry
     metadata = manager.registry.get(extension)
+    if metadata is None:
+        console.print(f"[red]Error:[/red] Extension '{extension}' metadata not found")
+        raise typer.Exit(1)
     if metadata.get("enabled", True):
         console.print(f"[yellow]Extension '{extension}' is already enabled[/yellow]")
         raise typer.Exit(0)
@@ -4007,6 +4024,9 @@ def extension_disable(
 
     # Update registry
     metadata = manager.registry.get(extension)
+    if metadata is None:
+        console.print(f"[red]Error:[/red] Extension '{extension}' metadata not found")
+        raise typer.Exit(1)
     if not metadata.get("enabled", True):
         console.print(f"[yellow]Extension '{extension}' is already disabled[/yellow]")
         raise typer.Exit(0)
@@ -4024,7 +4044,7 @@ def extension_disable(
         hook_executor.save_project_config(config)
 
     console.print(f"[green]✓[/green] Extension '{extension}' disabled")
-    console.print(f"\nCommands will no longer be available. Hooks will not execute.")
+    console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: specify extension enable {extension}")
 
 
