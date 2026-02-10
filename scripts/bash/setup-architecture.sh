@@ -4,6 +4,7 @@ set -e
 
 JSON_MODE=false
 ACTION=""
+TEAM_SIZE=""
 ARGS=()
 
 # Parse arguments
@@ -12,11 +13,25 @@ for arg in "$@"; do
         --json)
             JSON_MODE=true
             ;;
+        --team-size=*)
+            TEAM_SIZE="${arg#--team-size=}"
+            ;;
+        --team-size)
+            # Next arg will be the value, handled below
+            TEAM_SIZE="__NEXT__"
+            ;;
+        small|medium|large)
+            if [[ "$TEAM_SIZE" == "__NEXT__" ]]; then
+                TEAM_SIZE="$arg"
+            else
+                ARGS+=("$arg")
+            fi
+            ;;
         init|map|update|review|specify|implement|clarify)
             ACTION="$arg"
             ;;
         --help|-h)
-            echo "Usage: $0 [action] [context] [--json]"
+            echo "Usage: $0 [action] [context] [--json] [--team-size small|medium|large]"
             echo ""
             echo "Actions:"
             echo "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
@@ -28,13 +43,16 @@ for arg in "$@"; do
             echo "  review   Validate architecture against constitution"
             echo ""
             echo "Options:"
-            echo "  --json   Output results in JSON format"
-            echo "  --help   Show this help message"
+            echo "  --json        Output results in JSON format"
+            echo "  --team-size   Set team size tier: small (1-3), medium (4-15), large (16+)"
+            echo "                Auto-detected from git history if not specified"
+            echo "  --help        Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 specify \"B2B SaaS for supply chain management\""
             echo "  $0 clarify \"Focus on authentication and data persistence decisions\""
             echo "  $0 init \"Django monolith with PostgreSQL and React\""
+            echo "  $0 init --team-size small"
             echo "  $0 implement \"Generate full AD.md from ADRs\""
             echo "  $0 update \"Added microservices and event sourcing\""
             echo "  $0 review \"Focus on security and performance\""
@@ -70,6 +88,36 @@ mkdir -p "$REPO_ROOT/memory"
 
 ARCHITECTURE_FILE="$REPO_ROOT/memory/architecture.md"
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
+
+# Function to detect team size from git history
+detect_team_size() {
+    local team_size="$TEAM_SIZE"
+
+    # If user provided --team-size, use that
+    if [[ -n "$team_size" && "$team_size" != "__NEXT__" ]]; then
+        echo "$team_size"
+        return
+    fi
+
+    # Auto-detect from git committer count (last 6 months)
+    local committer_count=1
+    if command -v git &> /dev/null && [[ -d "$REPO_ROOT/.git" ]]; then
+        committer_count=$(git -C "$REPO_ROOT" log --since="6 months ago" --format='%aE' 2>/dev/null | sort -u | wc -l | tr -d ' ')
+        if [[ -z "$committer_count" || "$committer_count" -eq 0 ]]; then
+            committer_count=1
+        fi
+    fi
+
+    echo "Detected $committer_count unique committer(s) in last 6 months" >&2
+
+    if [[ "$committer_count" -le 3 ]]; then
+        echo "small"
+    elif [[ "$committer_count" -le 15 ]]; then
+        echo "medium"
+    else
+        echo "large"
+    fi
+}
 
 # Function to detect tech stack from codebase
 detect_tech_stack() {
@@ -454,28 +502,54 @@ action_init() {
         echo "Use 'update' action to modify or delete the file to reinitialize" >&2
         exit 1
     fi
-    
-    if [[ ! -f "$TEMPLATE_FILE" ]]; then
-        echo "❌ Template not found: $TEMPLATE_FILE" >&2
+
+    # Detect team size and select appropriate template
+    local detected_size
+    detected_size=$(detect_team_size)
+    echo "📊 Team size tier: $detected_size" >&2
+
+    local lean_template="$REPO_ROOT/.specify/templates/AD-template-lean.md"
+    local selected_template="$TEMPLATE_FILE"
+
+    if [[ "$detected_size" == "small" || "$detected_size" == "medium" ]]; then
+        if [[ -f "$lean_template" ]]; then
+            selected_template="$lean_template"
+            echo "Using lean architecture template (for $detected_size teams)" >&2
+        else
+            echo "⚠️  Lean template not found, falling back to full template" >&2
+        fi
+    else
+        echo "Using full Rozanski & Woods template (for large teams)" >&2
+    fi
+
+    if [[ ! -f "$selected_template" ]]; then
+        echo "❌ Template not found: $selected_template" >&2
         exit 1
     fi
-    
+
     echo "📐 Initializing architecture from template..." >&2
-    cp "$TEMPLATE_FILE" "$ARCHITECTURE_FILE"
-    
-    # Generate diagrams based on user config
-    generate_and_insert_diagrams "$ARCHITECTURE_FILE" "System"
-    
+    cp "$selected_template" "$ARCHITECTURE_FILE"
+
+    # Generate diagrams based on user config (only for full template)
+    if [[ "$selected_template" == "$TEMPLATE_FILE" ]]; then
+        generate_and_insert_diagrams "$ARCHITECTURE_FILE" "System"
+    fi
+
     echo "✅ Created: $ARCHITECTURE_FILE" >&2
     echo "" >&2
     echo "Next steps:" >&2
     echo "1. Review and customize the architecture document" >&2
-    echo "2. Fill in stakeholder concerns and system scope" >&2
-    echo "3. Complete each viewpoint section with your system details" >&2
-    echo "4. Run '/architect.implement' to generate full AD.md" >&2
-    
+    echo "2. Fill in system overview and context diagram" >&2
+    if [[ "$detected_size" == "small" ]]; then
+        echo "3. Focus on Risks & Gaps section (most valuable for small teams)" >&2
+        echo "4. Run '/architect.clarify' to refine ADRs" >&2
+    else
+        echo "3. Complete each section with your system details" >&2
+        echo "4. Run '/architect.implement' to generate full AD.md" >&2
+    fi
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"init\",\"file\":\"$ARCHITECTURE_FILE\"}"
+        echo "{\"status\":\"success\",\"action\":\"init\",\"file\":\"$ARCHITECTURE_FILE\",\"team_size\":\"$detected_size\",\"template\":\"$(basename "$selected_template")\"}"
     fi
 }
 

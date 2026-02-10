@@ -62,17 +62,17 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 - [Risk 1 with mitigation strategy]
 - [Risk 2 with monitoring approach]
 
-### Alternatives Considered
+### Common Alternatives
 
 #### Option A: [Alternative Name]
 
 **Description:** [Brief description]
-**Rejected because:** [Reason for rejection]
+**Trade-offs:** [Why this option was not chosen, or how it compares]
 
 #### Option B: [Alternative Name]
 
 **Description:** [Brief description]
-**Rejected because:** [Reason for rejection]
+**Trade-offs:** [Why this option was not chosen, or how it compares]
 
 ### Related ADRs
 
@@ -90,6 +90,7 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 
 - **Proposed**: Decision under discussion
 - **Accepted**: Decision approved and in effect
+- **Discovered**: Inferred from existing codebase (used by `/architect.init`)
 - **Deprecated**: Decision no longer applicable
 - **Superseded**: Replaced by newer decision (reference successor ADR)
 
@@ -101,6 +102,7 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 - Be honest about trade-offs and risks
 - Link related decisions for traceability
 - Update status when decisions evolve
+- For discovered ADRs: cite evidence, mark confidence levels, never fabricate rejection rationale
 
 **Integration with Architecture:**
 
