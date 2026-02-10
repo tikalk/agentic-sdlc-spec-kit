@@ -12,7 +12,7 @@
 
 ### Status
 
-**Proposed** | Accepted | Deprecated | Superseded by ADR-XXX
+**Proposed** | Accepted | Deprecated | Superseded by ADR-XXX | **Discovered** (Inferred from codebase)
 
 ### Date
 
@@ -67,12 +67,25 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 #### Option A: [Alternative Name]
 
 **Description:** [Brief description]
-**Trade-offs:** [Why this option was not chosen, or how it compares]
+**Trade-offs:** [Neutral comparison - when this would be better/worse, not "rejected because"]
 
 #### Option B: [Alternative Name]
 
 **Description:** [Brief description]
-**Trade-offs:** [Why this option was not chosen, or how it compares]
+**Trade-offs:** [Neutral comparison]
+
+### Constitution Alignment
+
+| Principle | Alignment | Notes |
+|-----------|-----------|-------|
+| [Principle Name] | ✅ Compliant / ⚠️ Deviation / ❌ Override | [Explanation] |
+
+**Constitution References**:
+
+- [Link to relevant constitutional principles]
+
+**Override Justification** (if applicable):
+[Why this ADR deviates from constitution guidance]
 
 ### Related ADRs
 
@@ -93,6 +106,7 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 - **Discovered**: Inferred from existing codebase (used by `/architect.init`)
 - **Deprecated**: Decision no longer applicable
 - **Superseded**: Replaced by newer decision (reference successor ADR)
+- **Discovered**: Inferred from existing codebase (brownfield reverse-engineering)
 
 **Good ADR Practices:**
 

@@ -32,6 +32,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 - `"Update existing AD.md with new ADRs from recent decisions"`
 - Empty input: Generate complete Architecture Description from all ADRs
 
+### Flags
+
+- `--views VIEWS`: Architecture views to generate
+  - `core` (default): Context, Functional, Information, Development, Deployment (5 core views)
+  - `all`: All 7 views including Concurrency and Operational
+  - Custom: comma-separated (e.g., `concurrency,operational`) - always includes core views
+
+**Important**: When `--views` is `core` (default), **skip** Concurrency View (3.4) and Operational View (3.7) entirely. Only generate them when explicitly requested via `--views all` or `--views concurrency,operational`.
+
 ## Goal
 
 Transform Architecture Decision Records (ADRs) into a comprehensive Architecture Description (AD.md) following the Rozanski & Woods methodology with 7 viewpoints and 2 perspectives.
@@ -58,8 +67,8 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
 ## Outline
 
 1. **Load ADRs**: Parse all ADRs from `memory/adr.md`
-2. **Map to Views**: Determine which views each ADR affects
-3. **Generate Views**: Create each of the 7 viewpoints
+2. **Determine Views**: Parse `--views` flag to determine which views to generate
+3. **Generate Views**: Create requested viewpoints (core 5 by default, optionally +2)
 4. **Apply Perspectives**: Add Security and Performance perspectives
 5. **Output**: Write complete `AD.md` to project root
 
@@ -99,6 +108,22 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
 
 **Objective**: Generate each Rozanski & Woods viewpoint from ADR content
 
+**View Selection Based on `--views` Flag**:
+
+| Flag Value | Views to Generate |
+|------------|-------------------|
+| `core` (default) | Context, Functional, Information, Development, Deployment |
+| `all` | All 7 views (core + Concurrency + Operational) |
+| `concurrency` | Core 5 + Concurrency |
+| `operational` | Core 5 + Operational |
+| `concurrency,operational` | All 7 views |
+
+**Conditional Generation Rules**:
+
+- **Always generate**: Context (3.1), Functional (3.2), Information (3.3), Development (3.5), Deployment (3.6)
+- **Only if requested**: Concurrency (3.4), Operational (3.7)
+- **Skip entirely** (not just mark as placeholder): Optional views not included in `--views`
+
 Generate views in this order (earlier views inform later ones):
 
 #### 3.1 Context View
@@ -107,29 +132,73 @@ Generate views in this order (earlier views inform later ones):
 
 **ADRs to Reference**: System style, integration patterns, external dependencies
 
+> **CRITICAL: Blackbox Requirement**
+>
+> The Context View MUST show the system as a **single blackbox node**. This view answers: "What does the system connect to?" NOT "What's inside the system?"
+>
+> **DO include**:
+>
+> - The system as ONE unified node (no internal components)
+> - Stakeholders/Users (human actors)
+> - External systems (third-party services outside your control)
+> - Data flows crossing the system boundary
+>
+> **DO NOT include**:
+>
+> - Internal databases (those go in Deployment View)
+> - Internal services/microservices (those go in Functional View)
+> - Internal caches, queues, or storage (those go in Deployment View)
+> - Implementation details of any kind
+
 **Generate**:
 
 - System scope description (from system style ADR)
-- External entities table (from integration ADRs)
-- Context diagram (Mermaid format)
+- External entities table - ONLY stakeholders and external systems
+- Context diagram showing system as single blackbox
 - External dependencies table (from dependency ADRs)
 
 **Diagram Template**:
 
 ```mermaid
 graph TD
-    subgraph "External Entities"
-        Users["Users/Clients"]
-        ExtSystem["External System"]
-        ExtAPI["External API"]
-    end
+    %% Stakeholders (human actors interacting with the system)
+    Users["Users/Clients"]
+    Admins["Administrators"]
     
+    %% THE SYSTEM - Single blackbox (NO internal components)
     System["[System Name]<br/>(This System)"]
     
-    Users -->|"[Interaction]"| System
-    System -->|"[Interaction]"| ExtSystem
-    System -->|"[Interaction]"| ExtAPI
+    %% External Systems (third-party, outside your control)
+    ExtPayment["Payment Provider<br/>(External)"]
+    ExtAuth["Identity Provider<br/>(External)"]
+    ExtAPI["Partner API<br/>(External)"]
+    
+    %% Stakeholder interactions
+    Users -->|"Uses"| System
+    Admins -->|"Manages"| System
+    
+    %% External system integrations
+    System -->|"Processes payments"| ExtPayment
+    System -->|"Authenticates"| ExtAuth
+    System -->|"Exchanges data"| ExtAPI
+    
+    %% Styling
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
+    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
+    
+    class System systemNode
+    class Users,Admins stakeholderNode
+    class ExtPayment,ExtAuth,ExtAPI externalNode
 ```
+
+**Validation Checklist** (verify before finalizing Context View):
+
+- [ ] System appears as exactly ONE node
+- [ ] No internal databases shown (e.g., PostgreSQL, Redis)
+- [ ] No internal services shown (e.g., AuthService, UserService)
+- [ ] All entities are either stakeholders OR external systems
+- [ ] All connections cross the system boundary
 
 #### 3.2 Functional View
 
@@ -185,7 +254,9 @@ erDiagram
     ENTITY2 }|--|| ENTITY3 : "relationship"
 ```
 
-#### 3.4 Concurrency View
+#### 3.4 Concurrency View (OPTIONAL - only if `--views all` or `--views concurrency`)
+
+> **Skip this section entirely if `--views` is `core` (default)**
 
 **Purpose**: Runtime processes, threads, coordination
 
@@ -261,7 +332,9 @@ graph TB
     App2 --> Cache
 ```
 
-#### 3.7 Operational View
+#### 3.7 Operational View (OPTIONAL - only if `--views all` or `--views operational`)
+
+> **Skip this section entirely if `--views` is `core` (default)**
 
 **Purpose**: Operations, support, maintenance
 
@@ -320,7 +393,7 @@ graph TB
 **Objective**: Write complete Architecture Description
 
 1. **Structure Check**:
-   - Ensure all 7 viewpoints are present
+   - Ensure all **requested** viewpoints are present (5 core, or 7 if `--views all`)
    - Ensure both perspectives are present
    - Validate diagram syntax
 
@@ -339,29 +412,48 @@ graph TB
 ## Architecture Description Generated
 
 **Output**: AD.md (project root)
+**Views Mode**: [core|all|custom]
 
-**Views Generated**:
+**Views Generated** (based on --views flag):
 - [x] Context View (based on ADR-001, ADR-003)
 - [x] Functional View (based on ADR-001, ADR-002)
 - [x] Information View (based on ADR-002)
-- [x] Concurrency View (based on ADR-004)
+- [x] Concurrency View (based on ADR-004) ← Only if --views includes concurrency
 - [x] Development View (based on ADR-005)
 - [x] Deployment View (based on ADR-006)
-- [x] Operational View (based on ADR-007)
+- [x] Operational View (based on ADR-007) ← Only if --views includes operational
 
 **Perspectives Applied**:
 - [x] Security (based on ADR-008)
 - [x] Performance & Scalability (based on ADR-004, ADR-006)
 
-**Diagrams Generated**: 7 (Mermaid format)
+**Diagrams Generated**: [5|6|7] (Mermaid format)
 
-**ADR Coverage**: 8/8 ADRs incorporated
+**ADR Coverage**: X/Y ADRs incorporated
 
 **Recommended Next Steps**:
 1. Review generated AD.md for accuracy
 2. Run `/spec.analyze` for consistency validation
 3. Share with stakeholders for review
 4. Begin feature development with `/spec.specify`
+```
+
+**Example Report for `--views core` (default)**:
+
+```markdown
+## Architecture Description Generated
+
+**Output**: AD.md (project root)
+**Views Mode**: core (default)
+
+**Views Generated**:
+- [x] Context View
+- [x] Functional View
+- [x] Information View
+- [x] Development View
+- [x] Deployment View
+- [ ] Concurrency View (skipped - use --views all to include)
+- [ ] Operational View (skipped - use --views all to include)
 ```
 
 ## Diagram Generation
@@ -423,9 +515,10 @@ If Mermaid validation fails, fall back to ASCII diagrams:
 
 ### Completeness
 
-- **All 7 viewpoints** must be generated
+- **All requested viewpoints** must be generated (5 core by default, 7 if `--views all`)
 - **Both perspectives** must be applied
 - **All sections** must have content (not just placeholders)
+- **Optional views** (Concurrency, Operational) are **skipped entirely** when not requested - do not include empty placeholders
 
 ### Diagram Quality
 

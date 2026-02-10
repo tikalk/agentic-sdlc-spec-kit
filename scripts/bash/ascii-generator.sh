@@ -1,32 +1,61 @@
 #!/usr/bin/env bash
 # ASCII diagram generator for architecture views
 # Generates ASCII art for all 7 Rozanski & Woods architectural views
+#
+# Core Views (always generated with --views=core):
+#   - Context, Functional, Information, Development, Deployment
+#
+# Optional Views (only with --views=all or --views=concurrency,operational):
+#   - Concurrency (3.4)
+#   - Operational (3.7)
 
 # Generate Context View diagram (system boundary)
+# CRITICAL: System must be shown as a SINGLE BLACKBOX - no internal components
+# Only show: Stakeholders (human actors) + External systems (third-party, outside your control)
+# DO NOT show: Internal databases, services, caches (those go in Deployment/Functional views)
 generate_context_ascii() {
     local system_name="${1:-System}"
     
     cat <<'EOF'
 ┌─────────────────────────────────────────────────────────────┐
 │                     Context View Diagram                     │
+│            (System shown as single blackbox)                 │
 └─────────────────────────────────────────────────────────────┘
 
-                    ┌──────────────┐
-                    │    Users     │
-                    └──────┬───────┘
-                           │
-                           ▼
-       ┌───────────────────────────────────────┐
-       │                                       │
-       │           System (Main App)           │
-       │                                       │
-       └───┬───────────┬───────────┬───────┬───┘
-           │           │           │       │
-           ▼           ▼           ▼       ▼
-    ┌──────────┐ ┌──────────┐ ┌────────────┐ ┌──────────┐
-    │ Database │ │ External │ │   Cloud    │ │  Other   │
-    │          │ │   APIs   │ │  Services  │ │ Systems  │
-    └──────────┘ └──────────┘ └────────────┘ └──────────┘
+        STAKEHOLDERS                           EXTERNAL SYSTEMS
+        ────────────                           ────────────────
+
+    ┌──────────────┐                         ┌────────────────┐
+    │    Users     │                         │    Payment     │
+    │  (End Users) │                         │   Provider     │
+    └──────┬───────┘                         │   (External)   │
+           │                                 └───────┬────────┘
+           │ Uses                                    │
+           │                                         │ Processes
+           ▼                                         │ payments
+    ┌─────────────────────────────────────────────────────────┐
+    │                                                         │
+    │                    ┌─────────────────┐                  │
+    │                    │                 │                  │
+    │                    │     SYSTEM      │◄─────────────────┘
+    │                    │   (This App)    │
+    │                    │                 │──────────────────┐
+    │                    └─────────────────┘                  │
+    │                         ▲                               │
+    │                         │                               │
+    └─────────────────────────│───────────────────────────────┘
+                              │ Manages                       │
+    ┌──────────────┐          │                               ▼
+    │    Admins    │──────────┘                    ┌────────────────┐
+    │(Administrators)                              │   Identity     │
+    └──────────────┘                               │   Provider     │
+                                                   │   (External)   │
+                                                   └────────────────┘
+
+Legend:
+  ─────►  Data/control flow crossing system boundary
+  [SYSTEM] = Single blackbox (internal details in Functional/Deployment views)
+  (External) = Third-party services outside your control
 EOF
 }
 
@@ -99,6 +128,7 @@ EOF
 }
 
 # Generate Concurrency View diagram (process timeline)
+# OPTIONAL VIEW: Only generated when --views=all or --views=concurrency
 generate_concurrency_ascii() {
     cat <<'EOF'
 ┌─────────────────────────────────────────────────────────────┐
@@ -219,6 +249,7 @@ EOF
 }
 
 # Generate Operational View diagram (operational workflow)
+# OPTIONAL VIEW: Only generated when --views=all or --views=operational
 generate_operational_ascii() {
     cat <<'EOF'
 ┌─────────────────────────────────────────────────────────────┐

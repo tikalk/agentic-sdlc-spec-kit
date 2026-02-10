@@ -165,6 +165,44 @@
 - ✅ **Smart Trace Validation**: Documented and implemented in `/analyze` command (lines 209-236)
 - ⚠️ **Task-to-Issues Command**: Template exists at `templates/commands/taskstoissues.md` but only supports GitHub (multi-tracker support planned in Tier 1.5)
 
+### **Lean Architecture Improvements** *(100% Complete)* - **COMPLETED** - 6 Architecture Enhancements
+
+Major enhancements to the architecture system making it more flexible, intelligent, and integrated with existing documentation.
+
+- ✅ **Lean Architecture Views**: Configurable view generation (core 5 + optional 2)
+  - Default "core" views: Context, Functional, Information, Development, Deployment
+  - Optional views: Concurrency, Operational (via `--views` flag)
+  - `--views all`, `--views core`, `--views concurrency,operational`
+  
+- ✅ **Surprise-Value Heuristic**: Skip obvious ecosystem defaults, document only surprising/risky decisions
+  - `--adr-heuristic surprising` (default), `all`, `minimal`
+  - Configuration in `config.json`: `architecture.adr.heuristic`
+  
+- ✅ **Constitution Cross-Reference**: Strict checking for ADR/Constitution alignment
+  - Always enabled in `/architect.clarify`
+  - Detects duplicates, violations, unclear alignment
+  - **Option A (Amend Constitution) as PRIMARY resolution**
+  
+- ✅ **ADR Template Improvements**:
+  - "Common Alternatives" (not "Alternatives Considered")
+  - Neutral "Trade-offs" framing (not "Rejected because")
+  - "Discovered" status for reverse-engineered ADRs
+  - "Constitution Alignment" section
+  
+- ✅ **Existing Docs Deduplication**: Scan and reference instead of duplicate
+  - Scans `docs/` directory and root `*.md` files
+  - References existing docs (README, AGENTS.md, CONTRIBUTING)
+  - Auto-merges when existing architecture found
+  
+- ✅ **Risks & Gaps Analysis**: Cross-cutting analysis in `/architect.clarify`
+  - Identifies operational gaps, tech debt, SPOFs, security concerns
+  - Section-based gap IDs (e.g., `3.6.1`)
+  - Runs BEFORE constitution cross-reference
+
+**Files Modified**: 13 files including templates, scripts, and configuration
+
+---
+
 ### **Optional Architecture Support** *(100% Complete)* - **COMPLETED** - Enterprise Architecture Features
 
 Architecture support is now available in all workflow modes as optional commands. The `/architect` and `/constitution` commands work silently in any mode, with no warnings if files are missing.
@@ -741,6 +779,117 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 ## 🆕 **FUTURE PHASE** (New Items - Not Yet Started)
 
 ### **Future Enhancement Categories**
+
+### **Compound Engineering Integration** *(0% Complete)* - **MEDIUM PRIORITY** - Insights from EveryInc's Compound Engineering Plugin
+
+**Reference**: Analysis of [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) (7.5k stars, 598 forks)
+
+**Key Insight**: Compound Engineering Plugin focuses on workflow efficiency through multi-agent parallelization and knowledge compounding, while Agentic SDLC Spec Kit focuses on structured SDLC methodology. These approaches are complementary.
+
+#### **Swarm Mode Parallel Execution** *(0% Complete)* - **HIGH PRIORITY**
+
+- **Description**: Implement swarm mode execution (like Compound's `/slfg`) that runs multiple sub-agents in parallel for tasks marked with `[P]` markers, dramatically accelerating development workflows
+- **Key Components**:
+  - Parallel agent spawning for independent tasks within phases
+  - Worktree-based isolation (validates incident.io pattern with 5+ agents)
+  - Coordinated execution with dependency awareness
+  - Phase-respecting orchestration (Setup → Foundational → Stories)
+  - **Benefits**:
+    - 3-5x faster execution for parallelizable tasks
+    - Validates incident.io multi-agent + worktree pattern
+    - Maintains code isolation and merge safety
+  - **Implementation**: Extend existing `[P]` marker system with swarm orchestration layer
+- **References**: incident.io workflow pattern, Worktrunk integration
+
+#### **Multi-Agent Review System** *(0% Complete)* - **MEDIUM PRIORITY**
+
+- **Description**: Implement specialized reviewer agents (like Compound's 15 review agents) that perform focused code reviews:
+  - `security-sentinel`: Security vulnerability detection
+  - `performance-oracle`: Performance optimization suggestions  
+  - `rails-reviewer`: Framework-specific best practices
+  - `accessibility-guardian`: A11y compliance checking
+  - `test-coverage-analyst`: Test quality validation
+- **Key Components**:
+  - Temperature-tuned agents (review: 0.1, planning: 0.2, creative: 0.6)
+  - Parallel review execution before merge
+  - Review agent selection based on code changes
+  - Aggregated review reports with actionable items
+  - **Benefits**:
+    - Comprehensive pre-merge validation
+    - Specialized expertise without context bloat
+    - Consistent quality gates across team
+  - **Integration**: Hook into `/spec.analyze` and pre-merge workflows
+
+#### **Knowledge Compounding System** *(0% Complete)* - **MEDIUM PRIORITY**
+
+- **Description**: Enhance `/spec.levelup` with systematic knowledge capture inspired by Compound's philosophy: "Each unit of engineering work should make subsequent units easier"
+- **Key Components**:
+  - Pattern extraction from completed features
+  - Anti-pattern documentation from failed approaches
+  - Reusable solution templates for common problems
+  - Team knowledge base with searchable patterns
+  - Automatic skill generation from recurring patterns
+  - **Workflow Enhancement**:
+
+    ```text
+    Plan → Work → Review → Compound → Repeat
+    ```
+
+  - **Benefits**:
+    - Institutional knowledge preservation
+    - Accelerated future development through pattern reuse
+    - Reduced repeated mistakes
+    - Team learning velocity increase
+  - **Integration**: Extend existing `/spec.levelup` with structured knowledge packets
+
+#### **Browser Automation Integration** *(0% Complete)* - **LOW PRIORITY**
+
+- **Description**: Integrate browser automation capabilities (like Compound's agent-browser CLI) for e2e testing and UI validation
+- **Key Components**:
+  - Automated e2e test generation from specifications
+  - Visual regression testing integration
+  - UI interaction recording and replay
+  - Screenshot-based validation in `/spec.implement`
+  - **Benefits**:
+    - Automated visual validation
+    - Reduced manual QA effort
+    - Better spec-to-implementation alignment
+  - **Implementation**: Integration with Playwright, Puppeteer, or agent-browser
+
+#### **Cross-Platform Plugin Converter** *(0% Complete)* - **LOW PRIORITY**
+
+- **Description**: Create plugin conversion system (like Compound's Bun/TypeScript CLI) to convert between agent formats:
+  - Claude Code plugins ↔ OpenCode format
+  - Claude Code plugins ↔ Codex format
+  - Custom agent format support
+- **Key Components**:
+  - Agent format parsers and transformers
+  - Tool mapping between platforms (bash/read/write/edit)
+  - Temperature inference from agent names
+  - MCP server conversion
+  - **Benefits**:
+    - Broader agent ecosystem compatibility
+    - Reduced vendor lock-in
+    - Easier migration between AI tools
+  - **Implementation**: Python-based converter leveraging existing AGENT_CONFIG
+
+#### **Task Delegation Templates** *(0% Complete)* - **MEDIUM PRIORITY*
+
+- **Description**: Create rich task delegation system with specialized agent types inspired by Compound's agent ecosystem:
+  - **Explore Agents**: Read-only codebase search (fresh slate, no context inheritance)
+  - **Plan Agents**: Design/implementation planning (full context inheritance)
+  - **Execute Agents**: Multi-step task execution with tool sequencing
+  - **Review Agents**: Focused quality validation
+- **Key Components**:
+  - Agent type selection matrix based on task characteristics
+  - Context inheritance rules per agent type
+  - Model selection guidance per agent type
+  - "When NOT to Spawn" guidelines to prevent context bloat
+  - **Benefits**:
+    - Optimized agent utilization
+    - Reduced unnecessary context window usage
+    - Better task-agent matching
+  - **Integration**: Extend Tier 2 Sub-Agent Coordination Framework
 
 ### **Beads-Backed Task Execution Tracker** *(0% Complete)* - **MEDIUM PRIORITY** - Agent-native persistent work tracking
 

@@ -297,9 +297,11 @@ get_feature_paths() {
     local feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch")
 
     # Project-level governance documents
-    local memory_dir="$repo_root/.specify/memory"
+    local memory_dir="$repo_root/memory"
     local constitution_file="$memory_dir/constitution.md"
-    local architecture_file="$memory_dir/architecture.md"
+    # New architecture structure: AD.md at root, ADRs in memory/
+    local ad_file="$repo_root/AD.md"
+    local adr_file="$memory_dir/adr.md"
     
     cat <<EOF
 REPO_ROOT='$repo_root'
@@ -316,7 +318,8 @@ CONTEXT='$feature_dir/context.md'
 CONTRACTS_DIR='$feature_dir/contracts'
 TEAM_DIRECTIVES='${SPECIFY_TEAM_DIRECTIVES:-}'
 CONSTITUTION='$constitution_file'
-ARCHITECTURE='$architecture_file'
+AD='$ad_file'
+ADR='$adr_file'
 EOF
 }
 

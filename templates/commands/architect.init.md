@@ -40,9 +40,21 @@ When users provide context, use it to focus the reverse-engineering effort.
 Reverse-engineer architecture from an existing codebase to create:
 
 1. **ADRs** documenting inferred architectural decisions in `memory/adr.md`
-2. **Architecture Description** overview in `memory/architecture.md`
+2. **Architecture Description** (`AD.md` at project root) with 7 Rozanski & Woods viewpoints
 
 This command is for **brownfield projects** where architecture exists in code but lacks documentation.
+
+### Flags
+
+- `--views VIEWS`: Architecture views to generate
+  - `core` (default): Context, Functional, Information, Development, Deployment
+  - `all`: All 7 views including Concurrency and Operational
+  - Custom: comma-separated (e.g., `concurrency,operational`)
+  
+- `--adr-heuristic HEURISTIC`: ADR generation strategy
+  - `surprising` (default): Skip obvious ecosystem defaults, document only surprising/risky decisions
+  - `all`: Document all discovered decisions
+  - `minimal`: Only high-risk decisions
 
 ## Role & Context
 
@@ -63,12 +75,11 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 ## Outline
 
 1. **Codebase Scan**: Analyze project structure and detect technologies
-2. **Context Calibration**: Estimate team size and set output depth
-3. **Existing Docs Scan**: Read existing documentation to avoid duplication
-4. **Pattern Detection**: Identify architectural patterns in use
-5. **ADR Generation**: Create ADRs for surprising/non-obvious decisions only
-6. **Risks & Gap Analysis**: Identify what's missing, broken, or risky (most valuable output)
-7. **Output**: Write ADRs to `memory/adr.md` and architecture to `memory/architecture.md`
+2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, etc.) to avoid repeating
+3. **Pattern Detection**: Identify architectural patterns in use
+4. **ADR Generation**: Create ADRs for discovered decisions
+5. **Gap Analysis**: Identify areas where decisions are unclear
+6. **Output**: Write ADRs to `memory/adr.md`
 
 ## Execution Steps
 
@@ -195,13 +206,35 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 | **gRPC** | `.proto` files, gRPC client/server setup |
 | **WebSocket** | Socket.io, WebSocket handlers |
 
-### Phase 5: ADR Generation
+### Phase 1.5: Documentation Deduplication
 
-**Objective**: Document discovered decisions as ADRs — but only the ones that add value
+**Objective**: Scan existing docs to avoid repeating documented information
 
-#### ADR Filtering: The Surprise-Value Heuristic
+**Scan for**:
 
-**Generate an ADR only if at least one of these is true:**
+- `AGENTS.md` - Project context, overview
+- `README.md` - Tech stack, project description
+- `CONTRIBUTING.md` - Development guidelines
+- `AD.md` or `docs/architecture.md` - Existing architecture
+- `LICENSE` - Legal context
+
+**Deduplication Rules**:
+
+| Finding | Action |
+|---------|--------|
+| Tech stack in README | Reference README in ADR, don't duplicate |
+| Architecture exists | Auto-merge or offer update vs. create new |
+| Guidelines in CONTRIBUTING | Reference in Development View |
+| Context in AGENTS.md | Link from Context View |
+
+**Process**:
+
+1. Run `{SCRIPT}` which calls `scan_existing_docs()`
+2. Parse findings from JSON output
+3. For each finding, determine: Skip ADR / Reference existing / Document new
+4. Report: "X decisions covered by existing docs, Y new ADRs created"
+
+### Phase 2: Pattern Detection
 
 1. **A new engineer would be surprised by this choice** — it's not what you'd expect for this type of project
 2. **A reasonable person might be tempted to change it** — the decision needs context to understand why it was made
@@ -255,61 +288,32 @@ Legacy/Inferred
 - [Risk if this decision is not well understood]
 
 ### Common Alternatives
-[OPTIONAL — only include if genuinely informative]
-
-Other options in this space include:
-- **[Alternative 1]**: [Brief factual description — what it is and when it's typically used]
-- **[Alternative 2]**: [Brief factual description]
-
-> *For discovered ADRs, do not fabricate rejection rationale. State alternatives factually without assuming why they weren't chosen.*
+#### [Likely Alternative]
+**Description**: [What it is]
+**Trade-offs**: [Why it might have been considered, neutral assessment - NO "Rejected because"]
+← DO NOT fabricate rejection rationale - we don't know why it wasn't chosen
 
 ### Confidence Level
 [HIGH/MEDIUM/LOW] - [Explanation of confidence in inference]
 ```
 
-**Important guidance for the "Common Alternatives" section:**
+3. **ADR Categories to Generate** (apply surprise-value heuristic):
 
-- This section is **optional**. Only include it when the alternatives are genuinely worth noting.
-- **Never use "Rejected because:" framing** — you are reverse-engineering, not documenting a decision that was actively debated. You don't know why alternatives weren't chosen.
-- **State alternatives factually**: "Other options in this space include X, Y" — not "X was rejected because..."
-- For small teams: skip this section entirely unless the alternative is commonly confused with the chosen option
-- For large teams: include when it helps onboarding engineers understand the landscape
+   **Skip if obvious** (heuristic: surprising):
+   - PostgreSQL for relational data → Covered by ecosystem default
+   - React for SPA frontend → Standard framework choice
+   - Docker for containerization → Conventional choice
 
-### Phase 6: Risks, Gaps & Recommendations
+   **Document as ADRs**:
+   - **ADR-001**: System Architecture Style (monolith vs microservices)
+   - **ADR-002**: Database Choice (only if non-obvious for context)
+   - **ADR-003**: API Style (REST vs GraphQL vs gRPC)
+   - **ADR-004**: Frontend Framework (only if unconventional)
+   - **ADR-005**: Deployment Platform (serverless vs traditional)
+   - **ADR-006**: CI/CD Approach (GitHub Actions vs Jenkins)
+   - **Additional**: Any custom/in-house solutions, unusual patterns, risky choices
 
-**Objective**: Identify what's missing, broken, or risky — this is the most valuable output
-
-**For small teams, this is the PRIMARY output.** Lead with this before ADRs.
-
-Analyze the codebase for:
-
-#### Operational Gaps
-- Missing backup strategy or no evidence of backups
-- No monitoring/alerting configuration found
-- No health check endpoints
-- No error tracking service (Sentry, Bugsnag, etc.)
-- No log aggregation beyond local files
-- Missing rate limiting on APIs
-
-#### Technical Debt
-- Pinned beta/alpha/RC package versions
-- Deprecated API usage
-- TODO/FIXME/HACK comments in code (count and categorize)
-- Dependencies with known vulnerabilities (`npm audit`, etc.)
-- Outdated major version dependencies
-
-#### Single Points of Failure
-- Single database instance without replica
-- No failover configuration
-- Single deployment target
-- Hard-coded credentials or secrets not in a vault
-
-#### Missing Safety Nets
-- No database migration rollback plan
-- Missing test coverage for critical paths
-- No CI/CD pipeline or incomplete pipeline
-- No environment variable validation
-- Missing `.env.example` or environment documentation
+### Phase 5: Gap Analysis
 
 #### Security Concerns
 - Secrets in code or config files
@@ -320,27 +324,50 @@ Analyze the codebase for:
 Format findings as **actionable items**, not just observations:
 
 ```markdown
-## Risks, Gaps & Recommendations
+## Architecture Discovery Report
 
-### Critical (Address Soon)
-| Finding | Impact | Recommendation |
-|---------|--------|----------------|
-| No database backup config found | Data loss risk | Set up automated daily backups |
-| Secrets in .env committed to git | Security breach risk | Move to secrets manager, add .env to .gitignore |
+### Technologies Detected
+| Category | Technology | Confidence | Evidence |
+|----------|------------|------------|----------|
+| Backend | Django 4.2 | HIGH | requirements.txt, app structure |
+| Database | PostgreSQL | HIGH | connection strings, migrations |
+| Frontend | React 18 | MEDIUM | package.json, JSX files |
+| Cache | Redis | HIGH | redis imports, docker-compose |
 
-### Important (Plan For)
-| Finding | Impact | Recommendation |
-|---------|--------|----------------|
-| No monitoring/alerting setup | Silent failures | Add health checks + basic alerting |
-| 15 TODO comments in payment module | Technical debt | Triage and prioritize |
+### Documentation Deduplication
+✓ README.md: Tech stack documented (lines 20-45)
+  → Referenced in Context View, skipping tech stack ADRs
+✓ CONTRIBUTING.md: Development workflow documented
+  → Referenced in Development View 3.5
 
-### Nice to Have
-| Finding | Impact | Recommendation |
-|---------|--------|----------------|
-| Test coverage unclear | Regression risk | Add coverage reporting |
+### ADRs Generated (Surprising/Risky decisions only)
+| ID | Decision | Confidence | Why Documented |
+|----|----------|------------|----------------|
+| ADR-001 | Monolithic Django architecture | HIGH | Architecture style choice |
+| ADR-002 | Custom JWT authentication | MEDIUM | Security risk, non-standard |
+| ADR-003 | Microservices for small team | HIGH | Scale mismatch, surprising |
+
+### Skipped (Covered by existing docs or obvious)
+| Decision | Reason |
+|----------|--------|
+| PostgreSQL choice | Ecosystem default + README covers |
+| React frontend | Standard framework + README covers |
+| Docker containerization | Conventional choice |
+
+### Unclear Areas (Need Human Input)
+| Area | Question | Suggestion |
+|------|----------|------------|
+| Auth | OAuth2 or custom JWT? | Found JWT usage, need confirmation |
+| Caching | Redis strategy unclear | Cache-aside pattern inferred |
+| Scaling | Horizontal scaling setup? | No auto-scaling config found |
+
+### Recommended Clarifications
+1. Run `/architect.clarify` to refine ADRs with human input
+2. Focus on [specific unclear area]
+3. Consider documenting [undocumented pattern]
 ```
 
-### Phase 7: Output Generation
+### Phase 6: Output Generation
 
 **Objective**: Write discoveries to files, calibrated to team size
 
@@ -357,20 +384,19 @@ Format findings as **actionable items**, not just observations:
 
 3. **Write ADRs**:
    - Create or update `memory/adr.md` with discovered ADRs
-   - Mark ADRs as "Discovered (Inferred)" status
+   - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
+   - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
-   - Only include ADRs that passed the surprise-value filter
 
-4. **Write Architecture Description**:
-   - For **small teams**: Use the lean template (`AD-template-lean.md`) — system overview, context diagram, key data flows, deployment topology, tech stack, risks & gaps
-   - For **medium teams**: Use the lean template with optional expanded sections as needed
-   - For **large teams**: Use the full template (`AD-template.md`) with all Rozanski & Woods viewpoints
+2. **Create/Update Architecture**:
+   - Create `AD.md` at project root (if not exists) from `AD-template.md`
+   - Include only views specified by `--views` flag (default: core 5)
+   - Mark optional views (Concurrency, Operational) if not included
 
-5. **Generate Summary**:
-   - Team size detected and tier used
-   - Existing documentation found and what was deduplicated
-   - Risks and gaps identified (highlight critical ones)
-   - ADRs created (with brief justification for why each passed the filter)
+3. **Generate Summary**:
+   - Technologies discovered
+   - ADRs created
+   - Gaps identified
    - Recommended next steps
 
 ## Key Rules
@@ -408,6 +434,13 @@ Format findings as **actionable items**, not just observations:
 - **Don't overwrite** existing ADRs without user approval
 - **Merge intelligently** with existing documentation
 - **Preserve manual additions** to architecture files
+
+### No Fabricated Rejection Rationale
+
+- **NEVER invent "Rejected because" reasons** for reverse-engineered ADRs
+- **Use "Common Alternatives" with neutral "Trade-offs" framing** instead
+- **Only document alternatives that were likely considered**
+- **Be honest**: "We don't know why X wasn't chosen" is acceptable
 
 ### Interactive When Needed
 

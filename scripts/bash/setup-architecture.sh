@@ -6,12 +6,33 @@ JSON_MODE=false
 ACTION=""
 TEAM_SIZE=""
 ARGS=()
+VIEWS="core"
+ADR_HEURISTIC="surprising"
 
 # Parse arguments
-for arg in "$@"; do
-    case "$arg" in
+while [[ $# -gt 0 ]]; do
+    case "$1" in
         --json)
             JSON_MODE=true
+            shift
+            ;;
+        --views)
+            shift
+            VIEWS="$1"
+            shift
+            ;;
+        --views=*)
+            VIEWS="${1#*=}"
+            shift
+            ;;
+        --adr-heuristic)
+            shift
+            ADR_HEURISTIC="$1"
+            shift
+            ;;
+        --adr-heuristic=*)
+            ADR_HEURISTIC="${1#*=}"
+            shift
             ;;
         --team-size=*)
             TEAM_SIZE="${arg#--team-size=}"
@@ -28,10 +49,11 @@ for arg in "$@"; do
             fi
             ;;
         init|map|update|review|specify|implement|clarify)
-            ACTION="$arg"
+            ACTION="$1"
+            shift
             ;;
         --help|-h)
-            echo "Usage: $0 [action] [context] [--json] [--team-size small|medium|large]"
+            echo "Usage: $0 [action] [context] [--json] [--views VIEWS] [--adr-heuristic HEURISTIC]"
             echo ""
             echo "Actions:"
             echo "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
@@ -43,33 +65,32 @@ for arg in "$@"; do
             echo "  review   Validate architecture against constitution"
             echo ""
             echo "Options:"
-            echo "  --json        Output results in JSON format"
-            echo "  --team-size   Set team size tier: small (1-3), medium (4-15), large (16+)"
-            echo "                Auto-detected from git history if not specified"
-            echo "  --help        Show this help message"
+            echo "  --json             Output results in JSON format"
+            echo "  --views VIEWS      Architecture views to generate: core (default), all, or comma-separated"
+            echo "  --adr-heuristic H  ADR generation heuristic: surprising (default), all, minimal"
+            echo "  --help             Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 specify \"B2B SaaS for supply chain management\""
-            echo "  $0 clarify \"Focus on authentication and data persistence decisions\""
-            echo "  $0 init \"Django monolith with PostgreSQL and React\""
-            echo "  $0 init --team-size small"
+            echo "  $0 init --views all \"Django monolith with PostgreSQL\""
+            echo "  $0 init --views concurrency,operational \"Microservices architecture\""
+            echo "  $0 clarify --adr-heuristic all \"Document all decisions\""
             echo "  $0 implement \"Generate full AD.md from ADRs\""
-            echo "  $0 update \"Added microservices and event sourcing\""
-            echo "  $0 review \"Focus on security and performance\""
             echo ""
             echo "Pro Tip: Add context/description after the action for better results."
             echo "The AI will use your input to understand system scope and constraints."
             exit 0
             ;;
         *)
-            ARGS+=("$arg")
+            ARGS+=("$1")
+            shift
             ;;
     esac
 done
 
 # Default action if not specified
 if [[ -z "$ACTION" ]]; then
-    if [[ -f "memory/architecture.md" ]]; then
+    if [[ -f "$REPO_ROOT/AD.md" ]]; then
         ACTION="update"
     else
         ACTION="init"
@@ -86,39 +107,15 @@ eval "$(get_feature_paths)"
 # Ensure the memory directory exists
 mkdir -p "$REPO_ROOT/memory"
 
-ARCHITECTURE_FILE="$REPO_ROOT/memory/architecture.md"
-SPECKIT_TEMPLATES_DIR="$SCRIPT_DIR/../../templates"
-TEMPLATE_FILE="$SPECKIT_TEMPLATES_DIR/AD-template.md"
+# Architecture files (new structure: AD.md at root, ADRs in memory/)
+AD_FILE="$REPO_ROOT/AD.md"
+ADR_FILE="$REPO_ROOT/memory/adr.md"
+TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
+AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 
-# Function to detect team size from git history
-detect_team_size() {
-    local team_size="$TEAM_SIZE"
-
-    # If user provided --team-size, use that
-    if [[ -n "$team_size" && "$team_size" != "__NEXT__" ]]; then
-        echo "$team_size"
-        return
-    fi
-
-    # Auto-detect from git committer count (last 6 months)
-    local committer_count=1
-    if command -v git &> /dev/null && [[ -d "$REPO_ROOT/.git" ]]; then
-        committer_count=$(git -C "$REPO_ROOT" log --since="6 months ago" --format='%aE' 2>/dev/null | sort -u | wc -l | tr -d ' ')
-        if [[ -z "$committer_count" || "$committer_count" -eq 0 ]]; then
-            committer_count=1
-        fi
-    fi
-
-    echo "Detected $committer_count unique committer(s) in last 6 months" >&2
-
-    if [[ "$committer_count" -le 3 ]]; then
-        echo "small"
-    elif [[ "$committer_count" -le 15 ]]; then
-        echo "medium"
-    else
-        echo "large"
-    fi
-}
+# Export for use in functions
+export ARCHITECTURE_VIEWS="$VIEWS"
+export ADR_HEURISTIC="$ADR_HEURISTIC"
 
 # Function to detect tech stack from codebase
 detect_tech_stack() {
@@ -307,12 +304,97 @@ extract_api_endpoints() {
     fi
 }
 
+# Function to scan existing docs for deduplication
+scan_existing_docs() {
+    local repo_root="${1:-$REPO_ROOT}"
+    local findings=""
+    
+    echo "Scanning existing documentation for deduplication..." >&2
+    
+    # Check for existing architecture docs
+    if [[ -f "$repo_root/AD.md" ]]; then
+        findings+="EXISTING_AD: $repo_root/AD.md\n"
+    fi
+    
+    if [[ -f "$repo_root/docs/architecture.md" ]]; then
+        findings+="EXISTING_ARCHITECTURE: $repo_root/docs/architecture.md\n"
+    fi
+    
+    # Scan README for tech stack
+    if [[ -f "$repo_root/README.md" ]]; then
+        if grep -q "Tech Stack\|Technology\|Built with" "$repo_root/README.md" 2>/dev/null; then
+            findings+="TECH_STACK_IN_README: $repo_root/README.md\n"
+        fi
+        if grep -q "PostgreSQL\|MySQL\|MongoDB\|Redis" "$repo_root/README.md" 2>/dev/null; then
+            findings+="DATABASE_IN_README: $repo_root/README.md\n"
+        fi
+        if grep -q "React\|Vue\|Angular" "$repo_root/README.md" 2>/dev/null; then
+            findings+="FRONTEND_IN_README: $repo_root/README.md\n"
+        fi
+    fi
+    
+    # Scan AGENTS.md for context
+    if [[ -f "$repo_root/AGENTS.md" ]]; then
+        findings+="AGENTS_CONTEXT: $repo_root/AGENTS.md\n"
+    fi
+    
+    # Scan CONTRIBUTING.md for dev guidelines
+    if [[ -f "$repo_root/CONTRIBUTING.md" ]]; then
+        findings+="DEV_GUIDELINES: $repo_root/CONTRIBUTING.md\n"
+    fi
+    
+    echo -e "$findings"
+}
+
+# Function to parse views flag
+parse_views() {
+    local views_arg="$1"
+    
+    case "$views_arg" in
+        "all"|"full")
+            echo "context functional information concurrency development deployment operational"
+            ;;
+        "core"|"minimal"|"")
+            echo "context functional information development deployment"
+            ;;
+        *)
+            # Parse comma-separated: "concurrency,operational"
+            local valid_views=""
+            local all_views="context functional information concurrency development deployment operational"
+            
+            IFS=',' read -ra VIEWS_ARRAY <<< "$views_arg"
+            for view in "${VIEWS_ARRAY[@]}"; do
+                view=$(echo "$view" | tr -d ' ')  # Trim whitespace
+                # Check if view is valid
+                if echo "$all_views" | grep -qw "$view"; then
+                    valid_views="$valid_views $view"
+                fi
+            done
+            
+            # Always include core views
+            for view in context functional information development deployment; do
+                if ! echo "$valid_views" | grep -qw "$view"; then
+                    valid_views="$valid_views $view"
+                fi
+            done
+            
+            echo "$valid_views" | sed 's/^ *//'
+            ;;
+    esac
+}
+
 # Function to generate and insert diagrams into architecture.md
 generate_and_insert_diagrams() {
     local arch_file="$1"
     local system_name="${2:-System}"
+    local views_list="${3:-$ARCHITECTURE_VIEWS}"
+    
+    # Parse views
+    local parsed_views
+    parsed_views=$(parse_views "$views_list")
     
     echo "📊 Generating architecture diagrams..." >&2
+    echo "   Views: $parsed_views" >&2
     
     # Get diagram format from config
     local diagram_format
@@ -328,11 +410,8 @@ generate_and_insert_diagrams() {
         source "$generator_dir/ascii-generator.sh"
     fi
     
-    # Array of views to generate diagrams for
-    local views=("context" "functional" "information" "concurrency" "development" "deployment" "operational")
-    
     # Generate each diagram and insert into template
-    for view in "${views[@]}"; do
+    for view in $parsed_views; do
         echo "   Generating ${view} view diagram..." >&2
         
         local diagram_code
@@ -498,65 +577,56 @@ action_implement() {
 
 # Action: Initialize (brownfield - reverse-engineer from codebase)
 action_init() {
-    if [[ -f "$ARCHITECTURE_FILE" ]]; then
-        echo "❌ Architecture already exists: $ARCHITECTURE_FILE" >&2
+    # Check for existing AD.md (new location)
+    if [[ -f "$AD_FILE" ]]; then
+        echo "❌ Architecture already exists: $AD_FILE" >&2
         echo "Use 'update' action to modify or delete the file to reinitialize" >&2
         exit 1
     fi
-
-    # Detect team size and select appropriate template
-    local detected_size
-    detected_size=$(detect_team_size)
-    echo "📊 Team size tier: $detected_size" >&2
-
-    local lean_template="$SPECKIT_TEMPLATES_DIR/AD-template-lean.md"
-    local selected_template="$TEMPLATE_FILE"
-
-    if [[ "$detected_size" == "small" || "$detected_size" == "medium" ]]; then
-        if [[ -f "$lean_template" ]]; then
-            selected_template="$lean_template"
-            echo "Using lean architecture template (for $detected_size teams)" >&2
-        else
-            echo "⚠️  Lean template not found, falling back to full template" >&2
-        fi
-    else
-        echo "Using full Rozanski & Woods template (for large teams)" >&2
-    fi
-
-    if [[ ! -f "$selected_template" ]]; then
-        echo "❌ Template not found: $selected_template" >&2
+    
+    if [[ ! -f "$AD_TEMPLATE_FILE" ]]; then
+        echo "❌ Template not found: $AD_TEMPLATE_FILE" >&2
         exit 1
     fi
 
     echo "📐 Initializing architecture from template..." >&2
-    cp "$selected_template" "$ARCHITECTURE_FILE"
-
-    # Generate diagrams based on user config (only for full template)
-    if [[ "$selected_template" == "$TEMPLATE_FILE" ]]; then
-        generate_and_insert_diagrams "$ARCHITECTURE_FILE" "System"
+    
+    # Scan existing docs for deduplication
+    local existing_docs
+    existing_docs=$(scan_existing_docs "$REPO_ROOT")
+    if [[ -n "$existing_docs" ]]; then
+        echo "📋 Found existing documentation:" >&2
+        echo "$existing_docs" | while read -r line; do
+            echo "  - $line" >&2
+        done
+        echo "" >&2
     fi
-
-    echo "✅ Created: $ARCHITECTURE_FILE" >&2
+    
+    cp "$AD_TEMPLATE_FILE" "$AD_FILE"
+    
+    # Generate diagrams based on user config
+    generate_and_insert_diagrams "$AD_FILE" "System" "$VIEWS"
+    
+    echo "✅ Created: $AD_FILE" >&2
     echo "" >&2
     echo "Next steps:" >&2
     echo "1. Review and customize the architecture document" >&2
-    echo "2. Fill in system overview and context diagram" >&2
-    if [[ "$detected_size" == "small" ]]; then
-        echo "3. Focus on Risks & Gaps section (most valuable for small teams)" >&2
-        echo "4. Run '/architect.clarify' to refine ADRs" >&2
-    else
-        echo "3. Complete each section with your system details" >&2
-        echo "4. Run '/architect.implement' to generate full AD.md" >&2
-    fi
-
+    echo "2. Fill in stakeholder concerns and system scope" >&2
+    echo "3. Complete each viewpoint section with your system details" >&2
+    echo "4. Run '/architect.implement' to generate ADRs in memory/adr.md" >&2
+    
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"init\",\"file\":\"$ARCHITECTURE_FILE\",\"team_size\":\"$detected_size\",\"template\":\"$(basename "$selected_template")\"}"
+        echo "{\"status\":\"success\",\"action\":\"init\",\"ad_file\":\"$AD_FILE\",\"adr_file\":\"$ADR_FILE\"}"
     fi
 }
 
 # Action: Map (brownfield)
 action_map() {
     echo "🔍 Mapping existing codebase to architecture..." >&2
+    
+    # Scan existing docs
+    local existing_docs
+    existing_docs=$(scan_existing_docs "$REPO_ROOT")
     
     # Detect tech stack
     echo "" >&2
@@ -574,24 +644,35 @@ action_map() {
     echo "" >&2
     extract_api_endpoints >&2
     
-    # Output structured data for AI agent to populate architecture.md Section C
+    # Output structured data for AI agent to populate AD.md
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"map\",\"tech_stack\":\"$tech_stack\",\"directory_structure\":\"$dir_structure\"}"
+        echo "{\"status\":\"success\",\"action\":\"map\",\"tech_stack\":\"$tech_stack\",\"directory_structure\":\"$dir_structure\",\"existing_docs\":\"$existing_docs\"}"
     else
         echo "" >&2
-        echo "📋 Mapping complete. Use this information to populate memory/architecture.md:" >&2
-        echo "  - Section C (Tech Stack Summary): Use detected technologies above" >&2
-        echo "  - Development View: Use directory structure above" >&2
-        echo "  - Deployment View: Check docker-compose.yml, k8s configs, terraform" >&2
-        echo "  - Functional View: Use API endpoints detected" >&2
-        echo "  - Information View: Check database schemas, ORM models" >&2
+        echo "📋 Mapping complete. Use this information to populate AD.md:" >&2
+        
+        if [[ -n "$existing_docs" ]]; then
+            echo "" >&2
+            echo "Existing Documentation (reference, don't duplicate):" >&2
+            echo "$existing_docs" | while read -r line; do
+                echo "  - $line" >&2
+            done
+        fi
+        
+        echo "" >&2
+        echo "Architecture Sections:" >&2
+        echo "  - Context View (3.1): Define system boundaries" >&2
+        echo "  - Development View (3.5): Use directory structure above" >&2
+        echo "  - Deployment View (3.6): Check docker-compose.yml, k8s configs, terraform" >&2
+        echo "  - Functional View (3.2): Use API endpoints detected" >&2
+        echo "  - Information View (3.3): Check database schemas, ORM models" >&2
     fi
 }
 
 # Action: Update
 action_update() {
-    if [[ ! -f "$ARCHITECTURE_FILE" ]]; then
-        echo "❌ Architecture does not exist: $ARCHITECTURE_FILE" >&2
+    if [[ ! -f "$AD_FILE" ]]; then
+        echo "❌ Architecture does not exist: $AD_FILE" >&2
         echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
@@ -610,27 +691,27 @@ action_update() {
     echo "Current Tech Stack:" >&2
     detect_tech_stack >&2
     
-    # Regenerate diagrams with current format
-    generate_and_insert_diagrams "$ARCHITECTURE_FILE" "System"
+    # Regenerate diagrams with current format and views
+    generate_and_insert_diagrams "$AD_FILE" "System" "$VIEWS"
     
     echo "" >&2
     echo "✅ Update analysis complete" >&2
     echo "Review the architecture document and update affected sections:" >&2
     echo "  - New tables/models? → Update Information View" >&2
     echo "  - New services/components? → Update Functional View + Deployment View" >&2
-    echo "  - New queues/async? → Update Concurrency View" >&2
+    echo "  - New queues/async? → Update Concurrency View (if included)" >&2
     echo "  - New dependencies? → Update Development View" >&2
     echo "  - Add ADR if significant decision was made" >&2
     
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"update\",\"file\":\"$ARCHITECTURE_FILE\"}"
+        echo "{\"status\":\"success\",\"action\":\"update\",\"ad_file\":\"$AD_FILE\",\"adr_file\":\"$ADR_FILE\"}"
     fi
 }
 
 # Action: Review
 action_review() {
-    if [[ ! -f "$ARCHITECTURE_FILE" ]]; then
-        echo "❌ Architecture does not exist: $ARCHITECTURE_FILE" >&2
+    if [[ ! -f "$AD_FILE" ]]; then
+        echo "❌ Architecture does not exist: $AD_FILE" >&2
         echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
@@ -641,40 +722,40 @@ action_review() {
     local issues=()
     
     # Check for required sections
-    if ! grep -q "## 1\. Introduction" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "## 1\. Introduction" "$AD_FILE"; then
         issues+=("Missing: Introduction section")
     fi
     
-    if ! grep -q "## 2\. Stakeholders & Concerns" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "## 2\. Stakeholders & Concerns" "$AD_FILE"; then
         issues+=("Missing: Stakeholders section")
     fi
     
-    if ! grep -q "## 3\. Architectural Views" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "## 3\. Architectural Views" "$AD_FILE"; then
         issues+=("Missing: Architectural Views section")
     fi
     
-    if ! grep -q "### 3.1 Context View" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "### 3.1 Context View" "$AD_FILE"; then
         issues+=("Missing: Context View")
     fi
     
-    if ! grep -q "### 3.2 Functional View" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "### 3.2 Functional View" "$AD_FILE"; then
         issues+=("Missing: Functional View")
     fi
     
-    if ! grep -q "## 4\. Architectural Perspectives" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "## 4\. Architectural Perspectives" "$AD_FILE"; then
         issues+=("Missing: Perspectives section")
     fi
     
-    if ! grep -q "## 5\. Global Constraints & Principles" "$ARCHITECTURE_FILE"; then
+    if ! grep -q "## 5\. Global Constraints & Principles" "$AD_FILE"; then
         issues+=("Missing: Global Constraints section")
     fi
     
     # Check for placeholder content
-    if grep -q "\[SYSTEM_NAME\]" "$ARCHITECTURE_FILE"; then
+    if grep -q "\[SYSTEM_NAME\]" "$AD_FILE"; then
         issues+=("Placeholder: System name not filled in")
     fi
     
-    if grep -q "\[STAKEHOLDER_" "$ARCHITECTURE_FILE"; then
+    if grep -q "\[STAKEHOLDER_" "$AD_FILE"; then
         issues+=("Placeholder: Stakeholders not filled in")
     fi
     
@@ -689,7 +770,7 @@ action_review() {
     fi
     
     # Check constitution alignment if it exists
-    local constitution_file="$REPO_ROOT/.specify/memory/constitution.md"
+    local constitution_file="$REPO_ROOT/memory/constitution.md"
     if [[ -f "$constitution_file" ]]; then
         echo "" >&2
         echo "📜 Checking constitution alignment..." >&2
@@ -697,13 +778,22 @@ action_review() {
         echo "Manually verify that architecture adheres to constitutional principles" >&2
     fi
     
+    # Check for ADRs
+    if [[ -f "$ADR_FILE" ]]; then
+        echo "" >&2
+        echo "📋 ADR file found: $ADR_FILE" >&2
+        local adr_count
+        adr_count=$(grep -c "^## ADR-" "$ADR_FILE" 2>/dev/null || echo "0")
+        echo "   Found $adr_count ADR(s)" >&2
+    fi
+    
     if $JSON_MODE; then
         if [[ ${#issues[@]} -eq 0 ]]; then
-            echo "{\"status\":\"success\",\"action\":\"review\",\"issues\":[]}"
+            echo "{\"status\":\"success\",\"action\":\"review\",\"ad_file\":\"$AD_FILE\",\"adr_file\":\"$ADR_FILE\",\"issues\":[]}"
         else
             # Format issues as JSON array
             issues_json=$(printf '%s\n' "${issues[@]}" | jq -R . | jq -s .)
-            echo "{\"status\":\"warning\",\"action\":\"review\",\"issues\":$issues_json}"
+            echo "{\"status\":\"warning\",\"action\":\"review\",\"ad_file\":\"$AD_FILE\",\"adr_file\":\"$ADR_FILE\",\"issues\":$issues_json}"
         fi
     fi
 }

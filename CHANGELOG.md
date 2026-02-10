@@ -9,6 +9,69 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Context View Blackbox Enforcement**: Updated architect commands to strictly enforce blackbox system representation in Context View
+  - System MUST appear as a single unified node (no internal components)
+  - Only external actors (stakeholders/users) and external systems shown
+  - Internal databases, services, caches explicitly excluded from Context View
+  - Added validation checklist to `architect.implement` command
+  - Updated diagram templates with proper styling for stakeholders vs external systems
+  - Clear guidance on what belongs in Context View vs Functional/Deployment views
+
+### Added
+
+- **Lean Architecture Views**: Configurable view generation with core vs optional views
+  - Default "core" views: Context, Functional, Information, Development, Deployment
+  - Optional views: Concurrency, Operational (via `--views` flag)
+  - Support for: `--views all`, `--views core`, `--views concurrency,operational`
+  - Marked optional views in templates with HTML comments
+
+- **Surprise-Value Heuristic for ADRs**: Skip obvious ecosystem defaults, document only surprising/risky decisions
+  - Configurable via `--adr-heuristic` flag: `surprising` (default), `all`, `minimal`
+  - Heuristic rules distinguish obvious (PostgreSQL for relational) vs surprising (custom auth)
+  - Configuration in `config.json`: `architecture.adr.heuristic`
+
+- **Constitution Cross-Reference**: Strict checking for ADR/Constitution alignment
+  - Always enabled in `/architect.clarify`
+  - Detects duplicates (constitution already mandates), violations, unclear alignment
+  - **Option A (Amend Constitution) as PRIMARY resolution** for violations
+  - Adds "Constitution Alignment" section to ADR template
+
+- **ADR Template Improvements**:
+  - Renamed "Alternatives Considered" to "Common Alternatives"
+  - Changed framing from "Rejected because" to neutral "Trade-offs"
+  - Added "Discovered" status for reverse-engineered ADRs
+  - Removed fabricated rejection rationale requirement
+  - Added "Constitution Alignment" section with compliance tracking
+
+- **Existing Docs Deduplication**: Scan and reference instead of duplicate
+  - Scans `docs/` directory and root `*.md` files (configurable paths)
+  - References existing docs (README, AGENTS.md, CONTRIBUTING) instead of duplicating
+  - Auto-merges when existing architecture found (no prompt)
+  - New `scan_existing_docs()` function in setup-architecture.sh
+
+- **Risks & Gaps Analysis**: Cross-cutting analysis in `/architect.clarify`
+  - Identifies operational gaps, technical debt, SPOFs, security concerns
+  - Section-based gap IDs (e.g., `3.6.1` = Deployment view, gap #1)
+  - Runs BEFORE constitution cross-reference (Phase 2.5)
+  - Output integrated into existing view sections
+
+### Changed
+
+- **BREAKING: Architecture File Paths**: Updated to new two-file structure
+  - Architecture Description: `AD.md` at project root (was `memory/architecture.md`)
+  - Architecture Decision Records: `memory/adr.md` (unchanged)
+  - Updated all scripts: `setup-architecture.sh`, `setup-plan.sh`, `common.sh`
+  - Updated command templates: `architect.init.md`, `architect.specify.md`, `architect.clarify.md`
+
+- **Configuration**: Added comprehensive architecture configuration
+  - `architecture.views`: "core", "all", or comma-separated list
+  - `architecture.adr.heuristic`: "surprising", "all", "minimal"
+  - `architecture.adr.check_constitution`: true (always enabled)
+  - `architecture.deduplication.scan_paths`: ["docs/", "*.md"]
+  - Helper functions: `get_architecture_views()`, `get_adr_heuristic()`, `get_architecture_config()`
+
 ## [0.3.0] - 2026-02-08
 
 ### Added
@@ -171,6 +234,120 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **`mode_history` from configuration**: Removed `workflow.mode_history` field from config structure (was unused)
+
+## [0.1.0-upstream] - 2026-01-28
+
+### Added
+
+- **Extension System**: Introduced modular extension architecture for Spec Kit
+  - Extensions are self-contained packages that add commands and functionality without bloating core
+  - Extension manifest schema (`extension.yml`) with validation
+  - Extension registry (`.specify/extensions/.registry`) for tracking installed extensions
+  - Extension manager module (`src/specify_cli/extensions.py`) for installation/removal
+  - New CLI commands:
+    - `specify extension list` - List installed extensions
+    - `specify extension add` - Install extension from local directory or URL
+    - `specify extension remove` - Uninstall extension
+    - `specify extension search` - Search extension catalog
+    - `specify extension info` - Show detailed extension information
+  - Semantic versioning compatibility checks
+  - Support for extension configuration files
+  - Command registration system for AI agents (Claude support initially)
+  - Added dependencies: `pyyaml>=6.0`, `packaging>=23.0`
+
+- **Extension Catalog**: Extension discovery and distribution system
+  - Central catalog (`extensions/catalog.json`) for published extensions
+  - Extension catalog manager (`ExtensionCatalog` class) with:
+    - Catalog fetching from GitHub
+    - 1-hour local caching for performance
+    - Search by query, tag, author, or verification status
+    - Extension info retrieval
+  - Catalog cache stored in `.specify/extensions/.cache/`
+  - Search and info commands with rich console output
+  - Added 9 catalog-specific unit tests (100% pass rate)
+
+- **Jira Extension**: First official extension for Jira integration
+  - Extension ID: `jira`
+  - Version: 1.0.0
+  - Commands:
+    - `/speckit.jira.specstoissues` - Create Jira hierarchy from spec and tasks
+    - `/speckit.jira.discover-fields` - Discover Jira custom fields
+    - `/speckit.jira.sync-status` - Sync task completion status
+  - Comprehensive documentation (README, usage guide, examples)
+  - MIT licensed
+
+- **Hook System**: Extension lifecycle hooks for automation
+  - `HookExecutor` class for managing extension hooks
+  - Hooks registered in `.specify/extensions.yml`
+  - Hook registration during extension installation
+  - Hook unregistration during extension removal
+  - Support for optional and mandatory hooks
+  - Hook execution messages for AI agent integration
+  - Condition support for conditional hook execution (placeholder)
+
+- **Extension Management**: Advanced extension management commands
+  - `specify extension update` - Check and update extensions to latest version
+  - `specify extension enable` - Enable a disabled extension
+  - `specify extension disable` - Disable extension without removing it
+  - Version comparison with catalog
+  - Update notifications
+  - Preserve configuration during updates
+
+- **Multi-Agent Support**: Extensions now work with all supported AI agents (Phase 6)
+  - Automatic detection and registration for all agents in project
+  - Support for 16+ AI agents (Claude, Gemini, Copilot, Cursor, Qwen, and more)
+  - Agent-specific command formats (Markdown and TOML)
+  - Automatic argument placeholder conversion ($ARGUMENTS → {{args}})
+  - Commands registered for all detected agents during installation
+  - Multi-agent command unregistration on extension removal
+  - `CommandRegistrar.register_commands_for_agent()` method
+  - `CommandRegistrar.register_commands_for_all_agents()` method
+
+- **Configuration Layers**: Full configuration cascade system (Phase 6)
+  - **Layer 1**: Defaults from extension manifest (`extension.yml`)
+  - **Layer 2**: Project config (`.specify/extensions/{ext-id}/{ext-id}-config.yml`)
+  - **Layer 3**: Local config (`.specify/extensions/{ext-id}/local-config.yml`, gitignored)
+  - **Layer 4**: Environment variables (`SPECKIT_{EXT_ID}_{KEY}` pattern)
+  - Recursive config merging with proper precedence
+  - `ConfigManager` class for programmatic config access
+  - `get_config()`, `get_value()`, `has_value()` methods
+  - Support for nested configuration paths with dot-notation
+
+- **Hook Condition Evaluation**: Smart hook execution based on runtime conditions (Phase 6)
+  - Config conditions: `config.key.path is set`, `config.key == 'value'`, `config.key != 'value'`
+  - Environment conditions: `env.VAR is set`, `env.VAR == 'value'`, `env.VAR != 'value'`
+  - Automatic filtering of hooks based on condition evaluation
+  - Safe fallback behavior on evaluation errors
+  - Case-insensitive pattern matching
+
+- **Hook Integration**: Agent-level hook checking and execution (Phase 6)
+  - `check_hooks_for_event()` method for AI agents to query hooks after core commands
+  - Condition-aware hook filtering before execution
+  - `enable_hooks()` and `disable_hooks()` methods per extension
+  - Formatted hook messages for agent display
+  - `execute_hook()` method for hook execution information
+
+- **Documentation Suite**: Comprehensive documentation for users and developers
+  - **EXTENSION-USER-GUIDE.md**: Complete user guide with installation, usage, configuration, and troubleshooting
+  - **EXTENSION-API-REFERENCE.md**: Technical API reference with manifest schema, Python API, and CLI commands
+  - **EXTENSION-PUBLISHING-GUIDE.md**: Publishing guide for extension authors
+  - **RFC-EXTENSION-SYSTEM.md**: Extension architecture design document
+
+- **Extension Template**: Starter template in `extensions/template/` for creating new extensions
+  - Fully commented `extension.yml` manifest template
+  - Example command file with detailed explanations
+  - Configuration template with all options
+  - Complete project structure (README, LICENSE, CHANGELOG, .gitignore)
+  - EXAMPLE-README.md showing final documentation format
+
+- **Unit Tests**: Comprehensive test suite with 39 tests covering all extension system components
+  - Test coverage: 83% of extension module code
+  - Test dependencies: `pytest>=7.0`, `pytest-cov>=4.0`
+  - Configured pytest in `pyproject.toml`
+
+### Changed
+
+- Version bumped to 0.1.0 (minor release for new feature)
 
 ## [0.0.22] - 2025-11-07
 

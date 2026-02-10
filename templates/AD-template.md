@@ -63,22 +63,36 @@
 
 #### 3.1.3 Context Diagram
 
+> **CRITICAL: Blackbox Requirement** - The system MUST appear as a single node. Do NOT show internal databases, services, or caches here (those belong in Deployment/Functional views).
+
 ```mermaid
 graph TD
-    Users["Users"]
-    System["System<br/>(Main Application)"]
-    Database["Database"]
-    ExternalAPI["External APIs"]
+    %% Stakeholders (human actors)
+    Users["Users/Clients"]
+    Admins["Administrators"]
     
-    Users -->|Requests| System
-    System -->|Queries| Database
-    System -->|Integrates| ExternalAPI
+    %% THE SYSTEM - Single blackbox
+    System["System<br/>(This Application)"]
     
-    classDef systemNode fill:#f47721,stroke:#333,stroke-width:2px,color:#fff
+    %% External Systems (third-party, outside your control)
+    ExtPayment["Payment Provider<br/>(External)"]
+    ExtAuth["Identity Provider<br/>(External)"]
+    
+    %% Stakeholder interactions
+    Users -->|"Uses"| System
+    Admins -->|"Manages"| System
+    
+    %% External system integrations
+    System -->|"Processes payments"| ExtPayment
+    System -->|"Authenticates via"| ExtAuth
+    
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
     classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
     
     class System systemNode
-    class Users,Database,ExternalAPI externalNode
+    class Users,Admins stakeholderNode
+    class ExtPayment,ExtAuth externalNode
 ```
 
 #### 3.1.4 External Dependencies
@@ -160,10 +174,14 @@ graph TD
 - **Backup Strategy**: [Backup approach]
 
 ---
+<!-- OPTIONAL VIEW: Concurrency -->
+<!-- Include this section only if using --views=concurrency or --views=all -->
 
 ### 3.4 Concurrency View
 
 **Purpose**: Describe runtime processes, threads, and coordination
+
+**Note**: This is an optional view. Include for async/multi-threaded systems.
 
 #### 3.4.1 Process Structure
 
@@ -274,10 +292,14 @@ graph TB
 | Database | [Specs] | [Specs] | [Specs] |
 
 ---
+<!-- OPTIONAL VIEW: Operational -->
+<!-- Include this section only if using --views=operational or --views=all -->
 
 ### 3.7 Operational View
 
 **Purpose**: Operations, support, and maintenance in production
+
+**Note**: This is an optional view. Include for production systems with operations teams.
 
 #### 3.7.1 Operational Responsibilities
 
@@ -378,7 +400,26 @@ graph TB
 
 ---
 
-## 6. ADR Summary
+## 6. Constitution Alignment
+
+**Constitution Reference**: [memory/constitution.md](memory/constitution.md)
+
+### Alignment Status
+
+| Principle | Section | Alignment | Notes |
+|-----------|---------|-----------|-------|
+| [Principle 1] | §X.Y | ✅ Compliant / ⚠️ Deviation / ❌ Override | [Explanation] |
+| [Principle 2] | §X.Y | ✅ Compliant | [How AD implements this] |
+
+### Overrides (if applicable)
+
+| Principle | Justification | Approved By |
+|-----------|---------------|-------------|
+| [Principle] | [Why this AD deviates] | [Date/Approver] |
+
+---
+
+## 7. ADR Summary
 
 Detailed Architecture Decision Records are maintained in [memory/adr.md](memory/adr.md).
 

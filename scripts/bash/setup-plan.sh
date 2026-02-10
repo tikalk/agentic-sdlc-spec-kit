@@ -98,23 +98,49 @@ else
 fi
 
 # Resolve architecture path (prefer env override, silent if missing)
-ARCHITECTURE_FILE="${SPECIFY_ARCHITECTURE:-}"
-if [[ -z "$ARCHITECTURE_FILE" ]]; then
-    ARCHITECTURE_FILE="$REPO_ROOT/.specify/memory/architecture.md"
+# New structure: AD.md at root (system-level) or specs/{feature}/AD.md (feature-level)
+AD_FILE="${SPECIFY_AD:-}"
+if [[ -z "$AD_FILE" ]]; then
+    # Check for feature-level AD first
+    if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/AD.md" ]]; then
+        AD_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/AD.md"
+    # Then check for system-level AD
+    elif [[ -f "$REPO_ROOT/AD.md" ]]; then
+        AD_FILE="$REPO_ROOT/AD.md"
+    fi
 fi
-if [[ -f "$ARCHITECTURE_FILE" ]]; then
-    export SPECIFY_ARCHITECTURE="$ARCHITECTURE_FILE"
+
+if [[ -f "$AD_FILE" ]]; then
+    export SPECIFY_AD="$AD_FILE"
 else
-    ARCHITECTURE_FILE=""
+    AD_FILE=""
+fi
+
+# Also resolve ADR file
+ADR_FILE="${SPECIFY_ADR:-}"
+if [[ -z "$ADR_FILE" ]]; then
+    # Check for feature-level ADR first
+    if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md"
+    # Then check for system-level ADR
+    elif [[ -f "$REPO_ROOT/memory/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/memory/adr.md"
+    fi
+fi
+
+if [[ -f "$ADR_FILE" ]]; then
+    export SPECIFY_ADR="$ADR_FILE"
+else
+    ADR_FILE=""
 fi
 
 # Output results
 if $JSON_MODE; then
-    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","ARCHITECTURE":"%s","CONTEXT_FILE":"%s"}\n' \
-        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$ARCHITECTURE_FILE" "$CONTEXT_FILE"
+    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
+        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$AD_FILE" "$ADR_FILE" "$CONTEXT_FILE"
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
-    echo "IMPL_PLAN: $IMPL_PLAN" 
+    echo "IMPL_PLAN: $IMPL_PLAN"
     echo "SPECS_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
     echo "HAS_GIT: $HAS_GIT"
@@ -128,10 +154,15 @@ else
     else
         echo "TEAM_DIRECTIVES: (missing)"
     fi
-    if [[ -n "$ARCHITECTURE_FILE" ]]; then
-        echo "ARCHITECTURE: $ARCHITECTURE_FILE"
+    if [[ -n "$AD_FILE" ]]; then
+        echo "AD: $AD_FILE"
     else
-        echo "ARCHITECTURE: (missing)"
+        echo "AD (Architecture Description): (missing - run /architect.init or /architect.specify)"
+    fi
+    if [[ -n "$ADR_FILE" ]]; then
+        echo "ADR: $ADR_FILE"
+    else
+        echo "ADR (Architecture Decision Records): (missing)"
     fi
     echo "CONTEXT_FILE: $CONTEXT_FILE"
 fi

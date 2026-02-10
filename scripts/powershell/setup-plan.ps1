@@ -70,6 +70,45 @@ if (Test-Path $teamDirectives) {
 }
 
 # Resolve architecture path (prefer env override, silent if missing)
+# New structure: AD.md at root (system-level) or specs/{feature}/AD.md (feature-level)
+$adFile = $env:SPECIFY_AD
+if (-not $adFile) {
+    # Check for feature-level AD first
+    if ($paths.CURRENT_BRANCH -and (Test-Path (Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/AD.md"))) {
+        $adFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/AD.md"
+    }
+    # Then check for system-level AD
+    elseif (Test-Path (Join-Path $paths.REPO_ROOT "AD.md")) {
+        $adFile = Join-Path $paths.REPO_ROOT "AD.md"
+    }
+}
+
+if (Test-Path $adFile) {
+    $env:SPECIFY_AD = $adFile
+} else {
+    $adFile = ''
+}
+
+# Also resolve ADR file
+$adrFile = $env:SPECIFY_ADR
+if (-not $adrFile) {
+    # Check for feature-level ADR first
+    if ($paths.CURRENT_BRANCH -and (Test-Path (Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"))) {
+        $adrFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"
+    }
+    # Then check for system-level ADR
+    elseif (Test-Path (Join-Path $paths.REPO_ROOT "memory/adr.md")) {
+        $adrFile = Join-Path $paths.REPO_ROOT "memory/adr.md"
+    }
+}
+
+if (Test-Path $adrFile) {
+    $env:SPECIFY_ADR = $adrFile
+} else {
+    $adrFile = ''
+}
+
+# Legacy architecture file for backward compatibility
 $architectureFile = $env:SPECIFY_ARCHITECTURE
 if (-not $architectureFile) {
     $architectureFile = Join-Path $paths.REPO_ROOT '.specify/memory/architecture.md'
@@ -91,6 +130,8 @@ if ($Json) {
         CONSTITUTION = $constitutionFile
         TEAM_DIRECTIVES = $teamDirectives
         ARCHITECTURE = $architectureFile
+        AD = $adFile
+        ADR = $adrFile
     }
     $result | ConvertTo-Json -Compress
 } else {
@@ -109,9 +150,17 @@ if ($Json) {
     } else {
         Write-Output "TEAM_DIRECTIVES: (missing)"
     }
-    if ($architectureFile) {
-        Write-Output "ARCHITECTURE: $architectureFile"
+    if ($adFile) {
+        Write-Output "AD: $adFile"
     } else {
-        Write-Output "ARCHITECTURE: (missing)"
+        Write-Output "AD (Architecture Description): (missing - run /architect.init or /architect.specify)"
+    }
+    if ($adrFile) {
+        Write-Output "ADR: $adrFile"
+    } else {
+        Write-Output "ADR (Architecture Decision Records): (missing)"
+    }
+    if ($architectureFile) {
+        Write-Output "ARCHITECTURE (Legacy): $architectureFile"
     }
 }
