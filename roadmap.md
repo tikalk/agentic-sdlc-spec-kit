@@ -796,9 +796,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Phase-respecting orchestration (Setup → Foundational → Stories)
   - **Benefits**:
     - 3-5x faster execution for parallelizable tasks
-  - Validates incident.io multi-agent + worktree pattern
-  - Maintains code isolation and merge safety
-- **Implementation**: Extend existing `[P]` marker system with swarm orchestration layer
+    - Validates incident.io multi-agent + worktree pattern
+    - Maintains code isolation and merge safety
+  - **Implementation**: Extend existing `[P]` marker system with swarm orchestration layer
 - **References**: incident.io workflow pattern, Worktrunk integration
 
 #### **Multi-Agent Review System** *(0% Complete)* - **MEDIUM PRIORITY**
@@ -816,9 +816,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Aggregated review reports with actionable items
   - **Benefits**:
     - Comprehensive pre-merge validation
-  - Specialized expertise without context bloat
-  - Consistent quality gates across team
-- **Integration**: Hook into `/spec.analyze` and pre-merge workflows
+    - Specialized expertise without context bloat
+    - Consistent quality gates across team
+  - **Integration**: Hook into `/spec.analyze` and pre-merge workflows
 
 #### **Knowledge Compounding System** *(0% Complete)* - **MEDIUM PRIORITY**
 
@@ -837,10 +837,10 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
   - **Benefits**:
     - Institutional knowledge preservation
-  - Accelerated future development through pattern reuse
-  - Reduced repeated mistakes
-  - Team learning velocity increase
-- **Integration**: Extend existing `/spec.levelup` with structured knowledge packets
+    - Accelerated future development through pattern reuse
+    - Reduced repeated mistakes
+    - Team learning velocity increase
+  - **Integration**: Extend existing `/spec.levelup` with structured knowledge packets
 
 #### **Browser Automation Integration** *(0% Complete)* - **LOW PRIORITY**
 
@@ -852,9 +852,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Screenshot-based validation in `/spec.implement`
   - **Benefits**:
     - Automated visual validation
-  - Reduced manual QA effort
-  - Better spec-to-implementation alignment
-- **Implementation**: Integration with Playwright, Puppeteer, or agent-browser
+    - Reduced manual QA effort
+    - Better spec-to-implementation alignment
+  - **Implementation**: Integration with Playwright, Puppeteer, or agent-browser
 
 #### **Cross-Platform Plugin Converter** *(0% Complete)* - **LOW PRIORITY**
 
@@ -869,9 +869,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - MCP server conversion
   - **Benefits**:
     - Broader agent ecosystem compatibility
-  - Reduced vendor lock-in
-  - Easier migration between AI tools
-- **Implementation**: Python-based converter leveraging existing AGENT_CONFIG
+    - Reduced vendor lock-in
+    - Easier migration between AI tools
+  - **Implementation**: Python-based converter leveraging existing AGENT_CONFIG
 
 #### **Task Delegation Templates** *(0% Complete)* - **MEDIUM PRIORITY*
 
@@ -887,9 +887,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - "When NOT to Spawn" guidelines to prevent context bloat
   - **Benefits**:
     - Optimized agent utilization
-  - Reduced unnecessary context window usage
-  - Better task-agent matching
-- **Integration**: Extend Tier 2 Sub-Agent Coordination Framework
+    - Reduced unnecessary context window usage
+    - Better task-agent matching
+  - **Integration**: Extend Tier 2 Sub-Agent Coordination Framework
 
 ### **Beads-Backed Task Execution Tracker** *(0% Complete)* - **MEDIUM PRIORITY** - Agent-native persistent work tracking
 
