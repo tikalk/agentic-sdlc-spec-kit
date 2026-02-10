@@ -1,9 +1,7 @@
-# EXAMPLE: Extension README
-
-This is an example of what your extension README should look like after customization.
-**Delete this file and replace README.md with content similar to this.**
-
----
+<!-- EXAMPLE: Extension README
+     This is an example of what your extension README should look like after customization.
+     Delete this file and replace README.md with content similar to this.
+-->
 
 # My Extension
 
