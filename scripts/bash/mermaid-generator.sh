@@ -1,29 +1,52 @@
 #!/usr/bin/env bash
 # Mermaid diagram generator for architecture views
 # Generates Mermaid code for all 7 Rozanski & Woods architectural views
+#
+# Core Views (always generated with --views=core):
+#   - Context, Functional, Information, Development, Deployment
+#
+# Optional Views (only with --views=all or --views=concurrency,operational):
+#   - Concurrency (3.4)
+#   - Operational (3.7)
 
 # Generate Context View diagram (system boundary)
+# CRITICAL: System must be shown as a SINGLE BLACKBOX - no internal components
+# Only show: Stakeholders (human actors) + External systems (third-party, outside your control)
+# DO NOT show: Internal databases, services, caches (those go in Deployment/Functional views)
 generate_context_mermaid() {
     local system_name="${1:-System}"
     
     cat <<'EOF'
 graph TD
-    Users["👥 Users"]
-    System["🏢 System<br/>(Main Application)"]
-    Database["🗄️ Database"]
-    ExternalAPI["🌐 External APIs"]
-    CloudServices["☁️ Cloud Services"]
+    %% Stakeholders (human actors interacting with the system)
+    Users["👥 Users/Clients"]
+    Admins["👤 Administrators"]
     
-    Users -->|Requests| System
-    System -->|Queries| Database
-    System -->|Integrates| ExternalAPI
-    System -->|Deploys to| CloudServices
+    %% THE SYSTEM - Single blackbox (NO internal components)
+    System["🏢 System<br/>(This Application)"]
     
-    classDef systemNode fill:#f47721,stroke:#333,stroke-width:2px,color:#fff
+    %% External Systems (third-party services outside your control)
+    ExtPayment["💳 Payment Provider<br/>(External)"]
+    ExtAuth["🔐 Identity Provider<br/>(External)"]
+    ExtAPI["🌐 Partner API<br/>(External)"]
+    
+    %% Stakeholder interactions
+    Users -->|"Uses"| System
+    Admins -->|"Manages"| System
+    
+    %% External system integrations
+    System -->|"Processes payments"| ExtPayment
+    System -->|"Authenticates via"| ExtAuth
+    System -->|"Exchanges data"| ExtAPI
+    
+    %% Styling
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
     classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
     
     class System systemNode
-    class Users,Database,ExternalAPI,CloudServices externalNode
+    class Users,Admins stakeholderNode
+    class ExtPayment,ExtAuth,ExtAPI externalNode
 EOF
 }
 
@@ -89,6 +112,7 @@ EOF
 }
 
 # Generate Concurrency View diagram (process timeline)
+# OPTIONAL VIEW: Only generated when --views=all or --views=concurrency
 generate_concurrency_mermaid() {
     cat <<'EOF'
 sequenceDiagram
@@ -189,6 +213,7 @@ EOF
 }
 
 # Generate Operational View diagram (operational workflow)
+# OPTIONAL VIEW: Only generated when --views=all or --views=operational
 generate_operational_mermaid() {
     cat <<'EOF'
 flowchart TD

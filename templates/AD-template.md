@@ -63,22 +63,36 @@
 
 #### 3.1.3 Context Diagram
 
+> **CRITICAL: Blackbox Requirement** - The system MUST appear as a single node. Do NOT show internal databases, services, or caches here (those belong in Deployment/Functional views).
+
 ```mermaid
 graph TD
-    Users["Users"]
-    System["System<br/>(Main Application)"]
-    Database["Database"]
-    ExternalAPI["External APIs"]
+    %% Stakeholders (human actors)
+    Users["Users/Clients"]
+    Admins["Administrators"]
     
-    Users -->|Requests| System
-    System -->|Queries| Database
-    System -->|Integrates| ExternalAPI
+    %% THE SYSTEM - Single blackbox
+    System["System<br/>(This Application)"]
     
-    classDef systemNode fill:#f47721,stroke:#333,stroke-width:2px,color:#fff
+    %% External Systems (third-party, outside your control)
+    ExtPayment["Payment Provider<br/>(External)"]
+    ExtAuth["Identity Provider<br/>(External)"]
+    
+    %% Stakeholder interactions
+    Users -->|"Uses"| System
+    Admins -->|"Manages"| System
+    
+    %% External system integrations
+    System -->|"Processes payments"| ExtPayment
+    System -->|"Authenticates via"| ExtAuth
+    
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
     classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
     
     class System systemNode
-    class Users,Database,ExternalAPI externalNode
+    class Users,Admins stakeholderNode
+    class ExtPayment,ExtAuth externalNode
 ```
 
 #### 3.1.4 External Dependencies
