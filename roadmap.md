@@ -794,8 +794,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Worktree-based isolation (validates incident.io pattern with 5+ agents)
   - Coordinated execution with dependency awareness
   - Phase-respecting orchestration (Setup → Foundational → Stories)
-- **Benefits**: 
-  - 3-5x faster execution for parallelizable tasks
+  - **Benefits**:
+    - 3-5x faster execution for parallelizable tasks
   - Validates incident.io multi-agent + worktree pattern
   - Maintains code isolation and merge safety
 - **Implementation**: Extend existing `[P]` marker system with swarm orchestration layer
@@ -814,8 +814,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Parallel review execution before merge
   - Review agent selection based on code changes
   - Aggregated review reports with actionable items
-- **Benefits**: 
-  - Comprehensive pre-merge validation
+  - **Benefits**:
+    - Comprehensive pre-merge validation
   - Specialized expertise without context bloat
   - Consistent quality gates across team
 - **Integration**: Hook into `/spec.analyze` and pre-merge workflows
@@ -829,12 +829,14 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Reusable solution templates for common problems
   - Team knowledge base with searchable patterns
   - Automatic skill generation from recurring patterns
-- **Workflow Enhancement**:
-  ```
-  Plan → Work → Review → Compound → Repeat
-  ```
-- **Benefits**: 
-  - Institutional knowledge preservation
+  - **Workflow Enhancement**:
+
+    ```text
+    Plan → Work → Review → Compound → Repeat
+    ```
+
+  - **Benefits**:
+    - Institutional knowledge preservation
   - Accelerated future development through pattern reuse
   - Reduced repeated mistakes
   - Team learning velocity increase
@@ -848,8 +850,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Visual regression testing integration
   - UI interaction recording and replay
   - Screenshot-based validation in `/spec.implement`
-- **Benefits**: 
-  - Automated visual validation
+  - **Benefits**:
+    - Automated visual validation
   - Reduced manual QA effort
   - Better spec-to-implementation alignment
 - **Implementation**: Integration with Playwright, Puppeteer, or agent-browser
@@ -865,8 +867,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Tool mapping between platforms (bash/read/write/edit)
   - Temperature inference from agent names
   - MCP server conversion
-- **Benefits**: 
-  - Broader agent ecosystem compatibility
+  - **Benefits**:
+    - Broader agent ecosystem compatibility
   - Reduced vendor lock-in
   - Easier migration between AI tools
 - **Implementation**: Python-based converter leveraging existing AGENT_CONFIG
@@ -883,8 +885,8 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - Context inheritance rules per agent type
   - Model selection guidance per agent type
   - "When NOT to Spawn" guidelines to prevent context bloat
-- **Benefits**: 
-  - Optimized agent utilization
+  - **Benefits**:
+    - Optimized agent utilization
   - Reduced unnecessary context window usage
   - Better task-agent matching
 - **Integration**: Extend Tier 2 Sub-Agent Coordination Framework
