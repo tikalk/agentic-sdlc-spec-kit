@@ -87,7 +87,8 @@ eval "$(get_feature_paths)"
 mkdir -p "$REPO_ROOT/memory"
 
 ARCHITECTURE_FILE="$REPO_ROOT/memory/architecture.md"
-TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
+SPECKIT_TEMPLATES_DIR="$SCRIPT_DIR/../../templates"
+TEMPLATE_FILE="$SPECKIT_TEMPLATES_DIR/AD-template.md"
 
 # Function to detect team size from git history
 detect_team_size() {
@@ -372,7 +373,7 @@ $diagram_code
 # Action: Specify (greenfield - interactive PRD exploration to create ADRs)
 action_specify() {
     local adr_file="$REPO_ROOT/memory/adr.md"
-    local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
+    local adr_template="$SPECKIT_TEMPLATES_DIR/adr-template.md"
     
     echo "📐 Setting up for interactive ADR creation..." >&2
     
@@ -453,7 +454,7 @@ action_clarify() {
 action_implement() {
     local adr_file="$REPO_ROOT/memory/adr.md"
     local ad_file="$REPO_ROOT/AD.md"
-    local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
+    local ad_template="$SPECKIT_TEMPLATES_DIR/AD-template.md"
     
     if [[ ! -f "$adr_file" ]]; then
         echo "❌ ADR file does not exist: $adr_file" >&2
@@ -508,7 +509,7 @@ action_init() {
     detected_size=$(detect_team_size)
     echo "📊 Team size tier: $detected_size" >&2
 
-    local lean_template="$REPO_ROOT/.specify/templates/AD-template-lean.md"
+    local lean_template="$SPECKIT_TEMPLATES_DIR/AD-template-lean.md"
     local selected_template="$TEMPLATE_FILE"
 
     if [[ "$detected_size" == "small" || "$detected_size" == "medium" ]]; then
