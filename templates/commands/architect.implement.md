@@ -107,29 +107,73 @@ Generate views in this order (earlier views inform later ones):
 
 **ADRs to Reference**: System style, integration patterns, external dependencies
 
+> **CRITICAL: Blackbox Requirement**
+>
+> The Context View MUST show the system as a **single blackbox node**. This view answers: "What does the system connect to?" NOT "What's inside the system?"
+>
+> **DO include**:
+>
+> - The system as ONE unified node (no internal components)
+> - Stakeholders/Users (human actors)
+> - External systems (third-party services outside your control)
+> - Data flows crossing the system boundary
+>
+> **DO NOT include**:
+>
+> - Internal databases (those go in Deployment View)
+> - Internal services/microservices (those go in Functional View)
+> - Internal caches, queues, or storage (those go in Deployment View)
+> - Implementation details of any kind
+
 **Generate**:
 
 - System scope description (from system style ADR)
-- External entities table (from integration ADRs)
-- Context diagram (Mermaid format)
+- External entities table - ONLY stakeholders and external systems
+- Context diagram showing system as single blackbox
 - External dependencies table (from dependency ADRs)
 
 **Diagram Template**:
 
 ```mermaid
 graph TD
-    subgraph "External Entities"
-        Users["Users/Clients"]
-        ExtSystem["External System"]
-        ExtAPI["External API"]
-    end
+    %% Stakeholders (human actors interacting with the system)
+    Users["Users/Clients"]
+    Admins["Administrators"]
     
+    %% THE SYSTEM - Single blackbox (NO internal components)
     System["[System Name]<br/>(This System)"]
     
-    Users -->|"[Interaction]"| System
-    System -->|"[Interaction]"| ExtSystem
-    System -->|"[Interaction]"| ExtAPI
+    %% External Systems (third-party, outside your control)
+    ExtPayment["Payment Provider<br/>(External)"]
+    ExtAuth["Identity Provider<br/>(External)"]
+    ExtAPI["Partner API<br/>(External)"]
+    
+    %% Stakeholder interactions
+    Users -->|"Uses"| System
+    Admins -->|"Manages"| System
+    
+    %% External system integrations
+    System -->|"Processes payments"| ExtPayment
+    System -->|"Authenticates"| ExtAuth
+    System -->|"Exchanges data"| ExtAPI
+    
+    %% Styling
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
+    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
+    
+    class System systemNode
+    class Users,Admins stakeholderNode
+    class ExtPayment,ExtAuth,ExtAPI externalNode
 ```
+
+**Validation Checklist** (verify before finalizing Context View):
+
+- [ ] System appears as exactly ONE node
+- [ ] No internal databases shown (e.g., PostgreSQL, Redis)
+- [ ] No internal services shown (e.g., AuthService, UserService)
+- [ ] All entities are either stakeholders OR external systems
+- [ ] All connections cross the system boundary
 
 #### 3.2 Functional View
 

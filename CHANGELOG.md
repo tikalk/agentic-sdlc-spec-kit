@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Context View Blackbox Enforcement**: Updated architect commands to strictly enforce blackbox system representation in Context View
+  - System MUST appear as a single unified node (no internal components)
+  - Only external actors (stakeholders/users) and external systems shown
+  - Internal databases, services, caches explicitly excluded from Context View
+  - Added validation checklist to `architect.implement` command
+  - Updated diagram templates with proper styling for stakeholders vs external systems
+  - Clear guidance on what belongs in Context View vs Functional/Deployment views
+
 ### Added
 
 - **Lean Architecture Views**: Configurable view generation with core vs optional views

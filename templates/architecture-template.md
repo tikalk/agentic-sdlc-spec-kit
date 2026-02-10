@@ -51,6 +51,13 @@
 
 **Purpose**: Define system scope and external interactions
 
+> **CRITICAL CONSTRAINT**: The Context View presents the system as a **single blackbox**. Internal components, services, or implementation details must NOT appear here. Only show:
+>
+> - The system as ONE unified node
+> - External actors (users, stakeholders)
+> - External systems the system integrates with
+> - Data flows crossing the system boundary
+
 #### 3.1.1 System Scope
 
 [High-level description of what the system does and its boundaries]
@@ -59,32 +66,54 @@
 
 | Entity | Type | Interaction Type | Data Exchanged | Protocols |
 |--------|------|------------------|----------------|-----------|
-| [ENTITY_1] | User/System/API | [e.g., REST API, UI] | [e.g., User credentials, requests] | [e.g., HTTPS, WebSocket] |
+| [ENTITY_1] | User/Stakeholder | [e.g., Web UI, Mobile App] | [e.g., User credentials, requests] | [e.g., HTTPS] |
 | [ENTITY_2] | [External System] | [Integration method] | [Data format] | [Protocol] |
+
+**Entity Types** (for Context View):
+
+- **Stakeholders/Users**: Human actors who interact with the system
+- **External Systems**: Third-party services, APIs, or systems outside your control
+- **Data Sources**: External databases or data feeds the system consumes
+- **Data Sinks**: External systems that receive data from this system
 
 #### 3.1.3 Context Diagram
 
 **Note**: Diagrams are auto-generated based on your configured format (mermaid or ascii).
 To change format, edit `~/.config/specify/config.json` and set `architecture.diagram_format`.
 
+> **Blackbox Requirement**: The system MUST appear as a single node. Do NOT show internal components (databases, caches, services) that are part of this system. Internal details belong in the Functional View (3.2) and Deployment View (3.6).
+
 ```mermaid
 graph TD
-    Users["👥 Users"]
-    System["🏢 System<br/>(Main Application)"]
-    Database["🗄️ Database"]
-    ExternalAPI["🌐 External APIs"]
-    CloudServices["☁️ Cloud Services"]
+    %% Stakeholders/Users (external actors)
+    Users["👥 End Users"]
+    Admins["👤 Administrators"]
     
-    Users -->|Requests| System
-    System -->|Queries| Database
-    System -->|Integrates| ExternalAPI
-    System -->|Deploys to| CloudServices
+    %% THE SYSTEM (single blackbox)
+    System["🏢 [SYSTEM_NAME]<br/>(This System)"]
     
-    classDef systemNode fill:#f47721,stroke:#333,stroke-width:2px,color:#fff
-    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
+    %% External Systems (third-party, outside your control)
+    PaymentGateway["💳 Payment Gateway<br/>(External)"]
+    EmailService["📧 Email Service<br/>(External)"]
+    IdentityProvider["🔐 Identity Provider<br/>(External)"]
+    
+    %% Connections: Stakeholders to System
+    Users -->|"Uses via Web/Mobile"| System
+    Admins -->|"Manages via Admin Portal"| System
+    
+    %% Connections: System to External Systems
+    System -->|"Processes payments"| PaymentGateway
+    System -->|"Sends notifications"| EmailService
+    System -->|"Authenticates users"| IdentityProvider
+    
+    %% Styling: System as prominent blackbox, externals as grey
+    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff,font-weight:bold
+    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
+    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px,color:#333
     
     class System systemNode
-    class Users,Database,ExternalAPI,CloudServices externalNode
+    class Users,Admins stakeholderNode
+    class PaymentGateway,EmailService,IdentityProvider externalNode
 ```
 
 #### 3.1.4 External Dependencies
