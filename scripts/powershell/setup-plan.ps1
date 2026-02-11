@@ -108,17 +108,6 @@ if (Test-Path $adrFile) {
     $adrFile = ''
 }
 
-# Legacy architecture file for backward compatibility
-$architectureFile = $env:SPECIFY_ARCHITECTURE
-if (-not $architectureFile) {
-    $architectureFile = Join-Path $paths.REPO_ROOT '.specify/memory/architecture.md'
-}
-if (Test-Path $architectureFile) {
-    $env:SPECIFY_ARCHITECTURE = $architectureFile
-} else {
-    $architectureFile = ''
-}
-
 # Output results
 if ($Json) {
     $result = [PSCustomObject]@{ 
@@ -129,7 +118,6 @@ if ($Json) {
         HAS_GIT = $paths.HAS_GIT
         CONSTITUTION = $constitutionFile
         TEAM_DIRECTIVES = $teamDirectives
-        ARCHITECTURE = $architectureFile
         AD = $adFile
         ADR = $adrFile
     }
@@ -159,8 +147,5 @@ if ($Json) {
         Write-Output "ADR: $adrFile"
     } else {
         Write-Output "ADR (Architecture Decision Records): (missing)"
-    }
-    if ($architectureFile) {
-        Write-Output "ARCHITECTURE (Legacy): $architectureFile"
     }
 }
