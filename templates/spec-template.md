@@ -1,6 +1,8 @@
 # Feature Specification: [FEATURE NAME]
 
 **Feature Branch**: `[###-feature-name]`  
+**Workflow Mode**: spec  
+**Framework Options**: tdd=true, contracts=true, data_models=true, risk_tests=true  
 **Created**: [DATE]  
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"

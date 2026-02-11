@@ -6,9 +6,9 @@ scripts:
 validation_scripts:
    sh: scripts/bash/validate-constitution.sh
    ps: scripts/powershell/validate-constitution.ps1
-handoffs: 
+handoffs:
   - label: Build Specification
-    agent: speckit.specify
+    agent: spec.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
 
@@ -39,7 +39,10 @@ $ARGUMENTS
 - Project context requiring constitutional guidance
 - Validation requests or compliance checks
 
-## Execution Strategy
+**Execution Strategy:**
+You are updating the project constitution at `.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.
+
+**Note**: If `.specify/memory/constitution.md` does not exist yet, it should have been initialized from `.specify/templates/constitution-template.md` during project setup. If it's missing, copy the template first.
 
 **Chain of Thought Approach:**
 
@@ -48,12 +51,22 @@ $ARGUMENTS
 3. **Apply Inheritance** → Map team principles to project context
 4. **Validate Integrity** → Ensure compliance and consistency
 5. **Generate Outputs** → Create validated constitution artifacts
+6. **Propagate Changes** → Update dependent templates with constitutional changes
+7. **Finalize** → Write validated constitution to `.specify/memory/constitution.md`
 
 ## Detailed Workflow
 
 ### Phase 1: Context Analysis & Inheritance
 
 **Objective:** Establish constitutional foundation through team inheritance
+
+**Consistency propagation checklist:**
+
+- Read `.specify/templates/plan-template.md` and ensure any "Constitution Check" or rules align with updated principles.
+- Read `.specify/templates/spec-template.md` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
+- Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
+- Read each command file in `.specify/templates/commands/*.md` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
+- Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific guidance files if present). Update references to principles changed.
 
 1. **Load Team Constitution**
    - Execute: `{SCRIPT}` to access team directives
@@ -118,14 +131,14 @@ $ARGUMENTS
 **Objective:** Complete constitution establishment with proper tracking
 
 1. **Artifact Generation**
-    - Write validated constitution to `/memory/constitution.md`
-    - Update version metadata and amendment timestamps
-    - Generate amendment history entry
+   - Write validated constitution to `/memory/constitution.md`
+   - Update version metadata and amendment timestamps
+   - Generate amendment history entry
 
 2. **User Communication**
-    - **Success Report:** Version, changes, and impact summary
-    - **Action Items:** Required follow-ups and manual interventions
-    - **Commit Guidance:** Suggested commit message with constitutional context
+   - **Success Report:** Version, changes, and impact summary
+   - **Action Items:** Required follow-ups and manual interventions
+   - **Commit Guidance:** Suggested commit message with constitutional context
 
 ## Error Handling & Edge Cases
 
@@ -167,4 +180,5 @@ $ARGUMENTS
 - Structured JSON output for automation integration
 - Human-readable summaries with actionable guidance
 - Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)
-Do not create a new template; always operate on the existing `/memory/constitution.md` file.
+
+Do not create a new template; always operate on the existing `.specify/memory/constitution.md` file.

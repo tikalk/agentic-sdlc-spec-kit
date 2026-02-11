@@ -2,10 +2,10 @@
 description: Create or update the feature specification from a natural language feature description.
 handoffs: 
   - label: Build Technical Plan
-    agent: speckit.plan
+    agent: spec.plan
     prompt: Create a plan for the spec. I am building with...
   - label: Clarify Spec Requirements
-    agent: speckit.clarify
+    agent: spec.clarify
     prompt: Clarify specification requirements
     send: true
 scripts:
@@ -21,17 +21,47 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Mode Detection
+## Parameters
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+Parse the following parameters from `$ARGUMENTS`:
 
-2. **Mode-Aware Behavior**:
+- `--mode=build|spec`: Workflow mode (default: spec)
+- `--tdd`: Enable TDD (overrides mode default)
+- `--no-tdd`: Disable TDD (overrides mode default)
+- `--contracts`: Enable API contracts (overrides mode default)
+- `--no-contracts`: Disable API contracts (overrides mode default)
+- `--data-models`: Enable data models (overrides mode default)
+- `--no-data-models`: Disable data models (overrides mode default)
+- `--risk-tests`: Enable risk-based testing (overrides mode default)
+- `--no-risk-tests`: Disable risk-based testing (overrides mode default)
+- `--architecture`: Enable feature-level architecture generation during planning
+- `--no-architecture`: Disable feature-level architecture generation
+
+**Mode-Specific Defaults**:
+
+- **Build Mode**: tdd=false, contracts=false, data_models=false, risk_tests=false, architecture=false
+- **Spec Mode**: tdd=true, contracts=true, data_models=true, risk_tests=true, architecture=false
+
+**Note**: Architecture is opt-in in both modes. Use `--architecture` to generate feature-level AD.md and adr.md during `/spec.plan`.
+
+After parsing, extract the feature description (everything after parameters).
+
+## Mode & Options Resolution
+
+1. **Determine Effective Mode**: Parse `--mode` from arguments, default to "spec" if not specified
+
+2. **Determine Effective Options**:
+   - Start with mode-specific defaults
+   - Override with explicit flags (e.g., `--no-tdd` overrides default)
+   - Pass to script as: `--mode build --tdd false --contracts false --data-models false --risk-tests false --architecture false`
+
+3. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight, conversational specification focused on quick validation and exploration
    - **Spec Mode**: Full structured specification with comprehensive requirements and validation
 
 ## Outline
 
-The text the user typed after `/speckit.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -65,16 +95,17 @@ Given that feature description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   d. Run the script `{SCRIPT}` with the calculated number and short-name:
-      - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description
-      - Bash example: `{SCRIPT} --json --number 5 --short-name "user-auth" "Add user authentication"`
-      - PowerShell example: `{SCRIPT} -Json -Number 5 -ShortName "user-auth" "Add user authentication"`
+   d. Run the script `{SCRIPT}` with the calculated number, short-name, mode, and options:
+      - Pass `--number N+1`, `--short-name "your-short-name"`, `--mode`, `--tdd`, `--contracts`, `--data-models`, `--risk-tests`, `--architecture`, and feature description
+      - Bash example: `{SCRIPT} --json --number 5 --short-name "user-auth" --mode spec --tdd true --contracts true --data-models true --risk-tests true --architecture false "Add user authentication"`
+      - PowerShell example: `{SCRIPT} -Json -Number 5 -ShortName "user-auth" -Mode spec -Tdd $true -Contracts $true -DataModels $true -RiskTests $true -Architecture $false "Add user authentication"`
 
    **IMPORTANT**:
    - Check all three sources (remote branches, local branches, specs directories) to find the highest number
    - Only match branches/directories with the exact short-name pattern
    - If no existing branches/directories found with this short-name, start with number 1
    - You must only ever run this script once per feature
+   - Pass mode and all five options (tdd, contracts, data_models, risk_tests, architecture) as boolean values
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
@@ -170,7 +201,7 @@ Given that feature description, do this:
 
       ## Notes
 
-       - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
+       - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
 
    b. **Run Validation Check**: Review the spec against each checklist item:
       - For each item, determine if it passes or fails
@@ -231,24 +262,40 @@ Given that feature description, do this:
 
 7. **Context Population** (mode-aware):
      - **Read the generated spec.md** and extract key information
+     - **Skills Auto-Discovery**:
+       - Analyze the feature description against installed skills in `.specify/skills/`
+       - Use relevance scoring (keyword overlap: 60% description, 40% content)
+       - Include skills with score >= threshold (default: 0.7, configurable)
+       - Maximum 3 skills (configurable via `max_auto_skills`)
+       - Format for context.md:
+
+          ```markdown
+          ## Relevant Skills (Auto-Detected)
+          - **skill-name**@version (confidence: 85%)
+          - Skill description here
+          ```
+
+       - If `preserve_user_edits: true`, merge with existing skills section
+       - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
        - **Mission**: Extract the core purpose/goal from the feature description
        - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
        - **Directives**: Reference applicable team directives from constitution/memory
        - **Research**: List any external research needs identified during specification
-       - **Gateway**: Specify API gateway/service mesh requirements if applicable
-     - **Build Mode**: Populate Feature and Mission (minimum required)
-     - **Spec Mode**: Populate all 6 fields with detailed, accurate values
+       - **Skills**: Auto-discovered relevant skills (see above)
+     - **Build Mode**: Populate Feature, Mission, and Skills (minimum required)
+     - **Spec Mode**: Populate all 5 fields with detailed, accurate values
      - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
 
 8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
-     - **Build Mode**: Ready for `/speckit.implement` (skip clarify/plan for lightweight execution)
-     - **Spec Mode**: Ready for `/speckit.clarify` or `/speckit.plan`
+     - **Build Mode**: Ready for `/spec.implement` (skip clarify/plan for lightweight execution)
+     - **Spec Mode**: Ready for `/spec.clarify` or `/spec.plan`
 
-9. **Mode Guidance & Transitions**:
-    - **Build Mode Users**: This mode prioritizes speed over completeness. If your feature becomes more complex, consider switching to Spec mode with `/mode spec` for comprehensive planning.
-    - **Spec Mode Users**: This mode provides thorough validation. If you need to quickly prototype, you can switch to Build mode with `/mode build`.
+9. **Mode Guidance**:
+    - **Build Mode**: This mode prioritizes speed over completeness. Use `--mode=build` during specification for rapid prototyping.
+    - **Spec Mode**: This mode provides thorough validation. Use `--mode=spec` (default) during specification for comprehensive planning.
+    - **Changing Modes**: Create a new feature with the desired mode using `/spec.specify --mode=build|spec` rather than trying to change an existing feature's mode.
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

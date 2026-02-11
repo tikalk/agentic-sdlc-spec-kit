@@ -2,11 +2,11 @@
 description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
 handoffs: 
   - label: Analyze For Consistency
-    agent: speckit.analyze
+    agent: spec.analyze
     prompt: Run a project analysis for consistency
     send: true
   - label: Implement Project
-    agent: speckit.implement
+    agent: spec.implement
     prompt: Start the implementation in phases
     send: true
 scripts:
@@ -22,7 +22,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Check mode configuration for risk-based testing. If enabled in `.specify/config/config.json` under `options.risk_tests_enabled`, enable risk-based test generation.
+Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`. Enable risk-based test generation if risk_tests=true is detected.
 
 ## Outline
 

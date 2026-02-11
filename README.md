@@ -214,16 +214,6 @@ specify init my-project --git-platform github
 specify init my-project --git-platform gitlab
 ```
 
-#### Gateway Configuration
-
-```bash
-# Configure central LLM gateway
-specify init my-project --gateway-url https://proxy.internal --gateway-token $TOKEN
-
-# Suppress gateway warnings
-specify init my-project --gateway-suppress-warning
-```
-
 #### Advanced Options
 
 ```bash
@@ -250,56 +240,90 @@ specify init my-project --spec-sync
 specify init my-project --ai claude --spec-sync
 ```
 
-### Workflow Mode Management
+### Per-Spec Workflow Mode Architecture
 
-Specify supports two workflow modes that control the complexity level of the development process:
+Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows. The mode is configured at the specification level and applies to all downstream commands.
 
 #### Available Modes
 
 - **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
 - **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
 
-#### Mode Commands
+#### Mode Configuration
+
+Modes are configured per-feature when creating the specification:
 
 ```bash
-# Show current mode and available options
-/mode
+# Create feature with specific mode
+/spec.specify --mode=build "Quick API fix"
+/spec.specify --mode=spec "Comprehensive user authentication"
 
-# Switch to build mode (lightweight development)
-/mode build
+# Override framework options per feature
+/spec.specify --mode=build --tdd "Critical feature with tests"
+/spec.specify --mode=spec --no-contracts "Feature without API contracts"
 
-# Switch to spec mode (comprehensive development)
-/mode spec
-
-# Show detailed information about all modes
-/mode --info
+# Mode-specific defaults automatically applied
+# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
+# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
 ```
+
+#### Framework Options
+
+Fine-grained control over development approach:
+
+```bash
+# Test-Driven Development
+--tdd / --no-tdd
+
+# Smart Contracts (API specifications)
+--contracts / --no-contracts
+
+# Data Models (entity relationships)
+--data-models / --no-data-models
+
+# Risk-Based Testing
+--risk-tests / --no-risk-tests
+```
+
+#### Mode Detection and Auto-Detection
+
+The mode is stored in the `spec.md` file metadata and automatically detected by downstream commands:
+
+- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect mode and framework options from the current feature's spec.md
+- **`/architect.*`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
 
 #### When to Use Each Mode
 
 **Use `build` mode for:**
 
-- Prototyping and exploration
-- Simple features with clear requirements
-- Quick validation of ideas
-- When you want to get something working fast
+- Individual development and rapid prototyping
+- Quick wins and simple features  
+- Senior engineers who prefer autonomy
+- Situations requiring fast iteration
 
 **Use `spec` mode for:**
 
-- Complex features requiring thorough analysis
-- Team collaboration with detailed documentation
-- Production systems needing comprehensive validation
-- When you need full traceability and quality gates
+- Team collaboration and complex systems
+- Production features requiring comprehensive validation
+- Situations where thorough documentation is critical
+- Projects with multiple stakeholders
 
-#### Mode-Aware Commands
+#### Mixed-Mode Workflows
 
-All slash commands adapt their behavior based on the current mode:
+The per-spec architecture enables advanced workflows:
 
-- **`/speckit.specify`**: Build mode uses simplified templates, spec mode uses comprehensive validation
-- **`/speckit.clarify`**: Build mode limits questions to 2, spec mode allows up to 5
-- **`/speckit.plan`**: Build mode creates lightweight plans, spec mode includes full research
-- **`/speckit.implement`**: Build mode focuses on core functionality, spec mode includes comprehensive quality gates
-- **`/speckit.analyze`**: Auto-detects pre vs post-implementation context based on project state
+```bash
+# Create multiple features with different modes in same project
+/spec.specify --mode=build "Quick prototype feature"
+/spec.specify --mode=spec "Production authentication system"
+/spec.specify --mode=build "Bug fix"
+
+# Each feature operates independently with its configured mode
+/spec.plan    # Auto-detects mode from current feature's spec.md
+/spec.tasks   # Respects framework options from spec.md
+/spec.implement # Adapts validation based on detected mode
+/spec.analyze # Auto-detects pre vs post-implementation context based on project state
+```
 
 #### Complete Example
 
@@ -309,59 +333,163 @@ specify init my-project \
   --script sh \
   --team-ai-directives https://github.com/your-org/team-ai-directives.git \
   --issue-tracker github \
-  --async-agent jules \
-  --gateway-url https://proxy.internal \
-  --gateway-token $TOKEN
+  --async-agent jules
 ```
+
+### Optional Architecture Support
+
+The toolkit includes comprehensive architecture documentation support that works with both build and spec modes. Architecture commands are optional and can be used at any time, regardless of workflow mode.
+
+#### Two-Level Architecture System
+
+| Level | Location | ADR File | Architecture Description | Commands |
+|-------|----------|----------|--------------------------|----------|
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | `architect.*` |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `spec.plan --architecture` |
+
+#### Architecture Workflow
+
+```bash
+# Interactive PRD exploration to create system-level ADRs (greenfield)
+/architect.specify "B2B SaaS platform for real-time supply chain management"
+
+# Reverse-engineer architecture from existing codebase (brownfield)
+/architect.init "Django monolith with PostgreSQL, React frontend, deployed on AWS ECS"
+
+# Refine and clarify ADRs through targeted questions
+/architect.clarify
+
+# Generate full Architecture Description from ADRs
+/architect.implement
+
+# Then proceed with normal workflow
+/spec.specify "Feature within this architecture"
+
+# Or generate feature-level architecture during planning
+/spec.plan --architecture
+```
+
+#### Architecture Commands
+
+| Command | Description |
+|---------|-------------|
+| `architect.specify` | Interactive PRD exploration to create system-level ADRs |
+| `architect.clarify` | Refine ADRs through targeted clarification questions |
+| `architect.init` | Reverse-engineer architecture from existing codebase (brownfield) |
+| `architect.implement` | Generate full Architecture Description (AD.md) from ADRs |
+
+**Feature Architecture**: Use `/spec.plan --architecture` or set `architecture=true` in spec.md Framework Options to generate feature-level architecture (`specs/{feature}/AD.md` and `specs/{feature}/adr.md`).
+
+#### Architecture Configuration Options
+
+The architecture commands support additional configuration options for fine-tuned control:
+
+**Views Selection** (`--views`):
+
+- `core` (default) - Generate the essential 5 views: Context, Functional, Information, Development, Deployment
+- `all` - Include all 7 views including Concurrency and Operational
+- `concurrency,operational` - Custom selection (comma-separated), always includes core views
+
+```bash
+# Default core views
+/architect.init "E-commerce platform"
+
+# All views including concurrency and operational
+/architect.init --views all "High-throughput trading system"
+
+# Custom selection
+/architect.init --views concurrency "Real-time data processing pipeline"
+```
+
+**ADR Generation Heuristic** (`--adr-heuristic`):
+
+- `surprising` (default) - Only document decisions that deviate from obvious ecosystem defaults
+- `all` - Document every architectural decision
+- `minimal` - Document only high-risk or non-obvious decisions
+
+```bash
+# Skip documenting obvious choices (PostgreSQL for relational data, React for SPA)
+/architect.specify --adr-heuristic surprising "Standard web application"
+
+# Document every decision
+/architect.specify --adr-heuristic all "Complex multi-tenant system"
+
+# Minimal documentation
+/architect.specify --adr-heuristic minimal "Internal tool with simple requirements"
+```
+
+#### Rozanski & Woods Viewpoints
+
+The `architect.*` commands generate documentation covering:
+
+1. **Context View** - System scope and external interactions
+2. **Functional View** - Functional elements and responsibilities
+3. **Information View** - Data storage, management, and flow
+4. **Concurrency View** - Runtime processes and coordination
+5. **Development View** - Code organization and CI/CD
+6. **Deployment View** - Physical infrastructure and environments
+7. **Operational View** - Operations, monitoring, and support
+
+Plus cross-cutting **Perspectives**: Security, Performance & Scalability
 
 ### 2. Establish project principles
 
-Launch your AI assistant in the project directory. The `/speckit.*` commands are available in the assistant.
+Launch your AI assistant in the project directory. The `/spec.*` commands are available in the assistant.
 
-Use the **`/speckit.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
+Use the **`/spec.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
 
 ```bash
-/speckit.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
+/spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
 ```
 
 ### 3. Create the spec
 
-Use the **`/speckit.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
+Use the **`/spec.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
 ```bash
-/speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/spec.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ### 4. Create a technical implementation plan
 
-Use the **`/speckit.plan`** command to provide your tech stack and architecture choices.
+Use the **`/spec.plan`** command to provide your tech stack and architecture choices.
 
 ```bash
-/speckit.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/spec.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
 ### 5. Break down into tasks
 
-Use **`/speckit.tasks`** to create an actionable task list from your implementation plan.
+Use **`/spec.tasks`** to create an actionable task list from your implementation plan.
 
 ```bash
-/speckit.tasks
+/spec.tasks
 ```
 
 ### 6. Execute implementation
 
-Use **`/speckit.implement`** to execute all tasks and build your feature according to the plan. Supports both synchronous (interactive) and asynchronous (autonomous) execution modes.
+Use **`/spec.implement`** to execute all tasks and build your feature according to the plan. Supports both synchronous (interactive) and asynchronous (autonomous) execution modes.
 
 ```bash
-/speckit.implement
+/spec.implement
 ```
 
-### 7. Level up and contribute knowledge
+### 7. Generate session trace (optional)
 
-Use **`/speckit.levelup`** to capture learnings from completed work and contribute reusable knowledge back to your team's shared repository.
+Use **`/spec.trace`** to generate comprehensive AI session execution traces capturing decisions, patterns, and outcomes.
 
 ```bash
-/speckit.levelup "Document the patterns learned from this implementation for future reference"
+/spec.trace
+```
+
+**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/spec.levelup` context packets when present.
+
+### 8. Level up and contribute knowledge
+
+Use **`/spec.levelup`** to capture learnings from completed work and contribute reusable knowledge back to your team's shared repository.
+
+```bash
+/spec.levelup "Document the patterns learned from this implementation for future reference"
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -389,6 +517,150 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
 
+## 📦 Skills Package Manager
+
+The Specify toolkit includes a **Skills Package Manager** - a developer-grade package manager for agent skills that treats skills as versioned software dependencies. Skills enable AI agents to follow team practices, coding standards, and domain-specific guidelines.
+
+### What Are Skills?
+
+Skills are reusable, versioned knowledge packages that guide AI agents in making consistent technical decisions. They can cover:
+
+- **Best Practices**: Framework patterns, testing strategies, code organization
+- **Team Standards**: Coding conventions, naming patterns, architectural principles
+- **Domain Knowledge**: Business logic, compliance requirements, domain patterns
+- **Quality Guidelines**: Performance optimization, security hardening, accessibility standards
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **Auto-Discovery** | Skills automatically matched to features based on descriptions (60% keyword overlap, 40% content analysis) |
+| **Dual Registry** | Search public [skills.sh](https://skills.sh) registry + install from GitHub, GitLab, or local paths |
+| **Team Curation** | Define required skills (auto-installed), recommended skills, and blocked skills in `team-ai-directives/skills.json` |
+| **Quality Evaluation** | Built-in 100-point scoring framework: frontmatter (20pts), content organization (30pts), self-containment (30pts), documentation (20pts) |
+| **Zero Dependencies** | Direct GitHub installation with no npm or external tool dependencies |
+| **Policy Enforcement** | Team-level policies for auto-installation, version constraints, and skill blocking |
+
+### Available Commands
+
+```bash
+# Search the public skills registry
+specify skill search "react best practices"
+
+# Install a skill from GitHub
+specify skill install github:vercel-labs/agent-skills/react-best-practices
+
+# List all installed skills
+specify skill list --json
+
+# Evaluate skill quality
+specify skill eval ./my-skill --review        # Structure quality (100-point score)
+specify skill eval ./my-skill --task          # Behavioral impact via test scenarios
+specify skill eval ./my-skill --full          # Complete evaluation
+
+# Manage skills
+specify skill update [name|--all]              # Update to latest versions
+specify skill remove <name>                    # Uninstall a skill
+specify skill sync-team                        # Sync with team manifest
+specify skill check-updates                    # Check for available updates
+specify skill config [key] [value]             # View/modify configuration
+```
+
+### Team Skills Manifest
+
+Define your team's skill strategy in `team-ai-directives/skills.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "source": "team-ai-directives",
+  "skills": {
+    "required": {
+      "github:vercel-labs/agent-skills/react-best-practices": "^1.2.0",
+      "github:your-org/internal-skills/company-patterns": "~2.0.0"
+    },
+    "recommended": {
+      "github:vercel-labs/agent-skills/web-design-guidelines": "~1.0.0"
+    },
+    "internal": {
+      "local:./skills/dbt-workflow": "*"
+    },
+    "blocked": [
+      "github:unsafe-org/deprecated-skill"
+    ]
+  },
+  "policy": {
+    "auto_install_required": true,
+    "enforce_blocked": true,
+    "allow_project_override": true
+  }
+}
+```
+
+### Skill Auto-Discovery Workflow
+
+When you run `/spec.specify`, the Skills Package Manager automatically:
+
+1. **Analyzes** your feature description against installed skills
+2. **Scores** relevance using keyword matching (60% description, 40% content)
+3. **Selects** top 3 skills above threshold (default 0.7, configurable)
+4. **Injects** relevant skills into `specs/{feature}/context.md`
+
+Example auto-discovery output:
+
+```markdown
+## Relevant Skills (Auto-Detected)
+
+- **react-best-practices**@1.2.0 (confidence: 0.95)
+  - React component patterns, hooks best practices, performance optimization
+  
+- **typescript-guidelines**@1.0.0 (confidence: 0.82)
+  - Type safety patterns, interface design, error handling
+  
+- **testing-strategies**@2.0.1 (confidence: 0.78)
+  - Test organization, coverage targets, mocking patterns
+```
+
+### Configuration
+
+Skills configuration is stored in `~/.config/specify/config.json`:
+
+```json
+{
+  "skills": {
+    "auto_activation_threshold": 0.7,
+    "max_auto_skills": 3,
+    "preserve_user_edits": true,
+    "registry_url": "https://skills.sh/api",
+    "evaluation_required": false
+  }
+}
+```
+
+### Integration Points
+
+- **`specify init`** - Auto-installs team required skills during project setup
+- **`/spec.specify`** - Auto-discovers and injects relevant skills per feature
+- **`/spec.plan`** - References activated skills in planning
+- **`/spec.implement`** - Agent applies skill guidance during implementation
+- **`team-ai-directives/skills.json`** - Central skill registry alongside MCP configuration
+
+### Benefits
+
+1. **Consistency** - All team members follow same practices and patterns
+2. **Quality** - Skills embed best practices and quality standards
+3. **Speed** - Auto-discovery eliminates manual guidance searching
+4. **Learning** - Skills capture team knowledge for reuse and growth
+5. **Governance** - Team policies enforce standards while allowing overrides
+
+### Learning More
+
+- **[Skills Registry](https://skills.sh)** - Discover public skills from the community
+- **[Agent Skills Format](https://agentskills.io/)** - Standard format for creating skills
+- **[Roadmap Details](./roadmap.md#-skills-package-manager--100-complete---completed---extends-factor-xi-directives-as-code)** - Technical implementation details
+
+---
+
 ## 🔧 Specify CLI Reference
 
 The `specify` command supports the following options:
@@ -399,7 +671,7 @@ The `specify` command supports the following options:
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
 | `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `shai`, `qoder`) |
-| `mode`      | Manage workflow modes and framework opinions for development complexity control |
+| `skill`     | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
 
@@ -419,24 +691,74 @@ The `specify` command supports the following options:
 | `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
 | `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
 | `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                     |
-| `--gateway-url`              | Option   | Central LLM gateway URL                                                    |
-| `--gateway-token`             | Option   | Gateway authentication token                                               |
-| `--gateway-suppress-warning` | Flag     | Suppress gateway warning messages                                          |
 | `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 
-### `/mode` Arguments & Options
+### `/spec.specify` Mode & Framework Options
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
-| `<mode>`        | Argument | Workflow mode: `build` (lightweight) or `spec` (comprehensive) - leave empty to show current mode |
+| `--mode`        | Option   | Workflow mode: `build` (lightweight) or `spec` (comprehensive, default) |
 | `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
 | `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
 | `--risk-tests/--no-risk-tests` | Option | Enable/disable risk-based test generation |
-| `--reset-opinions` | Option | Reset framework opinions to mode defaults |
-| `--info`, `-i`  | Flag     | Show detailed information about available modes                             |
+
+### `specify skill` Commands & Options
+
+The Skills Package Manager is accessed via the `specify skill` subcommand:
+
+| Command                          | Description                                                            |
+|----------------------------------|------------------------------------------------------------------------|
+| `search <query>`                 | Search the public skills.sh registry for matching skills              |
+| `install <ref>`                  | Install a skill (GitHub: `github:owner/repo/skill`, GitLab: `gitlab:host/owner/repo/skill`, Local: `local:./path`) |
+| `list [--outdated\|--json]`     | List installed skills with optional filtering                         |
+| `eval <path> [--review\|--task\|--full\|--report]` | Evaluate skill quality: review (structure), task (behavior), full (both), or report (HTML) |
+| `update [name\|--all]`           | Update specified skill or all skills to latest versions               |
+| `remove <name>`                  | Uninstall a skill                                                      |
+| `sync-team [--dry-run]`          | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
+| `check-updates`                  | Check for available skill updates                                     |
+| `config [key] [value]`           | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`) |
 
 ### Examples
+
+#### Skills Commands
+
+```bash
+# Search for skills in the public registry
+specify skill search "react best practices"
+specify skill search "typescript"
+
+# Install skills from GitHub
+specify skill install github:vercel-labs/agent-skills/react-best-practices
+specify skill install github:your-org/internal-skills/company-patterns
+
+# Install local skills
+specify skill install local:./skills/my-custom-skill
+
+# List installed skills
+specify skill list
+specify skill list --outdated
+specify skill list --json
+
+# Evaluate skill quality
+specify skill eval ./my-skill --review      # 100-point structure score
+specify skill eval ./my-skill --task        # Behavioral impact testing
+specify skill eval ./my-skill --full        # Complete evaluation
+
+# Update skills
+specify skill update react-best-practices
+specify skill update --all
+
+# Manage team skills
+specify skill sync-team --dry-run            # Preview changes
+specify skill sync-team                      # Apply changes
+specify skill check-updates
+
+# Configure skills
+specify skill config auto_activation_threshold 0.8
+specify skill config max_auto_skills 5
+
+#### Project Initialization
 
 ```bash
 # Basic project initialization
@@ -491,20 +813,16 @@ specify init my-project --ai claude --team-ai-directives https://github.com/your
 # Initialize with async agent support for autonomous task execution
 specify init my-project --ai claude --async-agent jules
 
-# Initialize with central LLM gateway configuration
-specify init my-project --ai claude --gateway-url https://proxy.internal --gateway-token $TOKEN
-
 # Complex example: Enterprise setup with all integrations
-specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --gateway-url https://llm-gateway.company.com --gateway-token $GATEWAY_TOKEN --github-token $GH_TOKEN
+specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --github-token $GH_TOKEN
 
 # Check system requirements
 specify check
 
-# Workflow mode management
-/mode                    # Show current mode
-/mode build             # Switch to lightweight build mode
-/mode spec              # Switch to comprehensive spec mode
-/mode --info            # Show detailed mode information
+# Workflow mode management is per-feature during specification
+/spec.specify --mode build "Quick prototype feature"      # Create feature in build mode
+/spec.specify --mode spec "Complex feature"                # Create feature in spec mode (default)
+/spec.specify --mode build --tdd "Feature with tests"     # Build mode with TDD enabled
 ```
 
 ### Available Slash Commands
@@ -517,12 +835,17 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
-| `/speckit.constitution`  | Create or update project governing principles and development guidelines |
-| `/speckit.specify`       | Define what you want to build (requirements and user stories)        |
-| `/speckit.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
-| `/speckit.tasks`         | Generate actionable task lists for implementation     |
-| `/speckit.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
-| `/speckit.levelup`       | Capture learnings and contribute to team knowledge repository        |
+| `/architect.specify`  | Interactive PRD exploration to create system-level ADRs |
+| `/architect.clarify`  | Refine ADRs through targeted clarification questions |
+| `/architect.init`     | Reverse-engineer architecture from existing codebase (brownfield) |
+| `/architect.implement`| Generate full Architecture Description (AD.md) from ADRs |
+| `/spec.constitution`  | Create or update project governing principles and development guidelines |
+| `/spec.specify`       | Define what you want to build (requirements and user stories)        |
+| `/spec.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
+| `/spec.tasks`         | Generate actionable task lists for implementation     |
+| `/spec.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
+| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup`) |
+| `/spec.levelup`       | Capture learnings and contribute to team knowledge repository        |
 
 #### Optional Commands
 
@@ -530,15 +853,15 @@ Additional commands for enhanced quality and validation:
 
 | Command              | Description                                                                                                                          |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `/speckit.clarify`   | Clarify underspecified areas (recommended before `/speckit.plan`; formerly `/quizme`)                                                |
-| `/speckit.analyze`   | Cross-artifact consistency & coverage analysis (run after `/speckit.tasks`, before `/speckit.implement`)                             |
-| `/speckit.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+| `/spec.clarify`   | Clarify underspecified areas (recommended before `/spec.plan`; formerly `/quizme`)                                                |
+| `/spec.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
+| `/spec.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
 ### Environment Variables
 
 | Variable          | Description                                                                                                                                                                                                                                                                                            |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>\*\*Must be set in the context of the agent you're working with prior to using `/speckit.plan` or follow-up commands. |
+| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>\*\*Must be set in the context of the agent you're working with prior to using `/spec.plan` or follow-up commands. |
 
 ## 📚 Core Philosophy
 
@@ -676,19 +999,19 @@ Go to the project folder and run your AI agent. In our example, we're using `cla
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/speckit.constitution`, `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` commands available.
+You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, and `/spec.implement` commands available.
 
-The first step should be establishing your project's governing principles using the `/speckit.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
+The first step should be establishing your project's governing principles using the `/spec.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
 ```text
-/speckit.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
+/spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
 ```
 
 This step creates or updates the `.specify/memory/constitution.md` file with your project's foundational guidelines that the AI agent will reference during specification, planning, and implementation phases.
 
 ### **STEP 2:** Create project specifications
 
-With your project principles established, you can now create the functional specifications. Use the `/speckit.specify` command and then provide the concrete requirements for the project you want to develop.
+With your project principles established, you can now create the functional specifications. Use the `/spec.specify` command and then provide the concrete requirements for the project you want to develop.
 
 > [!IMPORTANT]
 > Be as explicit as possible about *what* you are trying to build and *why*. **Do not focus on the tech stack at this point**.
@@ -749,12 +1072,12 @@ You should run the structured clarification workflow **before** creating a techn
 
 Preferred order:
 
-1. Use `/speckit.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
+1. Use `/spec.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
 2. Optionally follow up with ad-hoc free-form refinement if something still feels vague.
 
 If you intentionally want to skip clarification (e.g., spike or exploratory prototype), explicitly state that so the agent doesn't block on missing clarifications.
 
-Example free-form refinement prompt (after `/speckit.clarify` if still needed):
+Example free-form refinement prompt (after `/spec.clarify` if still needed):
 
 ```text
 For each sample project or project that you create there should be a variable number of tasks between 5 and 15
@@ -772,7 +1095,7 @@ It's important to use the interaction with Claude Code as an opportunity to clar
 
 ### **STEP 4:** Generate a plan
 
-You can now be specific about the tech stack and other technical requirements. You can use the `/speckit.plan` command that is built into the project template with a prompt like this:
+You can now be specific about the tech stack and other technical requirements. You can use the `/spec.plan` command that is built into the project template with a prompt like this:
 
 ```text
 We are going to generate this using .NET Aspire, using Postgres as the database. The frontend should use
@@ -856,12 +1179,12 @@ You can also ask Claude Code (if you have the [GitHub CLI](https://docs.github.c
 > [!NOTE]
 > Before you have the agent implement it, it's also worth prompting Claude Code to cross-check the details to see if there are any over-engineered pieces (remember - it can be over-eager). If over-engineered components or decisions exist, you can ask Claude Code to resolve them. Ensure that Claude Code follows the [constitution](base/memory/constitution.md) as the foundational piece that it must adhere to when establishing the plan.
 
-### **STEP 6:** Generate task breakdown with /speckit.tasks
+### **STEP 6:** Generate task breakdown with /spec.tasks
 
-With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/speckit.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
+With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/spec.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
 
 ```text
-/speckit.tasks
+/spec.tasks
 ```
 
 This step creates a `tasks.md` file in your feature specification directory that contains:
@@ -873,17 +1196,17 @@ This step creates a `tasks.md` file in your feature specification directory that
 - **Test-driven development structure** - If tests are requested, test tasks are included and ordered to be written before implementation
 - **Checkpoint validation** - Each user story phase includes checkpoints to validate independent functionality
 
-The generated tasks.md provides a clear roadmap for the `/speckit.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
+The generated tasks.md provides a clear roadmap for the `/spec.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
 
 ### **STEP 7:** Implementation
 
-Once ready, use the `/speckit.implement` command to execute your implementation plan:
+Once ready, use the `/spec.implement` command to execute your implementation plan:
 
 ```text
-/speckit.implement
+/spec.implement
 ```
 
-The `/speckit.implement` command will:
+The `/spec.implement` command will:
 
 - Validate that all prerequisites are in place (constitution, spec, plan, and tasks)
 - Parse the task breakdown from `tasks.md`

@@ -159,8 +159,15 @@ function Generate-Commands {
         $body = $body -replace '__AGENT__', $Agent
         $body = Rewrite-Paths -Content $body
         
+        # Determine output filename - architect commands don't get spec. prefix
+        if ($name -like 'architect.*') {
+            $outputName = $name
+        } else {
+            $outputName = "spec.$name"
+        }
+        
         # Generate output file based on extension
-        $outputFile = Join-Path $OutputDir "speckit.$name.$Extension"
+        $outputFile = Join-Path $OutputDir "$outputName.$Extension"
         
         switch ($Extension) {
             'toml' {
@@ -186,7 +193,7 @@ function Generate-CopilotPrompts {
     
     New-Item -ItemType Directory -Path $PromptsDir -Force | Out-Null
     
-    $agentFiles = Get-ChildItem -Path "$AgentsDir/speckit.*.agent.md" -File -ErrorAction SilentlyContinue
+    $agentFiles = Get-ChildItem -Path "$AgentsDir/spec.*.agent.md" -File -ErrorAction SilentlyContinue
     
     foreach ($agentFile in $agentFiles) {
         $basename = $agentFile.Name -replace '\.agent\.md$', ''

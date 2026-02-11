@@ -2,11 +2,11 @@
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 handoffs: 
   - label: Create Tasks
-    agent: speckit.tasks
+    agent: spec.tasks
     prompt: Break the plan into tasks
     send: true
   - label: Create Checklist
-    agent: speckit.checklist
+    agent: spec.checklist
     prompt: Create a checklist for the following domain...
 scripts:
     sh: scripts/bash/setup-plan.sh --json
@@ -16,13 +16,37 @@ agent_scripts:
     ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+### Parameters
+
+Parse the following parameters from `$ARGUMENTS`:
+
+- `--architecture`: Enable feature-level architecture generation (creates `specs/{feature}/AD.md` and `specs/{feature}/adr.md`)
+
+**Note**: The `--architecture` flag can also be set via spec.md Framework Options (`architecture=true`) or global config.
+
 ## Mode Detection
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect the workflow mode and framework options from the current feature's `spec.md` file. This reads the `**Workflow Mode**` and `**Framework Options**` metadata lines.
 
 2. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight planning focused on core implementation approach and basic structure
    - **Spec Mode**: Full research-driven planning with comprehensive design artifacts and validation
+
+3. **Framework Options**: Respect detected framework options (tdd, contracts, data_models, risk_tests, architecture) when planning implementation approach and deliverables.
+
+4. **Architecture Option Resolution**:
+   - If `--architecture` flag provided: Enable feature architecture generation
+   - Else if spec.md has `architecture=true` in Framework Options: Enable
+   - Else if global config has `options.architecture=true`: Enable
+   - Default: `architecture=false` (opt-in feature)
 
 ## Role & Context
 
@@ -40,7 +64,7 @@ You are a **Technical Planning Architect** responsible for transforming feature 
 - Constitution governs all technical decisions
 - Quality gates prevent premature advancement
 
-## User Input
+## Input Processing
 
 ```text
 $ARGUMENTS
@@ -162,8 +186,8 @@ $ARGUMENTS
 
 **Framework Opinions Check:**
 
-- Check current mode and opinion settings via `/mode`
-- Respect user configuration for contracts and data models
+- Detect current mode and framework options from spec.md metadata using `detect_workflow_config()`
+- Respect framework configuration for contracts and data models based on detected mode
 
 1. **Extract entities from feature spec** → `data-model.md` (if data models enabled):
     - Only generate if data models are enabled in current mode settings
@@ -189,6 +213,45 @@ $ARGUMENTS
 - data-model.md (if data models enabled)
 - /contracts/* (if contracts enabled)
 - quickstart.md, agent-specific file (always generated)
+
+#### Phase 2: Feature Architecture (if `--architecture` enabled)
+
+**Prerequisites:** Research complete (Spec Mode) or core approach defined (Build Mode)
+
+**Trigger**: `--architecture` flag OR `architecture=true` in spec.md Framework Options
+
+1. **Load System Architecture**:
+   - Read `AD.md` (root) for system-level architecture context
+   - Read `memory/adr.md` for system-level ADRs
+   - Extract relevant viewpoints and constraints
+
+2. **Identify Feature-Specific Decisions**:
+   - What new components does this feature introduce?
+   - What existing components are modified?
+   - What data entities are added/changed?
+   - What integration points are affected?
+
+3. **Generate Feature ADRs**:
+   - Create `specs/{feature}/adr.md` with feature-level decisions
+   - Each ADR should reference system ADRs: "Aligns with ADR-XXX"
+   - Flag any conflicts: "VIOLATION: Conflicts with ADR-XXX"
+
+4. **Generate Feature Architecture Description**:
+   - Use `templates/feature-AD-template.md` as base
+   - Focus on feature context, functional design, data design
+   - Include integration points with system architecture
+   - Generate feature-specific diagrams
+
+5. **Cross-Validate Against System AD**:
+   - Verify feature doesn't violate system boundaries
+   - Ensure consistency with system component patterns
+   - Check data model compatibility with Information View
+   - Validate deployment approach fits Deployment View
+
+**Output**:
+
+- `specs/{feature}/adr.md` (feature-level decisions)
+- `specs/{feature}/AD.md` (feature architecture description)
 
 ## Triage Framework: [SYNC] vs [ASYNC] Task Classification (Mode-Aware)
 
@@ -290,7 +353,24 @@ $ARGUMENTS
 - Complete design artifacts and thorough triage
 - Suitable for: Complex features, team collaboration, production systems
 
-**Mode Transitions:**
+**Mode Guidance:**
 
-- Build → Spec: Use `/mode spec` when feature complexity increases or comprehensive planning is needed
-- Spec → Build: Use `/mode build` for rapid prototyping or when detailed planning creates overhead
+- Build Mode: Feature specified with `--mode=build` focuses on quick validation with minimal artifacts
+- Spec Mode: Feature specified with `--mode=spec` includes comprehensive planning and full artifact generation
+- To use a different mode: Create a new feature with the desired mode using `/spec.specify --mode=build|spec`
+
+**Architecture Option:**
+
+- Use `--architecture` flag to generate feature-level architecture artifacts
+- Feature ADRs are auto-validated against system ADRs in `memory/adr.md`
+- Conflicts flagged as VIOLATION requiring resolution
+- Aligned decisions noted with "Aligns with ADR-XXX"
+
+### Two-Level Architecture System
+
+| Level | Location | ADR File | Architecture Description | Generated By |
+|-------|----------|----------|--------------------------|--------------|
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | `/architect.*` commands |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `/spec.plan --architecture` |
+
+Feature architecture inherits and extends system architecture, ensuring consistent governance across all development.

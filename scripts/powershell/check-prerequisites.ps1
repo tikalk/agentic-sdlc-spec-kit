@@ -131,6 +131,8 @@ if ($PathsOnly) {
             FEATURE_SPEC = $paths.FEATURE_SPEC
             IMPL_PLAN    = $paths.IMPL_PLAN
             TASKS        = $paths.TASKS
+            CONSTITUTION = $paths.CONSTITUTION
+            ARCHITECTURE = $paths.ARCHITECTURE
         } | ConvertTo-Json -Compress
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
@@ -139,6 +141,8 @@ if ($PathsOnly) {
         Write-Output "FEATURE_SPEC: $($paths.FEATURE_SPEC)"
         Write-Output "IMPL_PLAN: $($paths.IMPL_PLAN)"
         Write-Output "TASKS: $($paths.TASKS)"
+        Write-Output "CONSTITUTION: $($paths.CONSTITUTION)"
+        Write-Output "ARCHITECTURE: $($paths.ARCHITECTURE)"
     }
     exit 0
 }
@@ -146,7 +150,7 @@ if ($PathsOnly) {
 # Validate required directories and files
 if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
     Write-Output "ERROR: Feature directory not found: $($paths.FEATURE_DIR)"
-    Write-Output "Run /speckit.specify first to create the feature structure."
+    Write-Output "Run /spec.specify first to create the feature structure."
     exit 1
 }
 
@@ -154,7 +158,7 @@ if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
     # Get current mode to determine if plan.md is required
     $currentMode = "spec"
-    $configFile = ".specify/config/config.json"
+    $configFile = Get-GlobalConfigPath
     if (Test-Path $configFile) {
         try {
             $configData = Get-Content $configFile | ConvertFrom-Json
@@ -167,7 +171,7 @@ if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
 
     if ($currentMode -eq "spec") {
         Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
-        Write-Output "Run /speckit.plan first to create the implementation plan."
+        Write-Output "Run /spec.plan first to create the implementation plan."
         exit 1
     }
     # In build mode, plan.md is optional - allow implementation to proceed
@@ -176,7 +180,7 @@ if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
 # Check for tasks.md if required
 if ($RequireTasks -and -not (Test-Path $paths.TASKS -PathType Leaf)) {
     Write-Output "ERROR: tasks.md not found in $($paths.FEATURE_DIR)"
-    Write-Output "Run /speckit.tasks first to create the task list."
+    Write-Output "Run /spec.tasks first to create the task list."
     exit 1
 }
 
@@ -202,6 +206,23 @@ if ($IncludeTasks -and (Test-Path $paths.TASKS)) {
 # Output results
     $specRisks = Get-RisksFromFile -Path $paths.FEATURE_SPEC
     $planRisks = Get-RisksFromFile -Path $paths.IMPL_PLAN
+    
+    # Check for constitution and architecture (optional governance documents)
+    $constitutionExists = Test-Path $paths.CONSTITUTION -PathType Leaf
+    $architectureExists = Test-Path $paths.ARCHITECTURE -PathType Leaf
+    
+    $constitutionRules = @()
+    $architectureViews = @{}
+    $architectureDiagrams = @()
+    
+    if ($constitutionExists) {
+        $constitutionRules = Get-ConstitutionRules -ConstitutionFile $paths.CONSTITUTION
+    }
+    
+    if ($architectureExists) {
+        $architectureViews = Get-ArchitectureViews -ArchitectureFile $paths.ARCHITECTURE
+        $architectureDiagrams = Get-ArchitectureDiagrams -ArchitectureFile $paths.ARCHITECTURE
+    }
 
 if ($Json) {
     # JSON output
@@ -210,6 +231,13 @@ if ($Json) {
         AVAILABLE_DOCS = $docs 
         SPEC_RISKS = $specRisks
         PLAN_RISKS = $planRisks
+        CONSTITUTION = $paths.CONSTITUTION
+        CONSTITUTION_EXISTS = $constitutionExists
+        CONSTITUTION_RULES = $constitutionRules
+        ARCHITECTURE = $paths.ARCHITECTURE
+        ARCHITECTURE_EXISTS = $architectureExists
+        ARCHITECTURE_VIEWS = $architectureViews
+        ARCHITECTURE_DIAGRAMS = $architectureDiagrams
     } | ConvertTo-Json -Compress
 } else {
     # Text output
@@ -228,4 +256,10 @@ if ($Json) {
 
     Write-Output "SPEC_RISKS: $($specRisks.Count)"
     Write-Output "PLAN_RISKS: $($planRisks.Count)"
+    
+    # Show governance document status
+    Write-Output ""
+    Write-Output "GOVERNANCE DOCUMENTS:"
+    Test-FileExists -Path $paths.CONSTITUTION -Description 'constitution.md (optional)' | Out-Null
+    Test-FileExists -Path $paths.ARCHITECTURE -Description 'architecture.md (optional)' | Out-Null
 }

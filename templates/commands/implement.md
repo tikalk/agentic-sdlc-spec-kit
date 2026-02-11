@@ -1,17 +1,37 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
-  ps: scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+  sh: |
+    source scripts/bash/common.sh
+    CONFIG=$(detect_workflow_config)
+    MODE=$(echo "$CONFIG" | jq -r '.mode // "spec"')
+    TDD=$(echo "$CONFIG" | jq -r '.tdd // false')
+    if [ "$MODE" = "spec" ]; then
+      scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
+    else
+      scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --include-tasks)"
+    fi
+  ps: |
+    . scripts/powershell/common.ps1
+    $config = Get-WorkflowConfig
+    $mode = $config.mode ?? "spec"
+    $tdd = $config.tdd ?? $false
+    if ($mode -eq 'spec') {
+      scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+    } else {
+      scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks)"
+    }
 ---
 
 ## Mode Detection
 
-1. **Check Current Workflow Mode**: Determine if the user is in "build" or "spec" mode by checking the mode configuration file at `.specify/config/config.json` under `workflow.current_mode`. If the file doesn't exist or mode is not set, default to "spec" mode.
+1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect the workflow mode and framework options from the current feature's `spec.md` file. This reads the `**Workflow Mode**` and `**Framework Options**` metadata lines.
 
 2. **Mode-Aware Behavior**:
    - **Build Mode**: Lightweight implementation focused on core functionality with simplified validation
    - **Spec Mode**: Full implementation with comprehensive quality gates and dual execution loop
+
+3. **Framework Options**: Respect detected framework options (tdd, contracts, data_models, risk_tests) when determining implementation approach and validation requirements.
 
 ## User Input
 
@@ -204,7 +224,7 @@ You **MUST** consider the user input before proceeding (if not empty).
       - Confirm the implementation follows the technical plan
       - Report final status with comprehensive summary of completed work
 
-Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
+Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
 
 **Mode-Specific Notes:**
 
@@ -215,4 +235,4 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
 
 - **Build Mode**: Lightweight implementation with basic validation - ideal for quick wins
 - **Spec Mode**: Full dual execution loop with comprehensive quality gates - ideal for robust delivery
-- **Mode Switching**: If Build mode implementation reveals gaps, switch to Spec mode with `/mode spec` for complete coverage
+- **Note**: Mode is determined by the current feature's spec.md and cannot be changed mid-feature; create a new feature in the desired mode if needed

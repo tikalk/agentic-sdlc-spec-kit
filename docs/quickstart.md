@@ -11,40 +11,89 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
-### Choose Your Workflow Mode
+### Per-Spec Workflow Mode Architecture
 
-Specify supports two workflow modes that control development complexity, plus configurable framework opinions:
+Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows.
+
+#### Available Modes
 
 - **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
-- **`build` mode**: Lightweight approach focused on quick implementation and exploration
+- **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
 
-**Framework Opinions** (configurable within each mode):
+#### Mode Configuration
 
-- **TDD**: Test-Driven Development (tests before implementation)
-- **API Contracts**: Automatic contract generation during planning
-- **Data Models**: Automatic data model generation during planning
+Modes are configured per-feature using parameters during specification:
 
 ```bash
-# Check current mode and opinions
-/mode
+# Create feature with specific mode
+/spec.specify --mode=build "Quick API fix"
+/spec.specify --mode=spec "Comprehensive user authentication"
 
-# Switch to lightweight mode for prototyping
-/mode build
+# Override framework options per feature
+/spec.specify --mode=build --tdd "Critical feature with tests"
+/spec.specify --mode=spec --no-contracts "Feature without API contracts"
 
-# Switch to comprehensive mode for production features
-/mode spec
-
-# Customize framework opinions
-/mode --no-contracts  # Disable API contracts
-/mode --tdd           # Enable TDD
-/mode --risk-tests    # Enable risk-based testing
-/mode --reset-opinions  # Reset to mode defaults
-
-# Learn more about modes and opinions
-/mode --info
+# Mode-specific defaults automatically applied
+# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
+# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
 ```
 
-**Recommendation:** Start with `build` mode for exploration, switch to `spec` mode when features become complex or need thorough documentation.
+#### Framework Options
+
+Fine-grained control over development approach:
+
+```bash
+# Test-Driven Development
+--tdd / --no-tdd
+
+# Smart Contracts (API specifications)
+--contracts / --no-contracts
+
+# Data Models (entity relationships)
+--data-models / --no-data-models
+
+# Risk-Based Testing
+--risk-tests / --no-risk-tests
+```
+
+#### Auto-Detection System
+
+Downstream commands automatically detect the mode from spec.md metadata:
+
+- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect mode and framework options from spec.md
+- **`/architect.*`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
+
+#### When to Use Each Mode
+
+**Use `build` mode for:**
+
+- Individual development and rapid prototyping
+- Quick wins and simple features
+- Senior engineers who prefer autonomy
+- Situations requiring fast iteration
+
+**Use `spec` mode for:**
+
+- Team collaboration and complex systems
+- Production features requiring comprehensive validation
+- Situations where thorough documentation is critical
+- Projects with multiple stakeholders
+
+#### Mixed-Mode Workflows
+
+The per-spec architecture enables advanced workflows:
+
+```bash
+# Create multiple features with different modes in same project
+/spec.specify --mode=build "Quick prototype feature"
+/spec.specify --mode=spec "Production authentication system"
+/spec.specify --mode=build "Bug fix"
+
+# Each feature operates independently with its configured mode
+/spec.plan    # Auto-detects mode from current feature's spec.md
+/spec.tasks   # Respects framework options from spec.md
+/spec.implement # Adapts validation based on detected mode
+```
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
@@ -148,7 +197,7 @@ Specify supports two workflow modes that control development complexity, plus co
 
 **In your terminal**, run the `specify` CLI command to initialize your project:
 
-> **Note:** All slash commands adapt their behavior based on your current workflow mode. Use `/mode` to check or change modes.
+> **Note:** All slash commands automatically detect the workflow mode from the current feature's spec.md metadata. No manual mode switching required.
 
 ```bash
 # Create a new project directory
@@ -166,54 +215,54 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 
 ### Step 2: Define Your Constitution
 
-**In your AI Agent's chat interface**, use the `/speckit.constitution` slash command to establish the core rules and principles for your project. You should provide your project's specific principles as arguments.
+**In your AI Agent's chat interface**, use the `/spec.constitution` slash command to establish the core rules and principles for your project. You should provide your project's specific principles as arguments.
 
 ```markdown
-/speckit.constitution This project follows a "Library-First" approach. All features must be implemented as standalone libraries first. We use TDD strictly. We prefer functional programming patterns.
+/spec.constitution This project follows a "Library-First" approach. All features must be implemented as standalone libraries first. We use TDD strictly. We prefer functional programming patterns.
 ```
 
 ### Step 3: Create the Spec
 
-**In the chat**, use the `/speckit.specify` slash command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
+**In the chat**, use the `/spec.specify` slash command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
 ```markdown
-/speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/spec.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ### Step 4: Refine the Spec
 
-**In the chat**, use the `/speckit.clarify` slash command to identify and resolve ambiguities in your specification. You can provide specific focus areas as arguments.
+**In the chat**, use the `/spec.clarify` slash command to identify and resolve ambiguities in your specification. You can provide specific focus areas as arguments.
 
 ```bash
-/speckit.clarify Focus on security and performance requirements.
+/spec.clarify Focus on security and performance requirements.
 ```
 
 ### Step 5: Create a Technical Implementation Plan
 
-**In the chat**, use the `/speckit.plan` slash command to provide your tech stack and architecture choices.
+**In the chat**, use the `/spec.plan` slash command to provide your tech stack and architecture choices.
 
 ```markdown
-/speckit.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/spec.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
 ### Step 6: Break Down and Implement
 
-**In the chat**, use the `/speckit.tasks` slash command to create an actionable task list.
+**In the chat**, use the `/spec.tasks` slash command to create an actionable task list.
 
 ```markdown
-/speckit.tasks
+/spec.tasks
 ```
 
-Optionally, validate the plan with `/speckit.analyze`:
+Optionally, validate the plan with `/spec.analyze`:
 
 ```markdown
-/speckit.analyze
+/spec.analyze
 ```
 
-Then, use the `/speckit.implement` slash command to execute the plan.
+Then, use the `/spec.implement` slash command to execute the plan.
 
 ```markdown
-/speckit.implement
+/spec.implement
 ```
 
 ## Detailed Example: Building Taskify
@@ -225,10 +274,10 @@ Here's a complete example of building a team productivity platform:
 Initialize the project's constitution to set ground rules:
 
 ```markdown
-/speckit.constitution Taskify is a "Security-First" application. All user inputs must be validated. We use a microservices architecture. Code must be fully documented.
+/spec.constitution Taskify is a "Security-First" application. All user inputs must be validated. We use a microservices architecture. Code must be fully documented.
 ```
 
-### Step 2: Define Requirements with `/speckit.specify`
+### Step 2: Define Requirements with `/spec.specify`
 
 ```text
 Develop Taskify, a team productivity platform. It should allow users to create projects, add team members,
@@ -242,46 +291,46 @@ first testing thing to ensure that our basic features are set up.
 
 ### Step 3: Refine the Specification
 
-Use the `/speckit.clarify` command to interactively resolve any ambiguities in your specification. You can also provide specific details you want to ensure are included.
+Use the `/spec.clarify` command to interactively resolve any ambiguities in your specification. You can also provide specific details you want to ensure are included.
 
 ```bash
-/speckit.clarify I want to clarify the task card details. For each task in the UI for a task card, you should be able to change the current status of the task between the different columns in the Kanban work board. You should be able to leave an unlimited number of comments for a particular card. You should be able to, from that task card, assign one of the valid users.
+/spec.clarify I want to clarify the task card details. For each task in the UI for a task card, you should be able to change the current status of the task between the different columns in the Kanban work board. You should be able to leave an unlimited number of comments for a particular card. You should be able to, from that task card, assign one of the valid users.
 ```
 
-You can continue to refine the spec with more details using `/speckit.clarify`:
+You can continue to refine the spec with more details using `/spec.clarify`:
 
 ```bash
-/speckit.clarify When you first launch Taskify, it's going to give you a list of the five users to pick from. There will be no password required. When you click on a user, you go into the main view, which displays the list of projects. When you click on a project, you open the Kanban board for that project. You're going to see the columns. You'll be able to drag and drop cards back and forth between different columns. You will see any cards that are assigned to you, the currently logged in user, in a different color from all the other ones, so you can quickly see yours. You can edit any comments that you make, but you can't edit comments that other people made. You can delete any comments that you made, but you can't delete comments anybody else made.
+/spec.clarify When you first launch Taskify, it's going to give you a list of the five users to pick from. There will be no password required. When you click on a user, you go into the main view, which displays the list of projects. When you click on a project, you open the Kanban board for that project. You're going to see the columns. You'll be able to drag and drop cards back and forth between different columns. You will see any cards that are assigned to you, the currently logged in user, in a different color from all the other ones, so you can quickly see yours. You can edit any comments that you make, but you can't edit comments that other people made. You can delete any comments that you made, but you can't delete comments anybody else made.
 ```
 
 ### Step 4: Validate the Spec
 
-Validate the specification checklist using the `/speckit.checklist` command:
+Validate the specification checklist using the `/spec.checklist` command:
 
 ```bash
-/speckit.checklist
+/spec.checklist
 ```
 
-### Step 5: Generate Technical Plan with `/speckit.plan`
+### Step 5: Generate Technical Plan with `/spec.plan`
 
 Be specific about your tech stack and technical requirements:
 
 ```bash
-/speckit.plan We are going to generate this using .NET Aspire, using Postgres as the database. The frontend should use Blazor server with drag-and-drop task boards, real-time updates. There should be a REST API created with a projects API, tasks API, and a notifications API.
+/spec.plan We are going to generate this using .NET Aspire, using Postgres as the database. The frontend should use Blazor server with drag-and-drop task boards, real-time updates. There should be a REST API created with a projects API, tasks API, and a notifications API.
 ```
 
 ### Step 6: Validate and Implement
 
-Have your AI agent audit the implementation plan using `/speckit.analyze`:
+Have your AI agent audit the implementation plan using `/spec.analyze`:
 
 ```bash
-/speckit.analyze
+/spec.analyze
 ```
 
 Finally, implement the solution:
 
 ```bash
-/speckit.implement
+/spec.implement
 ```
 
 ## Key Principles
@@ -293,35 +342,43 @@ Finally, implement the solution:
 - **Let the AI agent handle** the implementation details
 - **Choose your complexity level** with workflow modes (build for speed, spec for thoroughness)
 
-## Mode Transitions
+## Creating Features in Different Modes
 
-Your development needs may change as features evolve:
+Your development needs may vary between different features:
 
-### When to Switch from Build to Spec Mode
+### For Build Mode Features
 
-```bash
-/mode spec
-```
-
-**Indicators:**
-
-- Feature scope is growing beyond initial expectations
-- Multiple stakeholders need detailed documentation
-- Production deployment requires comprehensive testing
-- Integration with existing systems becomes complex
-
-### When to Switch from Spec to Build Mode
+Create lightweight features focused on quick validation:
 
 ```bash
-/mode build
+/spec.specify --mode=build "Your feature description"
 ```
 
-**Indicators:**
+**Best for:**
 
-- Shifting to exploratory prototyping
-- Need to quickly validate a technical approach
-- Working on throwaway proof-of-concepts
-- Time pressure requires simplified process
+- Exploratory prototyping
+- Quick validation of technical approaches
+- Throwaway proof-of-concepts
+- Time-sensitive features
+
+### For Spec Mode Features (Default)
+
+Create comprehensive features with detailed planning and validation:
+
+```bash
+/spec.specify --mode=spec "Your feature description"
+```
+
+**Best for:**
+
+- Features growing in scope
+- Multiple stakeholder involvement
+- Production-critical functionality
+- Complex system integration
+
+### Transitioning Between Modes
+
+If your feature needs change after initial creation, create a new feature spec with the appropriate mode rather than trying to modify the existing feature's mode. This preserves the original intent and decisions in the original spec.md.
 
 ## Next Steps
 

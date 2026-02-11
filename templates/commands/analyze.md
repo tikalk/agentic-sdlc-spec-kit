@@ -19,10 +19,12 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Auto-Detection Logic**:
 
-- **Pre-Implementation**: When tasks.md exists but no implementation artifacts detected
+- **Pre-Implementation**: When spec.md exists but no implementation artifacts detected (tasks.md required in spec mode, optional in build mode)
 - **Post-Implementation**: When implementation artifacts exist (source code, build outputs, etc.)
 
-**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/speckit.tasks` has successfully produced a complete `tasks.md`.
+**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (`spec.md` required, `plan.md` and `tasks.md` optional in build mode, all required in spec mode) before implementation. In spec mode, this command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
+
+**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `memory/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -34,7 +36,7 @@ This command adapts its behavior based on project state and workflow mode.
 
 **Auto-Detection Logic**:
 
-1. Check workflow mode (build vs spec) from `.specify/config/config.json` under `workflow.current_mode`
+1. Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`
 2. Analyze project state:
    - **Pre-implementation**:
      - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
@@ -44,7 +46,7 @@ This command adapts its behavior based on project state and workflow mode.
    - **Build mode**: Lightweight analysis appropriate for rapid iteration
    - **Spec mode**: Comprehensive analysis with full validation
 
-**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
+**Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/spec.analyze`.
 
 ## Execution Steps
 
@@ -62,15 +64,15 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 
 **Context Analysis**:
 
-1. **Check Workflow Mode**: Read current mode from `.specify/config/config.json` under `workflow.current_mode`
+1. **Auto-Detect from Spec**: Use `detect_workflow_config()` to read mode and framework options from spec.md metadata
 2. **Analyze Project State**:
    - Scan for implementation artifacts (src/, build/, dist/, *.js,*.py, etc.)
    - Check git history for implementation commits
    - Verify if `/implement` has been run recently
 3. **Determine Analysis Type**:
    - **Pre-Implementation**:
-     - **Build mode**: No implementation artifacts (regardless of plan.md/tasks.md status)
-     - **Spec mode**: No implementation artifacts + tasks.md exists
+     - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
+     - **Spec mode**: spec.md + tasks.md exist, no implementation artifacts (plan.md recommended)
    - **Post-Implementation**: Implementation artifacts exist
 4. **Apply Mode-Aware Depth**:
    - **Build Mode**: Focus on core functionality and quick iterations
@@ -124,6 +126,13 @@ Load documentation artifacts plus analyze actual codebase:
 **From constitution:**
 
 - Load `/memory/constitution.md` for principle validation (both modes)
+
+**From architecture (if exists):**
+
+- Load `AD.md` (root) for system-level architecture context
+- Load `memory/adr.md` for system-level ADRs
+- Load `specs/{feature}/AD.md` for feature-level architecture (if `--architecture` was enabled)
+- Load `specs/{feature}/adr.md` for feature-level ADRs (if `--architecture` was enabled)
 
 ### 3. Build Semantic Models
 
@@ -206,7 +215,61 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - Testing gaps revealed
 - Monitoring/logging enhancements needed
 
-#### K. Smart Trace Validation (Both Modes)
+#### K. Architecture Cross-Validation (Both Modes - if architecture exists)
+
+**Purpose**: Ensure feature spec/plan alignment with system and feature-level architecture.
+
+**System-Level Validation** (if `AD.md` and `memory/adr.md` exist):
+
+1. **Context View Alignment**:
+   - Does spec respect system boundaries defined in AD.md?
+   - Are new external dependencies within acceptable scope?
+   - Do integration points match Context View entities?
+
+2. **Functional View Alignment**:
+   - Do planned components fit existing functional structure?
+   - Are responsibilities consistent with established patterns?
+   - Do interactions follow documented patterns?
+
+3. **Information View Alignment**:
+   - Do data entities align with Information View?
+   - Are data flows consistent with existing architecture?
+   - Do lifecycle requirements match established patterns?
+
+4. **ADR Compliance**:
+   - Does spec violate any system-level ADRs?
+   - Are technology choices consistent with ADR decisions?
+   - Are architectural patterns followed?
+
+**Feature-Level Validation** (if `specs/{feature}/AD.md` and `specs/{feature}/adr.md` exist):
+
+1. **Feature ADR Consistency**:
+   - Do feature ADRs align with system ADRs (marked "Aligns with ADR-XXX")?
+   - Are there VIOLATION flags requiring resolution?
+   - Are feature-specific decisions well-documented?
+
+2. **Feature Architecture Completeness**:
+   - Are all new/modified components documented?
+   - Are integration points with system components clear?
+   - Are data design implications documented?
+
+**Architecture Validation Gaps to Detect**:
+
+- **Boundary violations**: Feature exceeds system scope defined in Context View
+- **Component conflicts**: Feature introduces components that overlap with existing
+- **Data inconsistencies**: Feature entities conflict with Information View
+- **ADR violations**: Feature contradicts accepted system decisions
+- **Missing feature ADRs**: Complex feature decisions not documented
+- **Stale architecture**: System AD.md out of date with feature changes
+
+**Severity Assignment**:
+
+- **CRITICAL**: ADR violations, boundary violations
+- **HIGH**: Component conflicts, data inconsistencies
+- **MEDIUM**: Missing feature ADRs, stale architecture
+- **LOW**: Documentation gaps, minor inconsistencies
+
+#### L. Smart Trace Validation (Both Modes)
 
 **Purpose**: Ensure spec-to-issue traceability is maintained throughout the SDD workflow using `@issue-tracker ISSUE-123` syntax.
 
@@ -290,6 +353,13 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - **Format Validation**: All issue references use valid formats
 - **Consistency Check**: Issue IDs consistent across artifacts
 
+**Architecture Alignment:**
+
+- **System AD**: ✅ Compliant / ⚠️ Issues Found / Not Available
+- **System ADRs**: X violations, Y alignments documented
+- **Feature AD**: ✅ Complete / ⚠️ Gaps Found / Not Generated
+- **Feature ADRs**: X decisions documented
+
 ### Post-Implementation Report Structure
 
 ## Post-Implementation Analysis Report
@@ -325,6 +395,12 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - **Format Validation**: All issue references use valid formats
 - **Consistency Check**: Issue IDs consistent across artifacts
 
+**Architecture Alignment:**
+
+- **System AD**: ✅ Compliant / ⚠️ Issues Found / Not Available
+- **Feature AD**: ✅ Consistent / ⚠️ Drift Detected / Not Generated
+- **ADR Status**: Implementation matches documented decisions
+
 ### 7. Provide Next Actions (Auto-Detected)
 
 At end of report, output a concise Next Actions block based on detected mode and findings:
@@ -332,10 +408,12 @@ At end of report, output a concise Next Actions block based on detected mode and
 **Pre-Implementation Next Actions:**
 
 - **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
-- **Spec Mode**: - If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
+- **Spec Mode**: - If CRITICAL issues exist: Recommend resolving before `/spec.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+- Provide explicit command suggestions: e.g., "Run /spec.specify with refinement", "Run /spec.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 - **Traceability**: If <80% coverage: "Add @issue-tracker ISSUE-123 references to major user stories in spec.md"
+- **Architecture**: If violations found: "Resolve ADR violations before proceeding" or "Run /architect.clarify to update system ADRs"
+- **Feature Architecture**: If gaps found: "Run /spec.plan --architecture to generate feature-level architecture"
 - Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 **Post-Implementation Next Actions:**

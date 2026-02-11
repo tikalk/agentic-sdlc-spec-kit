@@ -36,7 +36,16 @@ rewrite_paths() {
   sed -E \
     -e 's@(/?)memory/@.specify/memory/@g' \
     -e 's@(/?)scripts/@.specify/scripts/@g' \
-    -e 's@(/?)templates/@.specify/templates/@g'
+    -e 's@(/?)templates/@.specify/templates/@g' \
+    -e 's@\.specify\.specify/@.specify/@g'
+}
+
+escape_sed_replacement() {
+  # Escape special characters in sed replacement text:
+  # - & (expands to matched pattern)
+  # - | (our delimiter)
+  # - \ (escape character)
+  sed 's/[&\|\\]/\\&/g'
 }
 
 generate_commands() {
@@ -71,11 +80,13 @@ generate_commands() {
     ')
     
     # Replace {SCRIPT} placeholder with the script command
-    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${script_command}|g")
+    escaped_script=$(printf '%s\n' "$script_command" | escape_sed_replacement)
+    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${escaped_script}|g")
     
     # Replace {AGENT_SCRIPT} placeholder with the agent script command if found
     if [[ -n $agent_script_command ]]; then
-      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${agent_script_command}|g")
+      escaped_agent=$(printf '%s\n' "$agent_script_command" | escape_sed_replacement)
+      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${escaped_agent}|g")
     fi
     
     # Remove the scripts: and agent_scripts: sections from frontmatter while preserving YAML structure
@@ -91,14 +102,22 @@ generate_commands() {
     # Apply other substitutions
     body=$(printf '%s\n' "$body" | sed "s/{ARGS}/$arg_format/g" | sed "s/__AGENT__/$agent/g" | rewrite_paths)
     
+    # Determine output filename - architect commands don't get spec. prefix
+    local output_name
+    if [[ $name == architect.* ]]; then
+      output_name="$name"
+    else
+      output_name="spec.$name"
+    fi
+    
     case $ext in
       toml)
         body=$(printf '%s\n' "$body" | sed 's/\\/\\\\/g')
-        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/speckit.$name.$ext" ;;
+        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/$output_name.$ext" ;;
       md)
-        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
+        echo "$body" > "$output_dir/$output_name.$ext" ;;
       agent.md)
-        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
+        echo "$body" > "$output_dir/$output_name.$ext" ;;
     esac
   done
 }
@@ -108,7 +127,7 @@ generate_copilot_prompts() {
   mkdir -p "$prompts_dir"
   
   # Generate a .prompt.md file for each .agent.md file
-  for agent_file in "$agents_dir"/speckit.*.agent.md; do
+  for agent_file in "$agents_dir"/spec.*.agent.md; do
     [[ -f "$agent_file" ]] || continue
     
     local basename=$(basename "$agent_file" .agent.md)

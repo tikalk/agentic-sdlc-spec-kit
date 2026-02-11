@@ -151,8 +151,8 @@ cd .kilocode/rules/
 ls -la
 
 # Delete old versions (example filenames - yours may differ)
-rm speckit.specify-old.md
-rm speckit.plan-v1.md
+rm spec.specify-old.md
+rm spec.plan-v1.md
 ```
 
 Restart your IDE to refresh the command list.
@@ -204,7 +204,7 @@ cd .kilocode/rules/
 ls -la
 
 # Delete old command files
-rm speckit.old-command-name.md
+rm spec.old-command-name.md
 
 # Restart your IDE
 ```
@@ -398,7 +398,7 @@ The `specify` CLI tool is used for:
 - **Upgrades:** `specify init --here --force` to update templates and commands
 - **Diagnostics:** `specify check` to verify tool installation
 
-Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/speckit.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, etc.). Your AI assistant reads these command files directly—no need to run `specify` again.
+Once you've run `specify init`, the slash commands (like `/spec.specify`, `/spec.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, etc.). Your AI assistant reads these command files directly—no need to run `specify` again.
 
 **If your agent isn't recognizing slash commands:**
 
@@ -438,7 +438,7 @@ Spec Kit follows semantic versioning for major releases. The CLI and project fil
 
 After upgrading:
 
-- **Test new slash commands:** Run `/speckit.constitution` or another command to verify everything works
+- **Test new slash commands:** Run `/spec.constitution` or another command to verify everything works
 - **Review release notes:** Check [GitHub Releases](https://github.com/github/spec-kit/releases) for new features and breaking changes
 - **Update workflows:** If new commands were added, update your team's development workflows
 - **Check documentation:** Visit [github.io/spec-kit](https://github.github.io/spec-kit/) for updated guides

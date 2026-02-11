@@ -3,6 +3,36 @@
 # Task Meta Utilities for Agentic SDLC
 # Handles task classification, delegation, and status tracking
 
+# Get the global config path using XDG Base Directory spec
+get_global_config_path() {
+    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
+    echo "$config_home/specify/config.json"
+}
+
+# Get project-level config path (.specify/config.json)
+get_project_config_path() {
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        local repo_root=$(git rev-parse --show-toplevel)
+        echo "$repo_root/.specify/config.json"
+    else
+        echo ".specify/config.json"
+    fi
+}
+
+# Get config path with hierarchical resolution
+get_config_path() {
+    local project_config=$(get_project_config_path)
+    local user_config=$(get_global_config_path)
+    
+    if [[ -f "$project_config" ]]; then
+        echo "$project_config"
+    elif [[ -f "$user_config" ]]; then
+        echo "$user_config"
+    else
+        echo "$project_config"
+    fi
+}
+
 # Initialize tasks_meta.json for a feature
 init_tasks_meta() {
     local feature_dir="$1"
@@ -158,6 +188,25 @@ generate_delegation_prompt() {
     local full_context="${task_context}
 
 ${agent_context}"
+
+    # Add atomic commits guidance if enabled
+    local atomic_commits
+    atomic_commits=$(get_mode_config "atomic_commits")
+    
+    if [[ "$atomic_commits" == "true" ]]; then
+        full_context="${full_context}
+
+## COMMIT STRUCTURE GUIDANCE
+Create atomic commits following this pattern:
+- Each commit represents one logical unit of work
+- Independently reviewable (can understand from commit message + diff)
+- Self-contained (feature complete or milestone complete)
+- Descriptive message: \"[Feature]: What was accomplished\"
+Example: \"[auth]: Implement JWT token validation\"
+
+This enables post-execution review and rollback capability.
+"
+    fi
 
     # Substitute variables using awk to handle multiline content safely
     local prompt
@@ -654,9 +703,10 @@ execute_mode_aware_rollback() {
 # Get framework options configuration
 get_framework_opinions() {
     local mode="${1:-spec}"
-    local config_file=".specify/config/config.json"
+    local config_file
+    config_file=$(get_config_path)
 
-    # Read from consolidated config
+    # Read from consolidated config (hierarchical)
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         local user_tdd
         user_tdd=$(jq -r ".options.tdd_enabled" "$config_file" 2>/dev/null || echo "null")
@@ -700,14 +750,14 @@ get_framework_opinions() {
     esac
 }
 
-# Set framework opinion (legacy compatibility - now handled by specify CLI)
+# Set framework opinion (legacy compatibility - now handled by per-spec mode)
 set_framework_opinion() {
     local opinion_type="$1"
     local value="$2"
 
-    echo "Framework opinions are now managed by the '/mode' slash command."
-    echo "Use '/mode --$opinion_type' to change this setting."
-    echo "Run '/mode --help' for more information."
+    echo "Framework opinions are now managed by feature-level mode configuration."
+    echo "Use '/spec.specify --mode=build|spec --$opinion_type' to create features with specific framework settings."
+    echo "Run '/spec.specify --help' for more information."
 }
 
 # Check if opinion is enabled

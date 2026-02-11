@@ -121,8 +121,10 @@ load_implementation_context() {
 
     # Get current workflow mode
     local workflow_mode="spec"  # Default
-    if [[ -f ".specify/config/config.json" ]]; then
-        workflow_mode=$(jq -r '.workflow.current_mode // "spec"' ".specify/config/config.json" 2>/dev/null || echo "spec")
+    local global_config
+    global_config=$(get_config_path)
+    if [[ -f "$global_config" ]]; then
+        workflow_mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
     fi
 
     # Required files (plan.md is optional in build mode)
@@ -243,8 +245,23 @@ execute_task() {
             # Mark as completed (in real implementation, this would happen after successful execution)
             safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
 
-            # Perform micro-review
-            perform_micro_review "$TASKS_META_FILE" "$task_id"
+            # Conditional micro-review based on mode
+            local skip_review
+            skip_review=$(get_mode_config "skip_micro_review")
+            
+            if [[ "$skip_review" == "true" ]]; then
+                # Build/GSD mode: Non-blocking, log for post-hoc review
+                log_info "Task $task_id complete - Atomic commit created"
+                if command -v git >/dev/null 2>&1; then
+                    local last_commit
+                    last_commit=$(git log -1 --oneline 2>/dev/null || echo "No git repository")
+                    log_info "Commit: $last_commit"
+                fi
+                log_info "Review at any time with: git log -p, git show, git diff"
+            else
+                # Spec mode: Blocking review gate
+                perform_micro_review "$TASKS_META_FILE" "$task_id"
+            fi
         else
             handle_task_failure "$task_id" "SYNC task execution failed"
         fi
@@ -426,8 +443,10 @@ handle_task_failure() {
 
     # Get workflow mode for mode-aware rollback
     local mode="spec"  # Default
-    if [[ -f ".specify/config/config.json" ]]; then
-        mode=$(jq -r '.workflow.current_mode // "spec"' ".specify/config/config.json" 2>/dev/null || echo "spec")
+    local global_config
+    global_config=$(get_config_path)
+    if [[ -f "$global_config" ]]; then
+        mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
     fi
 
     echo "Task $task_id failed. Options:

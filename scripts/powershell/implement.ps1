@@ -121,9 +121,9 @@ function Test-ChecklistsStatus {
 function Import-ImplementationContext {
     Write-Info "Loading implementation context..."
 
-    # Get current workflow mode
+    # Get current workflow mode (from global config)
     $workflowMode = "spec"  # Default
-    $configFile = ".specify/config/config.json"
+    $configFile = Get-GlobalConfigPath
     if (Test-Path $configFile) {
         try {
             $configData = Get-Content $configFile | ConvertFrom-Json

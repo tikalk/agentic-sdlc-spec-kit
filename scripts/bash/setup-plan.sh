@@ -42,8 +42,15 @@ fi
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
 
-# Copy plan template if it exists
-TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
+# Detect current workflow mode and select appropriate plan template
+CURRENT_MODE=$(get_current_mode)
+
+if [[ "$CURRENT_MODE" == "build" ]]; then
+    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template-build.md"
+else
+    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
+fi
+
 if [[ -f "$TEMPLATE" ]]; then
     cp "$TEMPLATE" "$IMPL_PLAN"
     echo "Copied plan template to $IMPL_PLAN"
@@ -62,7 +69,7 @@ fi
 
 if grep -q "\[NEEDS INPUT\]" "$CONTEXT_FILE"; then
     echo "ERROR: context.md contains unresolved [NEEDS INPUT] markers." >&2
-    echo "Please update $CONTEXT_FILE with mission, code paths, directives, research, and gateway details before proceeding." >&2
+    echo "Please update $CONTEXT_FILE with mission, code paths, directives, and research details before proceeding." >&2
     exit 1
 fi
 
@@ -90,13 +97,50 @@ else
     TEAM_DIRECTIVES_DIR=""
 fi
 
+# Resolve architecture path (prefer env override, silent if missing)
+# New structure: AD.md at root (system-level) or specs/{feature}/AD.md (feature-level)
+AD_FILE="${SPECIFY_AD:-}"
+if [[ -z "$AD_FILE" ]]; then
+    # Check for feature-level AD first
+    if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/AD.md" ]]; then
+        AD_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/AD.md"
+    # Then check for system-level AD
+    elif [[ -f "$REPO_ROOT/AD.md" ]]; then
+        AD_FILE="$REPO_ROOT/AD.md"
+    fi
+fi
+
+if [[ -f "$AD_FILE" ]]; then
+    export SPECIFY_AD="$AD_FILE"
+else
+    AD_FILE=""
+fi
+
+# Also resolve ADR file
+ADR_FILE="${SPECIFY_ADR:-}"
+if [[ -z "$ADR_FILE" ]]; then
+    # Check for feature-level ADR first
+    if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md"
+    # Then check for system-level ADR
+    elif [[ -f "$REPO_ROOT/memory/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/memory/adr.md"
+    fi
+fi
+
+if [[ -f "$ADR_FILE" ]]; then
+    export SPECIFY_ADR="$ADR_FILE"
+else
+    ADR_FILE=""
+fi
+
 # Output results
 if $JSON_MODE; then
-    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","CONTEXT_FILE":"%s"}\n' \
-        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$CONTEXT_FILE"
+    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
+        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$AD_FILE" "$ADR_FILE" "$CONTEXT_FILE"
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
-    echo "IMPL_PLAN: $IMPL_PLAN" 
+    echo "IMPL_PLAN: $IMPL_PLAN"
     echo "SPECS_DIR: $FEATURE_DIR"
     echo "BRANCH: $CURRENT_BRANCH"
     echo "HAS_GIT: $HAS_GIT"
@@ -109,6 +153,16 @@ else
         echo "TEAM_DIRECTIVES: $TEAM_DIRECTIVES_DIR"
     else
         echo "TEAM_DIRECTIVES: (missing)"
+    fi
+    if [[ -n "$AD_FILE" ]]; then
+        echo "AD: $AD_FILE"
+    else
+        echo "AD (Architecture Description): (missing - run /architect.init or /architect.specify)"
+    fi
+    if [[ -n "$ADR_FILE" ]]; then
+        echo "ADR: $ADR_FILE"
+    else
+        echo "ADR (Architecture Decision Records): (missing)"
     fi
     echo "CONTEXT_FILE: $CONTEXT_FILE"
 fi

@@ -36,6 +36,15 @@ if (Test-Path $knowledgeRoot -PathType Container) {
     $knowledgeDrafts = ''
 }
 
+# Check for trace file (optional)
+$traceFile = Join-Path $paths.FEATURE_DIR 'trace.md'
+if (-not (Test-Path $traceFile)) {
+    $traceFile = ''
+}
+
+# Get current workflow mode
+$workflowMode = Get-CurrentMode
+
 if ($Json) {
     $result = [PSCustomObject]@{
         FEATURE_DIR      = $paths.FEATURE_DIR
@@ -45,18 +54,26 @@ if ($Json) {
         TASKS_FILE       = $paths.TASKS
         RESEARCH_FILE    = $paths.RESEARCH
         QUICKSTART_FILE  = $paths.QUICKSTART
+        TRACE_FILE       = $traceFile
         KNOWLEDGE_ROOT   = $knowledgeRoot
         KNOWLEDGE_DRAFTS = $knowledgeDrafts
+        WORKFLOW_MODE    = $workflowMode
     }
     $result | ConvertTo-Json -Compress
 } else {
     Write-Output "FEATURE_DIR: $($paths.FEATURE_DIR)"
     Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
+    Write-Output "WORKFLOW_MODE: $workflowMode"
     Write-Output "SPEC_FILE: $($paths.FEATURE_SPEC)"
     Write-Output "PLAN_FILE: $($paths.IMPL_PLAN)"
     Write-Output "TASKS_FILE: $($paths.TASKS)"
     Write-Output "RESEARCH_FILE: $($paths.RESEARCH)"
     Write-Output "QUICKSTART_FILE: $($paths.QUICKSTART)"
+    if ($traceFile) {
+        Write-Output "TRACE_FILE: $traceFile"
+    } else {
+        Write-Output "TRACE_FILE: (missing - optional)"
+    }
     if ($knowledgeRoot) {
         Write-Output "KNOWLEDGE_ROOT: $knowledgeRoot"
         Write-Output "KNOWLEDGE_DRAFTS: $knowledgeDrafts"
