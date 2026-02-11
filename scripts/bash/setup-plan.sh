@@ -123,8 +123,8 @@ if [[ -z "$ADR_FILE" ]]; then
     if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md" ]]; then
         ADR_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md"
     # Then check for system-level ADR
-    elif [[ -f "$REPO_ROOT/memory/adr.md" ]]; then
-        ADR_FILE="$REPO_ROOT/memory/adr.md"
+    elif [[ -f "$REPO_ROOT/.specify/memory/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/.specify/memory/adr.md"
     fi
 fi
 

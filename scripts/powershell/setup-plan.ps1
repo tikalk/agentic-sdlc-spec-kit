@@ -97,8 +97,8 @@ if (-not $adrFile) {
         $adrFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"
     }
     # Then check for system-level ADR
-    elseif (Test-Path (Join-Path $paths.REPO_ROOT "memory/adr.md")) {
-        $adrFile = Join-Path $paths.REPO_ROOT "memory/adr.md"
+    elseif (Test-Path (Join-Path $paths.REPO_ROOT ".specify/memory/adr.md")) {
+        $adrFile = Join-Path $paths.REPO_ROOT ".specify/memory/adr.md"
     }
 }
 
