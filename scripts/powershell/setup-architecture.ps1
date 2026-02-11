@@ -370,13 +370,13 @@ function New-ArchitectureDiagrams {
 function Invoke-Specify {
     param($repoRoot, $contextArgs)
     
-    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     $adrTemplate = Join-Path $repoRoot ".specify\templates\adr-template.md"
     
     Write-Host "📐 Setting up for interactive ADR creation..." -ForegroundColor Cyan
     
     # Ensure memory directory exists
-    $memoryDir = Join-Path $repoRoot "memory"
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
     if (-not (Test-Path $memoryDir)) {
         New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
@@ -413,7 +413,7 @@ function Invoke-Specify {
     Write-Host "  1. Analyze your PRD/requirements input"
     Write-Host "  2. Ask clarifying questions about architecture"
     Write-Host "  3. Create ADRs for each key decision"
-    Write-Host "  4. Save decisions to memory/adr.md"
+    Write-Host "  4. Save decisions to .specify/memory/adr.md"
     Write-Host ""
     Write-Host "After completion, run '/architect.implement' to generate full AD.md"
     
@@ -426,7 +426,7 @@ function Invoke-Specify {
 function Invoke-Clarify {
     param($repoRoot, $contextArgs)
     
-    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     
     if (-not (Test-Path $adrFile)) {
         Write-Error "ADR file does not exist: $adrFile`nRun '/architect.specify' or '/architect.init' first"
@@ -457,7 +457,7 @@ function Invoke-Clarify {
 function Invoke-Implement {
     param($repoRoot, $contextArgs)
     
-    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     $adFile = Join-Path $repoRoot "AD.md"
     $adTemplate = Join-Path $repoRoot ".specify\templates\AD-template.md"
     
@@ -489,7 +489,7 @@ function Invoke-Implement {
     Write-Host ""
     Write-Host "Ready for Architecture Description generation."
     Write-Host "The AI agent will:"
-    Write-Host "  1. Read all $adrCount ADR(s) from memory/adr.md"
+    Write-Host "  1. Read all $adrCount ADR(s) from .specify/memory/adr.md"
     Write-Host "  2. Generate 7 Rozanski & Woods viewpoints"
     Write-Host "  3. Apply Security and Performance perspectives"
     Write-Host "  4. Create Mermaid diagrams for each view"
@@ -504,13 +504,13 @@ function Invoke-Implement {
 function Invoke-Init {
     param($repoRoot, $contextArgs)
     
-    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     $adrTemplate = Join-Path $repoRoot ".specify\templates\adr-template.md"
     
     Write-Host "🔍 Initializing brownfield architecture discovery..." -ForegroundColor Cyan
     
     # Ensure memory directory exists
-    $memoryDir = Join-Path $repoRoot "memory"
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
     if (-not (Test-Path $memoryDir)) {
         New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
@@ -735,7 +735,7 @@ function Invoke-Review {
     }
     
     # Check constitution alignment (new path: memory/constitution.md)
-    $constitutionFile = Join-Path $repoRoot "memory\constitution.md"
+    $constitutionFile = Join-Path $repoRoot ".specify\memory\constitution.md"
     if (-not (Test-Path $constitutionFile)) {
         # Fallback to legacy path
         $constitutionFile = Join-Path $repoRoot ".specify\memory\constitution.md"
@@ -761,14 +761,14 @@ try {
     $repoRoot = Get-RepositoryRoot
     
     # Ensure memory directory exists
-    $memoryDir = Join-Path $repoRoot "memory"
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
     if (-not (Test-Path $memoryDir)) {
         New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
     
     # Architecture files (new structure: AD.md at root, ADRs in memory/)
     $adFile = Join-Path $repoRoot "AD.md"
-    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     $templateFile = Join-Path $repoRoot ".specify\templates\architecture-template.md"
     $adTemplateFile = Join-Path $repoRoot ".specify\templates\AD-template.md"
     

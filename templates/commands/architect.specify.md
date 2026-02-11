@@ -72,20 +72,20 @@ You are acting as a **Solutions Architect** facilitating an architectural discov
 
 | Level | Location | ADR File | Architecture Description |
 |-------|----------|----------|--------------------------|
-| **System** | Main branch | `memory/adr.md` | `AD.md` (root) |
+| **System** | Main branch | `.specify/memory/adr.md` | `AD.md` (root) |
 | **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` |
 
-This command operates at the **System level**, creating ADRs in `memory/adr.md`.
+This command operates at the **System level**, creating ADRs in `.specify/memory/adr.md`.
 
 ## Outline
 
 Given the PRD input, execute this workflow:
 
 1. **Parse PRD Context**: Extract key requirements, constraints, and quality attributes
-2. **Load Governance**: Check `memory/constitution.md` for architectural constraints
+2. **Load Governance**: Check `.specify/memory/constitution.md` for architectural constraints
 3. **Exploration Phase**: Interactive discussion to surface trade-offs and options
 4. **Decision Phase**: Document decisions as ADRs with full rationale
-5. **Output**: Write ADRs to `memory/adr.md`
+5. **Output**: Write ADRs to `.specify/memory/adr.md`
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing ADRs.
 
@@ -114,7 +114,7 @@ Given the PRD input, execute this workflow:
    - Regulatory or compliance requirements
 
 4. **Load Constitution**:
-    - Read `memory/constitution.md` if it exists
+    - Read `.specify/memory/constitution.md` if it exists
     - Extract architectural principles that must be honored
     - Note any constraints that limit architectural choices
 
@@ -258,11 +258,11 @@ Proposed
 **Objective**: Write finalized ADRs to file
 
 1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to ensure `memory/adr.md` exists
+   - Execute `{SCRIPT}` to ensure `.specify/memory/adr.md` exists
    - Script creates from template if file doesn't exist
 
 2. **Write ADRs**:
-   - Append new ADRs to `memory/adr.md`
+   - Append new ADRs to `.specify/memory/adr.md`
    - Update ADR index table at top of file
    - Preserve any existing ADRs (don't overwrite)
 

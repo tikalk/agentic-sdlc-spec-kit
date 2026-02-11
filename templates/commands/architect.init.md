@@ -47,7 +47,7 @@ Reverse-engineer architecture from an **existing codebase** (brownfield) to crea
 
 **Output**:
 
-1. **ADRs** documenting inferred architectural decisions in `memory/adr.md`
+1. **ADRs** documenting inferred architectural decisions in `.specify/memory/adr.md`
 2. **Auto-handoff** to `/architect.clarify` to validate discovered decisions
 
 **Key Difference from `/architect.specify`**:
@@ -87,7 +87,7 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 3. **Pattern Detection**: Identify architectural patterns in use
 4. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered")
 5. **Gap Analysis**: Identify areas where decisions are unclear
-6. **Output**: Write ADRs to `memory/adr.md` (NO AD.md creation)
+6. **Output**: Write ADRs to `.specify/memory/adr.md` (NO AD.md creation)
 7. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
@@ -322,7 +322,7 @@ After scanning, report:
 **Objective**: Write discovered ADRs to file (NO AD.md creation)
 
 1. **Write ADRs**:
-   - Create or update `memory/adr.md` with discovered ADRs
+   - Create or update `.specify/memory/adr.md` with discovered ADRs
    - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
    - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
@@ -413,7 +413,7 @@ The clarify phase will refine ADRs based on your input, then you can run `/archi
 
 After clarification completes:
 
-1. **Review Validated ADRs**: Check `memory/adr.md` for accuracy
+1. **Review Validated ADRs**: Check `.specify/memory/adr.md` for accuracy
 2. **Run `/architect.implement`**: Generate full AD.md from validated ADRs
 3. **Update As Needed**: Refine documentation as you learn more
 
@@ -424,7 +424,7 @@ After clarification completes:
     ↓
 [Scan codebase] → Detect technologies, patterns
     ↓
-[Generate ADRs] → Write to memory/adr.md (marked "Discovered")
+[Generate ADRs] → Write to .specify/memory/adr.md (marked "Discovered")
     ↓
 [Auto-trigger /architect.clarify]
     ↓

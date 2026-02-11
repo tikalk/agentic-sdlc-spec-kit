@@ -60,13 +60,13 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `memory/adr.md` | Architectural decisions with rationale | Input |
+| `.specify/memory/adr.md` | Architectural decisions with rationale | Input |
 | `AD.md` (root) | Full Architecture Description | Output |
-| `memory/constitution.md` | Governance principles | Constraint |
+| `.specify/memory/constitution.md` | Governance principles | Constraint |
 
 ## Outline
 
-1. **Load ADRs**: Parse all ADRs from `memory/adr.md`
+1. **Load ADRs**: Parse all ADRs from `.specify/memory/adr.md`
 2. **Determine Views**: Parse `--views` flag to determine which views to generate
 3. **Generate Views**: Create requested viewpoints (core 5 by default, optionally +2)
 4. **Apply Perspectives**: Add Security and Performance perspectives
@@ -83,12 +83,12 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
    - Creates `AD.md` from template if it doesn't exist
 
 2. **Load ADRs**:
-   - Read `memory/adr.md`
+   - Read `.specify/memory/adr.md`
    - Parse each ADR: ID, title, context, decision, consequences
    - Build decision index
 
 3. **Load Constitution**:
-   - Read `memory/constitution.md` for constraint validation
+   - Read `.specify/memory/constitution.md` for constraint validation
    - Extract principles that affect architecture documentation
 
 4. **ADR-to-View Mapping**:
@@ -381,7 +381,7 @@ graph TB
    - Document architectural principles
 
 2. **ADR Summary**:
-   - Create summary table linking to `memory/adr.md`
+   - Create summary table linking to `.specify/memory/adr.md`
    - List key decisions with impact levels
 
 3. **Tech Stack Summary**:
@@ -403,7 +403,7 @@ graph TB
    - Write to project root as `AD.md`
 
 3. **Update References**:
-   - Ensure `memory/adr.md` link is correct
+   - Ensure `.specify/memory/adr.md` link is correct
    - Update version and timestamp
 
 4. **Generate Report**:

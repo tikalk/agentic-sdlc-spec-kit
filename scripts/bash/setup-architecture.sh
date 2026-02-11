@@ -90,11 +90,11 @@ source "$SCRIPT_DIR/common.sh"
 eval "$(get_feature_paths)"
 
 # Ensure the memory directory exists
-mkdir -p "$REPO_ROOT/memory"
+mkdir -p "$REPO_ROOT/.specify/memory"
 
 # Architecture files (new structure: AD.md at root, ADRs in memory/)
 AD_FILE="$REPO_ROOT/AD.md"
-ADR_FILE="$REPO_ROOT/memory/adr.md"
+ADR_FILE="$REPO_ROOT/.specify/memory/adr.md"
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 
@@ -436,13 +436,13 @@ $diagram_code
 
 # Action: Specify (greenfield - interactive PRD exploration to create ADRs)
 action_specify() {
-    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "📐 Setting up for interactive ADR creation..." >&2
     
     # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/memory"
+    mkdir -p "$REPO_ROOT/.specify/memory"
     
     # Initialize ADR file from template if it doesn't exist
     if [[ ! -f "$adr_file" ]]; then
@@ -475,7 +475,7 @@ EOF
     echo "  1. Analyze your PRD/requirements input" >&2
     echo "  2. Ask clarifying questions about architecture" >&2
     echo "  3. Create ADRs for each key decision" >&2
-    echo "  4. Save decisions to memory/adr.md" >&2
+    echo "  4. Save decisions to .specify/memory/adr.md" >&2
     echo "" >&2
     echo "After completion, run '/architect.implement' to generate full AD.md" >&2
     
@@ -486,7 +486,7 @@ EOF
 
 # Action: Clarify (refine existing ADRs)
 action_clarify() {
-    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
     
     if [[ ! -f "$adr_file" ]]; then
         echo "❌ ADR file does not exist: $adr_file" >&2
@@ -516,7 +516,7 @@ action_clarify() {
 
 # Action: Implement (generate full AD.md from ADRs)
 action_implement() {
-    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
     local ad_file="$REPO_ROOT/AD.md"
     local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
     
@@ -549,7 +549,7 @@ action_implement() {
     echo "" >&2
     echo "Ready for Architecture Description generation." >&2
     echo "The AI agent will:" >&2
-    echo "  1. Read all $adr_count ADR(s) from memory/adr.md" >&2
+    echo "  1. Read all $adr_count ADR(s) from .specify/memory/adr.md" >&2
     echo "  2. Generate 7 Rozanski & Woods viewpoints" >&2
     echo "  3. Apply Security and Performance perspectives" >&2
     echo "  4. Create Mermaid diagrams for each view" >&2
@@ -562,13 +562,13 @@ action_implement() {
 
 # Action: Initialize (brownfield - reverse-engineer from codebase, ADRs only)
 action_init() {
-    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "🔍 Initializing brownfield architecture discovery..." >&2
     
     # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/memory"
+    mkdir -p "$REPO_ROOT/.specify/memory"
     
     # Scan existing docs for deduplication
     local existing_docs
@@ -786,7 +786,7 @@ action_review() {
     fi
     
     # Check constitution alignment if it exists
-    local constitution_file="$REPO_ROOT/memory/constitution.md"
+    local constitution_file="$REPO_ROOT/.specify/memory/constitution.md"
     if [[ -f "$constitution_file" ]]; then
         echo "" >&2
         echo "📜 Checking constitution alignment..." >&2

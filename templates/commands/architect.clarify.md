@@ -61,7 +61,7 @@ Each ADR should have:
 
 ## Outline
 
-1. **Load Current State**: Parse `memory/adr.md` and `memory/constitution.md`
+1. **Load Current State**: Parse `.specify/memory/adr.md` and `.specify/memory/constitution.md`
 2. **Analyze ADRs**: Check each ADR against quality checklist
 3. **Identify Gaps**: List areas needing clarification
 4. **Interactive Refinement**: Ask targeted questions to fill gaps
@@ -79,12 +79,12 @@ Each ADR should have:
    - Handle errors gracefully if files don't exist
 
 2. **Load ADR File**:
-   - Read `memory/adr.md`
+   - Read `.specify/memory/adr.md`
    - Parse ADR index and individual ADR sections
    - Count total ADRs and identify status distribution
 
 3. **Load Constitution**:
-   - Read `memory/constitution.md` if it exists
+   - Read `.specify/memory/constitution.md` if it exists
    - Extract principles for alignment checking
    - Note governance constraints
 
@@ -316,7 +316,7 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Update status if applicable
 
 4. **Write File**:
-   - Atomic write to `memory/adr.md`
+   - Atomic write to `.specify/memory/adr.md`
    - Preserve any ADRs that weren't modified
 
 ## Key Rules
@@ -378,7 +378,7 @@ After clarification ends (all gaps addressed or user signals "done"):
 - References added: [N]
 
 **Recommended Next Steps**:
-1. Review updated ADRs in `memory/adr.md`
+1. Review updated ADRs in `.specify/memory/adr.md`
 2. Run `/architect.implement` to generate AD.md
 3. Or run `/spec.specify` to start feature development
 ```
