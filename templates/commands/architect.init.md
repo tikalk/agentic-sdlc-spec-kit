@@ -1,9 +1,16 @@
 ---
-description: Reverse-engineer architecture from existing codebase to create ADRs and Architecture Description
+description: Reverse-engineer architecture from existing codebase (brownfield) to create ADRs, then validate with clarifying questions
 handoffs:
-  - label: Clarify ADRs
+  - label: Validate Discovered ADRs
     agent: architect.clarify
-    prompt: Refine the reverse-engineered ADRs
+    prompt: |
+      Review ADRs discovered from brownfield codebase analysis.
+      Ask questions about:
+      - Current state validity (are inferred decisions still correct?)
+      - Team context (size, maturity, constraints)
+      - Technical debt and deprecated patterns
+      - Migration plans for legacy components
+      Focus on validating assumptions, not suggesting new approaches.
     send: true
   - label: Generate Architecture
     agent: architect.implement
@@ -36,20 +43,22 @@ When users provide context, use it to focus the reverse-engineering effort.
 
 ## Goal
 
-Reverse-engineer architecture from an existing codebase to create:
+Reverse-engineer architecture from an **existing codebase** (brownfield) to create ADRs documenting discovered decisions, then **auto-trigger clarification** to validate findings.
+
+**Output**:
 
 1. **ADRs** documenting inferred architectural decisions in `memory/adr.md`
-2. **Architecture Description** (`AD.md` at project root) with 7 Rozanski & Woods viewpoints
+2. **Auto-handoff** to `/architect.clarify` to validate discovered decisions
 
-This command is for **brownfield projects** where architecture exists in code but lacks documentation.
+**Key Difference from `/architect.specify`**:
+
+- `/architect.init` (this command) = **Discovers** what's already implemented in code
+- `/architect.specify` = **Explores** new possibilities for greenfield projects
+
+This command focuses on **current state analysis** - what IS, not what SHOULD BE.
 
 ### Flags
 
-- `--views VIEWS`: Architecture views to generate
-  - `core` (default): Context, Functional, Information, Development, Deployment
-  - `all`: All 7 views including Concurrency and Operational
-  - Custom: comma-separated (e.g., `concurrency,operational`)
-  
 - `--adr-heuristic HEURISTIC`: ADR generation strategy
   - `surprising` (default): Skip obvious ecosystem defaults, document only surprising/risky decisions
   - `all`: Document all discovered decisions
@@ -76,9 +85,10 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 1. **Codebase Scan**: Analyze project structure and detect technologies
 2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, etc.) to avoid repeating
 3. **Pattern Detection**: Identify architectural patterns in use
-4. **ADR Generation**: Create ADRs for discovered decisions
+4. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered")
 5. **Gap Analysis**: Identify areas where decisions are unclear
-6. **Output**: Write ADRs to `memory/adr.md`
+6. **Output**: Write ADRs to `memory/adr.md` (NO AD.md creation)
+7. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
 
@@ -309,24 +319,55 @@ After scanning, report:
 
 ### Phase 6: Output Generation
 
-**Objective**: Write discoveries to files
+**Objective**: Write discovered ADRs to file (NO AD.md creation)
 
 1. **Write ADRs**:
    - Create or update `memory/adr.md` with discovered ADRs
    - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
    - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
+   - Tag assumptions that need validation
 
-2. **Create/Update Architecture**:
-   - Create `AD.md` at project root (if not exists) from `AD-template.md`
-   - Include only views specified by `--views` flag (default: core 5)
-   - Mark optional views (Concurrency, Operational) if not included
+2. **DO NOT Create AD.md**:
+   - Architecture Description will be generated later via `/architect.implement`
+   - Only AFTER ADRs are validated through clarification
 
 3. **Generate Summary**:
    - Technologies discovered
-   - ADRs created
+   - ADRs created with confidence levels
    - Gaps identified
-   - Recommended next steps
+   - Assumptions made (to be validated in clarify phase)
+
+### Phase 7: Auto-Handoff to Clarify
+
+**Objective**: Validate brownfield findings with user
+
+After generating ADRs, **automatically trigger `/architect.clarify`** with brownfield context:
+
+**Questions Clarify Should Ask** (Brownfield-Specific):
+
+| Question Type | Example |
+|---------------|---------|
+| **Current State Validity** | "I detected microservices in docker-compose.yml - is this still your current approach?" |
+| **Decision Rationale** | "PostgreSQL is used - was this chosen for specific requirements or inherited?" |
+| **Team Context** | "Based on git history, team appears small - are current architecture decisions appropriate?" |
+| **Technical Debt** | "Found custom authentication - are you considering migration to OAuth/OIDC?" |
+| **Migration Plans** | "Legacy patterns detected in X module - any plans to modernize?" |
+| **Deprecated Patterns** | "Monolithic deployment with hints of service separation - is microservices migration planned?" |
+
+**Context Passed to Clarify**:
+
+```json
+{
+  "source": "brownfield",
+  "tech_stack_detected": ["detected technologies"],
+  "inferred_decisions": ["list of ADRs with confidence levels"],
+  "assumptions": ["things that need validation"],
+  "files_analyzed": "count"
+}
+```
+
+The clarify phase will refine ADRs based on your input, then you can run `/architect.implement` to generate the full AD.md.
 
 ## Key Rules
 
@@ -368,12 +409,34 @@ After scanning, report:
 
 ### After `/architect.init`
 
-Recommended next steps:
+**Auto-triggered**: `/architect.clarify` runs immediately to validate findings.
 
-1. **Review Discoveries**: Verify inferred ADRs are accurate
-2. **Run `/architect.clarify`**: Fill gaps with human knowledge
-3. **Run `/architect.implement`**: Generate full AD.md from ADRs
-4. **Update As Needed**: Refine documentation as you learn more
+After clarification completes:
+
+1. **Review Validated ADRs**: Check `memory/adr.md` for accuracy
+2. **Run `/architect.implement`**: Generate full AD.md from validated ADRs
+3. **Update As Needed**: Refine documentation as you learn more
+
+### Complete Brownfield Flow
+
+```
+/architect.init "Node.js API, team of 2"
+    ↓
+[Scan codebase] → Detect technologies, patterns
+    ↓
+[Generate ADRs] → Write to memory/adr.md (marked "Discovered")
+    ↓
+[Auto-trigger /architect.clarify]
+    ↓
+[Clarify asks] → "Is microservices decision still valid?"
+                 "Custom auth detected - considering OAuth?"
+    ↓
+[Update ADRs] → Refined with your validation
+    ↓
+[User runs /architect.implement]
+    ↓
+[Generate AD.md] → Full architecture description
+```
 
 ### When to Use This Command
 

@@ -1,9 +1,16 @@
 ---
 description: Interactive PRD exploration and system-level ADR creation through guided architectural discussion
 handoffs:
-  - label: Clarify ADRs
+  - label: Refine ADRs
     agent: architect.clarify
-    prompt: Refine the architectural decisions
+    prompt: |
+      Review ADRs created from greenfield PRD exploration.
+      Ask questions about:
+      - Trade-offs and alternatives not yet considered
+      - Industry best practices and standards alignment
+      - Scalability and future growth concerns
+      - Team constraints and skill requirements
+      Focus on refining decisions with best practices, not validating existing code.
     send: true
   - label: Generate Architecture
     agent: architect.implement

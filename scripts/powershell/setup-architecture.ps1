@@ -500,47 +500,87 @@ function Invoke-Implement {
     }
 }
 
-# Initialize action (brownfield - reverse-engineer from codebase)
+# Initialize action (brownfield - reverse-engineer from codebase, ADRs only)
 function Invoke-Init {
-    param($repoRoot, $architectureFile, $templateFile)
+    param($repoRoot, $contextArgs)
     
-    if (Test-Path $architectureFile) {
-        Write-Error "Architecture already exists: $architectureFile`nUse 'update' action to modify or delete the file to reinitialize"
-        exit 1
+    $adrFile = Join-Path $repoRoot "memory\adr.md"
+    $adrTemplate = Join-Path $repoRoot ".specify\templates\adr-template.md"
+    
+    Write-Host "🔍 Initializing brownfield architecture discovery..." -ForegroundColor Cyan
+    
+    # Ensure memory directory exists
+    $memoryDir = Join-Path $repoRoot "memory"
+    if (-not (Test-Path $memoryDir)) {
+        New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
-    
-    if (-not (Test-Path $templateFile)) {
-        Write-Error "Template not found: $templateFile"
-        exit 1
-    }
-    
-    Write-Host "📐 Initializing architecture from template..." -ForegroundColor Cyan
     
     # Scan existing docs for deduplication
     Write-Host ""
     $existingDocs = Scan-ExistingDocs -RepoRoot $repoRoot
     if ($existingDocs) {
-        Write-Host "Existing Documentation Found:" -ForegroundColor Yellow
-        Write-Host $existingDocs
+        Write-Host "📋 Found existing documentation:" -ForegroundColor Yellow
+        $existingDocs -split "`n" | ForEach-Object { Write-Host "  - $_" }
         Write-Host ""
-        Write-Host "⚠️  Reference these instead of duplicating content" -ForegroundColor Yellow
     }
     
-    Copy-Item $templateFile $architectureFile
+    # Detect tech stack for context
+    Write-Host "🔍 Scanning codebase..." -ForegroundColor Cyan
+    $techStack = Get-TechStack
+    $dirStructure = Get-DirectoryStructure
     
-    # Generate diagrams based on user config
-    New-ArchitectureDiagrams -ArchitectureFile $architectureFile -SystemName "System"
+    # Initialize ADR file from template if it doesn't exist
+    if (-not (Test-Path $adrFile)) {
+        if (Test-Path $adrTemplate) {
+            Write-Host "Creating ADR file from template..." -ForegroundColor Cyan
+            Copy-Item $adrTemplate $adrFile
+            Write-Host "✅ Created: $adrFile" -ForegroundColor Green
+        } else {
+            # Create minimal ADR file
+            $minimalAdr = @"
+# Architecture Decision Records
+
+## ADR Index
+
+| ID | Decision | Status | Date | Owner |
+|----|----------|--------|------|-------|
+
+---
+
+"@
+            Set-Content -Path $adrFile -Value $minimalAdr
+            Write-Host "✅ Created minimal ADR file: $adrFile" -ForegroundColor Green
+        }
+    } else {
+        Write-Host "✅ ADR file already exists: $adrFile" -ForegroundColor Green
+    }
     
-    Write-Host "✅ Created: $architectureFile" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Next steps:"
-    Write-Host "1. Review and customize the architecture document"
-    Write-Host "2. Fill in stakeholder concerns and system scope"
-    Write-Host "3. Complete each viewpoint section with your system details"
-    Write-Host "4. Run '/architect.implement' to generate full AD.md"
+    Write-Host "📊 Codebase Analysis Summary:" -ForegroundColor Cyan
+    Write-Host $techStack
+    Write-Host ""
+    Write-Host $dirStructure
+    
+    Write-Host ""
+    Write-Host "Ready for brownfield architecture discovery."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Analyze codebase structure and patterns"
+    Write-Host "  2. Infer architectural decisions from code"
+    Write-Host "  3. Create ADRs marked as 'Discovered (Inferred)'"
+    Write-Host "  4. Auto-trigger /architect.clarify to validate findings"
+    Write-Host ""
+    Write-Host "NOTE: AD.md will NOT be created until ADRs are validated." -ForegroundColor Yellow
+    Write-Host "      After clarification, run /architect.implement to generate AD.md"
     
     if ($Json) {
-        @{status="success"; action="init"; file=$architectureFile} | ConvertTo-Json
+        @{
+            status="success"
+            action="init"
+            adr_file=$adrFile
+            tech_stack=$techStack
+            existing_docs=$existingDocs
+            source="brownfield"
+        } | ConvertTo-Json
     }
 }
 
@@ -754,7 +794,7 @@ try {
             Invoke-Clarify -repoRoot $repoRoot -contextArgs $Context
         }
         'init' {
-            Invoke-Init -repoRoot $repoRoot -architectureFile $adFile -templateFile $adTemplateFile
+            Invoke-Init -repoRoot $repoRoot -contextArgs $Context
         }
         'map' {
             Invoke-Map -repoRoot $repoRoot

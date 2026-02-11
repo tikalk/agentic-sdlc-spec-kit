@@ -560,21 +560,15 @@ action_implement() {
     fi
 }
 
-# Action: Initialize (brownfield - reverse-engineer from codebase)
+# Action: Initialize (brownfield - reverse-engineer from codebase, ADRs only)
 action_init() {
-    # Check for existing AD.md (new location)
-    if [[ -f "$AD_FILE" ]]; then
-        echo "❌ Architecture already exists: $AD_FILE" >&2
-        echo "Use 'update' action to modify or delete the file to reinitialize" >&2
-        exit 1
-    fi
+    local adr_file="$REPO_ROOT/memory/adr.md"
+    local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
-    if [[ ! -f "$AD_TEMPLATE_FILE" ]]; then
-        echo "❌ Template not found: $AD_TEMPLATE_FILE" >&2
-        exit 1
-    fi
+    echo "🔍 Initializing brownfield architecture discovery..." >&2
     
-    echo "📐 Initializing architecture from template..." >&2
+    # Ensure memory directory exists
+    mkdir -p "$REPO_ROOT/memory"
     
     # Scan existing docs for deduplication
     local existing_docs
@@ -587,21 +581,58 @@ action_init() {
         echo "" >&2
     fi
     
-    cp "$AD_TEMPLATE_FILE" "$AD_FILE"
+    # Detect tech stack for context
+    echo "🔍 Scanning codebase..." >&2
+    local tech_stack
+    tech_stack=$(detect_tech_stack)
     
-    # Generate diagrams based on user config
-    generate_and_insert_diagrams "$AD_FILE" "System" "$VIEWS"
+    local dir_structure
+    dir_structure=$(map_directory_structure)
     
-    echo "✅ Created: $AD_FILE" >&2
+    # Initialize ADR file from template if it doesn't exist
+    if [[ ! -f "$adr_file" ]]; then
+        if [[ -f "$adr_template" ]]; then
+            echo "Creating ADR file from template..." >&2
+            cp "$adr_template" "$adr_file"
+            echo "✅ Created: $adr_file" >&2
+        else
+            # Create minimal ADR file
+            cat > "$adr_file" << 'EOF'
+# Architecture Decision Records
+
+## ADR Index
+
+| ID | Decision | Status | Date | Owner |
+|----|----------|--------|------|-------|
+
+---
+
+EOF
+            echo "✅ Created minimal ADR file: $adr_file" >&2
+        fi
+    else
+        echo "✅ ADR file already exists: $adr_file" >&2
+    fi
+    
     echo "" >&2
-    echo "Next steps:" >&2
-    echo "1. Review and customize the architecture document" >&2
-    echo "2. Fill in stakeholder concerns and system scope" >&2
-    echo "3. Complete each viewpoint section with your system details" >&2
-    echo "4. Run '/architect.implement' to generate ADRs in memory/adr.md" >&2
+    echo "📊 Codebase Analysis Summary:" >&2
+    echo "$tech_stack" >&2
+    echo "" >&2
+    echo "$dir_structure" >&2
+    
+    echo "" >&2
+    echo "Ready for brownfield architecture discovery." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Analyze codebase structure and patterns" >&2
+    echo "  2. Infer architectural decisions from code" >&2
+    echo "  3. Create ADRs marked as 'Discovered (Inferred)'" >&2
+    echo "  4. Auto-trigger /architect.clarify to validate findings" >&2
+    echo "" >&2
+    echo "NOTE: AD.md will NOT be created until ADRs are validated." >&2
+    echo "      After clarification, run /architect.implement to generate AD.md" >&2
     
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"init\",\"ad_file\":\"$AD_FILE\",\"adr_file\":\"$ADR_FILE\"}"
+        echo "{\"status\":\"success\",\"action\":\"init\",\"adr_file\":\"$adr_file\",\"tech_stack\":\"$tech_stack\",\"existing_docs\":\"$existing_docs\",\"source\":\"brownfield\"}"
     fi
 }
 
