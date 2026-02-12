@@ -1,6 +1,20 @@
 // PromptFoo configuration for Plan Template tests only
+
+// Transform to strip thinking/reasoning sections from model output
+function stripThinkingSection(output) {
+  if (typeof output !== 'string') return output;
+  return output
+    .replace(/^Thinking:[\s\S]*?(?=^#|\n\n)/m, '')
+    .replace(/^思考:[\s\S]*?(?=^#|\n\n)/m, '')
+    .trim();
+}
+
 module.exports = {
   description: 'Plan Template Quality Evaluation',
+
+  // Rate limiting protection - run tests sequentially with delay
+  maxConcurrency: 1,
+  delay: 2000, // 2 second delay between tests
 
   // Plan prompt only
   prompts: ['file://../prompts/plan-prompt.txt'],
@@ -9,7 +23,7 @@ module.exports = {
   providers: [
     {
       id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
+      label: `${process.env.LLM_MODEL || 'Default Model'} (via AI API Gateway)`,
       config: {
         apiBaseUrl: process.env.LLM_BASE_URL,
         apiKey: process.env.LLM_AUTH_TOKEN,
@@ -24,6 +38,7 @@ module.exports = {
   ],
 
   defaultTest: {
+    transform: (output) => stripThinkingSection(output),
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },

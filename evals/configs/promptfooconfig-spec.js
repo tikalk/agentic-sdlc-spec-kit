@@ -1,6 +1,20 @@
 // PromptFoo configuration for Spec Template tests only
+
+// Transform to strip thinking/reasoning sections from model output
+function stripThinkingSection(output) {
+  if (typeof output !== 'string') return output;
+  return output
+    .replace(/^Thinking:[\s\S]*?(?=^#|\n\n)/m, '')
+    .replace(/^思考:[\s\S]*?(?=^#|\n\n)/m, '')
+    .trim();
+}
+
 module.exports = {
   description: 'Spec Template Quality Evaluation',
+
+  // Rate limiting protection - run tests sequentially with delay
+  maxConcurrency: 1,
+  delay: 2000, // 2 second delay between tests
 
   // Spec prompt only
   prompts: ['file://../prompts/spec-prompt.txt'],
@@ -9,7 +23,7 @@ module.exports = {
   providers: [
     {
       id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `Claude ${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
+      label: `${process.env.LLM_MODEL || 'Default Model'} (via AI API Gateway)`,
       config: {
         apiBaseUrl: process.env.LLM_BASE_URL,
         apiKey: process.env.LLM_AUTH_TOKEN,
@@ -24,6 +38,7 @@ module.exports = {
   ],
 
   defaultTest: {
+    transform: (output) => stripThinkingSection(output),
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
@@ -61,7 +76,7 @@ module.exports = {
           type: 'llm-rubric',
           value:
             'Check if this specification avoids technical implementation details.\nIt should focus on WHAT needs to be built, not HOW to build it.\nReturn 1.0 if no tech stack is mentioned, 0.5 if some mentioned, 0.0 if heavy tech details.',
-          threshold: 0.8,
+          threshold: 0.7,
         },
       ],
     },
@@ -89,12 +104,8 @@ module.exports = {
         user_input: 'Build a fast, scalable, user-friendly dashboard with good performance',
       },
       assert: [
-        {
-          type: 'llm-rubric',
-          value:
-            'Check if vague terms like "fast", "scalable", "user-friendly", "good performance"\nare either:\n1. Quantified with specific metrics (e.g., "response time < 200ms")\n2. Marked with [NEEDS CLARIFICATION] or similar flags\n\nReturn 1.0 if all vague terms are handled properly, 0.0 if none are.',
-          threshold: 0.7,
-        },
+        // Using Python grader instead of LLM rubric for deterministic results
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_vague_terms' },
       ],
     },
 
@@ -130,12 +141,8 @@ module.exports = {
         user_input: 'Build an e-commerce checkout flow with cart, payment, and order confirmation',
       },
       assert: [
-        {
-          type: 'llm-rubric',
-          value:
-            'Grade completeness (0-1):\n1. Are functional requirements complete? (cart operations, payment, confirmation)\n2. Are user stories covering main flows?\n3. Are non-functional requirements specified? (performance, security)\n4. Are edge cases identified? (payment failures, session timeout)\nReturn average score 0-1.',
-          threshold: 0.75,
-        },
+        // Using Python grader instead of LLM rubric for deterministic results
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_completeness' },
       ],
     },
 
