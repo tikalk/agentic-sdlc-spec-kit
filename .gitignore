@@ -47,7 +47,6 @@ env/
 .genreleases/
 *.zip
 sdd-*/
-
 docs/dev
 
 # User-specific configuration (now stored globally in ~/.config/specify/)

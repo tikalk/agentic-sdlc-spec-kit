@@ -230,6 +230,12 @@ AGENT_CONFIG = {
         "install_url": "https://github.com/ovh/shai",
         "requires_cli": True,
     },
+    "agy": {
+        "name": "Antigravity",
+        "folder": ".agent/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
     "bob": {
         "name": "IBM Bob",
         "folder": ".bob/",
@@ -2533,7 +2539,7 @@ def init(
     ai_assistant: Optional[str] = typer.Option(
         None,
         "--ai",
-        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder ",
+        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, or qoder ",
     ),
     script_type: Optional[str] = typer.Option(
         None, "--script", help="Script type to use: sh or ps"
