@@ -121,6 +121,7 @@ Given the PRD input, execute this workflow:
 5. **Check Existing Documentation**:
     - Scan `README.md` for already-documented tech stack
     - Check `AGENTS.md` for project context
+    - Check team directives: Run `{SCRIPT}` and look for `TEAM_AGENTS_MD` in output - if present, this file contains usage instructions for team-wide agent directives
     - Review `CONTRIBUTING.md` for dev guidelines
     - Note: Don't duplicate - reference existing docs
 

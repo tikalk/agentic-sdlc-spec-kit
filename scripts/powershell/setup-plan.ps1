@@ -63,8 +63,14 @@ $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
 if (-not $teamDirectives) {
     $teamDirectives = Join-Path $paths.REPO_ROOT '.specify/memory/team-ai-directives'
 }
+$teamAgentsMd = ''
 if (Test-Path $teamDirectives) {
     $env:SPECIFY_TEAM_DIRECTIVES = $teamDirectives
+    # Check for team-level AGENTS.md
+    $teamAgentsMd = Join-Path $teamDirectives 'AGENTS.md'
+    if (-not (Test-Path $teamAgentsMd)) {
+        $teamAgentsMd = ''
+    }
 } else {
     $teamDirectives = ''
 }
@@ -118,6 +124,7 @@ if ($Json) {
         HAS_GIT = $paths.HAS_GIT
         CONSTITUTION = $constitutionFile
         TEAM_DIRECTIVES = $teamDirectives
+        TEAM_AGENTS_MD = $teamAgentsMd
         AD = $adFile
         ADR = $adrFile
     }
@@ -135,8 +142,14 @@ if ($Json) {
     }
     if ($teamDirectives) {
         Write-Output "TEAM_DIRECTIVES: $teamDirectives"
+        if ($teamAgentsMd) {
+            Write-Output "TEAM_AGENTS_MD: $teamAgentsMd"
+        } else {
+            Write-Output "TEAM_AGENTS_MD: (missing)"
+        }
     } else {
         Write-Output "TEAM_DIRECTIVES: (missing)"
+        Write-Output "TEAM_AGENTS_MD: (missing)"
     }
     if ($adFile) {
         Write-Output "AD: $adFile"

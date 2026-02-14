@@ -281,8 +281,9 @@ Given that feature description, do this:
        - **Feature**: Use the feature title/name from spec.md header
        - **Mission**: Extract the core purpose/goal from the feature description
        - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
-       - **Directives**: Reference applicable team directives from constitution/memory
-       - **Research**: List any external research needs identified during specification
+        - **Directives**: Reference applicable team directives from constitution/memory
+        - **Team Directives Guide**: Run `{SCRIPT}` to get `TEAM_AGENTS_MD` path from JSON output. If team-ai-directives is configured, include the path to AGENTS.md for usage instructions
+        - **Research**: List any external research needs identified during specification
        - **Skills**: Auto-discovered relevant skills (see above)
      - **Build Mode**: Populate Feature, Mission, and Skills (minimum required)
      - **Spec Mode**: Populate all 5 fields with detailed, accurate values

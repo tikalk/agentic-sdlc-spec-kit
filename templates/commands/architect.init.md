@@ -83,7 +83,7 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 ## Outline
 
 1. **Codebase Scan**: Analyze project structure and detect technologies
-2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, etc.) to avoid repeating
+2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, team-ai-directives/AGENTS.md if configured, etc.) to avoid repeating
 3. **Pattern Detection**: Identify architectural patterns in use
 4. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered")
 5. **Gap Analysis**: Identify areas where decisions are unclear
@@ -174,6 +174,7 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 **Scan for**:
 
 - `AGENTS.md` - Project context, overview
+- `team-ai-directives/AGENTS.md` - Team-wide agent usage instructions (if configured)
 - `README.md` - Tech stack, project description
 - `CONTRIBUTING.md` - Development guidelines
 - `AD.md` or `docs/architecture.md` - Existing architecture
@@ -187,6 +188,7 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 | Architecture exists | Auto-merge or offer update vs. create new |
 | Guidelines in CONTRIBUTING | Reference in Development View |
 | Context in AGENTS.md | Link from Context View |
+| Team directives AGENTS.md | Reference for team-wide agent instructions |
 
 **Process**:
 
