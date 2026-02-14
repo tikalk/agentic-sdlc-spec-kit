@@ -1469,6 +1469,13 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - ❌ **Smart Context Windowing**: Logic to slice `spec.md` and `plan.md` based on the active User Story phase during implementation to save tokens.
 - ❌ **Semantic Diffs**: `specify diff` command to summarize behavioral changes in specs rather than just line-diffs.
 - ❌ **Directive Embeddings**: (Future) Local vector index for `team-ai-directives` to support large governance repositories without context flooding.
+- ❌ **Build Skill from Project Patterns**: Analyze project implementation patterns (from spec.md, plan.md, tasks.md, code artifacts) and auto-generate reusable skill packages that can be contributed to team-ai-directives
+  - Pattern extraction: Identify recurring implementation patterns, code structures, testing approaches from completed features
+  - Skill scaffolding: Auto-generate SKILL.md with trigger keywords, references, and scripts based on detected patterns
+  - Contribution workflow: Create PR-ready skill packages with proper structure for team-ai-directives submission
+  - Skill templates: Provide templates for common skill types (testing patterns, code generators, validation rules)
+  - Integration with `/levelup`: Extract patterns from session traces and suggest skill creation during levelup
+  - Quality validation: Ensure generated skills meet team-ai-directives standards before contribution
 
 #### **Resilience & Self-Healing** *(0% Complete)* - **MEDIUM PRIORITY** - Automation robustness
 
