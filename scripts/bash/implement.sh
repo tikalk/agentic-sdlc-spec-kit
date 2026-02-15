@@ -235,9 +235,26 @@ execute_task() {
             local branch_name
             branch_name=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
             
-            # Call the orchestrator script if available
-            if command -v agentic-sdlc-orchestrator &>/dev/null; then
-                agentic-sdlc-orchestrator spawn \
+            # Find the orchestrator spawn-pod.sh script
+            local orchestrator_script=""
+            if [[ -f "$FEATURE_DIR/scripts/spawn-pod.sh" ]]; then
+                orchestrator_script="$FEATURE_DIR/scripts/spawn-pod.sh"
+            elif [[ -f "./scripts/spawn-pod.sh" ]]; then
+                orchestrator_script="./scripts/spawn-pod.sh"
+            elif command -v agentic-sdlc-orchestrator &>/dev/null; then
+                # Try to find spawn-pod.sh relative to the installed CLI
+                local cli_path
+                cli_path=$(which agentic-sdlc-orchestrator)
+                local cli_dir
+                cli_dir=$(dirname "$cli_path")
+                if [[ -f "$cli_dir/../scripts/spawn-pod.sh" ]]; then
+                    orchestrator_script="$cli_dir/../scripts/spawn-pod.sh"
+                fi
+            fi
+            
+            if [[ -n "$orchestrator_script" && -f "$orchestrator_script" ]]; then
+                log_info "Using orchestrator script: $orchestrator_script"
+                "$orchestrator_script" \
                     --task-id "$task_id" \
                     --branch "specs/$(basename "$FEATURE_DIR")/${task_id}-async" \
                     --repo "$repo_url" \
@@ -250,7 +267,8 @@ execute_task() {
                     handle_task_failure "$task_id" "Failed to spawn K8s pod"
                 fi
             else
-                log_warn "agentic-sdlc-orchestrator not installed. Install with: pip install agentic-sdlc-orchestrator"
+                log_warn "agentic-sdlc-orchestrator script not found. Expected at: ./scripts/spawn-pod.sh"
+                log_info "Please ensure the agentic-sdlc-orchestrator repository is cloned and scripts are available"
                 log_info "Falling back to standard async delegation"
                 # Fall back to standard dispatch_async_task
                 local task_context="Files: $task_files"
