@@ -1,0 +1,61 @@
+You are tasked with creating an AI session trace document for a completed feature implementation.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a comprehensive session trace document that captures the implementation journey.
+
+The trace MUST include these sections:
+
+## Summary
+- **Problem**: 1-2 sentence description of what needed to be implemented
+- **Key Decisions**: Numbered chronological list of significant decisions made
+- **Final Solution**: Brief outcome statement with key metrics
+
+## 1. Session Overview
+- Mission statement
+- Key architectural decisions
+- Implementation strategy and approach
+
+## 2. Implementation Steps
+For each major implementation step:
+- What was done
+- Why this approach was chosen
+- Artifacts produced (files, tests, configs)
+- Challenges encountered and how they were resolved
+
+## 3. Decisions Log
+For each significant decision:
+- Decision description
+- Context (why it was needed)
+- Options considered
+- Choice made and rationale
+- Impact on implementation
+
+## 4. Quality Gates
+- Tests written and results
+- Code review findings (if applicable)
+- Performance metrics (if applicable)
+- Security considerations addressed
+
+## 5. Artifacts
+List of all artifacts produced:
+- Source files created/modified
+- Test files
+- Configuration files
+- Documentation updates
+
+## 6. Lessons Learned
+- What went well
+- What could be improved
+- Recommendations for future similar work
+
+IMPORTANT CONSTRAINTS:
+- Include specific file paths and commit references where applicable
+- Document BOTH successful and failed approaches
+- Include timestamps or ordering for chronological clarity
+- All decisions must have rationale documented
+- Trace must be self-contained and understandable without external context
+
+OUTPUT: A complete session trace document.
