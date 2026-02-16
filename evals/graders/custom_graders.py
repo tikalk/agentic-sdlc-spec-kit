@@ -326,6 +326,419 @@ def check_edge_cases_coverage(output: str, context: dict) -> dict:
     }
 
 
+def check_arch_structure(output: str, context: dict) -> dict:
+    """
+    Check if architecture document contains required Rozanski & Woods sections.
+
+    Args:
+        output: The generated architecture document text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    required_sections = {
+        'introduction': ['introduction', 'purpose', 'scope'],
+        'stakeholders': ['stakeholder'],
+        'context_view': ['context view'],
+        'functional_view': ['functional view', 'functional element'],
+        'information_view': ['information view', 'data entit'],
+        'development_view': ['development view', 'code organization'],
+        'deployment_view': ['deployment view', 'runtime environment'],
+        'security': ['security', 'authentication', 'authorization'],
+        'adr': ['adr', 'architecture decision record', 'decision record'],
+    }
+
+    output_lower = output.lower()
+    found_sections = []
+    missing_sections = []
+
+    for section, keywords in required_sections.items():
+        if any(kw in output_lower for kw in keywords):
+            found_sections.append(section)
+        else:
+            missing_sections.append(section)
+
+    score = len(found_sections) / len(required_sections)
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': f'Found {len(found_sections)}/{len(required_sections)} required sections. Missing: {", ".join(missing_sections) if missing_sections else "none"}'
+    }
+
+
+def check_blackbox_context_view(output: str, context: dict) -> dict:
+    """
+    Check if the Context View treats the system as a single blackbox.
+
+    The Context View must NOT show internal components (databases, caches,
+    internal services). It should only show the system as one node with
+    external actors and external systems.
+
+    Args:
+        output: The generated architecture document text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    output_lower = output.lower()
+
+    # Find the Context View section
+    context_view_start = -1
+    for marker in ['context view', '3.1 context', 'context diagram']:
+        idx = output_lower.find(marker)
+        if idx != -1:
+            context_view_start = idx
+            break
+
+    if context_view_start == -1:
+        return {
+            'pass': False,
+            'score': 0.0,
+            'reason': 'No Context View section found'
+        }
+
+    # Find the end of Context View (next major section)
+    next_section = re.search(r'\n##\s+\d', output_lower[context_view_start + 50:])
+    if next_section:
+        context_view_end = context_view_start + 50 + next_section.start()
+    else:
+        context_view_end = min(context_view_start + 3000, len(output_lower))
+
+    context_view_text = output_lower[context_view_start:context_view_end]
+
+    # Internal components that should NOT appear in Context View
+    internal_indicators = [
+        'database layer', 'cache layer', 'redis cache',
+        'api gateway', 'auth service', 'authentication service',
+        'business logic layer', 'data access layer',
+        'internal service', 'microservice',
+        'repository layer', 'service layer',
+    ]
+
+    violations = []
+    for indicator in internal_indicators:
+        if indicator in context_view_text:
+            # Check if it's in a "do not" or "must not" context
+            pattern = rf'(not|don.t|must not|should not|no)\s+\w*\s*{re.escape(indicator)}'
+            if not re.search(pattern, context_view_text):
+                violations.append(indicator)
+
+    # Check for blackbox keywords (positive signals)
+    blackbox_signals = ['blackbox', 'black box', 'single node', 'unified', 'system boundary']
+    has_blackbox = any(signal in context_view_text for signal in blackbox_signals)
+
+    # Check for external actors (positive signals)
+    external_signals = ['external', 'user', 'actor', 'third-party', 'third party']
+    has_externals = any(signal in context_view_text for signal in external_signals)
+
+    # Score calculation
+    violation_penalty = len(violations) * 0.25
+    blackbox_bonus = 0.15 if has_blackbox else 0
+    external_bonus = 0.15 if has_externals else 0
+
+    score = max(0, 1.0 - violation_penalty + blackbox_bonus + external_bonus)
+    score = min(1.0, score)
+
+    reasons = []
+    if violations:
+        reasons.append(f'Internal details in Context View: {", ".join(violations)}')
+    if has_blackbox:
+        reasons.append('Blackbox constraint acknowledged')
+    if has_externals:
+        reasons.append('External actors documented')
+    if not reasons:
+        reasons.append('Context View structure acceptable')
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': '; '.join(reasons)
+    }
+
+
+def check_arch_simplicity(output: str, context: dict) -> dict:
+    """
+    Check if architecture is proportional to system complexity.
+
+    For simple systems (todo apps, basic CRUDs), the architecture should
+    be simple (monolith, simple deployment, no k8s, no microservices).
+
+    Args:
+        output: The generated architecture document text
+        context: Additional context with vars (user_input)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    user_input = context.get('vars', {}).get('user_input', '').lower()
+    output_lower = output.lower()
+
+    # Determine if the input describes a simple system
+    simple_indicators = ['simple', 'basic', 'todo', 'crud', 'small', 'minimal', 'single']
+    is_simple_system = any(indicator in user_input for indicator in simple_indicators)
+
+    if not is_simple_system:
+        # For complex systems, just check that architecture exists
+        return {
+            'pass': True,
+            'score': 1.0,
+            'reason': 'Complex system - simplicity gate not applicable'
+        }
+
+    # For simple systems, check for over-engineering
+    over_engineering_patterns = {
+        'microservices': ['microservice', 'micro-service'],
+        'kubernetes': ['kubernetes', 'k8s', 'kubectl'],
+        'service_mesh': ['service mesh', 'istio', 'envoy', 'linkerd'],
+        'event_sourcing': ['event sourcing', 'event store'],
+        'cqrs': ['cqrs', 'command query responsibility'],
+        'complex_messaging': ['kafka', 'rabbitmq', 'message broker'],
+    }
+
+    violations = []
+    for category, patterns in over_engineering_patterns.items():
+        for pattern in patterns:
+            if pattern in output_lower:
+                # Check if in negative context
+                neg_pattern = rf'(no|avoid|without|don.t|not|unnecessary)\s+\w*\s*{re.escape(pattern)}'
+                if not re.search(neg_pattern, output_lower):
+                    violations.append(category)
+                    break
+
+    # Positive: check for simple architecture signals
+    simple_signals = ['monolith', 'single server', 'docker compose', 'simple deployment',
+                      'single database', 'sqlite', 'single project']
+    has_simple_arch = any(signal in output_lower for signal in simple_signals)
+
+    score = max(0, 1.0 - len(violations) * 0.25)
+    if has_simple_arch:
+        score = min(1.0, score + 0.1)
+
+    reasons = []
+    if violations:
+        reasons.append(f'Over-engineering for simple system: {", ".join(violations)}')
+    if has_simple_arch:
+        reasons.append('Simple architecture patterns detected')
+    if not reasons:
+        reasons.append('Architecture complexity acceptable for system scope')
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': '; '.join(reasons)
+    }
+
+
+def check_adr_quality(output: str, context: dict) -> dict:
+    """
+    Check if ADRs follow the expected template structure.
+
+    Each ADR should have: Status, Context, Decision, Consequences sections.
+
+    Args:
+        output: The generated architecture document text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    output_lower = output.lower()
+
+    # Find ADR sections
+    adr_pattern = re.compile(r'adr[-\s]*\d+', re.IGNORECASE)
+    adrs_found = adr_pattern.findall(output)
+    unique_adrs = set(adr.lower().replace(' ', '-').replace('--', '-') for adr in adrs_found)
+
+    if not unique_adrs:
+        return {
+            'pass': False,
+            'score': 0.0,
+            'reason': 'No ADRs found in architecture document'
+        }
+
+    # Required ADR subsections
+    required_subsections = ['status', 'context', 'decision', 'consequence']
+
+    found_subsections = []
+    for subsection in required_subsections:
+        if subsection in output_lower:
+            found_subsections.append(subsection)
+
+    subsection_score = len(found_subsections) / len(required_subsections)
+
+    # Check for alternatives/trade-offs (quality bonus)
+    has_alternatives = any(term in output_lower for term in
+                          ['alternative', 'trade-off', 'tradeoff', 'common alternatives', 'option'])
+
+    # Check for confidence levels (for discovered ADRs)
+    has_confidence = any(term in output_lower for term in
+                         ['confidence', 'high', 'medium', 'low'])
+
+    score = subsection_score * 0.7
+    if has_alternatives:
+        score += 0.15
+    if has_confidence:
+        score += 0.15
+
+    score = min(1.0, score)
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': f'Found {len(unique_adrs)} ADR(s) with {len(found_subsections)}/{len(required_subsections)} required subsections. Alternatives: {"yes" if has_alternatives else "no"}, Confidence: {"yes" if has_confidence else "no"}'
+    }
+
+
+def check_extension_manifest(output: str, context: dict) -> dict:
+    """
+    Check if extension manifest contains all required fields.
+
+    Args:
+        output: The generated extension package text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    output_lower = output.lower()
+
+    required_fields = {
+        'schema_version': ['schema_version'],
+        'extension_id': ['extension:', 'id:'],
+        'name': ['name:'],
+        'version': ['version:'],
+        'description': ['description:'],
+        'author': ['author:'],
+        'requires': ['requires:', 'speckit_version'],
+        'commands': ['commands:', 'provides:'],
+        'tags': ['tags:'],
+    }
+
+    found_fields = []
+    missing_fields = []
+
+    for field, keywords in required_fields.items():
+        if any(kw in output_lower for kw in keywords):
+            found_fields.append(field)
+        else:
+            missing_fields.append(field)
+
+    score = len(found_fields) / len(required_fields)
+
+    # Check for valid command naming pattern
+    import re
+    has_valid_commands = bool(re.search(r'speckit\.\w[\w-]*\.\w', output_lower))
+    if has_valid_commands:
+        score = min(1.0, score + 0.1)
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': f'Found {len(found_fields)}/{len(required_fields)} required fields. Missing: {", ".join(missing_fields) if missing_fields else "none"}. Valid command pattern: {"yes" if has_valid_commands else "no"}'
+    }
+
+
+def check_extension_self_containment(output: str, context: dict) -> dict:
+    """
+    Check if extension is self-contained (no @rule, @persona, @example refs).
+
+    Args:
+        output: The generated extension package text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    # External references that should NOT appear
+    external_refs = [
+        r'@rule\b',
+        r'@persona\b',
+        r'@example\b',
+        r'@import\b',
+    ]
+
+    violations = []
+    for ref_pattern in external_refs:
+        matches = re.findall(ref_pattern, output, re.IGNORECASE)
+        if matches:
+            violations.append(ref_pattern.replace(r'\b', ''))
+
+    # Check for self-containment positive signals
+    has_prerequisites = 'prerequisite' in output.lower()
+    has_purpose = 'purpose' in output.lower()
+    has_steps = 'step' in output.lower()
+
+    containment_score = 1.0 if not violations else max(0, 1.0 - len(violations) * 0.3)
+    completeness_score = sum([has_prerequisites, has_purpose, has_steps]) / 3
+
+    score = containment_score * 0.6 + completeness_score * 0.4
+
+    reasons = []
+    if violations:
+        reasons.append(f'External references found: {", ".join(violations)}')
+    if has_prerequisites and has_purpose and has_steps:
+        reasons.append('Self-contained with prerequisites, purpose, and steps')
+    else:
+        missing = []
+        if not has_prerequisites:
+            missing.append('prerequisites')
+        if not has_purpose:
+            missing.append('purpose')
+        if not has_steps:
+            missing.append('steps')
+        reasons.append(f'Missing command sections: {", ".join(missing)}')
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': '; '.join(reasons)
+    }
+
+
+def check_extension_config(output: str, context: dict) -> dict:
+    """
+    Check if extension config template has documented options and defaults.
+
+    Args:
+        output: The generated extension package text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    output_lower = output.lower()
+
+    checks = {
+        'has_comments': '#' in output,
+        'has_required_markers': any(m in output_lower for m in ['required', 'optional']),
+        'has_defaults': any(m in output_lower for m in ['default', 'true', 'false']),
+        'has_env_override': any(m in output_lower for m in ['environment variable', 'env', 'override']),
+        'has_sections': output_lower.count(':') >= 5,
+    }
+
+    passed_checks = sum(checks.values())
+    score = passed_checks / len(checks)
+
+    details = [f'{k}: {"yes" if v else "no"}' for k, v in checks.items()]
+
+    return {
+        'pass': score >= 0.6,
+        'score': score,
+        'reason': f'{passed_checks}/{len(checks)} config quality checks passed ({", ".join(details)})'
+    }
+
+
 def check_testability(output: str, context: dict) -> dict:
     """
     Check if requirements are testable with clear acceptance criteria.
@@ -380,4 +793,63 @@ def check_testability(output: str, context: dict) -> dict:
         'pass': testability_ratio >= 0.7,
         'score': testability_ratio,
         'reason': f'{stories_with_criteria}/{len(user_stories)} user stories have testable acceptance criteria'
+    }
+
+def check_clarification_quality(output: str, context: dict) -> dict:
+    """
+    Check if the clarification report has the required sections and content.
+    """
+    output_lower = output.lower()
+    score = 0
+    reasons = []
+
+    if 'ambiguity analysis' in output_lower:
+        score += 0.4
+        reasons.append("Found 'Ambiguity Analysis' section.")
+    else:
+        reasons.append("Missing 'Ambiguity Analysis' section.")
+
+    if 'clarification questions' in output_lower:
+        score += 0.4
+        reasons.append("Found 'Clarification Questions' section.")
+    else:
+        reasons.append("Missing 'Clarification Questions' section.")
+
+    if 'suggested defaults' in output_lower:
+        score += 0.2
+        reasons.append("Found 'Suggested Defaults' section.")
+    else:
+        reasons.append("Missing 'Suggested Defaults' section.")
+
+    return {
+        'pass': score > 0.7,
+        'score': score,
+        'reason': ' '.join(reasons)
+    }
+
+def check_architectural_focus(output: str, context: dict) -> dict:
+    """
+    Check if the clarification questions have an architectural focus.
+    """
+    output_lower = output.lower()
+    score = 0
+    reasons = []
+
+    architectural_keywords = ['real-time', 'concurrent users', 'scaling', 'monolith', 'django', 'postgresql']
+    found_keywords = [kw for kw in architectural_keywords if kw in output_lower]
+
+    if len(found_keywords) >= 3:
+        score = 1.0
+        reasons.append(f"Found several architectural keywords: {', '.join(found_keywords)}.")
+    elif len(found_keywords) > 0:
+        score = 0.5
+        reasons.append(f"Found some architectural keywords: {', '.join(found_keywords)}.")
+    else:
+        score = 0.0
+        reasons.append("No architectural keywords found.")
+
+    return {
+        'pass': score > 0.7,
+        'score': score,
+        'reason': ' '.join(reasons)
     }
