@@ -1,0 +1,30 @@
+Your task is to produce a "Clarification Report" for the following user requirements.
+
+The report must contain exactly three sections with the following markdown headings, in this exact order:
+1. `## 1. Ambiguity Analysis`
+2. `## 2. Clarification Questions`
+3. `## 3. Suggested Defaults`
+
+## Instructions
+
+First, identify if this is a **system-level/architectural scenario** by looking for:
+- Existing infrastructure or tech stack (e.g., "monolith", "Django", "PostgreSQL")
+- Scale/performance requirements (e.g., "500 req/s", "50,000 concurrent users")
+- Team composition (e.g., "3 backend developers")
+- System constraints or deployment context
+
+### For Architectural Scenarios:
+Your clarification questions MUST focus on architectural decisions:
+- **Real-time communication approach**: WebSocket vs SSE vs polling? How will real-time updates be delivered?
+- **Scaling strategy**: Horizontal vs vertical scaling? Keep monolith or break into services? Database scaling approach?
+- **Data flow patterns**: Pub/sub? Event streaming? Change data capture? Polling?
+- **Team capacity vs complexity**: Does the proposed architecture match team size and expertise? Risk of over-engineering?
+- **Infrastructure & deployment**: Caching strategy? Load balancing? Session management? Deployment model?
+
+Focus on ARCHITECTURE DECISIONS, not feature details or project management.
+
+### For Feature-level Scenarios:
+Focus on functional requirements, edge cases, user experience, and acceptance criteria.
+
+USER REQUIREMENTS:
+{{ user_input }}

@@ -2,7 +2,7 @@
 
 **Version**: 1.0 | **Created**: [DATE] | **Last Updated**: [DATE]  
 **Architect**: [AUTHOR/AI] | **Status**: Draft | Review | Approved
-**ADR Reference**: [memory/adr.md](memory/adr.md)
+**ADR Reference**: [.specify/memory/adr.md](.specify/memory/adr.md)
 
 ---
 
@@ -421,7 +421,7 @@ graph TB
 
 ## 7. ADR Summary
 
-Detailed Architecture Decision Records are maintained in [memory/adr.md](memory/adr.md).
+Detailed Architecture Decision Records are maintained in [.specify/memory/adr.md](.specify/memory/adr.md).
 
 **Key Decisions:**
 

@@ -1,20 +1,10 @@
 // PromptFoo configuration for Spec Template tests only
-
-// Transform to strip thinking/reasoning sections from model output
-function stripThinkingSection(output) {
-  if (typeof output !== 'string') return output;
-  return output
-    .replace(/^Thinking:[\s\S]*?(?=^#|\n\n)/m, '')
-    .replace(/^思考:[\s\S]*?(?=^#|\n\n)/m, '')
-    .trim();
-}
-
 module.exports = {
   description: 'Spec Template Quality Evaluation',
 
-  // Rate limiting protection - run tests sequentially with delay
+  // Rate limiting to avoid 429 errors
   maxConcurrency: 1,
-  delay: 2000, // 2 second delay between tests
+  delay: 5000, // 5 second delay between tests (increased for Groq)
 
   // Spec prompt only
   prompts: ['file://../prompts/spec-prompt.txt'],
@@ -23,7 +13,7 @@ module.exports = {
   providers: [
     {
       id: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
-      label: `${process.env.LLM_MODEL || 'Default Model'} (via AI API Gateway)`,
+      label: `${process.env.LLM_MODEL || 'Sonnet 4.5'} (via AI API Gateway)`,
       config: {
         apiBaseUrl: process.env.LLM_BASE_URL,
         apiKey: process.env.LLM_AUTH_TOKEN,
@@ -38,7 +28,6 @@ module.exports = {
   ],
 
   defaultTest: {
-    transform: (output) => stripThinkingSection(output),
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
@@ -76,7 +65,7 @@ module.exports = {
           type: 'llm-rubric',
           value:
             'Check if this specification avoids technical implementation details.\nIt should focus on WHAT needs to be built, not HOW to build it.\nReturn 1.0 if no tech stack is mentioned, 0.5 if some mentioned, 0.0 if heavy tech details.',
-          threshold: 0.7,
+          threshold: 0.8,
         },
       ],
     },
@@ -104,8 +93,12 @@ module.exports = {
         user_input: 'Build a fast, scalable, user-friendly dashboard with good performance',
       },
       assert: [
-        // Using Python grader instead of LLM rubric for deterministic results
-        { type: 'python', value: 'file://../graders/custom_graders.py:check_vague_terms' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Check if vague terms like "fast", "scalable", "user-friendly", "good performance"\nare either:\n1. Quantified with specific metrics (e.g., "response time < 200ms")\n2. Marked with [NEEDS CLARIFICATION] or similar flags\n\nReturn 1.0 if all vague terms are handled properly, 0.0 if none are.',
+          threshold: 0.7,
+        },
       ],
     },
 
@@ -141,8 +134,12 @@ module.exports = {
         user_input: 'Build an e-commerce checkout flow with cart, payment, and order confirmation',
       },
       assert: [
-        // Using Python grader instead of LLM rubric for deterministic results
-        { type: 'python', value: 'file://../graders/custom_graders.py:check_completeness' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Grade completeness (0-1):\n1. Are functional requirements complete? (cart operations, payment, confirmation)\n2. Are user stories covering main flows?\n3. Are non-functional requirements specified? (performance, security)\n4. Are edge cases identified? (payment failures, session timeout)\nReturn average score 0-1.',
+          threshold: 0.75,
+        },
       ],
     },
 
@@ -162,6 +159,57 @@ module.exports = {
             const sections = output.split(/^#{1,2} /gm).length - 1;
             return sections >= 4;
           `,
+        },
+      ],
+    },
+
+    // Test 11: Spec Command Regression (post /speckit → /spec rename)
+    {
+      description: 'Regression: Spec output quality maintained after rename',
+      vars: {
+        user_input:
+          'Build a user notification preferences page where users can toggle email, SMS, and push notifications per event type (marketing, transactional, security alerts)',
+      },
+      assert: [
+        { type: 'icontains', value: 'overview' },
+        { type: 'icontains', value: 'functional requirements' },
+        { type: 'icontains', value: 'user stor' },
+        { type: 'icontains', value: 'non-functional' },
+        { type: 'icontains', value: 'edge case' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Grade the specification quality (0-1):\n' +
+            '1. Does it cover all three notification channels (email, SMS, push)?\n' +
+            '2. Does it address per-event-type configuration?\n' +
+            '3. Are user stories specific to notification preferences?\n' +
+            '4. Does it include edge cases (invalid toggle states, rate limits)?\n' +
+            '5. Are non-functional requirements addressing notification delivery?\n' +
+            'Return average score 0-1.',
+          threshold: 0.7,
+        },
+      ],
+    },
+
+    // Test 12: Build-mode Spec Quality
+    {
+      description: 'Spec Template: Build-mode produces lean, focused output',
+      vars: {
+        user_input:
+          'Build a simple health check endpoint that returns server status, uptime, and database connectivity. Build mode - minimal spec.',
+      },
+      assert: [
+        { type: 'icontains', value: 'requirement' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Grade if this is appropriately lean for a simple health check feature (0-1):\n' +
+            '1. Is it concise (not overly verbose for a health check endpoint)?\n' +
+            '2. Does it include core functional requirements (status, uptime, db connectivity)?\n' +
+            '3. Does it have success criteria?\n' +
+            '4. Does it AVOID unnecessary complexity for such a simple feature?\n' +
+            'Return average score 0-1.',
+          threshold: 0.7,
         },
       ],
     },

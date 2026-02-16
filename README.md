@@ -516,6 +516,7 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | [Roo Code](https://roocode.com/)                                                     | ✅      |                                                                                                                                           |
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
+| [Antigravity (agy)](https://agy.ai/)                                                 | ✅      |                                                                                                                                           |
 
 ## 📦 Skills Package Manager
 
@@ -678,7 +679,7 @@ The `specify` command supports the following options:
 | Argument/Option              | Type     | Description                                                                 |
 |------------------------------|----------|-----------------------------------------------------------------------------|
 | `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `q`, `bob`, or `qoder` |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `q`, `agy`, `bob`, or `qoder` |
 | `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
 | `--ignore-agent-tools`       | Flag     | Skip checks for AI agent tools like Claude                                                  |
 | `--no-git`                   | Flag     | Skip git repository                                         |

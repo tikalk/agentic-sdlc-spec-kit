@@ -93,8 +93,14 @@ if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
 fi
 if [[ -d "$TEAM_DIRECTIVES_DIR" ]]; then
     export SPECIFY_TEAM_DIRECTIVES="$TEAM_DIRECTIVES_DIR"
+    # Check for team-level AGENTS.md
+    TEAM_AGENTS_MD="$TEAM_DIRECTIVES_DIR/AGENTS.md"
+    if [[ ! -f "$TEAM_AGENTS_MD" ]]; then
+        TEAM_AGENTS_MD=""
+    fi
 else
     TEAM_DIRECTIVES_DIR=""
+    TEAM_AGENTS_MD=""
 fi
 
 # Resolve architecture path (prefer env override, silent if missing)
@@ -123,8 +129,8 @@ if [[ -z "$ADR_FILE" ]]; then
     if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md" ]]; then
         ADR_FILE="$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md"
     # Then check for system-level ADR
-    elif [[ -f "$REPO_ROOT/memory/adr.md" ]]; then
-        ADR_FILE="$REPO_ROOT/memory/adr.md"
+    elif [[ -f "$REPO_ROOT/.specify/memory/adr.md" ]]; then
+        ADR_FILE="$REPO_ROOT/.specify/memory/adr.md"
     fi
 fi
 
@@ -136,8 +142,8 @@ fi
 
 # Output results
 if $JSON_MODE; then
-    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
-        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$AD_FILE" "$ADR_FILE" "$CONTEXT_FILE"
+    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","TEAM_AGENTS_MD":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
+        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$TEAM_AGENTS_MD" "$AD_FILE" "$ADR_FILE" "$CONTEXT_FILE"
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
     echo "IMPL_PLAN: $IMPL_PLAN"
@@ -151,8 +157,14 @@ else
     fi
     if [[ -n "$TEAM_DIRECTIVES_DIR" ]]; then
         echo "TEAM_DIRECTIVES: $TEAM_DIRECTIVES_DIR"
+        if [[ -n "$TEAM_AGENTS_MD" ]]; then
+            echo "TEAM_AGENTS_MD: $TEAM_AGENTS_MD"
+        else
+            echo "TEAM_AGENTS_MD: (missing)"
+        fi
     else
         echo "TEAM_DIRECTIVES: (missing)"
+        echo "TEAM_AGENTS_MD: (missing)"
     fi
     if [[ -n "$AD_FILE" ]]; then
         echo "AD: $AD_FILE"

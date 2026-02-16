@@ -47,7 +47,6 @@ env/
 .genreleases/
 *.zip
 sdd-*/
-
 docs/dev
 
 # User-specific configuration (now stored globally in ~/.config/specify/)
@@ -60,6 +59,7 @@ docs/dev
 .specify/extensions/*/local-config.yml
 
 # Evaluation artifacts
+eval-results/
 eval-results*.json
 *.backup
 .promptfoo/

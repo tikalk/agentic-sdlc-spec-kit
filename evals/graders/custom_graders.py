@@ -256,7 +256,7 @@ def check_vague_terms(output: str, context: dict) -> dict:
     quantified_ratio = quantified_count / len(vague_found) if vague_found else 1.0
 
     return {
-        'pass': quantified_ratio >= 0.1,  # Lowered threshold for GLM compatibility (was 0.7)
+        'pass': quantified_ratio >= 0.7,
         'score': quantified_ratio,
         'reason': f'Found {len(vague_found)} vague terms, {quantified_count} properly quantified/flagged'
     }
@@ -380,6 +380,65 @@ def check_testability(output: str, context: dict) -> dict:
         'pass': testability_ratio >= 0.7,
         'score': testability_ratio,
         'reason': f'{stories_with_criteria}/{len(user_stories)} user stories have testable acceptance criteria'
+    }
+
+def check_clarification_quality(output: str, context: dict) -> dict:
+    """
+    Check if the clarification report has the required sections and content.
+    """
+    output_lower = output.lower()
+    score = 0
+    reasons = []
+
+    if 'ambiguity analysis' in output_lower:
+        score += 0.4
+        reasons.append("Found 'Ambiguity Analysis' section.")
+    else:
+        reasons.append("Missing 'Ambiguity Analysis' section.")
+
+    if 'clarification questions' in output_lower:
+        score += 0.4
+        reasons.append("Found 'Clarification Questions' section.")
+    else:
+        reasons.append("Missing 'Clarification Questions' section.")
+
+    if 'suggested defaults' in output_lower:
+        score += 0.2
+        reasons.append("Found 'Suggested Defaults' section.")
+    else:
+        reasons.append("Missing 'Suggested Defaults' section.")
+
+    return {
+        'pass': score > 0.7,
+        'score': score,
+        'reason': ' '.join(reasons)
+    }
+
+def check_architectural_focus(output: str, context: dict) -> dict:
+    """
+    Check if the clarification questions have an architectural focus.
+    """
+    output_lower = output.lower()
+    score = 0
+    reasons = []
+
+    architectural_keywords = ['real-time', 'concurrent users', 'scaling', 'monolith', 'django', 'postgresql']
+    found_keywords = [kw for kw in architectural_keywords if kw in output_lower]
+
+    if len(found_keywords) >= 3:
+        score = 1.0
+        reasons.append(f"Found several architectural keywords: {', '.join(found_keywords)}.")
+    elif len(found_keywords) > 0:
+        score = 0.5
+        reasons.append(f"Found some architectural keywords: {', '.join(found_keywords)}.")
+    else:
+        score = 0.0
+        reasons.append("No architectural keywords found.")
+
+    return {
+        'pass': score > 0.7,
+        'score': score,
+        'reason': ' '.join(reasons)
     }
 
 

@@ -1,9 +1,16 @@
 You are tasked with creating a detailed feature specification.
 
-LANGUAGE REQUIREMENT: You MUST respond entirely in English. All output, including any thinking, reasoning, or explanations, must be in English only. Do not use any other language.
-
 USER REQUIREMENTS:
 {{ user_input }}
+
+CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for:
+- Authentication/authorization systems
+- Payment processing, credit cards, financial transactions
+- Personal Identifiable Information (PII) handling
+- Healthcare/medical data
+- User sessions or sensitive data storage
+
+If YES → Section 4 (Non-Functional Requirements) MUST comprehensively address ALL security concerns.
 
 INSTRUCTIONS:
 Create a comprehensive feature specification document with the following structure.
@@ -12,15 +19,6 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 
 ## 1. Overview Section
 Brief description of the feature
-   - CRITICAL: Do NOT use vague, unmeasurable terms in the Overview
-   - Prohibited terms: "fast", "quick", "scalable", "user-friendly", "good performance", "efficient", "reliable", "robust", "easy", "simple", "intuitive", "high availability"
-   - If user input contains vague terms:
-     * Option 1 (PREFERRED): Omit the vague term entirely from Overview, describe concrete features instead
-     * Option 2: Replace immediately with specific metrics (e.g., "API response < 200ms" instead of "fast")
-     * Option 3: Mark IMMEDIATELY after the term with [NEEDS CLARIFICATION] (e.g., "fast [NEEDS CLARIFICATION]")
-   - Example BAD: "This feature provides a fast, scalable dashboard..."
-   - Example GOOD: "This feature provides a dashboard with API response times < 200ms at p95, supporting 10,000 concurrent users..."
-   - Example GOOD: "This feature provides a dashboard [performance requirements in NFR section]"
 
 ## 2. User Stories
 5+ prioritized user stories (P1, P2, P3) with:
@@ -33,14 +31,19 @@ Specific, measurable, testable requirements (FR-001, FR-002, etc.)
 
 ## 4. Non-Functional Requirements
 Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
-   - For security-critical features (authentication, payments, PII, healthcare data), MUST include:
-     * Authentication mechanisms (without specifying JWT, OAuth, etc.)
-     * Authorization and access control requirements
-     * Encryption requirements for sensitive data (at rest and in transit)
-     * Input validation and sanitization needs
-     * Audit logging and monitoring requirements
-     * Compliance requirements (PCI-DSS for payments, GDPR for personal data, HIPAA for healthcare)
-     * NOTE: Describe WHAT security is needed, not HOW (no specific algorithms, protocols, or libraries)
+
+   🔒 SECURITY REQUIREMENTS (MANDATORY for authentication/payments/PII/healthcare):
+   You MUST include ALL of the following security requirements:
+     * NFR-SEC-001: Authentication mechanisms (describe WHAT, not HOW - no JWT/OAuth specifics)
+     * NFR-SEC-002: Authorization and access control requirements
+     * NFR-SEC-003: Encryption requirements (data at rest and in transit)
+     * NFR-SEC-004: Input validation and sanitization (prevent injection attacks)
+     * NFR-SEC-005: Session management requirements
+     * NFR-SEC-006: Data protection and privacy controls
+     * NFR-SEC-007: Audit logging and monitoring
+     * NFR-SEC-008: Compliance (PCI-DSS for payments, GDPR for PII, HIPAA for healthcare)
+
+   Example NFR-SEC-003 for payments: "All credit card data must be encrypted during transmission and storage. Payment information must never be logged in plaintext."
    - For performance-critical features, specify measurable targets:
      * Response time requirements (e.g., "API response < 200ms at p95")
      * Throughput requirements (e.g., "Handle 1000 requests/second")
@@ -68,18 +71,10 @@ IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
 - Focus on WHAT needs to be built, not HOW to build it
 - All requirements must be measurable and testable
-- CRITICAL: NO vague terms anywhere in the document (ESPECIALLY in Overview Section):
-  * Prohibited vague terms: "fast", "quick", "scalable", "user-friendly", "good performance", "efficient", "reliable", "robust", "easy", "simple", "intuitive", "high availability", "high quality", "flexible"
-  * For EVERY vague term in user input, you MUST either:
-    a) Omit it entirely (describe concrete features instead)
-    b) Replace with specific metrics (e.g., "API response < 200ms" not "fast")
-    c) Add [NEEDS CLARIFICATION] IMMEDIATELY after the term (within same sentence)
-  * The clarification marker must be ADJACENT to the vague term, not in a different section
-  * Example BAD: "Build a fast dashboard" (Overview) + "Response time < 200ms" (NFR section)
-  * Example GOOD: "Build a dashboard [performance targets in NFR section]" (Overview)
-  * Example GOOD: "Build a fast [NEEDS CLARIFICATION] dashboard" (Overview)
-  * This applies to ALL sections: Overview, User Stories, Functional Requirements, etc.
-- Mark any vague or unclear requirements with [NEEDS CLARIFICATION]
+- ⚠️  VAGUE TERMS: Any unmeasurable terms (fast, scalable, user-friendly, robust, performant, good, intuitive, etc.) MUST either:
+  1. Be quantified with specific metrics (e.g., "fast" → "response time < 200ms at p95")
+  2. Be flagged with [NEEDS CLARIFICATION] if metrics are unknown
+  Example: "The system should be fast [NEEDS CLARIFICATION: target response time?]"
 - For complex multi-step features (checkout, onboarding), ensure COMPLETE coverage:
   * All steps in the flow documented
   * NFRs for each critical step (security for payment, performance for cart operations)

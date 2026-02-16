@@ -230,6 +230,12 @@ AGENT_CONFIG = {
         "install_url": "https://github.com/ovh/shai",
         "requires_cli": True,
     },
+    "agy": {
+        "name": "Antigravity",
+        "folder": ".agent/",
+        "install_url": None,  # IDE-based
+        "requires_cli": False,
+    },
     "bob": {
         "name": "IBM Bob",
         "folder": ".bob/",
@@ -302,6 +308,11 @@ AGENT_MCP_CONFIG = {
         "type": "http",
         "url": "https://mcp.async-codex.ai/",
         "description": "Connect to Async Codex for autonomous development workflows",
+    },
+    "agentic-sdlc-orchestrator": {
+        "name": "Agentic SDLC Orchestrator",
+        "type": "local",
+        "description": "Run async tasks in Kubernetes pods via local orchestrator",
     },
 }
 
@@ -2533,7 +2544,7 @@ def init(
     ai_assistant: Optional[str] = typer.Option(
         None,
         "--ai",
-        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, bob, or qoder ",
+        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, or qoder ",
     ),
     script_type: Optional[str] = typer.Option(
         None, "--script", help="Script type to use: sh or ps"

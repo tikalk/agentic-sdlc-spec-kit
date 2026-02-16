@@ -224,15 +224,74 @@ execute_task() {
         local agent_type
         agent_type=$(jq -r ".tasks[\"$task_id\"].agent_type // \"general\"" "$TASKS_META_FILE")
 
-        # For now, use simple context and requirements
-        local task_context="Files: $task_files"
-        local task_requirements="Complete the task according to specifications"
-        local execution_instructions="Execute the task and provide detailed results"
+        # Check if using local orchestrator (agentic-sdlc-orchestrator)
+        if [[ "$agent_type" == "agentic-sdlc-orchestrator" ]]; then
+            # Use local K8s orchestrator
+            log_info "Spawning K8s pod via agentic-sdlc-orchestrator for task $task_id"
+            
+            # Get repository info
+            local repo_url
+            repo_url=$(git remote get-url origin 2>/dev/null || echo "")
+            local branch_name
+            branch_name=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+            
+            # Find the orchestrator spawn-pod.sh script
+            local orchestrator_script=""
+            if [[ -f "$FEATURE_DIR/scripts/spawn-pod.sh" ]]; then
+                orchestrator_script="$FEATURE_DIR/scripts/spawn-pod.sh"
+            elif [[ -f "./scripts/spawn-pod.sh" ]]; then
+                orchestrator_script="./scripts/spawn-pod.sh"
+            elif command -v agentic-sdlc-orchestrator &>/dev/null; then
+                # Try to find spawn-pod.sh relative to the installed CLI
+                local cli_path
+                cli_path=$(which agentic-sdlc-orchestrator)
+                local cli_dir
+                cli_dir=$(dirname "$cli_path")
+                if [[ -f "$cli_dir/../scripts/spawn-pod.sh" ]]; then
+                    orchestrator_script="$cli_dir/../scripts/spawn-pod.sh"
+                fi
+            fi
+            
+            if [[ -n "$orchestrator_script" && -f "$orchestrator_script" ]]; then
+                log_info "Using orchestrator script: $orchestrator_script"
+                "$orchestrator_script" \
+                    --task-id "$task_id" \
+                    --branch "specs/$(basename "$FEATURE_DIR")/${task_id}-async" \
+                    --repo "$repo_url" \
+                    --context-dir "$FEATURE_DIR"
+                
+                if [[ $? -eq 0 ]]; then
+                    log_success "K8s pod spawned for task $task_id"
+                    safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "running"'
+                else
+                    handle_task_failure "$task_id" "Failed to spawn K8s pod"
+                fi
+            else
+                log_warn "agentic-sdlc-orchestrator script not found. Expected at: ./scripts/spawn-pod.sh"
+                log_info "Please ensure the agentic-sdlc-orchestrator repository is cloned and scripts are available"
+                log_info "Falling back to standard async delegation"
+                # Fall back to standard dispatch_async_task
+                local task_context="Files: $task_files"
+                local task_requirements="Complete the task according to specifications"
+                local execution_instructions="Execute the task and provide detailed results"
 
-        if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
-            log_success "ASYNC task $task_id dispatched successfully"
+                if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
+                    log_success "ASYNC task $task_id dispatched successfully"
+                else
+                    handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
+                fi
+            fi
         else
-            handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
+            # Standard async delegation (MCP agents like jules, async-copilot, async-codex)
+            local task_context="Files: $task_files"
+            local task_requirements="Complete the task according to specifications"
+            local execution_instructions="Execute the task and provide detailed results"
+
+            if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
+                log_success "ASYNC task $task_id dispatched successfully"
+            else
+                handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
+            fi
         fi
     else
         # Execute SYNC task (would normally involve AI agent execution)

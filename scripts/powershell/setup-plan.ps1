@@ -63,8 +63,14 @@ $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
 if (-not $teamDirectives) {
     $teamDirectives = Join-Path $paths.REPO_ROOT '.specify/memory/team-ai-directives'
 }
+$teamAgentsMd = ''
 if (Test-Path $teamDirectives) {
     $env:SPECIFY_TEAM_DIRECTIVES = $teamDirectives
+    # Check for team-level AGENTS.md
+    $teamAgentsMd = Join-Path $teamDirectives 'AGENTS.md'
+    if (-not (Test-Path $teamAgentsMd)) {
+        $teamAgentsMd = ''
+    }
 } else {
     $teamDirectives = ''
 }
@@ -97,8 +103,8 @@ if (-not $adrFile) {
         $adrFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"
     }
     # Then check for system-level ADR
-    elseif (Test-Path (Join-Path $paths.REPO_ROOT "memory/adr.md")) {
-        $adrFile = Join-Path $paths.REPO_ROOT "memory/adr.md"
+    elseif (Test-Path (Join-Path $paths.REPO_ROOT ".specify/memory/adr.md")) {
+        $adrFile = Join-Path $paths.REPO_ROOT ".specify/memory/adr.md"
     }
 }
 
@@ -106,17 +112,6 @@ if (Test-Path $adrFile) {
     $env:SPECIFY_ADR = $adrFile
 } else {
     $adrFile = ''
-}
-
-# Legacy architecture file for backward compatibility
-$architectureFile = $env:SPECIFY_ARCHITECTURE
-if (-not $architectureFile) {
-    $architectureFile = Join-Path $paths.REPO_ROOT '.specify/memory/architecture.md'
-}
-if (Test-Path $architectureFile) {
-    $env:SPECIFY_ARCHITECTURE = $architectureFile
-} else {
-    $architectureFile = ''
 }
 
 # Output results
@@ -129,7 +124,7 @@ if ($Json) {
         HAS_GIT = $paths.HAS_GIT
         CONSTITUTION = $constitutionFile
         TEAM_DIRECTIVES = $teamDirectives
-        ARCHITECTURE = $architectureFile
+        TEAM_AGENTS_MD = $teamAgentsMd
         AD = $adFile
         ADR = $adrFile
     }
@@ -147,8 +142,14 @@ if ($Json) {
     }
     if ($teamDirectives) {
         Write-Output "TEAM_DIRECTIVES: $teamDirectives"
+        if ($teamAgentsMd) {
+            Write-Output "TEAM_AGENTS_MD: $teamAgentsMd"
+        } else {
+            Write-Output "TEAM_AGENTS_MD: (missing)"
+        }
     } else {
         Write-Output "TEAM_DIRECTIVES: (missing)"
+        Write-Output "TEAM_AGENTS_MD: (missing)"
     }
     if ($adFile) {
         Write-Output "AD: $adFile"
@@ -159,8 +160,5 @@ if ($Json) {
         Write-Output "ADR: $adrFile"
     } else {
         Write-Output "ADR (Architecture Decision Records): (missing)"
-    }
-    if ($architectureFile) {
-        Write-Output "ARCHITECTURE (Legacy): $architectureFile"
     }
 }

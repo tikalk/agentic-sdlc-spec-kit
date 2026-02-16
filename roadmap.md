@@ -780,6 +780,56 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 ### **Future Enhancement Categories**
 
+### **Issue Tracker Extension Refactor** *(0% Complete)* - **MEDIUM PRIORITY** - Modular MCP integration architecture
+
+**Context**: The `--issue-tracker` CLI argument is currently hardcoded in `src/specify_cli/__init__.py` with the `ISSUE_TRACKER_CONFIG` dict. This should be refactored to use the extension system for better modularity and maintainability.
+
+**Current State**:
+- `ISSUE_TRACKER_CONFIG` dict (lines 241-267): Hardcoded config for github, jira, linear, gitlab
+- `--issue-tracker` CLI argument in `init` command
+- `configure_issue_tracker_mcp_servers()` function configures MCP servers in agent settings
+
+**Proposed Architecture**:
+- Each issue tracker becomes a standalone extension with `extension.yml` containing MCP server configuration
+- Add `mcp_servers` section to extension manifest schema
+- Create `MCPServerRegistrar` class in `extensions.py` for MCP configuration
+- Extensions stored in `.specify/extensions/{tracker-name}/`
+
+**Implementation Phases**:
+
+1. **Phase 1: Extend Extension System**
+   - ❌ Update `ExtensionManifest` to parse `mcp_servers` section in `extension.yml`
+   - ❌ Create `MCPServerRegistrar` class to configure MCP servers in agent settings files
+   - ❌ Update `ExtensionManager.install_from_directory()` to call MCP registration
+
+2. **Phase 2: Create Issue Tracker Extensions**
+   - ❌ Create extension packages for github-issues, jira, linear, gitlab-issues
+   - ❌ Each extension includes: `extension.yml`, config template, optional sync commands
+   - ❌ Add extensions to catalog or include as built-in
+
+3. **Phase 3: CLI Refactor**
+   - ❌ Remove `ISSUE_TRACKER_CONFIG` dict and `configure_issue_tracker_mcp_servers()` function
+   - ❌ Remove `--issue-tracker` argument from `init` command
+   - ❌ Add `--with-extension` flag for installing extensions during init (optional)
+   - ❌ Update help text and documentation
+
+**Benefits**:
+- Modularity: Issue trackers are independent, installable units
+- Extensibility: Users can create custom issue tracker extensions
+- Configuration: Layered config system with env var overrides via `ConfigManager`
+- Maintainability: Each tracker is self-contained
+- Discoverability: Extensions appear in catalog searches
+- Versioning: Each tracker can be versioned independently
+
+**Files to Modify**:
+- `src/specify_cli/extensions.py` - Add MCP server support
+- `src/specify_cli/__init__.py` - Remove hardcoded config, update init command
+- `extensions/catalog.json` - Add issue tracker extensions
+
+**Estimated Effort**: ~5-7 days
+
+---
+
 ### **Compound Engineering Integration** *(0% Complete)* - **MEDIUM PRIORITY** - Insights from EveryInc's Compound Engineering Plugin
 
 **Reference**: Analysis of [EveryInc/compound-engineering-plugin](https://github.com/EveryInc/compound-engineering-plugin) (7.5k stars, 598 forks)
@@ -1419,6 +1469,13 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - ❌ **Smart Context Windowing**: Logic to slice `spec.md` and `plan.md` based on the active User Story phase during implementation to save tokens.
 - ❌ **Semantic Diffs**: `specify diff` command to summarize behavioral changes in specs rather than just line-diffs.
 - ❌ **Directive Embeddings**: (Future) Local vector index for `team-ai-directives` to support large governance repositories without context flooding.
+- ❌ **Build Skill from Project Patterns**: Analyze project implementation patterns (from spec.md, plan.md, tasks.md, code artifacts) and auto-generate reusable skill packages that can be contributed to team-ai-directives
+  - Pattern extraction: Identify recurring implementation patterns, code structures, testing approaches from completed features
+  - Skill scaffolding: Auto-generate SKILL.md with trigger keywords, references, and scripts based on detected patterns
+  - Contribution workflow: Create PR-ready skill packages with proper structure for team-ai-directives submission
+  - Skill templates: Provide templates for common skill types (testing patterns, code generators, validation rules)
+  - Integration with `/levelup`: Extract patterns from session traces and suggest skill creation during levelup
+  - Quality validation: Ensure generated skills meet team-ai-directives standards before contribution
 
 #### **Resilience & Self-Healing** *(0% Complete)* - **MEDIUM PRIORITY** - Automation robustness
 
