@@ -97,6 +97,7 @@ FILTER=""
 OUTPUT_JSON=false
 VIEW_RESULTS=false
 MODEL=""
+NO_CACHE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -116,6 +117,10 @@ while [[ $# -gt 0 ]]; do
             MODEL="$2"
             shift 2
             ;;
+        --no-cache)
+            NO_CACHE=true
+            shift
+            ;;
         --help)
             echo "Usage: ./evals/scripts/run-eval.sh [OPTIONS]"
             echo ""
@@ -124,13 +129,15 @@ while [[ $# -gt 0 ]]; do
             echo "  --json           Output results as JSON"
             echo "  --view           Open web UI after running"
             echo "  --model MODEL    Specify model to use (default: claude-sonnet-4-5-20250929)"
+            echo "  --no-cache       Disable PromptFoo cache (always call the LLM)"
             echo "  --help           Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./evals/scripts/run-eval.sh                    # Run all tests"
+            echo "  ./evals/scripts/run-eval.sh                    # Run all tests (with cache)"
+            echo "  ./evals/scripts/run-eval.sh --no-cache         # Run all tests, bypass cache"
             echo "  ./evals/scripts/run-eval.sh --filter 'Spec'   # Run only spec template tests"
             echo "  ./evals/scripts/run-eval.sh --json --view     # Run tests, save JSON, open UI"
-            echo "  ./evals/scripts/run-eval.sh --model claude-opus-4-5-20251101  # Use Opus 4.5"
+            echo "  ./evals/scripts/run-eval.sh --model claude-opus-4-6  # Use Opus 4.6"
             exit 0
             ;;
         *)
@@ -159,6 +166,13 @@ if [ -n "$FILTER" ]; then
     FILTER_ARG="--filter-pattern $FILTER"
 fi
 
+# Build cache argument
+CACHE_ARG=""
+if [ "$NO_CACHE" = true ]; then
+    CACHE_ARG="--no-cache"
+    echo -e "${YELLOW}⚠️  Cache disabled — all tests will call the LLM${NC}"
+fi
+
 echo ""
 echo "🚀 Running evaluations with npx..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -167,18 +181,18 @@ echo ""
 # Run spec tests (don't exit on failure, capture exit code)
 echo "📋 Running Spec Template tests..."
 if [ "$OUTPUT_JSON" = true ]; then
-    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js -o eval-results-spec.json $FILTER_ARG --no-cache || SPEC_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js -o eval-results-spec.json $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 else
-    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js $FILTER_ARG --no-cache || SPEC_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 fi
 SPEC_EXIT=${SPEC_EXIT:-0}
 
 echo ""
 echo "📋 Running Plan Template tests..."
 if [ "$OUTPUT_JSON" = true ]; then
-    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js -o eval-results-plan.json $FILTER_ARG --no-cache || PLAN_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js -o eval-results-plan.json $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 else
-    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js $FILTER_ARG --no-cache || PLAN_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 fi
 PLAN_EXIT=${PLAN_EXIT:-0}
 
@@ -188,9 +202,9 @@ if [ "$HAS_ARCH" = true ]; then
     echo ""
     echo "📋 Running Architecture Template tests..."
     if [ "$OUTPUT_JSON" = true ]; then
-        npx promptfoo eval -c "$ARCH_CONFIG" -o eval-results-arch.json $FILTER_ARG --no-cache || ARCH_EXIT=$?
+        npx promptfoo eval -c "$ARCH_CONFIG" -o eval-results-arch.json $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
     else
-        npx promptfoo eval -c "$ARCH_CONFIG" $FILTER_ARG --no-cache || ARCH_EXIT=$?
+        npx promptfoo eval -c "$ARCH_CONFIG" $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
     fi
 fi
 
@@ -200,9 +214,9 @@ if [ "$HAS_EXT" = true ]; then
     echo ""
     echo "📋 Running Extension System tests..."
     if [ "$OUTPUT_JSON" = true ]; then
-        npx promptfoo eval -c "$EXT_CONFIG" -o eval-results-ext.json $FILTER_ARG --no-cache || EXT_EXIT=$?
+        npx promptfoo eval -c "$EXT_CONFIG" -o eval-results-ext.json $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
     else
-        npx promptfoo eval -c "$EXT_CONFIG" $FILTER_ARG --no-cache || EXT_EXIT=$?
+        npx promptfoo eval -c "$EXT_CONFIG" $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
     fi
 fi
 
@@ -212,9 +226,9 @@ if [ "$HAS_CLARIFY" = true ]; then
     echo ""
     echo "📋 Running Clarify Command tests..."
     if [ "$OUTPUT_JSON" = true ]; then
-        npx promptfoo eval -c "$CLARIFY_CONFIG" -o eval-results-clarify.json $FILTER_ARG --no-cache || CLARIFY_EXIT=$?
+        npx promptfoo eval -c "$CLARIFY_CONFIG" -o eval-results-clarify.json $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
     else
-        npx promptfoo eval -c "$CLARIFY_CONFIG" $FILTER_ARG --no-cache || CLARIFY_EXIT=$?
+        npx promptfoo eval -c "$CLARIFY_CONFIG" $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
     fi
 fi
 
@@ -224,9 +238,9 @@ if [ "$HAS_TRACE" = true ]; then
     echo ""
     echo "📋 Running Trace Template tests..."
     if [ "$OUTPUT_JSON" = true ]; then
-        npx promptfoo eval -c "$TRACE_CONFIG" -o eval-results-trace.json $FILTER_ARG --no-cache || TRACE_EXIT=$?
+        npx promptfoo eval -c "$TRACE_CONFIG" -o eval-results-trace.json $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
     else
-        npx promptfoo eval -c "$TRACE_CONFIG" $FILTER_ARG --no-cache || TRACE_EXIT=$?
+        npx promptfoo eval -c "$TRACE_CONFIG" $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
     fi
 fi
 

@@ -29,6 +29,12 @@ module.exports = {
     options: {
       provider: `openai:chat:${process.env.LLM_MODEL || 'claude-sonnet-4-5-20250929'}`,
     },
+    assert: [
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_pii_leakage' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_prompt_injection' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_hallucination_signals' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_misinformation' },
+    ],
   },
 
   // ============================================================

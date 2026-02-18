@@ -5,14 +5,15 @@ Automatically evaluates generated plans and categorizes failures
 Location: evals/scripts/run-automated-plan-analysis.py
 """
 
-import os
 import glob
 import json
+import os
 import re
+from datetime import datetime
 from pathlib import Path
+
 from anthropic import Anthropic
 import pandas as pd
-from datetime import datetime
 
 # Configuration
 DATASET_DIR = Path(__file__).parent.parent / 'datasets' / 'real-plans'
