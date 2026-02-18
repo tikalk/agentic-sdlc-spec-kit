@@ -12,7 +12,15 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ## General practices
 
-- Any changes to `__init__.py` for the Specify CLI require a version rev in `pyproject.toml` and addition of entries to `CHANGELOG.md`.
+### Python
+
+- Always place all `import` and `from ... import` statements at the **top of the file**, before any other code.
+- Imports must be **sorted**: standard library first, then third-party, then local — each group sorted alphabetically within itself (isort order).
+- Never use wildcard imports (`from module import *`). Always import only the names you need explicitly.
+
+### Version Management
+
+- Any changes to `__init__.py` for the Specify CLI require a version rev in `pyproject.toml` and addition to `CHANGELOG.md`.
 
 ## Adding New Agent Support
 
