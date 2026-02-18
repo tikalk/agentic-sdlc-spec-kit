@@ -1,0 +1,54 @@
+You are tasked with creating a Spec Kit extension manifest and configuration.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a complete extension package including:
+
+## 1. Extension Manifest (extension.yml)
+A YAML manifest with ALL of the following fields:
+
+- schema_version: "1.0"
+- extension.id: Lowercase, hyphen-separated identifier
+- extension.name: Human-readable name
+- extension.version: Semantic version (X.Y.Z)
+- extension.description: Brief description (under 200 characters)
+- extension.author: Author name
+- extension.repository: GitHub repository URL
+- extension.license: License type (e.g., MIT)
+- requires.speckit_version: Minimum spec-kit version (e.g., ">=0.1.0")
+- provides.commands: List of commands with name, file, description
+- provides.config: Configuration file references
+- tags: 2-5 relevant tags for catalog discovery
+
+## 2. Command Template (example.md)
+A markdown command file with YAML frontmatter containing:
+
+- description: What the command does
+- tools: List of MCP tools used (if any)
+
+Command body with:
+- Purpose section
+- Prerequisites
+- User Input ($ARGUMENTS)
+- Step-by-step execution instructions
+- Error handling guidance
+
+## 3. Configuration Template (config-template.yml)
+A YAML configuration file with:
+
+- Documented configuration sections
+- Required vs optional fields clearly marked
+- Sensible default values
+- Environment variable override instructions
+- Local override instructions
+
+IMPORTANT CONSTRAINTS:
+- All YAML must be valid and parseable
+- Command names must follow pattern: speckit.{extension-id}.{command-name}
+- Extension ID must be lowercase with hyphens only
+- Include clear CUSTOMIZE comments for user modification
+- Self-contained: no references to @rule, @persona, or @example
+
+OUTPUT: A complete extension package with manifest, command template, and configuration.

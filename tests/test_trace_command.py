@@ -4,10 +4,10 @@ Test Session Trace Command functionality
 Tests trace generation, validation, and integration with levelup
 """
 
-import os
 import json
-import tempfile
+import os
 import subprocess
+import tempfile
 from pathlib import Path
 
 

@@ -2,7 +2,41 @@
 
 ## 🚀 Quick Commands
 
-### Local Testing
+### LLM Eval Tests (requires API key)
+
+```bash
+# Run all 23 LLM eval tests
+./evals/scripts/run-promptfoo-eval.sh
+
+# Run with JSON output
+./evals/scripts/run-promptfoo-eval.sh --json
+
+# Run specific suite
+./evals/scripts/run-promptfoo-eval.sh --filter "Architecture"
+
+# Open results in web UI
+./evals/scripts/run-promptfoo-eval.sh --view
+
+# Check scores against thresholds
+python3 evals/scripts/check_eval_scores.py \
+  --results eval-results.json \
+  --min-pass-rate 0.70
+```
+
+### Unit Tests (no API key needed — fast)
+
+```bash
+# Security graders (39 tests, ~0.03s)
+uv run pytest tests/test_security_graders.py -v
+
+# Extension system (40+ tests)
+uv run pytest tests/test_extensions.py -v
+
+# All unit tests
+uv run pytest tests/ -v
+```
+
+### Local CI Testing
 
 ```bash
 # Install act (first time only)
@@ -17,31 +51,22 @@ brew install act  # macOS
 ./evals/scripts/test-workflow-locally.sh --reuse     # Faster iterations
 ```
 
-### Manual Testing
-
-```bash
-# Run all evaluations
-./evals/scripts/run-promptfoo-eval.sh
-
-# Run with JSON output
-./evals/scripts/run-promptfoo-eval.sh --json
-
-# Run specific tests
-./evals/scripts/run-promptfoo-eval.sh --filter "Spec"
-
-# Check scores
-python3 evals/scripts/check_eval_scores.py \
-  --results eval-results.json \
-  --min-pass-rate 0.70
-```
-
 ## 📁 Important Files
 
 | File | Purpose |
 |------|---------|
 | `.github/workflows/eval.yml` | Main GitHub Actions workflow |
 | `.github/workflows/.secrets` | Local testing secrets (gitignored) |
-| `evals/configs/promptfooconfig.js` | All evaluation tests |
+| `evals/configs/promptfooconfig.js` | Combined suite (all 23 LLM tests) |
+| `evals/configs/promptfooconfig-spec.js` | Spec template tests (10) |
+| `evals/configs/promptfooconfig-plan.js` | Plan template tests (2) |
+| `evals/configs/promptfooconfig-arch.js` | Architecture template tests (4) |
+| `evals/configs/promptfooconfig-ext.js` | Extension system tests (3) |
+| `evals/configs/promptfooconfig-clarify.js` | Clarify command tests (2) |
+| `evals/configs/promptfooconfig-trace.js` | Trace validation tests (2) |
+| `evals/graders/custom_graders.py` | 14 Python graders (quality + 4 security) |
+| `tests/test_security_graders.py` | Unit tests for security graders (39 tests) |
+| `tests/test_extensions.py` | Unit tests for extension system (40+ tests) |
 | `evals/scripts/check_eval_scores.py` | Threshold validation |
 | `evals/scripts/run-promptfoo-eval.sh` | Evaluation runner |
 | `evals/scripts/test-workflow-locally.sh` | Local testing helper |
@@ -84,7 +109,8 @@ Run manually from GitHub Actions tab when you need quality validation.
 |--------|-----------|------------------|
 | Average Score | ≥ 0.70 | ❌ Workflow fails |
 | Pass Rate | ≥ 70% | ❌ Workflow fails |
-| Overall | 10/10 tests pass | ✅ Currently passing |
+| P0/P1 tests | All must pass | ❌ Block merge |
+| Security graders | Zero violations | ❌ Hard fail (score 0.0) |
 
 ## 🐛 Troubleshooting
 
@@ -132,6 +158,8 @@ act pull_request --secret-file .github/workflows/.secrets -v
 
 [![AI Evals](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml/badge.svg)](https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/eval.yml)
 
-- **Pass Rate:** 100% (10/10 tests)
-- **Status:** ✅ Production ready
-- **Last Updated:** 2026-01-14
+- **LLM eval tests:** 23 (across 6 suites)
+- **Security graders:** 4 (run on every test automatically)
+- **Unit tests:** 39 security grader tests + 40+ extension tests
+- **Status:** ✅ All implemented, ready to run
+- **Last Updated:** 2026-02-18

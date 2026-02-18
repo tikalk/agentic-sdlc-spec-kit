@@ -7,7 +7,7 @@ Uses the API for search and metadata - installation is done directly from GitHub
 
 import re
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import httpx
 

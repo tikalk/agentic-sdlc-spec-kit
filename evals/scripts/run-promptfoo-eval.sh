@@ -67,6 +67,25 @@ fi
 
 echo -e "${GREEN}✓${NC} Configuration files found"
 
+# Detect available config files for new suites
+ARCH_CONFIG="evals/configs/promptfooconfig-arch.js"
+EXT_CONFIG="evals/configs/promptfooconfig-ext.js"
+CLARIFY_CONFIG="evals/configs/promptfooconfig-clarify.js"
+TRACE_CONFIG="evals/configs/promptfooconfig-trace.js"
+
+HAS_ARCH=false; [ -f "$ARCH_CONFIG" ] && HAS_ARCH=true
+HAS_EXT=false; [ -f "$EXT_CONFIG" ] && HAS_EXT=true
+HAS_CLARIFY=false; [ -f "$CLARIFY_CONFIG" ] && HAS_CLARIFY=true
+HAS_TRACE=false; [ -f "$TRACE_CONFIG" ] && HAS_TRACE=true
+
+SUITE_COUNT=2
+$HAS_ARCH && SUITE_COUNT=$((SUITE_COUNT + 1))
+$HAS_EXT && SUITE_COUNT=$((SUITE_COUNT + 1))
+$HAS_CLARIFY && SUITE_COUNT=$((SUITE_COUNT + 1))
+$HAS_TRACE && SUITE_COUNT=$((SUITE_COUNT + 1))
+
+echo -e "${GREEN}✓${NC} Found ${SUITE_COUNT} eval suites"
+
 # Export OpenAI-compatible env vars for PromptFoo
 export OPENAI_API_KEY="${LLM_AUTH_TOKEN}"
 export OPENAI_BASE_URL="${LLM_BASE_URL}"
@@ -78,6 +97,7 @@ FILTER=""
 OUTPUT_JSON=false
 VIEW_RESULTS=false
 MODEL=""
+NO_CACHE=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -97,21 +117,27 @@ while [[ $# -gt 0 ]]; do
             MODEL="$2"
             shift 2
             ;;
+        --no-cache)
+            NO_CACHE=true
+            shift
+            ;;
         --help)
             echo "Usage: ./evals/scripts/run-eval.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --filter TEXT    Run only tests matching TEXT"
+            echo "  --filter TEXT    Run only tests matching TEXT (uses --filter-pattern)"
             echo "  --json           Output results as JSON"
             echo "  --view           Open web UI after running"
             echo "  --model MODEL    Specify model to use (default: claude-sonnet-4-5-20250929)"
+            echo "  --no-cache       Disable PromptFoo cache (always call the LLM)"
             echo "  --help           Show this help message"
             echo ""
             echo "Examples:"
-            echo "  ./evals/scripts/run-eval.sh                    # Run all tests"
+            echo "  ./evals/scripts/run-eval.sh                    # Run all tests (with cache)"
+            echo "  ./evals/scripts/run-eval.sh --no-cache         # Run all tests, bypass cache"
             echo "  ./evals/scripts/run-eval.sh --filter 'Spec'   # Run only spec template tests"
             echo "  ./evals/scripts/run-eval.sh --json --view     # Run tests, save JSON, open UI"
-            echo "  ./evals/scripts/run-eval.sh --model claude-opus-4-5-20251101  # Use Opus 4.5"
+            echo "  ./evals/scripts/run-eval.sh --model claude-opus-4-6  # Use Opus 4.6"
             exit 0
             ;;
         *)
@@ -137,7 +163,14 @@ fi
 FILTER_ARG=""
 if [ -n "$FILTER" ]; then
     echo -e "${YELLOW}🔍 Running tests matching: ${FILTER}${NC}"
-    FILTER_ARG="--filter-pattern \"$FILTER\""
+    FILTER_ARG="--filter-pattern $FILTER"
+fi
+
+# Build cache argument
+CACHE_ARG=""
+if [ "$NO_CACHE" = true ]; then
+    CACHE_ARG="--no-cache"
+    echo -e "${YELLOW}⚠️  Cache disabled — all tests will call the LLM${NC}"
 fi
 
 echo ""
@@ -148,23 +181,71 @@ echo ""
 # Run spec tests (don't exit on failure, capture exit code)
 echo "📋 Running Spec Template tests..."
 if [ "$OUTPUT_JSON" = true ]; then
-    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js -o eval-results-spec.json $FILTER_ARG || SPEC_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js -o eval-results-spec.json $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 else
-    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js $FILTER_ARG || SPEC_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-spec.js $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 fi
 SPEC_EXIT=${SPEC_EXIT:-0}
 
 echo ""
 echo "📋 Running Plan Template tests..."
 if [ "$OUTPUT_JSON" = true ]; then
-    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js -o eval-results-plan.json $FILTER_ARG || PLAN_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js -o eval-results-plan.json $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 else
-    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js $FILTER_ARG || PLAN_EXIT=$?
+    npx promptfoo eval -c evals/configs/promptfooconfig-plan.js $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 fi
 PLAN_EXIT=${PLAN_EXIT:-0}
 
+# Run Architecture Template tests (if config exists)
+ARCH_EXIT=0
+if [ "$HAS_ARCH" = true ]; then
+    echo ""
+    echo "📋 Running Architecture Template tests..."
+    if [ "$OUTPUT_JSON" = true ]; then
+        npx promptfoo eval -c "$ARCH_CONFIG" -o eval-results-arch.json $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
+    else
+        npx promptfoo eval -c "$ARCH_CONFIG" $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
+    fi
+fi
+
+# Run Extension System tests (if config exists)
+EXT_EXIT=0
+if [ "$HAS_EXT" = true ]; then
+    echo ""
+    echo "📋 Running Extension System tests..."
+    if [ "$OUTPUT_JSON" = true ]; then
+        npx promptfoo eval -c "$EXT_CONFIG" -o eval-results-ext.json $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
+    else
+        npx promptfoo eval -c "$EXT_CONFIG" $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
+    fi
+fi
+
+# Run Clarify Command tests (if config exists)
+CLARIFY_EXIT=0
+if [ "$HAS_CLARIFY" = true ]; then
+    echo ""
+    echo "📋 Running Clarify Command tests..."
+    if [ "$OUTPUT_JSON" = true ]; then
+        npx promptfoo eval -c "$CLARIFY_CONFIG" -o eval-results-clarify.json $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
+    else
+        npx promptfoo eval -c "$CLARIFY_CONFIG" $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
+    fi
+fi
+
+# Run Trace Template tests (if config exists)
+TRACE_EXIT=0
+if [ "$HAS_TRACE" = true ]; then
+    echo ""
+    echo "📋 Running Trace Template tests..."
+    if [ "$OUTPUT_JSON" = true ]; then
+        npx promptfoo eval -c "$TRACE_CONFIG" -o eval-results-trace.json $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
+    else
+        npx promptfoo eval -c "$TRACE_CONFIG" $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
+    fi
+fi
+
 EXIT_CODE=0
-if [ $SPEC_EXIT -ne 0 ] || [ $PLAN_EXIT -ne 0 ]; then
+if [ $SPEC_EXIT -ne 0 ] || [ $PLAN_EXIT -ne 0 ] || [ $ARCH_EXIT -ne 0 ] || [ $EXT_EXIT -ne 0 ] || [ $CLARIFY_EXIT -ne 0 ] || [ $TRACE_EXIT -ne 0 ]; then
     EXIT_CODE=1
 fi
 
@@ -183,35 +264,63 @@ if [ "$OUTPUT_JSON" = true ] && [ -f "eval-results-spec.json" ] && [ -f "eval-re
     echo "📊 Combining results..."
     python3 << 'PYTHON_EOF'
 import json
+import os
 
-# Load both result files
-with open('eval-results-spec.json', 'r') as f:
-    spec_data = json.load(f)
-with open('eval-results-plan.json', 'r') as f:
-    plan_data = json.load(f)
+# Collect all result files
+result_files = [
+    'eval-results-spec.json',
+    'eval-results-plan.json',
+    'eval-results-arch.json',
+    'eval-results-ext.json',
+    'eval-results-clarify.json',
+    'eval-results-trace.json',
+]
 
-# Combine results
+# Load available result files
+datasets = []
+for f in result_files:
+    if os.path.exists(f):
+        with open(f, 'r') as fh:
+            datasets.append(json.load(fh))
+
+if not datasets:
+    print("No result files found")
+    exit(1)
+
+base = datasets[0]
+
+# Combine all results
 combined = {
     'evalId': 'combined',
     'results': {
-        'version': spec_data['results']['version'],
-        'timestamp': spec_data['results']['timestamp'],
-        'prompts': spec_data['results']['prompts'] + plan_data['results']['prompts'],
-        'results': spec_data['results']['results'] + plan_data['results']['results'],
+        'version': base['results']['version'],
+        'timestamp': base['results']['timestamp'],
+        'prompts': [],
+        'results': [],
         'stats': {
-            'successes': spec_data['results']['stats']['successes'] + plan_data['results']['stats']['successes'],
-            'failures': spec_data['results']['stats']['failures'] + plan_data['results']['stats']['failures'],
+            'successes': 0,
+            'failures': 0,
             'tokenUsage': {
-                'total': spec_data['results']['stats']['tokenUsage']['total'] + plan_data['results']['stats']['tokenUsage']['total'],
-                'prompt': spec_data['results']['stats']['tokenUsage']['prompt'] + plan_data['results']['stats']['tokenUsage']['prompt'],
-                'completion': spec_data['results']['stats']['tokenUsage']['completion'] + plan_data['results']['stats']['tokenUsage']['completion'],
-                'cached': spec_data['results']['stats']['tokenUsage']['cached'] + plan_data['results']['stats']['tokenUsage']['cached'],
+                'total': 0,
+                'prompt': 0,
+                'completion': 0,
+                'cached': 0,
             }
         }
     },
-    'config': spec_data['config'],
+    'config': base['config'],
     'shareableUrl': None,
 }
+
+for data in datasets:
+    combined['results']['prompts'].extend(data['results']['prompts'])
+    combined['results']['results'].extend(data['results']['results'])
+    combined['results']['stats']['successes'] += data['results']['stats']['successes']
+    combined['results']['stats']['failures'] += data['results']['stats']['failures']
+    combined['results']['stats']['tokenUsage']['total'] += data['results']['stats']['tokenUsage']['total']
+    combined['results']['stats']['tokenUsage']['prompt'] += data['results']['stats']['tokenUsage']['prompt']
+    combined['results']['stats']['tokenUsage']['completion'] += data['results']['stats']['tokenUsage']['completion']
+    combined['results']['stats']['tokenUsage']['cached'] += data['results']['stats']['tokenUsage']['cached']
 
 with open('eval-results.json', 'w') as f:
     json.dump(combined, f, indent=2)
@@ -219,7 +328,7 @@ with open('eval-results.json', 'w') as f:
 # Print summary
 total = combined['results']['stats']['successes'] + combined['results']['stats']['failures']
 pass_rate = (combined['results']['stats']['successes'] / total * 100) if total > 0 else 0
-print(f"✓ Combined results: {combined['results']['stats']['successes']}/{total} passed ({pass_rate:.0f}%)")
+print(f"✓ Combined results from {len(datasets)} suites: {combined['results']['stats']['successes']}/{total} passed ({pass_rate:.0f}%)")
 PYTHON_EOF
 fi
 

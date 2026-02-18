@@ -59,6 +59,7 @@ docs/dev
 .specify/extensions/*/local-config.yml
 
 # Evaluation artifacts
+eval-results/
 eval-results*.json
 *.backup
 .promptfoo/

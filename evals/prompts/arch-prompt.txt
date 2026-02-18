@@ -1,0 +1,83 @@
+You are tasked with creating an Architecture Description document.
+
+USER REQUIREMENTS:
+{{ user_input }}
+
+INSTRUCTIONS:
+Create a comprehensive Architecture Description (AD) document following the Rozanski & Woods viewpoint framework.
+
+IMPORTANT: Use ## (level 2) and ### (level 3) markdown headers for ALL sections below:
+
+## 1. Introduction
+- Purpose: Why this system exists
+- Scope: In-scope and out-of-scope
+- Definitions & Acronyms table
+
+## 2. Stakeholders & Concerns
+Table with: Stakeholder, Role, Key Concerns, Priority
+
+## 3. Architectural Views (Rozanski & Woods)
+
+### 3.1 Context View
+- CRITICAL: Present the system as a SINGLE BLACKBOX
+- Show ONLY: the system as one unified node, external actors, external systems, data flows crossing the boundary
+- Do NOT show internal components, services, databases, or implementation details
+- Include a context diagram (mermaid or ascii)
+- Document external dependencies with SLA expectations and fallback strategies
+
+### 3.2 Functional View
+- Functional elements with responsibilities and interfaces
+- Element interactions diagram
+- Functional boundaries (what system does and does NOT do)
+
+### 3.3 Information View
+- Data entities with storage, owner, lifecycle, access patterns
+- Data flow descriptions
+- Data quality & integrity (consistency model, validation, retention, backup)
+
+### 3.5 Development View
+- Code organization (directory structure with annotations)
+- Module dependencies and rules
+- Build & CI/CD pipeline stages
+- Development standards (coding, review, testing, docs)
+
+### 3.6 Deployment View
+- Runtime environments table (production, staging, development)
+- Network topology diagram
+- Hardware requirements
+- Third-party services with SLAs
+
+## 4. Architectural Perspectives (Cross-Cutting)
+
+### 4.1 Security Perspective
+- Authentication & Authorization
+- Data Protection (encryption at rest, in transit, secrets management)
+- Threat Model table
+
+### 4.2 Performance & Scalability
+- Performance requirements with targets
+- Scalability model (horizontal, vertical, auto-scaling triggers)
+- Capacity planning
+
+## 5. Global Constraints & Principles
+- Technical constraints
+- Architectural principles
+
+## 6. Architecture Decision Records (ADRs)
+For each ADR include:
+- Status (Proposed/Accepted/Deprecated/Discovered)
+- Context with problem statement and forces
+- Decision with rationale
+- Consequences (Positive, Negative, Risks)
+- Common Alternatives with neutral trade-offs (NOT "rejected because")
+
+IMPORTANT CONSTRAINTS:
+- Context View MUST be a blackbox - no internal details
+- ADRs must include evidence and confidence levels for discovered decisions
+- Keep architecture proportional to system complexity
+- Simple systems should have simple architectures (no over-engineering)
+- For brownfield: infer decisions from code, mark confidence (HIGH/MEDIUM/LOW)
+- For greenfield: design decisions based on requirements
+- All views must be consistent with each other
+
+OUTPUT: A complete Architecture Description document.

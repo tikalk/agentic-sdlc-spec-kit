@@ -5,12 +5,13 @@ Generate Real Specs for Error Analysis
 Uses Claude API to generate actual specs for all test case templates
 """
 
-import os
-import sys
-import re
 import json
-import requests
+import os
+import re
+import sys
 from pathlib import Path
+
+import requests
 
 # Colors for terminal output
 GREEN = '\033[0;32m'

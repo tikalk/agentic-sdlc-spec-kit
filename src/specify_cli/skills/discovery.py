@@ -5,10 +5,10 @@ Automatically discovers relevant skills based on feature descriptions using
 keyword matching and relevance scoring.
 """
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
-import re
 
 from .manifest import SkillsManifest, SkillMetadata
 
