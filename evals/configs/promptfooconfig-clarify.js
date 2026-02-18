@@ -33,6 +33,12 @@ module.exports = {
       // Strip any preamble/thinking before the actual content
       transform: 'output.replace(/^.*?(?=## 1\\.\\s+Ambiguity Analysis)/s, "").trim()',
     },
+    assert: [
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_pii_leakage' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_prompt_injection' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_hallucination_signals' },
+      { type: 'python', value: 'file://../graders/custom_graders.py:check_misinformation' },
+    ],
   },
 
   tests: [

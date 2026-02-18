@@ -6,10 +6,10 @@ This script validates that evaluation scores meet minimum thresholds
 for use in CI/CD pipelines.
 """
 
+import argparse
 import json
 import sys
-import argparse
-from typing import Dict, List, Any
+from typing import Any, Dict, List
 
 
 def load_results(file_path: str) -> Dict[str, Any]:

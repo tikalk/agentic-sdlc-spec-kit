@@ -8,12 +8,13 @@ Tests cover:
 - Command registration
 """
 
-import pytest
 import json
-import tempfile
 import shutil
-from pathlib import Path
+import tempfile
 from datetime import datetime, timezone
+from pathlib import Path
+
+import pytest
 
 from specify_cli.extensions import (
     ExtensionManifest,
