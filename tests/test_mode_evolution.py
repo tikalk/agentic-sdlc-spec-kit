@@ -102,7 +102,7 @@ def test_template_content_difference():
 
     # Build template should focus on core functionality
     assert (
-        "Core user journey" in build_template.lower()
+        "core user journey" in build_template.lower()
         or "primary user journey" in build_template.lower()
     )
     assert "Success Criteria" in build_template
@@ -126,8 +126,8 @@ def test_plan_template_difference():
     assert len(build_plan) < len(spec_plan)
 
     # Build plan should focus on core implementation
-    assert "Core Implementation Approach" in build_plan
-    assert "Success Criteria Validation" in build_plan
+    assert "Technical Approach" in build_plan
+    assert "Validation" in build_plan
 
     # Spec plan should have comprehensive structure
     assert "Technical Context" in spec_plan

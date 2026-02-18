@@ -14,7 +14,7 @@ from pathlib import Path
 
 # Make the graders importable without installing the evals package
 sys.path.insert(0, str(Path(__file__).parent.parent / "evals" / "graders"))
-from custom_graders import (
+from custom_graders import (  # noqa: E402
     check_pii_leakage,
     check_prompt_injection,
     check_hallucination_signals,

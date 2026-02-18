@@ -4,10 +4,11 @@ FastHTML Annotation Tool for Spec Review
 Provides a fast, keyboard-driven interface for reviewing generated specs.
 """
 
-from fasthtml.common import *
-from pathlib import Path
 import json
 from datetime import datetime
+from pathlib import Path
+
+from fasthtml.common import *
 import markdown
 
 # Initialize FastHTML app with Pico CSS

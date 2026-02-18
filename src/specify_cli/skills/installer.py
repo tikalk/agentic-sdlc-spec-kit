@@ -11,10 +11,10 @@ Handles skill installation from various sources:
 import hashlib
 import re
 import shutil
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple, Dict, Any
-from dataclasses import dataclass
+from typing import Any, Dict, Optional, Tuple
 
 import httpx
 

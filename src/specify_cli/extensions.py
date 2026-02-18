@@ -6,15 +6,15 @@ Extensions are modular packages that add commands and functionality to spec-kit
 without bloating the core framework.
 """
 
-import json
 import hashlib
+import json
+import re
+import shutil
 import tempfile
 import zipfile
-import shutil
-from pathlib import Path
-from typing import Optional, Dict, List, Any
 from datetime import datetime, timezone
-import re
+from pathlib import Path
+from typing import Any, Dict, List, Optional
 
 import yaml
 from packaging import version as pkg_version

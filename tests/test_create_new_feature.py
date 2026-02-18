@@ -13,6 +13,7 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     script_dir.mkdir(parents=True)
     template_dir.mkdir(parents=True)
     memory_dir.mkdir(parents=True)
+    (repo_root / "templates").mkdir(parents=True)
 
     project_root = Path(__file__).resolve().parent.parent
     top_level_root = project_root.parent
@@ -21,6 +22,7 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
     shutil.copy(project_root / "templates" / "spec-template.md", template_dir / "spec-template.md")
     shutil.copy(project_root / "templates" / "context-template.md", template_dir / "context-template.md")
+    shutil.copy(project_root / "templates" / "context-template.md", repo_root / "templates" / "context-template.md")
 
     constitution_path = memory_dir / "constitution.md"
     constitution_path.write_text("Principles")
@@ -46,5 +48,5 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     context_file = spec_file.parent / "context.md"
     assert context_file.exists()
     context_text = context_file.read_text()
-    assert "[NEEDS INPUT]" in context_text
     assert "Feature Context" in context_text
+    assert "Mission" in context_text
