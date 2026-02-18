@@ -8,7 +8,33 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from fasthtml.common import *
+from fasthtml.common import (
+    Article,
+    Body,
+    Button,
+    Details,
+    Div,
+    Form,
+    H1,
+    H2,
+    Head,
+    Html,
+    Input,
+    Link,
+    Main,
+    NotStr,
+    P,
+    Response,
+    Script,
+    Span,
+    Strong,
+    Style,
+    Summary,
+    Textarea,
+    Title,
+    fast_app,
+    serve,
+)
 import markdown
 
 # Initialize FastHTML app with Pico CSS
