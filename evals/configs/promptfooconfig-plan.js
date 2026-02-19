@@ -3,8 +3,10 @@ module.exports = {
   description: 'Plan Template Quality Evaluation',
 
   // Rate limiting to avoid 429 errors
-  maxConcurrency: 1,
-  delay: 2000, // 2 second delay between tests
+  evaluateOptions: {
+    maxConcurrency: 1,
+    delay: process.env.CI ? 15000 : 2000, // 15s in CI to avoid rate limiting, 2s locally
+  },
 
   // Plan prompt only
   prompts: ['file://../prompts/plan-prompt.txt'],
