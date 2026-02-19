@@ -26,6 +26,14 @@ jobs:
         with:
           node-version: '20'
 
+      - name: Restore promptfoo cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.promptfoo/cache
+          key: promptfoo-${{ hashFiles('evals/configs/**', 'evals/prompts/**') }}-${{ github.event.inputs.model || secrets.LLM_MODEL || 'default' }}
+          restore-keys: |
+            promptfoo-${{ hashFiles('evals/configs/**', 'evals/prompts/**') }}-
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -45,6 +53,7 @@ jobs:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
           LLM_MODEL: ${{ github.event.inputs.model || secrets.LLM_MODEL || 'llama-3.3-70b-versatile' }}
+          PROMPTFOO_REQUEST_BACKOFF_MS: '30000'
         run: |
           chmod +x ./evals/scripts/run-promptfoo-eval.sh
           ./evals/scripts/run-promptfoo-eval.sh --json
