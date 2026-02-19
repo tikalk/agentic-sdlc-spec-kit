@@ -32,6 +32,7 @@ import tempfile
 import shutil
 import shlex
 import json
+import yaml
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -983,6 +984,203 @@ def ensure_constitution_from_template(project_path: Path, tracker: StepTracker |
         else:
             console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
 
+# Agent-specific skill directory overrides for agents whose skills directory
+# doesn't follow the standard <agent_folder>/skills/ pattern
+AGENT_SKILLS_DIR_OVERRIDES = {
+    "codex": ".agents/skills",  # Codex agent layout override
+}
+
+# Default skills directory for agents not in AGENT_CONFIG
+DEFAULT_SKILLS_DIR = ".agents/skills"
+
+# Enhanced descriptions for each spec-kit command skill
+SKILL_DESCRIPTIONS = {
+    "specify": "Create or update feature specifications from natural language descriptions. Use when starting new features or refining requirements. Generates spec.md with user stories, functional requirements, and acceptance criteria following spec-driven development methodology.",
+    "plan": "Generate technical implementation plans from feature specifications. Use after creating a spec to define architecture, tech stack, and implementation phases. Creates plan.md with detailed technical design.",
+    "tasks": "Break down implementation plans into actionable task lists. Use after planning to create a structured task breakdown. Generates tasks.md with ordered, dependency-aware tasks.",
+    "implement": "Execute all tasks from the task breakdown to build the feature. Use after task generation to systematically implement the planned solution following TDD approach where applicable.",
+    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md. Use after task generation to identify gaps, duplications, and inconsistencies before implementation.",
+    "clarify": "Structured clarification workflow for underspecified requirements. Use before planning to resolve ambiguities through coverage-based questioning. Records answers in spec clarifications section.",
+    "constitution": "Create or update project governing principles and development guidelines. Use at project start to establish code quality, testing standards, and architectural constraints that guide all development.",
+    "checklist": "Generate custom quality checklists for validating requirements completeness and clarity. Use to create unit tests for English that ensure spec quality before implementation.",
+    "taskstoissues": "Convert tasks from tasks.md into GitHub issues. Use after task breakdown to track work items in GitHub project management.",
+}
+
+
+def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
+    """Resolve the agent-specific skills directory for the given AI assistant.
+
+    Uses ``AGENT_SKILLS_DIR_OVERRIDES`` first, then falls back to
+    ``AGENT_CONFIG[agent]["folder"] + "skills"``, and finally to
+    ``DEFAULT_SKILLS_DIR``.
+    """
+    if selected_ai in AGENT_SKILLS_DIR_OVERRIDES:
+        return project_path / AGENT_SKILLS_DIR_OVERRIDES[selected_ai]
+
+    agent_config = AGENT_CONFIG.get(selected_ai, {})
+    agent_folder = agent_config.get("folder", "")
+    if agent_folder:
+        return project_path / agent_folder.rstrip("/") / "skills"
+
+    return project_path / DEFAULT_SKILLS_DIR
+
+
+def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker | None = None) -> bool:
+    """Install Prompt.MD files from templates/commands/ as agent skills.
+
+    Skills are written to the agent-specific skills directory following the
+    `agentskills.io <https://agentskills.io/specification>`_ specification.
+    Installation is additive — existing files are never removed and prompt
+    command files in the agent's commands directory are left untouched.
+
+    Args:
+        project_path: Target project directory.
+        selected_ai: AI assistant key from ``AGENT_CONFIG``.
+        tracker: Optional progress tracker.
+
+    Returns:
+        ``True`` if at least one skill was installed or all skills were
+        already present (idempotent re-run), ``False`` otherwise.
+    """
+    # Locate command templates in the agent's extracted commands directory.
+    # download_and_extract_template() already placed the .md files here.
+    agent_config = AGENT_CONFIG.get(selected_ai, {})
+    agent_folder = agent_config.get("folder", "")
+    if agent_folder:
+        templates_dir = project_path / agent_folder.rstrip("/") / "commands"
+    else:
+        templates_dir = project_path / "commands"
+
+    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
+        # Fallback: try the repo-relative path (for running from source checkout)
+        # This also covers agents whose extracted commands are in a different
+        # format (e.g. gemini uses .toml, not .md).
+        script_dir = Path(__file__).parent.parent.parent  # up from src/specify_cli/
+        fallback_dir = script_dir / "templates" / "commands"
+        if fallback_dir.exists() and any(fallback_dir.glob("*.md")):
+            templates_dir = fallback_dir
+
+    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
+        if tracker:
+            tracker.error("ai-skills", "command templates not found")
+        else:
+            console.print("[yellow]Warning: command templates not found, skipping skills installation[/yellow]")
+        return False
+
+    command_files = sorted(templates_dir.glob("*.md"))
+    if not command_files:
+        if tracker:
+            tracker.skip("ai-skills", "no command templates found")
+        else:
+            console.print("[yellow]No command templates found to install[/yellow]")
+        return False
+
+    # Resolve the correct skills directory for this agent
+    skills_dir = _get_skills_dir(project_path, selected_ai)
+    skills_dir.mkdir(parents=True, exist_ok=True)
+
+    if tracker:
+        tracker.start("ai-skills")
+
+    installed_count = 0
+    skipped_count = 0
+    for command_file in command_files:
+        try:
+            content = command_file.read_text(encoding="utf-8")
+
+            # Parse YAML frontmatter
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    frontmatter = yaml.safe_load(parts[1])
+                    if not isinstance(frontmatter, dict):
+                        frontmatter = {}
+                    body = parts[2].strip()
+                else:
+                    # File starts with --- but has no closing ---
+                    console.print(f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]")
+                    frontmatter = {}
+                    body = content
+            else:
+                frontmatter = {}
+                body = content
+
+            command_name = command_file.stem
+            # Normalize: extracted commands may be named "speckit.<cmd>.md";
+            # strip the "speckit." prefix so skill names stay clean and
+            # SKILL_DESCRIPTIONS lookups work.
+            if command_name.startswith("speckit."):
+                command_name = command_name[len("speckit."):]
+            skill_name = f"speckit-{command_name}"
+
+            # Create skill directory (additive — never removes existing content)
+            skill_dir = skills_dir / skill_name
+            skill_dir.mkdir(parents=True, exist_ok=True)
+
+            # Select the best description available
+            original_desc = frontmatter.get("description", "")
+            enhanced_desc = SKILL_DESCRIPTIONS.get(command_name, original_desc or f"Spec-kit workflow command: {command_name}")
+
+            # Build SKILL.md following agentskills.io spec
+            # Use yaml.safe_dump to safely serialise the frontmatter and
+            # avoid YAML injection from descriptions containing colons,
+            # quotes, or newlines.
+            # Normalize source filename for metadata — strip speckit. prefix
+            # so it matches the canonical templates/commands/<cmd>.md path.
+            source_name = command_file.name
+            if source_name.startswith("speckit."):
+                source_name = source_name[len("speckit."):]
+
+            frontmatter_data = {
+                "name": skill_name,
+                "description": enhanced_desc,
+                "compatibility": "Requires spec-kit project structure with .specify/ directory",
+                "metadata": {
+                    "author": "github-spec-kit",
+                    "source": f"templates/commands/{source_name}",
+                },
+            }
+            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+            skill_content = (
+                f"---\n"
+                f"{frontmatter_text}\n"
+                f"---\n\n"
+                f"# Speckit {command_name.title()} Skill\n\n"
+                f"{body}\n"
+            )
+
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists():
+                # Do not overwrite user-customized skills on re-runs
+                skipped_count += 1
+                continue
+            skill_file.write_text(skill_content, encoding="utf-8")
+            installed_count += 1
+
+        except Exception as e:
+            console.print(f"[yellow]Warning: Failed to install skill {command_file.stem}: {e}[/yellow]")
+            continue
+
+    if tracker:
+        if installed_count > 0 and skipped_count > 0:
+            tracker.complete("ai-skills", f"{installed_count} new + {skipped_count} existing skills in {skills_dir.relative_to(project_path)}")
+        elif installed_count > 0:
+            tracker.complete("ai-skills", f"{installed_count} skills → {skills_dir.relative_to(project_path)}")
+        elif skipped_count > 0:
+            tracker.complete("ai-skills", f"{skipped_count} skills already present")
+        else:
+            tracker.error("ai-skills", "no skills installed")
+    else:
+        if installed_count > 0:
+            console.print(f"[green]✓[/green] Installed {installed_count} agent skills to {skills_dir.relative_to(project_path)}/")
+        elif skipped_count > 0:
+            console.print(f"[green]✓[/green] {skipped_count} agent skills already present in {skills_dir.relative_to(project_path)}/")
+        else:
+            console.print("[yellow]No skills were installed[/yellow]")
+
+    return installed_count > 0 or skipped_count > 0
+
+
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
@@ -995,6 +1193,7 @@ def init(
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
+    ai_skills: bool = typer.Option(False, "--ai-skills", help="Install Prompt.MD templates as agent skills (requires --ai)"),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -1019,6 +1218,8 @@ def init(
         specify init --here --ai codebuddy
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
+        specify init my-project --ai claude --ai-skills   # Install agent skills
+        specify init --here --ai gemini --ai-skills
     """
 
     show_banner()
@@ -1033,6 +1234,11 @@ def init(
 
     if not here and not project_name:
         console.print("[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag")
+        raise typer.Exit(1)
+
+    if ai_skills and not ai_assistant:
+        console.print("[red]Error:[/red] --ai-skills requires --ai to be specified")
+        console.print("[yellow]Usage:[/yellow] specify init <project> --ai <agent> --ai-skills")
         raise typer.Exit(1)
 
     if here:
@@ -1150,6 +1356,11 @@ def init(
         ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
+    ]:
+        tracker.add(key, label)
+    if ai_skills:
+        tracker.add("ai-skills", "Install agent skills")
+    for key, label in [
         ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
         ("final", "Finalize")
@@ -1171,6 +1382,29 @@ def init(
             ensure_executable_scripts(project_path, tracker=tracker)
 
             ensure_constitution_from_template(project_path, tracker=tracker)
+
+            if ai_skills:
+                skills_ok = install_ai_skills(project_path, selected_ai, tracker=tracker)
+
+                # When --ai-skills is used on a NEW project and skills were
+                # successfully installed, remove the command files that the
+                # template archive just created.  Skills replace commands, so
+                # keeping both would be confusing.  For --here on an existing
+                # repo we leave pre-existing commands untouched to avoid a
+                # breaking change.  We only delete AFTER skills succeed so the
+                # project always has at least one of {commands, skills}.
+                if skills_ok and not here:
+                    agent_cfg = AGENT_CONFIG.get(selected_ai, {})
+                    agent_folder = agent_cfg.get("folder", "")
+                    if agent_folder:
+                        cmds_dir = project_path / agent_folder.rstrip("/") / "commands"
+                        if cmds_dir.exists():
+                            try:
+                                shutil.rmtree(cmds_dir)
+                            except OSError:
+                                # Best-effort cleanup: skills are already installed,
+                                # so leaving stale commands is non-fatal.
+                                console.print("[yellow]Warning: could not remove extracted commands directory[/yellow]")
 
             if not no_git:
                 tracker.start("git")
