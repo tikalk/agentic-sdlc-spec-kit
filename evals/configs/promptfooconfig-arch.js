@@ -4,7 +4,7 @@ module.exports = {
 
   // Rate limiting to avoid 429 errors
   maxConcurrency: 1,
-  delay: 2000, // 2 second delay between tests
+  delay: process.env.CI ? 15000 : 2000, // 15s in CI to avoid rate limiting, 2s locally
 
   // Architecture prompt
   prompts: ['file://../prompts/arch-prompt.txt'],
