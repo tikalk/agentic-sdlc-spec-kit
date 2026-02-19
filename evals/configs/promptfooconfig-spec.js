@@ -3,7 +3,7 @@ module.exports = {
   description: 'Spec Template Quality Evaluation',
 
   // Rate limiting to avoid 429 errors
-  maxConcurrency: 1,
+  concurrency: 1,
   delay: process.env.CI ? 15000 : 5000, // 15s in CI to avoid rate limiting, 5s locally
 
   // Spec prompt only
