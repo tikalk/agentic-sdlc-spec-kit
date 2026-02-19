@@ -3,8 +3,10 @@ module.exports = {
   description: 'Extension System Quality Evaluation',
 
   // Rate limiting to avoid 429 errors
-  concurrency: 1,
-  delay: process.env.CI ? 15000 : 2000, // 15s in CI to avoid rate limiting, 2s locally
+  evaluateOptions: {
+    maxConcurrency: 1,
+    delay: process.env.CI ? 15000 : 2000, // 15s in CI to avoid rate limiting, 2s locally
+  },
 
   // Extension prompt
   prompts: ['file://../prompts/ext-prompt.txt'],
