@@ -191,7 +191,7 @@ AGENT_CONFIG = {
         "install_url": "https://www.codebuddy.ai/cli",
         "requires_cli": True,
     },
-    "qoder": {
+    "qodercli": {
         "name": "Qoder CLI",
         "folder": ".qoder/",
         "install_url": "https://qoder.com/cli",
@@ -1194,7 +1194,7 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, qoder, or generic (requires --ai-commands-dir)"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, qodercli, or generic (requires --ai-commands-dir)"),
     ai_commands_dir: str = typer.Option(None, "--ai-commands-dir", help="Directory for agent command files (required with --ai generic, e.g. .myagent/commands/)"),
     script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
