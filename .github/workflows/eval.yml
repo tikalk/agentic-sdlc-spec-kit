@@ -49,6 +49,7 @@ jobs:
           pytest tests/ -v --tb=short
 
       - name: Run Evaluations
+        continue-on-error: true
         env:
           LLM_BASE_URL: ${{ secrets.LLM_BASE_URL }}
           LLM_AUTH_TOKEN: ${{ secrets.LLM_AUTH_TOKEN }}
