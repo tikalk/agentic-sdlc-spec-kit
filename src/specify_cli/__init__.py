@@ -22,6 +22,7 @@ import ssl
 import subprocess
 import sys
 import tempfile
+import yaml
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -135,112 +136,332 @@ AGENT_CONFIG = {
     "copilot": {
         "name": "GitHub Copilot",
         "folder": ".github/",
+        "commands_subdir": "agents",
         "install_url": None,  # IDE-based, no CLI check needed
         "requires_cli": False,
     },
     "claude": {
         "name": "Claude Code",
         "folder": ".claude/",
+        "commands_subdir": "commands",
         "install_url": "https://docs.anthropic.com/en/docs/claude-code/setup",
         "requires_cli": True,
     },
     "gemini": {
         "name": "Gemini CLI",
         "folder": ".gemini/",
+        "commands_subdir": "commands",
         "install_url": "https://github.com/google-gemini/gemini-cli",
         "requires_cli": True,
     },
     "cursor-agent": {
         "name": "Cursor",
         "folder": ".cursor/",
+        "commands_subdir": "commands",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
     "qwen": {
         "name": "Qwen Code",
         "folder": ".qwen/",
+        "commands_subdir": "commands",
         "install_url": "https://github.com/QwenLM/qwen-code",
         "requires_cli": True,
     },
     "opencode": {
         "name": "opencode",
         "folder": ".opencode/",
+        "commands_subdir": "command",
         "install_url": "https://opencode.ai",
         "requires_cli": True,
     },
     "codex": {
         "name": "Codex CLI",
         "folder": ".codex/",
+        "commands_subdir": "prompts",
         "install_url": "https://github.com/openai/codex",
         "requires_cli": True,
     },
     "windsurf": {
         "name": "Windsurf",
         "folder": ".windsurf/",
+        "commands_subdir": "workflows",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
     "kilocode": {
         "name": "Kilo Code",
         "folder": ".kilocode/",
+        "commands_subdir": "workflows",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
     "auggie": {
         "name": "Auggie CLI",
         "folder": ".augment/",
+        "commands_subdir": "rules",
         "install_url": "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli",
         "requires_cli": True,
     },
     "codebuddy": {
         "name": "CodeBuddy",
         "folder": ".codebuddy/",
+        "commands_subdir": "commands",
         "install_url": "https://www.codebuddy.ai/cli",
         "requires_cli": True,
     },
-    "qoder": {
+    "qodercli": {
         "name": "Qoder CLI",
         "folder": ".qoder/",
+        "commands_subdir": "commands",
         "install_url": "https://qoder.com/cli",
         "requires_cli": True,
     },
     "roo": {
         "name": "Roo Code",
         "folder": ".roo/",
+        "commands_subdir": "rules",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
     "q": {
         "name": "Amazon Q Developer CLI",
         "folder": ".amazonq/",
+        "commands_subdir": "prompts",
         "install_url": "https://aws.amazon.com/developer/learning/q-developer-cli/",
         "requires_cli": True,
     },
     "amp": {
         "name": "Amp",
         "folder": ".agents/",
+        "commands_subdir": "commands",
         "install_url": "https://ampcode.com/manual#install",
         "requires_cli": True,
     },
     "shai": {
         "name": "SHAI",
         "folder": ".shai/",
+        "commands_subdir": "commands",
         "install_url": "https://github.com/ovh/shai",
         "requires_cli": True,
     },
     "agy": {
         "name": "Antigravity",
         "folder": ".agent/",
+        "commands_subdir": "workflows",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
     "bob": {
         "name": "IBM Bob",
         "folder": ".bob/",
+        "commands_subdir": "commands",
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
+    "generic": {
+        "name": "Generic Agent",
+        "folder": "",
+        "commands_subdir": "commands",
+        "install_url": None,
+        "requires_cli": False,
+    },
 }
+
+AGENT_SKILLS_DIR_OVERRIDES = {
+    "codex": ".agents/skills",
+}
+
+DEFAULT_SKILLS_DIR = ".agents/skills"
+
+SKILL_DESCRIPTIONS = {
+    "specify": "Create or update feature specifications from natural language descriptions. Use when starting new features or refining requirements. Generates spec.md with user stories, functional requirements, and acceptance criteria following spec-driven development methodology.",
+    "plan": "Generate technical implementation plans from feature specifications. Use after creating a spec to define architecture, tech stack, and implementation phases. Creates plan.md with detailed technical design.",
+    "tasks": "Break down implementation plans into actionable task lists. Use after planning to create a structured task breakdown. Generates tasks.md with ordered, dependency-aware tasks.",
+    "implement": "Execute all tasks from the task breakdown to build the feature. Use after task generation to systematically implement the planned solution following TDD approach where applicable.",
+    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md. Use after task generation to identify gaps, duplications, and inconsistencies before implementation.",
+    "clarify": "Structured clarification workflow for underspecified requirements. Use before planning to resolve ambiguities through coverage-based questioning. Records answers in spec clarifications section.",
+    "constitution": "Create or update project governing principles and development guidelines. Use at project start to establish code quality, testing standards, and architectural constraints that guide all development.",
+    "checklist": "Generate custom quality checklists for validating requirements completeness and clarity. Use to create unit tests for English that ensure spec quality before implementation.",
+    "taskstoissues": "Convert tasks from tasks.md into GitHub issues. Use after task breakdown to track work items in GitHub project management.",
+}
+
+
+def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
+    """Resolve the agent-specific skills directory for the given AI assistant.
+
+    Uses ``AGENT_SKILLS_DIR_OVERRIDES`` first, then falls back to
+    ``AGENT_CONFIG[agent]["folder"] + "skills"``, and finally to
+    ``DEFAULT_SKILLS_DIR``.
+    """
+    if selected_ai in AGENT_SKILLS_DIR_OVERRIDES:
+        return project_path / AGENT_SKILLS_DIR_OVERRIDES[selected_ai]
+
+    agent_config = AGENT_CONFIG.get(selected_ai, {})
+    agent_folder = agent_config.get("folder", "")
+    if agent_folder:
+        return project_path / agent_folder.rstrip("/") / "skills"
+
+    return project_path / DEFAULT_SKILLS_DIR
+
+
+def install_ai_skills(
+    project_path: Path, selected_ai: str, tracker: "StepTracker | None" = None
+) -> bool:
+    """Install Prompt.MD files from templates/commands/ as agent skills.
+
+    Skills are written to the agent-specific skills directory following the
+    `agentskills.io <https://agentskills.io/specification>`_ specification.
+    Installation is additive — existing files are never removed and prompt
+    command files in the agent's commands directory are left untouched.
+
+    Args:
+        project_path: Target project directory.
+        selected_ai: AI assistant key from ``AGENT_CONFIG``.
+        tracker: Optional progress tracker.
+
+    Returns:
+        ``True`` if at least one skill was installed or all skills were
+        already present (idempotent re-run), ``False`` otherwise.
+    """
+    agent_config = AGENT_CONFIG.get(selected_ai, {})
+    agent_folder = agent_config.get("folder", "")
+    commands_subdir = agent_config.get("commands_subdir", "commands")
+    if agent_folder:
+        templates_dir = project_path / agent_folder.rstrip("/") / commands_subdir
+    else:
+        templates_dir = project_path / commands_subdir
+
+    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
+        script_dir = Path(__file__).parent.parent.parent
+        fallback_dir = script_dir / "templates" / "commands"
+        if fallback_dir.exists() and any(fallback_dir.glob("*.md")):
+            templates_dir = fallback_dir
+
+    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
+        if tracker:
+            tracker.error("ai-skills", "command templates not found")
+        else:
+            console.print(
+                "[yellow]Warning: command templates not found, skipping skills installation[/yellow]"
+            )
+        return False
+
+    command_files = sorted(templates_dir.glob("*.md"))
+    if not command_files:
+        if tracker:
+            tracker.skip("ai-skills", "no command templates found")
+        else:
+            console.print("[yellow]No command templates found to install[/yellow]")
+        return False
+
+    skills_dir = _get_skills_dir(project_path, selected_ai)
+    skills_dir.mkdir(parents=True, exist_ok=True)
+
+    if tracker:
+        tracker.start("ai-skills")
+
+    installed_count = 0
+    skipped_count = 0
+    for command_file in command_files:
+        try:
+            content = command_file.read_text(encoding="utf-8")
+
+            if content.startswith("---"):
+                parts = content.split("---", 2)
+                if len(parts) >= 3:
+                    frontmatter = yaml.safe_load(parts[1])
+                    if not isinstance(frontmatter, dict):
+                        frontmatter = {}
+                    body = parts[2].strip()
+                else:
+                    console.print(
+                        f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]"
+                    )
+                    frontmatter = {}
+                    body = content
+            else:
+                frontmatter = {}
+                body = content
+
+            command_name = command_file.stem
+            if command_name.startswith("speckit."):
+                command_name = command_name[len("speckit.") :]
+            skill_name = f"speckit-{command_name}"
+
+            skill_dir = skills_dir / skill_name
+            skill_dir.mkdir(parents=True, exist_ok=True)
+
+            original_desc = frontmatter.get("description", "")
+            enhanced_desc = SKILL_DESCRIPTIONS.get(
+                command_name,
+                original_desc or f"Spec-kit workflow command: {command_name}",
+            )
+
+            source_name = command_file.name
+            if source_name.startswith("speckit."):
+                source_name = source_name[len("speckit.") :]
+
+            frontmatter_data = {
+                "name": skill_name,
+                "description": enhanced_desc,
+                "compatibility": "Requires spec-kit project structure with .specify/ directory",
+                "metadata": {
+                    "author": "github-spec-kit",
+                    "source": f"templates/commands/{source_name}",
+                },
+            }
+            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+            skill_content = (
+                f"---\n"
+                f"{frontmatter_text}\n"
+                f"---\n\n"
+                f"# Speckit {command_name.title()} Skill\n\n"
+                f"{body}\n"
+            )
+
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists():
+                skipped_count += 1
+                continue
+            skill_file.write_text(skill_content, encoding="utf-8")
+            installed_count += 1
+
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Failed to install skill {command_file.stem}: {e}[/yellow]"
+            )
+            continue
+
+    if tracker:
+        if installed_count > 0 and skipped_count > 0:
+            tracker.complete(
+                "ai-skills",
+                f"{installed_count} new + {skipped_count} existing skills in {skills_dir.relative_to(project_path)}",
+            )
+        elif installed_count > 0:
+            tracker.complete(
+                "ai-skills",
+                f"{installed_count} skills -> {skills_dir.relative_to(project_path)}",
+            )
+        elif skipped_count > 0:
+            tracker.complete("ai-skills", f"{skipped_count} skills already present")
+        else:
+            tracker.error("ai-skills", "no skills installed")
+    else:
+        if installed_count > 0:
+            console.print(
+                f"[green]✓[/green] Installed {installed_count} agent skills to {skills_dir.relative_to(project_path)}/"
+            )
+        elif skipped_count > 0:
+            console.print(
+                f"[green]✓[/green] {skipped_count} agent skills already present in {skills_dir.relative_to(project_path)}/"
+            )
+        else:
+            console.print("[yellow]No skills were installed[/yellow]")
+
+    return installed_count > 0 or skipped_count > 0
+
 
 # Issue tracker MCP configuration with name, type, URL, and metadata
 ISSUE_TRACKER_CONFIG = {
@@ -2604,6 +2825,11 @@ def init(
         "--spec-sync",
         help="Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes)",
     ),
+    ai_skills: bool = typer.Option(
+        False,
+        "--ai-skills",
+        help="Install Prompt.MD templates as agent skills (requires --ai)",
+    ),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -2641,6 +2867,12 @@ def init(
     """
 
     show_banner()
+
+    if ai_skills and not ai_assistant:
+        console.print(
+            "[red]Error:[/red] --ai-skills requires --ai to be specified. Use --ai to select an AI assistant."
+        )
+        raise typer.Exit(1)
 
     if project_name == ".":
         here = True
@@ -3214,6 +3446,9 @@ def init(
         )
         console.print()
         console.print(skills_panel)
+
+    if ai_skills and selected_ai:
+        install_ai_skills(project_path, selected_ai, tracker=None)
 
 
 @app.command()
