@@ -25,26 +25,51 @@ def load_results(file_path: str) -> Dict[str, Any]:
         sys.exit(1)
 
 
-def calculate_stats(results: Dict[str, Any]) -> Dict[str, Any]:
+def is_api_error(result: Dict[str, Any]) -> bool:
+    """Check if a result is an API error (rate limit, timeout, etc.)."""
+    # Safety check: ensure result is a dictionary
+    if not isinstance(result, dict):
+        return False
+
+    error = result.get('error', '')
+    if isinstance(error, str):
+        return 'Rate limited' in error or '429' in error or 'timeout' in error.lower()
+    return False
+
+
+def calculate_stats(results: Dict[str, Any], exclude_api_errors: bool = False) -> Dict[str, Any]:
     """Calculate statistics from evaluation results."""
-    test_results = results.get('results', [])
+    # Navigate to the actual test results array
+    results_data = results.get('results', {})
+    if isinstance(results_data, dict):
+        test_results = results_data.get('results', [])
+    else:
+        test_results = []
 
     if not test_results:
         return {
             'total': 0,
             'passed': 0,
             'failed': 0,
+            'errors': 0,
             'pass_rate': 0.0,
             'average_score': 0.0,
             'min_score': 0.0,
             'max_score': 0.0
         }
 
+    # Count API errors separately
+    api_errors = sum(1 for r in test_results if is_api_error(r))
+
+    # Filter out API errors if requested
+    if exclude_api_errors:
+        test_results = [r for r in test_results if not is_api_error(r)]
+
     total = len(test_results)
     passed = sum(1 for r in test_results if r.get('success', False))
     failed = total - passed
 
-    scores = [r.get('score', 0) for r in test_results if 'score' in r]
+    scores = [r.get('score', 0) for r in test_results if 'score' in r and r.get('score', 0) > 0]
     average_score = sum(scores) / len(scores) if scores else 0.0
     min_score = min(scores) if scores else 0.0
     max_score = max(scores) if scores else 0.0
@@ -53,6 +78,7 @@ def calculate_stats(results: Dict[str, Any]) -> Dict[str, Any]:
         'total': total,
         'passed': passed,
         'failed': failed,
+        'errors': api_errors,
         'pass_rate': passed / total if total > 0 else 0.0,
         'average_score': average_score,
         'min_score': min_score,
@@ -68,6 +94,8 @@ def print_summary(stats: Dict[str, Any], results: Dict[str, Any]) -> None:
     print(f"Total Tests:    {stats['total']}")
     print(f"Passed:         {stats['passed']} ✅")
     print(f"Failed:         {stats['failed']} ❌")
+    if stats.get('errors', 0) > 0:
+        print(f"API Errors:     {stats['errors']} ⚠️  (excluded from pass rate)")
     print(f"Pass Rate:      {stats['pass_rate']:.1%}")
     print(f"Average Score:  {stats['average_score']:.2f}")
     print(f"Score Range:    {stats['min_score']:.2f} - {stats['max_score']:.2f}")
@@ -76,7 +104,9 @@ def print_summary(stats: Dict[str, Any], results: Dict[str, Any]) -> None:
     # Show failed tests
     if stats['failed'] > 0:
         print("\n❌ Failed Tests:")
-        for i, result in enumerate(results.get('results', []), 1):
+        results_data = results.get('results', {})
+        test_results = results_data.get('results', []) if isinstance(results_data, dict) else []
+        for i, result in enumerate(test_results, 1):
             if not result.get('success', False):
                 test_name = result.get('description', f'Test {i}')
                 score = result.get('score', 0)
@@ -135,6 +165,11 @@ def main():
         action='store_true',
         help='Show detailed test results'
     )
+    parser.add_argument(
+        '--allow-api-errors',
+        action='store_true',
+        help='Exclude API errors (rate limits, timeouts) from pass rate calculation'
+    )
 
     args = parser.parse_args()
 
@@ -142,7 +177,7 @@ def main():
     results = load_results(args.results)
 
     # Calculate stats
-    stats = calculate_stats(results)
+    stats = calculate_stats(results, exclude_api_errors=args.allow_api_errors)
 
     # Print summary
     print_summary(stats, results)
@@ -152,7 +187,9 @@ def main():
         print("\n" + "="*60)
         print("📋 Detailed Results")
         print("="*60)
-        for i, result in enumerate(results.get('results', []), 1):
+        results_data = results.get('results', {})
+        test_results = results_data.get('results', []) if isinstance(results_data, dict) else []
+        for i, result in enumerate(test_results, 1):
             test_name = result.get('description', f'Test {i}')
             success = result.get('success', False)
             score = result.get('score', 0)

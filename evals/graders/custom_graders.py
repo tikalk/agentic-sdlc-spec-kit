@@ -1240,3 +1240,73 @@ def check_architectural_focus(output: str, context: dict) -> dict:
         'score': score,
         'reason': ' '.join(reasons)
     }
+
+
+def check_completeness(output: str, context: dict) -> dict:
+    """
+    Check if specification has comprehensive coverage of requirements.
+    Used for complex features like e-commerce checkout.
+
+    Args:
+        output: The generated specification text
+        context: Additional context with vars (user_input)
+
+    Returns:
+        dict with 'pass', 'score', and 'reason' keys
+    """
+    import re
+
+    output_lower = output.lower()
+    scores = []
+    details = []
+
+    # 1. Check for functional requirements section with numbered items
+    fr_pattern = re.compile(r'fr-\d+|functional requirement', re.IGNORECASE)
+    has_functional_reqs = bool(fr_pattern.search(output))
+    if has_functional_reqs:
+        scores.append(1.0)
+        details.append('functional requirements present')
+    else:
+        scores.append(0.0)
+        details.append('missing functional requirements')
+
+    # 2. Check for user stories (at least 3)
+    user_story_pattern = re.compile(r'as a .+?, i want', re.IGNORECASE)
+    user_stories = user_story_pattern.findall(output)
+    story_score = min(1.0, len(user_stories) / 3)  # Full score at 3+ stories
+    scores.append(story_score)
+    details.append(f'{len(user_stories)} user stories')
+
+    # 3. Check for non-functional requirements
+    nfr_terms = ['performance', 'security', 'scalability', 'availability', 'nfr-']
+    nfr_found = sum(1 for term in nfr_terms if term in output_lower)
+    nfr_score = min(1.0, nfr_found / 2)  # Full score at 2+ NFR topics
+    scores.append(nfr_score)
+    details.append(f'{nfr_found} NFR topics')
+
+    # 4. Check for edge cases section
+    edge_case_terms = ['edge case', 'error', 'failure', 'timeout', 'invalid', 'exception']
+    edge_found = sum(1 for term in edge_case_terms if term in output_lower)
+    edge_score = min(1.0, edge_found / 2)  # Full score at 2+ edge case terms
+    scores.append(edge_score)
+    details.append(f'{edge_found} edge case terms')
+
+    # 5. Check for specific domain terms based on user input
+    user_input = context.get('vars', {}).get('user_input', '').lower()
+
+    # For e-commerce checkout, check specific terms
+    if 'checkout' in user_input or 'cart' in user_input or 'payment' in user_input:
+        ecommerce_terms = ['cart', 'payment', 'order', 'checkout', 'confirmation', 'inventory']
+        ecommerce_found = sum(1 for term in ecommerce_terms if term in output_lower)
+        domain_score = min(1.0, ecommerce_found / 3)  # Full score at 3+ domain terms
+        scores.append(domain_score)
+        details.append(f'{ecommerce_found}/6 e-commerce terms')
+
+    # Calculate average score
+    avg_score = sum(scores) / len(scores) if scores else 0.0
+
+    return {
+        'pass': avg_score >= 0.6,
+        'score': avg_score,
+        'reason': f'Completeness: {avg_score:.0%} ({", ".join(details)})'
+    }
