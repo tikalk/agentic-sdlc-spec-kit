@@ -28,6 +28,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Tuple
 
+import click
 import httpx
 import platformdirs
 import readchar
@@ -267,6 +268,8 @@ AGENT_CONFIG = {
         "requires_cli": False,
     },
 }
+
+AGENT_CHOICES = list(AGENT_CONFIG.keys())
 
 AGENT_SKILLS_DIR_OVERRIDES = {
     "codex": ".agents/skills",
@@ -2754,18 +2757,65 @@ def ensure_constitution_from_template(
             )
 
 
+def _validate_ai_assistant(value: Optional[str]) -> Optional[str]:
+    """Validate the ai_assistant option value."""
+    if value is None:
+        return None
+    # Check if value looks like a flag (starts with -)
+    if value.startswith("-"):
+        console.print(
+            f"[red]Invalid value for --ai:[/red] '{value}'.\n"
+            f"Hint: Did you forget to provide a value for --ai?"
+            f"\nValid options: {', '.join(AGENT_CHOICES)}"
+        )
+        raise typer.Exit(1)
+    # Check if value is in allowed choices (case-insensitive)
+    valid_choices = [c.lower() for c in AGENT_CHOICES]
+    if value.lower() not in valid_choices:
+        console.print(
+            f"[red]Invalid value for --ai:[/red] '{value}'.\n"
+            f"Valid options: {', '.join(AGENT_CHOICES)}"
+        )
+        raise typer.Exit(1)
+    return value
+
+
+def _validate_ai_commands_dir(value: Optional[str]) -> Optional[str]:
+    """Validate the ai_commands_dir option value."""
+    if value is None:
+        return None
+    # Check if value looks like a flag (starts with -)
+    if value.startswith("-"):
+        console.print(
+            f"[red]Invalid value for --ai-commands-dir:[/red] '{value}'.\n"
+            f"Hint: Did you forget to provide a value for --ai-commands-dir?"
+        )
+        raise typer.Exit(1)
+    return value
+
+
 @app.command()
 def init(
-    project_name: Optional[str] = typer.Argument(
+    project_name: str = typer.Argument(
         None,
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
     ),
-    ai_assistant: Optional[str] = typer.Option(
+    ai_assistant: str = typer.Option(
         None,
         "--ai",
-        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, or qoder ",
+        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, qodercli, or generic (requires --ai-commands-dir)",
+        case_sensitive=False,
+        autocompletion=lambda: list(AGENT_CONFIG.keys()),
+        callback=_validate_ai_assistant,
     ),
-    script_type: Optional[str] = typer.Option(
+    ai_commands_dir: str = typer.Option(
+        None,
+        "--ai-commands-dir",
+        help="Directory for agent command files (required with --ai generic, e.g. .myagent/commands/)",
+        allow_from_autoenv=True,
+        callback=lambda value: _validate_ai_commands_dir(value),
+    ),
+    script_type: str = typer.Option(
         None, "--script", help="Script type to use: sh or ps"
     ),
     ignore_agent_tools: bool = typer.Option(
@@ -2869,8 +2919,9 @@ def init(
     show_banner()
 
     if ai_skills and not ai_assistant:
+        console.print("[red]Error:[/red] --ai-skills requires --ai to be specified")
         console.print(
-            "[red]Error:[/red] --ai-skills requires --ai to be specified. Use --ai to select an AI assistant."
+            "[yellow]Usage:[/yellow] specify init <project> --ai <agent> --ai-skills"
         )
         raise typer.Exit(1)
 
@@ -3448,7 +3499,21 @@ def init(
         console.print(skills_panel)
 
     if ai_skills and selected_ai:
-        install_ai_skills(project_path, selected_ai, tracker=None)
+        skills_ok = install_ai_skills(project_path, selected_ai, tracker=None)
+
+        if skills_ok and not here:
+            agent_cfg = AGENT_CONFIG.get(selected_ai, {})
+            agent_folder = agent_cfg.get("folder", "")
+            commands_subdir = agent_cfg.get("commands_subdir", "commands")
+            if agent_folder:
+                cmds_dir = project_path / agent_folder.rstrip("/") / commands_subdir
+                if cmds_dir.exists():
+                    try:
+                        shutil.rmtree(cmds_dir)
+                    except OSError:
+                        console.print(
+                            "[yellow]Warning: could not remove extracted commands directory[/yellow]"
+                        )
 
 
 @app.command()
