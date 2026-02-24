@@ -179,69 +179,75 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 
 # Run spec tests (don't exit on failure, capture exit code)
-echo "📋 Running Spec Template tests..."
+echo "📋 Running Spec Template tests... [$(date '+%H:%M:%S')]"
 if [ "$OUTPUT_JSON" = true ]; then
     npx promptfoo eval -c evals/configs/promptfooconfig-spec.js -o eval-results-spec.json $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 else
     npx promptfoo eval -c evals/configs/promptfooconfig-spec.js $FILTER_ARG $CACHE_ARG || SPEC_EXIT=$?
 fi
 SPEC_EXIT=${SPEC_EXIT:-0}
+echo "   Spec done (exit=$SPEC_EXIT) [$(date '+%H:%M:%S')]"
 
 echo ""
-echo "📋 Running Plan Template tests..."
+echo "📋 Running Plan Template tests... [$(date '+%H:%M:%S')]"
 if [ "$OUTPUT_JSON" = true ]; then
     npx promptfoo eval -c evals/configs/promptfooconfig-plan.js -o eval-results-plan.json $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 else
     npx promptfoo eval -c evals/configs/promptfooconfig-plan.js $FILTER_ARG $CACHE_ARG || PLAN_EXIT=$?
 fi
 PLAN_EXIT=${PLAN_EXIT:-0}
+echo "   Plan done (exit=$PLAN_EXIT) [$(date '+%H:%M:%S')]"
 
 # Run Architecture Template tests (if config exists)
 ARCH_EXIT=0
 if [ "$HAS_ARCH" = true ]; then
     echo ""
-    echo "📋 Running Architecture Template tests..."
+    echo "📋 Running Architecture Template tests... [$(date '+%H:%M:%S')]"
     if [ "$OUTPUT_JSON" = true ]; then
         npx promptfoo eval -c "$ARCH_CONFIG" -o eval-results-arch.json $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
     else
         npx promptfoo eval -c "$ARCH_CONFIG" $FILTER_ARG $CACHE_ARG || ARCH_EXIT=$?
     fi
+    echo "   Arch done (exit=$ARCH_EXIT) [$(date '+%H:%M:%S')]"
 fi
 
 # Run Extension System tests (if config exists)
 EXT_EXIT=0
 if [ "$HAS_EXT" = true ]; then
     echo ""
-    echo "📋 Running Extension System tests..."
+    echo "📋 Running Extension System tests... [$(date '+%H:%M:%S')]"
     if [ "$OUTPUT_JSON" = true ]; then
         npx promptfoo eval -c "$EXT_CONFIG" -o eval-results-ext.json $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
     else
         npx promptfoo eval -c "$EXT_CONFIG" $FILTER_ARG $CACHE_ARG || EXT_EXIT=$?
     fi
+    echo "   Ext done (exit=$EXT_EXIT) [$(date '+%H:%M:%S')]"
 fi
 
 # Run Clarify Command tests (if config exists)
 CLARIFY_EXIT=0
 if [ "$HAS_CLARIFY" = true ]; then
     echo ""
-    echo "📋 Running Clarify Command tests..."
+    echo "📋 Running Clarify Command tests... [$(date '+%H:%M:%S')]"
     if [ "$OUTPUT_JSON" = true ]; then
         npx promptfoo eval -c "$CLARIFY_CONFIG" -o eval-results-clarify.json $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
     else
         npx promptfoo eval -c "$CLARIFY_CONFIG" $FILTER_ARG $CACHE_ARG || CLARIFY_EXIT=$?
     fi
+    echo "   Clarify done (exit=$CLARIFY_EXIT) [$(date '+%H:%M:%S')]"
 fi
 
 # Run Trace Template tests (if config exists)
 TRACE_EXIT=0
 if [ "$HAS_TRACE" = true ]; then
     echo ""
-    echo "📋 Running Trace Template tests..."
+    echo "📋 Running Trace Template tests... [$(date '+%H:%M:%S')]"
     if [ "$OUTPUT_JSON" = true ]; then
         npx promptfoo eval -c "$TRACE_CONFIG" -o eval-results-trace.json $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
     else
         npx promptfoo eval -c "$TRACE_CONFIG" $FILTER_ARG $CACHE_ARG || TRACE_EXIT=$?
     fi
+    echo "   Trace done (exit=$TRACE_EXIT) [$(date '+%H:%M:%S')]"
 fi
 
 EXIT_CODE=0
