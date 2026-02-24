@@ -1217,7 +1217,7 @@ def skill_search(
     # Filter by score if specified (note: registry results don't have scores yet)
     if min_score:
         console.print(
-            f"[yellow]Note:[/yellow] Score filtering not available in registry search"
+            "[yellow]Note:[/yellow] Score filtering not available in registry search"
         )
 
     if json_output:
@@ -1451,7 +1451,7 @@ def skill_list(
     if not manifest.exists():
         console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
         console.print(
-            f"[dim]Run 'specify skill install <skill>' to install skills[/dim]"
+            "[dim]Run 'specify skill install <skill>' to install skills[/dim]"
         )
         return
 
@@ -1459,7 +1459,7 @@ def skill_list(
 
     if not skills:
         console.print("[yellow]No skills installed.[/yellow]")
-        console.print(f"[dim]Run 'specify skill search <query>' to find skills[/dim]")
+        console.print("[dim]Run 'specify skill search <query>' to find skills[/dim]")
         return
 
     if json_output:
@@ -2339,7 +2339,7 @@ def download_template_from_github(
                 f"Failed to parse release JSON: {je}\nRaw (truncated 400): {response.text[:400]}"
             )
     except Exception as e:
-        console.print(f"[red]Error fetching release information[/red]")
+        console.print("[red]Error fetching release information[/red]")
         console.print(Panel(str(e), title="Fetch Error", border_style="red"))
         raise typer.Exit(1)
 
@@ -2421,7 +2421,7 @@ def download_template_from_github(
                         for chunk in response.iter_bytes(chunk_size=8192):
                             f.write(chunk)
     except Exception as e:
-        console.print(f"[red]Error downloading template[/red]")
+        console.print("[red]Error downloading template[/red]")
         detail = str(e)
         if zip_path.exists():
             zip_path.unlink()
@@ -2743,7 +2743,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print(f"[cyan]Initialized constitution from template[/cyan]")
+            console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -3432,10 +3432,10 @@ def init(
             )
         skills_lines.append("")
         skills_lines.append(
-            f"[dim]Install with: specify skill install <skill-ref>[/dim]"
+            "[dim]Install with: specify skill install <skill-ref>[/dim]"
         )
         skills_lines.append(
-            f"[dim]Or sync all team skills: specify skill sync-team[/dim]"
+            "[dim]Or sync all team skills: specify skill sync-team[/dim]"
         )
 
         skills_panel = Panel(
@@ -3478,10 +3478,10 @@ def check():
 
     # Check VS Code variants (not in agent config)
     tracker.add("code", "Visual Studio Code")
-    code_ok = check_tool("code", tracker=tracker)
+    check_tool("code", tracker=tracker)
 
     tracker.add("code-insiders", "Visual Studio Code Insiders")
-    code_insiders_ok = check_tool("code-insiders", tracker=tracker)
+    check_tool("code-insiders", tracker=tracker)
 
     console.print(tracker.render())
 
@@ -3785,14 +3785,14 @@ def extension_add(
                     if zip_path.exists():
                         zip_path.unlink()
 
-        console.print(f"\n[green]✓[/green] Extension installed successfully!")
+        console.print("\n[green]✓[/green] Extension installed successfully!")
         console.print(f"\n[bold]{manifest.name}[/bold] (v{manifest.version})")
         console.print(f"  {manifest.description}")
-        console.print(f"\n[bold cyan]Provided commands:[/bold cyan]")
+        console.print("\n[bold cyan]Provided commands:[/bold cyan]")
         for cmd in manifest.commands:
             console.print(f"  • {cmd['name']} - {cmd.get('description', '')}")
 
-        console.print(f"\n[yellow]⚠[/yellow]  Configuration may be required")
+        console.print("\n[yellow]⚠[/yellow]  Configuration may be required")
         console.print(f"   Check: .specify/extensions/{manifest.id}/")
 
     except ValidationError as e:
@@ -3846,11 +3846,11 @@ def extension_remove(
 
     # Confirm removal
     if not force:
-        console.print(f"\n[yellow]⚠  This will remove:[/yellow]")
+        console.print("\n[yellow]⚠  This will remove:[/yellow]")
         console.print(f"   • {cmd_count} commands from AI agent")
         console.print(f"   • Extension directory: .specify/extensions/{extension}/")
         if not keep_config:
-            console.print(f"   • Config files (will be backed up)")
+            console.print("   • Config files (will be backed up)")
         console.print()
 
         confirm = typer.confirm("Continue?")
@@ -3873,7 +3873,7 @@ def extension_remove(
             )
         console.print(f"\nTo reinstall: specify extension add {extension}")
     else:
-        console.print(f"[red]Error:[/red] Failed to remove extension")
+        console.print("[red]Error:[/red] Failed to remove extension")
         raise typer.Exit(1)
 
 
@@ -4177,8 +4177,8 @@ def extension_update(
             # TODO: Implement download and reinstall from URL
             # For now, just show  message
             console.print(
-                f"[yellow]Note:[/yellow] Automatic update not yet implemented. "
-                f"Please update manually:"
+                "[yellow]Note:[/yellow] Automatic update not yet implemented. "
+                "Please update manually:"
             )
             console.print(f"  specify extension remove {ext_id} --keep-config")
             console.print(f"  specify extension add {ext_id}")
