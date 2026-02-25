@@ -64,6 +64,8 @@ This command focuses on **current state analysis** - what IS, not what SHOULD BE
   - `all`: Document all discovered decisions
   - `minimal`: Only high-risk decisions
 
+- `--no-decompose`: Disable automatic sub-system detection from code structure (default: auto-detect if multiple modules detected)
+
 ## Role & Context
 
 You are acting as an **Architecture Archaeologist** uncovering implicit architectural decisions from code. Your role involves:
@@ -82,25 +84,143 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 
 ## Outline
 
-1. **Codebase Scan**: Analyze project structure and detect technologies
-2. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, team-ai-directives/AGENTS.md if configured, etc.) to avoid repeating
-3. **Pattern Detection**: Identify architectural patterns in use
-4. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered")
-5. **Gap Analysis**: Identify areas where decisions are unclear
-6. **Output**: Write ADRs to `.specify/memory/adr.md` (NO AD.md creation)
-7. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
+1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
+2. **Codebase Scan**: Analyze project structure and detect technologies (per sub-system if decomposed)
+3. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, team-ai-directives/AGENTS.md if configured, etc.) to avoid repeating
+4. **Pattern Detection**: Identify architectural patterns in use
+5. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered"), organized by sub-system
+6. **Gap Analysis**: Identify areas where decisions are unclear
+7. **Output**: Write ADRs to `.specify/memory/adr.md` (NO AD.md creation)
+8. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
+
+### Phase 0: Sub-System Detection (Brownfield)
+
+**Objective**: Identify sub-systems from existing code structure automatically
+
+**When**: This phase runs automatically when the codebase is detected as having multiple distinct modules/packages. Use `--no-decompose` to skip.
+
+#### Step 1: Directory Structure Analysis
+
+Analyze the codebase for distinct sub-systems based on directory structure:
+
+| Pattern | Likely Sub-System |
+|---------|------------------|
+| `src/auth/` | Authentication sub-system |
+| `src/users/` | User management sub-system |
+| `services/payment/` | Payment sub-system |
+| `modules/inventory/` | Inventory sub-system |
+| `apps/api/`, `apps/web/` | Monorepo with separate apps |
+| `lib/core/`, `lib/shared/` | Shared libraries (not a sub-system) |
+
+#### Step 2: Package/Module Detection
+
+Detect sub-systems from package/module structures:
+
+| Pattern | Detection Method | Sub-System Evidence |
+|---------|------------------|-------------------|
+| **Node.js workspaces** | package.json workspaces | Multiple packages = multiple sub-systems |
+| **Python namespaces** | `__init__.py` hierarchy | Multiple top-level packages |
+| **Go modules** | go.mod + directories | Multiple directories under cmd/ |
+| **Maven/Gradle** | pom.xml modules | Multiple modules in multi-module project |
+| **Docker services** | docker-compose services | Each service = sub-system |
+
+#### Step 3: Database Schema Analysis
+
+If database is accessible, detect sub-systems from schema:
+
+| Pattern | Evidence |
+|---------|----------|
+| Table prefixes | `auth_`, `user_`, `payment_` tables = separate domains |
+| PostgreSQL schemas | `auth.`, `payments.` schema separation |
+| Separate databases | Multiple databases in docker-compose |
+
+#### Step 4: Sub-System Proposal (Interactive)
+
+Present detected sub-systems to user for confirmation:
+
+```markdown
+## Detected Sub-Systems
+
+I've identified the following sub-systems from your codebase:
+
+| # | Sub-System | Detection Method | Evidence |
+|---|------------|-----------------|----------|
+| 1 | **auth** | Directory + Module | src/auth/, auth/ package |
+| 2 | **users** | Directory | src/users/, services/user/ |
+| 3 | **payments** | Directory + Docker | services/payment/, payment service in docker-compose |
+| 4 | **inventory** | Directory | src/inventory/, modules/stock/ |
+
+### Questions for Confirmation:
+
+1. **Are these sub-systems correct?** [Y/n]
+2. **Should any sub-systems be merged?** (e.g., auth + users → identity)
+3. **Should any sub-systems be split?** (e.g., payments → billing + subscriptions)
+4. **Any missing sub-systems?** (e.g., analytics, reporting)
+
+**Reply** with:
+- `Y` to confirm and proceed
+- `n` to disable decomposition (generate monolithic ADRs)
+- Specific changes (e.g., "merge 1+2", "split 3", "add Notifications")
+```
+
+#### Step 5: Decomposition Decision
+
+Based on user response:
+
+| Response | Action |
+|----------|--------|
+| `Y` / Enter | Proceed with detected sub-systems |
+| `n` | Skip decomposition, generate monolithic ADRs |
+| Modifications | Adjust sub-systems, then proceed |
+| Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
+
+**Threshold Logic**:
+- **≤3 sub-systems**: Auto-approve, show summary
+- **4-6 sub-systems**: Show summary, ask to confirm
+- **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
+
+#### Step 6: Output
+
+After confirmation, output structured sub-system data:
+
+```json
+{
+  "decomposition": "enabled",
+  "subsystems": [
+    {"id": "auth", "name": "Auth", "detection_method": "directory", "evidence": "src/auth/"},
+    {"id": "users", "name": "Users", "detection_method": "directory", "evidence": "src/users/"},
+    {"id": "payments", "name": "Payments", "detection_method": "docker", "evidence": "payment service in docker-compose"}
+  ],
+  "next_phase": "Codebase Analysis (per sub-system)"
+}
+```
+
+**If decomposition disabled**:
+```json
+{
+  "decomposition": "disabled",
+  "reason": "user_requested",
+  "next_phase": "Codebase Analysis (monolithic)"
+}
+```
+
+---
 
 ### Phase 1: Codebase Analysis
 
 **Objective**: Discover what technologies and patterns are in use
 
+**Note**: If sub-system decomposition is enabled (Phase 0), analyze each sub-system **separately** to provide focused insights.
+
 1. **Run Setup Script**:
    - Execute `{SCRIPT}` to initialize architecture files
    - Script scans codebase and outputs structured findings
+   - Pass `--no-decompose` if decomposition was disabled
+   - **If decomposed**: Script outputs sub-system breakdown for targeted analysis
 
-2. **Technology Detection**:
+2. **Technology Detection (Per Sub-System)**:
 
    | Indicator | Technology Category | Files to Check |
    |-----------|---------------------|----------------|
@@ -269,6 +389,47 @@ Legacy/Inferred
    - **ADR-006**: CI/CD Approach (GitHub Actions vs Jenkins)
    - **Additional**: Any custom/in-house solutions, unusual patterns, risky choices
 
+4. **Sub-System Organization** (if Phase 0 decomposition enabled):
+
+   Structure ADRs by sub-system in the output file:
+
+   ```markdown
+   # Architecture Decision Records
+
+   ## ADR Index
+
+   | ID | Sub-System | Decision | Status | Date | Confidence |
+   |----|------------|----------|--------|------|------------|
+   | ADR-001 | System | Monolithic Architecture | Discovered | 2026-02-26 | HIGH |
+   | ADR-002 | Auth | JWT Authentication | Discovered | 2026-02-26 | HIGH |
+   | ADR-003 | Payments | Stripe Integration | Discovered | 2026-02-26 | MEDIUM |
+
+   ---
+
+   ## System-Level ADRs
+
+   ### ADR-001: Monolithic Architecture
+   [Full ADR content...]
+
+   ---
+
+   ## Auth Sub-System ADRs
+
+   ### ADR-002: JWT Authentication
+   [Full ADR content...]
+
+   ---
+
+   ## Payments Sub-System ADRs
+
+   ### ADR-003: Stripe Integration
+   [Full ADR content...]
+   ```
+
+   - Mark each ADR with its parent sub-system in the index
+   - Add section headers for each sub-system
+   - Document cross-cutting patterns (e.g., shared database) as System-Level
+
 ### Phase 5: Gap Analysis
 
 **Objective**: Identify areas where decisions are unclear
@@ -406,6 +567,16 @@ The clarify phase will refine ADRs based on your input, then you can run `/archi
 - For **LOW confidence** discoveries, ask user for confirmation
 - For **contradictory evidence**, present options
 - For **gaps**, suggest clarification questions
+
+### Sub-System Decomposition
+
+- **Auto-detect from code**: Analyze directory structure, packages, services automatically
+- **Interactive confirmation**: Always confirm sub-system breakdown with user
+- **Balanced granularity**: Aim for 3-7 sub-systems; avoid over-decomposition
+- **Clear evidence**: Cite specific directories/modules as evidence for each sub-system
+- **Per-sub-system analysis**: Run pattern detection per sub-system for focused ADRs
+- **Cross-cutting patterns**: Detect and document system-wide patterns separately
+- **Use --no-decompose**: Skip decomposition for simple/small codebases
 
 ## Workflow Guidance & Transitions
 

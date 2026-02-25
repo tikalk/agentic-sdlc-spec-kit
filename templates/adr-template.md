@@ -2,9 +2,9 @@
 
 ## ADR Index
 
-| ID | Decision | Status | Date | Owner |
-|----|----------|--------|------|-------|
-| ADR-001 | [First decision title] | Proposed | YYYY-MM-DD | [Owner] |
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
+| ADR-001 | System | [First decision title] | Proposed | YYYY-MM-DD | [Owner] |
 
 ---
 
@@ -21,6 +21,12 @@ YYYY-MM-DD
 ### Owner
 
 [Decision maker or team]
+
+### Sub-System
+
+[System | Auth | Payments | Users | Inventory | (other sub-system name)]
+
+This field indicates which sub-system this ADR belongs to. Use "System" for cross-cutting decisions that affect the entire architecture.
 
 ### Context
 
