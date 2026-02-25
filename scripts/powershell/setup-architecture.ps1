@@ -8,9 +8,12 @@ param(
     [string[]]$Context,
     [string]$Views = 'core',
     [string]$AdrHeuristic = 'surprising',
+    [switch]$NoDecompose,
     [switch]$Json,
     [switch]$Help
 )
+
+$Decompose = -not $NoDecompose
 
 $ErrorActionPreference = 'Stop'
 
@@ -29,6 +32,7 @@ if ($Help) {
     Write-Output "Options:"
     Write-Output "  -Views VIEWS         Architecture views to generate: core (default), all, or comma-separated"
     Write-Output "  -AdrHeuristic H      ADR generation heuristic: surprising (default), all, minimal"
+    Write-Output "  -NoDecompose         Disable automatic sub-system decomposition (default: auto-detect)"
     Write-Output "  -Json                Output results in JSON format"
     Write-Output "  -Help                Show this help message"
     Write-Output ""
@@ -176,6 +180,116 @@ function Get-TechStack {
     }
     
     return $techStack -join "`n"
+}
+
+# Detect sub-systems from codebase structure
+function Get-Subsystems {
+    Write-Host "Detecting sub-systems from codebase structure..." -ForegroundColor Cyan
+    
+    $dirs = @()
+    
+    # 1. Top-level feature directories (src/, app/, services/)
+    if (Test-Path "src") {
+        Get-ChildItem -Path "src" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirname = $_.Name
+            # Skip common non-sub-system directories
+            if (@("utils", "common", "lib", "shared", "core") -notcontains $dirname) {
+                $dirs += $dirname
+            }
+        }
+    }
+    
+    if (Test-Path "services") {
+        Get-ChildItem -Path "services" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirs += $_.Name
+        }
+    }
+    
+    if (Test-Path "modules") {
+        Get-ChildItem -Path "modules" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirs += $_.Name
+        }
+    }
+    
+    if (Test-Path "apps") {
+        Get-ChildItem -Path "apps" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirs += $_.Name
+        }
+    }
+    
+    # 2. Check for docker-compose services (microservices indicator)
+    $composeFile = $null
+    if (Test-Path "docker-compose.yml") { $composeFile = "docker-compose.yml" }
+    elseif (Test-Path "docker-compose.yaml") { $composeFile = "docker-compose.yaml" }
+    
+    if ($composeFile) {
+        $composeContent = Get-Content $composeFile -Raw
+        $services = [regex]::Matches($composeContent, '^\s*([a-zA-Z0-9_-]+):\s*$' | ForEach-Object { $_.Groups[1].Value } | Where-Object { @("version", "services", "networks", "volumes") -notcontains $_ })
+        foreach ($svc in $services) {
+            $found = $false
+            foreach ($d in $dirs) {
+                if ($d.ToLower() -like "*$($svc.ToLower())*" -or $svc.ToLower() -like "*$($d.ToLower())*") {
+                    $found = $true
+                    break
+                }
+            }
+            if (-not $found) {
+                $dirs += $svc
+            }
+        }
+    }
+    
+    # 3. Check for Node.js workspaces (monorepo indicator)
+    if (Test-Path "package.json") {
+        $packageJson = Get-Content "package.json" -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+        if ($packageJson.workspaces) {
+            $packageJson.workspaces | ForEach-Object {
+                $dirname = Split-Path $_ -Leaf
+                if ($dirname -ne "node_modules") {
+                    $dirs += $dirname
+                }
+            }
+        }
+    }
+    
+    # 4. Check for Python namespace packages
+    if (Test-Path "pyproject.toml") {
+        Get-ChildItem -Path . -Recurse -Filter "__init__.py" -Depth 3 -ErrorAction SilentlyContinue | ForEach-Object {
+            $dirname = Split-Path $_.DirectoryName -Leaf
+            if ($dirname -ne "src" -and $dirname -ne ".") {
+                $dirs += $dirname
+            }
+        } | Select-Object -Unique
+    }
+    
+    # Remove duplicates
+    $uniqueDirs = $dirs | Select-Object -Unique
+    
+    if ($uniqueDirs.Count -gt 0) {
+        Write-Host "Detected potential sub-systems:" -ForegroundColor Cyan
+        $count = 0
+        foreach ($d in $uniqueDirs) {
+            $count++
+            Write-Host "  - $d" -ForegroundColor Gray
+        }
+        Write-Host "Total: $count sub-system(s)" -ForegroundColor Cyan
+    } else {
+        Write-Host "No distinct sub-systems detected from directory structure." -ForegroundColor Yellow
+    }
+    
+    # Return as JSON if JSON mode
+    if ($Json) {
+        $subsystems = @()
+        foreach ($d in $uniqueDirs) {
+            $subsystems += @{
+                id = $d
+                name = $d
+                detection_method = "directory"
+                evidence = "directory: $d/"
+            }
+        }
+        return $subsystems | ConvertTo-Json -Compress
+    }
 }
 
 # Map directory structure
@@ -375,6 +489,17 @@ function Invoke-Specify {
     
     Write-Host "📐 Setting up for interactive ADR creation..." -ForegroundColor Cyan
     
+    # Show decomposition status
+    if ($Decompose) {
+        Write-Host ""
+        Write-Host "🔄 Sub-system decomposition: ENABLED" -ForegroundColor Cyan
+        Write-Host "   (AI agent will detect domains from PRD and propose sub-systems)" -ForegroundColor Gray
+    } else {
+        Write-Host ""
+        Write-Host "⚠️  Sub-system decomposition: DISABLED (-NoDecompose flag)" -ForegroundColor Yellow
+        Write-Host "   (AI agent will generate monolithic ADRs)" -ForegroundColor Gray
+    }
+    
     # Ensure memory directory exists
     $memoryDir = Join-Path $repoRoot ".specify\memory"
     if (-not (Test-Path $memoryDir)) {
@@ -394,8 +519,8 @@ function Invoke-Specify {
 
 ## ADR Index
 
-| ID | Decision | Status | Date | Owner |
-|----|----------|--------|------|-------|
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
 
 ---
 
@@ -410,15 +535,22 @@ function Invoke-Specify {
     Write-Host ""
     Write-Host "Ready for interactive PRD exploration."
     Write-Host "The AI agent will:"
+    if ($Decompose) {
+        Write-Host "  0. (Phase 0) Detect domains in PRD and propose sub-systems" -ForegroundColor Gray
+        Write-Host "     → Ask user to confirm sub-system breakdown" -ForegroundColor Gray
+    }
     Write-Host "  1. Analyze your PRD/requirements input"
     Write-Host "  2. Ask clarifying questions about architecture"
     Write-Host "  3. Create ADRs for each key decision"
     Write-Host "  4. Save decisions to .specify/memory/adr.md"
+    if ($Decompose) {
+        Write-Host "  5. Organize ADRs by sub-system"
+    }
     Write-Host ""
     Write-Host "After completion, run '/architect.implement' to generate full AD.md"
     
     if ($Json) {
-        @{status="success"; action="specify"; adr_file=$adrFile; context=($contextArgs -join " ")} | ConvertTo-Json
+        @{status="success"; action="specify"; adr_file=$adrFile; context=($contextArgs -join " "); decomposition=$Decompose} | ConvertTo-Json
     }
 }
 
@@ -529,6 +661,26 @@ function Invoke-Init {
     $techStack = Get-TechStack
     $dirStructure = Get-DirectoryStructure
     
+    # Phase 0: Sub-system detection (if decomposition enabled)
+    $subsystemsJson = ""
+    $decomposeStatus = "disabled"
+    
+    if ($Decompose) {
+        Write-Host ""
+        Write-Host "🔄 Phase 0: Sub-System Detection" -ForegroundColor Cyan
+        $subsystemsJson = Get-Subsystems
+        $decomposeStatus = "enabled"
+        
+        if ($subsystemsJson -and $subsystemsJson -ne "[]") {
+            Write-Host ""
+            Write-Host "📦 Sub-systems will be used to organize ADRs" -ForegroundColor Cyan
+            Write-Host "   (AI agent will confirm with user before proceeding)" -ForegroundColor Gray
+        }
+    } else {
+        Write-Host ""
+        Write-Host "⚠️  Sub-system decomposition disabled (-NoDecompose flag)" -ForegroundColor Yellow
+    }
+    
     # Initialize ADR file from template if it doesn't exist
     if (-not (Test-Path $adrFile)) {
         if (Test-Path $adrTemplate) {
@@ -542,8 +694,8 @@ function Invoke-Init {
 
 ## ADR Index
 
-| ID | Decision | Status | Date | Owner |
-|----|----------|--------|------|-------|
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
 
 ---
 
@@ -564,10 +716,17 @@ function Invoke-Init {
     Write-Host ""
     Write-Host "Ready for brownfield architecture discovery."
     Write-Host "The AI agent will:"
+    if ($Decompose) {
+        Write-Host "  0. (Phase 0) Propose sub-systems from code structure" -ForegroundColor Gray
+        Write-Host "     → Ask user to confirm sub-system breakdown" -ForegroundColor Gray
+    }
     Write-Host "  1. Analyze codebase structure and patterns"
     Write-Host "  2. Infer architectural decisions from code"
     Write-Host "  3. Create ADRs marked as 'Discovered (Inferred)'"
-    Write-Host "  4. Auto-trigger /architect.clarify to validate findings"
+    if ($Decompose) {
+        Write-Host "  4. Organize ADRs by sub-system"
+    }
+    Write-Host "  5. Auto-trigger /architect.clarify to validate findings"
     Write-Host ""
     Write-Host "NOTE: AD.md will NOT be created until ADRs are validated." -ForegroundColor Yellow
     Write-Host "      After clarification, run /architect.implement to generate AD.md"
@@ -580,6 +739,8 @@ function Invoke-Init {
             tech_stack=$techStack
             existing_docs=$existingDocs
             source="brownfield"
+            decomposition=$decomposeStatus
+            subsystems=$subsystemsJson
         } | ConvertTo-Json
     }
 }

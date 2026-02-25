@@ -59,6 +59,8 @@ Transform a PRD (Product Requirements Document) or high-level system description
   - `all`: Document all decisions discussed
   - `minimal`: Only high-risk/unconventional decisions
 
+- `--no-decompose`: Disable automatic sub-system decomposition (default: auto-decompose if multiple domains detected)
+
 ## Role & Context
 
 You are acting as a **Solutions Architect** facilitating an architectural discovery session. Your role involves:
@@ -81,24 +83,132 @@ This command operates at the **System level**, creating ADRs in `.specify/memory
 
 Given the PRD input, execute this workflow:
 
-1. **Parse PRD Context**: Extract key requirements, constraints, and quality attributes
-2. **Load Governance**: Check `.specify/memory/constitution.md` for architectural constraints
-3. **Exploration Phase**: Interactive discussion to surface trade-offs and options
-4. **Decision Phase**: Document decisions as ADRs with full rationale
-5. **Output**: Write ADRs to `.specify/memory/adr.md`
+1. **Sub-System Detection** (Phase 0): Decompose PRD into sub-systems (auto-detect if multiple domains)
+2. **Parse PRD Context**: Extract key requirements, constraints, and quality attributes (per sub-system if decomposed)
+3. **Load Governance**: Check `.specify/memory/constitution.md` for architectural constraints
+4. **Exploration Phase**: Interactive discussion to surface trade-offs and options (per sub-system)
+5. **Decision Phase**: Document decisions as ADRs with full rationale (organized by sub-system)
+6. **Output**: Write ADRs to `.specify/memory/adr.md` with sub-system organization
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing ADRs.
 
 ## Execution Steps
 
+### Phase 0: Sub-System Detection (Greenfield)
+
+**Objective**: Decompose large PRD into manageable sub-systems automatically
+
+**When**: This phase runs automatically when the PRD is detected as having multiple distinct domains. Use `--no-decompose` to skip.
+
+#### Step 1: Domain Analysis
+
+Analyze the PRD for distinct business domains and functional areas:
+
+| Domain Category | Typical Keywords |
+|-----------------|------------------|
+| Authentication | login, auth, oauth, sso, permissions, roles, access control |
+| User Management | profile, registration, preferences, settings, account |
+| Payments | billing, checkout, subscription, invoicing, pricing |
+| Orders | cart, checkout, order management, fulfillment |
+| Inventory | stock, warehouse, products, catalog, sku |
+| Notifications | email, sms, push, alerts, webhooks |
+| Analytics | metrics, reporting, dashboards, data |
+| Search | search, indexing, elasticsearch |
+| Media | upload, images, video, cdn |
+| Messaging | chat, realtime, websocket |
+
+#### Step 2: Boundary Detection
+
+Identify boundaries between sub-systems based on:
+
+1. **Data Ownership**: What data belongs to which domain?
+2. **Team Boundaries**: Are different teams responsible for different areas?
+3. **Deployment Independence**: Can sub-systems be deployed separately?
+4. **Integration Points**: How do sub-systems communicate?
+
+#### Step 3: Sub-System Proposal (Interactive)
+
+Present detected sub-systems to user for confirmation:
+
+```markdown
+## Detected Sub-Systems
+
+I've identified the following sub-systems from your PRD:
+
+| # | Sub-System | Key Domains | Rationale |
+|---|------------|-------------|-----------|
+| 1 | **Auth** | Authentication, Authorization | Core security boundary |
+| 2 | **Users** | User Management, Profiles | User data ownership |
+| 3 | **Payments** | Billing, Subscriptions | Financial domain |
+| 4 | **Inventory** | Products, Stock | Physical goods management |
+
+### Questions for Confirmation:
+
+1. **Are these sub-systems correct?** [Y/n]
+2. **Should any sub-systems be merged?** (e.g., Auth + Users)
+3. **Should any sub-systems be split?** (e.g., Payments into Billing + Subscriptions)
+4. **Any missing sub-systems?** (e.g., Analytics, Search)
+
+**Reply** with:
+- `Y` to confirm and proceed
+- `n` to disable decomposition (generate monolithic ADRs)
+- Specific changes (e.g., "merge 1+2", "split 3", "add Notifications")
+```
+
+#### Step 4: Decomposition Decision
+
+Based on user response:
+
+| Response | Action |
+|----------|--------|
+| `Y` / Enter | Proceed with detected sub-systems |
+| `n` | Skip decomposition, generate monolithic ADRs |
+| Modifications | Adjust sub-systems, then proceed |
+| Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
+
+**Threshold Logic**:
+- **≤3 sub-systems**: Auto-approve, show summary
+- **4-6 sub-systems**: Show summary, ask to confirm
+- **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
+
+#### Step 5: Output
+
+After confirmation, output structured sub-system data:
+
+```json
+{
+  "decomposition": "enabled",
+  "subsystems": [
+    {"id": "auth", "name": "Auth", "domains": ["Authentication", "Authorization"], "rationale": "Security boundary"},
+    {"id": "users", "name": "Users", "domains": ["User Management", "Profiles"], "rationale": "User data ownership"},
+    {"id": "payments", "name": "Payments", "domains": ["Billing", "Subscriptions"], "rationale": "Financial domain"}
+  ],
+  "next_phase": "PRD Analysis (per sub-system)"
+}
+```
+
+**If decomposition disabled**:
+```json
+{
+  "decomposition": "disabled",
+  "reason": "user_requested",
+  "next_phase": "PRD Analysis (monolithic)"
+}
+```
+
+---
+
 ### Phase 1: PRD Analysis
 
 **Objective**: Extract architectural drivers from the PRD
+
+**Note**: If sub-system decomposition is enabled (Phase 0), repeat this analysis **per sub-system** to ensure focused, manageable ADRs.
 
 1. **Identify Functional Drivers**:
    - Core capabilities the system must provide
    - Key user interactions and workflows
    - Integration requirements with external systems
+   - **For sub-systems**: Focus on the specific sub-system's responsibilities
 
 2. **Identify Quality Attribute Drivers**:
    - Performance requirements (latency, throughput)
@@ -114,18 +224,20 @@ Given the PRD input, execute this workflow:
    - Regulatory or compliance requirements
 
 4. **Load Constitution**:
-    - Read `.specify/memory/constitution.md` if it exists
-    - Extract architectural principles that must be honored
-    - Note any constraints that limit architectural choices
+   - Read `.specify/memory/constitution.md` if it exists
+   - Extract architectural principles that must be honored
+   - Note any constraints that limit architectural choices
 
 5. **Check Existing Documentation**:
-    - Scan `README.md` for already-documented tech stack
-    - Check `AGENTS.md` for project context
-    - Check team directives: Run `{SCRIPT}` and look for `TEAM_AGENTS_MD` in output - if present, this file contains usage instructions for team-wide agent directives
-    - Review `CONTRIBUTING.md` for dev guidelines
-    - Note: Don't duplicate - reference existing docs
+   - Scan `README.md` for already-documented tech stack
+   - Check `AGENTS.md` for project context
+   - Check team directives: Run `{SCRIPT}` and look for `TEAM_AGENTS_MD` in output - if present, this file contains usage instructions for team-wide agent directives
+   - Review `CONTRIBUTING.md` for dev guidelines
+   - Note: Don't duplicate - reference existing docs
 
 **Output**: Internal summary of architectural drivers (do not write to file yet)
+
+**If decomposed**: Generate separate analysis for each sub-system, noting cross-sub-system dependencies
 
 ### Phase 2: Architectural Exploration (Interactive)
 
@@ -201,14 +313,59 @@ Reply with your choice (A/B/C), or provide additional context.
 
 **Objective**: Convert exploration outcomes into formal ADRs
 
+**Note**: If sub-system decomposition is enabled, organize ADRs **by sub-system** with clear section headers.
+
 After each decision is confirmed:
 
 1. **Create ADR Entry**:
    - Use MADR format from `templates/adr-template.md`
    - Document context, decision, consequences, and alternatives
    - Link to constitution principles if applicable
+   - **Include Sub-System tag**: Mark each ADR with its parent sub-system
 
-2. **ADR Format**:
+2. **Sub-System Organization**:
+
+If decomposed, structure the ADR file as:
+
+```markdown
+# Architecture Decision Records
+
+## ADR Index
+
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
+| ADR-001 | System | Architecture Style | Proposed | 2026-02-26 | User/AI |
+| ADR-002 | Auth | JWT Authentication | Proposed | 2026-02-26 | User/AI |
+| ADR-003 | Payments | Stripe Integration | Proposed | 2026-02-26 | User/AI |
+
+---
+
+## System-Level ADRs
+
+### ADR-001: [Decision Title]
+
+[Full ADR content...]
+
+---
+
+## Auth Sub-System ADRs
+
+### ADR-002: [Decision Title]
+
+[Full ADR content...]
+
+---
+
+## Payments Sub-System ADRs
+
+### ADR-003: [Decision Title]
+
+[Full ADR content...]
+```
+
+3. **Cross-Cutting ADRs**: Some decisions affect multiple sub-systems (e.g., "Use PostgreSQL for all sub-systems"). Mark these as **System-Level** and note impact on each sub-system.
+
+4. **ADR Format**:
 
 ```markdown
 ## ADR-[NNN]: [Decision Title]
@@ -261,16 +418,41 @@ Proposed
 1. **Run Setup Script**:
    - Execute `{SCRIPT}` to ensure `.specify/memory/adr.md` exists
    - Script creates from template if file doesn't exist
+   - Pass `--no-decompose` if decomposition was disabled
 
 2. **Write ADRs**:
    - Append new ADRs to `.specify/memory/adr.md`
-   - Update ADR index table at top of file
+   - Update ADR index table at top of file (include Sub-System column)
    - Preserve any existing ADRs (don't overwrite)
+   - **If decomposed**: Add section headers for each sub-system
 
 3. **Report Summary**:
-   - List of ADRs created with IDs and titles
+   - List of sub-systems identified
+   - ADRs created per sub-system with IDs and titles
    - Constitution alignment status
+   - Cross-cutting decisions noted
    - Recommended next steps
+
+**Summary Format**:
+
+```markdown
+## Sub-System Decomposition Summary
+
+### Sub-Systems Identified: 3
+
+| # | Sub-System | ADRs Created |
+|---|------------|--------------|
+| 1 | System-Level | ADR-001: Architecture Style |
+| 2 | Auth | ADR-002: JWT Authentication, ADR-003: OAuth2 Integration |
+| 3 | Payments | ADR-004: Stripe Integration, ADR-005: Payment Webhooks |
+
+### Cross-Cutting Decisions
+- ADR-001 affects all sub-systems
+
+### Next Steps
+1. Review ADRs with /architect.clarify
+2. Generate AD.md with /architect.implement
+```
 
 ## Key Rules
 
@@ -300,6 +482,16 @@ Proposed
 - **Consequences** must include both positive and negative outcomes
 - **Alternatives** must explain why they were rejected
 - Decisions must be **actionable** - clear enough to implement
+
+### Sub-System Decomposition
+
+- **Auto-detect domains**: Analyze PRD for distinct business domains automatically
+- **Interactive confirmation**: Always confirm sub-system breakdown with user
+- **Balanced granularity**: Aim for 3-7 sub-systems; avoid over-decomposition
+- **Clear boundaries**: Each sub-system should have distinct responsibilities
+- **Cross-cutting concerns**: Document system-level decisions separately
+- **Per-sub-system exploration**: Run architectural exploration per sub-system for focused decisions
+- **Use --no-decompose**: Skip decomposition for simple/small systems
 
 ## Workflow Guidance & Transitions
 
