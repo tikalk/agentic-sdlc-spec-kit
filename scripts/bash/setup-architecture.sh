@@ -7,6 +7,7 @@ ACTION=""
 ARGS=()
 VIEWS="core"
 ADR_HEURISTIC="surprising"
+DECOMPOSE=true
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -33,6 +34,14 @@ while [[ $# -gt 0 ]]; do
             ADR_HEURISTIC="${1#*=}"
             shift
             ;;
+        --no-decompose)
+            DECOMPOSE=false
+            shift
+            ;;
+        --no-decompose=*)
+            DECOMPOSE=false
+            shift
+            ;;
         init|map|update|review|specify|implement|clarify)
             ACTION="$1"
             shift
@@ -53,6 +62,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --json             Output results in JSON format"
             echo "  --views VIEWS      Architecture views to generate: core (default), all, or comma-separated"
             echo "  --adr-heuristic H  ADR generation heuristic: surprising (default), all, minimal"
+            echo "  --no-decompose     Disable automatic sub-system decomposition (default: auto-detect)"
             echo "  --help             Show this help message"
             echo ""
             echo "Examples:"
@@ -101,6 +111,151 @@ AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 # Export for use in functions
 export ARCHITECTURE_VIEWS="$VIEWS"
 export ADR_HEURISTIC="$ADR_HEURISTIC"
+export DECOMPOSE="$DECOMPOSE"
+
+# Function to detect sub-systems from codebase structure
+detect_subsystems() {
+    local subsystems=""
+    local count=0
+    
+    echo "Detecting sub-systems from codebase structure..." >&2
+    
+    # Check for common sub-system patterns
+    
+    # 1. Top-level feature directories (src/, app/, services/)
+    local dirs=()
+    if [[ -d "src" ]]; then
+        for d in src/*/; do
+            if [[ -d "$d" ]]; then
+                local dirname
+                dirname=$(basename "$d")
+                # Skip common non-sub-system directories
+                if [[ "$dirname" != "utils" && "$dirname" != "common" && "$dirname" != "lib" && "$dirname" != "shared" && "$dirname" != "core" ]]; then
+                    dirs+=("$dirname")
+                fi
+            fi
+        done
+    fi
+    
+    if [[ -d "services" ]]; then
+        for d in services/*/; do
+            if [[ -d "$d" ]]; then
+                local dirname
+                dirname=$(basename "$d")
+                dirs+=("$dirname")
+            fi
+        done
+    fi
+    
+    if [[ -d "modules" ]]; then
+        for d in modules/*/; do
+            if [[ -d "$d" ]]; then
+                local dirname
+                dirname=$(basename "$d")
+                dirs+=("$dirname")
+            fi
+        done
+    fi
+    
+    if [[ -d "apps" ]]; then
+        for d in apps/*/; do
+            if [[ -d "$d" ]]; then
+                local dirname
+                dirname=$(basename "$d")
+                dirs+=("$dirname")
+            fi
+        done
+    fi
+    
+    # 2. Check for docker-compose services (microservices indicator)
+    if [[ -f "docker-compose.yml" ]] || [[ -f "docker-compose.yaml" ]]; then
+        local compose_file="docker-compose.yml"
+        [[ -f "docker-compose.yaml" ]] && compose_file="docker-compose.yaml"
+        
+        local services=()
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_-]+):[[:space:]]*$ ]]; then
+                local svc="${BASH_REMATCH[1]}"
+                # Skip common non-service entries
+                if [[ "$svc" != "version" && "$svc" != "services" && "$svc" != "networks" && "$svc" != "volumes" ]]; then
+                    services+=("$svc")
+                fi
+            fi
+        done < "$compose_file"
+        
+        for svc in "${services[@]}"; do
+            local found=false
+            for d in "${dirs[@]}"; do
+                if [[ "${d,,}" == *"${svc,,}"* ]] || [[ "${svc,,}" == *"${d,,}"* ]]; then
+                    found=true
+                    break
+                fi
+            done
+            if [[ "$found" == "false" ]]; then
+                dirs+=("$svc")
+            fi
+        done
+    fi
+    
+    # 3. Check for Node.js workspaces (monorepo indicator)
+    if [[ -f "package.json" ]]; then
+        if grep -q '"workspaces"' package.json 2>/dev/null; then
+            local pkgs
+            pkgs=$(node -e "try { const p = require('./package.json'); console.log(Object.keys(p.workspaces?.packages || {}).join(' ')); } catch(e) { }" 2>/dev/null || true)
+            for pkg in $pkgs; do
+                local dirname
+                dirname=$(basename "$pkg")
+                if [[ "$dirname" != "node_modules" ]]; then
+                    dirs+=("$dirname")
+                fi
+            done
+        fi
+    fi
+    
+    # 4. Check for Python namespace packages
+    if [[ -f "pyproject.toml" ]]; then
+        local pkg_dirs=()
+        while IFS= read -r -d '' d; do
+            pkg_dirs+=("$(basename "$d")")
+        done < <(find . -maxdepth 3 -name "__init__.py" -printf '%h\n' 2>/dev/null | grep -v node_modules | grep -v __pycache__ | sort -u || true)
+        
+        for pdir in "${pkg_dirs[@]}"; do
+            if [[ "$pdir" != "." && "$pdir" != "src" ]]; then
+                dirs+=("$pdir")
+            fi
+        done
+    fi
+    
+    # Remove duplicates and build output
+    local unique_dirs=($(printf '%s\n' "${dirs[@]}" | sort -u))
+    
+    if [[ ${#unique_dirs[@]} -gt 0 ]]; then
+        echo "Detected potential sub-systems:" >&2
+        for d in "${unique_dirs[@]}"; do
+            ((count++))
+            echo "  - $d" >&2
+        done
+        echo "Total: $count sub-system(s)" >&2
+    else
+        echo "No distinct sub-systems detected from directory structure." >&2
+    fi
+    
+    # Return as JSON if JSON mode
+    if $JSON_MODE; then
+        echo "["
+        local first=true
+        for d in "${unique_dirs[@]}"; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                echo ","
+            fi
+            echo -n "  {\"id\": \"$d\", \"name\": \"$d\", \"detection_method\": \"directory\", \"evidence\": \"directory: $d/\"}"
+        done
+        echo ""
+        echo "]"
+    fi
+}
 
 # Function to detect tech stack from codebase
 detect_tech_stack() {
@@ -444,6 +599,17 @@ action_specify() {
     # Ensure memory directory exists
     mkdir -p "$REPO_ROOT/.specify/memory"
     
+    # Show decomposition status
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "" >&2
+        echo "🔄 Sub-system decomposition: ENABLED" >&2
+        echo "   (AI agent will detect domains from PRD and propose sub-systems)" >&2
+    else
+        echo "" >&2
+        echo "⚠️  Sub-system decomposition: DISABLED (--no-decompose flag)" >&2
+        echo "   (AI agent will generate monolithic ADRs)" >&2
+    fi
+    
     # Initialize ADR file from template if it doesn't exist
     if [[ ! -f "$adr_file" ]]; then
         if [[ -f "$adr_template" ]]; then
@@ -457,8 +623,8 @@ action_specify() {
 
 ## ADR Index
 
-| ID | Decision | Status | Date | Owner |
-|----|----------|--------|------|-------|
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
 
 ---
 
@@ -472,15 +638,22 @@ EOF
     echo "" >&2
     echo "Ready for interactive PRD exploration." >&2
     echo "The AI agent will:" >&2
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "  0. (Phase 0) Detect domains in PRD and propose sub-systems" >&2
+        echo "     → Ask user to confirm sub-system breakdown" >&2
+    fi
     echo "  1. Analyze your PRD/requirements input" >&2
     echo "  2. Ask clarifying questions about architecture" >&2
     echo "  3. Create ADRs for each key decision" >&2
     echo "  4. Save decisions to .specify/memory/adr.md" >&2
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "  5. Organize ADRs by sub-system" >&2
+    fi
     echo "" >&2
     echo "After completion, run '/architect.implement' to generate full AD.md" >&2
     
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"specify\",\"adr_file\":\"$adr_file\",\"context\":\"${ARGS[*]}\"}"
+        echo "{\"status\":\"success\",\"action\":\"specify\",\"adr_file\":\"$adr_file\",\"context\":\"${ARGS[*]}\",\"decomposition\":\"$DECOMPOSE\"}"
     fi
 }
 
@@ -589,6 +762,26 @@ action_init() {
     local dir_structure
     dir_structure=$(map_directory_structure)
     
+    # Phase 0: Sub-system detection (if decomposition enabled)
+    local subsystems_json=""
+    local decompose_status="disabled"
+    
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "" >&2
+        echo "🔄 Phase 0: Sub-System Detection" >&2
+        subsystems_json=$(detect_subsystems)
+        decompose_status="enabled"
+        
+        if [[ -n "$subsystems_json" ]] && [[ "$subsystems_json" != "[]" ]]; then
+            echo "" >&2
+            echo "📦 Sub-systems will be used to organize ADRs" >&2
+            echo "   (AI agent will confirm with user before proceeding)" >&2
+        fi
+    else
+        echo "" >&2
+        echo "⚠️  Sub-system decomposition disabled (--no-decompose flag)" >&2
+    fi
+    
     # Initialize ADR file from template if it doesn't exist
     if [[ ! -f "$adr_file" ]]; then
         if [[ -f "$adr_template" ]]; then
@@ -602,8 +795,8 @@ action_init() {
 
 ## ADR Index
 
-| ID | Decision | Status | Date | Owner |
-|----|----------|--------|------|-------|
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
 
 ---
 
@@ -623,16 +816,23 @@ EOF
     echo "" >&2
     echo "Ready for brownfield architecture discovery." >&2
     echo "The AI agent will:" >&2
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "  0. (Phase 0) Propose sub-systems from code structure" >&2
+        echo "     → Ask user to confirm sub-system breakdown" >&2
+    fi
     echo "  1. Analyze codebase structure and patterns" >&2
     echo "  2. Infer architectural decisions from code" >&2
     echo "  3. Create ADRs marked as 'Discovered (Inferred)'" >&2
-    echo "  4. Auto-trigger /architect.clarify to validate findings" >&2
+    if [[ "$DECOMPOSE" == "true" ]]; then
+        echo "  4. Organize ADRs by sub-system" >&2
+    fi
+    echo "  5. Auto-trigger /architect.clarify to validate findings" >&2
     echo "" >&2
     echo "NOTE: AD.md will NOT be created until ADRs are validated." >&2
     echo "      After clarification, run /architect.implement to generate AD.md" >&2
     
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"init\",\"adr_file\":\"$adr_file\",\"tech_stack\":\"$tech_stack\",\"existing_docs\":\"$existing_docs\",\"source\":\"brownfield\"}"
+        echo "{\"status\":\"success\",\"action\":\"init\",\"adr_file\":\"$adr_file\",\"tech_stack\":\"$tech_stack\",\"existing_docs\":\"$existing_docs\",\"source\":\"brownfield\",\"decomposition\":\"$decompose_status\",\"subsystems\":$subsystems_json}"
     fi
 }
 
