@@ -77,33 +77,18 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Check for existing branches before creating new one**:
+2. **Create new feature branch**:
 
-   a. First, fetch all remote branches to ensure we have the latest information:
+   Run the script `{SCRIPT}` with the short-name, mode, and options. The script will automatically determine the next available global number by checking ALL existing branches and specs.
 
-      ```bash
-      git fetch --all --prune
-      ```
-
-   b. Find the highest feature number across all sources for the short-name:
-      - Remote branches: `git ls-remote --heads origin | grep -E 'refs/heads/[0-9]+-<short-name>$'`
-      - Local branches: `git branch | grep -E '^[* ]*[0-9]+-<short-name>$'`
-      - Specs directories: Check for directories matching `specs/[0-9]+-<short-name>`
-
-   c. Determine the next available number:
-      - Extract all numbers from all three sources
-      - Find the highest number N
-      - Use N+1 for the new branch number
-
-   d. Run the script `{SCRIPT}` with the calculated number, short-name, mode, and options:
-      - Pass `--number N+1`, `--short-name "your-short-name"`, `--mode`, `--tdd`, `--contracts`, `--data-models`, `--risk-tests`, `--architecture`, and feature description
-      - Bash example: `{SCRIPT} --json --number 5 --short-name "user-auth" --mode spec --tdd true --contracts true --data-models true --risk-tests true --architecture false "Add user authentication"`
-      - PowerShell example: `{SCRIPT} -Json -Number 5 -ShortName "user-auth" -Mode spec -Tdd $true -Contracts $true -DataModels $true -RiskTests $true -Architecture $false "Add user authentication"`
+   - Pass `--short-name "your-short-name"`, `--mode`, `--tdd`, `--contracts`, `--data-models`, `--risk-tests`, `--architecture`, and feature description
+   - Bash example: `{SCRIPT} --json --short-name "user-auth" --mode spec --tdd true --contracts true --data-models true --risk-tests true --architecture false "Add user authentication"`
+   - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" -Mode spec -Tdd $true -Contracts $true -DataModels $true -RiskTests $true -Architecture $false "Add user authentication"`
 
    **IMPORTANT**:
-   - Check all three sources (remote branches, local branches, specs directories) to find the highest number
-   - Only match branches/directories with the exact short-name pattern
-   - If no existing branches/directories found with this short-name, start with number 1
+   - Do NOT pass `--number` - let the script auto-detect the next global number across ALL branches and specs
+   - The script checks ALL existing branches (local and remote) and ALL specs directories to find the highest number globally
+   - This ensures unique sequential numbering (001, 002, 003...) regardless of feature short-names
    - You must only ever run this script once per feature
    - Pass mode and all five options (tdd, contracts, data_models, risk_tests, architecture) as boolean values
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
