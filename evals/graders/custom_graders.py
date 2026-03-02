@@ -1102,6 +1102,33 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
 
             has_comparison = any(m in output_lower for m in comparison_markers)
 
+            # Check if the terms appear together in a question presenting alternatives (e.g., "A or B?")
+            # Build a pattern that checks if any term from side_a appears near any term from side_b with "or" between them
+            has_or_question = False
+            for term_a in side_a:
+                for term_b in side_b:
+                    # Check for "term_a or term_b" pattern (within 50 chars) followed by "?" (within 200 chars)
+                    or_pattern = rf'{re.escape(term_a)}.{{0,50}}\bor\b.{{0,50}}{re.escape(term_b)}'
+                    if re.search(or_pattern, output_lower):
+                        # Check if there's a question mark within 200 chars after the first term
+                        match = re.search(or_pattern, output_lower)
+                        if match:
+                            text_after = output_lower[match.start():match.end() + 200]
+                            if '?' in text_after:
+                                has_or_question = True
+                                break
+                    # Also check reverse order: "term_b or term_a"
+                    or_pattern_rev = rf'{re.escape(term_b)}.{{0,50}}\bor\b.{{0,50}}{re.escape(term_a)}'
+                    if re.search(or_pattern_rev, output_lower):
+                        match = re.search(or_pattern_rev, output_lower)
+                        if match:
+                            text_after = output_lower[match.start():match.end() + 200]
+                            if '?' in text_after:
+                                has_or_question = True
+                                break
+                if has_or_question:
+                    break
+
             # Check if either side appears in negative context with wider window
             has_negative = False
             for term in side_a + side_b:
@@ -1115,7 +1142,7 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
                 if has_negative:
                     break
 
-            if not has_comparison and not has_negative and not has_exclusion:
+            if not has_comparison and not has_negative and not has_exclusion and not has_or_question:
                 findings.append(f'Possible contradiction: "{side_a[0]}" vs "{side_b[0]}"')
 
     # --- 4. Suspicious RFC/standard fabrication ---
