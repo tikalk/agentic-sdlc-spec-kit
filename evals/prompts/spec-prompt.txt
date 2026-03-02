@@ -37,19 +37,24 @@ Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
      * NFR-SEC-001: Authentication mechanisms (describe WHAT, not HOW - no JWT/OAuth specifics)
      * NFR-SEC-002: Authorization and access control requirements
      * NFR-SEC-003: Encryption requirements (data at rest and in transit)
+       ⚠️ IMPORTANT: Do NOT specify encryption algorithms (no AES, DES, 3DES, RSA, etc.)
+       ⚠️ Do NOT mention hashing algorithms (no MD5, SHA-1, SHA-256, bcrypt, etc.)
+       ⚠️ Simply state "industry-standard encryption" or "strong encryption"
      * NFR-SEC-004: Input validation and sanitization (prevent injection attacks)
      * NFR-SEC-005: Session management requirements
      * NFR-SEC-006: Data protection and privacy controls
      * NFR-SEC-007: Audit logging and monitoring
      * NFR-SEC-008: Compliance (PCI-DSS for payments, GDPR for PII, HIPAA for healthcare)
 
-   Example NFR-SEC-003 for payments: "All credit card data must be encrypted during transmission and storage. Payment information must never be logged in plaintext."
+   Example NFR-SEC-003 for payments: "All credit card data must be encrypted using industry-standard encryption during transmission and storage. Payment information must never be logged in plaintext."
    - For performance-critical features, specify measurable targets:
      * Response time requirements (e.g., "API response < 200ms at p95")
      * Throughput requirements (e.g., "Handle 1000 requests/second")
      * Concurrent user limits (e.g., "Support 10,000 simultaneous users")
 
 ## 5. Edge Cases
+⚠️ CRITICAL: This section is MANDATORY. You MUST include "## 5. Edge Cases" header.
+
 Document boundary conditions and error scenarios:
    - For multi-step flows (checkout, onboarding, wizards), include:
      * Failed transitions between steps (payment declined, timeout, network errors)
@@ -71,6 +76,12 @@ IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
 - Focus on WHAT needs to be built, not HOW to build it
 - All requirements must be measurable and testable
+- ⚠️  SECURITY: Never use plaintext HTTP URLs in examples (use HTTPS or placeholder domains)
+- ⚠️  PROPORTIONALITY: Match document length to feature complexity:
+  * Simple features (health checks, basic CRUD, simple endpoints): 2-3 user stories, 5-8 requirements, 5-8 edge cases
+  * Medium features (auth, multi-step flows): 5-7 user stories, 10-15 requirements, 10-15 edge cases
+  * Complex features (payments, real-time systems): 7+ user stories, 15+ requirements, 15+ edge cases
+  * Avoid over-engineering simple features with excessive detail
 - ⚠️  VAGUE TERMS: Any unmeasurable terms (fast, scalable, user-friendly, robust, performant, good, intuitive, etc.) MUST either:
   1. Be quantified with specific metrics (e.g., "fast" → "response time < 200ms at p95")
   2. Be flagged with [NEEDS CLARIFICATION] if metrics are unknown

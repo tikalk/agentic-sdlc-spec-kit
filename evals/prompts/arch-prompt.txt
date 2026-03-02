@@ -64,12 +64,18 @@ Table with: Stakeholder, Role, Key Concerns, Priority
 - Architectural principles
 
 ## 6. Architecture Decision Records (ADRs)
-For each ADR include:
-- Status (Proposed/Accepted/Deprecated/Discovered)
-- Context with problem statement and forces
-- Decision with rationale
-- Consequences (Positive, Negative, Risks)
-- Common Alternatives with neutral trade-offs (NOT "rejected because")
+⚠️ CRITICAL: You MUST include at least 2-3 ADRs documenting key architectural decisions.
+
+For each ADR include ALL of the following:
+- **ADR-NNN Title** (numbered: ADR-001, ADR-002, etc.)
+- **Status**: (Proposed/Accepted/Deprecated/Discovered)
+- **Context**: Problem statement and forces driving the decision
+- **Decision**: What was decided and why
+- **Consequences**:
+  - Positive impacts
+  - Negative impacts
+  - Risks
+- **Alternatives**: Other options considered with neutral trade-offs (NOT "rejected because")
 
 IMPORTANT CONSTRAINTS:
 - Context View MUST be a blackbox - no internal details
@@ -78,6 +84,9 @@ IMPORTANT CONSTRAINTS:
 - Simple systems should have simple architectures (no over-engineering)
 - For brownfield: infer decisions from code, mark confidence (HIGH/MEDIUM/LOW)
 - For greenfield: design decisions based on requirements
-- All views must be consistent with each other
+- ⚠️ CONSISTENCY: All views must be consistent with each other
+  * Do not mix contradictory architectural styles (e.g., "monolith" in one section, "microservices" in another)
+  * Ensure deployment view matches functional view structure
+  * Security decisions must align across all views
 
 OUTPUT: A complete Architecture Description document.

@@ -36,13 +36,15 @@ Command body with:
 - Error handling guidance
 
 ## 3. Configuration Template (config-template.yml)
-A YAML configuration file with:
+⚠️ CRITICAL: You MUST include a COMPLETE configuration template file.
 
-- Documented configuration sections
-- Required vs optional fields clearly marked
-- Sensible default values
+A YAML configuration file with:
+- Documented configuration sections with comments
+- Required vs optional fields clearly marked (# REQUIRED or # Optional)
+- Sensible default values for all fields
 - Environment variable override instructions
 - Local override instructions
+- Complete setup instructions section
 
 IMPORTANT CONSTRAINTS:
 - All YAML must be valid and parseable

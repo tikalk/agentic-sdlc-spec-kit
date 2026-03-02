@@ -20,7 +20,7 @@ module.exports = {
         apiBaseUrl: process.env.LLM_BASE_URL,
         apiKey: process.env.LLM_AUTH_TOKEN,
         temperature: 0.7,
-        max_tokens: 5000,
+        max_tokens: 8000,
       },
       env: {
         OPENAI_API_KEY: process.env.LLM_AUTH_TOKEN,
