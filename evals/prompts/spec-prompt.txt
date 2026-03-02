@@ -3,6 +3,10 @@ You are tasked with creating a detailed feature specification.
 USER REQUIREMENTS:
 {{ user_input }}
 
+MODE DETECTION: Check if the user input mentions "build mode" or "minimal spec":
+- If YES → Create a LEAN specification (2-3 user stories, 3-5 requirements, minimal detail)
+- If NO → Create a COMPREHENSIVE specification (5+ user stories, detailed requirements)
+
 CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for:
 - Authentication/authorization systems
 - Payment processing, credit cards, financial transactions
@@ -13,7 +17,8 @@ CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for
 If YES → Section 4 (Non-Functional Requirements) MUST comprehensively address ALL security concerns.
 
 INSTRUCTIONS:
-Create a comprehensive feature specification document with the following structure.
+Create a feature specification document with the following structure.
+Adjust detail level based on mode (LEAN for build mode, COMPREHENSIVE otherwise).
 
 IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 
@@ -21,16 +26,20 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 Brief description of the feature
 
 ## 2. User Stories
-5+ prioritized user stories (P1, P2, P3) with:
+COMPREHENSIVE mode: 5+ prioritized user stories (P1, P2, P3)
+LEAN mode: 2-3 prioritized user stories focusing on core functionality
    - Clear "As a [role], I want [feature], so that [benefit]" format
    - Detailed acceptance criteria in Given/When/Then format
    - Independent testability for each story
 
 ## 3. Functional Requirements
 Specific, measurable, testable requirements (FR-001, FR-002, etc.)
+COMPREHENSIVE mode: Detailed coverage of all aspects
+LEAN mode: 3-5 core requirements only
 
 ## 4. Non-Functional Requirements
 Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
+LEAN mode: Only critical NFRs, avoid over-specification for simple features
 
    🔒 SECURITY REQUIREMENTS (MANDATORY for authentication/payments/PII/healthcare):
    You MUST include ALL of the following security requirements:
@@ -50,7 +59,11 @@ Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
      * Concurrent user limits (e.g., "Support 10,000 simultaneous users")
 
 ## 5. Edge Cases
+MANDATORY SECTION - This section heading MUST appear in output with content below it.
 Document boundary conditions and error scenarios:
+COMPREHENSIVE mode: Detailed coverage
+LEAN mode: 2-3 key edge cases minimum
+
    - For multi-step flows (checkout, onboarding, wizards), include:
      * Failed transitions between steps (payment declined, timeout, network errors)
      * State recovery and rollback scenarios
@@ -66,6 +79,8 @@ Document boundary conditions and error scenarios:
 
 ## 6. Success Criteria
 Measurable outcomes (SC-001, SC-002, etc.)
+LEAN mode: 2-3 key success criteria
+COMPREHENSIVE mode: Comprehensive coverage
 
 IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)

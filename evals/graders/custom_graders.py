@@ -1069,11 +1069,11 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
     # --- 3. Internal self-contradictions on key technical claims ---
     contradiction_pairs = [
         (['stateless', 'no session', 'sessionless'], ['stores session', 'session state', 'session management']),
-        (['no authentication', 'no auth', 'unauthenticated'], ['requires authentication', 'auth required', 'must authenticate']),
+        (['no authentication', 'no auth'], ['requires authentication', 'auth required', 'must authenticate']),  # removed 'unauthenticated' to avoid HTTP 401 false positive
         (['no database', 'no db', 'database-free'], ['connects to database', 'database stores', 'db connection']),
         (['synchronous', 'sync only', 'blocking'], ['asynchronous', 'async', 'non-blocking']),
         (['monolith', 'single service', 'monolithic'], ['microservices', 'micro-service', 'separate services']),
-        (['read-only', 'read only', 'immutable'], ['write', 'update', 'modify', 'mutate']),
+        (['read-only', 'read only'], ['write', 'update', 'modify', 'mutate']),  # removed 'immutable' to avoid audit log false positive
     ]
     for side_a, side_b in contradiction_pairs:
         has_a = any(term in output_lower for term in side_a)
@@ -1086,20 +1086,36 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
             negative_markers = ['no need for', 'avoid', 'no ', 'not ', 'without ',
                                'don\'t ', 'doesn\'t ', 'won\'t ', 'can\'t ']
 
+            # Additional exclusion patterns for common false positives
+            exclusion_patterns = [
+                r'40[13]\s*\(?\s*unauthenticated',  # HTTP 401 status code
+                r'403\s*\(?\s*unauthorized',  # HTTP 403 status code
+                r'immutable\s+(logs?|audit|records?|data)',  # immutable logs/audit/records
+                r'(logs?|audit|records?)\s+(?:must|should|are|is)\s+(?:be\s+)?immutable',  # logs must be immutable
+            ]
+
+            has_exclusion = False
+            for pattern in exclusion_patterns:
+                if re.search(pattern, output_lower):
+                    has_exclusion = True
+                    break
+
             has_comparison = any(m in output_lower for m in comparison_markers)
 
-            # Check if either side appears in negative context
+            # Check if either side appears in negative context with wider window
             has_negative = False
             for term in side_a + side_b:
                 for neg_marker in negative_markers:
                     # Look for patterns like "no need for X", "avoid X", "no X"
-                    if neg_marker + term in output_lower or neg_marker + 'need for ' + term in output_lower:
+                    # Use regex for more flexible matching
+                    pattern = rf'{re.escape(neg_marker)}\w*\s+{re.escape(term)}'
+                    if re.search(pattern, output_lower):
                         has_negative = True
                         break
                 if has_negative:
                     break
 
-            if not has_comparison and not has_negative:
+            if not has_comparison and not has_negative and not has_exclusion:
                 findings.append(f'Possible contradiction: "{side_a[0]}" vs "{side_b[0]}"')
 
     # --- 4. Suspicious RFC/standard fabrication ---
