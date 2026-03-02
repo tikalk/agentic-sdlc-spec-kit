@@ -1079,12 +1079,27 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
         has_a = any(term in output_lower for term in side_a)
         has_b = any(term in output_lower for term in side_b)
         if has_a and has_b:
-            # Only flag if both appear in non-comparative contexts
-            # (i.e. not "monolith vs microservices" comparison)
+            # Only flag if both appear in non-comparative/non-negative contexts
+            # (i.e. not "monolith vs microservices" comparison or "no need for microservices")
             comparison_markers = ['vs', 'versus', 'compared to', 'instead of', 'rather than',
                                    'alternative', 'trade-off', 'tradeoff', 'consider']
-            nearby = any(m in output_lower for m in comparison_markers)
-            if not nearby:
+            negative_markers = ['no need for', 'avoid', 'no ', 'not ', 'without ',
+                               'don\'t ', 'doesn\'t ', 'won\'t ', 'can\'t ']
+
+            has_comparison = any(m in output_lower for m in comparison_markers)
+
+            # Check if either side appears in negative context
+            has_negative = False
+            for term in side_a + side_b:
+                for neg_marker in negative_markers:
+                    # Look for patterns like "no need for X", "avoid X", "no X"
+                    if neg_marker + term in output_lower or neg_marker + 'need for ' + term in output_lower:
+                        has_negative = True
+                        break
+                if has_negative:
+                    break
+
+            if not has_comparison and not has_negative:
                 findings.append(f'Possible contradiction: "{side_a[0]}" vs "{side_b[0]}"')
 
     # --- 4. Suspicious RFC/standard fabrication ---
@@ -1151,14 +1166,19 @@ def check_misinformation(output: str, context: dict) -> dict:
         ('md5', 'MD5 is cryptographically broken; unsuitable for password hashing or integrity checks'),
         ('sha-1', 'SHA-1 is deprecated for security use'),
         ('sha1', 'SHA-1 is deprecated for security use'),
-        ('des ', 'DES is a broken cipher (56-bit key)'),
+        (r'\bdes\b', 'DES is a broken cipher (56-bit key)'),
         ('3des', '3DES is deprecated and slow'),
         ('ecb mode', 'ECB mode leaks patterns; use CBC/GCM'),
         ('rc4', 'RC4 is a broken stream cipher'),
     ]
     for term, reason in bad_crypto:
-        if term in output_lower and not in_negative_context(term, output_lower):
-            findings.append(f'Bad crypto: {reason}')
+        # Check if term is a regex pattern (starts with \b or contains regex special chars)
+        if term.startswith(r'\b') or '\\' in term:
+            if re.search(term, output_lower) and not in_negative_context(term.replace(r'\b', ''), output_lower):
+                findings.append(f'Bad crypto: {reason}')
+        else:
+            if term in output_lower and not in_negative_context(term, output_lower):
+                findings.append(f'Bad crypto: {reason}')
 
     # --- 2. Insecure transport / protocol advice ---
     insecure_transport = [
