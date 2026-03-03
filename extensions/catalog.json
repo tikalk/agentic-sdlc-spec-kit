@@ -1,6 +1,37 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-02-03T00:00:00Z",
+  "updated_at": "2026-03-03T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
-  "extensions": {}
+  "extensions": {
+    "levelup": {
+      "id": "levelup",
+      "name": "LevelUp - Team AI Directives Contributor",
+      "version": "1.0.0",
+      "description": "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Decision Records (CDRs)",
+      "author": "Agentic SDLC Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/levelup",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "commands": [
+        "speckit.levelup.init",
+        "speckit.levelup.clarify",
+        "speckit.levelup.spec",
+        "speckit.levelup.skills",
+        "speckit.levelup.implement"
+      ],
+      "tags": [
+        "team-ai-directives",
+        "brownfield",
+        "context-modules",
+        "skills",
+        "cdr",
+        "contribution"
+      ],
+      "verified": false,
+      "featured": false
+    }
+  }
 }

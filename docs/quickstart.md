@@ -169,24 +169,38 @@ The per-spec architecture enables advanced workflows:
 
 ## Stage 4: Leveling Up
 
-**Goal:** Capture best practices from the completed feature, draft a reusable knowledge asset in `team-ai-directives`, and generate traceability notes for the original issue.
-**Note:** `/levelup` runs inside the IDE and relies on the locally cloned directives repository from Stage 0.  
+**Goal:** Capture best practices from the completed feature, create Context Decision Records (CDRs) for reusable patterns, and contribute them back to `team-ai-directives`.
+**Note:** The levelup extension runs inside the IDE and relies on the locally cloned directives repository from Stage 0.  
 **Alignment with 12 Factors:** This stage encompasses [IX. Traceability](https://tikalk.github.io/agentic-sdlc-12-factors/content/traceability.html), [X. Strategic Tooling](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-tooling.html), [XI. Directives as Code](https://tikalk.github.io/agentic-sdlc-12-factors/content/directives-as-code.html), and [XII. Team Capability](https://tikalk.github.io/agentic-sdlc-12-factors/content/team-capability.html), linking artifacts, managing tools, versioning AI behavior, and systematizing learning.
 
-1. **Run Level-Up Workflow (`/levelup`)**  
-   **Action:** Invoke `/levelup` with a strategic directive (e.g., highlight what should become reusable). Agentic SDLC Spec Kit gathers spec/plan/tasks metadata, validates the directives repo, and prompts you to synthesize a knowledge asset plus PR/issue summaries.  
-   **Purpose:** Produces a draft markdown asset under `.specify/memory/team-ai-directives/drafts/`, along with a pull-request description and trace comment for review.
-2. **Review & Publish**  
-   **Action:** Inspect the generated asset and summaries. When satisfied, confirm inside `/levelup` to let it create a `levelup/{slug}` branch, commit the asset, push (when remotes are configured), open a PR via `gh pr create` (or emit the command), and post the trace comment (or provide the text if automation is unavailable).  
-   **Purpose:** Ensures lessons learned become part of the team's shared brain and closes the loop with traceability artifacts without manual branching overhead.
+1. **Extract CDRs from Feature (`/levelup.spec`)**  
+   **Action:** Invoke `/levelup.spec` after completing `/implement` to extract patterns from the current feature. The command creates Context Decision Records (CDRs) in `.specify/memory/cdr.md` based on your spec, plan, tasks, and optional trace.  
+   **Purpose:** Captures coding patterns, best practices, and reusable knowledge from your completed implementation.
 
-**Example Command:**
+2. **Clarify and Accept (`/levelup.clarify`)**  
+   **Action:** Run `/levelup.clarify` to review discovered CDRs, answer clarifying questions about validity/scope/priority, and update CDR statuses to "Accepted" or "Rejected".  
+   **Purpose:** Validates that patterns are team-wide (not project-specific) and ready for contribution.
+
+3. **Build Skills (Optional) (`/levelup.skills`)**  
+   **Action:** Run `/levelup.skills {topic}` to build a self-contained skill from accepted CDRs. Skills are created in `.specify/drafts/skills/`.  
+   **Purpose:** Packages related CDRs into reusable skills that AI agents can load.
+
+4. **Create PR (`/levelup.implement`)**  
+   **Action:** Run `/levelup.implement` to compile accepted CDRs into a draft PR to team-ai-directives. The command creates a `levelup/{slug}` branch, commits context modules, and creates a PR.  
+   **Purpose:** Ensures lessons learned become part of the team's shared repository with proper review.
+
+**Example Commands:**
 
 ```text
-/levelup "Capture the FastAPI error-handling patterns we refined while closing ISSUE-123. Summarize why the retry strategy works, when to apply it, and provide links to the final implementation."
+/levelup.spec "Focus on the error handling patterns we developed"
+/levelup.clarify
+/levelup.skills python-error-handling
+/levelup.implement
 ```
 
-**Outcome:** A knowledge asset ready for PR, a drafted trace comment for the issue tracker, and clear next steps for team review.
+**Note:** For brownfield projects (scanning entire codebase without a feature context), use `/levelup.init` instead of `/levelup.spec`.
+
+**Outcome:** CDRs documented in `.specify/memory/cdr.md`, optional skills in `.specify/drafts/skills/`, and a draft PR to team-ai-directives for team review.
 
 ## The 6-Step Process
 

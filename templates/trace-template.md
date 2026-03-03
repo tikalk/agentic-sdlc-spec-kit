@@ -189,6 +189,6 @@ References to implementation artifacts, commits, issues, and code paths for trac
 
 **Trace Generation**: This trace was automatically generated from execution metadata and feature artifacts by the `/trace` command. For detailed implementation information, refer to the linked artifacts above.
 
-**Usage**: This trace can be consumed by `/levelup` for creating AI session context packets and analyzing contributions to team-ai-directives (rules, constitution, personas, examples).
+**Usage**: This trace can be consumed by `/levelup.spec` for extracting Context Decision Records (CDRs) and analyzing contributions to team-ai-directives (rules, constitution, personas, examples, skills).
 
 **Reusability**: Patterns and approaches documented here can inform similar implementations in other projects or features with comparable requirements.

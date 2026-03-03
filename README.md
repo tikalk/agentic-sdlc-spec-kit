@@ -482,15 +482,20 @@ Use **`/spec.trace`** to generate comprehensive AI session execution traces capt
 /spec.trace
 ```
 
-**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/spec.levelup` context packets when present.
+**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/levelup.spec` CDR extraction when present.
 
 ### 8. Level up and contribute knowledge
 
-Use **`/spec.levelup`** to capture learnings from completed work and contribute reusable knowledge back to your team's shared repository.
+Use the **levelup extension** to extract patterns from your completed feature and contribute reusable knowledge back to your team's shared repository.
 
 ```bash
-/spec.levelup "Document the patterns learned from this implementation for future reference"
+/levelup.spec      # Extract CDRs from current feature spec (after /implement)
+/levelup.clarify   # Resolve ambiguities in discovered CDRs
+/levelup.skills python-patterns  # Build a skill from accepted CDRs
+/levelup.implement # Create PR to team-ai-directives
 ```
+
+For brownfield projects, use `/levelup.init` to scan the entire codebase for patterns.
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
 
@@ -845,8 +850,12 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
 | `/spec.tasks`         | Generate actionable task lists for implementation     |
 | `/spec.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
-| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup`) |
-| `/spec.levelup`       | Capture learnings and contribute to team knowledge repository        |
+| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup.spec`) |
+| `/levelup.spec`       | Extract CDRs from current feature spec context (replaces old `/spec.levelup`) |
+| `/levelup.init`       | Discover CDRs from entire codebase (brownfield analysis)             |
+| `/levelup.clarify`    | Resolve ambiguities in discovered CDRs                               |
+| `/levelup.skills`     | Build a single skill from accepted CDRs                              |
+| `/levelup.implement`  | Compile accepted CDRs into PR to team-ai-directives                  |
 
 #### Optional Commands
 
