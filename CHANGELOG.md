@@ -9,8 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **LevelUp Extension**: Modularized `/spec.levelup` into dedicated extension with 5 CDR-based commands (#56)
+  - `/levelup.init` - Brownfield codebase scan to discover Context Decision Records (CDRs)
+  - `/levelup.clarify` - Resolve CDR ambiguities and accept/reject decisions
+  - `/levelup.spec` - Extract CDRs from current feature spec context (replaces old `/spec.levelup`)
+  - `/levelup.skills` - Build ONE skill at a time from accepted CDRs
+  - `/levelup.implement` - Compile accepted CDRs into PR to team-ai-directives
+  - CDRs stored in `.specify/memory/cdr.md` (similar to ADRs)
+  - Skill drafts stored in `.specify/drafts/skills/{skill-name}/`
+  - Supports `SPECIFY_TEAM_DIRECTIVES` env var for team directives path
+
 ### Changed
 
+- **CLI Help Text**: Updated `/spec.levelup` references to `/levelup.spec` in init command help and next steps panel
 - **Context View Blackbox Enforcement**: Updated architect commands to strictly enforce blackbox system representation in Context View
   - System MUST appear as a single unified node (no internal components)
   - Only external actors (stakeholders/users) and external systems shown

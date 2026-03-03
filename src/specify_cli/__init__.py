@@ -2892,7 +2892,7 @@ def init(
     6. Optionally clone or reference a shared team-ai-directives repository
     7. Optionally configure MCP servers for issue tracker integration
     8. Optionally configure MCP servers for AI agent integration
-    9. Capture learnings after delivery with /spec.levelup
+    9. Capture learnings after delivery with /levelup.spec
 
     Examples:
         specify init my-project
@@ -3442,7 +3442,7 @@ def init(
         f"   2.7 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
     )
     steps_lines.append(
-        f"   2.8 [{ACCENT_COLOR}]/spec.levelup[/{ACCENT_COLOR}] - Capture learnings and create knowledge assets"
+        f"   2.8 [{ACCENT_COLOR}]/levelup.spec[/{ACCENT_COLOR}] - Extract learnings and create CDRs for team knowledge"
     )
 
     steps_panel = Panel(
