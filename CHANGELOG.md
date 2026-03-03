@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - CDRs stored in `.specify/memory/cdr.md` (similar to ADRs)
   - Skill drafts stored in `.specify/drafts/skills/{skill-name}/`
   - Supports `SPECIFY_TEAM_DIRECTIVES` env var for team directives path
+  - **Auto-installed by default**: LevelUp extension is now automatically installed during `specify init`
 
 ### Changed
 

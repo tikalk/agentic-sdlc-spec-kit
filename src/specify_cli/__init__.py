@@ -2756,6 +2756,70 @@ def ensure_constitution_from_template(
             )
 
 
+def install_bundled_extensions(
+    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
+) -> None:
+    """Install bundled extensions that ship with spec-kit.
+
+    Currently installs:
+    - levelup: CDR-based team-ai-directives contribution workflow
+
+    Args:
+        project_path: Target project directory
+        selected_ai: Selected AI assistant (for command registration)
+        tracker: Optional progress tracker
+    """
+    from .extensions import ExtensionManager, ExtensionError
+
+    # Find the bundled extensions directory (relative to this module)
+    module_dir = Path(__file__).parent.parent.parent
+    bundled_extensions_dir = module_dir / "extensions"
+
+    # List of bundled extensions to install by default
+    bundled_extensions = ["levelup"]
+
+    if not bundled_extensions_dir.exists():
+        if tracker:
+            tracker.skip("extensions", "bundled extensions not found")
+        return
+
+    manager = ExtensionManager(project_path)
+    speckit_version = get_speckit_version()
+
+    installed = []
+    skipped = []
+
+    for ext_name in bundled_extensions:
+        ext_dir = bundled_extensions_dir / ext_name
+        if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
+            skipped.append(ext_name)
+            continue
+
+        try:
+            # Check if already installed
+            if manager.registry.is_installed(ext_name):
+                skipped.append(f"{ext_name} (existing)")
+                continue
+
+            # Install from bundled directory
+            manager.install_from_directory(ext_dir, speckit_version)
+            installed.append(ext_name)
+        except ExtensionError as e:
+            # Log but don't fail - extension installation is non-fatal
+            if tracker:
+                pass  # Will be reported in summary
+            skipped.append(f"{ext_name} ({str(e)[:30]})")
+
+    # Report results
+    if tracker:
+        if installed:
+            tracker.complete("extensions", f"{', '.join(installed)}")
+        elif skipped:
+            tracker.skip("extensions", f"{', '.join(skipped)}")
+        else:
+            tracker.skip("extensions", "none available")
+
+
 def _validate_ai_assistant(value: Optional[str]) -> Optional[str]:
     """Validate the ai_assistant option value."""
     if value is None:
@@ -3115,6 +3179,7 @@ def init(
         ("constitution", "Constitution setup"),
         ("cleanup", "Cleanup"),
         ("directives", "Sync team directives"),
+        ("extensions", "Install bundled extensions"),
         ("git", "Initialize git repository"),
         ("final", "Finalize"),
     ]:
@@ -3293,6 +3358,14 @@ def init(
                 # Non-fatal - continue with project setup
 
             ensure_constitution_from_template(project_path, tracker=tracker)
+
+            # Install bundled extensions (levelup)
+            tracker.start("extensions")
+            try:
+                install_bundled_extensions(project_path, selected_ai, tracker=tracker)
+            except Exception as e:
+                tracker.error("extensions", f"failed: {str(e)}")
+                # Non-fatal - continue with project setup
 
             if not no_git:
                 tracker.start("git")
