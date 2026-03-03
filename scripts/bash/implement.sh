@@ -224,10 +224,10 @@ execute_task() {
         local agent_type
         agent_type=$(jq -r ".tasks[\"$task_id\"].agent_type // \"general\"" "$TASKS_META_FILE")
 
-        # Check if using local orchestrator (agentic-sdlc-orchestrator)
-        if [[ "$agent_type" == "agentic-sdlc-orchestrator" ]]; then
-            # Use local K8s orchestrator
-            log_info "Spawning K8s pod via agentic-sdlc-orchestrator for task $task_id"
+        # Check if using local orchestrator (agentic-sdlc-runner)
+        if [[ "$agent_type" == "agentic-sdlc-runner" ]]; then
+            # Use local K8s runner
+            log_info "Spawning K8s pod via agentic-sdlc-runner for task $task_id"
             
             # Get repository info
             local repo_url
@@ -241,10 +241,10 @@ execute_task() {
                 orchestrator_script="$FEATURE_DIR/scripts/spawn-pod.sh"
             elif [[ -f "./scripts/spawn-pod.sh" ]]; then
                 orchestrator_script="./scripts/spawn-pod.sh"
-            elif command -v agentic-sdlc-orchestrator &>/dev/null; then
+            elif command -v agentic-sdlc-runner &>/dev/null; then
                 # Try to find spawn-pod.sh relative to the installed CLI
                 local cli_path
-                cli_path=$(which agentic-sdlc-orchestrator)
+                cli_path=$(which agentic-sdlc-runner)
                 local cli_dir
                 cli_dir=$(dirname "$cli_path")
                 if [[ -f "$cli_dir/../scripts/spawn-pod.sh" ]]; then
@@ -267,8 +267,8 @@ execute_task() {
                     handle_task_failure "$task_id" "Failed to spawn K8s pod"
                 fi
             else
-                log_warn "agentic-sdlc-orchestrator script not found. Expected at: ./scripts/spawn-pod.sh"
-                log_info "Please ensure the agentic-sdlc-orchestrator repository is cloned and scripts are available"
+                log_warn "agentic-sdlc-runner script not found. Expected at: ./scripts/spawn-pod.sh"
+                log_info "Please ensure the agentic-sdlc-runner repository is cloned and scripts are available"
                 log_info "Falling back to standard async delegation"
                 # Fall back to standard dispatch_async_task
                 local task_context="Files: $task_files"

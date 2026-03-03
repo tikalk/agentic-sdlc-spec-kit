@@ -530,10 +530,10 @@ AGENT_MCP_CONFIG = {
         "url": "https://mcp.async-codex.ai/",
         "description": "Connect to Async Codex for autonomous development workflows",
     },
-    "agentic-sdlc-orchestrator": {
-        "name": "Agentic SDLC Orchestrator",
+    "agentic-sdlc-runner": {
+        "name": "Agentic SDLC Runner",
         "type": "local",
-        "description": "Run async tasks in Kubernetes pods via local orchestrator",
+        "description": "Run async tasks in Kubernetes pods via local runner",
     },
 }
 
