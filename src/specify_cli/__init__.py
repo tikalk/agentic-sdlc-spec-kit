@@ -2873,7 +2873,7 @@ def _validate_ai_commands_dir(value: Optional[str]) -> Optional[str]:
 
 @app.command()
 def init(
-    project_name: str = typer.Argument(
+    project_name: Optional[str] = typer.Argument(
         None,
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
     ),
