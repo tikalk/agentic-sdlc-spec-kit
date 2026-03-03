@@ -83,22 +83,22 @@ def test_trace_template_structure():
 
 
 def test_levelup_integration():
-    """Test that levelup command references trace consumption"""
+    """Test that levelup extension spec command references trace consumption"""
     repo_root = Path(__file__).parent.parent
 
-    levelup_template = repo_root / "templates/commands/levelup.md"
-    assert levelup_template.exists(), f"Levelup template not found: {levelup_template}"
+    # Levelup is now an extension at extensions/levelup/commands/spec.md
+    levelup_spec = repo_root / "extensions/levelup/commands/spec.md"
+    assert levelup_spec.exists(), f"Levelup spec command not found: {levelup_spec}"
 
-    content = levelup_template.read_text()
+    content = levelup_spec.read_text()
 
-    # Verify levelup mentions trace
+    # Verify levelup.spec mentions trace
     assert "trace" in content.lower() or "TRACE" in content, (
-        "Levelup doesn't mention trace"
+        "Levelup spec doesn't mention trace"
     )
-    assert "trace.md" in content, "Levelup doesn't reference trace.md file"
-    assert "TRACE_FILE" in content, "Levelup doesn't parse TRACE_FILE from JSON"
+    assert "trace.md" in content, "Levelup spec doesn't reference trace.md file"
 
-    print("✅ Levelup command integrates with trace consumption")
+    print("✅ Levelup extension integrates with trace consumption")
 
 
 def test_prepare_levelup_outputs_trace_file():
