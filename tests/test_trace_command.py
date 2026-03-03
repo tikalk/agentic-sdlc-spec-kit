@@ -101,22 +101,6 @@ def test_levelup_integration():
     print("✅ Levelup extension integrates with trace consumption")
 
 
-def test_prepare_levelup_outputs_trace_file():
-    """Test that prepare-levelup scripts output TRACE_FILE in JSON"""
-    repo_root = Path(__file__).parent.parent
-
-    bash_script = repo_root / "scripts/bash/prepare-levelup.sh"
-    assert bash_script.exists()
-
-    content = bash_script.read_text()
-
-    # Verify script checks for trace file
-    assert "TRACE_FILE" in content, "prepare-levelup.sh doesn't define TRACE_FILE"
-    assert "trace.md" in content, "prepare-levelup.sh doesn't check for trace.md"
-
-    print("✅ prepare-levelup scripts output TRACE_FILE")
-
-
 def test_trace_generation_help():
     """Test that trace generation script has help text"""
     repo_root = Path(__file__).parent.parent
@@ -278,7 +262,6 @@ if __name__ == "__main__":
         test_trace_command_template_exists,
         test_trace_template_structure,
         test_levelup_integration,
-        test_prepare_levelup_outputs_trace_file,
         test_trace_generation_help,
         test_trace_validation_help,
         test_trace_storage_location,

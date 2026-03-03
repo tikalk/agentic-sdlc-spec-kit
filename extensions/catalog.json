@@ -13,7 +13,7 @@
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/levelup",
       "license": "MIT",
       "requires": {
-        "speckit_version": ">=0.1.0"
+        "speckit_version": ">=0.0.80"
       },
       "commands": [
         "speckit.levelup.init",
