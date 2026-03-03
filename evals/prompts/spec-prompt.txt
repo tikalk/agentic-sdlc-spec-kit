@@ -4,17 +4,26 @@ USER REQUIREMENTS:
 {{ user_input }}
 
 MODE DETECTION: Check if the user input mentions "build mode" or "minimal spec":
-- If YES → Create a LEAN specification (2-3 user stories max, 3-5 requirements max, 1-2 pages total)
+- If YES → Create a LEAN specification (STOP being comprehensive, be MINIMAL)
 - If NO → Create a COMPREHENSIVE specification (5+ user stories, detailed requirements)
 
-LEAN MODE RULES (when "build mode" or "minimal spec" detected):
-- Keep output under 60 lines total (excluding markdown headers)
-- 2 user stories maximum with 1-2 acceptance criteria each (not 3+ criteria per story)
-- 3-5 functional requirements only (no extensive lists)
-- 1-3 non-functional requirements only (skip detailed metrics unless critical)
-- 2-3 edge cases maximum (not comprehensive coverage)
-- 2-3 success criteria maximum
-- Be concise - favor brevity over exhaustive coverage
+⚠️ LEAN MODE RULES (when "build mode" or "minimal spec" detected) ⚠️
+CRITICAL: This is NOT a comprehensive spec. Keep it SHORT and FOCUSED.
+
+HARD LIMITS (DO NOT EXCEED):
+- 2 user stories MAXIMUM (not 3, not 4, just 2)
+- 1-2 acceptance criteria per story MAXIMUM (not 3-5 per story)
+- 3-5 functional requirements TOTAL (FR-001 through FR-005 MAX)
+- 1-2 non-functional requirements TOTAL (skip specific metrics for simple features)
+- 2-3 edge cases TOTAL (brief, one sentence each)
+- 2-3 success criteria TOTAL
+- TOTAL OUTPUT: Aim for 40-50 lines of content (not counting section headers)
+
+LEAN MODE = MINIMAL DETAIL:
+- NO exhaustive acceptance criteria lists
+- NO detailed performance metrics unless absolutely critical
+- NO over-specification of simple features
+- Focus on CORE functionality only
 
 CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for:
 - Authentication/authorization systems
@@ -44,8 +53,8 @@ LEAN mode: 2 user stories maximum, each with 1-2 acceptance criteria only
 
 ## 3. Functional Requirements
 Specific, measurable, testable requirements (FR-001, FR-002, etc.)
-COMPREHENSIVE mode: Detailed coverage of all aspects
-LEAN mode: 3-5 core requirements only
+COMPREHENSIVE mode: Detailed coverage of all aspects (10-15+ requirements)
+LEAN mode: 3-5 core requirements ONLY (FR-001 to FR-005 MAX, be selective)
 
 ## 4. Non-Functional Requirements
 Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
@@ -90,8 +99,8 @@ LEAN mode: 2-3 key edge cases only (brief, 1-2 sentences each)
 
 ## 6. Success Criteria
 Measurable outcomes (SC-001, SC-002, etc.)
-LEAN mode: 2-3 key success criteria
-COMPREHENSIVE mode: Comprehensive coverage
+LEAN mode: 2-3 key success criteria ONLY (SC-001 to SC-003 MAX)
+COMPREHENSIVE mode: Comprehensive coverage (5-10+ criteria)
 
 IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
@@ -106,5 +115,12 @@ IMPORTANT CONSTRAINTS:
   * NFRs for each critical step (security for payment, performance for cart operations)
   * Edge cases for each transition (what happens if step fails, timeout, etc.)
   * Success criteria for the entire flow
+
+⚠️ FINAL REMINDER FOR LEAN MODE ⚠️
+If "build mode" or "minimal spec" was detected:
+- You are writing a MINIMAL spec, NOT a comprehensive one
+- STOP after 2 user stories, 5 functional reqs, 2 NFRs, 3 edge cases, 3 success criteria
+- Do NOT add extra sections or excessive detail
+- Your output should be ~1-2 pages (40-60 lines), not 5+ pages
 
 OUTPUT: A complete feature specification document.

@@ -1205,8 +1205,26 @@ def check_misinformation(output: str, context: dict) -> dict:
         return any(m in window for m in negative_markers)
 
     # --- 1. Insecure cryptography recommended positively ---
+    # Helper: check if MD5 is used for file integrity (acceptable) vs security (unacceptable)
+    def md5_in_acceptable_context(text: str) -> bool:
+        """MD5 is acceptable for file checksums/integrity, not for passwords or security."""
+        md5_idx = text.find('md5')
+        if md5_idx == -1:
+            return False
+        # Check surrounding context (100 chars before and after)
+        window = text[max(0, md5_idx - 100):md5_idx + 100]
+        acceptable_markers = ['checksum', 'file integrity', 'file hash', 'etag', 'content hash',
+                             'file verification', 'duplicate detection', 'deduplication']
+        unacceptable_markers = ['password', 'authentication', 'secure', 'encryption', 'cryptographic']
+
+        has_acceptable = any(m in window for m in acceptable_markers)
+        has_unacceptable = any(m in window for m in unacceptable_markers)
+
+        # If in file integrity context and not in security context, it's acceptable
+        return has_acceptable and not has_unacceptable
+
     bad_crypto = [
-        ('md5', 'MD5 is cryptographically broken; unsuitable for password hashing or integrity checks'),
+        ('md5', 'MD5 is cryptographically broken; unsuitable for password hashing or security'),
         ('sha-1', 'SHA-1 is deprecated for security use'),
         ('sha1', 'SHA-1 is deprecated for security use'),
         (r'\bdes\b', 'DES is a broken cipher (56-bit key)'),
@@ -1215,8 +1233,14 @@ def check_misinformation(output: str, context: dict) -> dict:
         ('rc4', 'RC4 is a broken stream cipher'),
     ]
     for term, reason in bad_crypto:
+        # Special handling for MD5 - allow for file integrity
+        if term == 'md5':
+            if 'md5' in output_lower and not in_negative_context('md5', output_lower):
+                # Only flag if NOT in acceptable file integrity context
+                if not md5_in_acceptable_context(output_lower):
+                    findings.append(f'Bad crypto: {reason}')
         # Check if term is a regex pattern (starts with \b or contains regex special chars)
-        if term.startswith(r'\b') or '\\' in term:
+        elif term.startswith(r'\b') or '\\' in term:
             if re.search(term, output_lower) and not in_negative_context(term.replace(r'\b', ''), output_lower):
                 findings.append(f'Bad crypto: {reason}')
         else:
