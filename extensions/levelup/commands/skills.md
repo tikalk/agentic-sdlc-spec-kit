@@ -85,6 +85,27 @@ Skills follow the team-ai-directives format:
 
 ## Execution Steps
 
+### Phase 0: Environment Setup
+
+**Objective**: Initialize CDR infrastructure and resolve paths
+
+Run `{SCRIPT}` from repository root and parse JSON output:
+
+```json
+{
+  "REPO_ROOT": "/path/to/project",
+  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
+  "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
+  "TEAM_DIRECTIVES_EXISTS": true,
+  "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
+  "BRANCH": "current-branch"
+}
+```
+
+**IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
+
+Skills will be created in SKILLS_DRAFTS directory.
+
 ### Phase 1: Parse User Input
 
 **Objective**: Determine which skill to build
@@ -105,7 +126,7 @@ If input is ambiguous, ask for clarification.
 
 #### Step 1: Load CDRs
 
-Read `.specify/memory/cdr.md` and filter:
+Read CDR_FILE (from script output) and filter:
 - Status = "Accepted"
 - Context Type = "Skill" (primary) or related types
 
@@ -139,8 +160,10 @@ Proceed with these CDRs? (Y/N or specify different CDRs)
 
 #### Step 1: Create Directory
 
+Use SKILLS_DRAFTS from script output:
+
 ```bash
-mkdir -p .specify/drafts/skills/{skill-name}/references
+mkdir -p {SKILLS_DRAFTS}/{skill-name}/references
 ```
 
 #### Step 2: Generate SKILL.md

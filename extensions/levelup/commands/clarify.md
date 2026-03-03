@@ -67,13 +67,32 @@ You are acting as a **Context Validator** reviewing discovered patterns. Your ro
 
 ## Execution Steps
 
+### Phase 0: Environment Setup
+
+**Objective**: Initialize CDR infrastructure and resolve paths
+
+Run `{SCRIPT}` from repository root and parse JSON output:
+
+```json
+{
+  "REPO_ROOT": "/path/to/project",
+  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
+  "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
+  "TEAM_DIRECTIVES_EXISTS": true,
+  "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
+  "BRANCH": "current-branch"
+}
+```
+
+**IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
+
 ### Phase 1: Load Current State
 
 **Objective**: Load CDRs and team-ai-directives for validation
 
 #### Step 1: Load CDRs
 
-Read `.specify/memory/cdr.md` and parse all CDRs.
+Read CDR_FILE (from script output) and parse all CDRs.
 
 Filter CDRs by status:
 - **Primary**: Status = "Discovered" or "Proposed"
@@ -83,7 +102,7 @@ If user specified specific CDR IDs, filter to those.
 
 #### Step 2: Load Team Directives
 
-Load existing team-ai-directives for comparison:
+If TEAM_DIRECTIVES_EXISTS is true, load existing team-ai-directives for comparison:
 - `context_modules/constitution.md`
 - `context_modules/rules/**/*.md`
 - `context_modules/personas/*.md`
@@ -219,7 +238,7 @@ If content needs revision:
 
 #### Step 1: Update CDR File
 
-For each clarified CDR:
+Update CDR_FILE (from script output) for each clarified CDR:
 
 1. Update status
 2. Update content if revised

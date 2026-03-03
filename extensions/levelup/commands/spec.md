@@ -60,13 +60,34 @@ If no feature context available, the command will note this and provide limited 
 
 ## Execution Steps
 
+### Phase 0: Environment Setup
+
+**Objective**: Initialize CDR infrastructure and resolve paths
+
+Run `{SCRIPT}` from repository root and parse JSON output:
+
+```json
+{
+  "REPO_ROOT": "/path/to/project",
+  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
+  "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
+  "TEAM_DIRECTIVES_EXISTS": true,
+  "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
+  "BRANCH": "feature/001-user-auth"
+}
+```
+
+**IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
+
+If `TEAM_DIRECTIVES_EXISTS` is false, warn user but continue (CDR enrichment still works).
+
 ### Phase 1: Load Feature Context
 
 **Objective**: Load current feature artifacts
 
 #### Step 1: Detect Feature Branch
 
-Detect current feature from:
+Use BRANCH from script output, or detect from:
 1. Git branch name (e.g., `feature/001-user-auth`)
 2. `SPECIFY_FEATURE` environment variable
 3. User-provided feature name
@@ -89,7 +110,7 @@ If artifacts are missing, note which are unavailable.
 
 **Objective**: Load CDRs to refine
 
-Read `.specify/memory/cdr.md` and filter:
+Read CDR_FILE (from script output) and filter:
 - Status = "Discovered" or "Proposed"
 - Match user-specified CDR IDs if provided
 
@@ -162,7 +183,7 @@ Append evidence to CDR:
 
 **Objective**: Write enriched CDRs to file
 
-Update `.specify/memory/cdr.md` with:
+Update CDR_FILE (from script output) with:
 - Added evidence sections
 - Updated "Date" field
 - Note about enrichment source

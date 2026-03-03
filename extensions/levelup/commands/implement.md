@@ -60,24 +60,34 @@ Before running:
 
 ## Execution Steps
 
+### Phase 0: Environment Setup
+
+**Objective**: Initialize CDR infrastructure and resolve paths
+
+Run `{SCRIPT}` from repository root and parse JSON output:
+
+```json
+{
+  "REPO_ROOT": "/path/to/project",
+  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
+  "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
+  "TEAM_DIRECTIVES_EXISTS": true,
+  "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
+  "BRANCH": "current-branch"
+}
+```
+
+**IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
+
 ### Phase 1: Validate Environment
 
 **Objective**: Ensure prerequisites are met
 
-#### Step 1: Resolve Team Directives Path
+#### Step 1: Verify Team Directives
 
-```bash
-TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    if [[ -d ".specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES=".specify/team-ai-directives"
-    elif [[ -d ".specify/memory/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES=".specify/memory/team-ai-directives"
-    fi
-fi
-```
+Check TEAM_DIRECTIVES_EXISTS from script output.
 
-If not found, **STOP**:
+If false, **STOP**:
 ```
 Team AI directives repository not found.
 Run: specify init --team-ai-directives <path-or-url>
@@ -85,8 +95,10 @@ Run: specify init --team-ai-directives <path-or-url>
 
 #### Step 2: Check Working Tree
 
+Use TEAM_DIRECTIVES from script output:
+
 ```bash
-cd "$TEAM_DIRECTIVES"
+cd "{TEAM_DIRECTIVES}"
 git status --porcelain
 ```
 
@@ -98,7 +110,7 @@ Please commit or stash changes before running /levelup.implement.
 
 #### Step 3: Load Accepted CDRs
 
-Read `.specify/memory/cdr.md` and filter:
+Read CDR_FILE (from script output) and filter:
 - Status = "Accepted"
 
 If no accepted CDRs, **STOP**:
@@ -181,13 +193,13 @@ CDR: {CDR-ID}
 
 #### Step 4: Process Draft Skills
 
-If `.specify/drafts/skills/` contains skills (and not `--skip-skills`):
+If SKILLS_DRAFTS (from script output) contains skills (and not `--skip-skills`):
 
 1. Copy skill directory to `{TEAM_DIRECTIVES}/skills/`
 2. Read `.skills-entry.json` and merge into `.skills.json`
 
 ```bash
-cp -r .specify/drafts/skills/{skill-name} "$TEAM_DIRECTIVES/skills/"
+cp -r {SKILLS_DRAFTS}/{skill-name} "{TEAM_DIRECTIVES}/skills/"
 ```
 
 Update `.skills.json`:
@@ -316,7 +328,7 @@ MCP tools not available. Create PR manually:
 
 **Objective**: Mark CDRs as implemented
 
-Update `.specify/memory/cdr.md`:
+Update CDR_FILE (from script output):
 
 For each implemented CDR:
 - Change status: "Accepted" → "Implemented"
