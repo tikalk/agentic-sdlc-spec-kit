@@ -1069,22 +1069,80 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
     # --- 3. Internal self-contradictions on key technical claims ---
     contradiction_pairs = [
         (['stateless', 'no session', 'sessionless'], ['stores session', 'session state', 'session management']),
-        (['no authentication', 'no auth', 'unauthenticated'], ['requires authentication', 'auth required', 'must authenticate']),
+        (['no authentication', 'no auth'], ['requires authentication', 'auth required', 'must authenticate']),  # removed 'unauthenticated' to avoid HTTP 401 false positive
         (['no database', 'no db', 'database-free'], ['connects to database', 'database stores', 'db connection']),
         (['synchronous', 'sync only', 'blocking'], ['asynchronous', 'async', 'non-blocking']),
         (['monolith', 'single service', 'monolithic'], ['microservices', 'micro-service', 'separate services']),
-        (['read-only', 'read only', 'immutable'], ['write', 'update', 'modify', 'mutate']),
+        # Removed 'read-only' vs 'write' pair - this is a common false positive for CRUD APIs with field-level permissions
     ]
     for side_a, side_b in contradiction_pairs:
         has_a = any(term in output_lower for term in side_a)
         has_b = any(term in output_lower for term in side_b)
         if has_a and has_b:
-            # Only flag if both appear in non-comparative contexts
-            # (i.e. not "monolith vs microservices" comparison)
+            # Only flag if both appear in non-comparative/non-negative contexts
+            # (i.e. not "monolith vs microservices" comparison or "no need for microservices")
             comparison_markers = ['vs', 'versus', 'compared to', 'instead of', 'rather than',
                                    'alternative', 'trade-off', 'tradeoff', 'consider']
-            nearby = any(m in output_lower for m in comparison_markers)
-            if not nearby:
+            negative_markers = ['no need for', 'avoid', 'no ', 'not ', 'without ',
+                               'don\'t ', 'doesn\'t ', 'won\'t ', 'can\'t ']
+
+            # Additional exclusion patterns for common false positives
+            exclusion_patterns = [
+                r'40[13]\s*\(?\s*unauthenticated',  # HTTP 401 status code
+                r'403\s*\(?\s*unauthorized',  # HTTP 403 status code
+                r'immutable\s+(logs?|audit|records?|data)',  # immutable logs/audit/records
+                r'(logs?|audit|records?)\s+(?:must|should|are|is)\s+(?:be\s+)?immutable',  # logs must be immutable
+            ]
+
+            has_exclusion = False
+            for pattern in exclusion_patterns:
+                if re.search(pattern, output_lower):
+                    has_exclusion = True
+                    break
+
+            has_comparison = any(m in output_lower for m in comparison_markers)
+
+            # Check if the terms appear together in a question presenting alternatives (e.g., "A or B?")
+            # Build a pattern that checks if any term from side_a appears near any term from side_b with "or" between them
+            has_or_question = False
+            for term_a in side_a:
+                for term_b in side_b:
+                    # Check for "term_a or term_b" pattern (within 50 chars) followed by "?" (within 200 chars)
+                    or_pattern = rf'{re.escape(term_a)}.{{0,50}}\bor\b.{{0,50}}{re.escape(term_b)}'
+                    if re.search(or_pattern, output_lower):
+                        # Check if there's a question mark within 200 chars after the first term
+                        match = re.search(or_pattern, output_lower)
+                        if match:
+                            text_after = output_lower[match.start():match.end() + 200]
+                            if '?' in text_after:
+                                has_or_question = True
+                                break
+                    # Also check reverse order: "term_b or term_a"
+                    or_pattern_rev = rf'{re.escape(term_b)}.{{0,50}}\bor\b.{{0,50}}{re.escape(term_a)}'
+                    if re.search(or_pattern_rev, output_lower):
+                        match = re.search(or_pattern_rev, output_lower)
+                        if match:
+                            text_after = output_lower[match.start():match.end() + 200]
+                            if '?' in text_after:
+                                has_or_question = True
+                                break
+                if has_or_question:
+                    break
+
+            # Check if either side appears in negative context with wider window
+            has_negative = False
+            for term in side_a + side_b:
+                for neg_marker in negative_markers:
+                    # Look for patterns like "no need for X", "avoid X", "no X"
+                    # Use regex for more flexible matching
+                    pattern = rf'{re.escape(neg_marker)}\w*\s+{re.escape(term)}'
+                    if re.search(pattern, output_lower):
+                        has_negative = True
+                        break
+                if has_negative:
+                    break
+
+            if not has_comparison and not has_negative and not has_exclusion and not has_or_question:
                 findings.append(f'Possible contradiction: "{side_a[0]}" vs "{side_b[0]}"')
 
     # --- 4. Suspicious RFC/standard fabrication ---
@@ -1147,18 +1205,47 @@ def check_misinformation(output: str, context: dict) -> dict:
         return any(m in window for m in negative_markers)
 
     # --- 1. Insecure cryptography recommended positively ---
+    # Helper: check if MD5 is used for file integrity (acceptable) vs security (unacceptable)
+    def md5_in_acceptable_context(text: str) -> bool:
+        """MD5 is acceptable for file checksums/integrity, not for passwords or security."""
+        md5_idx = text.find('md5')
+        if md5_idx == -1:
+            return False
+        # Check surrounding context (100 chars before and after)
+        window = text[max(0, md5_idx - 100):md5_idx + 100]
+        acceptable_markers = ['checksum', 'file integrity', 'file hash', 'etag', 'content hash',
+                             'file verification', 'duplicate detection', 'deduplication']
+        unacceptable_markers = ['password', 'authentication', 'secure', 'encryption', 'cryptographic']
+
+        has_acceptable = any(m in window for m in acceptable_markers)
+        has_unacceptable = any(m in window for m in unacceptable_markers)
+
+        # If in file integrity context and not in security context, it's acceptable
+        return has_acceptable and not has_unacceptable
+
     bad_crypto = [
-        ('md5', 'MD5 is cryptographically broken; unsuitable for password hashing or integrity checks'),
+        ('md5', 'MD5 is cryptographically broken; unsuitable for password hashing or security'),
         ('sha-1', 'SHA-1 is deprecated for security use'),
         ('sha1', 'SHA-1 is deprecated for security use'),
-        ('des ', 'DES is a broken cipher (56-bit key)'),
+        (r'\bdes\b', 'DES is a broken cipher (56-bit key)'),
         ('3des', '3DES is deprecated and slow'),
         ('ecb mode', 'ECB mode leaks patterns; use CBC/GCM'),
         ('rc4', 'RC4 is a broken stream cipher'),
     ]
     for term, reason in bad_crypto:
-        if term in output_lower and not in_negative_context(term, output_lower):
-            findings.append(f'Bad crypto: {reason}')
+        # Special handling for MD5 - allow for file integrity
+        if term == 'md5':
+            if 'md5' in output_lower and not in_negative_context('md5', output_lower):
+                # Only flag if NOT in acceptable file integrity context
+                if not md5_in_acceptable_context(output_lower):
+                    findings.append(f'Bad crypto: {reason}')
+        # Check if term is a regex pattern (starts with \b or contains regex special chars)
+        elif term.startswith(r'\b') or '\\' in term:
+            if re.search(term, output_lower) and not in_negative_context(term.replace(r'\b', ''), output_lower):
+                findings.append(f'Bad crypto: {reason}')
+        else:
+            if term in output_lower and not in_negative_context(term, output_lower):
+                findings.append(f'Bad crypto: {reason}')
 
     # --- 2. Insecure transport / protocol advice ---
     insecure_transport = [

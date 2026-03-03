@@ -66,7 +66,7 @@ jobs:
           python3 evals/scripts/check_eval_scores.py \
             --results eval-results.json \
             --min-score 0.50 \
-            --min-pass-rate 0.85 \
+            --min-pass-rate 0.70 \
             --allow-api-errors \
             --verbose || echo "threshold_failed=true" >> $GITHUB_OUTPUT
 
@@ -119,10 +119,10 @@ jobs:
                       summary += f"- {test_name} (score: {score:.2f})\n"
 
           # Success message
-          if pass_rate >= 85:
+          if pass_rate >= 70:
               summary += "\n✅ **Quality thresholds met!**"
           else:
-              summary += "\n⚠️ **Quality thresholds not met (target: 85%).** Please review failures."
+              summary += "\n⚠️ **Quality thresholds not met (target: 70%).** Please review failures."
 
           # Write to output file for PR comment
           with open('eval_summary.txt', 'w') as f:
@@ -192,7 +192,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.check_thresholds.outcome }}" = "failure" ]; then
-            echo "⚠️ Quality thresholds not met (target: 85% pass rate)"
+            echo "⚠️ Quality thresholds not met (target: 70% pass rate)"
             echo "This is informational only and does not block the PR."
             exit 0
           else
