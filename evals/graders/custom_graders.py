@@ -1073,7 +1073,7 @@ def check_hallucination_signals(output: str, context: dict) -> dict:
         (['no database', 'no db', 'database-free'], ['connects to database', 'database stores', 'db connection']),
         (['synchronous', 'sync only', 'blocking'], ['asynchronous', 'async', 'non-blocking']),
         (['monolith', 'single service', 'monolithic'], ['microservices', 'micro-service', 'separate services']),
-        (['read-only', 'read only'], ['write', 'update', 'modify', 'mutate']),  # removed 'immutable' to avoid audit log false positive
+        # Removed 'read-only' vs 'write' pair - this is a common false positive for CRUD APIs with field-level permissions
     ]
     for side_a, side_b in contradiction_pairs:
         has_a = any(term in output_lower for term in side_a)

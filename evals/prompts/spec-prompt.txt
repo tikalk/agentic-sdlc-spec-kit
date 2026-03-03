@@ -4,8 +4,17 @@ USER REQUIREMENTS:
 {{ user_input }}
 
 MODE DETECTION: Check if the user input mentions "build mode" or "minimal spec":
-- If YES → Create a LEAN specification (2-3 user stories, 3-5 requirements, minimal detail)
+- If YES → Create a LEAN specification (2-3 user stories max, 3-5 requirements max, 1-2 pages total)
 - If NO → Create a COMPREHENSIVE specification (5+ user stories, detailed requirements)
+
+LEAN MODE RULES (when "build mode" or "minimal spec" detected):
+- Keep output under 60 lines total (excluding markdown headers)
+- 2 user stories maximum with 1-2 acceptance criteria each (not 3+ criteria per story)
+- 3-5 functional requirements only (no extensive lists)
+- 1-3 non-functional requirements only (skip detailed metrics unless critical)
+- 2-3 edge cases maximum (not comprehensive coverage)
+- 2-3 success criteria maximum
+- Be concise - favor brevity over exhaustive coverage
 
 CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for:
 - Authentication/authorization systems
@@ -26,10 +35,11 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 Brief description of the feature
 
 ## 2. User Stories
-COMPREHENSIVE mode: 5+ prioritized user stories (P1, P2, P3)
-LEAN mode: 2-3 prioritized user stories focusing on core functionality
+COMPREHENSIVE mode: 5+ prioritized user stories (P1, P2, P3) with detailed acceptance criteria
+LEAN mode: 2 user stories maximum, each with 1-2 acceptance criteria only
    - Clear "As a [role], I want [feature], so that [benefit]" format
-   - Detailed acceptance criteria in Given/When/Then format
+   - LEAN mode: Brief acceptance criteria (1-2 per story, not exhaustive Given/When/Then)
+   - COMPREHENSIVE mode: Detailed acceptance criteria in Given/When/Then format
    - Independent testability for each story
 
 ## 3. Functional Requirements
@@ -39,7 +49,8 @@ LEAN mode: 3-5 core requirements only
 
 ## 4. Non-Functional Requirements
 Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
-LEAN mode: Only critical NFRs, avoid over-specification for simple features
+LEAN mode: 1-3 critical NFRs only, NO detailed metrics for simple features (health checks, basic CRUD)
+COMPREHENSIVE mode: Detailed NFRs with specific measurable targets
 
    🔒 SECURITY REQUIREMENTS (MANDATORY for authentication/payments/PII/healthcare):
    You MUST include ALL of the following security requirements:
@@ -61,8 +72,8 @@ LEAN mode: Only critical NFRs, avoid over-specification for simple features
 ## 5. Edge Cases
 MANDATORY SECTION - This section heading MUST appear in output with content below it.
 Document boundary conditions and error scenarios:
-COMPREHENSIVE mode: Detailed coverage
-LEAN mode: 2-3 key edge cases minimum
+COMPREHENSIVE mode: Detailed coverage with multiple scenarios per category
+LEAN mode: 2-3 key edge cases only (brief, 1-2 sentences each)
 
    - For multi-step flows (checkout, onboarding, wizards), include:
      * Failed transitions between steps (payment declined, timeout, network errors)
