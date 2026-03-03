@@ -8,7 +8,7 @@ MODE DETECTION: Check if the user input mentions "build mode" or "minimal spec":
 - If NO → Create a COMPREHENSIVE specification (5+ user stories, detailed requirements)
 
 ⚠️ LEAN MODE RULES (when "build mode" or "minimal spec" detected) ⚠️
-CRITICAL: This is NOT a comprehensive spec. Keep it SHORT and FOCUSED.
+CRITICAL: This is NOT a comprehensive spec. Keep it SHORT, SIMPLE, and INFORMAL.
 
 HARD LIMITS (DO NOT EXCEED):
 - 2 user stories MAXIMUM (not 3, not 4, just 2)
@@ -17,12 +17,15 @@ HARD LIMITS (DO NOT EXCEED):
 - 1-2 non-functional requirements TOTAL (skip specific metrics for simple features)
 - 2-3 edge cases TOTAL (brief, one sentence each)
 - 2-3 success criteria TOTAL
-- TOTAL OUTPUT: Aim for 40-50 lines of content (not counting section headers)
+- TOTAL OUTPUT: Aim for 30-40 lines of content (not counting section headers)
 
-LEAN MODE = MINIMAL DETAIL:
-- NO exhaustive acceptance criteria lists
-- NO detailed performance metrics unless absolutely critical
-- NO over-specification of simple features
+LEAN MODE FORMATTING (less formal):
+- NO story IDs (no US-001, US-002) - just describe the stories
+- NO priority levels (no [P1], [P2], [P3])
+- NO formal "Acceptance Criteria:" headers - just bullet points
+- NO requirement IDs unless there are 4+ requirements (then use FR-001, FR-002...)
+- Simpler, more conversational language
+- Combine Overview + User Stories into one concise section if appropriate
 - Focus on CORE functionality only
 
 CRITICAL: First, identify if this is a SECURITY-CRITICAL feature by checking for:
@@ -44,17 +47,16 @@ IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 Brief description of the feature
 
 ## 2. User Stories
-COMPREHENSIVE mode: 5+ prioritized user stories (P1, P2, P3) with detailed acceptance criteria
-LEAN mode: 2 user stories maximum, each with 1-2 acceptance criteria only
+COMPREHENSIVE mode: 5+ prioritized user stories (P1, P2, P3) with detailed acceptance criteria, formal IDs (US-001, US-002)
+LEAN mode: 2 user stories maximum, simple format without IDs or priorities
    - Clear "As a [role], I want [feature], so that [benefit]" format
-   - LEAN mode: Brief acceptance criteria (1-2 per story, not exhaustive Given/When/Then)
-   - COMPREHENSIVE mode: Detailed acceptance criteria in Given/When/Then format
+   - LEAN mode: Brief bullet points (1-2 per story), no "Acceptance Criteria:" header, no Given/When/Then
+   - COMPREHENSIVE mode: Detailed acceptance criteria in Given/When/Then format with formal structure
    - Independent testability for each story
 
 ## 3. Functional Requirements
-Specific, measurable, testable requirements (FR-001, FR-002, etc.)
-COMPREHENSIVE mode: Detailed coverage of all aspects (10-15+ requirements)
-LEAN mode: 3-5 core requirements ONLY (FR-001 to FR-005 MAX, be selective)
+COMPREHENSIVE mode: Detailed coverage with IDs (FR-001, FR-002... up to FR-015+)
+LEAN mode: 3-5 core requirements ONLY, simple bullet points or use FR-001 to FR-005 if numbering helps clarity
 
 ## 4. Non-Functional Requirements
 Performance, security, scalability requirements (NFR-001, NFR-002, etc.)
@@ -98,9 +100,8 @@ LEAN mode: 2-3 key edge cases only (brief, 1-2 sentences each)
      * Partial failures and retry logic
 
 ## 6. Success Criteria
-Measurable outcomes (SC-001, SC-002, etc.)
-LEAN mode: 2-3 key success criteria ONLY (SC-001 to SC-003 MAX)
-COMPREHENSIVE mode: Comprehensive coverage (5-10+ criteria)
+COMPREHENSIVE mode: Comprehensive coverage with IDs (SC-001 to SC-010+)
+LEAN mode: 2-3 key success criteria ONLY, simple bullet points without SC-001, SC-002 IDs
 
 IMPORTANT CONSTRAINTS:
 - Do NOT include technical implementation details (no specific frameworks, libraries, or tech stack)
@@ -118,9 +119,10 @@ IMPORTANT CONSTRAINTS:
 
 ⚠️ FINAL REMINDER FOR LEAN MODE ⚠️
 If "build mode" or "minimal spec" was detected:
-- You are writing a MINIMAL spec, NOT a comprehensive one
-- STOP after 2 user stories, 5 functional reqs, 2 NFRs, 3 edge cases, 3 success criteria
-- Do NOT add extra sections or excessive detail
-- Your output should be ~1-2 pages (40-60 lines), not 5+ pages
+- You are writing a MINIMAL, INFORMAL spec - NOT a comprehensive enterprise document
+- Use SIMPLE formatting: no US-001/FR-001/SC-001 IDs, no [P1]/[P2] priorities
+- STOP after 2 simple user stories, 3-5 functional reqs, 1-2 NFRs, 3 edge cases, 3 success criteria
+- Do NOT add formal headers like "Acceptance Criteria:" - just use bullet points
+- Your output should be ~30-40 lines of content, conversational and focused
 
 OUTPUT: A complete feature specification document.
