@@ -24,6 +24,16 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
 
+# Include bundled extensions in the wheel
+[tool.hatch.build.targets.wheel.force-include]
+"extensions/levelup" = "specify_cli/bundled_extensions/levelup"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/",
+    "extensions/levelup/",
+]
+
 [project.optional-dependencies]
 test = [
     "pytest>=7.0",

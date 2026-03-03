@@ -11,7 +11,7 @@ extension:
   homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/levelup"
 
 requires:
-  speckit_version: ">=0.1.0"
+  speckit_version: ">=0.0.80"
   tools:
     - name: "git"
       required: true

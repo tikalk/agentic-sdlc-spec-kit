@@ -2778,12 +2778,14 @@ def install_bundled_extensions(
     # List of bundled extensions to install by default
     bundled_extensions = ["levelup"]
 
-    # Try multiple locations for bundled extensions
+    # Try multiple locations for bundled extensions (in priority order)
     # 1. Project's .specify/extensions/ (from extracted release ZIP)
-    # 2. Repository's extensions/ directory (for development/testing)
+    # 2. Package's bundled_extensions/ (installed with pip/uv)
+    # 3. Repository's extensions/ directory (for development)
     bundled_extensions_dir = None
     search_paths = [
         project_path / ".specify" / "extensions",  # Extracted from release ZIP
+        Path(__file__).parent / "bundled_extensions",  # Installed package
         Path(__file__).parent.parent.parent / "extensions",  # Dev: repo root
     ]
 
@@ -3741,7 +3743,13 @@ def get_speckit_version() -> str:
     import importlib.metadata
 
     try:
-        return importlib.metadata.version("specify-cli")
+        # Try both package names (upstream and fork)
+        for pkg_name in ["agentic-sdlc-specify-cli", "specify-cli"]:
+            try:
+                return importlib.metadata.version(pkg_name)
+            except importlib.metadata.PackageNotFoundError:
+                continue
+        raise importlib.metadata.PackageNotFoundError("specify-cli")
     except Exception:
         # Fallback: try reading from pyproject.toml
         try:
