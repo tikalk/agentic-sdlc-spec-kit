@@ -127,9 +127,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Generate unique checklist filename:
      - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`)
      - Format: `[domain].md`
-     - If file exists, append to existing file
-   - Number items sequentially starting from CHK001
-   - Each `/spec.checklist` run creates a NEW file (never overwrites existing checklists)
+   - File handling behavior:
+     - If file does NOT exist: Create new file and number items starting from CHK001
+     - If file exists: Append new items to existing file, continuing from the last CHK ID (e.g., if last item is CHK015, start new items at CHK016)
+   - Never delete or replace existing checklist content - always preserve and append
    - For MCP validation: Include infrastructure quality checks when relevant to the checklist focus
 
    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
@@ -291,15 +292,15 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 7. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
 
-8. **Report**: Output full path to created checklist, item count, and remind user that each run creates a new file. Summarize:
-     - Focus areas selected
-     - Depth level
-     - Actor/timing
-     - Any explicit user-specified must-have items incorporated
-     - MCP configuration validation status (if included in checklist)
-     - Framework options validation status (based on enabled mode options)
+7. **Report**: Output full path to checklist file, item count, and summarize whether the run created a new file or appended to an existing one. Summarize:
+   - Focus areas selected
+   - Depth level
+   - Actor/timing
+   - Any explicit user-specified must-have items incorporated
+   - MCP configuration validation status (if included in checklist)
+   - Framework options validation status (based on enabled mode options)
 
-**Important**: Each `/spec.checklist` command invocation creates a checklist file using short, descriptive names unless file already exists. This allows:
+**Important**: Each `/speckit.checklist` command invocation uses a short, descriptive checklist filename and either creates a new file or appends to an existing one. This allows:
 
 - Multiple checklists of different types (e.g., `ux.md`, `test.md`, `security.md`)
 - Simple, memorable filenames that indicate checklist purpose

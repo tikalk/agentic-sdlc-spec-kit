@@ -155,7 +155,18 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-   **PILLAR 2: Constitution Alignment** (NEW - if constitution exists)
+3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
+    - Maximum of 5 total questions across the whole session.
+    - Each question must be answerable with EITHER:
+       - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
+       - A one-word / short‑phrase answer (explicitly constrain: "Answer in <=5 words").
+    - Only include questions whose answers materially impact architecture, data modeling, task decomposition, test design, UX behavior, operational readiness, or compliance validation.
+    - Ensure category coverage balance: attempt to cover the highest impact unresolved categories first; avoid asking two low-impact questions when a single high-impact area (e.g., security posture) is unresolved.
+    - Exclude questions already answered, trivial stylistic preferences, or plan-level execution details (unless blocking correctness).
+    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
+    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
+
+   **PILLAR 2: Constitution Alignment** (if constitution exists)
 
    Validate spec against constitutional rules:
 
