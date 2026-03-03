@@ -173,6 +173,13 @@ build_variant() {
   
   [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .specify/templates"; }
   
+  # Copy bundled extensions (levelup is installed by default)
+  if [[ -d extensions/levelup ]]; then
+    mkdir -p "$SPEC_DIR/extensions"
+    cp -r extensions/levelup "$SPEC_DIR/extensions/"
+    echo "Copied extensions/levelup -> .specify/extensions"
+  fi
+  
   # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:
   #   * Markdown/prompt (claude, copilot, cursor-agent, opencode): $ARGUMENTS
   #   * TOML (gemini, qwen): {{args}}

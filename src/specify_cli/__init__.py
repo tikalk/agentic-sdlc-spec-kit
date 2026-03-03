@@ -2764,6 +2764,10 @@ def install_bundled_extensions(
     Currently installs:
     - levelup: CDR-based team-ai-directives contribution workflow
 
+    Looks for extensions in the following locations (in order):
+    1. Project's .specify/extensions/ (bundled in release ZIP)
+    2. Repository's extensions/ directory (for development)
+
     Args:
         project_path: Target project directory
         selected_ai: Selected AI assistant (for command registration)
@@ -2771,14 +2775,24 @@ def install_bundled_extensions(
     """
     from .extensions import ExtensionManager, ExtensionError
 
-    # Find the bundled extensions directory (relative to this module)
-    module_dir = Path(__file__).parent.parent.parent
-    bundled_extensions_dir = module_dir / "extensions"
-
     # List of bundled extensions to install by default
     bundled_extensions = ["levelup"]
 
-    if not bundled_extensions_dir.exists():
+    # Try multiple locations for bundled extensions
+    # 1. Project's .specify/extensions/ (from extracted release ZIP)
+    # 2. Repository's extensions/ directory (for development/testing)
+    bundled_extensions_dir = None
+    search_paths = [
+        project_path / ".specify" / "extensions",  # Extracted from release ZIP
+        Path(__file__).parent.parent.parent / "extensions",  # Dev: repo root
+    ]
+
+    for path in search_paths:
+        if path.exists() and (path / "levelup" / "extension.yml").exists():
+            bundled_extensions_dir = path
+            break
+
+    if not bundled_extensions_dir:
         if tracker:
             tracker.skip("extensions", "bundled extensions not found")
         return
