@@ -338,10 +338,10 @@ Be specific about your tech stack and technical requirements:
 
 ### Step 6: Define Tasks
 
-Generate an actionable task list using the `/speckit.tasks` command:
+Generate an actionable task list using the `/spec.tasks` command:
 
 ```bash
-/speckit.tasks
+/spec.tasks
 ```
 
 ### Step 7: Validate and Implement

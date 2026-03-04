@@ -300,7 +300,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - MCP configuration validation status (if included in checklist)
    - Framework options validation status (based on enabled mode options)
 
-**Important**: Each `/speckit.checklist` command invocation uses a short, descriptive checklist filename and either creates a new file or appends to an existing one. This allows:
+**Important**: Each `/spec.checklist` command invocation uses a short, descriptive checklist filename and either creates a new file or appends to an existing one. This allows:
 
 - Multiple checklists of different types (e.g., `ux.md`, `test.md`, `security.md`)
 - Simple, memorable filenames that indicate checklist purpose
