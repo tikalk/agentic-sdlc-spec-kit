@@ -2,15 +2,15 @@
 description: Resolve ambiguities in discovered/proposed CDRs through clarifying questions
 handoffs:
   - label: Refine from Feature Context
-    agent: levelup.spec
+    agent: adlc.levelup.spec
     prompt: Add context from current feature spec to CDRs
     send: false
   - label: Build Skills
-    agent: levelup.skills
+    agent: adlc.levelup.skills
     prompt: Build skills from accepted CDRs
     send: false
   - label: Create PR
-    agent: levelup.implement
+    agent: adlc.levelup.implement
     prompt: Compile accepted CDRs to team-ai-directives PR
     send: false
 scripts:

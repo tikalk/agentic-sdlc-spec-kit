@@ -8,7 +8,7 @@ validation_scripts:
    ps: scripts/powershell/validate-constitution.ps1
 handoffs:
   - label: Build Specification
-    agent: spec.specify
+    agent: adlc.spec.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
 

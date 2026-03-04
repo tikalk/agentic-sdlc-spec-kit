@@ -2,11 +2,11 @@
 description: Execute the implementation planning workflow using the plan template to generate design artifacts.
 handoffs: 
   - label: Create Tasks
-    agent: spec.tasks
+    agent: adlc.spec.tasks
     prompt: Break the plan into tasks
     send: true
   - label: Create Checklist
-    agent: spec.checklist
+    agent: adlc.spec.checklist
     prompt: Create a checklist for the following domain...
 scripts:
     sh: scripts/bash/setup-plan.sh --json

@@ -2,7 +2,7 @@
 description: Scan codebase and discover Context Directive Records (CDRs) for team-ai-directives contributions
 handoffs:
   - label: Resolve Ambiguities
-    agent: levelup.clarify
+    agent: adlc.levelup.clarify
     prompt: |
       Review CDRs discovered from brownfield codebase analysis.
       Ask questions about:
@@ -13,7 +13,7 @@ handoffs:
       Focus on validating assumptions, not suggesting new patterns.
     send: false
   - label: Refine from Feature Context
-    agent: levelup.spec
+    agent: adlc.levelup.spec
     prompt: Refine CDRs using current feature spec context
     send: false
 scripts:

@@ -2,11 +2,11 @@
 description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
 handoffs: 
   - label: Analyze For Consistency
-    agent: spec.analyze
+    agent: adlc.spec.analyze
     prompt: Run a project analysis for consistency
     send: true
   - label: Implement Project
-    agent: spec.implement
+    agent: adlc.spec.implement
     prompt: Start the implementation in phases
     send: true
 scripts:
