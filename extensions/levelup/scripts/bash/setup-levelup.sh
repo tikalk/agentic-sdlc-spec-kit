@@ -58,9 +58,9 @@ mkdir -p "$SKILLS_DRAFTS"
 # Initialize CDR file if it doesn't exist
 if [[ ! -f "$CDR_FILE" ]]; then
     cat > "$CDR_FILE" << 'EOF'
-# Context Decision Records
+# Context Directive Records
 
-Context Decision Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives.
+Context Directive Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives.
 
 ## CDR Index
 

@@ -1,5 +1,5 @@
 ---
-description: Extract Context Decision Records (CDRs) from current feature spec context (replaces old /spec.levelup)
+description: Extract Context Directive Records (CDRs) from current feature spec context (replaces old /spec.levelup)
 scripts:
   sh: scripts/bash/setup-levelup.sh --json
   ps: scripts/powershell/setup-levelup.ps1 -Json
@@ -22,7 +22,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Extract **Context Decision Records (CDRs)** from the **current feature specification** after completing implementation. This is the primary command for capturing learnings from a completed feature.
+Extract **Context Directive Records (CDRs)** from the **current feature specification** after completing implementation. This is the primary command for capturing learnings from a completed feature.
 
 **This command replaces the old `/spec.levelup` command.**
 
@@ -228,7 +228,7 @@ Consider adding more context:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Enriched Context Decision Records |
+| `.specify/memory/cdr.md` | Enriched Context Directive Records |
 
 ## Notes
 

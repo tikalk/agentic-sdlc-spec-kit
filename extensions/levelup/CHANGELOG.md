@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `levelup.spec` command for refining CDRs from feature context
 - `levelup.skills` command for building skills from accepted CDRs
 - `levelup.implement` command for creating PRs to team-ai-directives
-- Context Decision Record (CDR) template
+- Context Directive Record (CDR) template
 - Support for both submodule and clone paths for team-ai-directives
 - Bash and PowerShell scripts for setup and analysis
 

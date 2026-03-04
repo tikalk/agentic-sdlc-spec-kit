@@ -56,9 +56,9 @@ if (-not (Test-Path $skillsDrafts)) {
 # Initialize CDR file if it doesn't exist
 if (-not (Test-Path $cdrFile)) {
     $cdrTemplate = @"
-# Context Decision Records
+# Context Directive Records
 
-Context Decision Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives.
+Context Directive Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives.
 
 ## CDR Index
 

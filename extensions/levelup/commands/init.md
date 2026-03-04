@@ -1,5 +1,5 @@
 ---
-description: Scan codebase and discover Context Decision Records (CDRs) for team-ai-directives contributions
+description: Scan codebase and discover Context Directive Records (CDRs) for team-ai-directives contributions
 handoffs:
   - label: Resolve Ambiguities
     agent: levelup.clarify
@@ -41,7 +41,7 @@ When users provide context, use it to focus the discovery effort.
 
 ## Goal
 
-Scan an **existing codebase** (brownfield) and discover patterns that could become contributions to team-ai-directives. Create **Context Decision Records (CDRs)** documenting discovered patterns.
+Scan an **existing codebase** (brownfield) and discover patterns that could become contributions to team-ai-directives. Create **Context Directive Records (CDRs)** documenting discovered patterns.
 
 **Output**:
 
@@ -414,7 +414,7 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Context Decision Records |
+| `.specify/memory/cdr.md` | Context Directive Records |
 
 ## Notes
 

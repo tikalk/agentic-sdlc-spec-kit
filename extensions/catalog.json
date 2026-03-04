@@ -7,7 +7,7 @@
       "id": "levelup",
       "name": "LevelUp - Team AI Directives Contributor",
       "version": "1.0.0",
-      "description": "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Decision Records (CDRs)",
+      "description": "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)",
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/levelup",

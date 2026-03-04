@@ -12,7 +12,7 @@ team_directives:
   # Uncomment to override with explicit path:
   # path: "/path/to/team-ai-directives"
 
-# CDR (Context Decision Record) Settings
+# CDR (Context Directive Record) Settings
 cdr:
   # CDR generation heuristic
   # - surprising: Only document patterns not already in team-directives (default)

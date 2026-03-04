@@ -327,7 +327,7 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Updated Context Decision Records |
+| `.specify/memory/cdr.md` | Updated Context Directive Records |
 
 ## Notes
 

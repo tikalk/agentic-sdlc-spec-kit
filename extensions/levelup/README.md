@@ -1,10 +1,10 @@
 # LevelUp Extension
 
-Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Decision Records (CDRs).
+Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs).
 
 ## Overview
 
-The LevelUp extension helps brownfield projects analyze their codebase and contribute reusable context modules back to the team's shared AI directives repository. It introduces **Context Decision Records (CDRs)** - similar to Architecture Decision Records (ADRs) - for tracking what, why, and how context is being contributed.
+The LevelUp extension helps brownfield projects analyze their codebase and contribute reusable context modules back to the team's shared AI directives repository. It introduces **Context Directive Records (CDRs)** - similar to Architecture Decision Records (ADRs) - for tracking what, why, and how context is being contributed.
 
 ## Commands
 
@@ -58,7 +58,7 @@ Compile accepted CDRs into a PR to team-ai-directives:
 
 This creates a draft PR with all accepted contributions.
 
-## Context Decision Records (CDRs)
+## Context Directive Records (CDRs)
 
 CDRs are stored in `.specify/memory/cdr.md` and track:
 

@@ -4,7 +4,7 @@ extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
   version: "1.0.0"
-  description: "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Decision Records (CDRs)"
+  description: "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -22,7 +22,7 @@ provides:
     # Brownfield CDR discovery - like architect.init
     - name: "speckit.levelup.init"
       file: "commands/init.md"
-      description: "Scan codebase and discover Context Decision Records (CDRs) for team-ai-directives contributions"
+      description: "Scan codebase and discover Context Directive Records (CDRs) for team-ai-directives contributions"
       aliases: ["levelup.init"]
 
     # Resolve CDR ambiguities - like architect.clarify

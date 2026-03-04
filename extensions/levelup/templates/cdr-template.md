@@ -1,6 +1,6 @@
-# Context Decision Records
+# Context Directive Records
 
-Context Decision Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives. Similar to Architecture Decision Records (ADRs), CDRs provide a formal record of what, why, and how context is being contributed.
+Context Directive Records (CDRs) track decisions about contributing context modules (rules, personas, examples, skills) to team-ai-directives. Similar to Architecture Decision Records (ADRs), CDRs provide a formal record of what, why, and how context is being contributed.
 
 ## CDR Index
 
