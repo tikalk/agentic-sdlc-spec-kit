@@ -33,6 +33,7 @@ from specify_cli import (
 
 # ===== Fixtures =====
 
+
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for tests."""
@@ -92,20 +93,13 @@ def templates_dir(project_dir):
 
     # Template with no frontmatter
     (tpl_root / "tasks.md").write_text(
-        "# Tasks Command\n"
-        "\n"
-        "Body without frontmatter.\n",
+        "# Tasks Command\n\nBody without frontmatter.\n",
         encoding="utf-8",
     )
 
     # Template with empty YAML frontmatter (yaml.safe_load returns None)
     (tpl_root / "empty_fm.md").write_text(
-        "---\n"
-        "---\n"
-        "\n"
-        "# Empty Frontmatter Command\n"
-        "\n"
-        "Body with empty frontmatter.\n",
+        "---\n---\n\n# Empty Frontmatter Command\n\nBody with empty frontmatter.\n",
         encoding="utf-8",
     )
 
@@ -133,6 +127,7 @@ def commands_dir_gemini(project_dir):
 
 
 # ===== _get_skills_dir Tests =====
+
 
 class TestGetSkillsDir:
     """Test the _get_skills_dir() helper function."""
@@ -162,6 +157,11 @@ class TestGetSkillsDir:
         result = _get_skills_dir(project_dir, "cursor-agent")
         assert result == project_dir / ".cursor" / "skills"
 
+    def test_kiro_cli_skills_dir(self, project_dir):
+        """Kiro CLI should use .kiro/skills/."""
+        result = _get_skills_dir(project_dir, "kiro-cli")
+        assert result == project_dir / ".kiro" / "skills"
+
     def test_unknown_agent_uses_default(self, project_dir):
         """Unknown agents should fall back to DEFAULT_SKILLS_DIR."""
         result = _get_skills_dir(project_dir, "nonexistent-agent")
@@ -185,6 +185,7 @@ class TestGetSkillsDir:
 
 
 # ===== install_ai_skills Tests =====
+
 
 class TestInstallAiSkills:
     """Test SKILL.md generation and installation logic."""
@@ -246,13 +247,17 @@ class TestInstallAiSkills:
 
         assert result is True
 
-        skill_file = project_dir / ".claude" / "skills" / "speckit-empty_fm" / "SKILL.md"
+        skill_file = (
+            project_dir / ".claude" / "skills" / "speckit-empty_fm" / "SKILL.md"
+        )
         assert skill_file.exists()
         content = skill_file.read_text()
         assert "name: speckit-empty_fm" in content
         assert "Body with empty frontmatter." in content
 
-    def test_enhanced_descriptions_used_when_available(self, project_dir, templates_dir):
+    def test_enhanced_descriptions_used_when_available(
+        self, project_dir, templates_dir
+    ):
         """SKILL_DESCRIPTIONS take precedence over template frontmatter descriptions."""
         install_ai_skills(project_dir, "claude")
 
@@ -380,7 +385,9 @@ class TestInstallAiSkills:
         # .toml commands should be untouched
         assert (cmds_dir / "speckit.specify.toml").exists()
 
-    @pytest.mark.parametrize("agent_key", [k for k in AGENT_CONFIG.keys() if k != "generic"])
+    @pytest.mark.parametrize(
+        "agent_key", [k for k in AGENT_CONFIG.keys() if k != "generic"]
+    )
     def test_skills_install_for_all_agents(self, temp_dir, agent_key):
         """install_ai_skills should produce skills for every configured agent."""
         proj = temp_dir / f"proj-{agent_key}"
@@ -404,7 +411,6 @@ class TestInstallAiSkills:
         assert (skills_dir / "speckit-specify" / "SKILL.md").exists()
 
 
-
 class TestCommandCoexistence:
     """Verify install_ai_skills never touches command files.
 
@@ -413,7 +419,9 @@ class TestCommandCoexistence:
     install_ai_skills leaves existing commands intact.
     """
 
-    def test_existing_commands_preserved_claude(self, project_dir, templates_dir, commands_dir_claude):
+    def test_existing_commands_preserved_claude(
+        self, project_dir, templates_dir, commands_dir_claude
+    ):
         """install_ai_skills must NOT remove pre-existing .claude/commands files."""
         # Verify commands exist before
         assert len(list(commands_dir_claude.glob("speckit.*"))) == 3
@@ -424,7 +432,9 @@ class TestCommandCoexistence:
         remaining = list(commands_dir_claude.glob("speckit.*"))
         assert len(remaining) == 3
 
-    def test_existing_commands_preserved_gemini(self, project_dir, templates_dir, commands_dir_gemini):
+    def test_existing_commands_preserved_gemini(
+        self, project_dir, templates_dir, commands_dir_gemini
+    ):
         """install_ai_skills must NOT remove pre-existing .gemini/commands files."""
         assert len(list(commands_dir_gemini.glob("speckit.*"))) == 3
 
@@ -433,7 +443,9 @@ class TestCommandCoexistence:
         remaining = list(commands_dir_gemini.glob("speckit.*"))
         assert len(remaining) == 3
 
-    def test_commands_dir_not_removed(self, project_dir, templates_dir, commands_dir_claude):
+    def test_commands_dir_not_removed(
+        self, project_dir, templates_dir, commands_dir_claude
+    ):
         """install_ai_skills must not remove the commands directory."""
         install_ai_skills(project_dir, "claude")
 
@@ -449,6 +461,7 @@ class TestCommandCoexistence:
 
 # ===== New-Project Command Skip Tests =====
 
+
 class TestNewProjectCommandSkip:
     """Test that init() removes extracted commands for new projects only.
 
@@ -460,8 +473,9 @@ class TestNewProjectCommandSkip:
         """Simulate template extraction: create agent commands dir."""
         agent_cfg = AGENT_CONFIG.get(agent, {})
         agent_folder = agent_cfg.get("folder", "")
+        commands_subdir = agent_cfg.get("commands_subdir", "commands")
         if agent_folder:
-            cmds_dir = project_path / agent_folder.rstrip("/") / "commands"
+            cmds_dir = project_path / agent_folder.rstrip("/") / commands_subdir
             cmds_dir.mkdir(parents=True, exist_ok=True)
             (cmds_dir / "speckit.specify.md").write_text("# spec")
 
@@ -475,20 +489,79 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             self._fake_extract("claude", project_path)
 
-        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
-             patch("specify_cli.ensure_executable_scripts"), \
-             patch("specify_cli.ensure_constitution_from_template"), \
-             patch("specify_cli.install_ai_skills", return_value=True) as mock_skills, \
-             patch("specify_cli.is_git_repo", return_value=False), \
-             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
-            result = runner.invoke(app, ["init", str(target), "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"])
+        with (
+            patch(
+                "specify_cli.download_and_extract_template", side_effect=fake_download
+            ),
+            patch("specify_cli.ensure_executable_scripts"),
+            patch("specify_cli.ensure_constitution_from_template"),
+            patch("specify_cli.install_ai_skills", return_value=True) as mock_skills,
+            patch("specify_cli.is_git_repo", return_value=False),
+            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    str(target),
+                    "--ai",
+                    "claude",
+                    "--ai-skills",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
 
+        assert result.exit_code == 0
         # Skills should have been called
         mock_skills.assert_called_once()
 
         # Commands dir should have been removed after skills succeeded
         cmds_dir = target / ".claude" / "commands"
         assert not cmds_dir.exists()
+
+    def test_new_project_nonstandard_commands_subdir_removed_after_skills_succeed(
+        self, tmp_path
+    ):
+        """For non-standard agents, configured commands_subdir should be removed on success."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        target = tmp_path / "new-kiro-proj"
+
+        def fake_download(project_path, *args, **kwargs):
+            self._fake_extract("kiro-cli", project_path)
+
+        with (
+            patch(
+                "specify_cli.download_and_extract_template", side_effect=fake_download
+            ),
+            patch("specify_cli.ensure_executable_scripts"),
+            patch("specify_cli.ensure_constitution_from_template"),
+            patch("specify_cli.install_ai_skills", return_value=True) as mock_skills,
+            patch("specify_cli.is_git_repo", return_value=False),
+            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    str(target),
+                    "--ai",
+                    "kiro-cli",
+                    "--ai-skills",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
+
+        assert result.exit_code == 0
+        mock_skills.assert_called_once()
+
+        prompts_dir = target / ".kiro" / "prompts"
+        assert not prompts_dir.exists()
 
     def test_commands_preserved_when_skills_fail(self, tmp_path):
         """If skills fail, commands should NOT be removed (safety net)."""
@@ -500,14 +573,31 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             self._fake_extract("claude", project_path)
 
-        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
-             patch("specify_cli.ensure_executable_scripts"), \
-             patch("specify_cli.ensure_constitution_from_template"), \
-             patch("specify_cli.install_ai_skills", return_value=False), \
-             patch("specify_cli.is_git_repo", return_value=False), \
-             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
-            result = runner.invoke(app, ["init", str(target), "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"])
+        with (
+            patch(
+                "specify_cli.download_and_extract_template", side_effect=fake_download
+            ),
+            patch("specify_cli.ensure_executable_scripts"),
+            patch("specify_cli.ensure_constitution_from_template"),
+            patch("specify_cli.install_ai_skills", return_value=False),
+            patch("specify_cli.is_git_repo", return_value=False),
+            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    str(target),
+                    "--ai",
+                    "claude",
+                    "--ai-skills",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
 
+        assert result.exit_code == 0
         # Commands should still exist since skills failed
         cmds_dir = target / ".claude" / "commands"
         assert cmds_dir.exists()
@@ -532,20 +622,39 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             pass  # commands already exist, no need to re-create
 
-        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
-             patch("specify_cli.ensure_executable_scripts"), \
-             patch("specify_cli.ensure_constitution_from_template"), \
-             patch("specify_cli.install_ai_skills", return_value=True), \
-             patch("specify_cli.is_git_repo", return_value=True), \
-             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
-            result = runner.invoke(app, ["init", "--here", "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"])
+        with (
+            patch(
+                "specify_cli.download_and_extract_template", side_effect=fake_download
+            ),
+            patch("specify_cli.ensure_executable_scripts"),
+            patch("specify_cli.ensure_constitution_from_template"),
+            patch("specify_cli.install_ai_skills", return_value=True),
+            patch("specify_cli.is_git_repo", return_value=True),
+            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--ai",
+                    "claude",
+                    "--ai-skills",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+                input="y\n",
+            )
 
+        assert result.exit_code == 0
         # Commands must remain for --here
         assert cmds_dir.exists()
         assert (cmds_dir / "speckit.specify.md").exists()
 
 
 # ===== Skip-If-Exists Tests =====
+
 
 class TestSkipIfExists:
     """Test that install_ai_skills does not overwrite existing SKILL.md files."""
@@ -565,8 +674,12 @@ class TestSkipIfExists:
 
         # But other skills should still be installed
         assert result is True
-        assert (project_dir / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
-        assert (project_dir / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
+        assert (
+            project_dir / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
+        assert (
+            project_dir / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
+        ).exists()
 
     def test_fresh_install_writes_all_skills(self, project_dir, templates_dir):
         """On first install (no pre-existing skills), all should be written."""
@@ -581,21 +694,32 @@ class TestSkipIfExists:
 
 # ===== SKILL_DESCRIPTIONS Coverage Tests =====
 
+
 class TestSkillDescriptions:
     """Test SKILL_DESCRIPTIONS constants."""
 
     def test_all_known_commands_have_descriptions(self):
         """All standard spec-kit commands should have enhanced descriptions."""
         expected_commands = [
-            "specify", "plan", "tasks", "implement", "analyze",
-            "clarify", "constitution", "checklist", "taskstoissues",
+            "specify",
+            "plan",
+            "tasks",
+            "implement",
+            "analyze",
+            "clarify",
+            "constitution",
+            "checklist",
+            "taskstoissues",
         ]
         for cmd in expected_commands:
             assert cmd in SKILL_DESCRIPTIONS, f"Missing description for '{cmd}'"
-            assert len(SKILL_DESCRIPTIONS[cmd]) > 20, f"Description for '{cmd}' is too short"
+            assert len(SKILL_DESCRIPTIONS[cmd]) > 20, (
+                f"Description for '{cmd}' is too short"
+            )
 
 
 # ===== CLI Validation Tests =====
+
 
 class TestCliValidation:
     """Test --ai-skills CLI flag validation."""
@@ -627,9 +751,47 @@ class TestCliValidation:
         runner = CliRunner()
         result = runner.invoke(app, ["init", "--help"])
 
-        plain = re.sub(r'\x1b\[[0-9;]*m', '', result.output)
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
         assert "--ai-skills" in plain
         assert "agent skills" in plain.lower()
+
+    def test_kiro_alias_normalized_to_kiro_cli(self, tmp_path):
+        """--ai kiro should normalize to canonical kiro-cli agent key."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        target = tmp_path / "kiro-alias-proj"
+
+        with (
+            patch("specify_cli.download_and_extract_template") as mock_download,
+            patch("specify_cli.ensure_executable_scripts"),
+            patch("specify_cli.ensure_constitution_from_template"),
+            patch("specify_cli.is_git_repo", return_value=False),
+            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    str(target),
+                    "--ai",
+                    "kiro",
+                    "--ignore-agent-tools",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                ],
+            )
+
+        assert result.exit_code == 0
+        assert mock_download.called
+        # download_and_extract_template(project_path, ai_assistant, script_type, ...)
+        assert mock_download.call_args.args[1] == "kiro-cli"
+
+    def test_q_and_kiro_cli_both_in_agent_config(self):
+        """Fork keeps both q and kiro-cli in AGENT_CONFIG for backward compatibility."""
+        assert "q" in AGENT_CONFIG
+        assert "kiro-cli" in AGENT_CONFIG
 
 
 class TestParameterOrderingIssue:
@@ -687,7 +849,9 @@ class TestParameterOrderingIssue:
         from typer.testing import CliRunner
 
         runner = CliRunner()
-        result = runner.invoke(app, ["init", "myproject", "--ai", "generic", "--ai-commands-dir", "--here"])
+        result = runner.invoke(
+            app, ["init", "myproject", "--ai", "generic", "--ai-commands-dir", "--here"]
+        )
 
         assert result.exit_code == 1
         assert "Invalid value for --ai-commands-dir" in result.output

@@ -504,7 +504,7 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | Agent                                                                                | Support | Notes                                                                                                                                     |
 | ------------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | [Qoder CLI](https://qoder.com/cli)                                                   | ✅      |                                                                                                                                           |
-| [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️      | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
+| [Kiro CLI](https://kiro.dev/docs/cli/)                                               | ✅      | Use `--ai kiro-cli` (alias: `--ai kiro`)                                                                                                 |
 | [Amp](https://ampcode.com/)                                                          | ✅      |                                                                                                                                           |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅      |                                                                                                                                           |
 | [Claude Code](https://www.anthropic.com/claude-code)                                 | ✅      |                                                                                                                                           |
@@ -676,7 +676,7 @@ The `specify` command supports the following options:
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
-| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `shai`, `qoder`) |
+| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`) |
 | `skill`     | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
@@ -684,20 +684,22 @@ The `specify` command supports the following options:
 | Argument/Option              | Type     | Description                                                                 |
 |------------------------------|----------|-----------------------------------------------------------------------------|
 | `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `q`, `agy`, `bob`, or `qoder` |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `q`, `agy`, `bob`, `qodercli`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai-commands-dir`          | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
 | `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
-| `--ignore-agent-tools`       | Flag     | Skip checks for AI agent tools like Claude                                                  |
-| `--no-git`                   | Flag     | Skip git repository                                         |
-| `--here`                     | Flag     | Initialize project in the current directory instead of creating a new one                                            |
-| `--force`                    | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)             |
-| `--skip-tls`                 | Flag     | Skip SSL/TLS verification (not recommended)                                |
-| `--debug`                    | Flag     | Enable detailed debug output for troubleshooting                                                        |
-| `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)      |
-| `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                               |
-| `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                    |
-| `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                   |
-| `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                     |
+| `--ignore-agent-tools`       | Flag     | Skip checks for AI agent tools like Claude                                  |
+| `--no-git`                   | Flag     | Skip git repository initialization                                          |
+| `--here`                     | Flag     | Initialize project in the current directory instead of creating a new one   |
+| `--force`                    | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation) |
+| `--skip-tls`                 | Flag     | Skip SSL/TLS verification (not recommended)                                 |
+| `--debug`                    | Flag     | Enable detailed debug output for troubleshooting                            |
+| `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)   |
+| `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                                |
+| `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                     |
+| `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                    |
+| `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                      |
 | `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
+| `--ai-skills`                | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
 
 ### `/spec.specify` Mode & Framework Options
 
@@ -781,6 +783,9 @@ specify init my-project --ai qoder
 
 # Initialize with Windsurf support
 specify init my-project --ai windsurf
+
+# Initialize with Kiro CLI support
+specify init my-project --ai kiro-cli
 
 # Initialize with Amp support
 specify init my-project --ai amp
@@ -997,7 +1002,7 @@ specify init . --force --ai claude
 specify init --here --force --ai claude
 ```
 
-The CLI will check if you have Claude Code, Gemini CLI, Cursor CLI, Qwen CLI, opencode, Codex CLI, Qoder CLI, or Amazon Q Developer CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
+The CLI will check if you have Claude Code, Gemini CLI, Cursor CLI, Qwen CLI, opencode, Codex CLI, Qoder CLI, or Kiro CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
 
 ```bash
 specify init <project_name> --ai claude --ignore-agent-tools

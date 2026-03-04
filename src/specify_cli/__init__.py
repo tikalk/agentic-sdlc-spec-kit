@@ -224,6 +224,13 @@ AGENT_CONFIG = {
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
+    "kiro-cli": {
+        "name": "Kiro CLI",
+        "folder": ".kiro/",
+        "commands_subdir": "prompts",  # Special: uses prompts/ not commands/
+        "install_url": "https://kiro.dev/docs/cli/",
+        "requires_cli": True,
+    },
     "q": {
         "name": "Amazon Q Developer CLI",
         "folder": ".amazonq/",
@@ -267,6 +274,37 @@ AGENT_CONFIG = {
         "requires_cli": False,
     },
 }
+
+AI_ASSISTANT_ALIASES = {
+    "kiro": "kiro-cli",
+}
+
+
+def _build_ai_assistant_help() -> str:
+    """Build the --ai help text from AGENT_CONFIG so it stays in sync with runtime config."""
+
+    non_generic_agents = sorted(agent for agent in AGENT_CONFIG if agent != "generic")
+    base_help = (
+        f"AI assistant to use: {', '.join(non_generic_agents)}, "
+        "or generic (requires --ai-commands-dir)."
+    )
+
+    if not AI_ASSISTANT_ALIASES:
+        return base_help
+
+    alias_phrases = []
+    for alias, target in sorted(AI_ASSISTANT_ALIASES.items()):
+        alias_phrases.append(f"'{alias}' as an alias for '{target}'")
+
+    if len(alias_phrases) == 1:
+        aliases_text = alias_phrases[0]
+    else:
+        aliases_text = ", ".join(alias_phrases[:-1]) + " and " + alias_phrases[-1]
+
+    return base_help + " Use " + aliases_text + "."
+
+
+AI_ASSISTANT_HELP = _build_ai_assistant_help()
 
 AGENT_CHOICES = list(AGENT_CONFIG.keys())
 
@@ -1897,7 +1935,12 @@ def check_tool(tool: str, tracker: Optional[StepTracker] = None) -> bool:
                 tracker.complete(tool, "available")
             return True
 
-    found = shutil.which(tool) is not None
+    if tool == "kiro-cli":
+        # Kiro currently supports both executable names. Prefer kiro-cli and
+        # accept kiro as a compatibility fallback.
+        found = shutil.which("kiro-cli") is not None or shutil.which("kiro") is not None
+    else:
+        found = shutil.which(tool) is not None
 
     if tracker:
         if found:
@@ -2848,9 +2891,10 @@ def _validate_ai_assistant(value: Optional[str]) -> Optional[str]:
             f"\nValid options: {', '.join(AGENT_CHOICES)}"
         )
         raise typer.Exit(1)
-    # Check if value is in allowed choices (case-insensitive)
+    # Check if value is in allowed choices or aliases (case-insensitive)
     valid_choices = [c.lower() for c in AGENT_CHOICES]
-    if value.lower() not in valid_choices:
+    valid_aliases = [a.lower() for a in AI_ASSISTANT_ALIASES.keys()]
+    if value.lower() not in valid_choices and value.lower() not in valid_aliases:
         console.print(
             f"[red]Invalid value for --ai:[/red] '{value}'.\n"
             f"Valid options: {', '.join(AGENT_CHOICES)}"
@@ -2882,7 +2926,7 @@ def init(
     ai_assistant: str = typer.Option(
         None,
         "--ai",
-        help="AI assistant to use: claude, gemini, copilot, cursor-agent, qwen, opencode, codex, windsurf, kilocode, auggie, codebuddy, amp, shai, q, agy, bob, qodercli, or generic (requires --ai-commands-dir)",
+        help=AI_ASSISTANT_HELP,
         case_sensitive=False,
         autocompletion=lambda: list(AGENT_CONFIG.keys()),
         callback=_validate_ai_assistant,
@@ -3003,6 +3047,9 @@ def init(
             "[yellow]Usage:[/yellow] specify init <project> --ai <agent> --ai-skills"
         )
         raise typer.Exit(1)
+
+    if ai_assistant:
+        ai_assistant = AI_ASSISTANT_ALIASES.get(ai_assistant, ai_assistant)
 
     if project_name == ".":
         here = True
@@ -3383,6 +3430,36 @@ def init(
                 tracker.error("extensions", f"failed: {str(e)}")
                 # Non-fatal - continue with project setup
 
+            if ai_skills:
+                skills_ok = install_ai_skills(
+                    project_path, selected_ai, tracker=tracker
+                )
+
+                # When --ai-skills is used on a NEW project and skills were
+                # successfully installed, remove the command files that the
+                # template archive just created.  Skills replace commands, so
+                # keeping both would be confusing.  For --here on an existing
+                # repo we leave pre-existing commands untouched to avoid a
+                # breaking change.  We only delete AFTER skills succeed so the
+                # project always has at least one of {commands, skills}.
+                if skills_ok and not here:
+                    agent_cfg = AGENT_CONFIG.get(selected_ai, {})
+                    agent_folder = agent_cfg.get("folder", "")
+                    commands_subdir = agent_cfg.get("commands_subdir", "commands")
+                    if agent_folder:
+                        cmds_dir = (
+                            project_path / agent_folder.rstrip("/") / commands_subdir
+                        )
+                        if cmds_dir.exists():
+                            try:
+                                shutil.rmtree(cmds_dir)
+                            except OSError:
+                                # Best-effort cleanup: skills are already installed,
+                                # so leaving stale commands is non-fatal.
+                                console.print(
+                                    "[yellow]Warning: could not remove extracted commands directory[/yellow]"
+                                )
+
             if not no_git:
                 tracker.start("git")
                 if is_git_repo(project_path):
@@ -3586,22 +3663,8 @@ def init(
         console.print()
         console.print(skills_panel)
 
-    if ai_skills and selected_ai:
-        skills_ok = install_ai_skills(project_path, selected_ai, tracker=None)
-
-        if skills_ok and not here:
-            agent_cfg = AGENT_CONFIG.get(selected_ai, {})
-            agent_folder = agent_cfg.get("folder", "")
-            commands_subdir = agent_cfg.get("commands_subdir", "commands")
-            if agent_folder:
-                cmds_dir = project_path / agent_folder.rstrip("/") / commands_subdir
-                if cmds_dir.exists():
-                    try:
-                        shutil.rmtree(cmds_dir)
-                    except OSError:
-                        console.print(
-                            "[yellow]Warning: could not remove extracted commands directory[/yellow]"
-                        )
+    # NOTE: ai_skills installation is handled inside the tracker session above (line ~3433)
+    # Do not duplicate the install_ai_skills call here.
 
 
 @app.command()

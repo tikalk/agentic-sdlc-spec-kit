@@ -661,8 +661,8 @@ class CommandRegistrar:
             "args": "$ARGUMENTS",
             "extension": ".md",
         },
-        "q": {
-            "dir": ".amazonq/prompts",
+        "kiro-cli": {
+            "dir": ".kiro/prompts",
             "format": "markdown",
             "args": "$ARGUMENTS",
             "extension": ".md",

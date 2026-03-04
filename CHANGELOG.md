@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Merged from Upstream (spec-kit 0.1.13)
+
+- feat: add kiro-cli and AGENT_CONFIG consistency coverage (#1690)
+- feat: add verify extension to community catalog (#1726)
+- Add Retrospective Extension to community catalog README table (#1741)
+- fix(scripts): add empty description validation and branch checkout error handling (#1559)
+- fix: correct Copilot extension command registration (#1724)
+- fix(implement): remove Makefile from C ignore patterns (#1558)
+- Add sync extension to community catalog (#1728)
+- fix(checklist): clarify file handling behavior for append vs create (#1556)
+- fix(clarify): correct conflicting question limit from 10 to 5 (#1557)
+
 ### Added
 
 - **LevelUp Extension**: Modularized `/spec.levelup` into dedicated extension with 5 CDR-based commands (#56)
