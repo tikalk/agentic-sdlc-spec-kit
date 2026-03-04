@@ -7,6 +7,10 @@
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"
 
+**Goal**: [one-sentence objective - core purpose]  
+**Success Criteria**: [2-3 measurable outcomes - summary]  
+**Constraints**: [key constraints - technical/business/regulatory]
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

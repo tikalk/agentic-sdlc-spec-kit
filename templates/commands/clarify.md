@@ -31,6 +31,62 @@ Goal: Detect and reduce ambiguity or missing decision points in the active featu
 
 Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/spec.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
+## Mission Brief Validation
+
+Before proceeding with Three-Pillar Validation, validate that the spec has a complete Mission Brief.
+
+**Mission Brief Fields** (in spec header):
+- **Goal**: One-sentence objective - core purpose
+- **Success Criteria**: 2-3 measurable outcomes
+- **Constraints**: Key constraints - technical/business/regulatory
+
+### Validation Logic
+
+1. Parse spec header for Goal, Success Criteria, Constraints fields
+2. Check if any field is missing or contains placeholder text (e.g., `[one-sentence objective - core purpose]`)
+
+### Mode-Aware Behavior
+
+**Spec Mode (required)**:
+- If any Mission Brief field is missing or empty, **block** and prompt user to provide it before proceeding
+- Output the Mission Brief prompt template and wait for user input
+- Do NOT proceed to Three-Pillar Validation until Mission Brief is complete
+
+**Build Mode (recommended)**:
+- If any Mission Brief field is missing, **warn** but allow user to skip
+- Output: "⚠️ Mission Brief incomplete. Recommended for better spec clarity. Continue anyway? (yes/no)"
+- If user says "yes", proceed to Three-Pillar Validation
+- If user provides Mission Brief content, update spec and proceed
+
+### Mission Brief Prompt Template
+
+When Mission Brief is missing or incomplete, display:
+
+```
+## Mission Brief Required
+
+Before proceeding with clarification, the spec needs a Mission Brief:
+
+**Goal**: [One-sentence objective - what do you want to achieve?]
+
+**Success Criteria**: [2-3 measurable outcomes]
+- Example: "Users can log in within 5 seconds"
+- Example: "95% of searches return results in under 1 second"
+
+**Constraints**: [Key constraints]
+- Examples: "Must work offline", "Budget < $X", "No external APIs"
+
+Please provide the Mission Brief fields, or type "skip" (Build Mode only) to proceed without.
+```
+
+### Recording Mission Brief
+
+When user provides Mission Brief content:
+1. Update the spec.md header with the provided values
+2. Replace placeholder text with actual content
+3. Save the spec file
+4. Proceed to Three-Pillar Validation
+
 ## Three-Pillar Validation
 
 This command validates the spec across three pillars:

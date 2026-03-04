@@ -264,7 +264,7 @@ Given that feature description, do this:
        - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
-       - **Mission**: Extract the core purpose/goal from the feature description
+       - **Mission**: Use the **Goal** field from the Mission Brief in spec.md header (or extract core purpose/goal from feature description if Goal not yet populated)
        - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
         - **Directives**: Reference applicable team directives from constitution/memory
         - **Team Directives Guide**: Run `{SCRIPT}` to get `TEAM_AGENTS_MD` path from JSON output. If team-ai-directives is configured, include the path to AGENTS.md for usage instructions
