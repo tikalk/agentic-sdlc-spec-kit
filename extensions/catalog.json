@@ -7,6 +7,7 @@
       "id": "levelup",
       "name": "LevelUp - Team AI Directives Contributor",
       "version": "1.0.0",
+      "preinstall": true,
       "description": "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)",
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
@@ -29,6 +30,37 @@
         "skills",
         "cdr",
         "contribution"
+      ],
+      "verified": false,
+      "featured": false
+    },
+    "architect": {
+      "id": "architect",
+      "name": "Architect - ADR & Architecture Description",
+      "version": "1.0.0",
+      "preinstall": true,
+      "description": "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology",
+      "author": "Agentic SDLC Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/architect",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.0.80"
+      },
+      "commands": [
+        "speckit.architect.init",
+        "speckit.architect.specify",
+        "speckit.architect.clarify",
+        "speckit.architect.implement",
+        "speckit.architect.analyze"
+      ],
+      "tags": [
+        "architecture",
+        "adr",
+        "rozanski-woods",
+        "brownfield",
+        "greenfield",
+        "documentation"
       ],
       "verified": false,
       "featured": false

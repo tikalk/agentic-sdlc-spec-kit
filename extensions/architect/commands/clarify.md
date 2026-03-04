@@ -1,20 +1,10 @@
 ---
 description: Refine and validate system-level ADRs through targeted clarification questions
-handoffs:
-  - label: Generate Architecture
-    agent: architect.implement
-    prompt: Generate full architecture description from ADRs
-    send: true
-  - label: Review Architecture
-    agent: spec.analyze
-    prompt: Analyze architecture for consistency and completeness
-    send: false
 scripts:
-  sh: scripts/bash/setup-architecture.sh "clarify {ARGS}"
-  ps: scripts/powershell/setup-architecture.ps1 "clarify {ARGS}"
-agent_scripts:
-  sh: scripts/bash/update-agent-context.sh __AGENT__
-  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: scripts/bash/setup-architect.sh "clarify {ARGS}"
+  ps: scripts/powershell/setup-architect.ps1 "clarify {ARGS}"
+---
+
 ---
 
 ## User Input

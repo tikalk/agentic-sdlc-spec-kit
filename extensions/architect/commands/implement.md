@@ -1,20 +1,10 @@
 ---
 description: Generate full Architecture Description (AD.md) from ADRs using Rozanski & Woods methodology
-handoffs:
-  - label: Create Feature Spec
-    agent: spec.specify
-    prompt: Create a feature specification within this architecture
-    send: false
-  - label: Analyze Architecture
-    agent: spec.analyze
-    prompt: Analyze architecture for consistency and completeness
-    send: true
 scripts:
-  sh: scripts/bash/setup-architecture.sh "implement {ARGS}"
-  ps: scripts/powershell/setup-architecture.ps1 "implement {ARGS}"
-agent_scripts:
-  sh: scripts/bash/update-agent-context.sh __AGENT__
-  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: scripts/bash/setup-architect.sh "implement {ARGS}"
+  ps: scripts/powershell/setup-architect.ps1 "implement {ARGS}"
+---
+
 ---
 
 ## User Input

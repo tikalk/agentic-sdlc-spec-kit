@@ -173,11 +173,58 @@ build_variant() {
   
   [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .specify/templates"; }
   
-  # Copy bundled extensions (levelup is installed by default)
-  if [[ -d extensions/levelup ]]; then
-    mkdir -p "$SPEC_DIR/extensions"
-    cp -r extensions/levelup "$SPEC_DIR/extensions/"
-    echo "Copied extensions/levelup -> .specify/extensions"
+  # Copy extensions catalog and preinstall extensions
+  if [[ -f "extensions/catalog.json" ]]; then
+    # Copy catalog.json to .specify/ for local extension management
+    cp "extensions/catalog.json" "$SPEC_DIR/catalog.json"
+    echo "Copied extensions/catalog.json -> .specify/catalog.json"
+    
+    # Read preinstall extensions from catalog.json
+    preinstall_exts=$(python3 -c "
+import json
+import sys
+try:
+    with open('extensions/catalog.json') as f:
+        data = json.load(f)
+    extensions = data.get('extensions', {})
+    # Get extensions with preinstall: true
+    preinstall = [k for k, v in extensions.items() if v.get('preinstall', False)]
+    if preinstall:
+        print(' '.join(preinstall))
+    else:
+        # Fallback: if no preinstall field, use all extensions
+        print(' '.join(extensions.keys()))
+except Exception as e:
+    print(f'Warning: Failed to parse catalog.json: {e}', file=sys.stderr)
+    sys.exit(1)
+" 2>&1)
+    
+    # Check if python command failed
+    if [[ $? -ne 0 ]]; then
+      echo "Warning: $preinstall_exts" >&2
+      # Fallback: copy all extension directories
+      preinstall_exts=$(ls -d extensions/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ' ')
+    fi
+    
+    # Copy preinstall extensions
+    for ext in $preinstall_exts; do
+      if [[ -d "extensions/$ext" ]]; then
+        mkdir -p "$SPEC_DIR/extensions"
+        cp -r "extensions/$ext" "$SPEC_DIR/extensions/"
+        echo "Copied extensions/$ext -> .specify/extensions"
+      fi
+    done
+  else
+    # Fallback: copy all extension directories if no catalog.json
+    echo "Warning: extensions/catalog.json not found, copying all extensions" >&2
+    for ext_dir in extensions/*/; do
+      if [[ -d "$ext_dir" ]] && [[ -f "$ext_dir/extension.yml" ]]; then
+        ext=$(basename "$ext_dir")
+        mkdir -p "$SPEC_DIR/extensions"
+        cp -r "$ext_dir" "$SPEC_DIR/extensions/"
+        echo "Copied extensions/$ext -> .specify/extensions"
+      fi
+    done
   fi
   
   # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:

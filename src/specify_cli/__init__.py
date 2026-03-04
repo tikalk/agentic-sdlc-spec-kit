@@ -2804,8 +2804,9 @@ def install_bundled_extensions(
 ) -> None:
     """Install bundled extensions that ship with spec-kit.
 
-    Currently installs:
-    - levelup: CDR-based team-ai-directives contribution workflow
+    Reads the preinstall list from .specify/catalog.json (extensions with
+    "preinstall": true). Falls back to scanning extension directories if
+    catalog is missing or invalid.
 
     Looks for extensions in the following locations (in order):
     1. Project's .specify/extensions/ (bundled in release ZIP)
@@ -2816,30 +2817,85 @@ def install_bundled_extensions(
         selected_ai: Selected AI assistant (for command registration)
         tracker: Optional progress tracker
     """
-    from .extensions import ExtensionManager, ExtensionError
+    import json
 
-    # List of bundled extensions to install by default
-    bundled_extensions = ["levelup"]
+    from .extensions import ExtensionManager, ExtensionError
 
     # Try multiple locations for bundled extensions (in priority order)
     # 1. Project's .specify/extensions/ (from extracted release ZIP)
     # 2. Package's bundled_extensions/ (installed with pip/uv)
     # 3. Repository's extensions/ directory (for development)
     bundled_extensions_dir = None
+    catalog_path = None
     search_paths = [
-        project_path / ".specify" / "extensions",  # Extracted from release ZIP
-        Path(__file__).parent / "bundled_extensions",  # Installed package
-        Path(__file__).parent.parent.parent / "extensions",  # Dev: repo root
+        (
+            project_path / ".specify" / "extensions",
+            project_path / ".specify" / "catalog.json",
+        ),
+        (
+            Path(__file__).parent / "bundled_extensions",
+            Path(__file__).parent / "bundled_extensions" / "catalog.json",
+        ),
+        (
+            Path(__file__).parent.parent.parent / "extensions",
+            Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
+        ),
     ]
 
-    for path in search_paths:
-        if path.exists() and (path / "levelup" / "extension.yml").exists():
-            bundled_extensions_dir = path
-            break
+    for ext_path, cat_path in search_paths:
+        if ext_path.exists():
+            # Check if any extension.yml exists in subdirectories
+            has_extensions = any(
+                (ext_path / d / "extension.yml").exists()
+                for d in ext_path.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if has_extensions:
+                bundled_extensions_dir = ext_path
+                if cat_path.exists():
+                    catalog_path = cat_path
+                break
 
     if not bundled_extensions_dir:
         if tracker:
             tracker.skip("extensions", "bundled extensions not found")
+        return
+
+    # Read preinstall list from catalog.json
+    bundled_extensions = []
+    if catalog_path and catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            extensions = catalog_data.get("extensions", {})
+            # Get extensions with preinstall: true
+            bundled_extensions = [
+                ext_id
+                for ext_id, ext_data in extensions.items()
+                if ext_data.get("preinstall", False)
+            ]
+            # Fallback: if no preinstall field found, use all extensions in catalog
+            if not bundled_extensions:
+                bundled_extensions = list(extensions.keys())
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
+            )
+            # Will fall through to directory scan fallback
+
+    # Fallback: scan extension directories if no catalog or no preinstall list
+    if not bundled_extensions:
+        bundled_extensions = [
+            d.name
+            for d in bundled_extensions_dir.iterdir()
+            if d.is_dir()
+            and not d.name.startswith(".")
+            and (d / "extension.yml").exists()
+        ]
+
+    if not bundled_extensions:
+        if tracker:
+            tracker.skip("extensions", "no extensions to install")
         return
 
     manager = ExtensionManager(project_path)

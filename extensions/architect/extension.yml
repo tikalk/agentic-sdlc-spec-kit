@@ -1,0 +1,129 @@
+schema_version: "1.0"
+
+extension:
+  id: "architect"
+  name: "Architect - ADR & Architecture Description"
+  version: "1.0.0"
+  description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology"
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/architect"
+
+requires:
+  speckit_version: ">=0.0.80"
+  tools:
+    - name: "git"
+      required: true
+      version: ">=2.0.0"
+
+provides:
+  commands:
+    # Brownfield: reverse-engineer ADRs from codebase
+    - name: "speckit.architect.init"
+      file: "commands/init.md"
+      description: "Reverse-engineer architecture from existing codebase (brownfield) to create ADRs"
+      aliases: ["architect.init"]
+
+    # Greenfield: interactive PRD exploration -> ADRs
+    - name: "speckit.architect.specify"
+      file: "commands/specify.md"
+      description: "Interactive PRD exploration to create system-level ADRs (greenfield)"
+      aliases: ["architect.specify"]
+
+    # Refine/validate ADRs
+    - name: "speckit.architect.clarify"
+      file: "commands/clarify.md"
+      description: "Refine and validate system-level ADRs through targeted clarification questions"
+      aliases: ["architect.clarify"]
+
+    # Generate AD.md from ADRs
+    - name: "speckit.architect.implement"
+      file: "commands/implement.md"
+      description: "Generate full Architecture Description (AD.md) from ADRs using Rozanski & Woods methodology"
+      aliases: ["architect.implement"]
+
+    # NEW: Analyze ADR <-> AD consistency
+    - name: "speckit.architect.analyze"
+      file: "commands/analyze.md"
+      description: "Analyze architecture for consistency between ADRs and AD, completeness, and quality issues"
+      aliases: ["architect.analyze"]
+
+  config:
+    - name: "architect-config.yml"
+      template: "config-template.yml"
+      description: "Architect extension configuration"
+      required: false
+
+# Handoffs between commands
+handoffs:
+  architect.init:
+    - label: "Validate Discovered ADRs"
+      agent: "architect.clarify"
+      prompt: "Review ADRs discovered from brownfield codebase analysis"
+      send: true
+    - label: "Generate Architecture"
+      agent: "architect.implement"
+      prompt: "Generate full architecture description from ADRs"
+      send: false
+    - label: "Analyze Architecture"
+      agent: "architect.analyze"
+      prompt: "Validate discovered ADRs for completeness and consistency"
+      send: false
+
+  architect.specify:
+    - label: "Refine ADRs"
+      agent: "architect.clarify"
+      prompt: "Refine and validate the ADRs created from PRD exploration"
+      send: true
+    - label: "Generate Architecture"
+      agent: "architect.implement"
+      prompt: "Generate full architecture description from ADRs"
+      send: false
+
+  architect.clarify:
+    - label: "Generate Architecture"
+      agent: "architect.implement"
+      prompt: "Generate full architecture description from ADRs"
+      send: true
+    - label: "Analyze Architecture"
+      agent: "architect.analyze"
+      prompt: "Validate ADR-AD consistency after refinement"
+      send: false
+
+  architect.implement:
+    - label: "Create Feature Spec"
+      agent: "spec.specify"
+      prompt: "Create a feature specification within this architecture"
+      send: false
+    - label: "Analyze Architecture"
+      agent: "architect.analyze"
+      prompt: "Validate ADR-AD consistency and completeness"
+      send: true
+
+  architect.analyze:
+    - label: "Refine ADRs"
+      agent: "architect.clarify"
+      prompt: "Address ADR quality issues found during analysis"
+      send: false
+    - label: "Update Architecture"
+      agent: "architect.implement"
+      prompt: "Regenerate AD.md to address consistency issues"
+      send: false
+
+tags:
+  - "architecture"
+  - "adr"
+  - "rozanski-woods"
+  - "brownfield"
+  - "greenfield"
+  - "documentation"
+
+defaults:
+  adr:
+    heuristic: "surprising"  # surprising | all | minimal
+    location: ".specify/memory/adr.md"
+  ad:
+    location: "AD.md"
+  views: "core"  # core | all | comma-separated
+  decompose: true

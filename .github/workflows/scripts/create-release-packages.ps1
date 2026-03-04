@@ -271,6 +271,59 @@ function Build-Variant {
         Write-Host "Copied templates -> .specify/templates"
     }
     
+    # Copy extensions catalog and preinstall extensions
+    $catalogPath = "extensions/catalog.json"
+    if (Test-Path $catalogPath) {
+        # Copy catalog.json to .specify/ for local extension management
+        Copy-Item -Path $catalogPath -Destination (Join-Path $specDir "catalog.json") -Force
+        Write-Host "Copied extensions/catalog.json -> .specify/catalog.json"
+        
+        # Read preinstall extensions from catalog.json
+        $preinstallExts = @()
+        try {
+            $catalog = Get-Content $catalogPath -Raw | ConvertFrom-Json
+            foreach ($prop in $catalog.extensions.PSObject.Properties) {
+                if ($prop.Value.preinstall -eq $true) {
+                    $preinstallExts += $prop.Name
+                }
+            }
+            # Fallback: if no preinstall field, use all extensions
+            if ($preinstallExts.Count -eq 0) {
+                foreach ($prop in $catalog.extensions.PSObject.Properties) {
+                    $preinstallExts += $prop.Name
+                }
+            }
+        } catch {
+            Write-Host "Warning: Failed to parse catalog.json: $_" -ForegroundColor Yellow
+            # Fallback: copy all extension directories
+            $preinstallExts = Get-ChildItem -Path "extensions" -Directory | 
+                Where-Object { Test-Path (Join-Path $_.FullName "extension.yml") } |
+                Select-Object -ExpandProperty Name
+        }
+        
+        # Copy preinstall extensions
+        foreach ($ext in $preinstallExts) {
+            $extPath = Join-Path "extensions" $ext
+            if (Test-Path $extPath) {
+                $extensionsDestDir = Join-Path $specDir "extensions"
+                New-Item -ItemType Directory -Path $extensionsDestDir -Force | Out-Null
+                Copy-Item -Path $extPath -Destination $extensionsDestDir -Recurse -Force
+                Write-Host "Copied extensions/$ext -> .specify/extensions"
+            }
+        }
+    } else {
+        # Fallback: copy all extension directories if no catalog.json
+        Write-Host "Warning: extensions/catalog.json not found, copying all extensions" -ForegroundColor Yellow
+        $extDirs = Get-ChildItem -Path "extensions" -Directory -ErrorAction SilentlyContinue |
+            Where-Object { Test-Path (Join-Path $_.FullName "extension.yml") }
+        foreach ($extDir in $extDirs) {
+            $extensionsDestDir = Join-Path $specDir "extensions"
+            New-Item -ItemType Directory -Path $extensionsDestDir -Force | Out-Null
+            Copy-Item -Path $extDir.FullName -Destination $extensionsDestDir -Recurse -Force
+            Write-Host "Copied extensions/$($extDir.Name) -> .specify/extensions"
+        }
+    }
+    
     # Generate agent-specific command files
     switch ($Agent) {
         'claude' {

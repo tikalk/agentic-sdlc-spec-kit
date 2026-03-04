@@ -1,28 +1,10 @@
 ---
 description: Reverse-engineer architecture from existing codebase (brownfield) to create ADRs, then validate with clarifying questions
-handoffs:
-  - label: Validate Discovered ADRs
-    agent: architect.clarify
-    prompt: |
-      Review ADRs discovered from brownfield codebase analysis.
-      Ask questions about:
-      - Current state validity (are inferred decisions still correct?)
-      - Team context (size, maturity, constraints)
-      - Technical debt and deprecated patterns
-      - Migration plans for legacy components
-      Focus on validating assumptions, not suggesting new approaches.
-    send: true
-  - label: Generate Architecture
-    agent: architect.implement
-    prompt: Generate full architecture description from ADRs
-    send: false
 scripts:
-  sh: scripts/bash/setup-architecture.sh "init {ARGS}"
-  ps: scripts/powershell/setup-architecture.ps1 "init {ARGS}"
-agent_scripts:
-  sh: scripts/bash/update-agent-context.sh __AGENT__
-  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: scripts/bash/setup-architect.sh "init {ARGS}"
+  ps: scripts/powershell/setup-architect.ps1 "init {ARGS}"
 ---
+
 
 ## User Input
 
