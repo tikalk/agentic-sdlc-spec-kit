@@ -7,6 +7,14 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.90] - 2026-03-04
+
+### Changed
+
+- fix: correct release-trigger workflow for agentic-sdlc-v tag format
+- fix: update release workflow to trigger on agentic-sdlc-v* tags
+
+
 ## [Unreleased]
 
 ## [0.0.89] - 2026-03-04
