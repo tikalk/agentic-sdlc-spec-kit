@@ -9,6 +9,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.89] - 2026-03-04
+
+### Merged from Upstream (spec-kit 0.1.13)
+
+This release merges upstream changes from github/spec-kit while preserving all custom features.
+
+#### New Features from Upstream
+
+- **Extension Hook Support**: Added before/after hooks for tasks and implement commands
+  - `before_tasks` hook: Execute extensions before task generation
+  - `after_tasks` hook: Execute extensions after task generation
+  - `before_implement` hook: Execute extensions before implementation
+  - `after_implement` hook: Execute extensions after implementation
+  - Supports both optional and mandatory hooks
+  - Condition evaluation deferred to HookExecutor implementation
+
+#### Template Improvements from Upstream
+
+- **implement.md**: Added Pre-Execution Checks section for extension hooks
+- **tasks.md**: Added Pre-Execution Checks section for extension hooks
+- **C ignore patterns**: Made consistent with C++ patterns
+
+#### Documentation Updates from Upstream
+
+- **README.md**: Updated Antigravity link to correct URL (antigravity.google)
+- **README.md**: Added Antigravity initialization example
+- **README.md**: Added generic agent initialization example
+
+#### Conflict Resolution
+
+Integrated upstream changes while preserving fork-specific features:
+
+- **Mode Detection**: Retained Build Mode and Spec Mode workflow detection
+- **Dual Execution Loop**: Preserved SYNC/ASYNC task classification system
+- **TDD Support**: Maintained TDD mode option integration
+- **Risk-Based Testing**: Kept risk test generation capabilities
+- **Issue Tracker Integration**: Retained ASYNC task labeling and tracking
+
+### Added
+
+- **Hook Test Infrastructure**: New test files for validating extension hooks
+  - `tests/hooks/.specify/extensions.yml`: Test extension configuration
+  - `tests/hooks/TESTING.md`: Hook testing documentation
+  - `tests/hooks/plan.md`, `spec.md`, `tasks.md`: Test scenario files
+
+### Changed
+
+- **Agent References**: Kept `spec.*` agent references (not changed to `speckit.*`)
+
 ## [0.0.88] - 2026-03-04
 
 ### Fixed

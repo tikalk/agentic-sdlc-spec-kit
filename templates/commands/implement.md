@@ -41,6 +41,40 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Pre-Execution Checks
+
+**Check for extension hooks (before implementation)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_implement` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter to only hooks where `enabled: true`
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
 ## Outline (Mode-Aware)
 
 ### Build Mode Execution Flow
@@ -127,8 +161,8 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Check if terraform files (*.tf) exist → create/verify .terraformignore
    - Check if .helmignore needed (helm charts present) → create/verify .helmignore
 
-    **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
-    **If ignore file missing**: Create with full pattern set for detected technology
+   **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
+   **If ignore file missing**: Create with full pattern set for detected technology
 
    **Common Patterns by Technology** (from plan.md tech stack if available, otherwise detect from project files):
    - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
@@ -141,7 +175,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Rust**: `target/`, `debug/`, `release/`, `*.rs.bk`, `*.rlib`, `*.prof*`, `.idea/`, `*.log`, `.env*`
    - **Kotlin**: `build/`, `out/`, `.gradle/`, `.idea/`, `*.class`, `*.jar`, `*.iml`, `*.log`, `.env*`
    - **C++**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.so`, `*.a`, `*.exe`, `*.dll`, `.idea/`, `*.log`, `.env*`
-   - **C**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.a`, `*.so`, `*.exe`, `autom4te.cache/`, `config.status`, `config.log`, `.idea/`, `*.log`, `.env*`
+   - **C**: `build/`, `bin/`, `obj/`, `out/`, `*.o`, `*.a`, `*.so`, `*.exe`, `*.dll`, `autom4te.cache/`, `config.status`, `config.log`, `.idea/`, `*.log`, `.env*`
    - **Swift**: `.build/`, `DerivedData/`, `*.swiftpm/`, `Packages/`
    - **R**: `.Rproj.user/`, `.Rhistory`, `.RData`, `.Ruserdata`, `*.Rproj`, `packrat/`, `renv/`
    - **Universal**: `.DS_Store`, `Thumbs.db`, `*.tmp`, `*.swp`, `.vscode/`, `.idea/`
@@ -153,63 +187,63 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-   1. Parse tasks.md structure and extract (mode-aware):
-       - **Task phases**: Setup, Tests, Core, Integration, Polish
-       - **Task dependencies**: Sequential vs parallel execution rules
-       - **Task details**: ID, description, file paths, parallel markers [P]
-       - **Execution flow**: Order and dependency requirements
-       - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
-       - Record assigned agents and job IDs for ASYNC tasks
+    1. Parse tasks.md structure and extract (mode-aware):
+        - **Task phases**: Setup, Tests, Core, Integration, Polish
+        - **Task dependencies**: Sequential vs parallel execution rules
+        - **Task details**: ID, description, file paths, parallel markers [P]
+        - **Execution flow**: Order and dependency requirements
+        - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
+        - Record assigned agents and job IDs for ASYNC tasks
 
-   2. Execute implementation following execution approach (mode-aware):
+    2. Execute implementation following execution approach (mode-aware):
 
-       **Build Mode Execution:**
-       - **Simplified flow**: Focus on core tasks for primary functionality
-       - **Basic coordination**: Run essential tasks sequentially, skip complex parallel execution
-       - **Lightweight validation**: Basic checks for core functionality
-       - **Fast iteration**: Prioritize working code over comprehensive testing
+        **Build Mode Execution:**
+        - **Simplified flow**: Focus on core tasks for primary functionality
+        - **Basic coordination**: Run essential tasks sequentially, skip complex parallel execution
+        - **Lightweight validation**: Basic checks for core functionality
+        - **Fast iteration**: Prioritize working code over comprehensive testing
 
-       **Spec Mode Execution (Dual Execution Loop):**
-       - **Phase-by-phase execution**: Complete each phase before moving to the next
-       - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-       - **Follow TDD approach** (if enabled): Check current mode opinion settings - if TDD enabled, execute test tasks before implementation tasks
-       - **File-based coordination**: Tasks affecting the same files must run sequentially
-       - **Dual execution mode handling**:
-         - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-           - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
-       - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-       - **Validation checkpoints**: Verify each phase completion before proceeding
+        **Spec Mode Execution (Dual Execution Loop):**
+        - **Phase-by-phase execution**: Complete each phase before moving to the next
+        - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
+        - **Follow TDD approach** (if enabled): Check current mode opinion settings - if TDD enabled, execute test tasks before implementation tasks
+        - **File-based coordination**: Tasks affecting the same files must run sequentially
+        - **Dual execution mode handling**:
+          - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+            - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
+        - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+        - **Validation checkpoints**: Verify each phase completion before proceeding
 
-5. Implementation execution rules (mode-aware):
+ 5. Implementation execution rules (mode-aware):
 
-     **Build Mode Rules:**
-     - **Core first**: Focus on primary user journey implementation
-     - **Basic setup**: Essential project structure and dependencies only
-     - **Working functionality**: Prioritize demonstrable features over comprehensive coverage
-     - **Iterative approach**: Get something working, then refine
+      **Build Mode Rules:**
+      - **Core first**: Focus on primary user journey implementation
+      - **Basic setup**: Essential project structure and dependencies only
+      - **Working functionality**: Prioritize demonstrable features over comprehensive coverage
+      - **Iterative approach**: Get something working, then refine
 
-     **Spec Mode Rules:**
-     - **Setup first**: Initialize project structure, dependencies, configuration
-     - **Tests before code** (if TDD enabled): If TDD is enabled in current mode settings and you need to write tests for contracts, entities, and integration scenarios
-     - **Core development**: Implement models, services, CLI commands, endpoints
-     - **Integration work**: Database connections, middleware, logging, external services
-     - **Polish and validation**: Unit tests, performance optimization, documentation
+      **Spec Mode Rules:**
+      - **Setup first**: Initialize project structure, dependencies, configuration
+      - **Tests before code** (if TDD enabled): If TDD is enabled in current mode settings and you need to write tests for contracts, entities, and integration scenarios
+      - **Core development**: Implement models, services, CLI commands, endpoints
+      - **Integration work**: Database connections, middleware, logging, external services
+      - **Polish and validation**: Unit tests, performance optimization, documentation
 
-6. Progress tracking and error handling (mode-aware):
-     - Report progress after each completed task
-     - **Build Mode**: Continue on minor errors, focus on core functionality
-     - **Spec Mode**: Halt execution if any non-parallel task fails
-     - For parallel tasks [P], continue with successful tasks, report failed ones
-     - Provide clear error messages with context for debugging
-     - Suggest next steps if implementation cannot proceed
-     - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+ 6. Progress tracking and error handling (mode-aware):
+      - Report progress after each completed task
+      - **Build Mode**: Continue on minor errors, focus on core functionality
+      - **Spec Mode**: Halt execution if any non-parallel task fails
+      - For parallel tasks [P], continue with successful tasks, report failed ones
+      - Provide clear error messages with context for debugging
+      - Suggest next steps if implementation cannot proceed
+      - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-7. Issue Tracker Integration (Spec Mode only):
-     - If ASYNC tasks were dispatched, update issue tracker with progress
-     - Apply completion labels when ASYNC tasks finish
-     - Provide traceability links between tasks and issue tracker items
+ 7. Issue Tracker Integration (Spec Mode only):
+      - If ASYNC tasks were dispatched, update issue tracker with progress
+      - Apply completion labels when ASYNC tasks finish
+      - Provide traceability links between tasks and issue tracker items
 
-8. Completion validation (mode-aware):
+ 8. Completion validation (mode-aware):
 
       **Build Mode Validation:**
       - Verify core user journey works end-to-end
@@ -223,6 +257,35 @@ You **MUST** consider the user input before proceeding (if not empty).
       - Validate that tests pass and coverage meets requirements
       - Confirm the implementation follows the technical plan
       - Report final status with comprehensive summary of completed work
+
+9. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
+    - If it exists, read it and look for entries under the `hooks.after_implement` key
+    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+    - Filter to only hooks where `enabled: true`
+    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+    - For each executable hook, output the following based on its `optional` flag:
+      - **Optional hook** (`optional: true`):
+        ```
+        ## Extension Hooks
+
+        **Optional Hook**: {extension}
+        Command: `/{command}`
+        Description: {description}
+
+        Prompt: {prompt}
+        To execute: `/{command}`
+        ```
+      - **Mandatory hook** (`optional: false`):
+        ```
+        ## Extension Hooks
+
+        **Automatic Hook**: {extension}
+        Executing: `/{command}`
+        EXECUTE_COMMAND: {command}
+        ```
+    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
 

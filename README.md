@@ -524,7 +524,8 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 | [Roo Code](https://roocode.com/)                                                     | ✅      |                                                                                                                                           |
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
-| [Antigravity (agy)](https://agy.ai/)                                                 | ✅      |                                                                                                                                           |
+| [Antigravity (agy)](https://antigravity.google/)                                     | ✅      |                                                                                                                                           |
+| Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
 
 ## 📦 Skills Package Manager
 
@@ -648,31 +649,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 
 ### Integration Points
 
-- **`specify init`** - Auto-installs team required skills during project setup
-- **`/spec.specify`** - Auto-discovers and injects relevant skills per feature
-- **`/spec.plan`** - References activated skills in planning
-- **`/spec.implement`** - Agent applies skill guidance during implementation
-- **`team-ai-directives/skills.json`** - Central skill registry alongside MCP configuration
-
-### Benefits
-
-1. **Consistency** - All team members follow same practices and patterns
-2. **Quality** - Skills embed best practices and quality standards
-3. **Speed** - Auto-discovery eliminates manual guidance searching
-4. **Learning** - Skills capture team knowledge for reuse and growth
-5. **Governance** - Team policies enforce standards while allowing overrides
-
-### Learning More
-
-- **[Skills Registry](https://skills.sh)** - Discover public skills from the community
-- **[Agent Skills Format](https://agentskills.io/)** - Standard format for creating skills
-- **[Roadmap Details](./roadmap.md#-skills-package-manager--100-complete---completed---extends-factor-xi-directives-as-code)** - Technical implementation details
-
----
-
 ## 🔧 Specify CLI Reference
-
-The `specify` command supports the following options:
 
 ### Commands
 
@@ -798,6 +775,13 @@ specify init my-project --ai shai
 
 # Initialize with IBM Bob support
 specify init my-project --ai bob
+
+
+# Initialize with Antigravity support
+specify init my-project --ai agy
+
+# Initialize with an unsupported agent (generic / bring your own agent)
+specify init my-project --ai generic --ai-commands-dir .myagent/commands/
 
 # Initialize with PowerShell scripts (Windows/cross-platform)
 specify init my-project --ai copilot --script ps
