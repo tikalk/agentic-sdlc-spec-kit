@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.88] - 2026-03-04
+
+### Fixed
+
+- **Architect Extension Bundling**: Add architect extension to pyproject.toml for proper bundling in release packages
+  - Extension was merged in #57 but not included in wheel/sdist builds
+  - Now bundled alongside levelup extension in `specify_cli/bundled_extensions/`
+
 ### Merged from Upstream (spec-kit 0.1.13)
 
 - feat: add kiro-cli and AGENT_CONFIG consistency coverage (#1690)
