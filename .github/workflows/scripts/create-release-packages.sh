@@ -102,13 +102,8 @@ generate_commands() {
     # Apply other substitutions
     body=$(printf '%s\n' "$body" | sed "s/{ARGS}/$arg_format/g" | sed "s/__AGENT__/$agent/g" | rewrite_paths)
     
-    # Determine output filename - architect commands don't get spec. prefix
-    local output_name
-    if [[ $name == architect.* ]]; then
-      output_name="$name"
-    else
-      output_name="spec.$name"
-    fi
+    # Determine output filename
+    local output_name="spec.$name"
     
     case $ext in
       toml)
