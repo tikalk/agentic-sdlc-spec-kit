@@ -42,6 +42,8 @@ env/
 .env
 .env.local
 *.lock
+tmp/
+bin/
 
 # Spec Kit-specific files
 .genreleases/
