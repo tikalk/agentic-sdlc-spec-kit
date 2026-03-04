@@ -338,7 +338,9 @@ specify init my-project \
 
 ### Optional Architecture Support
 
-The toolkit includes comprehensive architecture documentation support that works with both build and spec modes. Architecture commands are optional and can be used at any time, regardless of workflow mode.
+The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work with both build and spec modes and can be used at any time, regardless of workflow mode.
+
+> **Note**: The Architect extension is bundled and auto-installed during `specify init`.
 
 #### Two-Level Architecture System
 
@@ -373,10 +375,11 @@ The toolkit includes comprehensive architecture documentation support that works
 
 | Command | Description |
 |---------|-------------|
+| `architect.init` | Reverse-engineer architecture from existing codebase (brownfield) |
 | `architect.specify` | Interactive PRD exploration to create system-level ADRs |
 | `architect.clarify` | Refine ADRs through targeted clarification questions |
-| `architect.init` | Reverse-engineer architecture from existing codebase (brownfield) |
 | `architect.implement` | Generate full Architecture Description (AD.md) from ADRs |
+| `architect.analyze` | Validate ADR <-> AD consistency and quality |
 
 **Feature Architecture**: Use `/spec.plan --architecture` or set `architecture=true` in spec.md Framework Options to generate feature-level architecture (`specs/{feature}/AD.md` and `specs/{feature}/adr.md`).
 
@@ -846,10 +849,11 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
-| `/architect.specify`  | Interactive PRD exploration to create system-level ADRs |
-| `/architect.clarify`  | Refine ADRs through targeted clarification questions |
-| `/architect.init`     | Reverse-engineer architecture from existing codebase (brownfield) |
-| `/architect.implement`| Generate full Architecture Description (AD.md) from ADRs |
+| `/architect.init`     | Reverse-engineer architecture from codebase (brownfield) *(via architect extension)* |
+| `/architect.specify`  | Interactive PRD exploration to create ADRs *(via architect extension)* |
+| `/architect.clarify`  | Refine ADRs through clarification questions *(via architect extension)* |
+| `/architect.implement`| Generate AD.md from ADRs *(via architect extension)* |
+| `/architect.analyze`  | Validate ADR <-> AD consistency *(via architect extension)* |
 | `/spec.constitution`  | Create or update project governing principles and development guidelines |
 | `/spec.specify`       | Define what you want to build (requirements and user stories)        |
 | `/spec.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |

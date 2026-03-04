@@ -271,6 +271,17 @@ function Build-Variant {
         Write-Host "Copied templates -> .specify/templates"
     }
     
+    # Copy bundled extensions (levelup and architect are installed by default)
+    foreach ($ext in @('levelup', 'architect')) {
+        $extPath = Join-Path "extensions" $ext
+        if (Test-Path $extPath) {
+            $extensionsDestDir = Join-Path $specDir "extensions"
+            New-Item -ItemType Directory -Path $extensionsDestDir -Force | Out-Null
+            Copy-Item -Path $extPath -Destination $extensionsDestDir -Recurse -Force
+            Write-Host "Copied extensions/$ext -> .specify/extensions"
+        }
+    }
+    
     # Generate agent-specific command files
     switch ($Agent) {
         'claude' {

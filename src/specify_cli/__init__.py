@@ -2819,7 +2819,7 @@ def install_bundled_extensions(
     from .extensions import ExtensionManager, ExtensionError
 
     # List of bundled extensions to install by default
-    bundled_extensions = ["levelup"]
+    bundled_extensions = ["levelup", "architect"]
 
     # Try multiple locations for bundled extensions (in priority order)
     # 1. Project's .specify/extensions/ (from extracted release ZIP)

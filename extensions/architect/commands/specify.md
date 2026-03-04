@@ -1,20 +1,10 @@
 ---
-description: Interactive PRD exploration and system-level ADR creation through guided architectural discussion
-handoffs:
-  - label: Refine ADRs
-    agent: architect.clarify
-    prompt: |
-      Review ADRs created from greenfield PRD exploration.
-      Ask questions about:
-      - Trade-offs and alternatives not yet considered
-      - Industry best practices and standards alignment
-      - Scalability and future growth concerns
-      - Team constraints and skill requirements
-      Focus on refining decisions with best practices, not validating existing code.
-    send: true
-  - label: Generate Architecture
-    agent: architect.implement
-    prompt: Generate full architecture description from ADRs
+description: Interactive PRD exploration and system-level ADR creation (greenfield)
+scripts:
+  sh: scripts/bash/setup-architect.sh "specify {ARGS}"
+  ps: scripts/powershell/setup-architect.ps1 "specify {ARGS}"
+---
+
     send: false
 scripts:
   sh: scripts/bash/setup-architecture.sh "specify {ARGS}"
