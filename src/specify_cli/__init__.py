@@ -3777,7 +3777,13 @@ def version():
     # Get CLI version from package metadata
     cli_version = "unknown"
     try:
-        cli_version = importlib.metadata.version("specify-cli")
+        # Try both package names (upstream and fork)
+        for pkg_name in ["agentic-sdlc-specify-cli", "specify-cli"]:
+            try:
+                cli_version = importlib.metadata.version(pkg_name)
+                break
+            except importlib.metadata.PackageNotFoundError:
+                continue
     except Exception:
         # Fallback: try reading from pyproject.toml if running from source
         try:

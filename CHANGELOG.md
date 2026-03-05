@@ -7,6 +7,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.94] - 2026-03-05
+
+### Fixed
+
+- fix: version banner now correctly detects package name for agentic-sdlc-specify-cli
+  - Updated `version()` command to try both package names like `get_speckit_version()`
+  - Resolves issue where CLI version showed "unknown" when package installed as agentic-sdlc-specify-cli
+
+
 ## [0.0.93] - 2026-03-05
 
 ### Changed
