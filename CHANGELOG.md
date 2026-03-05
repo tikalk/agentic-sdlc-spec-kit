@@ -7,6 +7,16 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.95] - 2026-03-05
+
+### Changed
+
+- feat!: migrate command namespace from speckit.* to adlc.*
+  - Primary command names changed from speckit.* to adlc.*
+  - Short aliases now available (architect.*, levelup.*)
+  - Removed legacy setup-architecture.{sh,ps1} scripts
+  - Fixed setup-architect.ps1 help text
+
 ## [0.0.94] - 2026-03-05
 
 ### Fixed
