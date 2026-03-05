@@ -330,10 +330,16 @@ class ExtensionManager:
 
         # Install extension
         dest_dir = self.extensions_dir / manifest.id
-        if dest_dir.exists():
-            shutil.rmtree(dest_dir)
 
-        shutil.copytree(source_dir, dest_dir)
+        # If source and dest are the same, we need to copy to a temp location first
+        # This can happen when installing from bundled_extensions that are in the same location
+        if source_dir.resolve() == dest_dir.resolve():
+            # Already installed in place, skip copy
+            pass
+        else:
+            if dest_dir.exists():
+                shutil.rmtree(dest_dir)
+            shutil.copytree(source_dir, dest_dir)
 
         # Register commands with AI agents
         registered_commands = {}
