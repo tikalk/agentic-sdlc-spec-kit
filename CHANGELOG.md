@@ -7,6 +7,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.103] - 2026-03-05
+
+### Added
+
+- feat(extensions): add Jira Integration to community catalog (#1764)
+- Add Azure DevOps Integration extension to community catalog (#1734)
+
 ## [0.0.97] - 2026-03-05
 
 ### Fixed
