@@ -116,11 +116,11 @@ class ExtensionManifest:
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
-            # Validate command name format
-            if not re.match(r"^speckit\.[a-z0-9-]+\.[a-z0-9-]+$", cmd["name"]):
+            # Validate command name format - allow speckit.* or adlc.* prefixes
+            if not re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", cmd["name"]):
                 raise ValidationError(
                     f"Invalid command name '{cmd['name']}': "
-                    "must follow pattern 'speckit.{extension}.{command}'"
+                    "must follow pattern '(speckit|adlc).{extension}.{command}'"
                 )
 
     @property
