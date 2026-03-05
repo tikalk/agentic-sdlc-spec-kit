@@ -17,7 +17,7 @@ A YAML manifest with ALL of the following fields:
 - extension.author: Author name
 - extension.repository: GitHub repository URL
 - extension.license: License type (e.g., MIT)
-- requires.speckit_version: Minimum spec-kit version (e.g., ">=0.1.0")
+- requires.adlc_version: Minimum spec-kit version (e.g., ">=0.1.0")
 - provides.commands: List of commands with name, file, description
 - provides.config: Configuration file references
 - tags: 2-5 relevant tags for catalog discovery
@@ -46,7 +46,7 @@ A YAML configuration file with:
 
 IMPORTANT CONSTRAINTS:
 - All YAML must be valid and parseable
-- Command names must follow pattern: speckit.{extension-id}.{command-name}
+- Command names must follow pattern: adlc.{extension-id}.{command-name}
 - Extension ID must be lowercase with hyphens only
 - Include clear CUSTOMIZE comments for user modification
 - Self-contained: no references to @rule, @persona, or @example
