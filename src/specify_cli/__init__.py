@@ -3824,8 +3824,8 @@ def version():
             pass
 
     # Fetch latest template release version
-    repo_owner = "github"
-    repo_name = "spec-kit"
+    repo_owner = "tikalk"
+    repo_name = "agentic-sdlc-spec-kit"
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
 
     template_version = "unknown"
