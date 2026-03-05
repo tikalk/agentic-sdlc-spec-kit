@@ -2868,15 +2868,20 @@ def install_bundled_extensions(
             with open(catalog_path) as f:
                 catalog_data = json.load(f)
             extensions = catalog_data.get("extensions", {})
-            # Get extensions with preinstall: true
+            # Get extensions with preinstall: true AND that actually exist in the bundled directory
             bundled_extensions = [
                 ext_id
                 for ext_id, ext_data in extensions.items()
                 if ext_data.get("preinstall", False)
+                and (bundled_extensions_dir / ext_id / "extension.yml").exists()
             ]
-            # Fallback: if no preinstall field found, use all extensions in catalog
+            # Fallback: if no preinstall field found, use all extensions in catalog that exist
             if not bundled_extensions:
-                bundled_extensions = list(extensions.keys())
+                bundled_extensions = [
+                    ext_id
+                    for ext_id in extensions.keys()
+                    if (bundled_extensions_dir / ext_id / "extension.yml").exists()
+                ]
         except (json.JSONDecodeError, IOError) as e:
             console.print(
                 f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
