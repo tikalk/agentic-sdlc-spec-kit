@@ -2912,7 +2912,7 @@ def install_bundled_extensions(
     for ext_name in bundled_extensions:
         ext_dir = bundled_extensions_dir / ext_name
         if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
-            skipped.append(ext_name)
+            skipped.append(f"{ext_name} (not found)")
             continue
 
         try:
@@ -2929,6 +2929,12 @@ def install_bundled_extensions(
             if tracker:
                 pass  # Will be reported in summary
             skipped.append(f"{ext_name} ({str(e)[:30]})")
+        except OSError as e:
+            # Handle case where directory doesn't exist or other OS errors
+            skipped.append(f"{ext_name} (not found)")
+        except Exception as e:
+            # Catch any other unexpected errors
+            skipped.append(f"{ext_name} ({str(e)[:40]})")
 
     # Report results
     if tracker:
