@@ -2944,7 +2944,7 @@ def install_bundled_extensions(
             if tracker:
                 pass  # Will be reported in summary
             skipped.append(f"{ext_name} ({str(e)[:30]})")
-        except OSError as e:
+        except OSError:
             # Handle case where directory doesn't exist or other OS errors
             skipped.append(f"{ext_name} (not found)")
         except Exception as e:
