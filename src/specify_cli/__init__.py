@@ -2855,6 +2855,21 @@ def install_bundled_extensions(
                 if cat_path.exists():
                     catalog_path = cat_path
                 break
+            # If path exists but has no extensions, continue to check next path
+        # If path doesn't exist, continue to check next path
+
+    if not bundled_extensions_dir:
+        # Try harder: check bundled_extensions from package as fallback
+        fallback_bundled = Path(__file__).parent / "bundled_extensions"
+        if fallback_bundled.exists() and any(
+            (fallback_bundled / d / "extension.yml").exists()
+            for d in fallback_bundled.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        ):
+            bundled_extensions_dir = fallback_bundled
+            catalog_path = (
+                None  # No catalog in bundled_extensions, will use directory scan
+            )
 
     if not bundled_extensions_dir:
         if tracker:
