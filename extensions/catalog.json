@@ -17,11 +17,11 @@
         "speckit_version": ">=0.0.80"
       },
       "commands": [
-        "speckit.levelup.init",
-        "speckit.levelup.clarify",
-        "speckit.levelup.spec",
-        "speckit.levelup.skills",
-        "speckit.levelup.implement"
+        "adlc.levelup.init",
+        "adlc.levelup.clarify",
+        "adlc.levelup.spec",
+        "adlc.levelup.skills",
+        "adlc.levelup.implement"
       ],
       "tags": [
         "team-ai-directives",
@@ -48,11 +48,11 @@
         "speckit_version": ">=0.0.80"
       },
       "commands": [
-        "speckit.architect.init",
-        "speckit.architect.specify",
-        "speckit.architect.clarify",
-        "speckit.architect.implement",
-        "speckit.architect.analyze"
+        "adlc.architect.init",
+        "adlc.architect.specify",
+        "adlc.architect.clarify",
+        "adlc.architect.implement",
+        "adlc.architect.analyze"
       ],
       "tags": [
         "architecture",

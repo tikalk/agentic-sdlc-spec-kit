@@ -20,34 +20,34 @@ requires:
 provides:
   commands:
     # Brownfield CDR discovery - like architect.init
-    - name: "speckit.levelup.init"
+    - name: "adlc.levelup.init"
       file: "commands/init.md"
       description: "Scan codebase and discover Context Directive Records (CDRs) for team-ai-directives contributions"
-      aliases: ["levelup.init"]
+      aliases: ["levelup.init", "speckit.levelup.init"]
 
     # Resolve CDR ambiguities - like architect.clarify
-    - name: "speckit.levelup.clarify"
+    - name: "adlc.levelup.clarify"
       file: "commands/clarify.md"
       description: "Resolve ambiguities in discovered/proposed CDRs through clarifying questions"
-      aliases: ["levelup.clarify"]
+      aliases: ["levelup.clarify", "speckit.levelup.clarify"]
 
     # Refine CDRs from feature context - handoff only
-    - name: "speckit.levelup.spec"
+    - name: "adlc.levelup.spec"
       file: "commands/spec.md"
       description: "Refine CDRs using current feature spec context (handoff from init/clarify)"
-      aliases: ["levelup.spec"]
+      aliases: ["levelup.spec", "speckit.levelup.spec"]
 
     # Build single skill from user input
-    - name: "speckit.levelup.skills"
+    - name: "adlc.levelup.skills"
       file: "commands/skills.md"
       description: "Build a single skill from accepted CDRs based on user input"
-      aliases: ["levelup.skills"]
+      aliases: ["levelup.skills", "speckit.levelup.skills"]
 
     # Compile CDRs to PR
-    - name: "speckit.levelup.implement"
+    - name: "adlc.levelup.implement"
       file: "commands/implement.md"
       description: "Compile accepted CDRs into a draft PR to team-ai-directives repository"
-      aliases: ["levelup.implement"]
+      aliases: ["levelup.implement", "speckit.levelup.implement"]
 
   config:
     - name: "levelup-config.yml"

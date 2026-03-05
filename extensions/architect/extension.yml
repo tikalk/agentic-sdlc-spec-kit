@@ -20,34 +20,34 @@ requires:
 provides:
   commands:
     # Brownfield: reverse-engineer ADRs from codebase
-    - name: "speckit.architect.init"
+    - name: "adlc.architect.init"
       file: "commands/init.md"
       description: "Reverse-engineer architecture from existing codebase (brownfield) to create ADRs"
-      aliases: ["architect.init"]
+      aliases: ["architect.init", "speckit.architect.init"]
 
     # Greenfield: interactive PRD exploration -> ADRs
-    - name: "speckit.architect.specify"
+    - name: "adlc.architect.specify"
       file: "commands/specify.md"
       description: "Interactive PRD exploration to create system-level ADRs (greenfield)"
-      aliases: ["architect.specify"]
+      aliases: ["architect.specify", "speckit.architect.specify"]
 
     # Refine/validate ADRs
-    - name: "speckit.architect.clarify"
+    - name: "adlc.architect.clarify"
       file: "commands/clarify.md"
       description: "Refine and validate system-level ADRs through targeted clarification questions"
-      aliases: ["architect.clarify"]
+      aliases: ["architect.clarify", "speckit.architect.clarify"]
 
     # Generate AD.md from ADRs
-    - name: "speckit.architect.implement"
+    - name: "adlc.architect.implement"
       file: "commands/implement.md"
       description: "Generate full Architecture Description (AD.md) from ADRs using Rozanski & Woods methodology"
-      aliases: ["architect.implement"]
+      aliases: ["architect.implement", "speckit.architect.implement"]
 
     # NEW: Analyze ADR <-> AD consistency
-    - name: "speckit.architect.analyze"
+    - name: "adlc.architect.analyze"
       file: "commands/analyze.md"
       description: "Analyze architecture for consistency between ADRs and AD, completeness, and quality issues"
-      aliases: ["architect.analyze"]
+      aliases: ["architect.analyze", "speckit.architect.analyze"]
 
   config:
     - name: "architect-config.yml"
