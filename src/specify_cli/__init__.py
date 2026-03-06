@@ -1846,6 +1846,33 @@ def show_banner():
     console.print(Align.center(Text(TAGLINE, style=f"italic {ACCENT_COLOR}")))
     console.print()
 
+    # Display extension summary if we're in a spec-kit project
+    project_path = Path.cwd()
+    specify_dir = project_path / ".specify"
+
+    if specify_dir.exists():
+        try:
+            preinstalled = get_preinstalled_extensions(project_path)
+            if preinstalled:
+                ext_names = [
+                    f"[{ACCENT_COLOR}]{ext['name']}[/{ACCENT_COLOR}]"
+                    for ext in preinstalled
+                ]
+                if ext_names:
+                    ext_list = ", ".join(ext_names[:4])  # Show max 4 extensions
+                    if len(ext_names) > 4:
+                        ext_list += f" [+{len(ext_names) - 4} more]"
+
+                    ext_summary = Text.assemble(
+                        ("Extensions: ", "dim"),
+                        (ext_list, ""),
+                    )
+                    console.print(Align.center(ext_summary))
+                    console.print()
+        except Exception:
+            # Silently ignore any errors getting extension info
+            pass
+
 
 def show_skills_banner():
     """Display the Skills Package Manager banner with key features."""
