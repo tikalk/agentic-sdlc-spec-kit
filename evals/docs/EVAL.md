@@ -8,11 +8,11 @@ The annotation evals are a **multi-layered evaluation framework** for testing th
 
 ## 1. Automated Testing (PromptFoo)
 
-**23 LLM eval tests** across 6 suites, plus **4 security graders** that run on every test automatically.
+**22 LLM eval tests** across 6 suites, plus **4 security graders** that run on every test automatically.
 
 ### Test Suites
 
-#### Spec Template Tests (10 tests)
+#### Spec Template Tests (9 tests)
 - **Basic Structure**: Validates required sections (Overview, Requirements, User Stories, etc.)
 - **No Premature Tech Stack**: Ensures spec focuses on WHAT, not HOW
 - **Quality User Stories**: Checks for proper format and acceptance criteria
@@ -22,7 +22,6 @@ The annotation evals are a **multi-layered evaluation framework** for testing th
 - **Completeness**: Comprehensive requirements for complex features
 - **Regression**: Even simple features maintain proper structure
 - **Rename Regression**: Post-rename output matches quality bar
-- **Build-mode Spec**: Build-mode template generates appropriate output
 
 #### Plan Template Tests (2 tests)
 - **Simplicity Gate**: Simple apps should have ≤3 projects (Constitution Article VII)
@@ -61,7 +60,7 @@ Four graders run on **every LLM output** across all 23 tests via `defaultTest.as
 ### Running Automated Tests
 
 ```bash
-# Run all 23 LLM eval tests
+# Run all 22 LLM eval tests
 ./evals/scripts/run-promptfoo-eval.sh
 
 # Run with JSON output
@@ -146,7 +145,7 @@ Located in `evals/annotation-tool/`, this is a **FastHTML-based web interface** 
 ```
 1. Generate Specs/Plans/Arch docs (using prompt templates)
    ↓
-2. PromptFoo Tests (23 LLM tests + 4 security graders on each)
+2. PromptFoo Tests (22 LLM tests + 4 security graders on each)
    ↓
 3. Unit Tests (pytest — fast, no API key needed)
    ↓

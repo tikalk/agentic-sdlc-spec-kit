@@ -6,11 +6,11 @@ Comprehensive evaluation infrastructure for testing spec-kit template quality us
 
 ## 📊 Current Evaluation Results (Updated: 2026-02-18)
 
-**Overall: 23 LLM eval tests + 39 unit tests across 6 suites** ✅
+**Overall: 22 LLM eval tests + 39 unit tests across 6 suites** ✅
 
 | Test Suite | Tests | What It Checks |
 |------------|-------|----------------|
-| **Spec Template** | 10 | Structure, clarity, security, completeness, regression |
+| **Spec Template** | 9 | Structure, clarity, security, completeness, regression |
 | **Plan Template** | 2 | Simplicity gate, constitution compliance |
 | **Architecture Template** | 4 | Rozanski & Woods structure, blackbox context view, simplicity, ADR quality |
 | **Extension System** | 3 | Manifest validation, self-containment, config template |
@@ -18,7 +18,7 @@ Comprehensive evaluation infrastructure for testing spec-kit template quality us
 | **Trace Validation** | 2 | Structure completeness, decision quality |
 | **Security (all suites)** | +4 per test | PII, prompt injection, hallucinations, misinformation |
 | **Unit tests (pytest)** | 39 | Grader logic, extension system |
-| **Total** | **63+** | |
+| **Total** | **61** | |
 
 ## Quick Start
 
@@ -96,7 +96,8 @@ Each suite sends a prompt to the LLM and evaluates the output against structured
 - **Completeness** — complex features have comprehensive requirements
 - **Regression** — simple features still maintain proper structure
 - **Rename Regression** — post-rename output matches quality bar
-- **Build-mode Spec** — build-mode template generates appropriate output
+
+#### Plan Template (2 tests)
 
 #### Plan Template (2 tests)
 - **Simplicity Gate** — simple apps have ≤3 projects (Constitution Article VII)

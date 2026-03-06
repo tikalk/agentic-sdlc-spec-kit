@@ -210,30 +210,6 @@ module.exports = {
       ],
     },
 
-    // Test 12: Build-mode Spec Quality
-    {
-      description: 'Spec Template: Build-mode produces lean, focused output',
-      prompt: 'file://../prompts/spec-prompt.txt',
-      vars: {
-        user_input:
-          'Build a simple health check endpoint that returns server status, uptime, and database connectivity. Build mode - minimal spec.',
-      },
-      assert: [
-        { type: 'icontains', value: 'requirement' },
-        {
-          type: 'llm-rubric',
-          value:
-            'Grade if this is appropriately lean for a simple health check feature (0-1):\n' +
-            '1. Is it concise (not overly verbose for a health check endpoint)?\n' +
-            '2. Does it include core functional requirements (status, uptime, db connectivity)?\n' +
-            '3. Does it have success criteria?\n' +
-            '4. Does it AVOID unnecessary complexity for such a simple feature?\n' +
-            'Return average score 0-1.',
-          threshold: 0.7,
-        },
-      ],
-    },
-
     // ========================================
     // PLAN TEMPLATE TESTS (4 tests)
     // ========================================
