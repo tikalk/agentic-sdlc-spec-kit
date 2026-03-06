@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 *(No changes - version bump only)*
 
-## [0.0.109] - 2026-03-06
+## [0.0.109] - 2026-06
 
 ### Fixed
 
@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added enforcement mode section with critical rules at template start
   - Prevent AI from defaulting to file analysis mode
   - Ensures Mission Brief is always collected before file operations
+
+### Removed
+
+- Remove build mode leftover references from codebase after build/spec mode removal in 0.0.106
 
 ## [0.0.108] - 2026-03-06
 
