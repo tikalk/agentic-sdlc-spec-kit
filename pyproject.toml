@@ -28,12 +28,14 @@ packages = ["src/specify_cli"]
 [tool.hatch.build.targets.wheel.force-include]
 "extensions/levelup" = "specify_cli/bundled_extensions/levelup"
 "extensions/architect" = "specify_cli/bundled_extensions/architect"
+"extensions/quick" = "specify_cli/bundled_extensions/quick"
 
 [tool.hatch.build.targets.sdist]
 include = [
     "src/",
     "extensions/levelup/",
     "extensions/architect/",
+    "extensions/quick/",
 ]
 
 [project.optional-dependencies]
