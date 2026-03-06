@@ -423,20 +423,21 @@ Feature-level architecture controlled via:
 - ❌ **Dynamic MCP Tool Resolution**: Use declarative tools pattern with configuration-driven tool selection based on detected issue tracker
 - ❌ **Multi-Tracker Support**: Support GitHub/Jira/Linear/GitLab issue formats with appropriate MCP tool routing
 
-#### **Session Trace Command (/trace)** *(100% Complete)* - **HIGH PRIORITY** - AI session documentation and learning
+#### **Session Trace Command (/levelup.trace)** *(100% Complete)* - **HIGH PRIORITY** - AI session documentation and learning
 
 - ✅ **Trace Generation Scripts**: Created bash and PowerShell scripts to generate traces from tasks_meta.json and feature artifacts
 - ✅ **Trace Validation Scripts**: Implemented validation for section completeness, coverage percentage, and quality gate statistics
-- ✅ **Command Template**: Created `/trace` command template with generation and validation workflows
+- ✅ **Command Template**: Created `/levelup.trace` command as part of LevelUp extension with generation and validation workflows
 - ✅ **Trace Template**: Defined 5-section trace structure (Session Overview, Decision Patterns, Execution Context, Reusable Patterns, Evidence Links)
 - ✅ **Levelup Integration**: Modified `/levelup.spec` to consume trace.md if exists (optional enrichment)
 - ✅ **Mode Support**: Works in both build and spec modes with appropriate trace depth
 - ✅ **Storage Location**: Traces stored in specs/{BRANCH}/trace.md with feature artifacts
-- ✅ **Overwrite Behavior**: Re-running `/trace` overwrites previous trace (single latest version)
+- ✅ **Overwrite Behavior**: Re-running `/levelup.trace` overwrites previous trace (single latest version)
+- ✅ **Extension Migration**: Moved trace command to LevelUp extension for better integration with team learning workflow
 
 **Purpose**: Generate comprehensive AI session execution traces for knowledge sharing, pattern identification, and learning. Traces capture decision-making patterns, execution outcomes, quality gate results, and evidence links. Optional but enriches `/levelup.spec` CDR extraction when present.
 
-**Workflow**: `/implement` → `/trace` (generate session trace) → `/levelup.spec` (consume trace for CDR extraction)
+**Workflow**: `/implement` → `/levelup.trace` (generate session trace) → `/levelup.spec` (consume trace for CDR extraction)
 
 #### **Levelup Command Build Mode Compatibility** *(100% Complete)* - **COMPLETED** - AI session context management
 

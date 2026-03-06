@@ -1,0 +1,1 @@
+../../../../scripts/bash/validate-trace.sh

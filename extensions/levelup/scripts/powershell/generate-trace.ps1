@@ -1,0 +1,1 @@
+../../../../scripts/powershell/generate-trace.ps1

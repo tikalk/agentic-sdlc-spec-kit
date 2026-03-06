@@ -1,0 +1,1 @@
+../../../../scripts/powershell/validate-trace.ps1

@@ -44,7 +44,7 @@ if [[ ! -f "$TRACE_FILE" ]]; then
         printf '{"valid":false,"error":"Trace file not found: %s"}\n' "$TRACE_FILE"
     else
         echo "ERROR: Trace file not found: $TRACE_FILE" >&2
-        echo "Run /trace to generate a session trace." >&2
+        echo "Run /levelup.trace to generate a session trace." >&2
     fi
     exit 1
 fi

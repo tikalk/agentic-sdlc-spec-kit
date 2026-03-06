@@ -49,6 +49,12 @@ provides:
       description: "Compile accepted CDRs into a draft PR to team-ai-directives repository"
       aliases: ["levelup.implement"]
 
+    # Trace - Session execution tracing
+    - name: "adlc.levelup.trace"
+      file: "commands/trace.md"
+      description: "Generate and validate AI session execution traces from implementation metadata"
+      aliases: ["levelup.trace", "trace"]
+
   config:
     - name: "levelup-config.yml"
       template: "config-template.yml"
@@ -77,6 +83,12 @@ handoffs:
       prompt: "Build skills from accepted CDRs"
       send: false
 
+  levelup.trace:
+    - label: "Extract CDRs from Trace"
+      agent: "levelup.spec"
+      prompt: "Extract CDRs using trace.md for enriched context"
+      send: false
+
 tags:
   - "team-ai-directives"
   - "brownfield"
@@ -84,6 +96,8 @@ tags:
   - "skills"
   - "cdr"
   - "contribution"
+  - "trace"
+  - "session-tracing"
 
 defaults:
   cdr:

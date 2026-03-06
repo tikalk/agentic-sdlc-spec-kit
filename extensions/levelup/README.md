@@ -15,10 +15,21 @@ The LevelUp extension helps brownfield projects analyze their codebase and contr
 | `/levelup.spec` | Refine CDRs using current feature spec context |
 | `/levelup.skills` | Build a single skill from accepted CDRs |
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
+| `/levelup.trace` | Generate and validate AI session execution traces |
 
 ## Quick Start
 
-### 1. Initialize CDR Discovery
+### 1. Generate Session Trace (Optional but Recommended)
+
+After implementing a feature, generate a trace to document the session:
+
+```bash
+/levelup.trace
+```
+
+This creates `specs/{BRANCH}/trace.md` with execution summary.
+
+### 2. Initialize CDR Discovery
 
 Scan your codebase for patterns that could become team-wide directives:
 
@@ -114,6 +125,26 @@ pull_request:
 
 ## Command Flow
 
+```
+levelup.init          levelup.clarify        levelup.skills        levelup.implement
+(Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶ (Create PR)
+     │                      │                      │                      │
+     │    [handoff]         │    [handoff]         │                      │
+     └──▶ levelup.spec ◀────┘                      │                      │
+           (Refine from                             │                      │
+            feature context)                        │                      │
+                                                     │                      │
+                    ┌───────────────────────────────┘                      │
+                    │                                                      │
+                    ▼                                                      │
+             levelup.trace ◀───────────────────────────────────────────────┘
+             (Generate Trace)
+                    │
+                    │ [handoff]
+                    ▼
+             levelup.spec
+             (Extract CDRs with
+              trace enrichment)
 ```
 levelup.init          levelup.clarify        levelup.skills        levelup.implement
 (Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶  (Create PR)

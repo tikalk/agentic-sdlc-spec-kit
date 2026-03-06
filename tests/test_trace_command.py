@@ -44,10 +44,11 @@ def test_trace_validation_script_exists():
 
 
 def test_trace_command_template_exists():
-    """Test that trace command template exists"""
+    """Test that trace command template exists in levelup extension"""
     repo_root = Path(__file__).parent.parent
 
-    template_file = repo_root / "templates/commands/trace.md"
+    # Trace command is now part of the levelup extension
+    template_file = repo_root / "extensions/levelup/commands/trace.md"
     assert template_file.exists(), f"Trace command template not found: {template_file}"
 
     # Verify template has required sections
@@ -60,14 +61,17 @@ def test_trace_command_template_exists():
         "Template doesn't reference PowerShell script"
     )
 
-    print("✅ Trace command template exists with required sections")
+    print(
+        "✅ Trace command template exists in levelup extension with required sections"
+    )
 
 
 def test_trace_template_structure():
     """Test that trace template has proper 5-section structure"""
     repo_root = Path(__file__).parent.parent
 
-    template_file = repo_root / "templates/trace-template.md"
+    # Trace template is now in the levelup extension
+    template_file = repo_root / "extensions/levelup/templates/trace-template.md"
     assert template_file.exists(), f"Trace template not found: {template_file}"
 
     content = template_file.read_text()
@@ -147,7 +151,8 @@ def test_trace_storage_location():
     """Test that trace documentation specifies correct storage location"""
     repo_root = Path(__file__).parent.parent
 
-    trace_template = repo_root / "templates/commands/trace.md"
+    # Trace command is now in levelup extension
+    trace_template = repo_root / "extensions/levelup/commands/trace.md"
     content = trace_template.read_text()
 
     # Verify storage location documented
@@ -163,7 +168,8 @@ def test_summary_section_in_template():
     """Test that trace template includes Summary section"""
     repo_root = Path(__file__).parent.parent
 
-    template_file = repo_root / "templates/trace-template.md"
+    # Trace template is now in levelup extension
+    template_file = repo_root / "extensions/levelup/templates/trace-template.md"
     content = template_file.read_text()
 
     # Verify Summary section exists
@@ -234,10 +240,11 @@ def test_summary_validation_in_scripts():
 
 
 def test_commands_documentation_mentions_summary():
-    """Test that commands/trace.md documents the Summary section"""
+    """Test that levelup trace command documents the Summary section"""
     repo_root = Path(__file__).parent.parent
 
-    commands_doc = repo_root / "templates/commands/trace.md"
+    # Trace command is now in the levelup extension
+    commands_doc = repo_root / "extensions/levelup/commands/trace.md"
     content = commands_doc.read_text()
 
     # Check documentation mentions Summary

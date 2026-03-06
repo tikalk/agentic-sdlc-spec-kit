@@ -2961,6 +2961,43 @@ def install_bundled_extensions(
             tracker.skip("extensions", "none available")
 
 
+def get_preinstalled_extensions(project_path: Path) -> list[dict]:
+    """Get list of pre-installed extensions from catalog.json.
+
+    Returns list of dicts with: id, name, description, commands
+    """
+    extensions = []
+
+    # Check multiple locations for catalog
+    catalog_paths = [
+        project_path / ".specify" / "extensions" / "catalog.json",
+        Path(__file__).parent / "bundled_extensions" / "catalog.json",
+        Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
+    ]
+
+    for catalog_path in catalog_paths:
+        if catalog_path.exists():
+            try:
+                with open(catalog_path) as f:
+                    catalog_data = json.load(f)
+
+                for ext_id, ext_data in catalog_data.get("extensions", {}).items():
+                    if ext_data.get("preinstall", False):
+                        extensions.append(
+                            {
+                                "id": ext_id,
+                                "name": ext_data.get("name", ext_id),
+                                "description": ext_data.get("description", ""),
+                                "commands": ext_data.get("commands", []),
+                            }
+                        )
+                break
+            except Exception:
+                continue
+
+    return extensions
+
+
 def _validate_ai_assistant(value: Optional[str]) -> Optional[str]:
     """Validate the ai_assistant option value."""
     if value is None:
@@ -3098,7 +3135,6 @@ def init(
     6. Optionally clone or reference a shared team-ai-directives repository
     7. Optionally configure MCP servers for issue tracker integration
     8. Optionally configure MCP servers for AI agent integration
-    9. Capture learnings after delivery with /levelup.spec
 
     Examples:
         specify init my-project
@@ -3669,28 +3705,19 @@ def init(
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
     steps_lines.append(
-        f"   2.1 [{ACCENT_COLOR}]/architect.specify[/{ACCENT_COLOR}] - Interactive PRD exploration to create system ADRs"
+        f"   2.1 [{ACCENT_COLOR}]/spec.constitution[/{ACCENT_COLOR}] - Establish project principles"
     )
     steps_lines.append(
-        f"   2.2 [{ACCENT_COLOR}]/architect.implement[/{ACCENT_COLOR}] - Execute architecture implementation from ADRs"
+        f"   2.2 [{ACCENT_COLOR}]/spec.specify[/{ACCENT_COLOR}] - Create baseline specification"
     )
     steps_lines.append(
-        f"   2.3 [{ACCENT_COLOR}]/spec.constitution[/{ACCENT_COLOR}] - Establish project principles"
+        f"   2.3 [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] - Create implementation plan"
     )
     steps_lines.append(
-        f"   2.4 [{ACCENT_COLOR}]/spec.specify[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   2.4 [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   2.5 [{ACCENT_COLOR}]/spec.plan[/{ACCENT_COLOR}] - Create implementation plan"
-    )
-    steps_lines.append(
-        f"   2.6 [{ACCENT_COLOR}]/spec.tasks[/{ACCENT_COLOR}] - Generate actionable tasks"
-    )
-    steps_lines.append(
-        f"   2.7 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
-    )
-    steps_lines.append(
-        f"   2.8 [{ACCENT_COLOR}]/levelup.spec[/{ACCENT_COLOR}] - Extract learnings and create CDRs for team knowledge"
+        f"   2.5 [{ACCENT_COLOR}]/spec.implement[/{ACCENT_COLOR}] - Execute implementation"
     )
 
     steps_panel = Panel(
@@ -3717,6 +3744,37 @@ def init(
     )
     console.print()
     console.print(enhancements_panel)
+
+    # Get pre-installed extensions and display their commands
+    preinstalled = get_preinstalled_extensions(project_path)
+
+    if preinstalled:
+        ext_lines = [
+            "Pre-installed extensions with additional commands:",
+            "",
+        ]
+
+        for ext in preinstalled:
+            ext_lines.append(f"[{ACCENT_COLOR}]📦 {ext['name']}[/{ACCENT_COLOR}]")
+            ext_lines.append(f"  {ext['description']}")
+            ext_lines.append("")
+            ext_lines.append("  Commands:")
+
+            for cmd in ext["commands"]:
+                # Convert command format: adlc.levelup.init -> /levelup.init
+                cmd_display = "/" + cmd.replace("adlc.", "").replace(".", ".")
+                ext_lines.append(f"    [{ACCENT_COLOR}]{cmd_display}[/{ACCENT_COLOR}]")
+
+            ext_lines.append("")  # Blank line between extensions
+
+        extensions_panel = Panel(
+            "\n".join(ext_lines[:-1]),  # Remove final blank line
+            title="Pre-Installed Extensions",
+            border_style=ACCENT_COLOR,
+            padding=(1, 2),
+        )
+        console.print()
+        console.print(extensions_panel)
 
     # Display recommended skills from team manifest if any
     if recommended_skills_info:

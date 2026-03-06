@@ -40,7 +40,7 @@ if (-not (Test-Path $TraceFile)) {
         } | ConvertTo-Json -Compress
         Write-Output $output
     } else {
-        Write-Error "Trace file not found: $TraceFile. Run /trace to generate a session trace."
+        Write-Error "Trace file not found: $TraceFile. Run /levelup.trace to generate a session trace."
     }
     exit 1
 }
