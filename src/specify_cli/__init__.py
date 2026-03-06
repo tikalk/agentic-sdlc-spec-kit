@@ -2696,6 +2696,7 @@ def get_preinstalled_extensions(project_path: Path) -> list[dict]:
 
     # Check multiple locations for catalog
     catalog_paths = [
+        project_path / ".specify" / "catalog.json",
         project_path / ".specify" / "extensions" / "catalog.json",
         Path(__file__).parent / "bundled_extensions" / "catalog.json",
         Path(__file__).parent.parent.parent / "extensions" / "catalog.json",

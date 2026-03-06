@@ -5,7 +5,25 @@
 All notable changes to the Specify CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0).
+and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+
+## [0.0.112] - 2026-03-06
+
+### Fixed
+
+- **Pre-Installed Extension Banner**: Fixed catalog.json search path to properly detect and display pre-installed extensions
+  - Added `.specify/catalog.json` as primary search path before `.specify/extensions/catalog.json`
+  - Banner now correctly shows up to 4 pre-installed extensions (LevelUp, Architect, Quick)
+  - Previous code failed silently due to incorrect path checking
+
+## [0.0.112] - 2026-03-06
+
+### Fixed
+
+- **Pre-Installed Extension Banner**: Fixed catalog.json search path to properly detect and display pre-installed extensions
+  - Added `.specify/catalog.json` as primary search path before `.specify/extensions/catalog.json`
+  - Banner now correctly shows up to 4 pre-installed extensions (LevelUp, Architect, Quick)
+  - Previous code failed silently due to incorrect path checking
 
 ## [0.0.111] - 2026-03-06
 
