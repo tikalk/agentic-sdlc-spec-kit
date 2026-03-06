@@ -121,24 +121,8 @@ function Test-ChecklistsStatus {
 function Import-ImplementationContext {
     Write-Info "Loading implementation context..."
 
-    # Get current workflow mode (from global config)
-    $workflowMode = "spec"  # Default
-    $configFile = Get-GlobalConfigPath
-    if (Test-Path $configFile) {
-        try {
-            $configData = Get-Content $configFile | ConvertFrom-Json
-            $workflowMode = $configData.workflow.current_mode
-            if (-not $workflowMode) { $workflowMode = "spec" }
-        } catch {
-            $workflowMode = "spec"
-        }
-    }
-
-    # Required files (plan.md is optional in build mode)
-    $requiredFiles = @("tasks.md", "spec.md")
-    if ($workflowMode -eq "spec") {
-        $requiredFiles += "plan.md"
-    }
+    # Always use spec mode - require all artifacts
+    $requiredFiles = @("tasks.md", "spec.md", "plan.md")
 
     foreach ($file in $requiredFiles) {
         $filePath = Join-Path $global:FeatureDir $file
@@ -148,11 +132,8 @@ function Import-ImplementationContext {
         }
     }
 
-    # Optional files (plan.md is optional in build mode)
+    # Optional files
     $optionalFiles = @("data-model.md", "contracts", "research.md", "quickstart.md")
-    if ($workflowMode -eq "build") {
-        $optionalFiles += "plan.md"
-    }
 
     foreach ($file in $optionalFiles) {
         $filePath = Join-Path $global:FeatureDir $file

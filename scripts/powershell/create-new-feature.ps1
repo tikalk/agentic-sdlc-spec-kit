@@ -6,19 +6,17 @@ param(
     [string]$ShortName,
     [int]$Number = 0,
     [switch]$Help,
-    [string]$Mode = "spec",
-    [switch]$Tdd,
-    [switch]$NoTdd,
-    [switch]$Contracts,
-    [switch]$NoContracts,
-    [switch]$DataModels,
-    [switch]$NoDataModels,
-    [switch]$RiskTests,
-    [switch]$NoRiskTests,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
 $ErrorActionPreference = 'Stop'
+
+# Always use spec mode
+$Mode = "spec"
+$Tdd = $true
+$Contracts = $true
+$DataModels = $true
+$RiskTests = $true
 
 # Get the global config path using XDG Base Directory spec
 function Get-GlobalConfigPath {
@@ -34,31 +32,17 @@ function Get-GlobalConfigPath {
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] [-Mode <mode>] [-Tdd] [-NoTdd] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] [-RiskTests] [-NoRiskTests] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
-    Write-Host "  -Mode <mode>        Workflow mode: spec (default) or build"
-    Write-Host "  -Tdd                Enable Test-Driven Development (overrides mode default)"
-    Write-Host "  -NoTdd              Disable Test-Driven Development (overrides mode default)"
-    Write-Host "  -Contracts          Enable smart contracts (overrides mode default)"
-    Write-Host "  -NoContracts        Disable smart contracts (overrides mode default)"
-    Write-Host "  -DataModels         Enable data models (overrides mode default)"
-    Write-Host "  -NoDataModels       Disable data models (overrides mode default)"
-    Write-Host "  -RiskTests          Enable risk tests (overrides mode default)"
-    Write-Host "  -NoRiskTests        Disable risk tests (overrides mode default)"
     Write-Host "  -Help               Show this help message"
-    Write-Host ""
-    Write-Host "Mode-specific defaults:"
-    Write-Host "  spec mode:   tdd=true, contracts=true, data_models=true, risk_tests=true"
-    Write-Host "  build mode:  tdd=false, contracts=false, data_models=false, risk_tests=false"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  ./create-new-feature.ps1 'Add user authentication system' -ShortName 'user-auth'"
-    Write-Host "  ./create-new-feature.ps1 'Quick API fix' -Mode build -Tdd"
-    Write-Host "  ./create-new-feature.ps1 'Implement OAuth2 integration' -NoContracts"
+    Write-Host "  ./create-new-feature.ps1 -Number 5 'Feature with specific number'"
     exit 0
 }
 
@@ -341,12 +325,8 @@ function Replace-DatePlaceholders {
     }
 }
 
-# Select template based on mode
-if ($currentMode -eq "build") {
-    $template = Join-Path $repoRoot 'templates/spec-template-build.md'
-} else {
-    $template = Join-Path $repoRoot 'templates/spec-template.md'
-}
+# Always use spec mode template
+$template = Join-Path $repoRoot 'templates/spec-template.md'
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) {
     Copy-Item $template $specFile -Force
@@ -362,16 +342,16 @@ if (Test-Path $specFile) {
     $content = Get-Content -Path $specFile -Raw
     
     # Replace mode metadata
-    $content = $content -replace '\*\*Workflow Mode\*\*: spec', "**Workflow Mode**: $currentMode"
+    $content = $content -replace '\*\*Workflow Mode\*\*: spec', "**Workflow Mode**: spec"
     
     # Replace framework options metadata
-    $frameworkOptions = "tdd=$([bool]$tdd.ToString().ToLower()), contracts=$([bool]$contracts.ToString().ToLower()), data_models=$([bool]$dataModels.ToString().ToLower()), risk_tests=$([bool]$riskTests.ToString().ToLower())"
+    $frameworkOptions = "tdd=$($Tdd.ToString().ToLower()), contracts=$($Contracts.ToString().ToLower()), data_models=$($DataModels.ToString().ToLower()), risk_tests=$($RiskTests.ToString().ToLower())"
     $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**: $frameworkOptions"
     
     Set-Content -Path $specFile -Value $content -NoNewline
 }
 
-# Function to populate context.md with intelligent defaults (mode-aware)
+# Function to populate context.md with spec mode defaults
 function Populate-ContextFile {
     param(
         [string]$ContextFile,
@@ -393,34 +373,26 @@ function Populate-ContextFile {
         $mission = $mission.Substring(0, 200).TrimEnd() + "..."
     }
 
-    # Mode-aware field population
-    if ($Mode -eq "build") {
-        # Build mode: Minimal context, focus on core functionality
-        $codePaths = "To be determined during implementation"
-        $directives = "None (build mode)"
-        $research = "Minimal research needed for lightweight implementation"
-    } else {
-        # Spec mode: Comprehensive context for full specification
-        # Detect code paths (basic detection based on common patterns)
-        $codePaths = "To be determined during planning phase"
-        if ($featureDescription -match "(?i)api|endpoint|service") {
-            $codePaths = "api/, services/"
-        } elseif ($featureDescription -match "(?i)ui|frontend|component") {
-            $codePaths = "src/components/, src/pages/"
-        } elseif ($featureDescription -match "(?i)database|data|model") {
-            $codePaths = "src/models/, database/"
-        }
-
-        # Read team directives if available
-        $directives = "None"
-        $teamDirectivesFile = Join-Path $repoRoot '.specify/memory/team-ai-directives/directives.md'
-        if (Test-Path $teamDirectivesFile) {
-            $directives = "See team-ai-directives repository for applicable guidelines"
-        }
-
-        # Set research needs
-        $research = "To be identified during specification and planning phases"
+    # Spec mode: Comprehensive context for full specification
+    # Detect code paths (basic detection based on common patterns)
+    $codePaths = "To be determined during planning phase"
+    if ($featureDescription -match "(?i)api|endpoint|service") {
+        $codePaths = "api/, services/"
+    } elseif ($featureDescription -match "(?i)ui|frontend|component") {
+        $codePaths = "src/components/, src/pages/"
+    } elseif ($featureDescription -match "(?i)database|data|model") {
+        $codePaths = "src/models/, database/"
     }
+
+    # Read team directives if available
+    $directives = "None"
+    $teamDirectivesFile = Join-Path $repoRoot '.specify/memory/team-ai-directives/directives.md'
+    if (Test-Path $teamDirectivesFile) {
+        $directives = "See team-ai-directives repository for applicable guidelines"
+    }
+
+    # Set research needs
+    $research = "To be identified during specification and planning phases"
 
     # Create context.md with populated values
     $contextContent = @"
@@ -437,11 +409,11 @@ function Populate-ContextFile {
     $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
 }
 
-# Populate context.md with intelligent defaults
+# Populate context.md with spec mode defaults
 $contextTemplate = Join-Path $repoRoot 'templates/context-template.md'
 $contextFile = Join-Path $featureDir 'context.md'
 if (Test-Path $contextTemplate) {
-    Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription -Mode $currentMode
+    Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
 } else {
     New-Item -ItemType File -Path $contextFile | Out-Null
 }

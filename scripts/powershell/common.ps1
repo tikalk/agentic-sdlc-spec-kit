@@ -40,29 +40,10 @@ function Get-ConfigPath {
     }
 }
 
-# Get current workflow mode from config (build or spec)
-# Defaults to "spec" if config doesn't exist or mode is invalid
+# Get current workflow mode - always returns "spec" for core commands
 function Get-CurrentMode {
-    $configFile = Get-ConfigPath
-    
-    # Default to spec mode if no config exists
-    if (-not (Test-Path $configFile)) {
-        return 'spec'
-    }
-    
-    try {
-        $config = Get-Content $configFile -Raw | ConvertFrom-Json
-        $mode = $config.workflow.current_mode
-        
-        # Validate mode (only build or spec allowed, treat "ad" as spec for migration)
-        if ($mode -eq 'build' -or $mode -eq 'spec') {
-            return $mode
-        }
-        return 'spec'  # Fallback for invalid values including "ad"
-    }
-    catch {
-        return @()
-    }
+    # Core commands always use spec mode
+    return 'spec'
 }
 
 # Detect workflow mode and framework options from spec.md

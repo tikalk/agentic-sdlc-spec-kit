@@ -6,10 +6,10 @@ JSON_MODE=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
 MODE="spec"
-TDD=""
-CONTRACTS=""
-DATA_MODELS=""
-RISK_TESTS=""
+TDD="true"
+CONTRACTS="true"
+DATA_MODELS="true"
+RISK_TESTS="true"
 ARGS=()
 i=1
 while [ $i -le $# ]; do
@@ -34,61 +34,11 @@ while [ $i -le $# ]; do
             ;;
         --number)
             if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --number requires a value' >&2
-                exit 1
-            fi
-            i=$((i + 1))
-            next_arg="${!i}"
-            if [[ "$next_arg" == --* ]]; then
-                echo 'Error: --number requires a value' >&2
-                exit 1
-            fi
-            BRANCH_NUMBER="$next_arg"
-            ;;
-        --mode)
-            if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --mode requires a value' >&2
-                exit 1
-            fi
-            i=$((i + 1))
-            next_arg="${!i}"
-            if [[ "$next_arg" == --* ]]; then
-                echo 'Error: --mode requires a value' >&2
-                exit 1
-            fi
-            MODE="$next_arg"
-            ;;
-        --tdd)
-            if [ $((i + 1)) -gt $# ]; then
                 echo 'Error: --tdd requires a value' >&2
                 exit 1
             fi
             i=$((i + 1))
-            TDD="${!i}"
-            ;;
-        --contracts)
-            if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --contracts requires a value' >&2
-                exit 1
-            fi
-            i=$((i + 1))
-            CONTRACTS="${!i}"
-            ;;
-        --data-models)
-            if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --data-models requires a value' >&2
-                exit 1
-            fi
-            i=$((i + 1))
-            DATA_MODELS="${!i}"
-            ;;
-        --risk-tests)
-            if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --risk-tests requires a value' >&2
-                exit 1
-            fi
-            i=$((i + 1))
-            RISK_TESTS="${!i}"
+            BRANCH_NUMBER="$next_arg"
             ;;
         --help|-h) 
             echo "Usage: $0 [OPTIONS] <feature_description>"
@@ -97,21 +47,11 @@ while [ $i -le $# ]; do
             echo "  --json                  Output in JSON format"
             echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
             echo "  --number N              Specify branch number manually (overrides auto-detection)"
-            echo "  --mode <build|spec>     Workflow mode (default: spec)"
-            echo "  --tdd <true|false>      Enable TDD (default: mode-specific)"
-            echo "  --contracts <true|false> Enable API contracts (default: mode-specific)"
-            echo "  --data-models <true|false> Enable data models (default: mode-specific)"
-            echo "  --risk-tests <true|false> Enable risk-based testing (default: mode-specific)"
             echo "  --help, -h              Show this help message"
-            echo ""
-            echo "Mode Defaults:"
-            echo "  build: tdd=false, contracts=false, data_models=false, risk_tests=false"
-            echo "  spec:  tdd=true, contracts=true, data_models=true, risk_tests=true"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
-            echo "  $0 --mode build 'Quick feature prototype'"
-            echo "  $0 --mode spec --no-tdd 'Feature without TDD' --number 5"
+            echo "  $0 --number 5 'Feature with specific number'"
             exit 0
             ;;
         *) 
@@ -399,44 +339,8 @@ replace_date_placeholders() {
 }
 
 # Apply mode-specific defaults for options if not explicitly set
-if [ -z "$TDD" ]; then
-    if [ "$MODE" = "build" ]; then
-        TDD="false"
-    else
-        TDD="true"
-    fi
-fi
-
-if [ -z "$CONTRACTS" ]; then
-    if [ "$MODE" = "build" ]; then
-        CONTRACTS="false"
-    else
-        CONTRACTS="true"
-    fi
-fi
-
-if [ -z "$DATA_MODELS" ]; then
-    if [ "$MODE" = "build" ]; then
-        DATA_MODELS="false"
-    else
-        DATA_MODELS="true"
-    fi
-fi
-
-if [ -z "$RISK_TESTS" ]; then
-    if [ "$MODE" = "build" ]; then
-        RISK_TESTS="false"
-    else
-        RISK_TESTS="true"
-    fi
-fi
-
-# Mode-aware template selection (use passed MODE, not config file)
-if [ "$MODE" = "build" ]; then
-    TEMPLATE="$REPO_ROOT/templates/spec-template-build.md"
-else
-    TEMPLATE="$REPO_ROOT/templates/spec-template.md"
-fi
+# Always use spec mode template
+TEMPLATE="$REPO_ROOT/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
@@ -449,10 +353,10 @@ if [ -f "$SPEC_FILE" ]; then
     # The templates already have the correct defaults, but if we're regenerating
     # or if template format changes, explicitly set the values
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: $MODE/" "$SPEC_FILE"
+        sed -i '' "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: spec/" "$SPEC_FILE"
         sed -i '' "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
     else
-        sed -i "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: $MODE/" "$SPEC_FILE"
+        sed -i "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: spec/" "$SPEC_FILE"
         sed -i "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
     fi
 fi
@@ -460,12 +364,11 @@ fi
 CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
-# Function to populate context.md with intelligent defaults (mode-aware)
+# Function to populate context.md with spec mode defaults
 populate_context_file() {
     local context_file="$1"
     local feature_name="$2"
     local feature_description="$3"
-    local mode="$4"
 
     # Extract feature title (first line or first sentence)
     local feature_title=$(echo "$feature_description" | head -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
@@ -480,34 +383,26 @@ populate_context_file() {
         mission=$(echo "$mission" | cut -c1-200 | sed 's/[[:space:]]*$//' | sed 's/[[:space:]]*$/.../')
     fi
 
-    # Mode-aware field population
-    if [ "$mode" = "build" ]; then
-        # Build mode: Minimal context, focus on core functionality
-        local code_paths="To be determined during implementation"
-        local directives="None (build mode)"
-        local research="Minimal research needed for lightweight implementation"
-    else
-        # Spec mode: Comprehensive context for full specification
-        # Detect code paths (basic detection based on common patterns)
-        local code_paths="To be determined during planning phase"
-        if echo "$feature_description" | grep -qi "api\|endpoint\|service"; then
-            code_paths="api/, services/"
-        elif echo "$feature_description" | grep -qi "ui\|frontend\|component"; then
-            code_paths="src/components/, src/pages/"
-        elif echo "$feature_description" | grep -qi "database\|data\|model"; then
-            code_paths="src/models/, database/"
-        fi
-
-        # Read team directives if available
-        local directives="None"
-        local team_directives_file="$REPO_ROOT/.specify/memory/team-ai-directives/directives.md"
-        if [ -f "$team_directives_file" ]; then
-            directives="See team-ai-directives repository for applicable guidelines"
-        fi
-
-        # Set research needs
-        local research="To be identified during specification and planning phases"
+    # Spec mode: Comprehensive context for full specification
+    # Detect code paths (basic detection based on common patterns)
+    local code_paths="To be determined during planning phase"
+    if echo "$feature_description" | grep -qi "api\|endpoint\|service"; then
+        code_paths="api/, services/"
+    elif echo "$feature_description" | grep -qi "ui\|frontend\|component"; then
+        code_paths="src/components/, src/pages/"
+    elif echo "$feature_description" | grep -qi "database\|data\|model"; then
+        code_paths="src/models/, database/"
     fi
+
+    # Read team directives if available
+    local directives="None"
+    local team_directives_file="$REPO_ROOT/.specify/memory/team-ai-directives/directives.md"
+    if [ -f "$team_directives_file" ]; then
+        directives="See team-ai-directives repository for applicable guidelines"
+    fi
+
+    # Set research needs
+    local research="To be identified during specification and planning phases"
 
     # Create context.md with populated values
     cat > "$context_file" << EOF
@@ -522,9 +417,9 @@ populate_context_file() {
 EOF
 }
 
-# Populate context.md with intelligent defaults
+# Populate context.md with spec mode defaults
 if [ -f "$CONTEXT_TEMPLATE" ]; then
-    populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION" "$CURRENT_MODE"
+    populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION"
 else
     touch "$CONTEXT_FILE"
 fi

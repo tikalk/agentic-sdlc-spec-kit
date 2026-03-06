@@ -154,27 +154,11 @@ if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
     exit 1
 }
 
-# Check for plan.md (required in spec mode, optional in build mode)
+# Check for plan.md (required in spec mode)
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
-    # Get current mode to determine if plan.md is required
-    $currentMode = "spec"
-    $configFile = Get-GlobalConfigPath
-    if (Test-Path $configFile) {
-        try {
-            $configData = Get-Content $configFile | ConvertFrom-Json
-            $currentMode = $configData.workflow.current_mode
-            if (-not $currentMode) { $currentMode = "spec" }
-        } catch {
-            $currentMode = "spec"
-        }
-    }
-
-    if ($currentMode -eq "spec") {
-        Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
-        Write-Output "Run /spec.plan first to create the implementation plan."
-        exit 1
-    }
-    # In build mode, plan.md is optional - allow implementation to proceed
+    Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
+    Write-Output "Run /spec.plan first to create the implementation plan."
+    exit 1
 }
 
 # Check for tasks.md if required

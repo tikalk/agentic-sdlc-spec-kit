@@ -1,8 +1,8 @@
 ---
-description: Perform cross-artifact consistency and quality analysis. Automatically detects pre vs post-implementation context based on workflow mode and project state.
+description: Perform cross-artifact consistency and quality analysis. Automatically detects pre vs post-implementation context based on project state.
 scripts:
-   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
-   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
+    sh: scripts/bash/check-prerequisites.sh --json --include-tasks
+    ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
 ---
 
 ## User Input
@@ -19,16 +19,16 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Auto-Detection Logic**:
 
-- **Pre-Implementation**: When spec.md exists but no implementation artifacts detected (tasks.md required in spec mode, optional in build mode)
+- **Pre-Implementation**: When spec.md exists but no implementation artifacts detected (tasks.md and plan.md required)
 - **Post-Implementation**: When implementation artifacts exist (source code, build outputs, etc.)
 
-**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (`spec.md` required, `plan.md` and `tasks.md` optional in build mode, all required in spec mode) before implementation. In spec mode, this command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
+**Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (spec.md, plan.md, tasks.md required). This command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
 
 **Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `.specify/memory/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
-This command adapts its behavior based on project state and workflow mode.
+This command adapts its behavior based on project state.
 
 ## Operating Constraints
 
@@ -36,15 +36,12 @@ This command adapts its behavior based on project state and workflow mode.
 
 **Auto-Detection Logic**:
 
-1. Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`
-2. Analyze project state:
-   - **Pre-implementation**:
-     - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
-     - **Spec mode**: tasks.md exists, no source code or build artifacts
-   - **Post-implementation**: Source code directories, compiled outputs, or deployment artifacts exist
-3. Apply mode-aware analysis depth:
-   - **Build mode**: Lightweight analysis appropriate for rapid iteration
-   - **Spec mode**: Comprehensive analysis with full validation
+1. Auto-detect project state:
+    - **Pre-implementation**: No implementation artifacts exist (check for source code, compiled outputs, deployment artifacts)
+    - **Post-implementation**: Implementation artifacts exist (source code directories, compiled outputs, or deployment artifacts)
+2. Apply analysis depth:
+    - **Pre-implementation**: Comprehensive analysis with full validation
+    - **Post-implementation**: Code-focused analysis with refinement recommendations
 
 **Constitution Authority**: The project constitution (`/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/spec.analyze`.
 
@@ -64,26 +61,21 @@ For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot
 
 **Context Analysis**:
 
-1. **Auto-Detect from Spec**: Use `detect_workflow_config()` to read mode and framework options from spec.md metadata
-2. **Analyze Project State**:
+1. **Analyze Project State**:
    - Scan for implementation artifacts (src/, build/, dist/, *.js,*.py, etc.)
    - Check git history for implementation commits
    - Verify if `/implement` has been run recently
-3. **Determine Analysis Type**:
-   - **Pre-Implementation**:
-     - **Build mode**: spec.md exists, no implementation artifacts (plan.md/tasks.md optional)
-     - **Spec mode**: spec.md + tasks.md exist, no implementation artifacts (plan.md recommended)
+2. **Determine Analysis Type**:
+   - **Pre-Implementation**: spec.md + tasks.md exist, no implementation artifacts (plan.md recommended)
    - **Post-Implementation**: Implementation artifacts exist
-4. **Apply Mode-Aware Depth**:
-   - **Build Mode**: Focus on core functionality and quick iterations
-   - **Spec Mode**: Comprehensive analysis with full validation
-
-**Fallback Logic**: If detection is ambiguous, default to pre-implementation analysis appropriate for the current mode and prompt user for clarification.
+3. **Apply Analysis Depth**:
+   - **Pre-Implementation**: Comprehensive analysis with full validation
+   - **Post-Implementation**: Code-focused analysis with refinement recommendations
 
 ### 3. Load Artifacts (Auto-Detected Mode)
 
 **Pre-Implementation Mode Artifacts:**
-Load available artifacts (build mode may have only spec.md):
+Load available artifacts (spec.md required, plan.md and tasks.md recommended):
 
 **From spec.md (required):**
 
@@ -93,14 +85,14 @@ Load available artifacts (build mode may have only spec.md):
 - User Stories
 - Edge Cases (if present)
 
-**From plan.md (optional in build mode):**
+**From plan.md (recommended):**
 
 - Architecture/stack choices
 - Data Model references
 - Phases
 - Technical constraints
 
-**From tasks.md (optional in build mode):**
+**From tasks.md (recommended):**
 
 - Task IDs
 - Descriptions
@@ -298,7 +290,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - **Consistency check**: Issue IDs should be consistent across spec.md → plan.md → tasks.md
 - **MCP readiness**: `.mcp.json` must exist and contain valid issue tracker configuration
 
-### 5. Severity Assignment (Mode-Aware)
+### 5. Severity Assignment
 
 Use this heuristic to prioritize findings:
 
@@ -306,7 +298,7 @@ Use this heuristic to prioritize findings:
 
 - **CRITICAL**: Violates constitution MUST, missing spec.md, or requirement with zero coverage that blocks baseline functionality
 - **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, missing plan.md/tasks.md (build mode only)
+- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case, missing plan.md/tasks.md
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
 
 **Post-Implementation Severities:**
@@ -407,14 +399,12 @@ At end of report, output a concise Next Actions block based on detected mode and
 
 **Pre-Implementation Next Actions:**
 
-- **Build Mode**: Missing plan.md/tasks.md is not critical - user may proceed to `/implement` for lightweight development
-- **Spec Mode**: - If CRITICAL issues exist: Recommend resolving before `/spec.implement`
+- If CRITICAL issues exist: Recommend resolving before `/spec.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /spec.specify with refinement", "Run /spec.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 - **Traceability**: If <80% coverage: "Add @issue-tracker ISSUE-123 references to major user stories in spec.md"
 - **Architecture**: If violations found: "Resolve ADR violations before proceeding" or "Run /architect.clarify to update system ADRs"
 - **Feature Architecture**: If gaps found: "Run /spec.plan --architecture to generate feature-level architecture"
-- Provide explicit command suggestions: e.g., "Run /specify with refinement", "Run /plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 **Post-Implementation Next Actions:**
 
@@ -493,7 +483,6 @@ If post-implementation analysis identifies critical problems requiring rollback:
 ### Auto-Detection Guidelines
 
 - **Context awareness**: Analyze project state to determine appropriate analysis type
-- **Mode integration**: Respect workflow mode (build vs spec) for analysis depth
 - **Progressive enhancement**: Start with basic detection, allow user override if needed
 - **Clear communication**: Always report which analysis mode was auto-selected
 

@@ -119,19 +119,8 @@ check_checklists_status() {
 load_implementation_context() {
     log_info "Loading implementation context..."
 
-    # Get current workflow mode
-    local workflow_mode="spec"  # Default
-    local global_config
-    global_config=$(get_config_path)
-    if [[ -f "$global_config" ]]; then
-        workflow_mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
-    fi
-
-    # Required files (plan.md is optional in build mode)
-    local required_files=("tasks.md" "spec.md")
-    if [[ "$workflow_mode" == "spec" ]]; then
-        required_files+=("plan.md")
-    fi
+    # Always require spec mode artifacts
+    local required_files=("tasks.md" "spec.md" "plan.md")
 
     for file in "${required_files[@]}"; do
         if [[ ! -f "$FEATURE_DIR/$file" ]]; then
@@ -139,12 +128,6 @@ load_implementation_context() {
             exit 1
         fi
     done
-
-    # Optional files (plan.md is optional in build mode)
-    local optional_files=("data-model.md" "contracts/" "research.md" "quickstart.md")
-    if [[ "$workflow_mode" == "build" ]]; then
-        optional_files+=("plan.md")
-    fi
 
     # Optional files
     local optional_files=("data-model.md" "contracts/" "research.md" "quickstart.md")
@@ -500,17 +483,12 @@ handle_task_failure() {
 
     log_warning "Task $task_id failed: $failure_reason"
 
-    # Get workflow mode for mode-aware rollback
-    local mode="spec"  # Default
-    local global_config
-    global_config=$(get_config_path)
-    if [[ -f "$global_config" ]]; then
-        mode=$(jq -r '.workflow.current_mode // "spec"' "$global_config" 2>/dev/null || echo "spec")
-    fi
+    # Always use spec mode for rollback
+    local mode="spec"
 
     echo "Task $task_id failed. Options:
 1. Retry task
-2. Rollback task and continue (mode-aware: $mode)
+2. Rollback task and continue (spec mode)
 3. Rollback entire feature and regenerate tasks
 4. Regenerate plan and tasks
 5. Skip and continue

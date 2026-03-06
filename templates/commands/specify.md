@@ -21,44 +21,6 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Parameters
-
-Parse the following parameters from `$ARGUMENTS`:
-
-- `--mode=build|spec`: Workflow mode (default: spec)
-- `--tdd`: Enable TDD (overrides mode default)
-- `--no-tdd`: Disable TDD (overrides mode default)
-- `--contracts`: Enable API contracts (overrides mode default)
-- `--no-contracts`: Disable API contracts (overrides mode default)
-- `--data-models`: Enable data models (overrides mode default)
-- `--no-data-models`: Disable data models (overrides mode default)
-- `--risk-tests`: Enable risk-based testing (overrides mode default)
-- `--no-risk-tests`: Disable risk-based testing (overrides mode default)
-- `--architecture`: Enable feature-level architecture generation during planning
-- `--no-architecture`: Disable feature-level architecture generation
-
-**Mode-Specific Defaults**:
-
-- **Build Mode**: tdd=false, contracts=false, data_models=false, risk_tests=false, architecture=false
-- **Spec Mode**: tdd=true, contracts=true, data_models=true, risk_tests=true, architecture=false
-
-**Note**: Architecture is opt-in in both modes. Use `--architecture` to generate feature-level AD.md and adr.md during `/spec.plan`.
-
-After parsing, extract the feature description (everything after parameters).
-
-## Mode & Options Resolution
-
-1. **Determine Effective Mode**: Parse `--mode` from arguments, default to "spec" if not specified
-
-2. **Determine Effective Options**:
-   - Start with mode-specific defaults
-   - Override with explicit flags (e.g., `--no-tdd` overrides default)
-   - Pass to script as: `--mode build --tdd false --contracts false --data-models false --risk-tests false --architecture false`
-
-3. **Mode-Aware Behavior**:
-   - **Build Mode**: Lightweight, conversational specification focused on quick validation and exploration
-   - **Spec Mode**: Full structured specification with comprehensive requirements and validation
-
 ## Outline
 
 The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
@@ -79,88 +41,54 @@ Given that feature description, do this:
 
 2. **Create new feature branch**:
 
-   Run the script `{SCRIPT}` with the short-name, mode, and options. The script will automatically determine the next available global number by checking ALL existing branches and specs.
+   Run the script `{SCRIPT}` with the short-name and feature description. The script will automatically determine the next available global number by checking ALL existing branches and specs.
 
-   - Pass `--short-name "your-short-name"`, `--mode`, `--tdd`, `--contracts`, `--data-models`, `--risk-tests`, `--architecture`, and feature description
-   - Bash example: `{SCRIPT} --json --short-name "user-auth" --mode spec --tdd true --contracts true --data-models true --risk-tests true --architecture false "Add user authentication"`
-   - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" -Mode spec -Tdd $true -Contracts $true -DataModels $true -RiskTests $true -Architecture $false "Add user authentication"`
+   - Pass `--short-name "your-short-name"` and feature description
+   - Bash example: `{SCRIPT} --json --short-name "user-auth" "Add user authentication"`
+   - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" "Add user authentication"`
 
    **IMPORTANT**:
    - Do NOT pass `--number` - let the script auto-detect the next global number across ALL branches and specs
    - The script checks ALL existing branches (local and remote) and ALL specs directories to find the highest number globally
    - This ensures unique sequential numbering (001, 002, 003...) regardless of feature short-names
    - You must only ever run this script once per feature
-   - Pass mode and all five options (tdd, contracts, data_models, risk_tests, architecture) as boolean values
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
 
-3. Load template based on mode:
-   - **Build Mode**: Use `templates/spec-template-build.md` (lightweight version)
-   - **Spec Mode**: Use `templates/spec-template.md` (full structured version)
+3. Use `templates/spec-template.md` (full structured version)
 
-4. Follow this execution flow (mode-aware):
+4. Follow this execution flow:
 
-     **Build Mode Execution Flow:**
-     1. Parse user description from Input
-        If empty: ERROR "No feature description provided"
-     2. Extract key concepts from description
-        Identify: actors, actions, data, constraints
-     3. For unclear aspects:
-        - Make informed guesses based on context and industry standards
-        - Only mark with [NEEDS CLARIFICATION: specific question] if critical for basic functionality
-        - **LIMIT: Maximum 1 [NEEDS CLARIFICATION] marker total** (keep it minimal)
-        - Focus only on scope-defining decisions
-     4. Fill User Scenarios & Testing section (lightweight)
-        - Focus on 1-2 primary user journeys
-        - Simple acceptance scenarios (Given/When/Then format)
-        - If no clear user flow: ERROR "Cannot determine user scenarios"
-     5. Generate Functional Requirements (simplified)
-        - Focus on core functionality only
-        - Use reasonable defaults for unspecified details
-        - Keep to 3-5 key requirements
-     6. Define Success Criteria (basic)
-        - 2-3 measurable outcomes focused on core functionality
-        - Technology-agnostic but practical
-     7. Identify Key Entities (if data involved, minimal)
-        - Only essential entities and relationships
-     8. Return: SUCCESS (spec ready for lightweight implementation)
-
-     **Spec Mode Execution Flow:**
-     1. Parse user description from Input
-        If empty: ERROR "No feature description provided"
-     2. Extract key concepts from description
-        Identify: actors, actions, data, constraints
-     3. For unclear aspects:
-        - Make informed guesses based on context and industry standards
-        - Only mark with [NEEDS CLARIFICATION: specific question] if:
-          - The choice significantly impacts feature scope or user experience
-          - Multiple reasonable interpretations exist with different implications
-          - No reasonable default exists
-        - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
-        - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
-     4. Fill User Scenarios & Testing section
-        If no clear user flow: ERROR "Cannot determine user scenarios"
-     5. Generate Functional Requirements
-        Each requirement must be testable
-        Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
-     6. Define Success Criteria
-        Create measurable, technology-agnostic outcomes
-        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
-        Each criterion must be verifiable without implementation details
-     7. Identify Key Entities (if data involved)
-     8. Return: SUCCESS (spec ready for planning)
+   1. Parse user description from Input
+      If empty: ERROR "No feature description provided"
+   2. Extract key concepts from description
+      Identify: actors, actions, data, constraints
+   3. For unclear aspects:
+      - Make informed guesses based on context and industry standards
+      - Only mark with [NEEDS CLARIFICATION: specific question] if:
+        - The choice significantly impacts feature scope or user experience
+        - Multiple reasonable interpretations exist with different implications
+        - No reasonable default exists
+      - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+      - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+   4. Fill User Scenarios & Testing section
+      If no clear user flow: ERROR "Cannot determine user scenarios"
+   5. Generate Functional Requirements
+      Each requirement must be testable
+      Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+   6. Define Success Criteria
+      Create measurable, technology-agnostic outcomes
+      Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
+      Each criterion must be verifiable without implementation details
+   7. Identify Key Entities (if data involved)
+   8. Return: SUCCESS (spec ready for planning)
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 
-6. **Specification Quality Validation** (mode-aware):
+6. **Specification Quality Validation**:
 
-    **Build Mode Validation:**
-    - **Lightweight Checklist**: Focus on core functionality and basic testability
-    - **Reduced Requirements**: Skip detailed edge cases and comprehensive coverage
-    - **Quick Validation**: 1-2 iteration maximum, prioritize getting something working
-    - **Success Criteria**: Basic functionality demonstrable, core user journey works
-
+   a. **Validation Checklist**:
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
@@ -237,15 +165,9 @@ Given that feature description, do this:
         8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
 
-    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
+     d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-     **Spec Mode Validation:**
-     - **Comprehensive Checklist**: Full requirements quality validation
-     - **Multiple Iterations**: Allow up to 3 clarification rounds for complex features
-     - **Detailed Validation**: Check all requirement quality dimensions
-     - **Success Criteria**: All requirements are clear, complete, and testable
-
-7. **Context Population** (mode-aware):
+7. **Context Population**:
      - **Read the generated spec.md** and extract key information
      - **Skills Auto-Discovery**:
        - Analyze the feature description against installed skills in `.specify/skills/`
@@ -270,18 +192,11 @@ Given that feature description, do this:
         - **Team Directives Guide**: Run `{SCRIPT}` to get `TEAM_AGENTS_MD` path from JSON output. If team-ai-directives is configured, include the path to AGENTS.md for usage instructions
         - **Research**: List any external research needs identified during specification
        - **Skills**: Auto-discovered relevant skills (see above)
-     - **Build Mode**: Populate Feature, Mission, and Skills (minimum required)
-     - **Spec Mode**: Populate all 5 fields with detailed, accurate values
+     - Populate all 5 fields with detailed, accurate values
      - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
 
 8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
-     - **Build Mode**: Ready for `/spec.implement` (skip clarify/plan for lightweight execution)
-     - **Spec Mode**: Ready for `/spec.clarify` or `/spec.plan`
-
-9. **Mode Guidance**:
-    - **Build Mode**: This mode prioritizes speed over completeness. Use `--mode=build` during specification for rapid prototyping.
-    - **Spec Mode**: This mode provides thorough validation. Use `--mode=spec` (default) during specification for comprehensive planning.
-    - **Changing Modes**: Create a new feature with the desired mode using `/spec.specify --mode=build|spec` rather than trying to change an existing feature's mode.
+     - Ready for `/spec.clarify` or `/spec.plan`
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

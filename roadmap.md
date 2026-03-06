@@ -23,19 +23,14 @@
 - ⚠️ **Validation Framework**: Basic structure exists but limited quality/compliance checking
 - ✅ **Levelup Integration**: Constitution evolution through feature learnings
 
-### **Workflow Modes Feature** - **COMPLETED**
+### **Framework Options Feature** - **COMPLETED**
 
-- ✅ **Per-Spec Mode Architecture**: Mode configuration moved from global `/spec.mode` command to per-feature specification level
-  - **Previous**: `/spec.mode` command for global mode switching
-  - **Current**: `/spec.specify --mode=build|spec` for feature-level mode configuration
-- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via feature-level mode parameters
-- ✅ **Mode State Persistence**: Mode and framework options stored in spec.md metadata for each feature
-- ✅ **Mode-Aware Commands**: `/specify`, `/clarify`, `/plan`, `/implement`, `/analyze` commands auto-detect mode from spec.md
-- ✅ **Auto-Detection System**: Commands automatically detect mode using `detect_workflow_config()` function
-- ✅ **Complexity Reduction**: Users can choose workflow complexity level per-feature (build vs spec mode)
+- ✅ **Framework Options**: Configurable TDD, contracts, data models, and risk-based testing via command-line flags
+- ✅ **Options State Persistence**: Framework options stored in spec.md metadata for each feature
+- ✅ **Auto-Detection System**: Commands automatically detect options using `detect_workflow_config()` function
 - ✅ **Auto-Detection**: `/analyze` automatically detects pre vs post-implementation context
-- ✅ **Documentation**: Per-spec mode architecture documented in README.md and quickstart.md
-- ✅ **12-Factors Integration**: Workflow modes documented in methodology documentation
+- ✅ **Documentation**: Framework options documented in README.md and quickstart.md
+- ✅ **12-Factors Integration**: Framework options documented in methodology documentation
 - ✅ **Checklist Integration**: `/checklist` command adapts validation based on detected framework options
 
 ### **AI Session Context Management** *(100% Complete)* - **HIGH PRIORITY** - Knowledge management and team learning
@@ -103,20 +98,18 @@
 - ✅ **Post-Implementation Analysis**: Extended `/analyze` command with auto-detection for pre/post-implementation context
 - ✅ **Documentation Evolution**: Specs and plans actively evolve through git commits during development
 - ✅ **Rollback Integration**: Git rollback capabilities preserve documentation state consistency
-- ✅ **Automated Documentation Updates**: Background, non-blocking automation that detects code changes and queues documentation updates for review at natural breakpoints (pre-commit/push), with CLI-injected git hooks and mode-aware behavior
+- ✅ **Automated Documentation Updates**: Background, non-blocking automation that detects code changes and queues documentation updates for review at natural breakpoints (pre-commit/push), with CLI-injected git hooks and batch review behavior
 
 #### **Workflow Stage Orchestration** *(100% Complete)* - **COMPLETED** - Workflow completeness through command-to-command guidance
 
 - ✅ **Git-Based Rollback**: Code and documentation rollback via git commands (already working)
 - ✅ **Command-to-Command Guidance**: Sequential workflow guidance through existing command outputs (specify → clarify/plan → tasks → implement)
 - ✅ **CLI Workflow Overview**: Complete SDD workflow steps displayed on project initialization
-- ✅ **Context-Aware Next Actions**: Commands provide mode-aware guidance for next steps (e.g., /analyze auto-detects pre/post-implementation)
+- ✅ **Context-Aware Next Actions**: Commands provide context-aware guidance for next steps (e.g., /analyze auto-detects pre/post-implementation)
 
 #### **Configurable Framework Options** *(100% Complete)* - **MEDIUM PRIORITY** - Addresses over-opinionated critique
 
-- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable via feature-level mode parameters
-- ✅ **Consolidated Configuration**: Unified `config.json` with `options` section
-- ✅ **Mode-Based Preferences**: Different defaults for build vs spec modes
+- ✅ **Opt-in Architecture Patterns**: TDD, contracts, data models, risk-based testing become user-configurable framework options
 - ✅ **Reduced Mandatory Options**: Core workflow preserved, options made optional
 - ✅ **User-Driven Defaults**: Users can override mode defaults with custom settings
 - ✅ **Architecture Support**: Optional architecture documentation available in all modes via `/architect` commands
@@ -392,17 +385,14 @@ Feature-level architecture controlled via:
 
 **NOTE**: User settings like `config.json` should remain user-specific and not tracked in git. However, team governance files like `.specify/constitution.md` should be version-controlled. Consider relocating constitution.md to a more appropriate location that clearly distinguishes it from user-specific configuration.
 
-#### **Build Mode "GSD" Upgrade** *(100% Complete)* - **COMPLETED** - High-velocity execution mode
+#### **Build Mode Migration** *(100% Complete)* - **COMPLETED** - Removed build mode from core specs
 
-- ✅ **GSD Defaults**: Updated `src/specify_cli/__init__.py` to set `atomic_commits: true`, `skip_micro_review: true`, `minimal_documentation: true` by default for `build` mode.
-- ✅ **Config Helper Functions**: Added `get_mode_config()` to bash/powershell for reading mode-specific configuration values.
-- ✅ **Timing-Based Review Gates**: Updated `implement.sh` to skip blocking micro-review in build mode, enabling non-blocking post-hoc review instead of real-time approval gates.
-- ✅ **Atomic Commits Guidance**: Injected commit structure guidance into delegation prompts when `atomic_commits: true`.
-- ✅ **Critical Bug Fixes**: Fixed `implement.md` --require-tasks flag to be conditional on mode; fixed `analyze.md` build mode references.
-- ✅ **Levelup Build Mode Support**: Updated `levelup.md` template and prepare-levelup scripts to support mode-aware file requirements (spec.md only in build mode).
-- ✅ **Comprehensive Testing**: All 6 core tests passed (config helpers, mode detection, delegation injection, backward compatibility).
-- ✅ **Senior Engineer Templates**: Refactored `spec-template-build.md` (62→44 lines) and `plan-template-build.md` (62→56 lines) to minimal style - removed HTML comments, verbose guidance, and explanatory text while maintaining imperative Senior Engineer voice.
-- ✅ **Documentation**: Updated `templates/commands/mode.md` and `docs/quickstart.md` with GSD terminology, timing-based review gates, and atomic commits guidance.
+- ✅ **Core Command Refactoring**: Removed build mode from `templates/commands/specify.md`, `clarify.md`, `implement.md`, and `analyze.md`
+- ✅ **Script Simplification**: Updated `scripts/bash/create-new-feature.sh` and `implement.sh` to remove build mode logic
+- ✅ **Auto-Detection Removal**: Removed `detect_workflow_config()` based build mode detection from all scripts
+- ✅ **Documentation Updates**: Updated README.md and docs/quickstart.md to remove per-spec mode architecture sections
+- ✅ **Framework Options Only**: Core commands now support framework options (--tdd, --contracts, etc.) without build mode
+- ✅ **Spec-Only Core**: Core commands exclusively handle spec mode with comprehensive validation
 
 #### **Context Intelligence & Optimization** *(0% Complete)* - **MEDIUM PRIORITY** - Smart context management and compliance validation
 
@@ -439,22 +429,17 @@ Feature-level architecture controlled via:
 
 **Workflow**: `/implement` → `/levelup.trace` (generate session trace) → `/levelup.spec` (consume trace for CDR extraction)
 
-#### **Levelup Command Build Mode Compatibility** *(100% Complete)* - **COMPLETED** - AI session context management
+#### **Levelup Command Migration** *(100% Complete)* - **COMPLETED** - Removed build mode paths
 
-- ✅ **Make Levelup Mode-Aware**: Updated levelup extension commands to work in both build and spec modes
-- ✅ **Build Mode Levelup Path**: Adapted levelup for build mode (only requires spec.md, plan.md/tasks.md optional)
-- ✅ **Spec Mode Levelup Path**: Maintained comprehensive levelup for spec mode (requires all artifacts + task completion)
-- ✅ **Context Packet Adaptation**: Mode-aware artifact loading synthesizes appropriate context packets for each workflow pattern
-- ✅ **Script Updates**: Updated prepare-levelup.sh/ps1 to include WORKFLOW_MODE in JSON output for mode detection
-- ✅ **Test Both Mode Levelups**: Verified levelup validation logic works correctly for both modes
+- ✅ **Unified Levelup Path**: Levelup extension requires spec.md, plan.md, and tasks.md (spec-only workflow)
+- ✅ **Script Updates**: Removed prepare-levelup.sh/ps1 WORKFLOW_MODE detection
+- ✅ **Template Simplification**: Updated `levelup.md` template to remove build mode conditional logic
 
-#### **Build Mode Workflow Bug Fix** *(100% Complete)* - **COMPLETED** - Critical workflow blocker resolved
+#### **Build Mode Artifact Removal** *(100% Complete)* - **COMPLETED** - Cleanup completed
 
-- ✅ **Fix Build Mode specify→implement Flow**: Fixed implement.md --require-tasks flag to be conditional on workflow mode
-- ✅ **Mode-Aware Task Validation**: `--require-tasks` conditional on mode enables lightweight specify→implement workflow
-- ✅ **Update implement.md Template**: Build mode execution path exists (lines 46-66) that works without tasks.md
-- ✅ **Fix Build Mode Checking in Analyze and Clarify**: Both commands properly check build mode before execution
-- ✅ **Test Build Mode Workflow**: Verified specify → implement works in build mode without tasks.md
+- ✅ **Build Template Removal**: Removed `spec-template-build.md` and `plan-template-build.md`
+- ✅ **Mode Documentation**: Removed `templates/commands/mode.md` command
+- ✅ **Unified Workflow**: Single spec-only workflow with framework options
 
 #### **Tier 1 (CRITICAL): Async Task Context Delivery & Remote Agent Integration** *(0% Complete)* - **CRITICAL PRIORITY** - Unblocks full async workflow
 
@@ -643,11 +628,9 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 
 #### **Unified Spec Template Implementation** *(100% Complete)* - **MEDIUM PRIORITY** - Template maintenance reduction
 
-- ✅ **Mode-Aware Template Selection**: Implemented automatic template selection based on workflow mode (build vs spec)
-- ✅ **Script-Based Mode Detection**: Added mode detection logic to create-new-feature.sh and create-new-feature.ps1 scripts
-- ✅ **Template Selection Logic**: Build mode uses spec-template-build.md, spec mode uses spec-template.md
+- ✅ **Spec-Only Templates**: Removed build mode templates, unified to single spec.md template
+- ✅ **Script Simplification**: Removed mode detection logic from create-new-feature.sh and create-new-feature.ps1 scripts
 - ✅ **Minimal Conflict Surface**: Changes isolated to fork-specific scripts, templates remain upstream-compatible
-- ✅ **Maintained Template Separation**: Analysis showed only 15-20% content overlap, separate templates remain optimal
 
 #### **Spec Management & Cleanup** *(0% Complete)* - **MEDIUM PRIORITY**
 
@@ -1066,7 +1049,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - **Description**: Auto-generate OpenAPI/JSON Schema from plan.md into `contracts/` folder to make specifications "executable" and enable automated API validation
 - **Status**: ❌ Not planned for implementation
 - **Rationale**:
-  - Deferred to prioritize core workflow fixes (Build Mode bugs, async context delivery)
+  - Deferred to prioritize core workflow fixes (async context delivery)
   - Manual contract creation is sufficient for current use cases
   - Can be revisited after core functionality is stable and proven in production
 - **Potential Value**: Would enable contract-driven development and automated API testing
@@ -1610,16 +1593,16 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration, workflow orchestration)
 - **12F Factors III-V (Workflow)**: 100% Complete - Mission definition, planning, execution, and orchestration work effectively
 - **Knowledge Management**: 100% Complete (AI session context packets, team directives analysis, reusable knowledge sharing)
-- **Documentation Automation**: 100% Complete (spec-code synchronization with git hooks, non-blocking updates, mode-aware batch review)
+- **Documentation Automation**: 100% Complete (spec-code synchronization with git hooks, non-blocking updates, batch review)
 - **MCP Infrastructure**: 100% Complete (issue tracker, async agent, and git platform integrations)
-- **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, completed mode switching with auto-detection, and mode-aware checklist validation)
-- **Complexity Solutions**: ~90% Complete (completed workflow modes with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable options - HIGH PRIORITY response to user feedback; some automation features still need implementation)
+- **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, and framework option validation)
+- **Complexity Solutions**: ~90% Complete (core workflow with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable framework options - HIGH PRIORITY response to user feedback; some automation features still need implementation)
 - **Current Phase Priorities**: 3 TIERED INITIATIVES (Tier 1: CRITICAL async delivery, Tier 2: HIGH sub-agent coordination, Tier 3: MEDIUM model selection) + 1 HIGH (persistent issue ID) + 3 MEDIUM features - **PRIMARY FOCUS with parallel development**
 - **Next Phase Priorities**: Command prefix migration (deferred to reduce churn while fixing blockers)
 - **Future Enhancements**: 0% Complete (minimal enterprise features only)
 - **Deferred Features**: IDE Integration & overkill enhancements (removed to maintain focus)
 
-**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. **Core 12F workflow Factors III-V are 100% complete** - mission definition, planning, execution, and orchestration work effectively through existing commands, git infrastructure, and command-to-command guidance system. **Workflow orchestration implemented** through CLI workflow overview, context-aware next actions, and sequential command guidance - no advanced visualization or blocking validation needed. **All overkill features eliminated** - advanced monitoring, interactive tutorials, evaluation suites, and context engineering removed to maintain razor focus on essential SDD functionality. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection and post-implementation analysis), and `/checklist` (requirements quality testing with mode-aware framework option validation). **Complexity reduction prioritized** based on user feedback analysis - workflow modes provide user-choice flexibility (spec-driven structured mode as default vs lightweight build mode for exploration), **iterative development is comprehensively supported** through git-managed specs, branch isolation, clarify command modifications, and analyze cross-references, and configurable framework options make TDD/contracts/data models/risk-based testing opt-in rather than mandatory, with checklist validation ensuring enabled options are properly specified in requirements. **AI session context management is implemented** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives for cross-project learning. **Automated documentation updates are implemented** as non-blocking background automation with CLI-injected git hooks, queued updates at natural breakpoints, and mode-aware batch review to preserve developer workflow. **Issue tracker traceability is intentionally separate** from documentation automation for modularity, reliability, and independent adoption. **Command prefix migration prioritized as CRITICAL** due to immediate user impact as a breaking change affecting fork differentiation. Rich context delegation provides superior AI assistance compared to issue labeling approaches.
+**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. **Core 12F workflow Factors III-V are 100% complete** - mission definition, planning, execution, and orchestration work effectively through existing commands, git infrastructure, and command-to-command guidance system. **Workflow orchestration implemented** through CLI workflow overview, context-aware next actions, and sequential command guidance - no advanced visualization or blocking validation needed. **All overkill features eliminated** - advanced monitoring, interactive tutorials, evaluation suites, and context engineering removed to maintain razor focus on essential SDD functionality. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection and post-implementation analysis), and `/checklist` (requirements quality testing with framework option validation). **Complexity reduction prioritized** based on user feedback analysis - configurable workflow with comprehensive iterative development, **iterative development is comprehensively supported** through git-managed specs, branch isolation, clarify command modifications, and analyze cross-references, and configurable framework options make TDD/contracts/data models/risk-based testing opt-in rather than mandatory, with checklist validation ensuring enabled options are properly specified in requirements. **AI session context management is implemented** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives for cross-project learning. **Automated documentation updates are implemented** as non-blocking background automation with CLI-injected git hooks, queued updates at natural breakpoints, and batch review to preserve developer workflow. **Issue tracker traceability is intentionally separate** from documentation automation for modularity, reliability, and independent adoption. **Command prefix migration prioritized as CRITICAL** due to immediate user impact as a breaking change affecting fork differentiation. Rich context delegation provides superior AI assistance compared to issue labeling approaches.
 
 **Verification Status**: Core infrastructure is well-implemented and verified, but some automation features (particularly in traceability and strategic tooling) require additional development to reach full completion. The roadmap now accurately reflects the distinction between configuration scaffolding and functional automation.
 
@@ -1632,11 +1615,9 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 3. **MEDIUM**: Tier 3 - Model Selection Strategy per Command (0% → 100%) - Cost optimization & performance tuning across all workflow commands
 4. **HIGH**: Persistent issue ID storage enhancement (0% → 100%) - Issue-tracker-first workflow improvement
 5. **HIGH**: Architecture Command Restructuring (0% → 100%) - ArcKit-aligned governance with interactive ADR workflow
-6. **✅ COMPLETED**: Build mode workflow bug fix (100%) - Fixed --require-tasks conditional logic
-6. **✅ COMPLETED**: Levelup command build mode compatibility (100%) - Mode-aware file requirements implemented
-7. **✅ COMPLETED**: Build Mode "GSD" Upgrade (100%) - All functionality complete including template refactoring
-8. **✅ COMPLETED**: Optional Architecture Support (100%) - Architecture commands now available in all modes
-   - ✅ Mode detection utilities implemented (get_current_mode functions)
+6. **✅ COMPLETED**: Build mode migration (100%) - Removed build mode from core commands
+7. **✅ COMPLETED**: Levelup command simplification (100%) - Unified to spec-only workflow
+8. **✅ COMPLETED**: Optional Architecture Support (100%) - Architecture commands work with spec mode
    - ✅ Architecture loading matches constitution pattern
    - ✅ Silent operation - no warnings when files missing
    - ⏭️  Schema generation (deferred - future enhancement)

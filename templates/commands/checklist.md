@@ -39,7 +39,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS.
     - All file paths must be absolute.
     - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-    - Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`
+    - Auto-detect framework options from spec.md using `detect_workflow_config()`
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
@@ -93,14 +93,13 @@ You **MUST** consider the user input before proceeding (if not empty).
      - If source docs are large, generate interim summary items instead of embedding raw text
      - For MCP validation: Check .mcp.json structure and server configurations
 
-5. **Apply Mode-Aware Checklist Generation**: Use detected workflow config to adapt checklist content based on enabled framework options:
+5. **Apply Framework-Aware Checklist Generation**: Use detected framework options to adapt checklist content:
 
-     **Parse Workflow Config JSON**:
-     - `mode`: "build" or "spec" (affects default option values)
-     - `tdd`: true/false - include TDD requirement checks
-     - `contracts`: true/false - include API contract checks
-     - `data_models`: true/false - include data model checks
-     - `risk_tests`: true/false - include risk-based testing checks
+      **Parse Workflow Config JSON**:
+      - `tdd`: true/false - include TDD requirement checks
+      - `contracts`: true/false - include API contract checks
+      - `data_models`: true/false - include data model checks
+      - `risk_tests`: true/false - include risk-based testing checks
 
      **TDD Option (if tdd=true)**:
      - Include items checking if test requirements are specified in the spec
@@ -220,7 +219,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      - "Are async agent MCP servers configured for task delegation? [Completeness, Infrastructure]"
      - "Do MCP server configurations include required type and url fields? [Consistency, Infrastructure]"
 
-     Framework Options (Mode-Aware):
+     Framework Options:
      - "Are test requirements specified for all acceptance criteria? [Completeness, TDD]" (when TDD enabled)
      - "Are API contract specifications complete and versioned? [Completeness, Contracts]" (when contracts enabled)
      - "Are entity relationships and data models fully specified? [Completeness, Data Models]" (when data models enabled)

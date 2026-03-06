@@ -22,7 +22,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Auto-detect workflow mode and framework options from spec.md using `detect_workflow_config()`. Enable risk-based test generation if risk_tests=true is detected.
+Auto-detect framework options from spec.md using `detect_workflow_config()`. Enable risk-based test generation if risk_tests=true is detected.
 
 ## Pre-Execution Checks
 

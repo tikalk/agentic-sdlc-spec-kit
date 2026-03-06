@@ -17,14 +17,6 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Mode Detection
-
-1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect the workflow mode and framework options from the current feature's `spec.md` file. This reads the `**Workflow Mode**` and `**Framework Options**` metadata lines.
-
-2. **Mode-Aware Behavior**:
-   - **Build Mode**: Minimal clarification - focus only on critical blockers, limit to 1-2 questions maximum
-   - **Spec Mode**: Full clarification workflow - comprehensive ambiguity detection and resolution
-
 ## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification. Validate spec against project constitution and architecture (three-pillar validation). Record clarifications directly in the spec file.
@@ -45,18 +37,11 @@ Before proceeding with Three-Pillar Validation, validate that the spec has a com
 1. Parse spec header for Goal, Success Criteria, Constraints fields
 2. Check if any field is missing or contains placeholder text (e.g., `[one-sentence objective - core purpose]`)
 
-### Mode-Aware Behavior
+### Required Behavior
 
-**Spec Mode (required)**:
-- If any Mission Brief field is missing or empty, **block** and prompt user to provide it before proceeding
+If any Mission Brief field is missing or empty, **block** and prompt user to provide it before proceeding
 - Output the Mission Brief prompt template and wait for user input
 - Do NOT proceed to Three-Pillar Validation until Mission Brief is complete
-
-**Build Mode (recommended)**:
-- If any Mission Brief field is missing, **warn** but allow user to skip
-- Output: "⚠️ Mission Brief incomplete. Recommended for better spec clarity. Continue anyway? (yes/no)"
-- If user says "yes", proceed to Three-Pillar Validation
-- If user provides Mission Brief content, update spec and proceed
 
 ### Mission Brief Prompt Template
 
@@ -76,7 +61,7 @@ Before proceeding with clarification, the spec needs a Mission Brief:
 **Constraints**: [Key constraints]
 - Examples: "Must work offline", "Budget < $X", "No external APIs"
 
-Please provide the Mission Brief fields, or type "skip" (Build Mode only) to proceed without.
+Please provide the Mission Brief fields before proceeding.
 ```
 
 ### Recording Mission Brief
@@ -112,8 +97,8 @@ This command validates the spec across three pillars:
 
 **Question Limit**:
 
-- No architecture present: max 5 questions (build: 2, spec: 5)
-- Architecture present: max 10 questions (build: 2, spec: 10) - expanded capacity
+- No architecture present: max 5 questions
+- Architecture present: max 10 questions - expanded capacity
 
 **Auto-Fix Capability**:
 When detecting diagram-text inconsistency, automatically:
@@ -305,15 +290,8 @@ Execution steps:
    - Diagram inconsistencies: MEDIUM PRIORITY (auto-fixable)
    - Missing integration details: LOW PRIORITY (can defer to planning)
 
-4. Generate (internally) a prioritized queue of candidate clarification questions (mode-aware limits):
+4. Generate (internally) a prioritized queue of candidate clarification questions:
 
-     **Build Mode Question Generation:**
-     - Maximum of 2 total questions across the whole session
-     - Focus ONLY on scope-defining decisions that would prevent basic functionality
-     - Skip detailed technical, performance, or edge case questions
-     - Prioritize: core functionality > basic UX > essential data requirements
-
-     **Spec Mode Question Generation:**
      - Maximum of 5 questions if no architecture present
      - Maximum of 10 questions if architecture present (expanded capacity)
      - Each question must be answerable with EITHER:
@@ -330,15 +308,8 @@ Execution steps:
      - Favor clarifications that reduce downstream rework risk or prevent governance violations
      - If more than 10 issues remain (when architecture present), select top 10 by priority order above
 
-4. Sequential questioning loop (interactive, mode-aware):
+4. Sequential questioning loop (interactive):
 
-     **Build Mode Questioning:**
-     - Present EXACTLY ONE question at a time (maximum 2 total)
-     - Keep questions extremely simple and focused on basic functionality
-     - Use short-answer format when possible to minimize interaction
-     - Stop after 2 questions or when core functionality is clear
-
-     **Spec Mode Questioning:**
      - Present EXACTLY ONE question at a time
      - For multiple‑choice questions:
         - **Analyze all options** and determine the **most suitable option** based on:
@@ -423,19 +394,12 @@ Execution steps:
 
 7. Write the updated spec back to `FEATURE_SPEC`.
 
-8. Report completion (after questioning loop ends or early termination, mode-aware):
+8. Report completion:
 
-    **Build Mode Completion:**
-    - Number of questions asked & answered (max 2)
-    - Path to updated spec
-    - Basic coverage summary (focus on core functionality)
-    - Suggested next command: `/spec.implement` (skip formal planning)
-
-    **Spec Mode Completion:**
-    - Number of questions asked & answered (max: 5 or 10 depending on architecture)
-    - Path to updated spec
-    - Sections touched (list names)
-    - **Three-Pillar Validation Summary**:
+     - Number of questions asked & answered (max: 5 or 10 depending on architecture)
+     - Path to updated spec
+     - Sections touched (list names)
+     - **Three-Pillar Validation Summary**:
       - **Spec Completeness**: Coverage summary table with Status per category
       - **Constitution Alignment**: Verified / Issues Found / Not Available (if missing)
       - **Architecture Alignment**: Verified / Issues Found / Not Available (if missing)
@@ -454,11 +418,6 @@ Behavior rules:
 - If no questions asked due to full coverage across all pillars, output compact three-pillar summary then suggest advancing
 - **Constitution/Architecture graceful handling**: If files missing, skip those pillars without error
 - **Auto-fix diagrams silently**: When fixing diagram inconsistencies, apply update and note in clarifications (don't ask user)
-
-1. **Mode Guidance**:
-    - **Build Mode**: Limited clarification (max 2 questions) focuses on critical blockers only
-    - **Spec Mode**: Comprehensive clarification (max 5 questions) ensures thorough understanding
-    - **Note**: Mode is determined by the current feature's spec.md and cannot be changed mid-feature; create a new feature in the desired mode if needed
 
 - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 

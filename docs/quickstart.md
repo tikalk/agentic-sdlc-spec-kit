@@ -11,89 +11,34 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
-### Per-Spec Workflow Mode Architecture
+### Framework Options
 
-Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows.
+Core workflow commands support fine-grained control over development approach:
 
-#### Available Modes
+#### Configuration Options
 
-- **`spec` mode (default)**: Full structured development with comprehensive requirements, research, and validation
-- **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
-
-#### Mode Configuration
-
-Modes are configured per-feature using parameters during specification:
-
-```bash
-# Create feature with specific mode
-/spec.specify --mode=build "Quick API fix"
-/spec.specify --mode=spec "Comprehensive user authentication"
-
-# Override framework options per feature
-/spec.specify --mode=build --tdd "Critical feature with tests"
-/spec.specify --mode=spec --no-contracts "Feature without API contracts"
-
-# Mode-specific defaults automatically applied
-# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
-# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
-```
-
-#### Framework Options
-
-Fine-grained control over development approach:
+Fine-grained control over development approach via command-line flags:
 
 ```bash
 # Test-Driven Development
---tdd / --no-tdd
+/spec.specify --tdd (enabled by default)
 
 # Smart Contracts (API specifications)
---contracts / --no-contracts
+/spec.specify --contracts (enabled by default)
 
 # Data Models (entity relationships)
---data-models / --no-data-models
+/spec.specify --data-models (enabled by default)
 
 # Risk-Based Testing
---risk-tests / --no-risk-tests
+/spec.specify --risk-tests (enabled by default)
 ```
 
 #### Auto-Detection System
 
-Downstream commands automatically detect the mode from spec.md metadata:
+Downstream commands automatically detect framework options from spec.md metadata:
 
-- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect mode and framework options from spec.md
-- **`/architect.*`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
-
-#### When to Use Each Mode
-
-**Use `build` mode for:**
-
-- Individual development and rapid prototyping
-- Quick wins and simple features
-- Senior engineers who prefer autonomy
-- Situations requiring fast iteration
-
-**Use `spec` mode for:**
-
-- Team collaboration and complex systems
-- Production features requiring comprehensive validation
-- Situations where thorough documentation is critical
-- Projects with multiple stakeholders
-
-#### Mixed-Mode Workflows
-
-The per-spec architecture enables advanced workflows:
-
-```bash
-# Create multiple features with different modes in same project
-/spec.specify --mode=build "Quick prototype feature"
-/spec.specify --mode=spec "Production authentication system"
-/spec.specify --mode=build "Bug fix"
-
-# Each feature operates independently with its configured mode
-/spec.plan    # Auto-detects mode from current feature's spec.md
-/spec.tasks   # Respects framework options from spec.md
-/spec.implement # Adapts validation based on detected mode
-```
+- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect framework options from the current feature's spec.md
+- **`/architect.*`**: Option-agnostic (system-level architecture should not be constrained by feature-level options)
 
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
@@ -211,7 +156,7 @@ The per-spec architecture enables advanced workflows:
 
 **In your terminal**, run the `specify` CLI command to initialize your project:
 
-> **Note:** All slash commands automatically detect the workflow mode from the current feature's spec.md metadata. No manual mode switching required.
+> **Note:** All slash commands automatically detect framework options from the current feature's spec.md metadata.
 
 ```bash
 # Create a new project directory
@@ -368,45 +313,6 @@ Finally, implement the solution:
 - **Iterate and refine** your specifications before implementation
 - **Validate** the plan before coding begins
 - **Let the AI agent handle** the implementation details
-- **Choose your complexity level** with workflow modes (build for speed, spec for thoroughness)
-
-## Creating Features in Different Modes
-
-Your development needs may vary between different features:
-
-### For Build Mode Features
-
-Create lightweight features focused on quick validation:
-
-```bash
-/spec.specify --mode=build "Your feature description"
-```
-
-**Best for:**
-
-- Exploratory prototyping
-- Quick validation of technical approaches
-- Throwaway proof-of-concepts
-- Time-sensitive features
-
-### For Spec Mode Features (Default)
-
-Create comprehensive features with detailed planning and validation:
-
-```bash
-/spec.specify --mode=spec "Your feature description"
-```
-
-**Best for:**
-
-- Features growing in scope
-- Multiple stakeholder involvement
-- Production-critical functionality
-- Complex system integration
-
-### Transitioning Between Modes
-
-If your feature needs change after initial creation, create a new feature spec with the appropriate mode rather than trying to modify the existing feature's mode. This preserves the original intent and decisions in the original spec.md.
 
 ## Next Steps
 

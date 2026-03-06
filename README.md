@@ -240,90 +240,30 @@ specify init my-project --spec-sync
 specify init my-project --ai claude --spec-sync
 ```
 
-### Per-Spec Workflow Mode Architecture
+### Framework Options
 
-Specify implements a **per-spec mode architecture** where each feature can operate in different modes simultaneously, providing maximum flexibility for mixed-mode workflows. The mode is configured at the specification level and applies to all downstream commands.
-
-#### Available Modes
-
-- **`spec` mode (default)**: Full structured specification with comprehensive requirements, research, and validation
-- **`build` mode**: Lightweight, conversational approach focused on quick validation and exploration
-
-#### Mode Configuration
-
-Modes are configured per-feature when creating the specification:
-
-```bash
-# Create feature with specific mode
-/spec.specify --mode=build "Quick API fix"
-/spec.specify --mode=spec "Comprehensive user authentication"
-
-# Override framework options per feature
-/spec.specify --mode=build --tdd "Critical feature with tests"
-/spec.specify --mode=spec --no-contracts "Feature without API contracts"
-
-# Mode-specific defaults automatically applied
-# Build mode: tdd=false, contracts=false, data_models=false, risk_tests=false
-# Spec mode: tdd=true, contracts=true, data_models=true, risk_tests=true
-```
-
-#### Framework Options
-
-Fine-grained control over development approach:
+Fine-grained control over development approach available via command-line flags:
 
 ```bash
 # Test-Driven Development
---tdd / --no-tdd
+/spec.specify --tdd (enabled by default)
 
 # Smart Contracts (API specifications)
---contracts / --no-contracts
+/spec.specify --contracts (enabled by default)
 
 # Data Models (entity relationships)
---data-models / --no-data-models
+/spec.specify --data-models (enabled by default)
 
 # Risk-Based Testing
---risk-tests / --no-risk-tests
+/spec.specify --risk-tests (enabled by default)
 ```
 
-#### Mode Detection and Auto-Detection
+#### Auto-Detection System
 
-The mode is stored in the `spec.md` file metadata and automatically detected by downstream commands:
+Framework options are automatically detected by downstream commands from spec.md metadata:
 
-- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect mode and framework options from the current feature's spec.md
-- **`/architect.*`**: Mode-agnostic (system-level architecture should not be constrained by feature-level modes)
-
-#### When to Use Each Mode
-
-**Use `build` mode for:**
-
-- Individual development and rapid prototyping
-- Quick wins and simple features  
-- Senior engineers who prefer autonomy
-- Situations requiring fast iteration
-
-**Use `spec` mode for:**
-
-- Team collaboration and complex systems
-- Production features requiring comprehensive validation
-- Situations where thorough documentation is critical
-- Projects with multiple stakeholders
-
-#### Mixed-Mode Workflows
-
-The per-spec architecture enables advanced workflows:
-
-```bash
-# Create multiple features with different modes in same project
-/spec.specify --mode=build "Quick prototype feature"
-/spec.specify --mode=spec "Production authentication system"
-/spec.specify --mode=build "Bug fix"
-
-# Each feature operates independently with its configured mode
-/spec.plan    # Auto-detects mode from current feature's spec.md
-/spec.tasks   # Respects framework options from spec.md
-/spec.implement # Adapts validation based on detected mode
-/spec.analyze # Auto-detects pre vs post-implementation context based on project state
-```
+- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect framework options from the current feature's spec.md
+- **`/architect.*`**: Option-agnostic (system-level architecture should not be constrained by feature-level options)
 
 #### Complete Example
 
@@ -338,7 +278,7 @@ specify init my-project \
 
 ### Optional Architecture Support
 
-The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work with both build and spec modes and can be used at any time, regardless of workflow mode.
+The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work in any project.
 
 > **Note**: The Architect extension is bundled and auto-installed during `specify init`.
 
@@ -681,11 +621,10 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 | `--ai-skills`                | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
 
-### `/spec.specify` Mode & Framework Options
+### `/spec.specify` Framework Options
 
 | Argument/Option | Type     | Description                                                                 |
 |-----------------|----------|-----------------------------------------------------------------------------|
-| `--mode`        | Option   | Workflow mode: `build` (lightweight) or `spec` (comprehensive, default) |
 | `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
 | `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
 | `--data-models/--no-data-models` | Option | Enable/disable data model generation |
@@ -816,11 +755,6 @@ specify init enterprise-app --ai claude --script sh --team-ai-directives https:/
 
 # Check system requirements
 specify check
-
-# Workflow mode management is per-feature during specification
-/spec.specify --mode build "Quick prototype feature"      # Create feature in build mode
-/spec.specify --mode spec "Complex feature"                # Create feature in spec mode (default)
-/spec.specify --mode build --tdd "Feature with tests"     # Build mode with TDD enabled
 ```
 
 ### Available Slash Commands

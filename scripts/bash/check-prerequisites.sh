@@ -147,51 +147,10 @@ print(json.dumps(risks, ensure_ascii=False))
 PY
 }
 
-# Extract mode configuration
+# Extract mode configuration - always returns spec mode for core commands
 get_mode_config() {
-    local config_file
-    config_file=$(get_config_path)
-
-    # Extract current mode and options from consolidated config
-    python3 - "$config_file" <<'PY'
-import json
-import sys
-from pathlib import Path
-
-config_file = Path(sys.argv[1])
-try:
-    with open(config_file, 'r') as f:
-        data = json.load(f)
-
-    # Mode is now under workflow.current_mode
-    current_mode = data.get('workflow', {}).get('current_mode', 'spec')
-    # Options are at the top level
-    options = data.get('options', {})
-
-    # Ensure all expected options are present with defaults
-    defaults = {
-        'tdd_enabled': True,
-        'contracts_enabled': True,
-        'data_models_enabled': True,
-        'risk_tests_enabled': True
-    }
-
-    # Merge with defaults for any missing options
-    for key, default_value in defaults.items():
-        if key not in options:
-            options[key] = default_value
-
-    result = {
-        'current_mode': current_mode,
-        'options': options
-    }
-
-    print(json.dumps(result))
-
-except Exception as e:
-    # Fallback to defaults on any error
-    print('{"current_mode":"spec","options":{"tdd_enabled":true,"contracts_enabled":true,"data_models_enabled":true,"risk_tests_enabled":true}}')
-PY
+    # Core commands always use spec mode
+    echo '{"current_mode":"spec","options":{"tdd_enabled":true,"contracts_enabled":true,"data_models_enabled":true,"risk_tests_enabled":true}}'
 }
 
 # Get feature paths and validate branch
@@ -224,29 +183,11 @@ if [[ ! -d "$FEATURE_DIR" ]]; then
     exit 1
 fi
 
-# Check for plan.md (required in spec mode, optional in build mode)
+# Check for plan.md (required in spec mode)
 if [[ ! -f "$IMPL_PLAN" ]]; then
-    # Get current mode to determine if plan.md is required
-    current_mode="spec"
-    global_config=$(get_config_path)
-    if [[ -f "$global_config" ]]; then
-        current_mode=$(python3 -c "
-import json
-try:
-    with open('$global_config', 'r') as f:
-        data = json.load(f)
-    print(data.get('workflow', {}).get('current_mode', 'spec'))
-except:
-    print('spec')
-" 2>/dev/null || echo "spec")
-    fi
-
-    if [[ "$current_mode" == "spec" ]]; then
-        echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
-        echo "Run /spec.plan first to create the implementation plan." >&2
-        exit 1
-    fi
-    # In build mode, plan.md is optional - allow implementation to proceed
+    echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
+    echo "Run /spec.plan first to create the implementation plan." >&2
+    exit 1
 fi
 
 if [[ ! -f "$CONTEXT" ]]; then
