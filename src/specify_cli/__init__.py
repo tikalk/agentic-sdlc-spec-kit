@@ -3948,6 +3948,25 @@ def version():
     info_table.add_row("Template Version", template_version)
     info_table.add_row("Released", release_date)
     info_table.add_row("", "")
+
+    # Check for installed extensions
+    project_path = Path.cwd()
+    specify_dir = project_path / ".specify"
+    if specify_dir.exists():
+        try:
+            preinstalled = get_preinstalled_extensions(project_path)
+            if preinstalled:
+                ext_names = [ext["name"] for ext in preinstalled]
+                ext_count = len(ext_names)
+                if ext_count > 0:
+                    ext_list = ", ".join(ext_names[:5])
+                    if ext_count > 5:
+                        ext_list = f"{ext_list} [+{ext_count - 5} more]"
+                    info_table.add_row("Extensions", ext_list)
+                    info_table.add_row("", "")
+        except Exception:
+            pass
+
     info_table.add_row("Python", platform.python_version())
     info_table.add_row("Platform", platform.system())
     info_table.add_row("Architecture", platform.machine())
