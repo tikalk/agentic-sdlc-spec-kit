@@ -1641,12 +1641,10 @@ def skill_sync_team(
 
     # Get required and recommended skills
     required = team_manifest.get_required_skills()
-    recommended = team_manifest.get_recommended_skills()
     blocked = team_manifest.get_blocked_skills()
 
     console.print(f"\n[{ACCENT_COLOR}]Team Skills Manifest:[/{ACCENT_COLOR}]")
     console.print(f"  Required: {len(required)}")
-    console.print(f"  Recommended: {len(recommended)}")
     console.print(f"  Blocked: {len(blocked)}")
     console.print()
 
@@ -1671,22 +1669,6 @@ def skill_sync_team(
                         console.print(f"  [green]✓[/green] {message}")
                     else:
                         console.print(f"  [red]✗[/red] {message}")
-
-    # Show recommended skills
-    if recommended:
-        console.print()
-        console.print("[bold]Recommended Skills (not auto-installed):[/bold]")
-        for skill_ref, version_spec in recommended.items():
-            current = manifest.get_skill(skill_ref)
-            if current:
-                console.print(
-                    f"  [green]✓[/green] {skill_ref}@{current.version} (installed)"
-                )
-            else:
-                console.print(f"  [dim]○[/dim] {skill_ref}")
-                console.print(
-                    f"    [cyan]Install: specify skill install {skill_ref}[/cyan]"
-                )
 
     # Show blocked skills warning
     if blocked:
@@ -3359,7 +3341,6 @@ def init(
         tracker.add(key, label)
 
     resolved_team_directives: Path | None = None
-    recommended_skills_info: list = []  # Store recommended skills to display after init
 
     # Use transient so live tree is replaced by the final static render (avoids duplicate output)
     # Track git error message outside Live context so it persists
@@ -3515,15 +3496,6 @@ def init(
                                         installer.install(skill_ref, version=version)
                                     except Exception:
                                         pass  # Continue even if a skill fails to install
-
-                            # Capture recommended skills for display
-                            recommended_skills = (
-                                team_skills_manifest.get_recommended_skills()
-                            )
-                            for skill_ref, version_spec in recommended_skills.items():
-                                recommended_skills_info.append(
-                                    (skill_ref, version_spec)
-                                )
 
                 tracker.complete("skills", "manifest created")
             except Exception as e:
@@ -3767,33 +3739,6 @@ def init(
         )
         console.print()
         console.print(extensions_panel)
-
-    # Display recommended skills from team manifest if any
-    if recommended_skills_info:
-        skills_lines = [
-            "Team-recommended skills for this project:",
-            "",
-        ]
-        for skill_ref, version_spec in recommended_skills_info:
-            skills_lines.append(
-                f"○ [{ACCENT_COLOR}]{skill_ref}[/{ACCENT_COLOR}]@{version_spec}"
-            )
-        skills_lines.append("")
-        skills_lines.append(
-            "[dim]Install with: specify skill install <skill-ref>[/dim]"
-        )
-        skills_lines.append(
-            "[dim]Or sync all team skills: specify skill sync-team[/dim]"
-        )
-
-        skills_panel = Panel(
-            "\n".join(skills_lines),
-            title="Recommended Skills",
-            border_style=ACCENT_COLOR,
-            padding=(1, 2),
-        )
-        console.print()
-        console.print(skills_panel)
 
     # NOTE: ai_skills installation is handled inside the tracker session above (line ~3433)
     # Do not duplicate the install_ai_skills call here.
