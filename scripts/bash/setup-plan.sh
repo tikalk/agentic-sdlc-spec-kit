@@ -42,14 +42,8 @@ fi
 # Ensure the feature directory exists
 mkdir -p "$FEATURE_DIR"
 
-# Detect current workflow mode and select appropriate plan template
-CURRENT_MODE=$(get_current_mode)
-
-if [[ "$CURRENT_MODE" == "build" ]]; then
-    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template-build.md"
-else
-    TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
-fi
+# Select plan template
+TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
 
 if [[ -f "$TEMPLATE" ]]; then
     cp "$TEMPLATE" "$IMPL_PLAN"

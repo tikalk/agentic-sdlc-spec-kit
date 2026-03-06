@@ -189,25 +189,6 @@ generate_delegation_prompt() {
 
 ${agent_context}"
 
-    # Add atomic commits guidance if enabled
-    local atomic_commits
-    atomic_commits=$(get_mode_config "atomic_commits")
-    
-    if [[ "$atomic_commits" == "true" ]]; then
-        full_context="${full_context}
-
-## COMMIT STRUCTURE GUIDANCE
-Create atomic commits following this pattern:
-- Each commit represents one logical unit of work
-- Independently reviewable (can understand from commit message + diff)
-- Self-contained (feature complete or milestone complete)
-- Descriptive message: \"[Feature]: What was accomplished\"
-Example: \"[auth]: Implement JWT token validation\"
-
-This enables post-execution review and rollback capability.
-"
-    fi
-
     # Substitute variables using awk to handle multiline content safely
     local prompt
     prompt=$(awk -v agent_type="$agent_type" \
@@ -637,66 +618,29 @@ ensure_documentation_consistency() {
     fi
 }
 
-# Mode-aware rollback strategies
-get_mode_aware_rollback_strategy() {
-    local mode="${1:-spec}"  # Default to spec mode
-
-    case "$mode" in
-        "build")
-            echo "build_mode_rollback"
-            ;;
-        "spec")
-            echo "spec_mode_rollback"
-            ;;
-        *)
-            echo "default_rollback"
-            ;;
-    esac
-}
-
-# Execute mode-aware rollback
-execute_mode_aware_rollback() {
+# Execute rollback (spec mode only)
+execute_rollback() {
     local feature_dir="$1"
     local rollback_type="$2"
-    local mode="${3:-spec}"
+    local task_id="${3:-}"  # Optional task_id for task rollback
 
-    local strategy
-    strategy=$(get_mode_aware_rollback_strategy "$mode")
+    echo "Executing spec_mode_rollback for $rollback_type"
 
-    echo "Executing $strategy for $rollback_type in $mode mode"
-
-    case "$strategy" in
-        "build_mode_rollback")
-            # Lightweight rollback for build mode
-            echo "Build mode: Minimal rollback preserving rapid iteration artifacts"
-            case "$rollback_type" in
-                "task")
-                    # Less aggressive task rollback in build mode
-                    echo "Task rollback completed with minimal cleanup"
-                    ;;
-                "feature")
-                    # Preserve more artifacts in build mode
-                    echo "Feature rollback completed, preserving iteration artifacts"
-                    ;;
-            esac
+    case "$rollback_type" in
+        "task")
+            if [[ -z "$task_id" ]]; then
+                echo "ERROR: task_id required for task rollback" >&2
+                return 1
+            fi
+            rollback_task "$feature_dir/tasks_meta.json" "$task_id" "true"
             ;;
-
-        "spec_mode_rollback")
-            # Comprehensive rollback for spec mode
-            echo "Spec mode: Comprehensive rollback with full documentation preservation"
-            case "$rollback_type" in
-                "task")
-                    rollback_task "$feature_dir/tasks_meta.json" "$4" "true"
-                    ;;
-                "feature")
-                    rollback_feature "$feature_dir" "true"
-                    ;;
-            esac
+        "feature")
+            rollback_feature "$feature_dir" "true"
             ;;
-
-        "default_rollback")
-    echo "Default rollback strategy applied"
-    ;;
+        *)
+            echo "ERROR: Unknown rollback type: $rollback_type" >&2
+            return 1
+            ;;
     esac
 }
 
@@ -717,37 +661,18 @@ get_framework_opinions() {
         local user_risk_tests
         user_risk_tests=$(jq -r ".options.risk_tests_enabled" "$config_file" 2>/dev/null || echo "null")
 
-        # Fill in defaults for unset options based on mode
-        case "$mode" in
-            "build")
-                [[ "$user_tdd" == "null" ]] && user_tdd="false"
-                [[ "$user_contracts" == "null" ]] && user_contracts="false"
-                [[ "$user_data_models" == "null" ]] && user_data_models="false"
-                [[ "$user_risk_tests" == "null" ]] && user_risk_tests="false"
-                ;;
-            "spec")
-                [[ "$user_tdd" == "null" ]] && user_tdd="true"
-                [[ "$user_contracts" == "null" ]] && user_contracts="true"
-                [[ "$user_data_models" == "null" ]] && user_data_models="true"
-                [[ "$user_risk_tests" == "null" ]] && user_risk_tests="true"
-                ;;
-        esac
+        # Fill in defaults for unset options (spec mode defaults)
+        [[ "$user_tdd" == "null" ]] && user_tdd="true"
+        [[ "$user_contracts" == "null" ]] && user_contracts="true"
+        [[ "$user_data_models" == "null" ]] && user_data_models="true"
+        [[ "$user_risk_tests" == "null" ]] && user_risk_tests="true"
+
         echo "tdd_enabled=$user_tdd contracts_enabled=$user_contracts data_models_enabled=$user_data_models risk_tests_enabled=$user_risk_tests"
         return
     fi
 
-    # Fallback to mode-based defaults
-    case "$mode" in
-        "build")
-            echo "tdd_enabled=false contracts_enabled=false data_models_enabled=false risk_tests_enabled=false"
-            ;;
-        "spec")
-            echo "tdd_enabled=true contracts_enabled=true data_models_enabled=true risk_tests_enabled=true"
-            ;;
-        *)
-            echo "tdd_enabled=false contracts_enabled=false data_models_enabled=false risk_tests_enabled=false"
-            ;;
-    esac
+    # Fallback to spec mode defaults
+    echo "tdd_enabled=true contracts_enabled=true data_models_enabled=true risk_tests_enabled=true"
 }
 
 # Set framework opinion (legacy compatibility - now handled by per-spec mode)
@@ -856,12 +781,12 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift
             regenerate_tasks_after_rollback "$@"
             ;;
-        regenerate_plan|ensure_documentation_consistency|        get_mode_aware_rollback_strategy|execute_mode_aware_rollback|        get_framework_opinions|set_framework_opinion|is_opinion_enabled|generate_tasks_with_opinions)
+        regenerate_plan|ensure_documentation_consistency|        execute_rollback|        get_framework_opinions|set_framework_opinion|is_opinion_enabled|generate_tasks_with_opinions)
             shift
             "$1" "$@"
             ;;
         *)
-            echo "Usage: $0 {generate_delegation_prompt|check_delegation_status|dispatch_async_task|analyze_implementation_changes|propose_documentation_updates|apply_documentation_updates|rollback_task|rollback_feature|regenerate_tasks_after_rollback|regenerate_plan|ensure_documentation_consistency|get_mode_aware_rollback_strategy|execute_mode_aware_rollback} [args...]"
+            echo "Usage: $0 {generate_delegation_prompt|check_delegation_status|dispatch_async_task|analyze_implementation_changes|propose_documentation_updates|apply_documentation_updates|rollback_task|rollback_feature|regenerate_tasks_after_rollback|regenerate_plan|ensure_documentation_consistency|execute_rollback} [args...]"
             exit 1
             ;;
     esac

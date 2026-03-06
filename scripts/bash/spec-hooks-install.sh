@@ -168,20 +168,6 @@ function create_config {
     "data_models_enabled": false,
     "risk_tests_enabled": false
   },
-  "mode_defaults": {
-    "build": {
-      "tdd_enabled": false,
-      "contracts_enabled": false,
-      "data_models_enabled": false,
-      "risk_tests_enabled": false
-    },
-    "spec": {
-      "tdd_enabled": true,
-      "contracts_enabled": true,
-      "data_models_enabled": true,
-      "risk_tests_enabled": true
-    }
-  },
   "spec_sync": {
     "enabled": true,
     "queue": {

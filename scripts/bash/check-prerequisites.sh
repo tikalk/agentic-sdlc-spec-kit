@@ -147,12 +147,6 @@ print(json.dumps(risks, ensure_ascii=False))
 PY
 }
 
-# Extract mode configuration - always returns spec mode for core commands
-get_mode_config() {
-    # Core commands always use spec mode
-    echo '{"current_mode":"spec","options":{"tdd_enabled":true,"contracts_enabled":true,"data_models_enabled":true,"risk_tests_enabled":true}}'
-}
-
 # Get feature paths and validate branch
 eval $(get_feature_paths)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
@@ -240,7 +234,6 @@ if $JSON_MODE; then
     
     SPEC_RISKS=$(extract_risks "$FEATURE_SPEC")
     PLAN_RISKS=$(extract_risks "$IMPL_PLAN")
-    MODE_CONFIG=$(get_mode_config)
     
     # Check for constitution and architecture (optional governance documents)
     CONSTITUTION_EXISTS="false"
@@ -260,8 +253,8 @@ if $JSON_MODE; then
         ARCHITECTURE_DIAGRAMS=$(extract_architecture_diagrams "$ARCHITECTURE")
     fi
     
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"MODE_CONFIG":%s,"CONSTITUTION":"%s","CONSTITUTION_EXISTS":%s,"CONSTITUTION_RULES":%s,"ARCHITECTURE":"%s","ARCHITECTURE_EXISTS":%s,"ARCHITECTURE_VIEWS":%s,"ARCHITECTURE_DIAGRAMS":%s}\n' \
-        "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" "$MODE_CONFIG" \
+    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"CONSTITUTION":"%s","CONSTITUTION_EXISTS":%s,"CONSTITUTION_RULES":%s,"ARCHITECTURE":"%s","ARCHITECTURE_EXISTS":%s,"ARCHITECTURE_VIEWS":%s,"ARCHITECTURE_DIAGRAMS":%s}\n' \
+        "$FEATURE_DIR" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" \
         "$CONSTITUTION" "$CONSTITUTION_EXISTS" "$CONSTITUTION_RULES" \
         "$ARCHITECTURE" "$ARCHITECTURE_EXISTS" "$ARCHITECTURE_VIEWS" "$ARCHITECTURE_DIAGRAMS"
 else

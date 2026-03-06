@@ -35,37 +35,6 @@ get_config_path() {
     fi
 }
 
-# Get current workflow mode - always returns "spec" for core commands
-get_current_mode() {
-    # Core commands always use spec mode
-    echo "spec"
-}
-
-# Get a specific mode configuration value
-# Usage: get_mode_config "atomic_commits" → returns "true" or "false"
-# Usage: get_mode_config "skip_micro_review" → returns "true" or "false"
-get_mode_config() {
-    local key="$1"
-    local config_file
-    config_file=$(get_config_path)
-    
-    # Default to false if no config exists or jq not available
-    if [[ ! -f "$config_file" ]] || ! command -v jq >/dev/null 2>&1; then
-        echo "false"
-        return
-    fi
-    
-    # Get current mode
-    local mode
-    mode=$(get_current_mode)
-    
-    # Read mode-specific config value, default to false
-    local value
-    value=$(jq -r ".mode_defaults.${mode}.${key} // false" "$config_file" 2>/dev/null)
-    
-    echo "$value"
-}
-
 # Get architecture diagram format from config (mermaid or ascii)
 # Defaults to "mermaid" if config doesn't exist or format is invalid
 get_architecture_diagram_format() {
@@ -397,21 +366,6 @@ except Exception as e:
     print('[]')
 PY
 }
-
-# Detect workflow mode and framework options from spec.md
-# Usage: detect_workflow_config [path/to/spec.md]
-# Returns JSON: {"mode":"build|spec","tdd":true|false,"contracts":true|false,"data_models":true|false,"risk_tests":true|false}
-detect_workflow_config() {
-    local spec_file="${1:-spec.md}"
-    
-    # Source the standalone script
-    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    source "$script_dir/detect-workflow-config.sh"
-    
-    # Call the function
-    detect_workflow_config "$spec_file"
-}
-
 
 # Extract diagram blocks from architecture.md
 # Returns JSON array of diagrams with type and format

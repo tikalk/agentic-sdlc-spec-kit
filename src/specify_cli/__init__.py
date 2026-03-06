@@ -718,28 +718,6 @@ def get_default_config() -> dict:
             "data_models_enabled": False,
             "risk_tests_enabled": False,
         },
-        "mode_defaults": {
-            "build": {
-                "tdd_enabled": False,
-                "contracts_enabled": False,
-                "data_models_enabled": False,
-                "risk_tests_enabled": False,
-                # GSD execution characteristics
-                "atomic_commits": True,
-                "skip_micro_review": True,
-                "minimal_documentation": True,
-            },
-            "spec": {
-                "tdd_enabled": True,
-                "contracts_enabled": True,
-                "data_models_enabled": True,
-                "risk_tests_enabled": True,
-                # Spec mode review characteristics
-                "atomic_commits": False,
-                "skip_micro_review": False,
-                "minimal_documentation": False,
-            },
-        },
         "spec_sync": {
             "enabled": False,
             "queue": {"version": "1.0", "created": now, "pending": [], "processed": []},

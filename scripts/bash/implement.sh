@@ -287,23 +287,8 @@ execute_task() {
             # Mark as completed (in real implementation, this would happen after successful execution)
             safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
 
-            # Conditional micro-review based on mode
-            local skip_review
-            skip_review=$(get_mode_config "skip_micro_review")
-            
-            if [[ "$skip_review" == "true" ]]; then
-                # Build/GSD mode: Non-blocking, log for post-hoc review
-                log_info "Task $task_id complete - Atomic commit created"
-                if command -v git >/dev/null 2>&1; then
-                    local last_commit
-                    last_commit=$(git log -1 --oneline 2>/dev/null || echo "No git repository")
-                    log_info "Commit: $last_commit"
-                fi
-                log_info "Review at any time with: git log -p, git show, git diff"
-            else
-                # Spec mode: Blocking review gate
-                perform_micro_review "$TASKS_META_FILE" "$task_id"
-            fi
+            # Spec mode: Always perform blocking micro-review gate
+            perform_micro_review "$TASKS_META_FILE" "$task_id"
         else
             handle_task_failure "$task_id" "SYNC task execution failed"
         fi
@@ -502,13 +487,13 @@ Choose (1-5): "
             safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "pending"'
             ;;
         2)
-            log_info "Rolling back task $task_id with $mode mode strategy"
-            execute_mode_aware_rollback "$FEATURE_DIR" "task" "$mode" "$task_id"
+            log_info "Rolling back task $task_id"
+            execute_rollback "$FEATURE_DIR" "task" "$task_id"
             ensure_documentation_consistency "$FEATURE_DIR"
             ;;
         3)
             log_info "Rolling back entire feature and regenerating tasks"
-            execute_mode_aware_rollback "$FEATURE_DIR" "feature" "$mode"
+            execute_rollback "$FEATURE_DIR" "feature"
             regenerate_tasks_after_rollback "$FEATURE_DIR" "$failure_reason"
             ensure_documentation_consistency "$FEATURE_DIR"
             ;;
