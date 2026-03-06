@@ -7,6 +7,17 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.109] - 2026-03-06
+
+### Fixed
+
+- **Quick Extension Enforcement**: Add mandatory checkpoints to prevent AI from skipping workflow phases
+  - Added 7 enforcement checkpoints with mandatory user confirmations
+  - Strengthened directive language from permissive to mandatory
+  - Added enforcement mode section with critical rules at template start
+  - Prevent AI from defaulting to file analysis mode
+  - Ensures Mission Brief is always collected before file operations
+
 ## [0.0.108] - 2026-03-06
 
 ### Added
