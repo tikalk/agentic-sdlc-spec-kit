@@ -12,6 +12,16 @@ Mission Brief → Context Discovery → Plan Generation → Task Breakdown → E
 
 **No file artifacts are created** - everything happens in the conversation with your AI agent.
 
+### Enforcement Mode
+
+Quick uses **strict enforcement checkpoints** to ensure the workflow is followed correctly:
+- **7 enforcement checkpoints** (**⚠️**) with mandatory user confirmations
+- **Sequential execution only** - No phase can be skipped
+- **Stop-and-wait** - AI pauses at each checkpoint for user approval
+- **No auto-proceed** - Every phase requires explicit user confirmation
+
+This prevents the AI from skipping phases or defaulting to file analysis mode.
+
 ## Quick Start
 
 ```bash
@@ -20,25 +30,28 @@ Mission Brief → Context Discovery → Plan Generation → Task Breakdown → E
 
 ## How It Works
 
-### Phase 1: Mission Brief
+### Phase 1: Mission Brief (⚠️ Enforcement Checkpoint)
 Quick asks 2-3 questions to understand what you're doing:
 - What needs to be done?
 - What defines success?
 - Any constraints?
 
 **Approval #1**: You see the Mission Brief and confirm before proceeding.
+- **⚠️ Mandatory stop**: AI waits for "yes" confirmation
 
-### Phase 2: Context Discovery
+### Phase 2: Context Discovery (⚠️ Enforcement Checkpoint)
 You provide any relevant context:
 - Project files to examine
 - Documentation to reference
 - Technical constraints
 - Examples to follow
 
+**⚠️ Mandatory stop**: AI waits for context confirmation before reading files.
+
 ### Phase 3: Plan Generation (Internal)
 Quick mentally plans the approach based on your brief and context. This is AI internal reasoning - not displayed.
 
-### Phase 4: Task Breakdown
+### Phase 4: Task Breakdown (⚠️ Enforcement Checkpoint)
 Quick generates a concrete task checklist:
 ```markdown
 - [ ] Add error handling to login API
@@ -48,21 +61,26 @@ Quick generates a concrete task checklist:
 ```
 
 **Approval #2**: You see the full task list and confirm before execution.
+- **⚠️ Mandatory stop**: AI waits for "yes" confirmation
 
-### Phase 5: Sequential Execution
+### Phase 5: Sequential Execution (⚠️ Enforcement Checkpoint)
 Quick executes tasks one at a time:
 - Displays task being executed
 - Makes necessary code changes
 - Shows what was done
 - Confirms completion
+- **⚠️ Mandatory pause**: Waits for "Next task ready?" confirmation before proceeding
 
 **Stop on error**: If a task fails, Quick stops and asks what to do next.
+- **⚠️ Mandatory wait**: Does not auto-retry or auto-skip
 
-### Phase 6: Summary
+### Phase 6: Summary (⚠️ Enforcement Checkpoint)
 Quick shows completion status:
 - All tasks completed ✅
 - Files modified
 - Next steps (testing, review, etc.)
+
+**⚠️ Final summary**: Only shows completion after all tasks verified.
 
 ## When to Use Quick
 
@@ -95,27 +113,42 @@ Quick shows completion status:
 | Task Complexity | Simple checklist | Detailed task breakdown with phases |
 | Use Case | Ad-hoc, small tasks | Full-featured spec-driven development |
 
-## Execution Flow
+## Execution Flow (With Enforcement Checkpoints)
 
 ```text
 /quick.implement "your task description"
   ↓
-Phase 1: Mission Brief (2-3 questions)
+⚠️ CHECKPOINT 1: Mission Brief (2-3 questions)
   ↓
-Approval #1: "Proceed with this brief?"
+⚠️ STOP: Approval #1: "Proceed with this brief?"
   ↓
-Phase 2: Context Discovery (user provides context)
+⚠️ CHECKPOINT 2: Context Discovery (user provides context)
   ↓
-Phase 3: Plan Generation (AI internal planning)
+⚠️ STOP: Approval context received?
   ↓
-Phase 4: Task Breakdown (show checklist)
+⚠️ CHECKPOINT 3: Plan Generation (AI internal planning)
   ↓
-Approval #2: "Proceed with these tasks?"
+⚠️ CHECKPOINT 4: Task Breakdown (show checklist)
   ↓
-Phase 5: Sequential Execution
+⚠️ STOP: Approval #2: "Proceed with these tasks?"
   ↓
-Phase 6: Summary
+⚠️ CHECKPOINT 5: Sequential Execution (one task at a time)
+  ↓
+⚠️ STOP: "Next task ready?" (per task)
+  ↓
+⚠️ CHECKPOINT 6: Summary
+  ↓
+⚠️ STOP: Implementation complete
 ```
+
+### Enforcement Guarantees
+
+- **Phase 1**: Mission Brief must be collected and approved
+- **Phase 2**: Context must be collected and confirmed
+- **Phase 5**: Each task must complete before next task starts
+- **All phases**: Require explicit user "yes" to proceed
+- **No skipping**: Phases cannot be bypassed
+- **No auto-proceed**: AI never moves forward without confirmation
 
 ## Error Handling
 

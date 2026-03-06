@@ -1,5 +1,6 @@
 ---
-description: Session-based ad-hoc task execution without file artifacts (Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution)
+description: Session-based ad-hoc task execution without file artifacts (ENFORCED WORKFLOW)
+mode: quick.enforced
 scripts:
   sh: |
     REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
@@ -15,6 +16,16 @@ scripts:
     "CURRENT_BRANCH='$currentBranch'"
 ---
 
+## ⚠️ ENFORCEMENT MODE: MANDATORY SEQUENTIAL WORKFLOW
+
+### CRITICAL RULES
+1. **DO NOT SKIP ANY PHASE** - Each phase must complete before proceeding
+2. **MUST WAIT FOR USER CONFIRMATION** - Never auto-proceed
+3. **STOP AT CHECKPOINTS** - Explicit stop markers require pause
+4. **NO FILE READING WITHOUT CONTEXT** - Cannot read files until Phase 3 (Context Discovery) approved
+
+**Failure to follow these rules violates the Quick extension contract.**
+
 ## User Input
 
 ```text
@@ -25,98 +36,128 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Execute a **session-based, ad-hoc task workflow** without creating any file artifacts. All interactions happen in conversation, following the 12-factors methodology:
-1. Mission Brief → 2. Context Discovery → 3. Plan Generation → 4. Task Breakdown → 5. Execution
+Execute a **strictly enforced, session-based, ad-hoc task workflow** without creating any file artifacts. All interactions happen in conversation, following the 12-factors methodology:
 
-**No file artifacts are created** (no PLAN.md, TASKS.md, CONTEXT.md, MISSION_BRIEF.md).
+### MANDATORY PHASES (MUST EXECUTE IN ORDER):
+**Phase 1 → Phase 2 → Phase 3 → Phase 4 → Phase 5 → Phase 6 → Phase 7 → Phase 8**
 
-## Phase 1: Environment & Initialization
+**DO NOT SKIP ANY PHASE. DO NOT READ FILES UNTIL PHASE 3.**
 
-Run `{SCRIPT}` from repository root and parse output for REPO_ROOT and CURRENT_BRANCH. All paths must be absolute.
+---
 
-**IMPORTANT**: Run this script only ONCE. Use the output to get REPO_ROOT and CURRENT_BRANCH.
+## ⚠️ ENFORCEMENT CHECKPOINT 1: Mission Brief
 
-## Phase 2: Mission Brief
+### STOP: DO NOT PROCEED WITHOUT USER INPUT
 
-### Step 1: Gather Mission Brief Information
+You **MUST FIRST** collect Mission Brief information before reading ANY files or doing ANY analysis.
 
-Ask the user 2-3 clarifying questions to build a Mission Brief:
+---
+
+### MANDATORY: Ask These Questions FIRST
 
 ```markdown
 ## Mission Brief Questions
 
-1. **What needs to be done?**
-   - Ask for the primary task/feature/fix being implemented
-   
-2. **What defines success?**
-   - Ask for success criteria: How do we know this is done?
-   
-3. **Any constraints?** (optional - only ask if relevant)
-   - Time constraints, priority, dependencies, limitations, etc.
+### Question 1: What needs to be done?
+What is the primary task, feature, fix, or change you need?
+
+### Question 2: What defines success?
+How will we know when this is complete? What criteria must be met?
+
+### Question 3: Any constraints? (ask if relevant)
+Time constraints? Priority? Dependencies? Technical limitations?
 ```
 
-Ask these questions one at a time if needed to keep the conversation compact.
+**⚠️ STOP HERE**: Wait for user to answer these questions. **DO NOT read any files yet.**
 
-### Step 2: Display Mission Brief for Approval #1
+---
 
-After collecting the information, display the Mission Brief in this format:
+### CHECKPOINT 1: Display Mission Brief for APPROVAL #1
+
+After collecting user answers, display Mission Brief in this EXACT format:
 
 ```markdown
 ## Mission Brief
 
-**Goal**: {summary what needs to be done}
+**Goal**: {user's response to Question 1}
 
 **Success Criteria**:
-- {success criterion 1}
-- {success criterion 2}
-- {success criterion 3}
+- {user's response to Question 2}
+- (split into multiple bullet points if needed)
 
 **Constraints**:
-- {constraint 1}
-- {constraint 2}
+- {user's response to Question 3}
+- "None" if no constraints
 ```
 
-**Ask the user**: "Proceed with this Mission Brief? (yes/no)"
+### MANDATORY: Get User Confirmation
 
-If user says "no", ask what needs to be adjusted. Re-display and ask again.
+```markdown
+**Proceed with this Mission Brief?** (yes/no)
+```
 
-If user says "yes", proceed to Phase 3.
+**⚠️ STOP**: Wait for explicit "yes" OR handle "no" response.
 
-## Phase 3: Context Discovery
+- If "no": Ask what needs to be adjusted. Re-display Mission Brief with changes. Ask again.
+- If "yes": Proceed to Phase 3.
 
-Ask the user for relevant context to help with planning:
+---
+
+## ⚠️ ENFORCEMENT CHECKPOINT 2: Context Discovery
+
+### STOP: MUST GET USER CONTEXT BEFORE CONTINUING
+
+Before proceeding to any file reading or analysis, you MUST get user context.
+
+---
+
+### MANDATORY: Ask for Context
 
 ```markdown
 ## Context Discovery
 
-Please provide any relevant context:
+Please provide any relevant context for the task:
 
-- **Project files**: Specific files or directories to examine?
-- **Documentation**: Any existing specs, docs, or notes?
+- **Project files**: Specific files or directories to examine? (e.g., src/auth/login.ts)
+- **Documentation**: Any existing specs, docs, or notes to reference?
 - **Technical constraints**: Any technical limitations or preferences?
-- **Examples**: Similar implementations to reference?
+- **Examples**: Similar implementations or patterns to follow?
 ```
 
-Wait for user input. User may provide:
-- File paths to read (`src/auth/login.ts`, `docs/api.md`, etc.)
+**Wait for user input.** User may provide:
+- File paths to read
 - General context explanations
 - URLs or references
 - "N/A" or "none" if not needed
 
-**NOTE**: Do NOT create any context files. Context stays in conversation/memory.
+### MANDATORY: Confirm Context Collected
 
-## Phase 4: Plan Generation
+```markdown
+**Context received. Proceed?** (yes/no)
+```
 
-Based on the Mission Brief + Context, generate a **mental plan** (not written down) for the implementation:
+**⚠️ STOP**: Wait for "yes" to continue.
+
+---
+
+## ⚠️ ENFORCEMENT CHECKPOINT 3: Plan Generation (INTERNAL)
+
+### DO NOT DISPLAY THIS TO USER
+
+Based on Mission Brief + Context, generate a **mental plan** (not written down):
 
 - Identify key components affected
 - Determine technical approach
 - Identify dependencies or risks
 - Plan execution strategy
 
-**This happens in your internal reasoning** - do NOT display or document the plan. This is just your internal preparation for task breakdown.
+**This is AI internal reasoning only** - do NOT display or document the plan.
 
-## Phase 5: Task Breakdown
+---
+
+## ⚠️ ENFORCEMENT CHECKPOINT 4: Task Breakdown
+
+### MANDATORY: Generate Task Checklist
 
 Based on your mental plan, generate and display a **simple task checklist**:
 
@@ -137,88 +178,104 @@ Based on your mental plan, generate and display a **simple task checklist**:
 - Aim for 3-8 tasks total (keep it compact)
 - Use clear, specific descriptions
 
-## Phase 6: Approval #2
+---
 
-**Display the task list** and ask the user:
+## ⚠️ ENFORCEMENT CHECKPOINT 5: Approval #2
+
+### MANDATORY: Get Task List Approval
+
+Display the task list and ask:
 
 ```markdown
 ## Ready to Execute
 
 Here are the tasks I will execute:
 
-{Your task list from Phase 5}
+{Your task list from above}
 
 **Proceed with these tasks?** (yes/no)
 ```
 
-If user says "no", ask what changes are needed and regenerate the task list. Ask again.
+**⚠️ STOP**: Wait for explicit "yes" OR handle "no" response.
 
-If user says "yes", proceed to Phase 7.
+- If "no": Ask what changes are needed. Regenerate task list. Ask again.
+- If "yes": Proceed to Phase 7 (Execution).
 
-## Phase 7: Sequential Execution
+---
 
-Execute tasks **one at a time**, in order.
+## ⚠️ ENFORCEMENT CHECKPOINT 6: Sequential Execution
+
+### MANDATORY: Execute Tasks ONE AT A TIME, IN ORDER
+
+Do NOT execute multiple tasks simultaneously.
 
 ### For Each Task:
 
-#### Display Task Start
+#### START: Display Task
 ```markdown
 ---
 ## Task {N}/{Total}: {task description}
 ```
 
-#### Execute Task
-- Read files if needed
+#### EXECUTE: Read Files if Needed, Make Changes
+- Read files if needed (use Read tool)
+- Understand content first
 - Make necessary changes using Write/Edit tools
-- If reading files is needed, understand their content first
 
-#### Verify After Each Task
-Display what was changed/created:
-
+#### VERIFY: Display What Was Done
 ```markdown
-✅ **Completed**: {brief summary of what was done}
+✅ **Completed**: {brief summary}
 
 Changes made:
 - {file 1}: {change summary}
 - {file 2}: {change summary}
 ```
 
-#### Move to Next Task
-Proceed to the next task in the checklist.
-
-### Error Handling
-
-**If a task fails**:
-1. **STOP** immediately
-2. Display error message with context:
-   ```markdown
-   ❌ **Task Failed**: {task description}
-   
-   Error: {error message}
-   
-   What would you like to do?
-   - Retry this task
-   - Skip and continue to next task
-   - Stop execution
-   ```
-3. Wait for user decision
-4. Act accordingly
-
-**Do NOT proceed automatically** on error. Always ask user what to do.
-
-### Task Completion Tracking
-
-After each task is verified, **mark it as complete** in the displayed checklist (not in a file):
-
+#### MARK PROGRESS
+Display updated checklist:
 ```markdown
 - [x] {Task 1 description}
 - [ ] {Task 2 description}
-- [ ] {Task 3 description}
 ```
 
-Re-display the checklist so user can see progress (in-memory only).
+#### PAUSE BEFORE NEXT TASK
+Do NOT auto-proceed. Wait for user to confirm ready for next task:
 
-## Phase 8: Summary
+```markdown
+**Next task ready?** (yes/no)
+```
+
+**⚠️ STOP**: Wait for "yes" before starting next task.
+
+---
+
+### MANDATORY: Error Handling
+
+**If a task fails:
+1. **STOP IMMEDIATELY** - Do NOT continue to next task
+2. Display error:
+
+```markdown
+❌ **Task Failed**: {task description}
+
+Error: {error message}
+
+What would you like to do?
+- (1) Retry this task
+- (2) Skip and continue to next task
+- (3) Stop execution
+```
+
+3. **WAIT FOR USER DECISION** - Do NOT auto-retry or auto-skip
+4. Act based on user choice
+
+**Do NOT proceed automatically on error. Always ask user what to do.**
+
+---
+
+## ⚠️ ENFORCEMENT CHECKPOINT 7: Summary
+
+### MANDATORY: Show Completion Status
 
 After all tasks complete (or execution stops):
 
@@ -234,7 +291,8 @@ After all tasks complete (or execution stops):
 
 **Files modified**: {count files changed}
 
-**Next steps**: {optional suggestions like testing, review, etc.}
+**Summary**: {what was accomplished}
+**Next steps**: {optional testing, review, etc.}
 ```
 
 ### Partial Completion or Failure
@@ -251,19 +309,25 @@ After all tasks complete (or execution stops):
 **Recommendation**: {what to do next}
 ```
 
-## Key Constraints
+---
+
+## Critical Constraints (MANDATORY)
 
 1. **NO FILE ARTIFACTS**: Do NOT create PLAN.md, TASKS.md, CONTEXT.md, MISSION_BRIEF.md, or any other workflow files
 2. **SESSION-ONLY**: All interactions happen in conversation/memory
-3. **NO AUTO-COMMIT**: Do not run git commands for commits (user decides)
+3. **NO AUTO-COMMIT**: Do NOT run git commands for commits (user decides)
 4. **STOP ON ERROR**: Halt execution and ask user what to do on failure
 5. **SEQUENTIAL ONLY**: Execute one task at a time, no parallel execution
 6. **MARK PROGRESS**: Display checklist updates in conversation (not files)
 7. **MINIMAL ARTIFACTS**: Only create/update code/project files as needed
+8. **ENFORCED CHECKPOINTS**: Must stop at each ⚠️ ENFORCEMENT CHECKPOINT and wait for user
+
+---
 
 ## Output Notes
 
-- All file modifications are done in the actual codebase
-- No workflow/documentation files are created
+- All file modifications done in actual codebase
+- No workflow/documentation files created
 - User manages git commits manually
 - Execution history is conversation-based only
+- **Phases MUST execute in order, no skipping**
