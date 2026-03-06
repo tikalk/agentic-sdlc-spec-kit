@@ -25,8 +25,8 @@ Together, they form a complete methodology that transforms how organizations app
 The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
 
 - **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
-- **Adding enterprise-grade features** like team AI directives, MCP server integration, and gateway configuration
-- **Enhancing tooling** with advanced CLI options, async agent support, comprehensive issue tracker integration, and spec-code synchronization
+- **Adding enterprise-grade features** like team AI directives and MCP server integration
+- **Enhancing tooling** with advanced CLI options, async agent support, comprehensive issue tracker integration
 - **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
 - **Providing team templates** and best practices for scaling AI-assisted development across teams
 
@@ -177,45 +177,6 @@ specify init my-project --team-ai-directives https://github.com/your-org/team-ai
 specify init my-project --team-ai-directives https://github.com/tikalk/agentic-sdlc-team-ai-directives.git
 ```
 
-#### Issue Tracker Integration
-
-```bash
-# Enable GitHub Issues integration
-specify init my-project --issue-tracker github
-
-# Enable Jira integration
-specify init my-project --issue-tracker jira
-
-# Enable Linear integration
-specify init my-project --issue-tracker linear
-
-# Enable GitLab integration
-specify init my-project --issue-tracker gitlab
-```
-
-#### Async Agent Support
-
-```bash
-# Enable Jules for autonomous task execution
-specify init my-project --async-agent jules
-
-# Enable Async Copilot
-specify init my-project --async-agent async-copilot
-
-# Enable Async Codex
-specify init my-project --async-agent async-codex
-```
-
-#### Git Platform MCP Configuration
-
-```bash
-# Enable GitHub platform MCP for PR operations
-specify init my-project --git-platform github
-
-# Enable GitLab platform MCP for merge request operations
-specify init my-project --git-platform gitlab
-```
-
 #### Advanced Options
 
 ```bash
@@ -236,10 +197,6 @@ specify init my-project --debug
 
 # Use custom GitHub token
 specify init my-project --github-token $GITHUB_TOKEN
-
-# Enable automatic spec-code synchronization
-specify init my-project --spec-sync
-specify init my-project --ai claude --spec-sync
 ```
 
 ### Framework Options
@@ -273,9 +230,7 @@ Framework options are automatically detected by downstream commands from spec.md
 specify init my-project \
   --ai claude \
   --script sh \
-  --team-ai-directives https://github.com/your-org/team-ai-directives.git \
-  --issue-tracker github \
-  --async-agent jules
+  --team-ai-directives https://github.com/your-org/team-ai-directives.git
 ```
 
 ### Optional Architecture Support
@@ -632,10 +587,6 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | `--debug`                    | Flag     | Enable detailed debug output for troubleshooting                            |
 | `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)   |
 | `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                                |
-| `--issue-tracker`            | Option   | Issue tracker MCP: `github`, `jira`, `linear`, `gitlab`                     |
-| `--async-agent`              | Option   | Async agent MCP: `jules`, `async-copilot`, `async-codex`                    |
-| `--git-platform`             | Option   | Git platform MCP for PR operations: `github`, `gitlab`                      |
-| `--spec-sync`                | Flag     | Enable automatic spec-code synchronization (keeps specs/*.md files updated with code changes) |
 | `--ai-skills`                | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
 
 ### `/spec.specify` Framework Options
@@ -761,14 +712,11 @@ specify init my-project --ai claude --debug
 # Use GitHub token for API requests (helpful for corporate environments)
 specify init my-project --ai claude --github-token ghp_your_token_here
 
-# Initialize with team AI directives and issue tracker integration
-specify init my-project --ai claude --team-ai-directives https://github.com/your-org/team-ai-directives.git --issue-tracker github
+# Initialize with shared team AI directives
+specify init my-project --ai claude --team-ai-directives https://github.com/your-org/team-ai-directives.git
 
-# Initialize with async agent support for autonomous task execution
-specify init my-project --ai claude --async-agent jules
-
-# Complex example: Enterprise setup with all integrations
-specify init enterprise-app --ai claude --script sh --team-ai-directives https://github.com/company/team-ai-directives.git --issue-tracker jira --async-agent jules --github-token $GH_TOKEN
+# Initialize in current directory
+specify init . --ai copilot --script sh
 
 # Check system requirements
 specify check

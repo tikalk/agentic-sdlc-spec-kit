@@ -8,13 +8,6 @@
 - ✅ **Team Directives Integration**: Local path support and remote cloning for team-ai-directives
 - ✅ **Context Readiness Enforcement**: `/specify`, `/plan`, `/tasks`, `/implement` validate `context.md` completeness
 
-### **MCP Server Integration**
-
-- ✅ **Issue Tracker MCP**: `--issue-tracker` parameter supporting github/jira/linear/gitlab with `.mcp.json` configuration
-- ✅ **Async Agent MCP**: `--async-agent` parameter for jules/async-copilot/async-codex with MCP server setup
-- ✅ **Git Platform MCP**: `--git-platform` parameter supporting github/gitlab with `.mcp.json` configuration for PR/merge request operations
-- ✅ **Team Directives MCP Merging**: Template inheritance for consistent MCP configurations
-
 ### **Constitution Management System** *(80% Complete)*
 
 - ✅ **Automated Constitution Assembly**: Team constitution inheritance with validation
@@ -36,17 +29,9 @@
 ### **AI Session Context Management** *(100% Complete)* - **HIGH PRIORITY** - Knowledge management and team learning
 
 - ✅ **Levelup Extension**: `/levelup.init`, `/levelup.clarify`, `/levelup.skills`, `/levelup.implement` commands for CDR-based team-ai-directives contributions
-- ✅ **MCP Integration for Git Operations**: Uses Git platform MCP servers for PR/merge request operations
 - ✅ **Team Directives Analysis**: Analyzes session context for contributions to rules, constitution, personas, and examples
 - ✅ **Reusable Knowledge Packets**: Creates context packets for cross-project AI agent learning
 - ✅ **Comprehensive Issue Summaries**: Generates detailed session summaries for issue tracker comments
-
-### **Spec-Code Synchronization** *(100% Complete)* - **MEDIUM PRIORITY** - Documentation automation
-
-- ✅ **Git Hook Integration**: `--spec-sync` option installs pre-commit/post-commit/pre-push hooks
-- ✅ **Automatic Change Detection**: Detects code changes and queues documentation updates
-- ✅ **Non-blocking Updates**: Background automation that preserves developer workflow
-- ✅ **Mode-aware Batch Review**: Queued updates reviewed at natural breakpoints
 
 ### **Basic Local Parallel Execution ([P] Markers)**
 
@@ -479,8 +464,6 @@ Consolidates: Former "Async Task Context Delivery Architecture" + "Multi-Tracker
 ##### Tier 1.5 - Multi-Tracker Issue Creation (Consolidated from Multi-Tracker Task-to-Issues)
 
 - ⚠️ **Extended `/taskstoissues`**: Template exists at `templates/commands/taskstoissues.md` but currently only supports GitHub. Needs extension for Jira, Linear, GitLab.
-- ❌ **Dynamic Tracker Detection**: Auto-detect configured issue tracker from `.mcp.json` configuration
-- ❌ **Tracker-Specific MCP Tools**: Invoke correct platform-specific MCP tool per tracker type
 - ❌ **URL Validation**: Handle different URL formats (GitHub SSH/HTTPS, Jira REST, Linear API, GitLab REST)
 - ❌ **Task-to-Issue Linking**: Establish bidirectional links between tasks.md and created issues for traceability
 
@@ -761,56 +744,6 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
 ---
 
 ## 🆕 **FUTURE PHASE** (New Items - Not Yet Started)
-
-### **Future Enhancement Categories**
-
-### **Issue Tracker Extension Refactor** *(0% Complete)* - **MEDIUM PRIORITY** - Modular MCP integration architecture
-
-**Context**: The `--issue-tracker` CLI argument is currently hardcoded in `src/specify_cli/__init__.py` with the `ISSUE_TRACKER_CONFIG` dict. This should be refactored to use the extension system for better modularity and maintainability.
-
-**Current State**:
-- `ISSUE_TRACKER_CONFIG` dict (lines 241-267): Hardcoded config for github, jira, linear, gitlab
-- `--issue-tracker` CLI argument in `init` command
-- `configure_issue_tracker_mcp_servers()` function configures MCP servers in agent settings
-
-**Proposed Architecture**:
-- Each issue tracker becomes a standalone extension with `extension.yml` containing MCP server configuration
-- Add `mcp_servers` section to extension manifest schema
-- Create `MCPServerRegistrar` class in `extensions.py` for MCP configuration
-- Extensions stored in `.specify/extensions/{tracker-name}/`
-
-**Implementation Phases**:
-
-1. **Phase 1: Extend Extension System**
-   - ❌ Update `ExtensionManifest` to parse `mcp_servers` section in `extension.yml`
-   - ❌ Create `MCPServerRegistrar` class to configure MCP servers in agent settings files
-   - ❌ Update `ExtensionManager.install_from_directory()` to call MCP registration
-
-2. **Phase 2: Create Issue Tracker Extensions**
-   - ❌ Create extension packages for github-issues, jira, linear, gitlab-issues
-   - ❌ Each extension includes: `extension.yml`, config template, optional sync commands
-   - ❌ Add extensions to catalog or include as built-in
-
-3. **Phase 3: CLI Refactor**
-   - ❌ Remove `ISSUE_TRACKER_CONFIG` dict and `configure_issue_tracker_mcp_servers()` function
-   - ❌ Remove `--issue-tracker` argument from `init` command
-   - ❌ Add `--with-extension` flag for installing extensions during init (optional)
-   - ❌ Update help text and documentation
-
-**Benefits**:
-- Modularity: Issue trackers are independent, installable units
-- Extensibility: Users can create custom issue tracker extensions
-- Configuration: Layered config system with env var overrides via `ConfigManager`
-- Maintainability: Each tracker is self-contained
-- Discoverability: Extensions appear in catalog searches
-- Versioning: Each tracker can be versioned independently
-
-**Files to Modify**:
-- `src/specify_cli/extensions.py` - Add MCP server support
-- `src/specify_cli/__init__.py` - Remove hardcoded config, update init command
-- `extensions/catalog.json` - Add issue tracker extensions
-
-**Estimated Effort**: ~5-7 days
 
 ---
 
@@ -1593,7 +1526,6 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - **Core Workflow**: 100% Complete (constitution, dual execution, MCP integration, workflow orchestration)
 - **12F Factors III-V (Workflow)**: 100% Complete - Mission definition, planning, execution, and orchestration work effectively
 - **Knowledge Management**: 100% Complete (AI session context packets, team directives analysis, reusable knowledge sharing)
-- **Documentation Automation**: 100% Complete (spec-code synchronization with git hooks, non-blocking updates, batch review)
 - **MCP Infrastructure**: 100% Complete (issue tracker, async agent, and git platform integrations)
 - **SDD Optimization**: 100% Complete (workflow flexibility with comprehensive iterative development, enhanced UX, and framework option validation)
 - **Complexity Solutions**: ~90% Complete (core workflow with auto-detecting post-implementation analysis, iterative development, enhanced rollback, configurable framework options - HIGH PRIORITY response to user feedback; some automation features still need implementation)
@@ -1602,7 +1534,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 - **Future Enhancements**: 0% Complete (minimal enterprise features only)
 - **Deferred Features**: IDE Integration & overkill enhancements (removed to maintain focus)
 
-**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. **Core 12F workflow Factors III-V are 100% complete** - mission definition, planning, execution, and orchestration work effectively through existing commands, git infrastructure, and command-to-command guidance system. **Workflow orchestration implemented** through CLI workflow overview, context-aware next actions, and sequential command guidance - no advanced visualization or blocking validation needed. **All overkill features eliminated** - advanced monitoring, interactive tutorials, evaluation suites, and context engineering removed to maintain razor focus on essential SDD functionality. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection and post-implementation analysis), and `/checklist` (requirements quality testing with framework option validation). **Complexity reduction prioritized** based on user feedback analysis - configurable workflow with comprehensive iterative development, **iterative development is comprehensively supported** through git-managed specs, branch isolation, clarify command modifications, and analyze cross-references, and configurable framework options make TDD/contracts/data models/risk-based testing opt-in rather than mandatory, with checklist validation ensuring enabled options are properly specified in requirements. **AI session context management is implemented** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives for cross-project learning. **Automated documentation updates are implemented** as non-blocking background automation with CLI-injected git hooks, queued updates at natural breakpoints, and batch review to preserve developer workflow. **Issue tracker traceability is intentionally separate** from documentation automation for modularity, reliability, and independent adoption. **Command prefix migration prioritized as CRITICAL** due to immediate user impact as a breaking change affecting fork differentiation. Rich context delegation provides superior AI assistance compared to issue labeling approaches.
+**Note**: @agentic-sdlc-12-factors serves dual purposes as methodology documentation and reference implementation, providing working examples and command templates that accelerate Spec Kit development. **Core 12F workflow Factors III-V are 100% complete** - mission definition, planning, execution, and orchestration work effectively through existing commands, git infrastructure, and command-to-command guidance system. **Workflow orchestration implemented** through CLI workflow overview, context-aware next actions, and sequential command guidance - no advanced visualization or blocking validation needed. **All overkill features eliminated** - advanced monitoring, interactive tutorials, evaluation suites, and context engineering removed to maintain razor focus on essential SDD functionality. Key SDD flexibility features are implemented via `/clarify` (iterative refinement), `/analyze` (consistency validation with auto-detection and post-implementation analysis), and `/checklist` (requirements quality testing with framework option validation). **Complexity reduction prioritized** based on user feedback analysis - configurable workflow with comprehensive iterative development, **iterative development is comprehensively supported** through git-managed specs, branch isolation, clarify command modifications, and analyze cross-references, and configurable framework options make TDD/contracts/data models/risk-based testing opt-in rather than mandatory, with checklist validation ensuring enabled options are properly specified in requirements. **AI session context management is implemented** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives for cross-project learning. **Issue tracker traceability is intentionally separate** from documentation automation for modularity, reliability, and independent adoption. **Command prefix migration prioritized as CRITICAL** due to immediate user impact as a breaking change affecting fork differentiation. Rich context delegation provides superior AI assistance compared to issue labeling approaches.
 
 **Verification Status**: Core infrastructure is well-implemented and verified, but some automation features (particularly in traceability and strategic tooling) require additional development to reach full completion. The roadmap now accurately reflects the distinction between configuration scaffolding and functional automation.
 

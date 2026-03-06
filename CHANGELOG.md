@@ -5,7 +5,32 @@
 All notable changes to the Specify CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0).
+
+## [0.0.111] - 2026-03-06
+
+### Removed
+
+- **Spec-Code Synchronization Feature**: Removed `--spec-sync` CLI option and all related code
+  - Removed broken stub implementation that created `.mcp.json` with incorrect format
+  - Removed scripts: `spec-hooks-install.{sh,ps1}`, `spec-sync-*.{sh,ps1}` (8 files)
+  - Removed documentation references to automatic spec-to-code synchronization
+  - Users can still manually configure `.mcp.json` with correct `command/args/env` format
+
+- **MCP CLI Arguments**: Removed `--issue-tracker`, `--async-agent`, `--git-platform` CLI options
+  - Removed configuration dictionaries: `ISSUE_TRACKER_CONFIG`, `AGENT_MCP_CONFIG`, `GIT_PLATFORM_CONFIG`
+  - Removed configuration functions: `configure_mcp_servers()`, `configure_agent_mcp_servers()`, `configure_git_platform_mcp_servers()`
+  - Removed "Configure gateway" dead tracker entry
+  - CLI-generated `.mcp.json` files used incorrect `type/url` format instead of required `command/args/env` format
+  - Users should manually configure `.mcp.json` instead
+
+- **Gateway Configuration**: Removed "Configure gateway" tracker entry (dead code with no implementation)
+
+### Documentation
+
+- Removed spec-code synchronization feature documentation from README.md, AGENTS.md, and roadmap.md
+- Removed MCP CLI argument examples from installation docs
+- Removed "Issue Tracker Extension Refactor" future enhancement from roadmap
 
 ## [0.0.110] - 2026-03-06
 

@@ -76,31 +76,6 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives.git
 ```
 
-### Enable Issue Tracker Integration
-
-Configure MCP servers for project management integration:
-
-```bash
-# GitHub Issues
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker github
-
-# Jira, Linear, or GitLab
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker jira
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker linear
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --issue-tracker gitlab
-```
-
-### Enable Async Agent Support
-
-Configure autonomous coding agents for delegated task execution:
-
-```bash
-# Jules, Async Copilot, or Async Codex
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent jules
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent async-copilot
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --async-agent async-codex
-```
-
 ## Verification
 
 After initialization, you should see the following commands available in your AI agent:
@@ -118,7 +93,7 @@ After initialization, you should see the following commands available in your AI
 - `/spec.checklist` - Generate quality checklists for requirements validation
 - `/spec.clarify` - Structured questions to de-risk ambiguous areas
 
-The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts for automation, and `.mcp.json` will be configured for issue tracker and async agent integration if specified.
+The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts for automation.
 
 ## Troubleshooting
 
