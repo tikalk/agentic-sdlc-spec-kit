@@ -5,9 +5,24 @@
 All notable changes to the Specify CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.0.103] - 2026-03-05
+## [0.0.106] - 2026-03-06
+
+### Changed
+
+- **BREAKING**: Remove build/spec mode architecture from core commands
+  - Core commands now use framework options only (--tdd, --contracts, --data-models, --risk-tests)
+  - Removed mode-aware behavior, mode detection, and mode-specific logic from 20 files
+  - Removed build templates: spec-template-build.md, plan-template-build.md
+  - Eval tests reduced from 23→22 LLM eval tests
+  - Simplified tools framework to single spec-driven workflow
+
+### Removed
+
+- tests/test_mode_evolution.py (obsolete build/spec mode tests)
+
+## [0.0.105] - 2026-03-06
 
 ### Added
 
