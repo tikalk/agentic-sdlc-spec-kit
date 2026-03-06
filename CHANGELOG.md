@@ -7,6 +7,18 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.108] - 2026-03-06
+
+### Added
+
+- **Quick Extension**: Session-based ad-hoc task execution workflow
+  - Single-command `/quick.implement` for rapid task execution without file artifacts
+  --session-based workflow with no PLAN.md, TASKS.md, CONTEXT.md files
+  - 2 approval points: Mission Brief confirmation + Task breakdown approval
+  - Sequential execution with stop-on-error handling
+  - Simple task checklist format (3-8 tasks, markdown checkboxes)
+  - Auto-installed by default (preinstall: true in catalog)
+
 ## [0.0.107] - 2026-03-06
 
 ### Added
