@@ -708,16 +708,6 @@ def get_default_config() -> dict:
     return {
         "version": "1.0",
         "project": {"created": now, "last_modified": now},
-        "workflow": {
-            "current_mode": "spec",
-            "default_mode": "spec",
-        },
-        "options": {
-            "tdd_enabled": False,
-            "contracts_enabled": False,
-            "data_models_enabled": False,
-            "risk_tests_enabled": False,
-        },
         "spec_sync": {
             "enabled": False,
             "queue": {"version": "1.0", "created": now, "pending": [], "processed": []},
@@ -752,7 +742,6 @@ def get_default_config() -> dict:
             "max_auto_skills": 3,  # Maximum skills to auto-inject into context
             "preserve_user_edits": True,  # Preserve user modifications in context.md
             "registry_url": "https://skills.sh/api",  # Skills registry API URL
-            "evaluation_required": False,  # Require evaluation score before install
         },
     }
 
@@ -906,7 +895,6 @@ def get_skills_config(project_path: Optional[Path] = None) -> dict:
         "max_auto_skills": 3,
         "preserve_user_edits": True,
         "registry_url": "https://skills.sh/api",
-        "evaluation_required": False,
     }
 
     skills_config = config.get("skills", {})
@@ -1789,7 +1777,6 @@ def skill_config(
         "max_auto_skills": int,
         "preserve_user_edits": lambda x: x.lower() in ("true", "1", "yes"),
         "registry_url": str,
-        "evaluation_required": lambda x: x.lower() in ("true", "1", "yes"),
     }
 
     if key not in valid_keys:

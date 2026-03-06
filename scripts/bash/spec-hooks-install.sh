@@ -158,16 +158,6 @@ function create_config {
     "created": "$(date -Iseconds)",
     "last_modified": "$(date -Iseconds)"
   },
-  "workflow": {
-    "current_mode": "spec",
-    "default_mode": "spec"
-  },
-  "options": {
-    "tdd_enabled": false,
-    "contracts_enabled": false,
-    "data_models_enabled": false,
-    "risk_tests_enabled": false
-  },
   "spec_sync": {
     "enabled": true,
     "queue": {

@@ -644,105 +644,7 @@ execute_rollback() {
     esac
 }
 
-# Get framework options configuration
-get_framework_opinions() {
-    local mode="${1:-spec}"
-    local config_file
-    config_file=$(get_config_path)
-
-    # Read from consolidated config (hierarchical)
-    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
-        local user_tdd
-        user_tdd=$(jq -r ".options.tdd_enabled" "$config_file" 2>/dev/null || echo "null")
-        local user_contracts
-        user_contracts=$(jq -r ".options.contracts_enabled" "$config_file" 2>/dev/null || echo "null")
-        local user_data_models
-        user_data_models=$(jq -r ".options.data_models_enabled" "$config_file" 2>/dev/null || echo "null")
-        local user_risk_tests
-        user_risk_tests=$(jq -r ".options.risk_tests_enabled" "$config_file" 2>/dev/null || echo "null")
-
-        # Fill in defaults for unset options (spec mode defaults)
-        [[ "$user_tdd" == "null" ]] && user_tdd="true"
-        [[ "$user_contracts" == "null" ]] && user_contracts="true"
-        [[ "$user_data_models" == "null" ]] && user_data_models="true"
-        [[ "$user_risk_tests" == "null" ]] && user_risk_tests="true"
-
-        echo "tdd_enabled=$user_tdd contracts_enabled=$user_contracts data_models_enabled=$user_data_models risk_tests_enabled=$user_risk_tests"
-        return
-    fi
-
-    # Fallback to spec mode defaults
-    echo "tdd_enabled=true contracts_enabled=true data_models_enabled=true risk_tests_enabled=true"
-}
-
-# Set framework opinion (legacy compatibility - now handled by per-spec mode)
-set_framework_opinion() {
-    local opinion_type="$1"
-    local value="$2"
-
-    echo "Framework opinions are now managed by feature-level mode configuration."
-    echo "Use '/spec.specify --mode=build|spec --$opinion_type' to create features with specific framework settings."
-    echo "Run '/spec.specify --help' for more information."
-}
-
-# Check if opinion is enabled
-is_opinion_enabled() {
-    local opinion_type="$1"
-    local mode="${2:-spec}"
-
-    local opinions
-    opinions=$(get_framework_opinions "$mode")
-
-    case "$opinion_type" in
-        "tdd")
-            echo "$opinions" | grep -o "tdd_enabled=[^ ]*" | cut -d= -f2
-            ;;
-        "contracts")
-            echo "$opinions" | grep -o "contracts_enabled=[^ ]*" | cut -d= -f2
-            ;;
-        "data_models")
-            echo "$opinions" | grep -o "data_models_enabled=[^ ]*" | cut -d= -f2
-            ;;
-        *)
-            echo "false"
-            ;;
-    esac
-}
-
 # Generate tasks with configurable opinions
-generate_tasks_with_opinions() {
-    local feature_dir="$1"
-    local mode="${2:-spec}"
-
-    local opinions
-    opinions=$(get_framework_opinions "$mode")
-
-    echo "Generating tasks with framework opinions for $mode mode:"
-    echo "$opinions"
-    echo ""
-
-    local tdd_enabled
-    tdd_enabled=$(is_opinion_enabled "tdd" "$mode")
-    local contracts_enabled
-    contracts_enabled=$(is_opinion_enabled "contracts" "$mode")
-    local data_models_enabled
-    data_models_enabled=$(is_opinion_enabled "data_models" "$mode")
-
-    # Generate tasks based on enabled opinions
-    echo "### Task Generation Configuration"
-    echo "- TDD: $tdd_enabled"
-    echo "- Contracts: $contracts_enabled"
-    echo "- Data Models: $data_models_enabled"
-    echo ""
-
-    if [[ "$tdd_enabled" == "true" ]]; then
-        echo "TDD enabled: Tests will be generated before implementation tasks"
-    else
-    echo "TDD disabled: Tests are optional and generated only if explicitly requested"
-    fi
-}
-
-# Main function for testing
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     case "$1" in
         generate_delegation_prompt)
@@ -781,9 +683,9 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
             shift
             regenerate_tasks_after_rollback "$@"
             ;;
-        regenerate_plan|ensure_documentation_consistency|        execute_rollback|        get_framework_opinions|set_framework_opinion|is_opinion_enabled|generate_tasks_with_opinions)
+        execute_rollback)
             shift
-            "$1" "$@"
+            execute_rollback "$@"
             ;;
         *)
             echo "Usage: $0 {generate_delegation_prompt|check_delegation_status|dispatch_async_task|analyze_implementation_changes|propose_documentation_updates|apply_documentation_updates|rollback_task|rollback_feature|regenerate_tasks_after_rollback|regenerate_plan|ensure_documentation_consistency|execute_rollback} [args...]"
