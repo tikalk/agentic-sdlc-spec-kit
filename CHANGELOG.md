@@ -7,6 +7,18 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.107] - 2026-03-06
+
+### Added
+
+- CLI banner now displays installed extension summary when run from spec-kit projects
+- `specify version` command now shows installed extensions in version output table
+- Extension visibility improvements: makes extensions more discoverable without requiring separate commands
+
+### Fixed
+
+- Correctly display extension names instead of command names (e.g., not showing "trace" as an extension)
+
 ## [0.0.106] - 2026-03-06
 
 ### Changed
