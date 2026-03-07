@@ -338,8 +338,7 @@ replace_date_placeholders() {
     fi
 }
 
-# Apply mode-specific defaults for options if not explicitly set
-# Always use spec mode template
+# Apply defaults for options if not explicitly set
 TEMPLATE="$REPO_ROOT/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
@@ -347,16 +346,12 @@ if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"
 # Replace [DATE] placeholders with current date
 replace_date_placeholders "$SPEC_FILE"
 
-# Replace mode and options metadata in spec.md
+# Replace options metadata in spec.md
 # Templates already have placeholders, but we need to ensure values are set correctly
 if [ -f "$SPEC_FILE" ]; then
-    # The templates already have the correct defaults, but if we're regenerating
-    # or if template format changes, explicitly set the values
     if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: spec/" "$SPEC_FILE"
         sed -i '' "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
     else
-        sed -i "s/\*\*Workflow Mode\*\*:.*/\*\*Workflow Mode\*\*: spec/" "$SPEC_FILE"
         sed -i "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
     fi
 fi
@@ -364,7 +359,7 @@ fi
 CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
-# Function to populate context.md with spec mode defaults
+# Function to populate context.md with defaults
 populate_context_file() {
     local context_file="$1"
     local feature_name="$2"
@@ -417,7 +412,7 @@ populate_context_file() {
 EOF
 }
 
-# Populate context.md with spec mode defaults
+# Populate context.md with defaults
 if [ -f "$CONTEXT_TEMPLATE" ]; then
     populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION"
 else

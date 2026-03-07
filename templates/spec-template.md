@@ -1,7 +1,6 @@
 # Feature Specification: [FEATURE NAME]
 
 **Feature Branch**: `[###-feature-name]`  
-**Workflow Mode**: spec  
 **Framework Options**: tdd=true, contracts=true, data_models=true, risk_tests=true  
 **Created**: [DATE]  
 **Status**: Draft  
@@ -136,3 +135,18 @@
 - **SC-002**: [Measurable metric, e.g., "System handles 1000 concurrent users without degradation"]
 - **SC-003**: [User satisfaction metric, e.g., "90% of users successfully complete primary task on first attempt"]
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
+
+## Risk Register *(optional)*
+
+<!-- 
+  ACTION REQUIRED: Identify critical business, security, or performance risks.
+  Format: - RISK: [name] | Severity: [High/Medium/Low] | Impact: [what goes wrong] | Test: [specific test to validate]
+  Leave empty or remove section if no specific risks need testing.
+  
+  Examples:
+  - RISK: Authentication bypass | Severity: High | Impact: Unauthorized access to user data | Test: Verify 403 when accessing protected endpoint without valid session
+  - RISK: Data leakage | Severity: High | Impact: PII exposure in logs | Test: Verify sensitive fields are not logged in plain text
+  - RISK: SQL injection | Severity: Critical | Impact: Database compromise | Test: Verify SQL injection attempts are rejected
+-->
+
+- RISK: [your risk] | Severity: [High/Medium/Low] | Impact: [what happens if risk occurs] | Test: [specific test description]

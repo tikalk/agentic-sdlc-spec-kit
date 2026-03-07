@@ -1,0 +1,24 @@
+# TDD Extension Configuration
+# Template that will be copied to tdd-config.yml during extension installation
+
+# Strategy Configuration
+strategy: hybrid  # increment-only | risk-only | hybrid
+
+# Increment Test Coverage
+increments: all  # all (recommended), minimal, critical
+
+# Risk-Based Tests
+risk_tests: true  # auto-enabled if Risk Register present
+
+# Test Quality Analysis
+test_analysis:
+  enabled: true
+  threshold: 70  # Warn if score < 70 (not blocking)
+
+# State Persistence
+persist_state: true
+state_file: ".specify/extensions/tdd/increment-state.json"
+
+# Execution Behavior
+auto_continue: false  # Pause at RED/GREEN phases for review
+stop_on_first_failure: true  # -x, -failfast equivalent

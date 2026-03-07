@@ -119,7 +119,7 @@ check_checklists_status() {
 load_implementation_context() {
     log_info "Loading implementation context..."
 
-    # Always require spec mode artifacts
+    # Require all artifacts
     local required_files=("tasks.md" "spec.md" "plan.md")
 
     for file in "${required_files[@]}"; do
@@ -468,12 +468,12 @@ handle_task_failure() {
 
     log_warning "Task $task_id failed: $failure_reason"
 
-    # Always use spec mode for rollback
+    # Use standard mode for rollback
     local mode="spec"
 
     echo "Task $task_id failed. Options:
 1. Retry task
-2. Rollback task and continue (spec mode)
+2. Rollback task and continue
 3. Rollback entire feature and regenerate tasks
 4. Regenerate plan and tasks
 5. Skip and continue

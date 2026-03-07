@@ -42,7 +42,7 @@ function Get-ConfigPath {
 
 # Get current workflow mode - always returns "spec" for core commands
 function Get-CurrentMode {
-    # Core commands always use spec mode
+    # Core commands use standard mode
     return 'spec'
 }
 

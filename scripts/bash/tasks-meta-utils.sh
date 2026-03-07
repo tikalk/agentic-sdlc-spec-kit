@@ -618,13 +618,13 @@ ensure_documentation_consistency() {
     fi
 }
 
-# Execute rollback (spec mode only)
+# Execute rollback
 execute_rollback() {
     local feature_dir="$1"
     local rollback_type="$2"
     local task_id="${3:-}"  # Optional task_id for task rollback
 
-    echo "Executing spec_mode_rollback for $rollback_type"
+    echo "Executing rollback for $rollback_type"
 
     case "$rollback_type" in
         "task")

@@ -11,7 +11,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
-# Always use spec mode
+# Set default mode
 $Mode = "spec"
 $Tdd = $true
 $Contracts = $true
@@ -325,7 +325,7 @@ function Replace-DatePlaceholders {
     }
 }
 
-# Always use spec mode template
+# Use default template
 $template = Join-Path $repoRoot 'templates/spec-template.md'
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) {
@@ -341,9 +341,6 @@ Replace-DatePlaceholders -FilePath $specFile
 if (Test-Path $specFile) {
     $content = Get-Content -Path $specFile -Raw
     
-    # Replace mode metadata
-    $content = $content -replace '\*\*Workflow Mode\*\*: spec', "**Workflow Mode**: spec"
-    
     # Replace framework options metadata
     $frameworkOptions = "tdd=$($Tdd.ToString().ToLower()), contracts=$($Contracts.ToString().ToLower()), data_models=$($DataModels.ToString().ToLower()), risk_tests=$($RiskTests.ToString().ToLower())"
     $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**: $frameworkOptions"
@@ -351,7 +348,7 @@ if (Test-Path $specFile) {
     Set-Content -Path $specFile -Value $content -NoNewline
 }
 
-# Function to populate context.md with spec mode defaults
+# Function to populate context.md with defaults
 function Populate-ContextFile {
     param(
         [string]$ContextFile,
@@ -409,7 +406,7 @@ function Populate-ContextFile {
     $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
 }
 
-# Populate context.md with spec mode defaults
+# Populate context.md with defaults
 $contextTemplate = Join-Path $repoRoot 'templates/context-template.md'
 $contextFile = Join-Path $featureDir 'context.md'
 if (Test-Path $contextTemplate) {

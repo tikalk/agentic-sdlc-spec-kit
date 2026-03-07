@@ -55,10 +55,10 @@ OPTIONS:
   --help, -h          Show this help message
 
 EXAMPLES:
-  # Check task prerequisites (plan.md required in spec mode)
+  # Check task prerequisites (plan.md required)
   ./check-prerequisites.sh --json
   
-  # Check implementation prerequisites (plan.md required in spec mode, tasks.md always required)
+  # Check implementation prerequisites (plan.md required, tasks.md always required)
   ./check-prerequisites.sh --json --require-tasks --include-tasks
   
   # Get feature paths only (no validation)
@@ -177,7 +177,7 @@ if [[ ! -d "$FEATURE_DIR" ]]; then
     exit 1
 fi
 
-# Check for plan.md (required in spec mode)
+# Check for plan.md (required)
 if [[ ! -f "$IMPL_PLAN" ]]; then
     echo "ERROR: plan.md not found in $FEATURE_DIR" >&2
     echo "Run /spec.plan first to create the implementation plan." >&2

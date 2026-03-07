@@ -121,7 +121,7 @@ function Test-ChecklistsStatus {
 function Import-ImplementationContext {
     Write-Info "Loading implementation context..."
 
-    # Always use spec mode - require all artifacts
+    # Require all artifacts
     $requiredFiles = @("tasks.md", "spec.md", "plan.md")
 
     foreach ($file in $requiredFiles) {
