@@ -7,6 +7,53 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.115] - 2026-03-08
+
+### Added
+
+- **Context Auto-Discovery (Issue #47)**: Automatic team-ai-directives discovery
+  - `discover_directives()` function with grep-based search for constitutions, personas, rules
+  - Discovers relevant content from team-ai-directives directory structure
+  - JSON output includes DISCOVERED_DIRECTIVES with file paths and search metadata
+  - Support for both local paths and Git URL-based team-ai-directives
+
+- **Skills Discovery (Issue #49)**: 5-layer skill discovery system
+  - Manifest-based discovery from `.skills.json` (required/recommended/blocked skills)
+  - Local skill discovery from team-ai-directives/skills/ with SKILL.md validation
+  - Cache directory with 24h TTL refresh for performance optimization
+  - URL fetching for remote manifest skills via manifest URLs
+  - Automatic candidate extraction (max 5 skills, configurable threshold)
+  - JSON output includes DISCOVERED_SKILLS with skill paths and relevance scores
+
+- **Two-Tier Discovery Architecture**:
+  - Layer 1 (Scripts): Fast, deterministic baseline discovery via grep search
+  - Layer 2 (Templates): AI-powered semantic enhancement in command templates
+  - Affects `/spec.specify` and `/spec.plan` templates with AI discovery sections
+
+- **Template Updates**:
+  - `context-template.md`: AI discovery sections for directives/skills with DISCOVERED_DIRECTIVES/DISCOVERED_SKILLS placeholders
+  - `specify.md`: AI-Powered Discovery section after initial context generation
+  - `plan.md`: AI-Powered Context/Skills Refresh section before implementation
+
+### Changed
+
+- **Team-AI-Directives Integration**: Discovery features automatically use team-ai-directives path
+  - Supports both local paths (`~/workspace/team-ai-directives`) and Git URLs
+  - Automatic Git cloning for remote repositories
+  - Discovery results integrated into context.md generation
+
+- **Skill Caching**: Daily refresh (24h TTL) for performance optimization
+  - `skills-cache/.last_refresh` marker file for tracking cache age
+  - Automatic cache rebuild when timestamp exceeds 24 hours
+  - Graceful fallback when team-ai-directives unavailable
+
+### Documentation
+
+- Added Context Auto-Discovery and Skills Discovery features to README.md
+- Updated Team AI Directives integration section with discovery workflow
+- Added comprehensive discovery documentation to docs/discovery.md
+- Documented two-tier discovery architecture (scripts → templates)
+
 ## [0.0.114] - 2026-03-07
 
 ### Added

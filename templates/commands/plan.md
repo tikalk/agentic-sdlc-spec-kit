@@ -358,6 +358,27 @@ $ARGUMENTS
 
 Feature architecture inherits and extends system architecture, ensuring consistent governance across all development.
 
+### AI-Powered Context/Skills Refresh (Always Enabled)
+
+**When feature scope changes during planning:**
+
+1. **Re-run discovery** (same approach as /specify)
+   - Extract keywords from updated plan requirements
+   - AI semantic search (not grep-based)
+   - Update candidates with new relevant items
+
+2. **Merge with existing selections**
+   - Keep manually selected directives and skills
+   - Append newly discovered items
+   - On conflicts: Keep higher confidence score, annotate the change
+
+3. **Show refresh status** in context.md
+   - What changed: New items, removed items, score changes
+   - Mark items that moved between baseline and AI categories
+
+**Detection logic**: Use same AI semantic approach as /specify command to ensure consistency.
+
+
 ## Post-Execution Hooks
 
 **Check for extension hooks (after planning)**:

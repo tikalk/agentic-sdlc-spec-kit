@@ -199,6 +199,65 @@ specify init my-project --debug
 specify init my-project --github-token $GITHUB_TOKEN
 ```
 
+#### Context Auto-Discovery & Skills Discovery
+
+The toolkit includes automatic discovery of team directives and skills based on your feature description.
+
+**Two-Tier Discovery Architecture:**
+
+1. **Layer 1 (Scripts)**: Fast, deterministic baseline discovery
+   - `discover_directives()`: Grep-based search of team-ai-directives for constitutions, personas, rules
+   - `discover_skills()`: 5-layer discovery through manifest, local, cache, required, and recommended skills
+   - Outputs JSON with `DISCOVERED_DIRECTIVES` and `DISCOVERED_SKILLS` fields
+
+2. **Layer 2 (Templates)**: AI-powered semantic enhancement
+   - Templates guide AI agents to perform semantic discovery based on script baseline
+   - Enhanced with human-readable explanations (1-2 sentences per directive/skill)
+   - Integrated into `/spec.specify` and `/spec.plan` command templates
+
+**Discovery Workflow:**
+
+```bash
+# Discovery automatically runs during feature creation with team-ai-directives
+./create-new-feature.sh --json "Add user authentication with OAuth2"
+# Output includes:
+# - DISCOVERED_DIRECTIVES: Constitution path, personas, rules from team-ai-directives
+# - DISCOVERED_SKILLS: Up to 5 relevant skills with 24h cached refresh
+```
+
+**Team AI Directives Structure:**
+
+```
+team-ai-directives/
+├── constitutions/
+│   └── constitution.md
+├── personas/
+│   └── security-expert.md
+├── rules/
+│   ├── api-security.md
+│   └── code-quality.md
+├── skills/
+│   ├── oauth2-flows/
+│   │   └── SKILL.md
+│   └── python-logging/
+│       └── SKILL.md
+└── .skills.json
+```
+
+**Skills Discovery Algorithm (5-Layer):**
+
+1. **Manifest Discovery**: Read `.skills.json` for required/recommended/blocked skills
+2. **Local Discovery**: Search `team-ai-directives/skills/` for SKILL.md files
+3. **Cache Discovery**: Check `skills-cache/` with 24h TTL refresh
+4. **Required Skills**: Auto-install from manifest URLs or local paths
+5. **Recommended Discovery**: Semantic matching against feature description
+
+**AI-Powered Discovery in Templates:**
+
+- `specify.md`: AI discovery section after initial context generation
+- `plan.md`: AI refresh section before implementation
+- `context-template.md`: Structured placeholders for DISCOVERED_DIRECTIVES/DISCOVERED_SKILLS
+
 ### Optional Architecture Support
 
 The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work in any project.

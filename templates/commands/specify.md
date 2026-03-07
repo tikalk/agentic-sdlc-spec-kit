@@ -184,6 +184,34 @@ Given that feature description, do this:
 
        - If `preserve_user_edits: true`, merge with existing skills section
        - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
+
+      - **AI-Powered Discovery** (Always Enabled):
+
+        **When you receive script JSON output with DISCOVERED_DIRECTIVES and DISCOVERED_SKILLS:**
+
+        **Skills Discovery Enhancement**:
+        1. Load candidates from `DISCOVERED_SKILLS` JSON
+        2. Perform semantic analysis across available skills:
+           - SKILL.md files from team-ai-directives/skills/
+           - Cached SKILL.md files from .specify/skills/
+        3. Score each skill 0.0-1.0 using AI understanding (not keyword matching)
+        4. Identify implicit requirements (e.g., OAuth2 → needs api-security, token-validation)
+        5. Merge with script candidates (keep higher confidence scores)
+        6. Include skills with confidence ≥ 0.7 (configurable) and not blocked by .skills.json
+        7. Limit to max 5 skills total
+        8. Auto-install AI-suggested skills to .specify/skills/
+
+        **Directives Discovery Enhancement**:  
+        1. Load candidates from `DISCOVERED_DIRECTIVES` JSON
+        2. Perform semantic search across team-ai-directives directory
+        3. Score directives 0.0-1.0 using AI understanding (not keyword grep)
+        4. Identify implied relationships (e.g., "OAuth2" → requires security rules)
+        5. Merge with script candidates (keep higher scores)
+        6. Constitution: Always include if team-ai-directives exists
+        7. Generate output with AI explanations in context.md (concise 1-2 sentences)
+
+        **Fallback Behavior**: If AI semantic search fails, use script baseline only (no error).
+
      - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
        - **Feature**: Use the feature title/name from spec.md header
        - **Mission**: Use the **Goal** field from the Mission Brief in spec.md header (or extract core purpose/goal from feature description if Goal not yet populated)

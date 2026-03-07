@@ -1,4 +1,5 @@
 #!/usr/bin/env pwsh
+. "scripts/powershell/discovery-functions.ps1"`
 # Create a new feature
 [CmdletBinding()]
 param(
@@ -420,12 +421,23 @@ if (Test-Path $contextTemplate) {
 # Set the SPECIFY_FEATURE environment variable for the current session
 $env:SPECIFY_FEATURE = $branchName
 
+# AI Discovery - Run discovery before JSON output
+if ($env:SPECIFY_TEAM_DIRECTIVES) {
+    $TEAM_DIRECTIVES_DIR = $env:SPECIFY_TEAM_DIRECTIVES
+} else {
+    $TEAM_DIRECTIVES_DIR = Join-Path $repoRoot '.specify/memory/team-ai-directives'
+}
+$DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR  
+$DISCOVERED_SKILLS = Discover-Skills -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR -SkillsCachePath (Join-Path $repoRoot '.specify/skills')
+
 if ($Json) {
     $obj = [PSCustomObject]@{ 
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
         HAS_GIT = $hasGit
+        DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
+        DISCOVERED_SKILLS = $DISCOVERED_SKILLS
     }
     $obj | ConvertTo-Json -Compress
 } else {

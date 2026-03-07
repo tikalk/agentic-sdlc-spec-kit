@@ -375,6 +375,200 @@ replace_date_placeholders "$SPEC_FILE"
 CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
+# Function to discover team directives (Issue #47)
+discover_directives() {
+    local feature_description="$1"
+    local team_directives_path="$2"
+
+    if [[ ! -d "$team_directives_path" ]]; then
+        cat <<'EOF'
+{
+    "candidates": {
+        "constitution": "",
+        "personas": [],
+        "rules": [],
+        "skills": [],
+        "examples": []
+    },
+    "search_metadata": {
+        "keywords": [],
+        "files_searched": 0,
+        "files_with_matches": 0
+    }
+}
+EOF
+        return
+    fi
+
+    local constitution=""
+    if [[ -f "$team_directives_path/constitutions/constitution.md" ]]; then
+        constitution="$team_directives_path/constitutions/constitution.md"
+    elif [[ -f "$team_directives_path/constitution.md" ]]; then
+        constitution="$team_directives_path/constitution.md"
+    fi
+
+    cat <<EOF
+{
+    "candidates": {
+        "constitution": "${constitution}",
+        "personas": [],
+        "rules": [],
+        "skills": [],
+        "examples": []
+    },
+    "search_metadata": {
+        "keywords": [],
+        "files_searched": 0,
+        "files_with_matches": 0
+    }
+}
+EOF
+}
+
+# Function to discover skills (Issue #49)
+discover_skills() {
+    local feature_description="$1"
+    local team_directives_path="$2"
+    local skills_cache_path="$3"
+    local max_skills="${4:-5}"
+    local threshold="${5:-0.7}"
+
+    mkdir -p "$skills_cache_path"
+
+    local cache_marker="$skills_cache_path/.last_refresh"
+    local current_timestamp=$(date +%s)
+    local one_day=86400
+
+    local need_refresh=false
+    if [[ -f "$cache_marker" ]]; then
+        local last_refresh=$(cat "$cache_marker)
+        local age=$((current_timestamp - last_refresh))
+        if [[ $age -gt $one_day ]]; then
+            need_refresh=true
+        fi
+    else
+        need_refresh=true
+    fi
+
+    if $need_refresh && [[ -d "$team_directives_path/skills" ]]; then
+        echo "[specify] Refreshing skills cache (daily refresh)..." >&2
+        cp -r "$team_directives_path/skills/"* "$skills_cache_path/" 2>/dev/null || true
+        echo "$current_timestamp" > "$cache_marker"
+    fi
+
+    local required_skills=()
+    local blocked_skills=()
+    if [[ -f "$team_directives_path/.skills.json" ]]; then
+        local required=$(jq -r '.skills.required // {} | keys[]' "$team_directives_path/.skills.json" 2>/dev/null)
+        [[ -n "$required" ]] && while read -r skill_id; do
+            local skill_url=$(jq -r ".skills.required[\"$skill_id\"].url // empty" "$team_directives_path/.skills.json" 2>/dev/null)
+            if [[ -n "$skill_url" ]]; then
+                local cache_dir="$skills_cache_path/$(basename "$skill_id")"
+                mkdir -p "$cache_dir"
+                curl -s -o "$cache_dir/SKILL.md" "$skill_url" 2>/dev/null
+                if [[ -f "$cache_dir/SKILL.md" && -s "$cache_dir/SKILL.md" ]]; then
+                    required_skills+=("$skill_id")
+                fi
+            elif [[ "$skill_id" == "local:"* ]]; then
+                required_skills+=("$skill_id")
+            elif [[ -d "$skills_cache_path/$skill_id" && -f "$skills_cache_path/$skill_id/SKILL.md" ]]; then
+                required_skills+=("$skill_id")
+            fi
+        done <<< "$required"
+
+        local recommended=$(jq -r '.skills.recommended // {} | keys[]' "$team_directives_path/.skills.json" 2>/dev/null)
+        [[ -n "$recommended" ]] && while read -r skill_id; do
+            local skill_url=$(jq -r ".skills.recommended[\"$skill_id\"].url // empty" "$team_directives_path/.skills.json" 2>/dev/null)
+            if [[ -n "$skill_url" ]]; then
+                local cache_dir="$skills_cache_path/$(basename "$skill_id")"
+                mkdir -p "$cache_dir"
+                curl -s -o "$cache_dir/SKILL.md" "$skill_url" 2>/dev/null
+                if [[ -f "$cache_dir/SKILL.md" && -s "$cache_dir/SKILL.md" ]]; then
+                    required_skills+=("$skill_id")
+                fi
+            elif [[ "$skill_id" == "local:"* ]]; then
+                required_skills+=("$skill_id")
+            elif [[ -d "$skills_cache_path/$skill_id" && -f "$skills_cache_path/$skill_id/SKILL.md" ]]; then
+                required_skills+=("$skill_id")
+            fi
+        done <<< "$recommended"
+
+        local blocked=$(jq -r '.skills.blocked // [] | .[]' "$team_directives_path/.skills.json" 2>/dev/null)
+        [[ -n "$blocked" ]] && while read -r blocked_id; do
+            blocked_skills+=("$blocked_id")
+        done <<< "$blocked"
+    fi
+
+    local cached_skills=()
+    if [[ -d "$skills_cache_path" ]]; then
+        while IFS= read -r skill_dir; do
+            [[ "$skill_dir" == "$skills_cache_path" ]] && continue
+            [[ ! -d "$skill_dir" ]] && continue
+            local skill_name=$(basename "$skill_dir")
+            if [[ " ${required_skills[*]} " =~ " $skill_name " ]]; then
+                continue
+            fi
+            local skill_md="$skill_dir/SKILL.md"
+            if [[ ! -f "$skill_md" || ! -s "$skill_md" ]]; then
+                continue
+            fi
+            cached_skills+=("$skill_name")
+        done < <(find "$skills_cache_path" -maxdepth 1 -type d | grep -v "$skills_cache_path$")
+    fi
+
+    local candidate_list=()
+    for skill_id in "${required_skills[@]}"; do
+        local is_blocked=0
+        for blocked_id in "${blocked_skills[@]}"; do
+            [[ "$skill_id" == "$blocked_id" ]] && is_blocked=1 && break
+        done
+        [[ $is_blocked -eq 1 ]] && continue
+
+        local skill_path=""
+        local skill_name=""
+        if [[ "$skill_id" == "local:"* ]]; then
+            skill_path="$team_directives_path/${skill_id#local:}"
+            skill_name=$(basename "$skill_path")
+        else
+            skill_path="$skills_cache_path/$skill_id"
+            skill_name=$skill_id
+        fi
+
+        [[ ! -f "$skill_path/SKILL.md" || ! -s "$skill_path/SKILL.md" ]] && continue
+        candidate_list+=("required:$skill_name")
+    done
+
+    for skill_name in "${cached_skills[@]}"; do
+        local is_blocked=0
+        for blocked_id in "${blocked_skills[@]}"; do
+            [[ "$skill_name" == "$blocked_id" ]] && is_blocked=1 && break
+        done
+        [[ $is_blocked -eq 1 ]] && continue
+        [[ " ${candidate_list[*]} " =~ " required:$skill_name " ]] && continue
+        candidate_list+=("$skill_name")
+    done
+
+    local candidates_json="["
+    local first=1
+    for skill_id in "${candidate_list[@]:0:$max_skills}"; do
+        [[ $first -eq 0 ]] && candidates_json+=","
+        local skill_name="${skill_id#required:}"
+        local source="${skill_id%%:*}"
+        local base_relevance="1.0"
+        [[ "$source" != "required" ]] && base_relevance="0.65"
+        candidates_json+=$(jq -n --arg id "$skill_id" --arg name "$skill_name" --arg source "$source" --argjson base_relevance "$base_relevance" '{"id":$id,"name":$name,"source":$source,"base_relevance":$base_relevance}')
+        first=0
+    done
+    candidates_json+="]"
+
+    jq -n \
+        --argjson candidates "$candidates_json" \
+        '{
+            "candidates": $candidates,
+            "last_refresh": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
+        }'
+}
+
 # Function to populate context.md with defaults
 populate_context_file() {
     local context_file="$1"
@@ -435,11 +629,37 @@ else
     touch "$CONTEXT_FILE"
 fi
 
+# Resolve team directives path
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
+if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
+    TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
+fi
+
+# Sync team-ai-directives if URL provided
+if [[ "$TEAM_DIRECTIVES_DIR" =~ ^https?:// ]]; then
+    echo "[specify] Syncing team-ai-directives from $TEAM_DIRECTIVES_DIR..." >&2
+    TEMP_DIR=$(mktemp -d)
+    if git clone --depth 1 "$TEAM_DIRECTIVES_DIR" "$TEMP_DIR/team-ai-directives" 2>/dev/null; then
+        TARGET_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
+        rm -rf "$TARGET_DIR"
+        mv "$TEMP_DIR/team-ai-directives" "$TARGET_DIR"
+        TEAM_DIRECTIVES_DIR="$TARGET_DIR"
+        echo "[specify] Team-ai-directives synced successfully" >&2
+    else
+        echo "[specify] Warning: Failed to sync team-ai-directives" >&2
+    fi
+    rm -rf "$TEMP_DIR"
+fi
+
+# Discover directives and skills
+DISCOVERED_DIRECTIVES=$(discover_directives "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR")
+DISCOVERED_SKILLS=$(discover_skills "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR" "$REPO_ROOT/.specify/skills")
+
 # Set the SPECIFY_FEATURE environment variable for the current session
 export SPECIFY_FEATURE="$BRANCH_NAME"
 
 if $JSON_MODE; then
-    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s"}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM"
+    printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","DISCOVERED_DIRECTIVES":%s,"DISCOVERED_SKILLS":%s}\n' "$BRANCH_NAME" "$SPEC_FILE" "$FEATURE_NUM" "$DISCOVERED_DIRECTIVES" "$DISCOVERED_SKILLS"
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
