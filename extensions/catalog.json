@@ -82,7 +82,8 @@
         "adlc.architect.specify",
         "adlc.architect.clarify",
         "adlc.architect.implement",
-        "adlc.architect.analyze"
+        "adlc.architect.analyze",
+        "adlc.architect.validate"
       ],
       "tags": [
         "architecture",
