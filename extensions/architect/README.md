@@ -18,6 +18,7 @@ The Architect extension provides a complete workflow for documenting and maintai
 | `/architect.clarify` | Refine and validate ADRs through questions |
 | `/architect.implement` | Generate AD.md from ADRs (Rozanski & Woods) |
 | `/architect.analyze` | Validate ADR to AD consistency and quality |
+| `/architect.validate --for-plan` | Validate plan alignment with architecture (READ-ONLY) |
 
 ## Quick Start
 
@@ -185,16 +186,45 @@ The Architecture Description follows Rozanski & Woods with 7 viewpoints:
 
 ## Integration with Spec Workflow
 
-Architecture commands work alongside specification commands:
+Architecture works with specification commands via extension hooks:
 
 ```
 /architect.specify --> /architect.clarify --> /architect.implement
                                                       |
                                                       v
-/spec.specify --> /spec.plan --architecture --> /spec.tasks --> /spec.implement
+                     architect extension hooks (before_plan / after_plan)
+                                                      |
+                                                      v
+/spec.specify --> /spec.plan --> /spec.tasks --> /spec.implement
 ```
 
-The `--architecture` flag in `/spec.plan` generates feature-level architecture.
+**Hooks only execute when `.specify/memory/adr.md` exists (architecture detection)**
+
+| Hook | When it Runs | Command | Purpose |
+|------|--------------|---------|---------|
+| `before_plan` | Before plan generation | `adlc.architect.specify` | Create feature-level ADRs and AD.md |
+| `after_plan` | After plan generation | `adlc.architect.validate` | Validate plan alignment (READ-ONLY) |
+
+### Using /architect.validate
+
+The validate command checks plan alignment with architecture:
+
+- **Flags**: `--for-plan`, `--json`, `--system-only`, `--check-only [check]`
+- **Returned Findings**:
+  - `blocking` - Critical issues that must be fixed
+  - `high_severity` - Issues that should be fixed
+  - `warnings` - Recommendations
+- **7 PILLAR Checks**:
+  - PILLAR_1: Component ADR alignment
+  - PILLAR_2: Interface contracts
+  - PILLAR_3: Data model consistency
+  - PILLAR_4: System context alignment
+  - PILLAR_5: Functional consistency
+  - PILLAR_6: Information view alignment
+  - PILLAR_7: Development view alignment
+- **Diagram Consistency**: System boundaries and data flows
+
+The command is READ-ONLY and skips gracefully if no architecture exists.
 
 ## Related
 

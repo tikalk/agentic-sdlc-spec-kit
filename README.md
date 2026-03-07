@@ -199,40 +199,6 @@ specify init my-project --debug
 specify init my-project --github-token $GITHUB_TOKEN
 ```
 
-### Framework Options
-
-Fine-grained control over development approach available via command-line flags:
-
-```bash
-# Test-Driven Development
-/spec.specify --tdd (enabled by default)
-
-# Smart Contracts (API specifications)
-/spec.specify --contracts (enabled by default)
-
-# Data Models (entity relationships)
-/spec.specify --data-models (enabled by default)
-
-# Risk-Based Testing
-/spec.specify --risk-tests (enabled by default)
-```
-
-#### Auto-Detection System
-
-Framework options are automatically detected by downstream commands from spec.md metadata:
-
-- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect framework options from the current feature's spec.md
-- **`/architect.*`**: Option-agnostic (system-level architecture should not be constrained by feature-level options)
-
-#### Complete Example
-
-```bash
-specify init my-project \
-  --ai claude \
-  --script sh \
-  --team-ai-directives https://github.com/your-org/team-ai-directives.git
-```
-
 ### Optional Architecture Support
 
 The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work in any project.
@@ -241,10 +207,11 @@ The toolkit includes comprehensive architecture documentation support via the **
 
 #### Two-Level Architecture System
 
-| Level | Location | ADR File | Architecture Description | Commands |
-|-------|----------|----------|--------------------------|----------|
-| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | `architect.*` |
-| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `spec.plan --architecture` |
+| Level | Location | ADR File | Architecture Description | Hook Timing |
+|-------|----------|----------|--------------------------|--------------|
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | N/A |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | before_plan with architect extension |
+| **Validation** | Plan level | READ-ONLY via architect.validate | Validates plan alignment | after_plan with architect extension |
 
 #### Architecture Workflow
 
@@ -264,9 +231,17 @@ The toolkit includes comprehensive architecture documentation support via the **
 # Then proceed with normal workflow
 /spec.specify "Feature within this architecture"
 
-# Or generate feature-level architecture during planning
-/spec.plan --architecture
+# Plan generation with architecture validation (if architect extension installed)
+/spec.plan
+  - **before_plan hook** (architect extension): Create feature ADRs using architect.specify/clarify/implement
+  - **after_plan hook** (architect extension): Validate plan alignment using architect.validate --for-plan
 ```
+
+**Architecture Integration via Hooks**:
+
+- **before_plan** (architect extension): Automatically creates feature ADRs if adr.md exists
+- **after_plan** (architect extension): Validates plan alignment with architecture (READ-ONLY)
+- Hooks only activate if architect extension installed and adr.md present
 
 #### Architecture Commands
 
@@ -276,9 +251,12 @@ The toolkit includes comprehensive architecture documentation support via the **
 | `architect.specify` | Interactive PRD exploration to create system-level ADRs |
 | `architect.clarify` | Refine ADRs through targeted clarification questions |
 | `architect.implement` | Generate full Architecture Description (AD.md) from ADRs |
-| `architect.analyze` | Validate ADR <-> AD consistency and quality |
+| `architect.analyze` | Validate ADR ↔ AD consistency and quality |
+| `architect.validate` | READ-ONLY: Validate plan alignment with architecture (plan level) |
 
-**Feature Architecture**: Use `/spec.plan --architecture` or set `architecture=true` in spec.md Framework Options to generate feature-level architecture (`specs/{feature}/AD.md` and `specs/{feature}/adr.md`).
+**Feature Architecture Workflow**:
+
+Feature-level ADRs and AD.md are created automatically via architect extension hooks during `/spec.plan` execution (if architect is installed and system architecture exists). No manual --architecture flag needed for feature architecture generation.
 
 #### Architecture Configuration Options
 
@@ -331,6 +309,52 @@ The `architect.*` commands generate documentation covering:
 7. **Operational View** - Operations, monitoring, and support
 
 Plus cross-cutting **Perspectives**: Security, Performance & Scalability
+
+### Framework Options
+
+The spec-kit supports the following framework options, configurable during feature creation:
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--contracts` | Enable service contracts (API schemas, test assertions) | Enabled |
+| `--no-contracts` | Disable service contracts | - |
+| `--data-models` | Generate data model documentation | Enabled |
+| `--no-data-models` | Skip data model generation | - |
+
+**Example**:
+```bash
+./create-new-feature.sh --contracts --no-data-models "User authentication"
+```
+
+**Usage Pattern**:
+
+Set flags during feature creation. The flags are stored in each `spec.md` file and auto-detected by all `/spec.*` commands.
+
+**Example in spec.md**:
+```markdown
+## Framework Options
+
+contracts=true
+data_models=false
+```
+
+**Workflow Integration**:
+
+| Feature | Architecture Location | Activation |
+|---------|----------------------|-------------|
+| Feature ADRs (pre-plan) | before_plan hook (architect extension) | Generates feature-level ADRs if adr.md exists |
+| Architecture validation (post-plan) | after_plan hook (architect extension) | architect.validate validates plan alignment |
+| Plan generation | plan.md core command | Executes data model + UX validation (inline) |
+
+**Advanced Features** (extension-based):
+
+| Feature | Extension | Activation |
+|---------|-----------|-------------|
+| Test-Driven Development (TDD) | tdd extension | Hooks activate after /spec.tasks, /spec.implement |
+| Architecture integration | architect extension | before_plan (create ADRs), after_plan (validate) |
+| Risk-based testing | tdd extension | Part of TDD workflow |
+
+These are extension-based, requiring explicit installation for opt-in behavior.
 
 ### 2. Establish project principles
 
@@ -588,15 +612,6 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)   |
 | `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                                |
 | `--ai-skills`                | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
-
-### `/spec.specify` Framework Options
-
-| Argument/Option | Type     | Description                                                                 |
-|-----------------|----------|-----------------------------------------------------------------------------|
-| `--tdd/--no-tdd` | Option | Enable/disable TDD (Test-Driven Development) |
-| `--contracts/--no-contracts` | Option | Enable/disable API contract generation |
-| `--data-models/--no-data-models` | Option | Enable/disable data model generation |
-| `--risk-tests/--no-risk-tests` | Option | Enable/disable risk-based test generation |
 
 ### `specify skill` Commands & Options
 

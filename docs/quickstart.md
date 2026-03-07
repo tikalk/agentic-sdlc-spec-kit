@@ -11,35 +11,6 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** Run these steps in a standard terminal before opening the Intelligent IDE.  
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
-### Framework Options
-
-Core workflow commands support fine-grained control over development approach:
-
-#### Configuration Options
-
-Fine-grained control over development approach via command-line flags:
-
-```bash
-# Test-Driven Development
-/spec.specify --tdd (enabled by default)
-
-# Smart Contracts (API specifications)
-/spec.specify --contracts (enabled by default)
-
-# Data Models (entity relationships)
-/spec.specify --data-models (enabled by default)
-
-# Risk-Based Testing
-/spec.specify --risk-tests (enabled by default)
-```
-
-#### Auto-Detection System
-
-Downstream commands automatically detect framework options from spec.md metadata:
-
-- **`/spec.plan`**, **`/spec.tasks`**, **`/spec.implement`**, **`/spec.clarify`**, **`/spec.analyze`**, **`/spec.checklist`**: Auto-detect framework options from the current feature's spec.md
-- **`/architect.*`**: Option-agnostic (system-level architecture should not be constrained by feature-level options)
-
 1. **Project Initialization (`/init`)**  
    **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
    **Purpose:** Creates the handshake that brings the repository into the managed Agentic SDLC ecosystem, wiring credentials, endpoints, and shared knowledge needed for subsequent commands.

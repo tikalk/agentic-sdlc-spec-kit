@@ -7,6 +7,49 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.114] - 2026-03-07
+
+### Added
+
+- **Architect Validation Integration**: Added READ-ONLY `adlc.architect.validate` command that validates plan alignment with architecture
+  - Validates 7 PILLAR checks: component alignment, interface contracts, data model consistency, context/functional/information/development view alignment
+  - Checks diagram consistency: system boundaries and data flows
+  - Returns structured JSON with blocking, high-severity, and warnings findings
+  - Gracefully skips when architecture doesn't exist (returns `{"status":"skipped"}`)
+
+- **Extension Hooks for Architect**: Added automatic extension hook integration for architect workflow
+  - `before_plan` hook: Creates feature-level ADRs using `adlc.architect.specify`
+  - `after_plan` hook: Validates plan alignment using `adlc.architect.validate --for-plan`
+  - Hooks execute automatically when `.specify/memory/adr.md` exists
+
+- **Multi-line Framework Options Format**: Updated spec-template.md to use multi-line format for clarity
+  ```
+  contracts={contracts}
+  data_models={data_models}
+  ```
+
+### Changed
+
+- **Simplified Framework Options**: Removed deprecated CLI flags (--tdd, --architecture)
+  - Retained only user-configurable flags: `--contracts`, `--no-contracts`, `--data-models`, `--no-data-models`
+  - TDD and architecture validation now handled via extensions (architect, tdd)
+
+- **Architecture Validation Workflow**: Moved validation from spec level to plan level
+  - Previous: validation in clarify.md (spec spec)
+  - New: validation via architect.validate command with after_plan hook (plan level)
+  - README.md and docs/architecture.md updated with new workflow
+
+- **Architect Extension Scripts**: Added validate action to setup-architect.sh and setup-architect.ps1
+  - bash: New `action_validate()` function with graceful skip behavior
+  - PowerShell: New `Invoke-Validate()` function with graceful skip behavior
+
+### Documentation
+
+- `extensions/architect/README.md`: Added validate command to commands table and hooks integration section
+- `extensions/architect/commands/validate.md`: Complete command documentation with flags and usage
+- `docs/architecture.md`: Updated workflow to describe hooks-based architecture validation
+- `README.md`: Added Framework Options section documenting simplified CLI flags
+
 ## [0.0.112] - 2026-03-06
 
 ### Fixed

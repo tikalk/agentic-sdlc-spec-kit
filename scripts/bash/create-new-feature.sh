@@ -5,11 +5,8 @@ set -e
 JSON_MODE=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
-MODE="spec"
-TDD="true"
 CONTRACTS="true"
 DATA_MODELS="true"
-RISK_TESTS="true"
 ARGS=()
 i=1
 while [ $i -le $# ]; do
@@ -34,11 +31,23 @@ while [ $i -le $# ]; do
             ;;
         --number)
             if [ $((i + 1)) -gt $# ]; then
-                echo 'Error: --tdd requires a value' >&2
+                echo 'Error: --number requires a value' >&2
                 exit 1
             fi
             i=$((i + 1))
             BRANCH_NUMBER="$next_arg"
+            ;;
+        --contracts)
+            CONTRACTS="true"
+            ;;
+        --no-contracts)
+            CONTRACTS="false"
+            ;;
+        --data-models)
+            DATA_MODELS="true"
+            ;;
+        --no-data-models)
+            DATA_MODELS="false"
             ;;
         --help|-h) 
             echo "Usage: $0 [OPTIONS] <feature_description>"
@@ -47,11 +56,16 @@ while [ $i -le $# ]; do
             echo "  --json                  Output in JSON format"
             echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
             echo "  --number N              Specify branch number manually (overrides auto-detection)"
+            echo "  --contracts             Enable service contracts (requires framework)"
+            echo "  --no-contracts          Disable service contracts"
+            echo "  --data-models           Generate data model documentation"
+            echo "  --no-data-models        Skip data model generation"
             echo "  --help, -h              Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
             echo "  $0 --number 5 'Feature with specific number'"
+            echo "  $0 --contracts --no-data-models 'My feature' --short-name 'my-feature'"
             exit 0
             ;;
         *) 
@@ -63,7 +77,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--short-name <name>] [--number N] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--short-name <name>] [--number N] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>" >&2
     exit 1
 fi
 
@@ -339,24 +353,26 @@ replace_date_placeholders() {
 }
 
 # Apply defaults for options if not explicitly set
-TEMPLATE="$REPO_ROOT/templates/spec-template.md"
+TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+
+# Replace options metadata in spec.md
+if [ -f "$SPEC_FILE" ]; then
+    # Use awk to replace placeholders - simpler than complex sed
+    awk -v contracts_val="$CONTRACTS" -v datamodels_val="$DATA_MODELS" '
+        BEGIN { in_fw = 0 }
+        /\*\*Framework Options\*\*:/ { in_fw = 1; next }
+        in_fw && /^  contracts=/ { sub(/contracts=\{*\}/, "contracts=" contracts_val); }
+        in_fw && /^  data_models=/ { sub(/data_models=\{*\}/, "data_models=" datamodels_val); }
+        { print }
+    ' "$SPEC_FILE" > "${SPEC_FILE}.tmp" && mv "${SPEC_FILE}.tmp" "$SPEC_FILE"
+fi
 
 # Replace [DATE] placeholders with current date
 replace_date_placeholders "$SPEC_FILE"
 
-# Replace options metadata in spec.md
-# Templates already have placeholders, but we need to ensure values are set correctly
-if [ -f "$SPEC_FILE" ]; then
-    if [[ "$OSTYPE" == "darwin"* ]]; then
-        sed -i '' "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
-    else
-        sed -i "s/\*\*Framework Options\*\*:.*/\*\*Framework Options\*\*: tdd=$TDD, contracts=$CONTRACTS, data_models=$DATA_MODELS, risk_tests=$RISK_TESTS/" "$SPEC_FILE"
-    fi
-fi
-
-CONTEXT_TEMPLATE="$REPO_ROOT/templates/context-template.md"
+CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
 # Function to populate context.md with defaults

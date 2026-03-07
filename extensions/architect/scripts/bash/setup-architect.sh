@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             DECOMPOSE=false
             shift
             ;;
-        init|map|update|review|specify|implement|clarify|analyze)
+        init|map|update|review|specify|implement|clarify|analyze|validate)
             ACTION="$1"
             shift
             ;;
@@ -55,6 +55,7 @@ while [[ $# -gt 0 ]]; do
             echo "  init     Reverse-engineer architecture from existing codebase (brownfield)"
             echo "  implement Generate full Architecture Description (AD.md) from ADRs"
             echo "  analyze  Validate architecture for consistency and quality issues"
+            echo "  validate Validate plan alignment with architecture (READ-ONLY)"
             echo "  map      (alias for init) Reverse-engineer architecture from existing codebase"
             echo "  update   Update architecture based on code/spec changes"
             echo "  review   Validate architecture against constitution"
@@ -1037,7 +1038,7 @@ action_review() {
 # Action: Analyze (validate architecture consistency)
 action_analyze() {
     echo "🔍 Architecture Analysis Mode" >&2
-    echo "" >&2
+    echo ""
     
     local ad_file="$REPO_ROOT/AD.md"
     local adr_file="$REPO_ROOT/.specify/memory/adr.md"
@@ -1113,6 +1114,41 @@ action_analyze() {
     fi
 }
 
+# Action: Validate (READ-ONLY architecture validation for plan alignment)
+action_validate() {
+    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    
+    echo "🔍 Architecture Validation Mode (READ-ONLY)" >&2
+    echo ""
+    
+    # Check if architecture exists
+    if [[ ! -f "$adr_file" ]]; then
+        echo "⏭️  Architecture not found: $adr_file" >&2
+        echo "     Skipping validation gracefully" >&2
+        if $JSON_MODE; then
+            echo "{\"status\":\"skipped\",\"action\":\"validate\",\"reason\":\"architecture_not_found\"}"
+        fi
+        exit 0
+    fi
+    
+    local adr_count
+    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || grep -c "^### ADR-" "$adr_file" 2>/dev/null || echo "0")
+    
+    echo "📋 ADR file found: $adr_file" >&2
+    echo "   Found $adr_count ADR(s)" >&2
+    echo "" >&2
+    echo "Ready for READ-ONLY architecture validation." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Load architecture from ADRs and AD.md" >&2
+    echo "  2. Validate plan alignment with architecture" >&2
+    echo "  3. Identify blocking/high-severity issues" >&2
+    echo "  4. Report findings (READ-ONLY, no modifications)" >&2
+    
+    if $JSON_MODE; then
+        echo "{\"status\":\"success\",\"action\":\"validate\",\"adr_file\":\"$adr_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
 # Execute action
 case "$ACTION" in
     specify)
@@ -1129,6 +1165,9 @@ case "$ACTION" in
         ;;
     analyze)
         action_analyze
+        ;;
+    validate)
+        action_validate
         ;;
     update)
         action_update

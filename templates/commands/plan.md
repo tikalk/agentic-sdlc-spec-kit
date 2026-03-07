@@ -28,21 +28,54 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Parse the following parameters from `$ARGUMENTS`:
 
-- `--architecture`: Enable feature-level architecture generation (creates `specs/{feature}/AD.md` and `specs/{feature}/adr.md`)
-
-**Note**: The `--architecture` flag can also be set via spec.md Framework Options (`architecture=true`) or global config.
-
 ## Framework Options Detection
 
-1. **Auto-Detect from Spec**: Use the `detect_workflow_config()` function to automatically detect framework options from the current feature's `spec.md` file. This reads the `**Framework Options**` metadata line.
+1. **Auto-Detect from Spec**: Parse the spec.md header to extract framework options from the `**Framework Options**` metadata line (e.g., contracts, data-models). This determines which optional artifacts to generate.
 
-2. **Framework Options**: Respect detected framework options (tdd, contracts, data_models, risk_tests, architecture) when planning implementation approach and deliverables.
+2. **Framework Options**: Respect detected framework options (contracts, data-models) when planning implementation approach and deliverables.
 
-4. **Architecture Option Resolution**:
-   - If `--architecture` flag provided: Enable feature architecture generation
-   - Else if spec.md has `architecture=true` in Framework Options: Enable
-   - Else if global config has `options.architecture=true`: Enable
-   - Default: `architecture=false` (opt-in feature)
+## Pre-Execution Hooks
+
+**Check for extension hooks (before planning)**:
+- Check if `.specify/extensions.yml` exists in the project root
+- If it exists, read it and look for entries under the `hooks.before_plan` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter to only hooks where `enabled: true`
+- For hooks with conditions, skip condition evaluation (leave to HookExecutor)
+- For hooks without conditions, treat as executable
+
+**For each executable hook**:
+- **Optional hook** (`optional: true`):
+  ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    This is an optional hook. You can choose to skip it.
+  ```
+  Wait for the result of the hook command before proceeding to the Outline.
+
+- **Mandatory hook** (`optional: false`):
+  ```
+    ## Extension Hooks
+
+    **Mandatory Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    This is a mandatory hook. Waiting for completion...
+  ```
+  The hook MUST complete before proceeding to the next step.
+
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+**Note on Architecture Integration**:
+- If architect extension registered and adr.md exists, before_plan hook may create feature ADRs
+- Command: `/architect.specify` or `/architect.init` (greenfield vs brownfield)
+- Purpose: Generate feature-specific ADRs for architectural consistency
+- Note: Architecture validation happens in after_plan hook (not at this stage)
 
 ## Role & Context
 
@@ -154,7 +187,7 @@ $ARGUMENTS
 
 **Framework Options Check:**
 
-- Detect framework options from spec.md metadata using `detect_workflow_config()`
+- Detect framework options by parsing the `**Framework Options**` line from spec.md header
 - Respect framework configuration for contracts and data models
 
 1. **Extract entities from feature spec** → `data-model.md` (if data models enabled):
@@ -182,12 +215,29 @@ $ARGUMENTS
 - /contracts/* (if contracts enabled)
 - quickstart.md, agent-specific file (always generated)
 
-### Phase 2: Feature Architecture (if `--architecture` enabled)
+### Phase 2: Feature Architecture (via architect extension)
 
 **Prerequisites:** Research complete
 
-**Trigger**: `--architecture` flag OR `architecture=true` in spec.md Framework Options
+**Trigger**: architect extension installed and adr.md exists (.specify/memory/adr.md from system-level architecture)
 
+**Note**: Architecture workflow now handled via architect extension hooks:
+
+**before_plan hook (if architect extension present)**:
+- `/architect.specify`: Create feature-level ADRs
+- `/architect.clarify`: Refine feature ADRs
+- `/architect.implement`: Generate feature AD.md (optional)
+
+**after_plan hook (if architect extension present)**:
+- `/architect.validate --for-plan`: Validate plan alignment with architecture (READ-ONLY)
+- Parse findings: BLOCKING, HIGH-SEVERITY, WARNINGS
+- Document validation report in plan.md
+
+**If architect extension NOT available**:
+- Architecture workflow does not run
+- Plan generation continues with spec-based information only
+
+**Cross-Validation (if architect installed)**:
 1. **Load System Architecture**:
    - Read `AD.md` (root) for system-level architecture context
    - Read `.specify/memory/adr.md` for system-level ADRs
@@ -199,18 +249,18 @@ $ARGUMENTS
    - What data entities are added/changed?
    - What integration points are affected?
 
-3. **Generate Feature ADRs**:
+3. **Generate Feature ADRs** (via before_plan hook):
    - Create `specs/{feature}/adr.md` with feature-level decisions
    - Each ADR should reference system ADRs: "Aligns with ADR-XXX"
    - Flag any conflicts: "VIOLATION: Conflicts with ADR-XXX"
 
-4. **Generate Feature Architecture Description**:
+4. **Generate Feature Architecture Description** (via before_plan hook, \`/architect.implement\`):
    - Use `templates/feature-AD-template.md` as base
    - Focus on feature context, functional design, data design
    - Include integration points with system architecture
    - Generate feature-specific diagrams
 
-5. **Cross-Validate Against System AD**:
+5. **Cross-Validate Against System AD** (via after_plan hook validation):
    - Verify feature doesn't violate system boundaries
    - Ensure consistency with system component patterns
    - Check data model compatibility with Information View
@@ -289,18 +339,63 @@ $ARGUMENTS
 - Detailed technical analysis and constitutional compliance
 - Complete design artifacts and thorough triage
 
-**Architecture Option:**
+**Architecture Integration** (via architect extension):
 
-- Use `--architecture` flag to generate feature-level architecture artifacts
-- Feature ADRs are auto-validated against system ADRs in `.specify/memory/adr.md`
+- architect extension hooks handle architecture workflow automatically
+- **before_plan hook**: Create feature ADRs (if before_plan hook configured)
+- **after_plan hook**: Validate plan alignment (READ-ONLY validation via architect.validate)
+- Feature ADRs auto-validated against system ADRs in `.specify/memory/adr.md`
 - Conflicts flagged as VIOLATION requiring resolution
 - Aligned decisions noted with "Aligns with ADR-XXX"
 
 ### Two-Level Architecture System
 
-| Level | Location | ADR File | Architecture Description | Generated By |
-|-------|----------|----------|--------------------------|--------------|
-| **System** | Main branch | `.specify/memory/adr.md` | `AD.md` (root) | `/architect.*` commands |
-| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `/spec.plan --architecture` |
+| Level | Location | ADR File | Architecture Description | Generated By | Hook |
+|-------|----------|----------|--------------------------|--------------|------|
+| **System** | Main branch | `.specify/memory/adr.md` | `AD.md` (root) | `/architect.*` commands | N/A |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | `/architect.specify → /architect.clarify → /architect.implement` | before_plan |
+| **Validation** | Plan level | READ-ONLY via `/architect.validate --for-plan` | Validates plan alignment | architect extension | after_plan |
 
 Feature architecture inherits and extends system architecture, ensuring consistent governance across all development.
+
+## Post-Execution Hooks
+
+**Check for extension hooks (after planning)**:
+- After plan is generated, check if `.specify/extensions.yml` exists in the project root
+- If it exists, read it and look for entries under the `hooks.after_plan` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter to only hooks where `enabled: true`
+
+**For each executable hook**:
+- **Optional hook** (`optional: true`):
+  ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Would you like to run this optional hook? (Y/n)
+  ```
+
+- **Mandatory hook** (`optional: false`):
+  ```
+    ## Extension Hooks
+
+    **Mandatory Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Running mandatory hook...
+  ```
+
+- Wait for hook command completion
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+**Note on Architecture Validation**:
+- If architect extension registered and adr.md exists, after_plan hook may validate architecture:
+  - `/architect.validate --for-plan --json` (READ-ONLY)
+  - Parse JSON findings: blocking, high-severity, warnings
+  - Document validation report in plan.md
+  - BLOCK task generation if BLOCKING issues found
+  - Continue if only MEDIUM/LOW issues

@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet('init', 'map', 'update', 'review', 'specify', 'clarify', 'implement', 'analyze', '')]
+    [ValidateSet('init', 'map', 'update', 'review', 'specify', 'clarify', 'implement', 'analyze', 'validate', '')]
     [string]$Action = '',
     [Parameter(Position=1, ValueFromRemainingArguments=$true)]
     [string[]]$Context,
@@ -26,6 +26,7 @@ if ($Help) {
     Write-Output "  init     Reverse-engineer architecture from existing codebase (brownfield)"
     Write-Output "  implement Generate full Architecture Description (AD.md) from ADRs"
     Write-Output "  analyze  Validate architecture for consistency and quality issues"
+    Write-Output "  validate Validate plan alignment with architecture (READ-ONLY)"
     Write-Output "  map      (alias for init) Reverse-engineer architecture from existing codebase"
     Write-Output "  update   Update architecture based on code/spec changes"
     Write-Output "  review   Validate architecture against constitution"
@@ -944,7 +945,7 @@ function Invoke-Analyze {
     
     if ($adrExists) {
         $content = Get-Content $adrFile -Raw
-        $adrCount = ([regex]::Matches($content, "^### ADR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+        $adrCount = ([regex]::Matches($content, "^### ADR-", [System.Text.RegularExpressions.RegularExpressions]('Multiline'))).Count
         Write-Host "📋 ADR file found: $adrFile ($adrCount ADRs)" -ForegroundColor Green
     } else {
         Write-Host "⚠️  ADR file not found at $adrFile" -ForegroundColor Yellow
@@ -996,6 +997,43 @@ function Invoke-Analyze {
     }
 }
 
+# Validate action (READ-ONLY architecture validation for plan alignment)
+function Invoke-Validate {
+    param($repoRoot, $contextArgs)
+    
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
+    
+    Write-Host "🔍 Architecture Validation Mode (READ-ONLY)" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if architecture exists
+    if (-not (Test-Path $adrFile)) {
+        Write-Host "⏭️  Architecture not found: $adrFile" -ForegroundColor Yellow
+        Write-Host "     Skipping validation gracefully" -ForegroundColor Gray
+        if ($Json) {
+            @{status="skipped"; action="validate"; reason="architecture_not_found"} | ConvertTo-Json
+        }
+        exit 0
+    }
+    
+    $content = Get-Content $adrFile -Raw
+    $adrCount = ([regex]::Matches($content, "^## ADR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    
+    Write-Host "📋 ADR file found: $adrFile" -ForegroundColor Green
+    Write-Host "   Found $adrCount ADR(s)" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Ready for READ-ONLY architecture validation."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Load architecture from ADRs and AD.md"
+    Write-Host "  2. Validate plan alignment with architecture"
+    Write-Host "  3. Identify blocking/high-severity issues"
+    Write-Host "  4. Report findings (READ-ONLY, no modifications)"
+    
+    if ($Json) {
+        @{status="success"; action="validate"; adr_file=$adrFile; adr_count=$adrCount; context=($contextArgs -join " ")} | ConvertTo-Json
+    }
+}
+
 # Main execution
 try {
     $repoRoot = Get-RepositoryRoot
@@ -1044,6 +1082,9 @@ try {
         }
         'analyze' {
             Invoke-Analyze -repoRoot $repoRoot -contextArgs $Context
+        }
+        'validate' {
+            Invoke-Validate -repoRoot $repoRoot -contextArgs $Context
         }
         'update' {
             Invoke-Update -repoRoot $repoRoot -architectureFile $adFile

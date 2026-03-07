@@ -49,6 +49,12 @@ provides:
       description: "Analyze architecture for consistency between ADRs and AD, completeness, and quality issues"
       aliases: ["architect.analyze"]
 
+    # NEW: Validate plan alignment with architecture
+    - name: "adlc.architect.validate"
+      file: "commands/validate.md"
+      description: "Validate plan alignment with architecture (READ-ONLY)"
+      aliases: ["architect.validate"]
+
   config:
     - name: "architect-config.yml"
       template: "config-template.yml"
@@ -112,12 +118,21 @@ handoffs:
       send: false
 
 tags:
-  - "architecture"
-  - "adr"
-  - "rozanski-woods"
-  - "brownfield"
-  - "greenfield"
-  - "documentation"
+   - "architecture"
+   - "adr"
+   - "rozanski-woods"
+   - "brownfield"
+   - "greenfield"
+   - "documentation"
+
+# Hooks triggered at workflow stage boundaries
+hooks:
+  before_plan:
+    command: "adlc.architect.specify"
+    description: "Create feature-level ADRs and verify architecture exists"
+  after_plan:
+    command: "adlc.architect.validate"
+    description: "Validate plan alignment with architecture (READ-ONLY)"
 
 defaults:
   adr:

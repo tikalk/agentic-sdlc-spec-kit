@@ -1,16 +1,8 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: |
-    source scripts/bash/common.sh
-    CONFIG=$(detect_workflow_config)
-    TDD=$(echo "$CONFIG" | jq -r '.tdd // false')
-    scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
-  ps: |
-    . scripts/powershell/common.ps1
-    $config = Get-WorkflowConfig
-    $tdd = $config.tdd ?? $false
-    scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+  sh: scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
+  ps: scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
 ---
 
 ## User Input

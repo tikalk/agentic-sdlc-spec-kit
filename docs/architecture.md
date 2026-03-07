@@ -185,16 +185,31 @@ The analyze command validates consistency between ADRs and AD.md:
 
 ## Integration with Spec Workflow
 
-Architecture commands work alongside specification commands:
+Architecture commands work alongside specification commands via extension hooks:
 
 ```
 /architect.specify --> /architect.clarify --> /architect.implement
-                                                      |
-                                                      v
-/spec.specify --> /spec.plan --architecture --> /spec.tasks --> /spec.implement
+                                                       |
+                                                       v
+                    /architect extension hooks (before_plan / after_plan)
+                                                       |
+                                                       v
+/spec.specify --> /spec.plan --> /spec.tasks --> /spec.implement
 ```
 
-The `--architecture` flag in `/spec.plan` generates feature-level architecture (AD.md and adr.md in `specs/{feature}/`).
+**Architecture Workflow** (architect extension hooks):
+
+| Hook | Timing | Purpose |
+|------|--------|---------|
+| **before_plan** | Before plan generation | Create feature ADRs using architect.specify/clarify/implement |
+| **after_plan** | After plan generation | Validate plan alignment using architect.validate --for-plan (READ-ONLY) |
+| **Activation** | adr.md exists | Hooks only fire if `.specify/memory/adr.md` present |
+
+**Feature Architecture Generation**:
+
+- Manual: Run `/architect.specify` → `/architect.clarify` → `/architect.implement` to create feature ADRs and AD.md
+- Automatic: architect extension before_plan hook executes same commands when adr.md exists
+- Validation: architect extension after_plan hook validates plan alignment with architecture (READ-ONLY via architect.validate)
 
 ## Configuration
 

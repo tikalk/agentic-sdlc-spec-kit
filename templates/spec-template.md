@@ -1,9 +1,11 @@
 # Feature Specification: [FEATURE NAME]
 
-**Feature Branch**: `[###-feature-name]`  
-**Framework Options**: tdd=true, contracts=true, data_models=true, risk_tests=true  
-**Created**: [DATE]  
-**Status**: Draft  
+**Feature Branch**: `[###-feature-name]`
+**Framework Options**:
+  contracts={contracts}
+  data_models={data_models}
+**Created**: [DATE]
+**Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
 **Goal**: [one-sentence objective - core purpose]  

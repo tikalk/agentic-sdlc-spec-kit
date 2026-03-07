@@ -6,6 +6,10 @@ param(
     [string]$ShortName,
     [int]$Number = 0,
     [switch]$Help,
+    [switch]$Contracts,
+    [switch]$NoContracts,
+    [switch]$DataModels,
+    [switch]$NoDataModels,
     [Parameter(ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
@@ -13,10 +17,21 @@ $ErrorActionPreference = 'Stop'
 
 # Set default mode
 $Mode = "spec"
-$Tdd = $true
-$Contracts = $true
-$DataModels = $true
-$RiskTests = $true
+$ContractsVal = $true
+$DataModelsVal = $true
+
+# Handle switch parameters for contracts and data models
+if ($NoContracts) {
+    $ContractsVal = $false
+} elseif ($Contracts) {
+    $ContractsVal = $true
+}
+
+if ($NoDataModels) {
+    $DataModelsVal = $false
+} elseif ($DataModels) {
+    $DataModelsVal = $true
+}
 
 # Get the global config path using XDG Base Directory spec
 function Get-GlobalConfigPath {
@@ -38,17 +53,22 @@ if ($Help) {
     Write-Host "  -Json               Output in JSON format"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
+    Write-Host "  -Contracts          Enable service contracts (requires framework)"
+    Write-Host "  -NoContracts        Disable service contracts"
+    Write-Host "  -DataModels         Generate data model documentation"
+    Write-Host "  -NoDataModels      Skip data model generation"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  ./create-new-feature.ps1 'Add user authentication system' -ShortName 'user-auth'"
     Write-Host "  ./create-new-feature.ps1 -Number 5 'Feature with specific number'"
+    Write-Host "  ./create-new-feature.ps1 -Contracts -NoDataModels 'My feature' -ShortName 'my-feature'"
     exit 0
 }
 
 # Check if feature description provided
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] <feature description>"
+    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] <feature description>"
     exit 1
 }
 
@@ -294,26 +314,8 @@ if ($hasGit) {
 
 $featureDir = Join-Path $specsDir $branchName
 New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
-
-# Apply mode-specific defaults and parameter overrides
-$currentMode = if ($Mode -in @("spec", "build")) { $Mode } else { "spec" }
-
-# Framework options with mode-specific defaults
-if ($currentMode -eq "build") {
-    # Build mode defaults: all false
-    $tdd = if ($Tdd.IsPresent) { $true } elseif ($NoTdd.IsPresent) { $false } else { $false }
-    $contracts = if ($Contracts.IsPresent) { $true } elseif ($NoContracts.IsPresent) { $false } else { $false }
-    $dataModels = if ($DataModels.IsPresent) { $true } elseif ($NoDataModels.IsPresent) { $false } else { $false }
-    $riskTests = if ($RiskTests.IsPresent) { $true } elseif ($NoRiskTests.IsPresent) { $false } else { $false }
-} else {
-    # Spec mode defaults: all true
-    $tdd = if ($NoTdd.IsPresent) { $false } elseif ($Tdd.IsPresent) { $true } else { $true }
-    $contracts = if ($NoContracts.IsPresent) { $false } elseif ($Contracts.IsPresent) { $true } else { $true }
-    $dataModels = if ($NoDataModels.IsPresent) { $false } elseif ($DataModels.IsPresent) { $true } else { $true }
-    $riskTests = if ($NoRiskTests.IsPresent) { $false } elseif ($RiskTests.IsPresent) { $true } else { $true }
-}
-
-# Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
+ 
+ # Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
 function Replace-DatePlaceholders {
     param([string]$FilePath)
     
@@ -326,7 +328,7 @@ function Replace-DatePlaceholders {
 }
 
 # Use default template
-$template = Join-Path $repoRoot 'templates/spec-template.md'
+$template = Join-Path $repoRoot '.specify/templates/spec-template.md'
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) {
     Copy-Item $template $specFile -Force
@@ -342,8 +344,8 @@ if (Test-Path $specFile) {
     $content = Get-Content -Path $specFile -Raw
     
     # Replace framework options metadata
-    $frameworkOptions = "tdd=$($Tdd.ToString().ToLower()), contracts=$($Contracts.ToString().ToLower()), data_models=$($DataModels.ToString().ToLower()), risk_tests=$($RiskTests.ToString().ToLower())"
-    $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**: $frameworkOptions"
+    $frameworkOptions = "  contracts=$($ContractsVal.ToString().ToLower()),`n  data_models=$($DataModelsVal.ToString().ToLower())"
+    $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**:`n$frameworkOptions"
     
     Set-Content -Path $specFile -Value $content -NoNewline
 }
@@ -407,7 +409,7 @@ function Populate-ContextFile {
 }
 
 # Populate context.md with defaults
-$contextTemplate = Join-Path $repoRoot 'templates/context-template.md'
+$contextTemplate = Join-Path $repoRoot '.specify/templates/context-template.md'
 $contextFile = Join-Path $featureDir 'context.md'
 if (Test-Path $contextTemplate) {
     Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
