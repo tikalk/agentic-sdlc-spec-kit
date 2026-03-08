@@ -7,6 +7,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.116] - 2026-03-08
+
+### Fixed
+
+- **create-new-feature.sh Syntax Error**: Fixed unclosed quote in `discover_skills()` function at line 444 that caused bash syntax errors
+- **git fetch Output Suppression**: Fixed `git fetch --all --prune` output being captured into `BRANCH_NUMBER` variable causing "10#Fetching" errors
+
 ## [0.0.115] - 2026-03-08
 
 ### Added
