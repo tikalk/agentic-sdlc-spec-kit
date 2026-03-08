@@ -1,9 +1,7 @@
 name: AI Evals
 
 on:
-  pull_request:
-    branches: [main]
-  workflow_dispatch:  # Manual trigger still available
+  workflow_dispatch:  # Manual trigger only
     inputs:
       model:
         description: 'Model to use for evaluation'
