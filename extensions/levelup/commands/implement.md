@@ -280,7 +280,7 @@ Context module contributions from **{project-name}**.
 These contributions were discovered and validated through:
 - `/levelup.init` - Brownfield codebase analysis
 - `/levelup.clarify` - Team validation
-- `/levelup.spec` - Feature implementation evidence
+- `/levelup.specify` - Feature implementation evidence
 
 ### Checklist
 
@@ -422,5 +422,5 @@ For each implemented CDR:
 
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Accept CDRs for implementation
-- `/levelup.spec` - Enrich CDRs with feature context
+- `/levelup.specify` - Enrich CDRs with feature context
 - `/levelup.skills` - Build skills from CDRs

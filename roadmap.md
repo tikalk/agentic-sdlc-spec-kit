@@ -394,7 +394,7 @@ Feature-level architecture controlled via:
 
 - ❌ **Add --issue Parameter to Specify**: Implement `--issue ISSUE-ID` parameter for specify command to fetch issue data from configured tracker
 - ❌ **Store Issue Context Persistently**: Save issue ID, tracker type, and metadata in context.md for automatic propagation
-- ❌ **Automatic Issue Propagation**: Subsequent commands (/clarify, /plan, /tasks, /analyze, /levelup.spec) automatically use stored issue context
+- ❌ **Automatic Issue Propagation**: Subsequent commands (/clarify, /plan, /tasks, /analyze, /levelup.specify) automatically use stored issue context
 - ❌ **Dynamic MCP Tool Resolution**: Use declarative tools pattern with configuration-driven tool selection based on detected issue tracker
 - ❌ **Multi-Tracker Support**: Support GitHub/Jira/Linear/GitLab issue formats with appropriate MCP tool routing
 
@@ -404,15 +404,15 @@ Feature-level architecture controlled via:
 - ✅ **Trace Validation Scripts**: Implemented validation for section completeness, coverage percentage, and quality gate statistics
 - ✅ **Command Template**: Created `/levelup.trace` command as part of LevelUp extension with generation and validation workflows
 - ✅ **Trace Template**: Defined 5-section trace structure (Session Overview, Decision Patterns, Execution Context, Reusable Patterns, Evidence Links)
-- ✅ **Levelup Integration**: Modified `/levelup.spec` to consume trace.md if exists (optional enrichment)
+- ✅ **Levelup Integration**: Modified `/levelup.specify` to consume trace.md if exists (optional enrichment)
 - ✅ **Mode Support**: Works in both build and spec modes with appropriate trace depth
 - ✅ **Storage Location**: Traces stored in specs/{BRANCH}/trace.md with feature artifacts
 - ✅ **Overwrite Behavior**: Re-running `/levelup.trace` overwrites previous trace (single latest version)
 - ✅ **Extension Migration**: Moved trace command to LevelUp extension for better integration with team learning workflow
 
-**Purpose**: Generate comprehensive AI session execution traces for knowledge sharing, pattern identification, and learning. Traces capture decision-making patterns, execution outcomes, quality gate results, and evidence links. Optional but enriches `/levelup.spec` CDR extraction when present.
+**Purpose**: Generate comprehensive AI session execution traces for knowledge sharing, pattern identification, and learning. Traces capture decision-making patterns, execution outcomes, quality gate results, and evidence links. Optional but enriches `/levelup.specify` CDR extraction when present.
 
-**Workflow**: `/implement` → `/levelup.trace` (generate session trace) → `/levelup.spec` (consume trace for CDR extraction)
+**Workflow**: `/implement` → `/levelup.trace` (generate session trace) → `/levelup.specify` (consume trace for CDR extraction)
 
 #### **Levelup Command Migration** *(100% Complete)* - **COMPLETED** - Removed build mode paths
 
@@ -562,7 +562,7 @@ Consolidates: Command-level model selection + context budgeting + two-model revi
   - `/implement`: Default Sonnet → Options: Opus (analysis), Haiku (lightweight)
   - `/analyze`: Default Opus → Options: Sonnet (time-constrained)
   - `/trace`: Default Haiku → Options: Sonnet (richer traces)
-  - `/levelup.spec`: Default Sonnet → Options: Opus (comprehensive CDR extraction)
+  - `/levelup.specify`: Default Sonnet → Options: Opus (comprehensive CDR extraction)
 - ❌ **Admin Commands**:
   - `/architect`: Default Sonnet → Options: Opus (critical systems), Haiku (exploration)
   - `/constitution`: Default Sonnet → Options: Opus (complex governance)
@@ -958,7 +958,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
 
 - Complements `/trace` command (which captures session decisions) by making them queryable
 
-- Enables future `/levelup.spec` enhancements (extract patterns from beads issue history)
+- Enables future `/levelup.specify` enhancements (extract patterns from beads issue history)
 - Works with existing `/implement` (Phase 1) and enhances it (Phase 2-3)
 **References**:
 - Beads Article: [https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a](https://steve-yegge.medium.com/introducing-beads-a-coding-agent-memory-system-637d7d92514a)
@@ -1391,7 +1391,7 @@ Integrate Beads (native issue tracker) with `/tasks` command as dual-output syst
   - Skill scaffolding: Auto-generate SKILL.md with trigger keywords, references, and scripts based on detected patterns
   - Contribution workflow: Create PR-ready skill packages with proper structure for team-ai-directives submission
   - Skill templates: Provide templates for common skill types (testing patterns, code generators, validation rules)
-  - Integration with `/levelup.spec`: Extract patterns from session traces and suggest CDR creation during levelup
+  - Integration with `/levelup.specify`: Extract patterns from session traces and suggest CDR creation during levelup
   - Quality validation: Ensure generated skills meet team-ai-directives standards before contribution
 
 #### **Resilience & Self-Healing** *(0% Complete)* - **MEDIUM PRIORITY** - Automation robustness

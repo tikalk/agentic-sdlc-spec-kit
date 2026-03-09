@@ -2,7 +2,7 @@
 description: Resolve ambiguities in discovered/proposed CDRs through clarifying questions
 handoffs:
   - label: Refine from Feature Context
-    agent: adlc.levelup.spec
+    agent: adlc.levelup.specify
     prompt: Add context from current feature spec to CDRs
     send: false
   - label: Build Skills
@@ -309,7 +309,7 @@ Present manual handoff options:
 ### Available Handoffs
 
 **Option 1: Refine from Feature Context**
-Run `/levelup.spec` to:
+Run `/levelup.specify` to:
 - Add evidence from current feature spec
 - Link CDRs to implementation
 
@@ -340,7 +340,7 @@ Run `/levelup.implement` to:
 ## Related Commands
 
 - `/levelup.init` - Discover CDRs from codebase
-- `/levelup.spec` - Refine CDRs from feature context
+- `/levelup.specify` - Refine CDRs from feature context
 - `/levelup.skills` - Build skills from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives
 - `/architect.clarify` - Similar pattern for ADR clarification

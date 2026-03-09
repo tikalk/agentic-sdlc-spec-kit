@@ -260,114 +260,34 @@ team-ai-directives/
 
 ### Optional Architecture Support
 
-The toolkit includes comprehensive architecture documentation support via the **Architect extension**. Architecture commands work in any project.
+The toolkit includes comprehensive architecture documentation support via the **Architect extension**, which creates and manages Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using the Rozanski & Woods methodology.
 
 > **Note**: The Architect extension is bundled and auto-installed during `specify init`.
 
-#### Two-Level Architecture System
+**Key Features:**
+- **Two-level architecture** - System-level ADRs on main branch, feature-level ADRs on feature branches
+- **Automatic integration** - Hooks create feature ADRs during `/spec.plan` and validate alignment
+- **Greenfield & Brownfield** - `/architect.specify` for new projects, `/architect.init` for existing codebases
 
-| Level | Location | ADR File | Architecture Description | Hook Timing |
-|-------|----------|----------|--------------------------|--------------|
-| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | N/A |
-| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | before_plan with architect extension |
-| **Validation** | Plan level | READ-ONLY via architect.validate | Validates plan alignment | after_plan with architect extension |
-
-#### Architecture Workflow
+**Quick Start:**
 
 ```bash
-# Interactive PRD exploration to create system-level ADRs (greenfield)
+# Greenfield: Create ADRs from PRD
 /architect.specify "B2B SaaS platform for real-time supply chain management"
 
-# Reverse-engineer architecture from existing codebase (brownfield)
-/architect.init "Django monolith with PostgreSQL, React frontend, deployed on AWS ECS"
+# Brownfield: Reverse-engineer ADRs from code
+/architect.init "Django monolith with PostgreSQL, React frontend"
 
-# Refine and clarify ADRs through targeted questions
-/architect.clarify
-
-# Generate full Architecture Description from ADRs
+# Generate Architecture Description
 /architect.implement
 
-# Then proceed with normal workflow
-/spec.specify "Feature within this architecture"
-
-# Plan generation with architecture validation (if architect extension installed)
-/spec.plan
-  - **before_plan hook** (architect extension): Create feature ADRs using architect.specify/clarify/implement
-  - **after_plan hook** (architect extension): Validate plan alignment using architect.validate --for-plan
+# Validate consistency
+/architect.analyze
 ```
 
-**Architecture Integration via Hooks**:
+**Commands:** `architect.init`, `architect.specify`, `architect.clarify`, `architect.implement`, `architect.analyze`, `architect.validate`
 
-- **before_plan** (architect extension): Automatically creates feature ADRs if adr.md exists
-- **after_plan** (architect extension): Validates plan alignment with architecture (READ-ONLY)
-- Hooks only activate if architect extension installed and adr.md present
-
-#### Architecture Commands
-
-| Command | Description |
-|---------|-------------|
-| `architect.init` | Reverse-engineer architecture from existing codebase (brownfield) |
-| `architect.specify` | Interactive PRD exploration to create system-level ADRs |
-| `architect.clarify` | Refine ADRs through targeted clarification questions |
-| `architect.implement` | Generate full Architecture Description (AD.md) from ADRs |
-| `architect.analyze` | Validate ADR ↔ AD consistency and quality |
-| `architect.validate` | READ-ONLY: Validate plan alignment with architecture (plan level) |
-
-**Feature Architecture Workflow**:
-
-Feature-level ADRs and AD.md are created automatically via architect extension hooks during `/spec.plan` execution (if architect is installed and system architecture exists). No manual --architecture flag needed for feature architecture generation.
-
-#### Architecture Configuration Options
-
-The architecture commands support additional configuration options for fine-tuned control:
-
-**Views Selection** (`--views`):
-
-- `core` (default) - Generate the essential 5 views: Context, Functional, Information, Development, Deployment
-- `all` - Include all 7 views including Concurrency and Operational
-- `concurrency,operational` - Custom selection (comma-separated), always includes core views
-
-```bash
-# Default core views
-/architect.init "E-commerce platform"
-
-# All views including concurrency and operational
-/architect.init --views all "High-throughput trading system"
-
-# Custom selection
-/architect.init --views concurrency "Real-time data processing pipeline"
-```
-
-**ADR Generation Heuristic** (`--adr-heuristic`):
-
-- `surprising` (default) - Only document decisions that deviate from obvious ecosystem defaults
-- `all` - Document every architectural decision
-- `minimal` - Document only high-risk or non-obvious decisions
-
-```bash
-# Skip documenting obvious choices (PostgreSQL for relational data, React for SPA)
-/architect.specify --adr-heuristic surprising "Standard web application"
-
-# Document every decision
-/architect.specify --adr-heuristic all "Complex multi-tenant system"
-
-# Minimal documentation
-/architect.specify --adr-heuristic minimal "Internal tool with simple requirements"
-```
-
-#### Rozanski & Woods Viewpoints
-
-The `architect.*` commands generate documentation covering:
-
-1. **Context View** - System scope and external interactions
-2. **Functional View** - Functional elements and responsibilities
-3. **Information View** - Data storage, management, and flow
-4. **Concurrency View** - Runtime processes and coordination
-5. **Development View** - Code organization and CI/CD
-6. **Deployment View** - Physical infrastructure and environments
-7. **Operational View** - Operations, monitoring, and support
-
-Plus cross-cutting **Perspectives**: Security, Performance & Scalability
+📖 **Full documentation:** [extensions/architect/README.md](./extensions/architect/README.md)
 
 ### Framework Options
 
@@ -465,20 +385,24 @@ Use **`/spec.trace`** to generate comprehensive AI session execution traces capt
 /spec.trace
 ```
 
-**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/levelup.spec` CDR extraction when present.
+**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/levelup.specify` CDR extraction when present.
 
 ### 8. Level up and contribute knowledge
 
-Use the **levelup extension** to extract patterns from your completed feature and contribute reusable knowledge back to your team's shared repository.
+Use the **levelup extension** to extract patterns from your completed feature and contribute reusable knowledge back to your team's shared repository via Context Decision Records (CDRs).
 
 ```bash
-/levelup.spec      # Extract CDRs from current feature spec (after /implement)
+/levelup.specify      # Extract CDRs from current feature spec (after /implement)
 /levelup.clarify   # Resolve ambiguities in discovered CDRs
 /levelup.skills python-patterns  # Build a skill from accepted CDRs
 /levelup.implement # Create PR to team-ai-directives
 ```
 
 For brownfield projects, use `/levelup.init` to scan the entire codebase for patterns.
+
+**Commands:** `levelup.init`, `levelup.specify`, `levelup.clarify`, `levelup.skills`, `levelup.implement`, `levelup.trace`
+
+📖 **Full documentation:** [extensions/levelup/README.md](./extensions/levelup/README.md)
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
 
@@ -806,22 +730,12 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Description                                                           |
 |--------------------------|-----------------------------------------------------------------------|
-| `/architect.init`     | Reverse-engineer architecture from codebase (brownfield) *(via architect extension)* |
-| `/architect.specify`  | Interactive PRD exploration to create ADRs *(via architect extension)* |
-| `/architect.clarify`  | Refine ADRs through clarification questions *(via architect extension)* |
-| `/architect.implement`| Generate AD.md from ADRs *(via architect extension)* |
-| `/architect.analyze`  | Validate ADR <-> AD consistency *(via architect extension)* |
 | `/spec.constitution`  | Create or update project governing principles and development guidelines |
 | `/spec.specify`       | Define what you want to build (requirements and user stories)        |
 | `/spec.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
 | `/spec.tasks`         | Generate actionable task lists for implementation     |
 | `/spec.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
-| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup.spec`) |
-| `/levelup.spec`       | Extract CDRs from current feature spec context (replaces old `/spec.levelup`) |
-| `/levelup.init`       | Discover CDRs from entire codebase (brownfield analysis)             |
-| `/levelup.clarify`    | Resolve ambiguities in discovered CDRs                               |
-| `/levelup.skills`     | Build a single skill from accepted CDRs                              |
-| `/levelup.implement`  | Compile accepted CDRs into PR to team-ai-directives                  |
+| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup.specify`) |
 
 #### Optional Commands
 
@@ -832,6 +746,41 @@ Additional commands for enhanced quality and validation:
 | `/spec.clarify`   | Clarify underspecified areas (recommended before `/spec.plan`; formerly `/quizme`)                                                |
 | `/spec.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
 | `/spec.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+
+#### Extension Commands
+
+Commands provided by bundled extensions. See extension READMEs for full documentation.
+
+**Architect Extension** - [📖 Documentation](./extensions/architect/README.md)
+
+| Command                  | Description                                                           |
+|--------------------------|-----------------------------------------------------------------------|
+| `/architect.init`     | Reverse-engineer architecture from codebase (brownfield) |
+| `/architect.specify`  | Interactive PRD exploration to create ADRs (greenfield) |
+| `/architect.clarify`  | Refine ADRs through clarification questions |
+| `/architect.implement`| Generate AD.md from ADRs |
+| `/architect.analyze`  | Validate ADR ↔ AD consistency |
+| `/architect.validate` | Validate plan alignment with architecture (READ-ONLY) |
+
+**LevelUp Extension** - [📖 Documentation](./extensions/levelup/README.md)
+
+| Command                  | Description                                                           |
+|--------------------------|-----------------------------------------------------------------------|
+| `/levelup.init`       | Discover CDRs from entire codebase (brownfield analysis)             |
+| `/levelup.specify`    | Extract CDRs from current feature spec context |
+| `/levelup.clarify`    | Resolve ambiguities in discovered CDRs                               |
+| `/levelup.skills`     | Build a single skill from accepted CDRs                              |
+| `/levelup.implement`  | Compile accepted CDRs into PR to team-ai-directives                  |
+| `/levelup.trace`      | Generate AI session execution traces |
+
+**TDD Extension** - [📖 Documentation](./extensions/tdd/README.md)
+
+| Command                  | Description                                                           |
+|--------------------------|-----------------------------------------------------------------------|
+| `/tdd.plan`     | Planning phase - design before coding |
+| `/tdd.tasks`    | Detect language/framework + generate hybrid tests |
+| `/tdd.implement`| Execute RED→GREEN→REFACTOR |
+| `/tdd.validate` | Validate test quality |
 
 ### Environment Variables
 

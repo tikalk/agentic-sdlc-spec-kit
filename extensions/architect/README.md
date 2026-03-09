@@ -60,6 +60,16 @@ Greenfield:   /architect.specify --> /architect.clarify --> /architect.implement
 | Feature ADRs | `specs/{feature}/adr.md` | Feature-level decisions |
 | Feature AD | `specs/{feature}/AD.md` | Feature-level architecture |
 
+## Two-Level Architecture System
+
+| Level | Location | ADR File | Architecture Description | Hook Timing |
+|-------|----------|----------|--------------------------|--------------|
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | N/A |
+| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | before_plan hook |
+| **Validation** | Plan level | READ-ONLY via architect.validate | Validates plan alignment | after_plan hook |
+
+**Feature-level ADRs and AD.md** are created automatically via extension hooks during `/spec.plan` execution (if system architecture exists).
+
 ## Installation
 
 The architect extension is **bundled by default** during project initialization:
@@ -128,6 +138,40 @@ views:
 analysis:
   max_findings: 50
   block_on_critical: true
+```
+
+### Views Selection (`--views`)
+
+- `core` (default) - Generate the essential 5 views: Context, Functional, Information, Development, Deployment
+- `all` - Include all 7 views including Concurrency and Operational
+- `concurrency,operational` - Custom selection (comma-separated), always includes core views
+
+```bash
+# Default core views
+/architect.init "E-commerce platform"
+
+# All views including concurrency and operational
+/architect.init --views all "High-throughput trading system"
+
+# Custom selection
+/architect.init --views concurrency "Real-time data processing pipeline"
+```
+
+### ADR Generation Heuristic (`--adr-heuristic`)
+
+- `surprising` (default) - Only document decisions that deviate from obvious ecosystem defaults
+- `all` - Document every architectural decision
+- `minimal` - Document only high-risk or non-obvious decisions
+
+```bash
+# Skip documenting obvious choices (PostgreSQL for relational data, React for SPA)
+/architect.specify --adr-heuristic surprising "Standard web application"
+
+# Document every decision
+/architect.specify --adr-heuristic all "Complex multi-tenant system"
+
+# Minimal documentation
+/architect.specify --adr-heuristic minimal "Internal tool with simple requirements"
 ```
 
 ## ADR Format (MADR)

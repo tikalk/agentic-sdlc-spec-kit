@@ -85,7 +85,7 @@ After initialization, you should see the following commands available in your AI
 - `/spec.plan` - Generate implementation plans
 - `/spec.tasks` - Break down into actionable tasks
 - `/spec.implement` - Execute implementation with SYNC/ASYNC dual execution loops
-- `/levelup.spec` - Extract patterns from current feature and create CDRs for team knowledge
+- `/levelup.specify` - Extract patterns from current feature and create CDRs for team knowledge
 - `/levelup.init` - Discover patterns from entire codebase (brownfield)
 - `/levelup.clarify` - Resolve ambiguities in discovered CDRs
 - `/levelup.implement` - Compile CDRs into PR to team-ai-directives

@@ -90,13 +90,13 @@ def test_levelup_integration():
     """Test that levelup extension spec command references trace consumption"""
     repo_root = Path(__file__).parent.parent
 
-    # Levelup is now an extension at extensions/levelup/commands/spec.md
-    levelup_spec = repo_root / "extensions/levelup/commands/spec.md"
-    assert levelup_spec.exists(), f"Levelup spec command not found: {levelup_spec}"
+    # Levelup is now an extension at extensions/levelup/commands/specify.md
+    levelup_spec = repo_root / "extensions/levelup/commands/specify.md"
+    assert levelup_spec.exists(), f"Levelup specify command not found: {levelup_spec}"
 
     content = levelup_spec.read_text()
 
-    # Verify levelup.spec mentions trace
+    # Verify levelup.specify mentions trace
     assert "trace" in content.lower() or "TRACE" in content, (
         "Levelup spec doesn't mention trace"
     )

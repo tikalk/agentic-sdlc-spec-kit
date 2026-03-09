@@ -32,10 +32,10 @@ provides:
       aliases: ["levelup.clarify"]
 
     # Refine CDRs from feature context - handoff only
-    - name: "adlc.levelup.spec"
-      file: "commands/spec.md"
+    - name: "adlc.levelup.specify"
+      file: "commands/specify.md"
       description: "Refine CDRs using current feature spec context (handoff from init/clarify)"
-      aliases: ["levelup.spec"]
+      aliases: ["levelup.specify"]
 
     # Build single skill from user input
     - name: "adlc.levelup.skills"
@@ -69,13 +69,13 @@ handoffs:
       prompt: "Review discovered CDRs and resolve ambiguities"
       send: false
     - label: "Refine from Feature Context"
-      agent: "levelup.spec"
+      agent: "levelup.specify"
       prompt: "Refine CDRs using current feature spec context"
       send: false
 
   levelup.clarify:
     - label: "Refine from Feature Context"
-      agent: "levelup.spec"
+      agent: "levelup.specify"
       prompt: "Add context from current feature spec"
       send: false
     - label: "Build Skills"
@@ -85,7 +85,7 @@ handoffs:
 
   levelup.trace:
     - label: "Extract CDRs from Trace"
-      agent: "levelup.spec"
+      agent: "levelup.specify"
       prompt: "Extract CDRs using trace.md for enriched context"
       send: false
 

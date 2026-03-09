@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of LevelUp extension
 - `levelup.init` command for brownfield CDR discovery
 - `levelup.clarify` command for resolving CDR ambiguities
-- `levelup.spec` command for refining CDRs from feature context
+- `levelup.specify` command for refining CDRs from feature context
 - `levelup.skills` command for building skills from accepted CDRs
 - `levelup.implement` command for creating PRs to team-ai-directives
 - Context Directive Record (CDR) template

@@ -48,7 +48,7 @@
       "commands": [
         "adlc.levelup.init",
         "adlc.levelup.clarify",
-        "adlc.levelup.spec",
+        "adlc.levelup.specify",
         "adlc.levelup.skills",
         "adlc.levelup.implement",
         "adlc.levelup.trace"

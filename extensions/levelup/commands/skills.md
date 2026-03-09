@@ -334,5 +334,5 @@ Check skill completeness:
 
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Accept CDRs for skill building
-- `/levelup.spec` - Enrich CDRs with feature context
+- `/levelup.specify` - Enrich CDRs with feature context
 - `/levelup.implement` - Move skill to team-ai-directives

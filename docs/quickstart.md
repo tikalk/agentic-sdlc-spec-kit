@@ -89,8 +89,8 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Note:** The levelup extension runs inside the IDE and relies on the locally cloned directives repository from Stage 0.  
 **Alignment with 12 Factors:** This stage encompasses [IX. Traceability](https://tikalk.github.io/agentic-sdlc-12-factors/content/traceability.html), [X. Strategic Tooling](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-tooling.html), [XI. Directives as Code](https://tikalk.github.io/agentic-sdlc-12-factors/content/directives-as-code.html), and [XII. Team Capability](https://tikalk.github.io/agentic-sdlc-12-factors/content/team-capability.html), linking artifacts, managing tools, versioning AI behavior, and systematizing learning.
 
-1. **Extract CDRs from Feature (`/levelup.spec`)**  
-   **Action:** Invoke `/levelup.spec` after completing `/implement` to extract patterns from the current feature. The command creates Context Decision Records (CDRs) in `.specify/memory/cdr.md` based on your spec, plan, tasks, and optional trace.  
+1. **Extract CDRs from Feature (`/levelup.specify`)**  
+   **Action:** Invoke `/levelup.specify` after completing `/implement` to extract patterns from the current feature. The command creates Context Decision Records (CDRs) in `.specify/memory/cdr.md` based on your spec, plan, tasks, and optional trace.  
    **Purpose:** Captures coding patterns, best practices, and reusable knowledge from your completed implementation.
 
 2. **Clarify and Accept (`/levelup.clarify`)**  
@@ -108,13 +108,13 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Example Commands:**
 
 ```text
-/levelup.spec "Focus on the error handling patterns we developed"
+/levelup.specify "Focus on the error handling patterns we developed"
 /levelup.clarify
 /levelup.skills python-error-handling
 /levelup.implement
 ```
 
-**Note:** For brownfield projects (scanning entire codebase without a feature context), use `/levelup.init` instead of `/levelup.spec`.
+**Note:** For brownfield projects (scanning entire codebase without a feature context), use `/levelup.init` instead of `/levelup.specify`.
 
 **Outcome:** CDRs documented in `.specify/memory/cdr.md`, optional skills in `.specify/drafts/skills/`, and a draft PR to team-ai-directives for team review.
 

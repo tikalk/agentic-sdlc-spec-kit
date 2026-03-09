@@ -7,6 +7,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.117] - 2026-03-09
+
+### Changed
+
+- **LevelUp Command Rename**: Renamed `/levelup.spec` to `/levelup.specify` for consistency with `architect.specify` and full-verb naming convention
+  - Renamed command file `spec.md` → `specify.md`
+  - Updated all internal references across extension files and documentation
+  - No backward compatibility - users must use `/levelup.specify`
+
 ## [0.0.116] - 2026-03-08
 
 ### Fixed
@@ -335,7 +344,7 @@ Integrated upstream changes while preserving fork-specific features:
 - **LevelUp Extension**: Modularized `/spec.levelup` into dedicated extension with 5 CDR-based commands (#56)
   - `/levelup.init` - Brownfield codebase scan to discover Context Decision Records (CDRs)
   - `/levelup.clarify` - Resolve CDR ambiguities and accept/reject decisions
-  - `/levelup.spec` - Extract CDRs from current feature spec context (replaces old `/spec.levelup`)
+  - `/levelup.specify` - Extract CDRs from current feature spec context (replaces old `/spec.levelup`)
   - `/levelup.skills` - Build ONE skill at a time from accepted CDRs
   - `/levelup.implement` - Compile accepted CDRs into PR to team-ai-directives
   - CDRs stored in `.specify/memory/cdr.md` (similar to ADRs)
@@ -345,7 +354,7 @@ Integrated upstream changes while preserving fork-specific features:
 
 ### Changed
 
-- **CLI Help Text**: Updated `/spec.levelup` references to `/levelup.spec` in init command help and next steps panel
+- **CLI Help Text**: Updated `/spec.levelup` references to `/levelup.specify` in init command help and next steps panel
 - **Context View Blackbox Enforcement**: Updated architect commands to strictly enforce blackbox system representation in Context View
   - System MUST appear as a single unified node (no internal components)
   - Only external actors (stakeholders/users) and external systems shown
