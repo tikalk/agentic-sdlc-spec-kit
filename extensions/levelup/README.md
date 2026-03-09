@@ -12,7 +12,7 @@ The LevelUp extension helps brownfield projects analyze their codebase and contr
 |---------|---------|
 | `/levelup.init` | Scan codebase and discover CDRs (like `/architect.init`) |
 | `/levelup.clarify` | Resolve ambiguities in discovered CDRs (like `/architect.clarify`) |
-| `/levelup.spec` | Refine CDRs using current feature spec context |
+| `/levelup.specify` | Refine CDRs using current feature spec context |
 | `/levelup.skills` | Build a single skill from accepted CDRs |
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
 | `/levelup.trace` | Generate and validate AI session execution traces |
@@ -130,7 +130,7 @@ levelup.init          levelup.clarify        levelup.skills        levelup.imple
 (Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶ (Create PR)
      │                      │                      │                      │
      │    [handoff]         │    [handoff]         │                      │
-     └──▶ levelup.spec ◀────┘                      │                      │
+     └──▶ levelup.specify ◀────┘                      │                      │
            (Refine from                             │                      │
             feature context)                        │                      │
                                                      │                      │
@@ -142,7 +142,7 @@ levelup.init          levelup.clarify        levelup.skills        levelup.imple
                     │
                     │ [handoff]
                     ▼
-             levelup.spec
+             levelup.specify
              (Extract CDRs with
               trace enrichment)
 ```
@@ -150,7 +150,7 @@ levelup.init          levelup.clarify        levelup.skills        levelup.imple
 (Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶  (Create PR)
      │                      │                      │                      │
      │    [handoff]         │    [handoff]         │                      │
-     └──▶ levelup.spec ◀────┘                      │                      │
+     └──▶ levelup.specify ◀────┘                      │                      │
           (Refine from                             │                      │
            feature context)                        │                      │
 ```

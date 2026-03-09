@@ -25,7 +25,7 @@ The `/levelup.trace` command generates comprehensive AI session execution traces
 
 **Structure**: Summary section (3-part narrative) + 5 technical sections (metadata and patterns)
 
-**Note**: This command LevelUp extension. is part of the Run `/levelup.spec` after trace to extract CDRs with enriched context.
+**Note**: This command LevelUp extension. is part of the Run `/levelup.specify` after trace to extract CDRs with enriched context.
 
 ## When to Use
 
@@ -38,13 +38,13 @@ Run `/levelup.trace` after completing `/implement` to capture the full execution
      ↓
 specs/{BRANCH}/trace.md created
      ↓
-/levelup.spec → Consume trace for CDR extraction (optional)
+/levelup.specify → Consume trace for CDR extraction (optional)
 ```
 
 **Best Practices**:
 
 - Run after all tasks complete and quality gates pass
-- Generate before `/levelup.spec` for richer CDR extraction
+- Generate before `/levelup.specify` for richer CDR extraction
 - Re-run to update trace as understanding evolves
 - Review trace for learning and knowledge transfer
 
@@ -211,7 +211,7 @@ If validation fails (coverage <80%), show warnings and recommendations:
 - Detailed evidence linking
 - Rich context for knowledge sharing
 
-**Both modes**: Trace is optional but valuable for learning and `/levelup.spec` enrichment.
+**Both modes**: Trace is optional but valuable for learning and `/levelup.specify` enrichment.
 
 ## Key Features
 
@@ -230,7 +230,7 @@ If validation fails (coverage <80%), show warnings and recommendations:
 
 **Integration Points**:
 
-- `/levelup.spec` reads trace.md if exists (optional)
+- `/levelup.specify` reads trace.md if exists (optional)
 - `/analyze` can validate trace completeness
 - Version-controlled with feature artifacts
 - Natural handoff to other LevelUp commands
@@ -250,7 +250,7 @@ Result: specs/001-feature/trace.md created with 5 sections
 ```text
 User: /levelup.trace
 Agent: [Generates comprehensive trace]
-User: /levelup.spec
+User: /levelup.specify
 Agent: [Reads trace.md for enriched context packet]
 ```
 
@@ -290,7 +290,7 @@ Check execution metadata for corruption.
 - **Overwrite**: Previous trace replaced (single latest trace)
 - **Build Mode**: Supported - generates lightweight traces
 - **Spec Mode**: Supported - generates comprehensive traces
-- **Optional**: Trace not required for workflow but enhances `/levelup.spec`
+- **Optional**: Trace not required for workflow but enhances `/levelup.specify`
 - **Version Control**: Commit trace.md with feature implementation
 - **Extension**: This command is part of LevelUp extension for team learning
 
@@ -310,12 +310,12 @@ Check execution metadata for corruption.
 
 ---
 
-**Next Steps**: After generating trace, optionally run `/levelup.spec` to extract Context Directive Records (CDRs) from your completed feature for team-ai-directives contributions. The trace enriches CDR extraction with detailed execution context.
+**Next Steps**: After generating trace, optionally run `/levelup.specify` to extract Context Directive Records (CDRs) from your completed feature for team-ai-directives contributions. The trace enriches CDR extraction with detailed execution context.
 
 ## Related Commands
 
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Resolve ambiguities and accept CDRs
-- `/levelup.spec` - Extract CDRs from feature context (uses trace if available)
+- `/levelup.specify` - Extract CDRs from feature context (uses trace if available)
 - `/levelup.skills` - Build skills from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives

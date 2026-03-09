@@ -13,7 +13,7 @@ handoffs:
       Focus on validating assumptions, not suggesting new patterns.
     send: false
   - label: Refine from Feature Context
-    agent: adlc.levelup.spec
+    agent: adlc.levelup.specify
     prompt: Refine CDRs using current feature spec context
     send: false
 scripts:
@@ -47,7 +47,7 @@ Scan an **existing codebase** (brownfield) and discover patterns that could beco
 
 1. **CDRs** documenting discovered context patterns in `.specify/memory/cdr.md`
 2. **Summary** of discovered patterns by context type
-3. **Manual handoff options** to `/levelup.clarify` or `/levelup.spec`
+3. **Manual handoff options** to `/levelup.clarify` or `/levelup.specify`
 
 **Key Concept**:
 
@@ -396,7 +396,7 @@ Run `/levelup.clarify` to:
 - Refine CDR content
 
 **Option 2: Refine from Feature Context**
-Run `/levelup.spec` to:
+Run `/levelup.specify` to:
 - Add context from current feature spec
 - Link CDRs to implementation evidence
 
@@ -427,7 +427,7 @@ Run `/levelup.implement` to:
 ## Related Commands
 
 - `/levelup.clarify` - Resolve ambiguities in discovered CDRs
-- `/levelup.spec` - Refine CDRs from feature context
+- `/levelup.specify` - Refine CDRs from feature context
 - `/levelup.skills` - Build skills from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives
 - `/architect.init` - Similar pattern for ADR discovery
