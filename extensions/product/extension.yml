@@ -1,0 +1,131 @@
+schema_version: "1.0"
+
+extension:
+  id: "product"
+  name: "Product - PRD & PDR Management"
+  version: "1.0.0"
+  description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/product"
+
+requires:
+  speckit_version: ">=0.0.80"
+  tools:
+    - name: "git"
+      required: true
+      version: ">=2.0.0"
+
+provides:
+  commands:
+    - name: "adlc.product.init"
+      file: "commands/init.md"
+      description: "Reverse-engineer PDRs from existing codebase and documentation (brownfield)"
+      aliases: ["product.init"]
+
+    - name: "adlc.product.specify"
+      file: "commands/specify.md"
+      description: "Interactive PRD exploration to create Product Decision Records (PDRs) (greenfield)"
+      aliases: ["product.specify"]
+
+    - name: "adlc.product.clarify"
+      file: "commands/clarify.md"
+      description: "Refine and validate Product Decision Records through targeted clarification"
+      aliases: ["product.clarify"]
+
+    - name: "adlc.product.implement"
+      file: "commands/implement.md"
+      description: "Generate full Product Requirements Document (PRD) from PDRs"
+      aliases: ["product.implement"]
+
+    - name: "adlc.product.analyze"
+      file: "commands/analyze.md"
+      description: "Analyze product for consistency between PDRs and PRD, completeness, and quality"
+      aliases: ["product.analyze"]
+
+    - name: "adlc.product.validate"
+      file: "commands/validate.md"
+      description: "Validate feature spec alignment with PRD (READ-ONLY)"
+      aliases: ["product.validate"]
+
+  config:
+    - name: "product-config.yml"
+      template: "config-template.yml"
+      description: "Product extension configuration"
+      required: false
+
+handoffs:
+  product.init:
+    - label: "Validate Discovered PDRs"
+      agent: "product.clarify"
+      prompt: "Review PDRs discovered from brownfield analysis"
+      send: true
+    - label: "Generate PRD"
+      agent: "product.implement"
+      prompt: "Generate full PRD from discovered PDRs"
+      send: false
+    - label: "Analyze Product"
+      agent: "product.analyze"
+      prompt: "Validate discovered PDRs for completeness and consistency"
+      send: false
+
+  product.specify:
+    - label: "Refine PDRs"
+      agent: "product.clarify"
+      prompt: "Refine and validate the PDRs created from PRD exploration"
+      send: true
+    - label: "Generate PRD"
+      agent: "product.implement"
+      prompt: "Generate full PRD from PDRs"
+      send: false
+
+  product.clarify:
+    - label: "Generate PRD"
+      agent: "product.implement"
+      prompt: "Generate full PRD from refined PDRs"
+      send: true
+    - label: "Analyze Product"
+      agent: "product.analyze"
+      prompt: "Validate PDR-PRD consistency after refinement"
+      send: false
+
+  product.implement:
+    - label: "Create Feature Spec"
+      agent: "spec.specify"
+      prompt: "Create a feature specification within this product"
+      send: false
+    - label: "Analyze Product"
+      agent: "product.analyze"
+      prompt: "Validate PDR-PRD consistency and completeness"
+      send: true
+    - label: "Create Architecture"
+      agent: "architect.specify"
+      prompt: "Create architecture from product requirements"
+      send: false
+
+hooks:
+  before_spec:
+    command: "adlc.product.specify"
+    description: "Create/verify product requirements before feature specification"
+  after_spec:
+    command: "adlc.product.validate"
+    description: "Validate feature spec alignment with PRD (READ-ONLY)"
+
+tags:
+   - "product"
+   - "prd"
+   - "pdr"
+   - "requirements"
+   - "product-management"
+   - "brownfield"
+   - "greenfield"
+
+defaults:
+  pdr:
+    heuristic: "surprising"
+    location: ".specify/memory/pdr.md"
+  prd:
+    location: "PRD.md"
+  sections: "all"
+  decompose: true
