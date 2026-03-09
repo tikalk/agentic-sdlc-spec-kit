@@ -442,6 +442,7 @@ See Spec-Driven Development in action across different scenarios with these comm
 | [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅      |                                                                                                                                           |
 | [Roo Code](https://roocode.com/)                                                     | ✅      |                                                                                                                                           |
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
 | [Antigravity (agy)](https://antigravity.google/)                                     | ✅      |                                                                                                                                           |
 | Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
@@ -575,7 +576,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
-| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`) |
+| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`) |
 | `skill`     | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
@@ -583,7 +584,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Argument/Option              | Type     | Description                                                                 |
 |------------------------------|----------|-----------------------------------------------------------------------------|
 | `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `q`, `agy`, `bob`, `qodercli`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, or `generic` (requires `--ai-commands-dir`) |
 | `--ai-commands-dir`          | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
 | `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
 | `--ignore-agent-tools`       | Flag     | Skip checks for AI agent tools like Claude                                  |
