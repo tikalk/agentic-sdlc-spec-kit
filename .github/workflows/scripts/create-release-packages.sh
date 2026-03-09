@@ -170,9 +170,9 @@ build_variant() {
   
   # Copy extensions catalog and preinstall extensions
   if [[ -f "extensions/catalog.json" ]]; then
-    # Copy catalog.json to .specify/ for local extension management
-    cp "extensions/catalog.json" "$SPEC_DIR/catalog.json"
-    echo "Copied extensions/catalog.json -> .specify/catalog.json"
+    # Substitute {{VERSION}} placeholder in catalog.json before copying
+    sed "s/{{VERSION}}/$NEW_VERSION/g" "extensions/catalog.json" > "$SPEC_DIR/catalog.json"
+    echo "Copied extensions/catalog.json -> .specify/catalog.json (with version substitution)"
     
     # Read preinstall extensions from catalog.json
     preinstall_exts=$(python3 -c "
@@ -341,11 +341,32 @@ fi
 echo "Agents: ${AGENT_LIST[*]}"
 echo "Scripts: ${SCRIPT_LIST[*]}"
 
+create_extension_packages() {
+  local version=$1
+  local ext_dir="$GENRELEASES_DIR/extensions"
+  mkdir -p "$ext_dir"
+  
+  echo "Creating extension packages..."
+  
+  for ext_path in extensions/*/; do
+    if [[ -f "$ext_path/extension.yml" ]]; then
+      local ext_name=$(basename "$ext_path")
+      local zip_name="extension-${ext_name}-${version}.zip"
+      
+      (cd "extensions" && zip -r "../$ext_dir/$zip_name" "$ext_name")
+      echo "Created $ext_dir/$zip_name"
+    fi
+  done
+}
+
 for agent in "${AGENT_LIST[@]}"; do
   for script in "${SCRIPT_LIST[@]}"; do
     build_variant "$agent" "$script"
   done
 done
 
+create_extension_packages "$NEW_VERSION"
+
 echo "Archives in $GENRELEASES_DIR:"
 ls -1 "$GENRELEASES_DIR"/agentic-sdlc-spec-kit-template-*-"${NEW_VERSION}".zip
+ls -1 "$GENRELEASES_DIR"/extensions/*.zip

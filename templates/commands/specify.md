@@ -2,15 +2,15 @@
 description: Create or update the feature specification from a natural language feature description.
 handoffs: 
   - label: Build Technical Plan
-    agent: adlc.spec.plan
+    agent: speckit.plan
     prompt: Create a plan for the spec. I am building with...
   - label: Clarify Spec Requirements
-    agent: adlc.spec.clarify
+    agent: speckit.clarify
     prompt: Clarify specification requirements
     send: true
 scripts:
-  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"
-  ps: scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"
+  sh: scripts/bash/create-new-feature.sh "{ARGS}"
+  ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
 ## User Input
@@ -23,7 +23,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/speckit.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -39,63 +39,69 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Create new feature branch**:
+2. **Create the feature branch** by running the script with `--short-name` (and `--json`), and do NOT pass `--number` (the script auto-detects the next globally available number across all branches and spec directories):
 
-   Run the script `{SCRIPT}` with the short-name and feature description. The script will automatically determine the next available global number by checking ALL existing branches and specs.
-
-   - Pass `--short-name "your-short-name"` and feature description
    - Bash example: `{SCRIPT} --json --short-name "user-auth" "Add user authentication"`
    - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" "Add user authentication"`
 
    **IMPORTANT**:
-   - Do NOT pass `--number` - let the script auto-detect the next global number across ALL branches and specs
-   - The script checks ALL existing branches (local and remote) and ALL specs directories to find the highest number globally
-   - This ensures unique sequential numbering (001, 002, 003...) regardless of feature short-names
+   - Do NOT pass `--number` — the script determines the correct next number automatically
+   - Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
    - You must only ever run this script once per feature
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
 
-3. Use `templates/spec-template.md` (full structured version)
+3. Load `templates/spec-template.md` to understand required sections.
 
 4. Follow this execution flow:
 
-   1. Parse user description from Input
-      If empty: ERROR "No feature description provided"
-   2. Extract key concepts from description
-      Identify: actors, actions, data, constraints
-   3. For unclear aspects:
-      - Make informed guesses based on context and industry standards
-      - Only mark with [NEEDS CLARIFICATION: specific question] if:
-        - The choice significantly impacts feature scope or user experience
-        - Multiple reasonable interpretations exist with different implications
-        - No reasonable default exists
-      - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
-      - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
-   4. Fill User Scenarios & Testing section
-      If no clear user flow: ERROR "Cannot determine user scenarios"
-   5. Generate Functional Requirements
-      Each requirement must be testable
-      Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
-   6. Define Success Criteria
-      Create measurable, technology-agnostic outcomes
-      Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
-      Each criterion must be verifiable without implementation details
-   7. Identify Key Entities (if data involved)
-   8. Return: SUCCESS (spec ready for planning)
+    1. Parse user description from Input
+       If empty: ERROR "No feature description provided"
+    2. Extract key concepts from description
+       Identify: actors, actions, data, constraints
+    3. For unclear aspects:
+       - Make informed guesses based on context and industry standards
+       - Only mark with [NEEDS CLARIFICATION: specific question] if:
+         - The choice significantly impacts feature scope or user experience
+         - Multiple reasonable interpretations exist with different implications
+         - No reasonable default exists
+       - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+       - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+    4. Fill User Scenarios & Testing section
+       If no clear user flow: ERROR "Cannot determine user scenarios"
+    5. Generate Functional Requirements
+       Each requirement must be testable
+       Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+    6. Define Success Criteria
+       Create measurable, technology-agnostic outcomes
+       Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
+       Each criterion must be verifiable without implementation details
+    7. Identify Key Entities (if data involved)
+    8. Return: SUCCESS (spec ready for planning)
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 
-6. **Specification Quality Validation**:
+6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Validation Checklist**:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/requirements.md` using the checklist template structure with these validation items:
+
+      ```markdown
+      # Specification Quality Checklist: [FEATURE NAME]
+      
+      **Purpose**: Validate specification completeness and quality before proceeding to planning
+      **Created**: [DATE]
+      **Feature**: [Link to spec.md]
+      
+      ## Content Quality
+      
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
-
+      
       ## Requirement Completeness
-
+      
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
       - [ ] Success criteria are measurable
@@ -104,17 +110,18 @@ Given that feature description, do this:
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
-
+      
       ## Feature Readiness
-
+      
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
-
+      
       ## Notes
-
-       - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
+      
+      - Items marked incomplete require spec updates before `/speckit.clarify` or `/speckit.plan`
+      ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
       - For each item, determine if it passes or fails
@@ -165,66 +172,9 @@ Given that feature description, do this:
         8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
 
-     d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
+   d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. **Context Population**:
-     - **Read the generated spec.md** and extract key information
-     - **Skills Auto-Discovery**:
-       - Analyze the feature description against installed skills in `.specify/skills/`
-       - Use relevance scoring (keyword overlap: 60% description, 40% content)
-       - Include skills with score >= threshold (default: 0.7, configurable)
-       - Maximum 3 skills (configurable via `max_auto_skills`)
-       - Format for context.md:
-
-          ```markdown
-          ## Relevant Skills (Auto-Detected)
-          - **skill-name**@version (confidence: 85%)
-          - Skill description here
-          ```
-
-       - If `preserve_user_edits: true`, merge with existing skills section
-       - Skip auto-discovery if user has manually added skills and `preserve_user_edits: true`
-
-      - **AI-Powered Discovery** (Always Enabled):
-
-        **When you receive script JSON output with DISCOVERED_DIRECTIVES and DISCOVERED_SKILLS:**
-
-        **Skills Discovery Enhancement**:
-        1. Load candidates from `DISCOVERED_SKILLS` JSON
-        2. Perform semantic analysis across available skills:
-           - SKILL.md files from team-ai-directives/skills/
-           - Cached SKILL.md files from .specify/skills/
-        3. Score each skill 0.0-1.0 using AI understanding (not keyword matching)
-        4. Identify implicit requirements (e.g., OAuth2 → needs api-security, token-validation)
-        5. Merge with script candidates (keep higher confidence scores)
-        6. Include skills with confidence ≥ 0.7 (configurable) and not blocked by .skills.json
-        7. Limit to max 5 skills total
-        8. Auto-install AI-suggested skills to .specify/skills/
-
-        **Directives Discovery Enhancement**:  
-        1. Load candidates from `DISCOVERED_DIRECTIVES` JSON
-        2. Perform semantic search across team-ai-directives directory
-        3. Score directives 0.0-1.0 using AI understanding (not keyword grep)
-        4. Identify implied relationships (e.g., "OAuth2" → requires security rules)
-        5. Merge with script candidates (keep higher scores)
-        6. Constitution: Always include if team-ai-directives exists
-        7. Generate output with AI explanations in context.md (concise 1-2 sentences)
-
-        **Fallback Behavior**: If AI semantic search fails, use script baseline only (no error).
-
-     - **Update context.md** with derived values instead of [NEEDS INPUT] placeholders:
-       - **Feature**: Use the feature title/name from spec.md header
-       - **Mission**: Use the **Goal** field from the Mission Brief in spec.md header (or extract core purpose/goal from feature description if Goal not yet populated)
-       - **Code Paths**: Identify relevant codebase locations based on feature type and requirements
-        - **Directives**: Reference applicable team directives from constitution/memory
-        - **Team Directives Guide**: Run `{SCRIPT}` to get `TEAM_AGENTS_MD` path from JSON output. If team-ai-directives is configured, include the path to AGENTS.md for usage instructions
-        - **Research**: List any external research needs identified during specification
-       - **Skills**: Auto-discovered relevant skills (see above)
-     - Populate all 5 fields with detailed, accurate values
-     - **Validation**: Ensure no [NEEDS INPUT] markers remain in context.md
-
-8. Report completion with branch name, spec file path, checklist results, and readiness for the next phase:
-     - Ready for `/spec.clarify` or `/spec.plan`
+7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/speckit.clarify` or `/speckit.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
