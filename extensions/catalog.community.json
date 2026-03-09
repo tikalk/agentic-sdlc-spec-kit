@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-03-05T00:00:00Z",
+  "updated_at": "2026-03-09T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "azure-devops": {
@@ -29,7 +29,13 @@
         "commands": 1,
         "hooks": 1
       },
-      "tags": ["azure", "devops", "project-management", "work-items", "issue-tracking"],
+      "tags": [
+        "azure",
+        "devops",
+        "project-management",
+        "work-items",
+        "issue-tracking"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
@@ -55,12 +61,44 @@
         "commands": 1,
         "hooks": 1
       },
-      "tags": ["quality", "tech-debt", "review", "cleanup", "scout-rule"],
+      "tags": [
+        "quality",
+        "tech-debt",
+        "review",
+        "cleanup",
+        "scout-rule"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-02-22T00:00:00Z",
       "updated_at": "2026-02-22T00:00:00Z"
+    },
+    "fleet": {
+      "name": "Fleet Orchestrator",
+      "id": "fleet",
+      "description": "Orchestrate a full feature lifecycle with human-in-the-loop gates across all SpecKit phases.",
+      "author": "sharathsatish",
+      "version": "1.0.0",
+      "download_url": "https://github.com/sharathsatish/spec-kit-fleet/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/sharathsatish/spec-kit-fleet",
+      "homepage": "https://github.com/sharathsatish/spec-kit-fleet",
+      "documentation": "https://github.com/sharathsatish/spec-kit-fleet/blob/main/README.md",
+      "changelog": "https://github.com/sharathsatish/spec-kit-fleet/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 2,
+        "hooks": 1
+      },
+      "tags": ["orchestration", "workflow", "human-in-the-loop", "parallel"],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-03-06T00:00:00Z",
+      "updated_at": "2026-03-06T00:00:00Z"
     },
     "jira": {
       "name": "Jira Integration",
@@ -81,12 +119,53 @@
         "commands": 3,
         "hooks": 1
       },
-      "tags": ["issue-tracking", "jira", "atlassian", "project-management"],
+      "tags": [
+        "issue-tracking",
+        "jira",
+        "atlassian",
+        "project-management"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-05T00:00:00Z",
       "updated_at": "2026-03-05T00:00:00Z"
+    },
+    "ralph": {
+      "name": "Ralph Loop",
+      "id": "ralph",
+      "description": "Autonomous implementation loop using AI agent CLI.",
+      "author": "Rubiss",
+      "version": "1.0.0",
+      "download_url": "https://github.com/Rubiss/spec-kit-ralph/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/Rubiss/spec-kit-ralph",
+      "homepage": "https://github.com/Rubiss/spec-kit-ralph",
+      "documentation": "https://github.com/Rubiss/spec-kit-ralph/blob/main/README.md",
+      "changelog": "https://github.com/Rubiss/spec-kit-ralph/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0",
+        "tools": [
+          {
+            "name": "copilot",
+            "required": true
+          },
+          {
+            "name": "git",
+            "required": true
+          }
+        ]
+      },
+      "provides": {
+        "commands": 2,
+        "hooks": 1
+      },
+      "tags": ["implementation", "automation", "loop", "copilot"],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-03-09T00:00:00Z",
+      "updated_at": "2026-03-09T00:00:00Z"
     },
     "retrospective": {
       "name": "Retrospective Extension",
@@ -107,12 +186,44 @@
         "commands": 1,
         "hooks": 1
       },
-      "tags": ["retrospective", "spec-drift", "quality", "analysis", "governance"],
+      "tags": [
+        "retrospective",
+        "spec-drift",
+        "quality",
+        "analysis",
+        "governance"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-02-24T00:00:00Z",
       "updated_at": "2026-02-24T00:00:00Z"
+    },
+    "review": {
+      "name": "Review Extension",
+      "id": "review",
+      "description": "Post-implementation comprehensive code review with specialized agents for code quality, comments, tests, error handling, type design, and simplification.",
+      "author": "ismaelJimenez",
+      "version": "1.0.0",
+      "download_url": "https://github.com/ismaelJimenez/spec-kit-review/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/ismaelJimenez/spec-kit-review",
+      "homepage": "https://github.com/ismaelJimenez/spec-kit-review",
+      "documentation": "https://github.com/ismaelJimenez/spec-kit-review/blob/main/README.md",
+      "changelog": "https://github.com/ismaelJimenez/spec-kit-review/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 7,
+        "hooks": 1
+      },
+      "tags": ["code-review", "quality", "review", "testing", "error-handling", "type-design", "simplification"],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-03-06T00:00:00Z",
+      "updated_at": "2026-03-06T00:00:00Z"
     },
     "sync": {
       "name": "Spec Sync",
@@ -133,12 +244,59 @@
         "commands": 5,
         "hooks": 1
       },
-      "tags": ["sync", "drift", "validation", "bidirectional", "backfill"],
+      "tags": [
+        "sync",
+        "drift",
+        "validation",
+        "bidirectional",
+        "backfill"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-02T00:00:00Z",
       "updated_at": "2026-03-02T00:00:00Z"
+    },
+    "understanding": {
+      "name": "Understanding",
+      "id": "understanding",
+      "description": "Automated requirements quality analysis — validates specs against IEEE/ISO standards using 31 deterministic metrics. Catches ambiguity, missing testability, and structural issues before they reach implementation. Includes experimental energy-based ambiguity detection using local LM token perplexity.",
+      "author": "Ladislav Bihari",
+      "version": "3.4.0",
+      "download_url": "https://github.com/Testimonial/understanding/archive/refs/tags/v3.4.0.zip",
+      "repository": "https://github.com/Testimonial/understanding",
+      "homepage": "https://github.com/Testimonial/understanding",
+      "documentation": "https://github.com/Testimonial/understanding/blob/main/extension/README.md",
+      "changelog": "https://github.com/Testimonial/understanding/blob/main/extension/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0",
+        "tools": [
+          {
+            "name": "understanding",
+            "version": ">=3.4.0",
+            "required": true
+          }
+        ]
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 1
+      },
+      "tags": [
+        "quality",
+        "metrics",
+        "requirements",
+        "validation",
+        "readability",
+        "IEEE-830",
+        "ISO-29148"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-03-07T00:00:00Z",
+      "updated_at": "2026-03-07T00:00:00Z"
     },
     "v-model": {
       "name": "V-Model Extension Pack",
@@ -159,7 +317,13 @@
         "commands": 9,
         "hooks": 1
       },
-      "tags": ["v-model", "traceability", "testing", "compliance", "safety-critical"],
+      "tags": [
+        "v-model",
+        "traceability",
+        "testing",
+        "compliance",
+        "safety-critical"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
@@ -185,7 +349,13 @@
         "commands": 1,
         "hooks": 1
       },
-      "tags": ["verification", "quality-gate", "implementation", "spec-adherence", "compliance"],
+      "tags": [
+        "verification",
+        "quality-gate",
+        "implementation",
+        "spec-adherence",
+        "compliance"
+      ],
       "verified": false,
       "downloads": 0,
       "stars": 0,
