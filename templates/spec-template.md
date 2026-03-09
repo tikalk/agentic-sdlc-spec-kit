@@ -12,6 +12,43 @@
 **Success Criteria**: [2-3 measurable outcomes - summary]  
 **Constraints**: [key constraints - technical/business/regulatory]
 
+## Demo Sentence *(mandatory)*
+
+**After this feature, the user can:** [complete this with an observable, demo-able capability]
+
+<!-- 
+  This must be a concrete, observable outcome that a human can verify.
+  Good: "sign up with email and receive a welcome message"
+  Bad: "have authentication" (not observable)
+  Bad: "use the auth module" (implementation, not user outcome)
+-->
+
+## Boundary Map *(mandatory for multi-feature projects)*
+
+### Produces
+
+<!-- What this feature exports for other features to consume -->
+
+| Artifact | Type | Exports/Provides |
+|----------|------|------------------|
+| [artifact path] | [Module/Endpoint/Type/etc] | [exports] |
+
+### Consumes
+
+<!-- What this feature requires from other features -->
+
+| From Feature | Artifact | Imports/Uses |
+|--------------|----------|--------------|
+| [feature-name] | [artifact path] | [imports] |
+| *(none - leaf feature)* | - | - |
+
+<!-- 
+  Boundary maps enable:
+  - Explicit interface contracts between features
+  - Dependency tracking and planning
+  - Validation that upstream features produce what downstream features need
+-->
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--

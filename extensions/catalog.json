@@ -120,6 +120,39 @@
       ],
       "verified": false,
       "featured": false
+    },
+    "product": {
+      "id": "product",
+      "name": "Product - PRD & PDR Management",
+      "version": "1.0.0",
+      "preinstall": false,
+      "description": "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development",
+      "author": "Agentic SDLC Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/product",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.0.80"
+      },
+      "commands": [
+        "adlc.product.init",
+        "adlc.product.specify",
+        "adlc.product.clarify",
+        "adlc.product.implement",
+        "adlc.product.analyze",
+        "adlc.product.validate"
+      ],
+      "tags": [
+        "product",
+        "prd",
+        "pdr",
+        "requirements",
+        "product-management",
+        "brownfield",
+        "greenfield"
+      ],
+      "verified": false,
+      "featured": false
     }
   }
 }
