@@ -442,6 +442,7 @@ See Spec-Driven Development in action across different scenarios with these comm
 | [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅      |                                                                                                                                           |
 | [Roo Code](https://roocode.com/)                                                     | ✅      |                                                                                                                                           |
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | ✅      |                                                                                                                                           |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
 | [Antigravity (agy)](https://antigravity.google/)                                     | ✅      |                                                                                                                                           |
 | Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
@@ -572,6 +573,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 
 ### Commands
 
+<<<<<<< HEAD
 | Command     | Description                                                    |
 |-------------|----------------------------------------------------------------|
 | `init`      | Initialize a new Specify project from the latest template      |
@@ -611,6 +613,29 @@ The Skills Package Manager is accessed via the `specify skill` subcommand:
 | `sync-team [--dry-run]`          | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
 | `check-updates`                  | Check for available skill updates                                     |
 | `config [key] [value]`           | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`) |
+=======
+| Command | Description                                                                                                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `init`  | Initialize a new Specify project from the latest template                                                                                               |
+| `check` | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`) |
+
+### `specify init` Arguments & Options
+
+| Argument/Option        | Type     | Description                                                                                                                                                                                  |
+| ---------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory)                                                                                           |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai-commands-dir`    | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`)                                                                                                  |
+| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                                                                                                                                  |
+| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                                                                                                                                              |
+| `--no-git`             | Flag     | Skip git repository initialization                                                                                                                                                           |
+| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one                                                                                                                    |
+| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)                                                                                                             |
+| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                                                                                                                                  |
+| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                                                                                                                                             |
+| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)                                                                                                                    |
+| `--ai-skills`          | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`)                                                                                          |
+>>>>>>> upstream/main
 
 ### Examples
 
@@ -677,6 +702,9 @@ specify init my-project --ai amp
 
 # Initialize with SHAI support
 specify init my-project --ai shai
+
+# Initialize with Mistral Vibe support
+specify init my-project --ai vibe
 
 # Initialize with IBM Bob support
 specify init my-project --ai bob
