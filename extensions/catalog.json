@@ -12,6 +12,7 @@
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/tdd",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-tdd-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.0.80"
@@ -41,6 +42,7 @@
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/levelup",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-levelup-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.0.80"
@@ -73,6 +75,7 @@
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/architect",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-architect-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.0.80"
@@ -105,6 +108,7 @@
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/quick",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-quick-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.0.107"
@@ -125,11 +129,12 @@
       "id": "product",
       "name": "Product - PRD & PDR Management",
       "version": "1.0.0",
-      "preinstall": false,
+      "preinstall": true,
       "description": "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development",
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/product",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-product-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.0.80"

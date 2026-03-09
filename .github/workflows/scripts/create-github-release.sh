@@ -33,6 +33,13 @@ for agent in "${AGENTS[@]}"; do
   done
 done
 
+# Add extension packages
+for ext_zip in .genreleases/extensions/*.zip; do
+  if [[ -f "$ext_zip" ]]; then
+    ASSETS+=("$ext_zip")
+  fi
+done
+
 gh release create "$VERSION" "${ASSETS[@]}" \
   --title "Agentic SDLC Spec Kit Templates - $VERSION_NO_V" \
   --notes-file release_notes.md
