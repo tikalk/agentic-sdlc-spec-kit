@@ -7,6 +7,23 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.118] - 2026-03-09
+
+### Added
+
+- **Mistral Vibe Support**: Integrated Mistral Vibe agent from upstream
+- **New Extensions**: Added Understanding, ralph, review, and fleet extensions from upstream community catalog
+
+### Changed
+
+- **Global Branch Numbering**: Use global branch numbering instead of per-short-name detection (from upstream)
+- **Agent List Updates**: Merged upstream agent additions (vibe, q)
+
+### Fixed
+
+- **README Instructions**: Updated project initialization instructions from upstream
+- **Duplicate Options**: Removed duplicate options in specify.md from upstream
+
 ## [0.0.117] - 2026-03-09
 
 ### Changed
