@@ -90,17 +90,121 @@ You are acting as a **Context Archaeologist** uncovering implicit team AI direct
 
 ## Outline
 
-1. **Environment Setup**: Resolve team-ai-directives path and initialize CDR file
-2. **Load Existing Directives**: Read team-ai-directives to compare against
-3. **Codebase Scan**: Analyze project for context patterns
-4. **Pattern Detection**: Identify patterns by context type
-5. **Deduplication**: Filter out patterns already in team-ai-directives
-6. **CDR Generation**: Create CDRs for discovered patterns (status: "Discovered")
-7. **Gap Analysis**: Identify areas where patterns are unclear
-8. **Output**: Write CDRs to `.specify/memory/cdr.md`
-9. **Summary**: Present findings with next step options
+1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
+2. **Environment Setup**: Resolve team-ai-directives path and initialize CDR file
+3. **Load Existing Directives**: Read team-ai-directives to compare against
+4. **Codebase Scan**: Analyze project for context patterns (per sub-system if decomposed)
+5. **Pattern Detection**: Identify patterns by context type
+6. **Deduplication**: Filter out patterns already in team-ai-directives
+7. **CDR Generation**: Create CDRs for discovered patterns (status: "Discovered")
+8. **Gap Analysis**: Identify areas where patterns are unclear
+9. **Output**: Write CDRs to `.specify/memory/cdr.md`
+10. **Summary**: Present findings with next step options
 
 ## Execution Steps
+
+### Phase 0: Sub-System Detection (Brownfield)
+
+**Objective**: Identify sub-systems from existing code structure automatically
+
+**When**: This phase runs automatically when the codebase is detected as having multiple distinct modules/packages. Use `--no-decompose` to skip.
+
+#### Step 1: Directory Structure Analysis
+
+Analyze the codebase for distinct sub-systems based on directory structure:
+
+| Pattern | Likely Sub-System |
+|---------|------------------|
+| `src/auth/` | Authentication sub-system |
+| `src/users/` | User management sub-system |
+| `services/payment/` | Payment sub-system |
+| `modules/inventory/` | Inventory sub-system |
+| `apps/api/`, `apps/web/` | Monorepo with separate apps |
+| `lib/core/`, `lib/shared/` | Shared libraries (not a sub-system) |
+
+#### Step 2: Package/Module Detection
+
+Detect sub-systems from package/module structures:
+
+| Pattern | Detection Method | Sub-System Evidence |
+|---------|------------------|-------------------|
+| **Node.js workspaces** | package.json workspaces | Multiple packages = multiple sub-systems |
+| **Python namespaces** | `__init__.py` hierarchy | Multiple top-level packages |
+| **Go modules** | go.mod + directories | Multiple directories under cmd/ |
+| **Maven/Gradle** | pom.xml modules | Multiple modules in multi-module project |
+| **Docker services** | docker-compose services | Each service = sub-system |
+
+#### Step 3: Sub-System Proposal (Interactive)
+
+Present detected sub-systems to user for confirmation:
+
+```markdown
+## Detected Sub-Systems
+
+I've identified the following sub-systems from your codebase:
+
+| # | Sub-System | Detection Method | Evidence |
+|---|------------|-----------------|----------|
+| 1 | **auth** | Directory + Module | src/auth/, auth/ package |
+| 2 | **users** | Directory | src/users/, services/user/ |
+| 3 | **payments** | Directory + Docker | services/payment/, payment service in docker-compose |
+| 4 | **inventory** | Directory | src/inventory/, modules/stock/ |
+
+### Questions for Confirmation:
+
+1. **Are these sub-systems correct?** [Y/n]
+2. **Should any sub-systems be merged?** (e.g., auth + users → identity)
+3. **Should any sub-systems be split?** (e.g., payments → billing + subscriptions)
+4. **Any missing sub-systems?** (e.g., analytics, reporting)
+
+**Reply** with:
+- `Y` to confirm and proceed
+- `n` to disable decomposition (generate monolithic CDRs)
+- Specific changes (e.g., "merge 1+2", "split 3", "add Notifications")
+```
+
+#### Step 4: Decomposition Decision
+
+Based on user response:
+
+| Response | Action |
+|----------|--------|
+| `Y` / Enter | Proceed with detected sub-systems |
+| `n` | Skip decomposition, generate monolithic CDRs |
+| Modifications | Adjust sub-systems, then proceed |
+| Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
+
+**Threshold Logic**:
+- **≤3 sub-systems**: Auto-approve, show summary
+- **4-6 sub-systems**: Show summary, ask to confirm
+- **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
+
+#### Step 5: Output
+
+After confirmation, output structured sub-system data:
+
+```json
+{
+  "decomposition": "enabled",
+  "subsystems": [
+    {"id": "auth", "name": "Auth", "detection_method": "directory", "evidence": "src/auth/"},
+    {"id": "users", "name": "Users", "detection_method": "directory", "evidence": "src/users/"},
+    {"id": "payments", "name": "Payments", "detection_method": "docker", "evidence": "payment service in docker-compose"}
+  ],
+  "next_phase": "Codebase Analysis (per sub-system)"
+}
+```
+
+**If decomposition disabled**:
+```json
+{
+  "decomposition": "disabled",
+  "reason": "user_requested",
+  "next_phase": "Codebase Analysis (monolithic)"
+}
+```
+
+---
 
 ### Phase 1: Environment Setup
 
