@@ -46,7 +46,7 @@ This command focuses on **current state analysis** - what IS, not what SHOULD BE
   - `all`: Document all discovered decisions
   - `minimal`: Only high-risk decisions
 
-- `--no-decompose`: Disable automatic feature area detection from code structure (default: auto-detect if multiple modules detected)
+- `--no-decompose`: Disable automatic sub-system detection from code structure (default: auto-detect if multiple modules detected)
 
 ## Role & Context
 
@@ -66,7 +66,7 @@ You are acting as a **Product Archaeologist** uncovering implicit product decisi
 
 ## Outline
 
-1. **Feature Area Detection** (Phase 0): Identify feature areas from existing structure (auto-detect)
+1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
 2. **Product Scan**: Analyze existing docs and codebase for product signals (per area if decomposed)
 3. **Documentation Deduplication**: Scan existing docs to avoid repeating
 4. **Signal Detection**: Identify product patterns and decisions in use
@@ -77,30 +77,30 @@ You are acting as a **Product Archaeologist** uncovering implicit product decisi
 
 ## Execution Steps
 
-### Phase 0: Feature Area Detection (Brownfield)
+### Phase 0: Subsystem Detection (Brownfield)
 
-**Objective**: Identify feature areas from existing product structure automatically
+**Objective**: Identify sub-systems from existing product structure automatically
 
-**When**: This phase runs automatically when the product is detected as having multiple distinct feature areas. Use `--no-decompose` to skip.
+**When**: This phase runs automatically when the product is detected as having multiple distinct sub-systems. Use `--no-decompose` to skip.
 
 #### Step 1: Directory Structure Analysis
 
-Analyze the codebase for distinct feature areas based on directory structure:
+Analyze the codebase for distinct sub-systems based on directory structure:
 
-| Pattern | Likely Feature Area |
+| Pattern | Likely Sub-System |
 |---------|------------------|
-| `src/auth/` | Authentication area |
-| `src/users/` | User management area |
-| `features/payment/` | Payments area |
-| `modules/inventory/` | Inventory area |
+| `src/auth/` | Authentication sub-system |
+| `src/users/` | User management sub-system |
+| `features/payment/` | Payments sub-system |
+| `modules/inventory/` | Inventory sub-system |
 | `apps/mobile/`, `apps/web/` | Multi-platform product |
-| `lib/shared/` | Shared (not a feature area) |
+| `lib/shared/` | Shared (not a sub-system) |
 
 #### Step 2: Documentation Analysis
 
 Detect feature areas from documentation:
 
-| Pattern | Detection Method | Feature Area Evidence |
+| Pattern | Detection Method | Sub-System Evidence |
 |---------|------------------|----------------------|
 | README sections | Product description | Feature sections |
 | Roadmap | Feature list | Planned feature areas |
@@ -118,17 +118,17 @@ Identify business model from existing artifacts:
 | In-app purchases | Consumer freemium |
 | Enterprise pricing | B2B Enterprise |
 
-#### Step 4: Feature Area Proposal (Interactive)
+#### Step 4: Sub-System Proposal (Interactive)
 
-Present detected feature areas to user for confirmation:
+Present detected sub-systems to user for confirmation:
 
 ```markdown
-## Detected Feature Areas
+## Detected Sub-Systems
 
-I've identified the following feature areas from your product:
+I've identified the following sub-systems from your product:
 
-| # | Feature Area | Detection Method | Evidence |
-|---|--------------|-----------------|----------|
+| # | Sub-System | Detection Method | Evidence |
+|---|------------|-----------------|----------|
 | 1 | **Auth** | Directory + Documentation | src/auth/, login flows |
 | 2 | **Core** | Directory | src/users/, user profiles |
 | 3 | **Business** | Documentation | Payments section, pricing |
@@ -136,10 +136,10 @@ I've identified the following feature areas from your product:
 
 ### Questions for Confirmation:
 
-1. **Are these feature areas correct?** [Y/n]
-2. **Should any areas be merged?** (e.g., Auth + Core → Identity)
-3. **Should any areas be split?** (e.g., Business → Billing + Subscriptions)
-4. **Any missing areas?** (e.g., Analytics, Notifications)
+1. **Are these sub-systems correct?** [Y/n]
+2. **Should any sub-systems be merged?** (e.g., Auth + Core → Identity)
+3. **Should any sub-systems be split?** (e.g., Business → Billing + Subscriptions)
+4. **Any missing sub-systems?** (e.g., Analytics, Notifications)
 
 **Reply** with:
 - `Y` to confirm and proceed
@@ -153,29 +153,29 @@ Based on user response:
 
 | Response | Action |
 |----------|--------|
-| `Y` / Enter | Proceed with detected feature areas |
+| `Y` / Enter | Proceed with detected sub-systems |
 | `n` | Skip decomposition, generate monolithic PDRs |
-| Modifications | Adjust feature areas, then proceed |
-| Empty/Default | Auto-proceed if ≤3 areas, ask if >3 |
+| Modifications | Adjust sub-systems, then proceed |
+| Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
 
 **Threshold Logic**:
-- **≤3 areas**: Auto-approve, show summary
-- **4-6 areas**: Show summary, ask to confirm
-- **>6 areas**: Show summary, suggest grouping, ask to confirm
+- **≤3 sub-systems**: Auto-approve, show summary
+- **4-6 sub-systems**: Show summary, ask to confirm
+- **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
 
 #### Step 6: Output
 
-After confirmation, output structured feature area data:
+After confirmation, output structured sub-system data:
 
 ```json
 {
   "decomposition": "enabled",
-  "feature_areas": [
+  "subsystems": [
     {"id": "auth", "name": "Auth", "detection_method": "directory", "evidence": "src/auth/"},
     {"id": "core", "name": "Core", "detection_method": "directory", "evidence": "src/users/"},
     {"id": "business", "name": "Business", "detection_method": "documentation", "evidence": "Pricing page"}
   ],
-  "next_phase": "Product Analysis (per feature area)"
+  "next_phase": "Product Analysis (per sub-system)"
 }
 ```
 
@@ -186,6 +186,8 @@ After confirmation, output structured feature area data:
   "reason": "user_requested",
   "next_phase": "Product Analysis (monolithic)"
 }
+```olithic)"
+}
 ```
 
 ---
@@ -194,7 +196,7 @@ After confirmation, output structured feature area data:
 
 **Objective**: Discover what product decisions are in use
 
-**Note**: If feature area decomposition is enabled (Phase 0), analyze each area **separately** to provide focused insights.
+**Note**: If sub-system decomposition is enabled (Phase 0), analyze each sub-system **separately** to provide focused insights.
 
 1. **Run Setup Script**:
    - Execute `{SCRIPT}` to initialize product files
@@ -352,9 +354,9 @@ Legacy/Inferred
    - **PDR-006**: Success Metrics (how success measured)
    - **Additional**: Any non-standard product decisions
 
-4. **Feature Area Organization** (if Phase 0 decomposition enabled):
+4. **Sub-System Organization** (if Phase 0 decomposition enabled):
 
-   Structure PDRs by feature area in the output file:
+    Structure PDRs by sub-system in the output file:
 
    ```markdown
    # Product Decision Records
@@ -529,10 +531,10 @@ The clarify phase will refine PDRs based on your input, then you can run `/produ
 - For **contradictory evidence**, present options
 - For **gaps**, suggest clarification questions
 
-### Feature Area Decomposition
+### Sub-System Decomposition
 
 - **Auto-detect from structure**: Analyze directories, docs automatically
-- **Interactive confirmation**: Always confirm feature area breakdown with user
+- **Interactive confirmation**: Always confirm sub-system breakdown with user
 - **Balanced granularity**: Aim for 3-7 areas; avoid over-decomposition
 - **Clear evidence**: Cite specific files as evidence for each area
 - **Per-area analysis**: Run signal detection per area for focused PDRs
