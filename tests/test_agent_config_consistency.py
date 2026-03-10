@@ -127,12 +127,8 @@ class TestAgentConfigConsistency:
         assert ".amazonq/prompts" in ps_text
 
         # Fork uses agentic-sdlc-spec-kit-template-* prefix
-        # The gh release script uses variable expansion, so check the template pattern and agents array
-        assert "agentic-sdlc-spec-kit-template-${agent}-${script}" in gh_release_text
-        # Check kiro-cli and q are in the AGENTS array
-        assert "kiro-cli" in gh_release_text
-        # Fork-specific: we keep q
-        assert re.search(r"AGENTS=\([^)]*\bq\b", gh_release_text)
+        # The gh release script uses glob pattern to pick up all generated packages
+        assert "agentic-sdlc-spec-kit-template-" in gh_release_text
 
     def test_agent_context_scripts_use_kiro_cli_and_q(self):
         """Agent context scripts should advertise both kiro-cli and q (fork behavior)."""
@@ -171,8 +167,20 @@ class TestAgentConfigConsistency:
 
     def test_release_agent_lists_include_tabnine(self):
         """Bash and PowerShell release scripts should include tabnine in agent lists."""
-        sh_text = (REPO_ROOT / ".github" / "workflows" / "scripts" / "create-release-packages.sh").read_text(encoding="utf-8")
-        ps_text = (REPO_ROOT / ".github" / "workflows" / "scripts" / "create-release-packages.ps1").read_text(encoding="utf-8")
+        sh_text = (
+            REPO_ROOT
+            / ".github"
+            / "workflows"
+            / "scripts"
+            / "create-release-packages.sh"
+        ).read_text(encoding="utf-8")
+        ps_text = (
+            REPO_ROOT
+            / ".github"
+            / "workflows"
+            / "scripts"
+            / "create-release-packages.ps1"
+        ).read_text(encoding="utf-8")
 
         sh_match = re.search(r"ALL_AGENTS=\(([^)]*)\)", sh_text)
         assert sh_match is not None
@@ -187,24 +195,46 @@ class TestAgentConfigConsistency:
 
     def test_release_scripts_generate_tabnine_toml_commands(self):
         """Release scripts should generate TOML commands for tabnine in .tabnine/agent/commands."""
-        sh_text = (REPO_ROOT / ".github" / "workflows" / "scripts" / "create-release-packages.sh").read_text(encoding="utf-8")
-        ps_text = (REPO_ROOT / ".github" / "workflows" / "scripts" / "create-release-packages.ps1").read_text(encoding="utf-8")
+        sh_text = (
+            REPO_ROOT
+            / ".github"
+            / "workflows"
+            / "scripts"
+            / "create-release-packages.sh"
+        ).read_text(encoding="utf-8")
+        ps_text = (
+            REPO_ROOT
+            / ".github"
+            / "workflows"
+            / "scripts"
+            / "create-release-packages.ps1"
+        ).read_text(encoding="utf-8")
 
         assert ".tabnine/agent/commands" in sh_text
         assert ".tabnine/agent/commands" in ps_text
-        assert re.search(r"'tabnine'\s*\{.*?\.tabnine/agent/commands", ps_text, re.S) is not None
+        assert (
+            re.search(r"'tabnine'\s*\{.*?\.tabnine/agent/commands", ps_text, re.S)
+            is not None
+        )
 
     def test_github_release_includes_tabnine_packages(self):
-        """GitHub release script should include tabnine template packages."""
-        gh_release_text = (REPO_ROOT / ".github" / "workflows" / "scripts" / "create-github-release.sh").read_text(encoding="utf-8")
+        """GitHub release script should include tabnine template packages via glob pattern."""
+        gh_release_text = (
+            REPO_ROOT / ".github" / "workflows" / "scripts" / "create-github-release.sh"
+        ).read_text(encoding="utf-8")
 
-        assert "spec-kit-template-tabnine-sh-" in gh_release_text
-        assert "spec-kit-template-tabnine-ps-" in gh_release_text
+        # The release script uses a glob pattern to pick up all generated packages
+        # This ensures tabnine and all other agents are included
+        assert "agentic-sdlc-spec-kit-template-*-" in gh_release_text
 
     def test_agent_context_scripts_include_tabnine(self):
         """Agent context scripts should support tabnine agent type."""
-        bash_text = (REPO_ROOT / "scripts" / "bash" / "update-agent-context.sh").read_text(encoding="utf-8")
-        pwsh_text = (REPO_ROOT / "scripts" / "powershell" / "update-agent-context.ps1").read_text(encoding="utf-8")
+        bash_text = (
+            REPO_ROOT / "scripts" / "bash" / "update-agent-context.sh"
+        ).read_text(encoding="utf-8")
+        pwsh_text = (
+            REPO_ROOT / "scripts" / "powershell" / "update-agent-context.ps1"
+        ).read_text(encoding="utf-8")
 
         assert "tabnine" in bash_text
         assert "TABNINE_FILE" in bash_text

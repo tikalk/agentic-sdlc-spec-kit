@@ -7,6 +7,14 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.120] - 2026-03-10
+
+### Fixed
+
+- Fix release asset naming: use `agentic-sdlc-spec-kit-template-*` prefix consistently across release scripts
+- Add `q` agent back to release scripts for backward compatibility (fork-specific)
+- Update create-github-release.sh to use glob pattern for package inclusion
+
 ## [0.0.119] - 2026-03-10
 
 ### Fixed

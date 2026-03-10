@@ -309,7 +309,7 @@ except Exception as e:
 }
 
 # Determine agent list
-ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli generic)
+ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli q agy bob vibe qodercli generic)
 ALL_SCRIPTS=(sh ps)
 
 norm_list() {

@@ -435,13 +435,13 @@ function Build-Variant {
     }
     
     # Create zip archive
-    $zipFile = Join-Path $GenReleasesDir "spec-kit-template-${Agent}-${Script}-${Version}.zip"
+    $zipFile = Join-Path $GenReleasesDir "agentic-sdlc-spec-kit-template-${Agent}-${Script}-${Version}.zip"
     Compress-Archive -Path "$baseDir/*" -DestinationPath $zipFile -Force
     Write-Host "Created $zipFile"
 }
 
 # Define all agents and scripts
-$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'generic')
+$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'q', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'generic')
 $AllScripts = @('sh', 'ps')
 
 function Normalize-List {
@@ -504,6 +504,6 @@ foreach ($agent in $AgentList) {
 }
 
 Write-Host "`nArchives in ${GenReleasesDir}:"
-Get-ChildItem -Path $GenReleasesDir -Filter "spec-kit-template-*-${Version}.zip" | ForEach-Object {
+Get-ChildItem -Path $GenReleasesDir -Filter "agentic-sdlc-spec-kit-template-*-${Version}.zip" | ForEach-Object {
     Write-Host "  $($_.Name)"
 }
