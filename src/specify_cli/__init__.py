@@ -322,201 +322,6 @@ AI_ASSISTANT_HELP = _build_ai_assistant_help()
 
 AGENT_CHOICES = list(AGENT_CONFIG.keys())
 
-AGENT_SKILLS_DIR_OVERRIDES = {
-    "codex": ".agents/skills",
-}
-
-DEFAULT_SKILLS_DIR = ".agents/skills"
-
-SKILL_DESCRIPTIONS = {
-    "specify": "Create or update feature specifications from natural language descriptions. Use when starting new features or refining requirements. Generates spec.md with user stories, functional requirements, and acceptance criteria following spec-driven development methodology.",
-    "plan": "Generate technical implementation plans from feature specifications. Use after creating a spec to define architecture, tech stack, and implementation phases. Creates plan.md with detailed technical design.",
-    "tasks": "Break down implementation plans into actionable task lists. Use after planning to create a structured task breakdown. Generates tasks.md with ordered, dependency-aware tasks.",
-    "implement": "Execute all tasks from the task breakdown to build the feature. Use after task generation to systematically implement the planned solution following TDD approach where applicable.",
-    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md. Use after task generation to identify gaps, duplications, and inconsistencies before implementation.",
-    "clarify": "Structured clarification workflow for underspecified requirements. Use before planning to resolve ambiguities through coverage-based questioning. Records answers in spec clarifications section.",
-    "constitution": "Create or update project governing principles and development guidelines. Use at project start to establish code quality, testing standards, and architectural constraints that guide all development.",
-    "checklist": "Generate custom quality checklists for validating requirements completeness and clarity. Use to create unit tests for English that ensure spec quality before implementation.",
-    "taskstoissues": "Convert tasks from tasks.md into GitHub issues. Use after task breakdown to track work items in GitHub project management.",
-}
-
-
-def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
-    """Resolve the agent-specific skills directory for the given AI assistant.
-
-    Uses ``AGENT_SKILLS_DIR_OVERRIDES`` first, then falls back to
-    ``AGENT_CONFIG[agent]["folder"] + "skills"``, and finally to
-    ``DEFAULT_SKILLS_DIR``.
-    """
-    if selected_ai in AGENT_SKILLS_DIR_OVERRIDES:
-        return project_path / AGENT_SKILLS_DIR_OVERRIDES[selected_ai]
-
-    agent_config = AGENT_CONFIG.get(selected_ai, {})
-    agent_folder = agent_config.get("folder", "")
-    if agent_folder:
-        return project_path / agent_folder.rstrip("/") / "skills"
-
-    return project_path / DEFAULT_SKILLS_DIR
-
-
-def install_ai_skills(
-    project_path: Path, selected_ai: str, tracker: "StepTracker | None" = None
-) -> bool:
-    """Install Prompt.MD files from templates/commands/ as agent skills.
-
-    Skills are written to the agent-specific skills directory following the
-    `agentskills.io <https://agentskills.io/specification>`_ specification.
-    Installation is additive — existing files are never removed and prompt
-    command files in the agent's commands directory are left untouched.
-
-    Args:
-        project_path: Target project directory.
-        selected_ai: AI assistant key from ``AGENT_CONFIG``.
-        tracker: Optional progress tracker.
-
-    Returns:
-        ``True`` if at least one skill was installed or all skills were
-        already present (idempotent re-run), ``False`` otherwise.
-    """
-    agent_config = AGENT_CONFIG.get(selected_ai, {})
-    agent_folder = agent_config.get("folder", "")
-    commands_subdir = agent_config.get("commands_subdir", "commands")
-    if agent_folder:
-        templates_dir = project_path / agent_folder.rstrip("/") / commands_subdir
-    else:
-        templates_dir = project_path / commands_subdir
-
-    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
-        script_dir = Path(__file__).parent.parent.parent
-        fallback_dir = script_dir / "templates" / "commands"
-        if fallback_dir.exists() and any(fallback_dir.glob("*.md")):
-            templates_dir = fallback_dir
-
-    if not templates_dir.exists() or not any(templates_dir.glob("*.md")):
-        if tracker:
-            tracker.error("ai-skills", "command templates not found")
-        else:
-            console.print(
-                "[yellow]Warning: command templates not found, skipping skills installation[/yellow]"
-            )
-        return False
-
-    command_files = sorted(templates_dir.glob("*.md"))
-    if not command_files:
-        if tracker:
-            tracker.skip("ai-skills", "no command templates found")
-        else:
-            console.print("[yellow]No command templates found to install[/yellow]")
-        return False
-
-    skills_dir = _get_skills_dir(project_path, selected_ai)
-    skills_dir.mkdir(parents=True, exist_ok=True)
-
-    if tracker:
-        tracker.start("ai-skills")
-
-    installed_count = 0
-    skipped_count = 0
-    for command_file in command_files:
-        try:
-            content = command_file.read_text(encoding="utf-8")
-
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    frontmatter = yaml.safe_load(parts[1])
-                    if not isinstance(frontmatter, dict):
-                        frontmatter = {}
-                    body = parts[2].strip()
-                else:
-                    console.print(
-                        f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]"
-                    )
-                    frontmatter = {}
-                    body = content
-            else:
-                frontmatter = {}
-                body = content
-
-            command_name = command_file.stem
-            if command_name.startswith("speckit."):
-                command_name = command_name[len("speckit.") :]
-            skill_name = f"speckit-{command_name}"
-
-            skill_dir = skills_dir / skill_name
-            skill_dir.mkdir(parents=True, exist_ok=True)
-
-            original_desc = frontmatter.get("description", "")
-            enhanced_desc = SKILL_DESCRIPTIONS.get(
-                command_name,
-                original_desc or f"Spec-kit workflow command: {command_name}",
-            )
-
-            source_name = command_file.name
-            if source_name.startswith("speckit."):
-                source_name = source_name[len("speckit.") :]
-
-            frontmatter_data = {
-                "name": skill_name,
-                "description": enhanced_desc,
-                "compatibility": "Requires spec-kit project structure with .specify/ directory",
-                "metadata": {
-                    "author": "github-spec-kit",
-                    "source": f"templates/commands/{source_name}",
-                },
-            }
-            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
-            skill_content = (
-                f"---\n"
-                f"{frontmatter_text}\n"
-                f"---\n\n"
-                f"# Speckit {command_name.title()} Skill\n\n"
-                f"{body}\n"
-            )
-
-            skill_file = skill_dir / "SKILL.md"
-            if skill_file.exists():
-                skipped_count += 1
-                continue
-            skill_file.write_text(skill_content, encoding="utf-8")
-            installed_count += 1
-
-        except Exception as e:
-            console.print(
-                f"[yellow]Warning: Failed to install skill {command_file.stem}: {e}[/yellow]"
-            )
-            continue
-
-    if tracker:
-        if installed_count > 0 and skipped_count > 0:
-            tracker.complete(
-                "ai-skills",
-                f"{installed_count} new + {skipped_count} existing skills in {skills_dir.relative_to(project_path)}",
-            )
-        elif installed_count > 0:
-            tracker.complete(
-                "ai-skills",
-                f"{installed_count} skills -> {skills_dir.relative_to(project_path)}",
-            )
-        elif skipped_count > 0:
-            tracker.complete("ai-skills", f"{skipped_count} skills already present")
-        else:
-            tracker.error("ai-skills", "no skills installed")
-    else:
-        if installed_count > 0:
-            console.print(
-                f"[green]✓[/green] Installed {installed_count} agent skills to {skills_dir.relative_to(project_path)}/"
-            )
-        elif skipped_count > 0:
-            console.print(
-                f"[green]✓[/green] {skipped_count} agent skills already present in {skills_dir.relative_to(project_path)}/"
-            )
-        else:
-            console.print("[yellow]No skills were installed[/yellow]")
-
-    return installed_count > 0 or skipped_count > 0
-
-
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 # Consolidated Configuration Management
@@ -2534,7 +2339,10 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.error("constitution", str(e))
         else:
-            console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]"
+            )
+
 
 # Agent-specific skill directory overrides for agents whose skills directory
 # doesn't follow the standard <agent_folder>/skills/ pattern
@@ -2577,7 +2385,9 @@ def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
     return project_path / DEFAULT_SKILLS_DIR
 
 
-def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker | None = None) -> bool:
+def install_ai_skills(
+    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
+) -> bool:
     """Install Prompt.MD files from templates/commands/ as agent skills.
 
     Skills are written to the agent-specific skills directory following the
@@ -2617,7 +2427,9 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
         if tracker:
             tracker.error("ai-skills", "command templates not found")
         else:
-            console.print("[yellow]Warning: command templates not found, skipping skills installation[/yellow]")
+            console.print(
+                "[yellow]Warning: command templates not found, skipping skills installation[/yellow]"
+            )
         return False
 
     command_files = sorted(templates_dir.glob("*.md"))
@@ -2651,7 +2463,9 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
                     body = parts[2].strip()
                 else:
                     # File starts with --- but has no closing ---
-                    console.print(f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]")
+                    console.print(
+                        f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]"
+                    )
                     frontmatter = {}
                     body = content
             else:
@@ -2663,7 +2477,7 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
             # strip the "speckit." prefix so skill names stay clean and
             # SKILL_DESCRIPTIONS lookups work.
             if command_name.startswith("speckit."):
-                command_name = command_name[len("speckit."):]
+                command_name = command_name[len("speckit.") :]
             skill_name = f"speckit-{command_name}"
 
             # Create skill directory (additive — never removes existing content)
@@ -2672,7 +2486,10 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
 
             # Select the best description available
             original_desc = frontmatter.get("description", "")
-            enhanced_desc = SKILL_DESCRIPTIONS.get(command_name, original_desc or f"Spec-kit workflow command: {command_name}")
+            enhanced_desc = SKILL_DESCRIPTIONS.get(
+                command_name,
+                original_desc or f"Spec-kit workflow command: {command_name}",
+            )
 
             # Build SKILL.md following agentskills.io spec
             # Use yaml.safe_dump to safely serialise the frontmatter and
@@ -2682,7 +2499,7 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
             # so it matches the canonical templates/commands/<cmd>.md path.
             source_name = command_file.name
             if source_name.startswith("speckit."):
-                source_name = source_name[len("speckit."):]
+                source_name = source_name[len("speckit.") :]
 
             frontmatter_data = {
                 "name": skill_name,
@@ -2701,6 +2518,46 @@ def install_ai_skills(project_path: Path, selected_ai: str, tracker: StepTracker
                 f"# Speckit {command_name.title()} Skill\n\n"
                 f"{body}\n"
             )
+
+            skill_file = skill_dir / "SKILL.md"
+            if skill_file.exists():
+                skipped_count += 1
+                continue
+            skill_file.write_text(skill_content, encoding="utf-8")
+            installed_count += 1
+
+        except Exception as e:
+            console.print(
+                f"[yellow]Warning: Failed to install skill {command_file.stem}: {e}[/yellow]"
+            )
+            continue
+
+    if tracker:
+        if installed_count > 0 and skipped_count > 0:
+            tracker.complete(
+                "ai-skills",
+                f"{installed_count} new + {skipped_count} existing skills in {skills_dir.relative_to(project_path)}",
+            )
+        elif installed_count > 0:
+            tracker.complete(
+                "ai-skills",
+                f"{installed_count} skills -> {skills_dir.relative_to(project_path)}",
+            )
+        elif skipped_count > 0:
+            tracker.complete("ai-skills", f"{skipped_count} skills already present")
+        else:
+            tracker.error("ai-skills", "no skills installed")
+    else:
+        if installed_count > 0:
+            console.print(
+                f"[green]✓[/green] Installed {installed_count} agent skills to {skills_dir.relative_to(project_path)}/"
+            )
+        elif skipped_count > 0:
+            console.print(
+                f"[green]✓[/green] {skipped_count} agent skills already present in {skills_dir.relative_to(project_path)}/"
+            )
+
+    return installed_count > 0 or skipped_count > 0
 
 
 def install_bundled_extensions(
@@ -3805,7 +3662,9 @@ def catalog_list():
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -3834,17 +3693,25 @@ def catalog_list():
     config_path = project_root / ".specify" / "extension-catalogs.yml"
     user_config_path = Path.home() / ".specify" / "extension-catalogs.yml"
     if os.environ.get("SPECKIT_CATALOG_URL"):
-        console.print("[dim]Catalog configured via SPECKIT_CATALOG_URL environment variable.[/dim]")
+        console.print(
+            "[dim]Catalog configured via SPECKIT_CATALOG_URL environment variable.[/dim]"
+        )
     else:
         try:
-            proj_loaded = config_path.exists() and catalog._load_catalog_config(config_path) is not None
+            proj_loaded = (
+                config_path.exists()
+                and catalog._load_catalog_config(config_path) is not None
+            )
         except ValidationError:
             proj_loaded = False
         if proj_loaded:
             console.print(f"[dim]Config: {config_path.relative_to(project_root)}[/dim]")
         else:
             try:
-                user_loaded = user_config_path.exists() and catalog._load_catalog_config(user_config_path) is not None
+                user_loaded = (
+                    user_config_path.exists()
+                    and catalog._load_catalog_config(user_config_path) is not None
+                )
             except ValidationError:
                 user_loaded = False
             if user_loaded:
@@ -3860,12 +3727,17 @@ def catalog_list():
 def catalog_add(
     url: str = typer.Argument(help="Catalog URL (must use HTTPS)"),
     name: str = typer.Option(..., "--name", help="Catalog name"),
-    priority: int = typer.Option(10, "--priority", help="Priority (lower = higher priority)"),
+    priority: int = typer.Option(
+        10, "--priority", help="Priority (lower = higher priority)"
+    ),
     install_allowed: bool = typer.Option(
-        False, "--install-allowed/--no-install-allowed",
+        False,
+        "--install-allowed/--no-install-allowed",
         help="Allow extensions from this catalog to be installed",
     ),
-    description: str = typer.Option("", "--description", help="Description of the catalog"),
+    description: str = typer.Option(
+        "", "--description", help="Description of the catalog"
+    ),
 ):
     """Add a catalog to .specify/extension-catalogs.yml."""
     from .extensions import ExtensionCatalog, ValidationError
@@ -3874,7 +3746,9 @@ def catalog_add(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -3900,29 +3774,39 @@ def catalog_add(
 
     catalogs = config.get("catalogs", [])
     if not isinstance(catalogs, list):
-        console.print("[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list.")
+        console.print(
+            "[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list."
+        )
         raise typer.Exit(1)
 
     # Check for duplicate name
     for existing in catalogs:
         if isinstance(existing, dict) and existing.get("name") == name:
-            console.print(f"[yellow]Warning:[/yellow] A catalog named '{name}' already exists.")
-            console.print("Use 'specify extension catalog remove' first, or choose a different name.")
+            console.print(
+                f"[yellow]Warning:[/yellow] A catalog named '{name}' already exists."
+            )
+            console.print(
+                "Use 'specify extension catalog remove' first, or choose a different name."
+            )
             raise typer.Exit(1)
 
-    catalogs.append({
-        "name": name,
-        "url": url,
-        "priority": priority,
-        "install_allowed": install_allowed,
-        "description": description,
-    })
+    catalogs.append(
+        {
+            "name": name,
+            "url": url,
+            "priority": priority,
+            "install_allowed": install_allowed,
+            "description": description,
+        }
+    )
 
     config["catalogs"] = catalogs
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False))
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})")
+    console.print(
+        f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})"
+    )
     console.print(f"  URL: {url}")
     console.print(f"  Priority: {priority}")
     console.print(f"\nConfig saved to {config_path.relative_to(project_root)}")
@@ -3937,7 +3821,9 @@ def catalog_remove(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -3954,7 +3840,9 @@ def catalog_remove(
 
     catalogs = config.get("catalogs", [])
     if not isinstance(catalogs, list):
-        console.print("[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list.")
+        console.print(
+            "[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list."
+        )
         raise typer.Exit(1)
     original_count = len(catalogs)
     catalogs = [c for c in catalogs if isinstance(c, dict) and c.get("name") != name]
@@ -3968,7 +3856,9 @@ def catalog_remove(
 
     console.print(f"[green]✓[/green] Removed catalog '{name}'")
     if not catalogs:
-        console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
+        console.print(
+            "\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]"
+        )
 
 
 @extension_app.command("add")
@@ -4263,7 +4153,9 @@ def extension_search(
                 if install_allowed:
                     console.print(f"  [dim]Catalog:[/dim] {catalog_name}")
                 else:
-                    console.print(f"  [dim]Catalog:[/dim] {catalog_name} [yellow](discovery only — not installable)[/yellow]")
+                    console.print(
+                        f"  [dim]Catalog:[/dim] {catalog_name} [yellow](discovery only — not installable)[/yellow]"
+                    )
 
             # Stats
             stats = []
@@ -4280,9 +4172,13 @@ def extension_search(
 
             # Install command (show warning if not installable)
             if install_allowed:
-                console.print(f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}")
+                console.print(
+                    f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}"
+                )
             else:
-                console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'.")
+                console.print(
+                    f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'."
+                )
                 console.print(
                     f"  Add to an approved catalog with install_allowed: true, "
                     f"or install from a ZIP URL: specify extension add {ext['id']} --from <zip-url>"
@@ -4349,8 +4245,12 @@ def extension_info(
         # Source catalog
         if ext_info.get("_catalog_name"):
             install_allowed = ext_info.get("_install_allowed", True)
-            install_note = "" if install_allowed else " [yellow](discovery only)[/yellow]"
-            console.print(f"[dim]Source catalog:[/dim] {ext_info['_catalog_name']}{install_note}")
+            install_note = (
+                "" if install_allowed else " [yellow](discovery only)[/yellow]"
+            )
+            console.print(
+                f"[dim]Source catalog:[/dim] {ext_info['_catalog_name']}{install_note}"
+            )
         console.print()
 
         # Requirements
@@ -4406,14 +4306,16 @@ def extension_info(
         console.print()
 
         # Installation status and command
-        is_installed = manager.registry.is_installed(ext_info['id'])
+        is_installed = manager.registry.is_installed(ext_info["id"])
         install_allowed = ext_info.get("_install_allowed", True)
         if is_installed:
             console.print("[green]✓ Installed[/green]")
             console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
         elif install_allowed:
             console.print("[yellow]Not installed[/yellow]")
-            console.print(f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}")
+            console.print(
+                f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}"
+            )
         else:
             catalog_name = ext_info.get("_catalog_name", "community")
             console.print("[yellow]Not installed[/yellow]")

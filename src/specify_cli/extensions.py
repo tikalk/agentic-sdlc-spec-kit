@@ -7,13 +7,13 @@ without bloating the core framework.
 """
 
 import hashlib
+import json
 import os
+import re
+import shutil
 import tempfile
 import zipfile
-import shutil
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional, Dict, List, Any
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -44,6 +44,7 @@ class CompatibilityError(ExtensionError):
 @dataclass
 class CatalogEntry:
     """Represents a single catalog entry in the catalog stack."""
+
     url: str
     name: str
     priority: int
@@ -701,7 +702,7 @@ class CommandRegistrar:
             "dir": ".tabnine/agent/commands",
             "format": "toml",
             "args": "{{args}}",
-            "extension": ".toml"
+            "extension": ".toml",
         },
         "bob": {
             "dir": ".bob/commands",
@@ -992,7 +993,9 @@ class CommandRegistrar:
 class ExtensionCatalog:
     """Manages extension catalog fetching, caching, and searching."""
 
-    DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json"
+    DEFAULT_CATALOG_URL = (
+        "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json"
+    )
     COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json"
     CACHE_DURATION = 3600  # 1 hour in seconds
 
@@ -1048,9 +1051,7 @@ class ExtensionCatalog:
         try:
             data = yaml.safe_load(config_path.read_text()) or {}
         except (yaml.YAMLError, OSError) as e:
-            raise ValidationError(
-                f"Failed to read catalog config {config_path}: {e}"
-            )
+            raise ValidationError(f"Failed to read catalog config {config_path}: {e}")
         catalogs_data = data.get("catalogs", [])
         if not catalogs_data:
             return None
@@ -1080,13 +1081,15 @@ class ExtensionCatalog:
                 install_allowed = raw_install.strip().lower() in ("true", "yes", "1")
             else:
                 install_allowed = bool(raw_install)
-            entries.append(CatalogEntry(
-                url=url,
-                name=str(item.get("name", f"catalog-{idx + 1}")),
-                priority=priority,
-                install_allowed=install_allowed,
-                description=str(item.get("description", "")),
-            ))
+            entries.append(
+                CatalogEntry(
+                    url=url,
+                    name=str(item.get("name", f"catalog-{idx + 1}")),
+                    priority=priority,
+                    install_allowed=install_allowed,
+                    description=str(item.get("description", "")),
+                )
+            )
         entries.sort(key=lambda e: e.priority)
         return entries if entries else None
 
@@ -1119,7 +1122,15 @@ class ExtensionCatalog:
                         file=sys.stderr,
                     )
                     self._non_default_catalog_warning_shown = True
-            return [CatalogEntry(url=catalog_url, name="custom", priority=1, install_allowed=True, description="Custom catalog via SPECKIT_CATALOG_URL")]
+            return [
+                CatalogEntry(
+                    url=catalog_url,
+                    name="custom",
+                    priority=1,
+                    install_allowed=True,
+                    description="Custom catalog via SPECKIT_CATALOG_URL",
+                )
+            ]
 
         # 2. Project-level config overrides all defaults
         project_config_path = self.project_root / ".specify" / "extension-catalogs.yml"
@@ -1135,8 +1146,20 @@ class ExtensionCatalog:
 
         # 4. Built-in default stack
         return [
-            CatalogEntry(url=self.DEFAULT_CATALOG_URL, name="default", priority=1, install_allowed=True, description="Built-in catalog of installable extensions"),
-            CatalogEntry(url=self.COMMUNITY_CATALOG_URL, name="community", priority=2, install_allowed=False, description="Community-contributed extensions (discovery only)"),
+            CatalogEntry(
+                url=self.DEFAULT_CATALOG_URL,
+                name="default",
+                priority=1,
+                install_allowed=True,
+                description="Built-in catalog of installable extensions",
+            ),
+            CatalogEntry(
+                url=self.COMMUNITY_CATALOG_URL,
+                name="community",
+                priority=2,
+                install_allowed=False,
+                description="Community-contributed extensions (discovery only)",
+            ),
         ]
 
     def get_catalog_url(self) -> str:
@@ -1154,7 +1177,9 @@ class ExtensionCatalog:
         active = self.get_active_catalogs()
         return active[0].url if active else self.DEFAULT_CATALOG_URL
 
-    def _fetch_single_catalog(self, entry: CatalogEntry, force_refresh: bool = False) -> Dict[str, Any]:
+    def _fetch_single_catalog(
+        self, entry: CatalogEntry, force_refresh: bool = False
+    ) -> Dict[str, Any]:
         """Fetch a single catalog with per-URL caching.
 
         For the DEFAULT_CATALOG_URL, uses legacy cache files (self.cache_file /
@@ -1214,10 +1239,15 @@ class ExtensionCatalog:
             # Save to cache
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             cache_file.write_text(json.dumps(catalog_data, indent=2))
-            cache_meta_file.write_text(json.dumps({
-                "cached_at": datetime.now(timezone.utc).isoformat(),
-                "catalog_url": entry.url,
-            }, indent=2))
+            cache_meta_file.write_text(
+                json.dumps(
+                    {
+                        "cached_at": datetime.now(timezone.utc).isoformat(),
+                        "catalog_url": entry.url,
+                    },
+                    indent=2,
+                )
+            )
 
             return catalog_data
 
@@ -1226,7 +1256,9 @@ class ExtensionCatalog:
         except json.JSONDecodeError as e:
             raise ExtensionError(f"Invalid JSON in catalog from {entry.url}: {e}")
 
-    def _get_merged_extensions(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
+    def _get_merged_extensions(
+        self, force_refresh: bool = False
+    ) -> List[Dict[str, Any]]:
         """Fetch and merge extensions from all active catalogs.
 
         Higher-priority (lower priority number) catalogs win on conflicts
