@@ -7,12 +7,74 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.0.118] - 2026-03-09
+## [0.2.0] - 2026-03-09
 
-### Added
+### Changed
+
+- fix: sync agent list comments with actual supported agents (#1785)
+- feat(extensions): support multiple active catalogs simultaneously (#1720)
+- Pavel/add tabnine cli support (#1503)
+- Add Understanding extension to community catalog (#1778)
+- Add ralph extension to community catalog (#1780)
+- Update README with project initialization instructions (#1772)
+- feat: add review extension to community catalog (#1775)
+- Add fleet extension to community catalog (#1771)
+- Integration of Mistral vibe support into speckit (#1725)
+- fix: Remove duplicate options in specify.md (#1765)
+- fix: use global branch numbering instead of per-short-name detection (#1757)
+- Add Community Walkthroughs section to README (#1766)
+- feat(extensions): add Jira Integration to community catalog (#1764)
+- Add Azure DevOps Integration extension to community catalog (#1734)
+- Fix docs: update Antigravity link and add initialization example (#1748)
+- fix: wire after_tasks and after_implement hook events into command templates (#1702)
+- make c ignores consistent with c++ (#1747)
+- chore: bump version to 0.1.13 (#1746)
+- feat: add kiro-cli and AGENT_CONFIG consistency coverage (#1690)
+- feat: add verify extension to community catalog (#1726)
+- Add Retrospective Extension to community catalog README table (#1741)
+- fix(scripts): add empty description validation and branch checkout error handling (#1559)
+- fix: correct Copilot extension command registration (#1724)
+- fix(implement): remove Makefile from C ignore patterns (#1558)
+- Add sync extension to community catalog (#1728)
+- fix(checklist): clarify file handling behavior for append vs create (#1556)
+- fix(clarify): correct conflicting question limit from 10 to 5 (#1557)
+- chore: bump version to 0.1.12 (#1737)
+- fix: use RELEASE_PAT so tag push triggers release workflow (#1736)
+- fix: release-trigger uses release branch + PR instead of direct push to main (#1733)
+- fix: Split release process to sync pyproject.toml version with git tags (#1732)
+
+### Added (Downstream)
 
 - **Mistral Vibe Support**: Integrated Mistral Vibe agent from upstream
 - **New Extensions**: Added Understanding, ralph, review, and fleet extensions from upstream community catalog
+- **Subsystem Discovery**: Added subsystem detection to product and levelup init commands (from downstream fork)
+
+### Added (Downstream)
+
+- Merged upstream changes while preserving downstream package name (`agentic-sdlc-specify-cli`)
+
+
+## [0.1.14] - 2026-03-09
+
+### Added
+
+- feat: add Tabnine CLI agent support
+- **Multi-Catalog Support (#1707)**: Extension catalog system now supports multiple active catalogs simultaneously via a catalog stack
+  - New `specify extension catalog list` command lists all active catalogs with name, URL, priority, and `install_allowed` status
+  - New `specify extension catalog add` and `specify extension catalog remove` commands for project-scoped catalog management
+  - Default built-in stack includes `catalog.json` (default, installable) and `catalog.community.json` (community, discovery only) — community extensions are now surfaced in search results out of the box
+  - `specify extension search` aggregates results across all active catalogs, annotating each result with source catalog
+  - `specify extension add` enforces `install_allowed` policy — extensions from discovery-only catalogs cannot be installed directly
+  - Project-level `.specify/extension-catalogs.yml` and user-level `~/.specify/extension-catalogs.yml` config files supported, with project-level taking precedence
+  - `SPECKIT_CATALOG_URL` environment variable still works for backward compatibility (replaces full stack with single catalog)
+  - All catalog URLs require HTTPS (HTTP allowed for localhost development)
+  - New `CatalogEntry` dataclass in `extensions.py` for catalog stack representation
+  - Per-URL hash-based caching for non-default catalogs; legacy cache preserved for default catalog
+  - Higher-priority catalogs win on merge conflicts (same extension id in multiple catalogs)
+  - 13 new tests covering catalog stack resolution, merge conflicts, URL validation, and `install_allowed` enforcement
+  - Updated RFC, Extension User Guide, and Extension API Reference documentation
+
+## [0.1.13] - 2026-03-03
 
 ### Changed
 

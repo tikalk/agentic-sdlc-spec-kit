@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: .github/workflows/scripts/create-release-packages.sh <version>
 #   Version argument should include leading 'v'.
 #   Optionally set AGENTS and/or SCRIPTS env vars to limit what gets built.
-#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai kiro-cli agy bob qodercli generic (default: all)
+#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli generic (default: all)
 #     SCRIPTS : space or comma separated subset of: sh ps (default: both)
 #   Examples:
 #     AGENTS=claude SCRIPTS=sh $0 v0.2.0
@@ -224,7 +224,7 @@ except Exception as e:
   
   # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:
   #   * Markdown/prompt (claude, copilot, cursor-agent, opencode): $ARGUMENTS
-  #   * TOML (gemini, qwen): {{args}}
+  #   * TOML (gemini, qwen, tabnine): {{args}}
   # This keeps formats readable without extra abstraction.
 
   case $agent in
@@ -281,6 +281,10 @@ except Exception as e:
     shai)
       mkdir -p "$base_dir/.shai/commands"
       generate_commands shai md "\$ARGUMENTS" "$base_dir/.shai/commands" "$script" ;;
+    tabnine)
+      mkdir -p "$base_dir/.tabnine/agent/commands"
+      generate_commands tabnine toml "{{args}}" "$base_dir/.tabnine/agent/commands" "$script"
+      [[ -f agent_templates/tabnine/TABNINE.md ]] && cp agent_templates/tabnine/TABNINE.md "$base_dir/TABNINE.md" ;;
     kiro-cli)
       mkdir -p "$base_dir/.kiro/prompts"
       generate_commands kiro-cli md "\$ARGUMENTS" "$base_dir/.kiro/prompts" "$script" ;;
@@ -305,7 +309,7 @@ except Exception as e:
 }
 
 # Determine agent list
-ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai kiro-cli q agy bob vibe qodercli generic)
+ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli generic)
 ALL_SCRIPTS=(sh ps)
 
 norm_list() {
