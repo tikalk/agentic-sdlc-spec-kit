@@ -626,8 +626,14 @@ class CommandRegistrar:
             "args": "$ARGUMENTS",
             "extension": ".agent.md",
         },
-        "cursor": {
+        "cursor-agent": {
             "dir": ".cursor/commands",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+        },
+        "codex": {
+            "dir": ".codex/prompts",
             "format": "markdown",
             "args": "$ARGUMENTS",
             "extension": ".md",
@@ -706,6 +712,30 @@ class CommandRegistrar:
         },
         "bob": {
             "dir": ".bob/commands",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+        },
+        "agy": {
+            "dir": ".agent/workflows",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+        },
+        "vibe": {
+            "dir": ".vibe/prompts",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+        },
+        "generic": {
+            "dir": ".speckit/commands",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+        },
+        "q": {
+            "dir": ".amazonq/prompts",
             "format": "markdown",
             "args": "$ARGUMENTS",
             "extension": ".md",
