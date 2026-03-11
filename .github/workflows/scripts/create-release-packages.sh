@@ -117,6 +117,87 @@ generate_commands() {
   done
 }
 
+# Generate extension commands for each agent
+generate_extension_commands() {
+  local agent=$1 ext=$2 arg_format=$3 output_dir=$4 script_variant=$5
+  mkdir -p "$output_dir"
+  
+  # Process each extension that has commands
+  for ext_dir in extensions/*/commands; do
+    [[ -d "$ext_dir" ]] || continue
+    local ext_name=$(basename "$(dirname "$ext_dir")")
+    
+    for template in "$ext_dir"/*.md; do
+      [[ -f "$template" ]] || continue
+      local cmd_name=$(basename "$template" .md)
+      
+      # Determine output names:
+      # 1. extension.command (e.g., product.init)
+      # 2. adlc.extension.command (e.g., adlc.product.init)
+      local output_name1="${ext_name}.${cmd_name}"
+      local output_name2="adlc.${ext_name}.${cmd_name}"
+      
+      # Read and process the template
+      local file_content=$(tr -d '\r' < "$template")
+      
+      # Extract description from YAML frontmatter
+      local description=$(printf '%s\n' "$file_content" | awk '/^description:/ {sub(/^description:[[:space:]]*/, ""); print; exit}' 2>/dev/null || true)
+      
+      # Extract script command from YAML frontmatter
+      local script_command=$(printf '%s\n' "$file_content" | awk -v sv="$script_variant" '/^[[:space:]]*'"$script_variant"':[[:space:]]*/ {sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, ""); print; exit}' 2>/dev/null || true)
+      
+      if [[ -z $script_command ]]; then
+        echo "Warning: no script command found for $script_variant in $template" >&2
+        script_command="(Missing script command for $script_variant)"
+      fi
+      
+      # Extract agent_script command from YAML frontmatter if present
+      local agent_script_command=$(printf '%s\n' "$file_content" | awk '
+        /^agent_scripts:$/ { in_agent_scripts=1; next }
+        in_agent_scripts && /^[[:space:]]*'"$script_variant"':[[:space:]]*/ {
+          sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, "")
+          print
+          exit
+        }
+        in_agent_scripts && /^[a-zA-Z]/ { in_agent_scripts=0 }
+      ' 2>/dev/null || true)
+      
+      # Replace placeholders
+      local escaped_script=$(printf '%s\n' "$script_command" | escape_sed_replacement)
+      local body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${escaped_script}|g")
+      
+      if [[ -n $agent_script_command ]]; then
+        local escaped_agent=$(printf '%s\n' "$agent_script_command" | escape_sed_replacement)
+        body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${escaped_agent}|g")
+      fi
+      
+      # Remove scripts: and agent_scripts: sections from frontmatter
+      body=$(printf '%s\n' "$body" | awk '
+        /^---$/ { print; if (++dash_count == 1) in_frontmatter=1; else in_frontmatter=0; next }
+        in_frontmatter && /^scripts:$/ { skip_scripts=1; next }
+        in_frontmatter && /^agent_scripts:$/ { skip_scripts=1; next }
+        in_frontmatter && /^[a-zA-Z].*:/ && skip_scripts { skip_scripts=0 }
+        in_frontmatter && skip_scripts && /^[[:space:]]/ { next }
+        { print }
+      ')
+      
+      # Apply substitutions
+      body=$(printf '%s\n' "$body" | sed "s/{ARGS}/$arg_format/g" | sed "s/__AGENT__/$agent/g" | rewrite_paths)
+      
+      # Write both versions
+      case $ext in
+        toml)
+          body=$(printf '%s\n' "$body" | sed 's/\\/\\\\/g')
+          { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/${output_name1}.$ext"
+          { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/${output_name2}.$ext" ;;
+        md|agent.md)
+          echo "$body" > "$output_dir/${output_name1}.$ext"
+          echo "$body" > "$output_dir/${output_name2}.$ext" ;;
+      esac
+    done
+  done
+}
+
 generate_copilot_prompts() {
   local agents_dir=$1 prompts_dir=$2
   mkdir -p "$prompts_dir"
@@ -230,14 +311,17 @@ except Exception as e:
   case $agent in
     claude)
       mkdir -p "$base_dir/.claude/commands"
-      generate_commands claude md "\$ARGUMENTS" "$base_dir/.claude/commands" "$script" ;;
+      generate_commands claude md "\$ARGUMENTS" "$base_dir/.claude/commands" "$script"
+      generate_extension_commands claude md "\$ARGUMENTS" "$base_dir/.claude/commands" "$script" ;;
     gemini)
       mkdir -p "$base_dir/.gemini/commands"
       generate_commands gemini toml "{{args}}" "$base_dir/.gemini/commands" "$script"
+      generate_extension_commands gemini toml "{{args}}" "$base_dir/.gemini/commands" "$script"
       [[ -f agent_templates/gemini/GEMINI.md ]] && cp agent_templates/gemini/GEMINI.md "$base_dir/GEMINI.md" ;;
     copilot)
       mkdir -p "$base_dir/.github/agents"
       generate_commands copilot agent.md "\$ARGUMENTS" "$base_dir/.github/agents" "$script"
+      generate_extension_commands copilot agent.md "\$ARGUMENTS" "$base_dir/.github/agents" "$script"
       # Generate companion prompt files
       generate_copilot_prompts "$base_dir/.github/agents" "$base_dir/.github/prompts"
       # Create VS Code workspace settings
@@ -246,63 +330,80 @@ except Exception as e:
       ;;
     cursor-agent)
       mkdir -p "$base_dir/.cursor/commands"
-      generate_commands cursor-agent md "\$ARGUMENTS" "$base_dir/.cursor/commands" "$script" ;;
+      generate_commands cursor-agent md "\$ARGUMENTS" "$base_dir/.cursor/commands" "$script"
+      generate_extension_commands cursor-agent md "\$ARGUMENTS" "$base_dir/.cursor/commands" "$script" ;;
     qwen)
       mkdir -p "$base_dir/.qwen/commands"
       generate_commands qwen toml "{{args}}" "$base_dir/.qwen/commands" "$script"
       [[ -f agent_templates/qwen/QWEN.md ]] && cp agent_templates/qwen/QWEN.md "$base_dir/QWEN.md" ;;
     opencode)
       mkdir -p "$base_dir/.opencode/command"
-      generate_commands opencode md "\$ARGUMENTS" "$base_dir/.opencode/command" "$script" ;;
+      generate_commands opencode md "\$ARGUMENTS" "$base_dir/.opencode/command" "$script"
+      generate_extension_commands opencode md "\$ARGUMENTS" "$base_dir/.opencode/command" "$script" ;;
     windsurf)
       mkdir -p "$base_dir/.windsurf/workflows"
-      generate_commands windsurf md "\$ARGUMENTS" "$base_dir/.windsurf/workflows" "$script" ;;
+      generate_commands windsurf md "\$ARGUMENTS" "$base_dir/.windsurf/workflows" "$script"
+      generate_extension_commands windsurf md "\$ARGUMENTS" "$base_dir/.windsurf/workflows" "$script" ;;
     codex)
       mkdir -p "$base_dir/.codex/prompts"
-      generate_commands codex md "\$ARGUMENTS" "$base_dir/.codex/prompts" "$script" ;;
+      generate_commands codex md "\$ARGUMENTS" "$base_dir/.codex/prompts" "$script"
+      generate_extension_commands codex md "\$ARGUMENTS" "$base_dir/.codex/prompts" "$script" ;;
     kilocode)
       mkdir -p "$base_dir/.kilocode/workflows"
-      generate_commands kilocode md "\$ARGUMENTS" "$base_dir/.kilocode/workflows" "$script" ;;
+      generate_commands kilocode md "\$ARGUMENTS" "$base_dir/.kilocode/workflows" "$script"
+      generate_extension_commands kilocode md "\$ARGUMENTS" "$base_dir/.kilocode/workflows" "$script" ;;
     auggie)
       mkdir -p "$base_dir/.augment/commands"
-      generate_commands auggie md "\$ARGUMENTS" "$base_dir/.augment/commands" "$script" ;;
+      generate_commands auggie md "\$ARGUMENTS" "$base_dir/.augment/commands" "$script"
+      generate_extension_commands auggie md "\$ARGUMENTS" "$base_dir/.augment/commands" "$script" ;;
     roo)
       mkdir -p "$base_dir/.roo/commands"
-      generate_commands roo md "\$ARGUMENTS" "$base_dir/.roo/commands" "$script" ;;
+      generate_commands roo md "\$ARGUMENTS" "$base_dir/.roo/commands" "$script"
+      generate_extension_commands roo md "\$ARGUMENTS" "$base_dir/.roo/commands" "$script" ;;
     codebuddy)
       mkdir -p "$base_dir/.codebuddy/commands"
-      generate_commands codebuddy md "\$ARGUMENTS" "$base_dir/.codebuddy/commands" "$script" ;;
+      generate_commands codebuddy md "\$ARGUMENTS" "$base_dir/.codebuddy/commands" "$script"
+      generate_extension_commands codebuddy md "\$ARGUMENTS" "$base_dir/.codebuddy/commands" "$script" ;;
     qodercli)
       mkdir -p "$base_dir/.qoder/commands"
-      generate_commands qodercli md "\$ARGUMENTS" "$base_dir/.qoder/commands" "$script" ;;
+      generate_commands qodercli md "\$ARGUMENTS" "$base_dir/.qoder/commands" "$script"
+      generate_extension_commands qodercli md "\$ARGUMENTS" "$base_dir/.qoder/commands" "$script" ;;
     amp)
       mkdir -p "$base_dir/.agents/commands"
-      generate_commands amp md "\$ARGUMENTS" "$base_dir/.agents/commands" "$script" ;;
+      generate_commands amp md "\$ARGUMENTS" "$base_dir/.agents/commands" "$script"
+      generate_extension_commands amp md "\$ARGUMENTS" "$base_dir/.agents/commands" "$script" ;;
     shai)
       mkdir -p "$base_dir/.shai/commands"
-      generate_commands shai md "\$ARGUMENTS" "$base_dir/.shai/commands" "$script" ;;
+      generate_commands shai md "\$ARGUMENTS" "$base_dir/.shai/commands" "$script"
+      generate_extension_commands shai md "\$ARGUMENTS" "$base_dir/.shai/commands" "$script" ;;
     tabnine)
       mkdir -p "$base_dir/.tabnine/agent/commands"
       generate_commands tabnine toml "{{args}}" "$base_dir/.tabnine/agent/commands" "$script"
       [[ -f agent_templates/tabnine/TABNINE.md ]] && cp agent_templates/tabnine/TABNINE.md "$base_dir/TABNINE.md" ;;
     kiro-cli)
       mkdir -p "$base_dir/.kiro/prompts"
-      generate_commands kiro-cli md "\$ARGUMENTS" "$base_dir/.kiro/prompts" "$script" ;;
+      generate_commands kiro-cli md "\$ARGUMENTS" "$base_dir/.kiro/prompts" "$script"
+      generate_extension_commands kiro-cli md "\$ARGUMENTS" "$base_dir/.kiro/prompts" "$script" ;;
     q)
       mkdir -p "$base_dir/.amazonq/prompts"
-      generate_commands q md "\$ARGUMENTS" "$base_dir/.amazonq/prompts" "$script" ;;
+      generate_commands q md "\$ARGUMENTS" "$base_dir/.amazonq/prompts" "$script"
+      generate_extension_commands q md "\$ARGUMENTS" "$base_dir/.amazonq/prompts" "$script" ;;
     agy)
       mkdir -p "$base_dir/.agent/workflows"
-      generate_commands agy md "\$ARGUMENTS" "$base_dir/.agent/workflows" "$script" ;;
+      generate_commands agy md "\$ARGUMENTS" "$base_dir/.agent/workflows" "$script"
+      generate_extension_commands agy md "\$ARGUMENTS" "$base_dir/.agent/workflows" "$script" ;;
     bob)
       mkdir -p "$base_dir/.bob/commands"
-      generate_commands bob md "\$ARGUMENTS" "$base_dir/.bob/commands" "$script" ;;
+      generate_commands bob md "\$ARGUMENTS" "$base_dir/.bob/commands" "$script"
+      generate_extension_commands bob md "\$ARGUMENTS" "$base_dir/.bob/commands" "$script" ;;
     vibe)
       mkdir -p "$base_dir/.vibe/prompts"
-      generate_commands vibe md "\$ARGUMENTS" "$base_dir/.vibe/prompts" "$script" ;;
+      generate_commands vibe md "\$ARGUMENTS" "$base_dir/.vibe/prompts" "$script"
+      generate_extension_commands vibe md "\$ARGUMENTS" "$base_dir/.vibe/prompts" "$script" ;;
     generic)
       mkdir -p "$base_dir/.speckit/commands"
-      generate_commands generic md "\$ARGUMENTS" "$base_dir/.speckit/commands" "$script" ;;
+      generate_commands generic md "\$ARGUMENTS" "$base_dir/.speckit/commands" "$script"
+      generate_extension_commands generic md "\$ARGUMENTS" "$base_dir/.speckit/commands" "$script" ;;
   esac
   ( cd "$base_dir" && zip -r "../agentic-sdlc-spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip" . )
   echo "Created $GENRELEASES_DIR/agentic-sdlc-spec-kit-template-${agent}-${script}-${NEW_VERSION}.zip"
