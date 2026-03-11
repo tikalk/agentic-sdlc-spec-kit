@@ -2560,6 +2560,56 @@ def install_ai_skills(
     return installed_count > 0 or skipped_count > 0
 
 
+def _ensure_commands_for_agent(
+    project_path: Path, extensions_dir: Path, agent_name: str
+) -> None:
+    """Ensure commands are registered for a specific agent.
+
+    This handles cases where extensions were already installed but didn't register
+    commands for this agent (e.g., new agent recently added to AGENT_CONFIGS).
+
+    Args:
+        project_path: Target project directory
+        extensions_dir: Directory containing extension directories
+        agent_name: Agent name to register commands for
+    """
+    from .extensions import CommandRegistrar, ExtensionManifest, ExtensionRegistry
+
+    if agent_name not in CommandRegistrar.AGENT_CONFIGS:
+        return
+
+    project_extensions_dir = project_path / ".specify" / "extensions"
+    if not project_extensions_dir.exists():
+        return
+
+    registry = ExtensionRegistry(project_extensions_dir)
+
+    for ext_dir in project_extensions_dir.iterdir():
+        if not ext_dir.is_dir() or ext_dir.name.startswith("."):
+            continue
+
+        ext_manifest_file = ext_dir / "extension.yml"
+        if not ext_manifest_file.exists():
+            continue
+
+        try:
+            # Check if commands already registered for this agent
+            if registry.is_installed(ext_dir.name):
+                reg_data = registry.get(ext_dir.name)
+                registered = reg_data.get("registered_commands", {}) if reg_data else {}
+                if agent_name in registered:
+                    continue
+
+            # Register commands for this agent
+            manifest = ExtensionManifest(ext_manifest_file)
+            registrar = CommandRegistrar()
+            registrar.register_commands_for_agent(
+                agent_name, manifest, ext_dir, project_path
+            )
+        except Exception:
+            continue
+
+
 def install_bundled_extensions(
     project_path: Path, selected_ai: str, tracker: StepTracker | None = None
 ) -> None:
@@ -2720,6 +2770,12 @@ def install_bundled_extensions(
             tracker.skip("extensions", f"{', '.join(skipped)}")
         else:
             tracker.skip("extensions", "none available")
+
+    # Ensure commands are registered for the selected AI agent
+    # This handles cases where extensions were already installed but didn't register
+    # commands for this agent (e.g., new agent added to AGENT_CONFIGS)
+    if bundled_extensions_dir:
+        _ensure_commands_for_agent(project_path, bundled_extensions_dir, selected_ai)
 
 
 def get_preinstalled_extensions(project_path: Path) -> list[dict]:
