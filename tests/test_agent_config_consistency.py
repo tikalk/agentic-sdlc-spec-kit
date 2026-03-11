@@ -63,9 +63,6 @@ class TestAgentConfigConsistency:
         assert "shai" in ps_agents
         assert "agy" in sh_agents
         assert "agy" in ps_agents
-        # Fork-specific: we keep q for backward compatibility
-        assert "q" in sh_agents
-        assert "q" in ps_agents
 
     def test_release_ps_switch_has_shai_and_agy_generation(self):
         """PowerShell release builder must generate files for shai and agy agents."""
@@ -122,16 +119,13 @@ class TestAgentConfigConsistency:
 
         assert ".kiro/prompts" in sh_text
         assert ".kiro/prompts" in ps_text
-        # Fork-specific: we keep q, so .amazonq/prompts should be present
-        assert ".amazonq/prompts" in sh_text
-        assert ".amazonq/prompts" in ps_text
 
         # Fork uses agentic-sdlc-spec-kit-template-* prefix
         # The gh release script uses glob pattern to pick up all generated packages
         assert "agentic-sdlc-spec-kit-template-" in gh_release_text
 
     def test_agent_context_scripts_use_kiro_cli_and_q(self):
-        """Agent context scripts should advertise both kiro-cli and q (fork behavior)."""
+        """Agent context scripts should advertise kiro-cli."""
         bash_text = (
             REPO_ROOT / "scripts" / "bash" / "update-agent-context.sh"
         ).read_text(encoding="utf-8")

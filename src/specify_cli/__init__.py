@@ -238,6 +238,13 @@ AGENT_CONFIG = {
         "install_url": "https://aws.amazon.com/developer/learning/q-developer-cli/",
         "requires_cli": True,
     },
+    "kimi": {
+        "name": "Kimi Code",
+        "folder": ".kimi/",
+        "commands_subdir": "skills",  # Kimi uses /skill:<name> with .kimi/skills/<name>/SKILL.md
+        "install_url": "https://code.kimi.com/",
+        "requires_cli": True,
+    },
     "amp": {
         "name": "Amp",
         "folder": ".agents/",
@@ -2478,7 +2485,11 @@ def install_ai_skills(
             # SKILL_DESCRIPTIONS lookups work.
             if command_name.startswith("speckit."):
                 command_name = command_name[len("speckit.") :]
-            skill_name = f"speckit-{command_name}"
+            # Kimi uses dot separator for skill names, others use hyphen
+            if selected_ai == "kimi":
+                skill_name = f"speckit.{command_name}"
+            else:
+                skill_name = f"speckit-{command_name}"
 
             # Create skill directory (additive — never removes existing content)
             skill_dir = skills_dir / skill_name

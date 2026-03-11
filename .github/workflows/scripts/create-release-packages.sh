@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: .github/workflows/scripts/create-release-packages.sh <version>
 #   Version argument should include leading 'v'.
 #   Optionally set AGENTS and/or SCRIPTS env vars to limit what gets built.
-#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli generic (default: all)
+#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi generic (default: all)
 #     SCRIPTS : space or comma separated subset of: sh ps (default: both)
 #   Examples:
 #     AGENTS=claude SCRIPTS=sh $0 v0.2.0
@@ -40,14 +40,6 @@ rewrite_paths() {
     -e 's@\.specify\.specify/@.specify/@g'
 }
 
-escape_sed_replacement() {
-  # Escape special characters in sed replacement text:
-  # - & (expands to matched pattern)
-  # - | (our delimiter)
-  # - \ (escape character)
-  sed 's/[&\|\\]/\\&/g'
-}
-
 generate_commands() {
   local agent=$1 ext=$2 arg_format=$3 output_dir=$4 script_variant=$5
   mkdir -p "$output_dir"
@@ -55,19 +47,19 @@ generate_commands() {
     [[ -f "$template" ]] || continue
     local name description script_command agent_script_command body
     name=$(basename "$template" .md)
-    
+
     # Normalize line endings
     file_content=$(tr -d '\r' < "$template")
-    
+
     # Extract description and script command from YAML frontmatter
-    description=$(printf '%s\n' "$file_content" | awk '/^description:/ {sub(/^description:[[:space:]]*/, ""); print; exit}' 2>/dev/null || true)
-    script_command=$(printf '%s\n' "$file_content" | awk -v sv="$script_variant" '/^[[:space:]]*'"$script_variant"':[[:space:]]*/ {sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, ""); print; exit}' 2>/dev/null || true)
-    
+    description=$(printf '%s\n' "$file_content" | awk '/^description:/ {sub(/^description:[[:space:]]*/, ""); print; exit}')
+    script_command=$(printf '%s\n' "$file_content" | awk -v sv="$script_variant" '/^[[:space:]]*'"$script_variant"':[[:space:]]*/ {sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, ""); print; exit}')
+
     if [[ -z $script_command ]]; then
       echo "Warning: no script command found for $script_variant in $template" >&2
       script_command="(Missing script command for $script_variant)"
     fi
-    
+
     # Extract agent_script command from YAML frontmatter if present
     agent_script_command=$(printf '%s\n' "$file_content" | awk '
       /^agent_scripts:$/ { in_agent_scripts=1; next }
@@ -77,18 +69,16 @@ generate_commands() {
         exit
       }
       in_agent_scripts && /^[a-zA-Z]/ { in_agent_scripts=0 }
-    ' 2>/dev/null || true)
-    
+    ')
+
     # Replace {SCRIPT} placeholder with the script command
-    escaped_script=$(printf '%s\n' "$script_command" | escape_sed_replacement)
-    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${escaped_script}|g")
-    
+    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${script_command}|g")
+
     # Replace {AGENT_SCRIPT} placeholder with the agent script command if found
     if [[ -n $agent_script_command ]]; then
-      escaped_agent=$(printf '%s\n' "$agent_script_command" | escape_sed_replacement)
-      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${escaped_agent}|g")
+      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${agent_script_command}|g")
     fi
-    
+
     # Remove the scripts: and agent_scripts: sections from frontmatter while preserving YAML structure
     body=$(printf '%s\n' "$body" | awk '
       /^---$/ { print; if (++dash_count == 1) in_frontmatter=1; else in_frontmatter=0; next }
@@ -98,21 +88,18 @@ generate_commands() {
       in_frontmatter && skip_scripts && /^[[:space:]]/ { next }
       { print }
     ')
-    
+
     # Apply other substitutions
     body=$(printf '%s\n' "$body" | sed "s/{ARGS}/$arg_format/g" | sed "s/__AGENT__/$agent/g" | rewrite_paths)
-    
-    # Determine output filename
-    local output_name="spec.$name"
-    
+
     case $ext in
       toml)
         body=$(printf '%s\n' "$body" | sed 's/\\/\\\\/g')
-        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/$output_name.$ext" ;;
+        { echo "description = \"$description\""; echo; echo "prompt = \"\"\""; echo "$body"; echo "\"\"\""; } > "$output_dir/speckit.$name.$ext" ;;
       md)
-        echo "$body" > "$output_dir/$output_name.$ext" ;;
+        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
       agent.md)
-        echo "$body" > "$output_dir/$output_name.$ext" ;;
+        echo "$body" > "$output_dir/speckit.$name.$ext" ;;
     esac
   done
 }
@@ -120,15 +107,14 @@ generate_commands() {
 generate_copilot_prompts() {
   local agents_dir=$1 prompts_dir=$2
   mkdir -p "$prompts_dir"
-  
+
   # Generate a .prompt.md file for each .agent.md file
-  for agent_file in "$agents_dir"/spec.*.agent.md; do
+  for agent_file in "$agents_dir"/speckit.*.agent.md; do
     [[ -f "$agent_file" ]] || continue
-    
+
     local basename=$(basename "$agent_file" .agent.md)
     local prompt_file="$prompts_dir/${basename}.prompt.md"
-    
-    # Create prompt file with agent frontmatter
+
     cat > "$prompt_file" <<EOF
 ---
 agent: ${basename}
@@ -137,95 +123,104 @@ EOF
   done
 }
 
+# Create Kimi Code skills in .kimi/skills/<name>/SKILL.md format.
+# Kimi CLI discovers skills as directories containing a SKILL.md file,
+# invoked with /skill:<name> (e.g. /skill:speckit.specify).
+create_kimi_skills() {
+  local skills_dir="$1"
+  local script_variant="$2"
+
+  for template in templates/commands/*.md; do
+    [[ -f "$template" ]] || continue
+    local name
+    name=$(basename "$template" .md)
+    local skill_name="speckit.${name}"
+    local skill_dir="${skills_dir}/${skill_name}"
+    mkdir -p "$skill_dir"
+
+    local file_content
+    file_content=$(tr -d '\r' < "$template")
+
+    # Extract description from frontmatter
+    local description
+    description=$(printf '%s\n' "$file_content" | awk '/^description:/ {sub(/^description:[[:space:]]*/, ""); print; exit}')
+    [[ -z "$description" ]] && description="Spec Kit: ${name} workflow"
+
+    # Extract script command
+    local script_command
+    script_command=$(printf '%s\n' "$file_content" | awk -v sv="$script_variant" '/^[[:space:]]*'"$script_variant"':[[:space:]]*/ {sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, ""); print; exit}')
+    [[ -z "$script_command" ]] && script_command="(Missing script command for $script_variant)"
+
+    # Extract agent_script command from frontmatter if present
+    local agent_script_command
+    agent_script_command=$(printf '%s\n' "$file_content" | awk '
+      /^agent_scripts:$/ { in_agent_scripts=1; next }
+      in_agent_scripts && /^[[:space:]]*'"$script_variant"':[[:space:]]*/ {
+        sub(/^[[:space:]]*'"$script_variant"':[[:space:]]*/, "")
+        print
+        exit
+      }
+      in_agent_scripts && /^[a-zA-Z]/ { in_agent_scripts=0 }
+    ')
+
+    # Build body: replace placeholders, strip scripts sections, rewrite paths
+    local body
+    body=$(printf '%s\n' "$file_content" | sed "s|{SCRIPT}|${script_command}|g")
+    if [[ -n $agent_script_command ]]; then
+      body=$(printf '%s\n' "$body" | sed "s|{AGENT_SCRIPT}|${agent_script_command}|g")
+    fi
+    body=$(printf '%s\n' "$body" | awk '
+      /^---$/ { print; if (++dash_count == 1) in_frontmatter=1; else in_frontmatter=0; next }
+      in_frontmatter && /^scripts:$/ { skip_scripts=1; next }
+      in_frontmatter && /^agent_scripts:$/ { skip_scripts=1; next }
+      in_frontmatter && /^[a-zA-Z].*:/ && skip_scripts { skip_scripts=0 }
+      in_frontmatter && skip_scripts && /^[[:space:]]/ { next }
+      { print }
+    ')
+    body=$(printf '%s\n' "$body" | sed 's/{ARGS}/\$ARGUMENTS/g' | sed 's/__AGENT__/kimi/g' | rewrite_paths)
+
+    # Strip existing frontmatter and prepend Kimi frontmatter
+    local template_body
+    template_body=$(printf '%s\n' "$body" | awk '/^---/{p++; if(p==2){found=1; next}} found')
+
+    {
+      printf -- '---\n'
+      printf 'name: "%s"\n' "$skill_name"
+      printf 'description: "%s"\n' "$description"
+      printf -- '---\n\n'
+      printf '%s\n' "$template_body"
+    } > "$skill_dir/SKILL.md"
+  done
+}
+
 build_variant() {
   local agent=$1 script=$2
   local base_dir="$GENRELEASES_DIR/sdd-${agent}-package-${script}"
   echo "Building $agent ($script) package..."
   mkdir -p "$base_dir"
-  
+
   # Copy base structure but filter scripts by variant
   SPEC_DIR="$base_dir/.specify"
   mkdir -p "$SPEC_DIR"
-  
+
   [[ -d memory ]] && { cp -r memory "$SPEC_DIR/"; echo "Copied memory -> .specify"; }
-  
+
   # Only copy the relevant script variant directory
   if [[ -d scripts ]]; then
     mkdir -p "$SPEC_DIR/scripts"
     case $script in
       sh)
         [[ -d scripts/bash ]] && { cp -r scripts/bash "$SPEC_DIR/scripts/"; echo "Copied scripts/bash -> .specify/scripts"; }
-        # Copy any script files that aren't in variant-specific directories
         find scripts -maxdepth 1 -type f -exec cp {} "$SPEC_DIR/scripts/" \; 2>/dev/null || true
         ;;
       ps)
         [[ -d scripts/powershell ]] && { cp -r scripts/powershell "$SPEC_DIR/scripts/"; echo "Copied scripts/powershell -> .specify/scripts"; }
-        # Copy any script files that aren't in variant-specific directories
         find scripts -maxdepth 1 -type f -exec cp {} "$SPEC_DIR/scripts/" \; 2>/dev/null || true
         ;;
     esac
   fi
-  
+
   [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .specify/templates"; }
-  
-  # Copy extensions catalog and preinstall extensions
-  if [[ -f "extensions/catalog.json" ]]; then
-    # Substitute {{VERSION}} placeholder in catalog.json before copying
-    sed "s/{{VERSION}}/$NEW_VERSION/g" "extensions/catalog.json" > "$SPEC_DIR/catalog.json"
-    echo "Copied extensions/catalog.json -> .specify/catalog.json (with version substitution)"
-    
-    # Read preinstall extensions from catalog.json
-    preinstall_exts=$(python3 -c "
-import json
-import sys
-try:
-    with open('extensions/catalog.json') as f:
-        data = json.load(f)
-    extensions = data.get('extensions', {})
-    # Get extensions with preinstall: true
-    preinstall = [k for k, v in extensions.items() if v.get('preinstall', False)]
-    if preinstall:
-        print(' '.join(preinstall))
-    else:
-        # Fallback: if no preinstall field, use all extensions
-        print(' '.join(extensions.keys()))
-except Exception as e:
-    print(f'Warning: Failed to parse catalog.json: {e}', file=sys.stderr)
-    sys.exit(1)
-" 2>&1)
-    
-    # Check if python command failed
-    if [[ $? -ne 0 ]]; then
-      echo "Warning: $preinstall_exts" >&2
-      # Fallback: copy all extension directories
-      preinstall_exts=$(ls -d extensions/*/ 2>/dev/null | xargs -n1 basename | tr '\n' ' ')
-    fi
-    
-    # Copy preinstall extensions
-    for ext in $preinstall_exts; do
-      if [[ -d "extensions/$ext" ]]; then
-        mkdir -p "$SPEC_DIR/extensions"
-        cp -r "extensions/$ext" "$SPEC_DIR/extensions/"
-        echo "Copied extensions/$ext -> .specify/extensions"
-      fi
-    done
-  else
-    # Fallback: copy all extension directories if no catalog.json
-    echo "Warning: extensions/catalog.json not found, copying all extensions" >&2
-    for ext_dir in extensions/*/; do
-      if [[ -d "$ext_dir" ]] && [[ -f "$ext_dir/extension.yml" ]]; then
-        ext=$(basename "$ext_dir")
-        mkdir -p "$SPEC_DIR/extensions"
-        cp -r "$ext_dir" "$SPEC_DIR/extensions/"
-        echo "Copied extensions/$ext -> .specify/extensions"
-      fi
-    done
-  fi
-  
-  # NOTE: We substitute {ARGS} internally. Outward tokens differ intentionally:
-  #   * Markdown/prompt (claude, copilot, cursor-agent, opencode): $ARGUMENTS
-  #   * TOML (gemini, qwen, tabnine): {{args}}
-  # This keeps formats readable without extra abstraction.
 
   case $agent in
     claude)
@@ -238,9 +233,7 @@ except Exception as e:
     copilot)
       mkdir -p "$base_dir/.github/agents"
       generate_commands copilot agent.md "\$ARGUMENTS" "$base_dir/.github/agents" "$script"
-      # Generate companion prompt files
       generate_copilot_prompts "$base_dir/.github/agents" "$base_dir/.github/prompts"
-      # Create VS Code workspace settings
       mkdir -p "$base_dir/.vscode"
       [[ -f templates/vscode-settings.json ]] && cp templates/vscode-settings.json "$base_dir/.vscode/settings.json"
       ;;
@@ -288,9 +281,6 @@ except Exception as e:
     kiro-cli)
       mkdir -p "$base_dir/.kiro/prompts"
       generate_commands kiro-cli md "\$ARGUMENTS" "$base_dir/.kiro/prompts" "$script" ;;
-    q)
-      mkdir -p "$base_dir/.amazonq/prompts"
-      generate_commands q md "\$ARGUMENTS" "$base_dir/.amazonq/prompts" "$script" ;;
     agy)
       mkdir -p "$base_dir/.agent/workflows"
       generate_commands agy md "\$ARGUMENTS" "$base_dir/.agent/workflows" "$script" ;;
@@ -300,6 +290,9 @@ except Exception as e:
     vibe)
       mkdir -p "$base_dir/.vibe/prompts"
       generate_commands vibe md "\$ARGUMENTS" "$base_dir/.vibe/prompts" "$script" ;;
+    kimi)
+      mkdir -p "$base_dir/.kimi/skills"
+      create_kimi_skills "$base_dir/.kimi/skills" "$script" ;;
     generic)
       mkdir -p "$base_dir/.speckit/commands"
       generate_commands generic md "\$ARGUMENTS" "$base_dir/.speckit/commands" "$script" ;;
@@ -309,11 +302,10 @@ except Exception as e:
 }
 
 # Determine agent list
-ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli q agy bob vibe qodercli generic)
+ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi generic)
 ALL_SCRIPTS=(sh ps)
 
 norm_list() {
-  # convert comma+space separated -> line separated unique while preserving order of first occurrence
   tr ',\n' '  ' | awk '{for(i=1;i<=NF;i++){if(!seen[$i]++){printf((out?"\n":"") $i);out=1}}}END{printf("\n")}'
 }
 
@@ -348,32 +340,11 @@ fi
 echo "Agents: ${AGENT_LIST[*]}"
 echo "Scripts: ${SCRIPT_LIST[*]}"
 
-create_extension_packages() {
-  local version=$1
-  local ext_dir="$GENRELEASES_DIR/extensions"
-  mkdir -p "$ext_dir"
-  
-  echo "Creating extension packages..."
-  
-  for ext_path in extensions/*/; do
-    if [[ -f "$ext_path/extension.yml" ]]; then
-      local ext_name=$(basename "$ext_path")
-      local zip_name="extension-${ext_name}-${version}.zip"
-      
-      (cd "extensions" && zip -r "../$ext_dir/$zip_name" "$ext_name")
-      echo "Created $ext_dir/$zip_name"
-    fi
-  done
-}
-
 for agent in "${AGENT_LIST[@]}"; do
   for script in "${SCRIPT_LIST[@]}"; do
     build_variant "$agent" "$script"
   done
 done
 
-create_extension_packages "$NEW_VERSION"
-
 echo "Archives in $GENRELEASES_DIR:"
 ls -1 "$GENRELEASES_DIR"/agentic-sdlc-spec-kit-template-*-"${NEW_VERSION}".zip
-ls -1 "$GENRELEASES_DIR"/extensions/*.zip
