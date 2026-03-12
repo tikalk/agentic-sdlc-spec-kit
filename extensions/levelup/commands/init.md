@@ -45,7 +45,7 @@ Scan an **existing codebase** (brownfield) and discover patterns that could beco
 
 **Output**:
 
-1. **CDRs** documenting discovered context patterns in `.specify/memory/cdr.md`
+1. **Proposed modules** added to `{TEAM_DIRECTIVES}/.cdrs.json` with status "proposed"
 2. **Summary** of discovered patterns by context type
 3. **Manual handoff options** to `/levelup.clarify` or `/levelup.specify`
 
@@ -90,20 +90,36 @@ You are acting as a **Context Archaeologist** uncovering implicit team AI direct
 
 ## Outline
 
-1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
-2. **Environment Setup**: Resolve team-ai-directives path and initialize CDR file
-3. **Load Existing Directives**: Read team-ai-directives to compare against
-4. **Codebase Scan**: Analyze project for context patterns (per sub-system if decomposed)
-5. **Pattern Detection**: Identify patterns by context type
-6. **Deduplication**: Filter out patterns already in team-ai-directives
-7. **CDR Generation**: Create CDRs for discovered patterns (status: "Discovered")
-8. **Gap Analysis**: Identify areas where patterns are unclear
-9. **Output**: Write CDRs to `.specify/memory/cdr.md`
-10. **Summary**: Present findings with next step options
+1. **Validate Environment** (Phase 1): Ensure team-ai-directives is configured
+2. **Sub-System Detection** (Phase 2): Identify sub-systems from code structure (auto-detect)
+3. **Environment Setup** (Phase 3): Resolve paths and setup directories
+4. **Load Existing Directives** (Phase 4): Read team-ai-directives to compare against
+5. **Codebase Scan** (Phase 5): Analyze project for context patterns (per sub-system if decomposed)
+6. **Pattern Detection** (Phase 6): Identify patterns by context type
+7. **Deduplication** (Phase 7): Filter out patterns already in team-ai-directives
+8. **CDR Generation** (Phase 8): Create CDRs for discovered patterns (status: "proposed")
+9. **Gap Analysis** (Phase 9): Identify areas where patterns are unclear
+10. **Output** (Phase 10): Write modules to `{TEAM_DIRECTIVES}/.cdrs.json`
+11. **Handoff Options** (Phase 11): Present next step options
 
 ## Execution Steps
 
-### Phase 0: Sub-System Detection (Brownfield)
+### Phase 1: Validate Environment
+
+**Objective**: Ensure team-ai-directives is configured
+
+#### Step 1: Verify Team Directives
+
+Check if TEAM_DIRECTIVES has a value from script output.
+
+If empty, **STOP**:
+```
+Team AI directives repository not configured.
+Run: specify init --team-ai-directives <path-or-url>
+Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
+```
+
+### Phase 2: Sub-System Detection (Brownfield)
 
 **Objective**: Identify sub-systems from existing code structure automatically
 
@@ -206,46 +222,29 @@ After confirmation, output structured sub-system data:
 
 ---
 
-### Phase 1: Environment Setup
+### Phase 3: Environment Setup
 
-**Objective**: Resolve paths and initialize CDR infrastructure
+**Objective**: Resolve paths and validate infrastructure
 
-#### Step 1: Resolve Team AI Directives Path
+#### Step 1: Setup Directories
 
-Resolve the team-ai-directives repository path in this order:
+Run `{SCRIPT}` to set up the infrastructure:
 
-1. `SPECIFY_TEAM_DIRECTIVES` environment variable
-2. `.specify/team-ai-directives` (submodule - recommended)
-3. `.specify/memory/team-ai-directives` (clone - legacy)
+- Creates skills drafts directory at `.specify/drafts/skills/`
+- Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-```bash
-TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    if [[ -d ".specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES=".specify/team-ai-directives"
-    elif [[ -d ".specify/memory/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES=".specify/memory/team-ai-directives"
-    fi
-fi
-```
+The `.cdrs.json` file should already exist in team-ai-directives.
 
-If no team-ai-directives found, **STOP** and instruct user:
+#### Step 2: Setup Directories
 
-```
-Team AI directives repository not found.
-Run: specify init --team-ai-directives <path-or-url>
-```
+Run `{SCRIPT}` to set up the infrastructure:
 
-#### Step 2: Initialize CDR File
+- Creates skills drafts directory at `.specify/drafts/skills/`
+- Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-Run `{SCRIPT}` to set up the CDR infrastructure:
+The `.cdrs.json` file should already exist in team-ai-directives (created during init).
 
-- Creates `.specify/memory/cdr.md` if not exists (using CDR template)
-- Returns JSON with `CDR_FILE`, `TEAM_DIRECTIVES`, `REPO_ROOT`
-
-If CDR file already exists, load current CDRs and continue (append new discoveries).
-
-### Phase 2: Load Existing Directives
+### Phase 4: Load Existing Directives
 
 **Objective**: Load team-ai-directives to compare against and avoid duplicates
 
@@ -275,7 +274,7 @@ Scan `{TEAM_DIRECTIVES}/context_modules/examples/` directory.
 
 Scan `{TEAM_DIRECTIVES}/skills/` directory and read `.skills.json` if exists.
 
-### Phase 3: Codebase Scan
+### Phase 5: Codebase Scan
 
 **Objective**: Analyze the codebase for context patterns
 
@@ -324,7 +323,7 @@ Scan for documented patterns:
 - `docs/` - Architecture decisions, patterns
 - Code comments with `TODO`, `FIXME`, `NOTE` - Potential improvements
 
-### Phase 4: Pattern Detection
+### Phase 6: Pattern Detection
 
 **Objective**: Categorize discovered patterns by context type
 
@@ -358,7 +357,7 @@ Apply the `--cdr-heuristic` setting:
 - Patterns with clear evidence of success
 - Skip uncertain or minor patterns
 
-### Phase 5: Deduplication
+### Phase 7: Deduplication
 
 **Objective**: Filter out patterns already covered in team-ai-directives
 
@@ -369,7 +368,7 @@ For each discovered pattern:
 3. If >80% overlap with existing directive, skip
 4. If partial overlap, note for potential enhancement (not new CDR)
 
-### Phase 6: CDR Generation
+### Phase 8: CDR Generation
 
 **Objective**: Create CDRs for discovered patterns
 
@@ -420,7 +419,7 @@ Brownfield codebase scan via /levelup.init
 
 Assign sequential CDR IDs starting from the highest existing ID + 1.
 
-### Phase 7: Gap Analysis
+### Phase 9: Gap Analysis
 
 **Objective**: Identify areas where patterns are unclear
 
@@ -431,17 +430,18 @@ Document gaps for `/levelup.clarify`:
 - Potential patterns needing team input
 - Areas where multiple approaches exist
 
-### Phase 8: Output
+### Phase 10: Output
 
 **Objective**: Write CDRs to file and present summary
 
 #### Step 1: Write CDRs
 
-Append generated CDRs to `.specify/memory/cdr.md`:
+Add proposed modules to `{TEAM_DIRECTIVES}/.cdrs.json`:
 
-- Update CDR Index table
-- Add each CDR entry
-- Preserve existing CDRs (don't overwrite)
+- Load existing `.cdrs.json`
+- Add new proposed modules with unique IDs
+- Save updated JSON
+- Do not overwrite existing active/accepted modules
 
 #### Step 2: Create Summary
 
@@ -480,13 +480,13 @@ Present discovery summary:
 
 ### Next Steps
 
-1. Review CDRs in `.specify/memory/cdr.md`
+1. Review proposed modules in `{TEAM_DIRECTIVES}/.cdrs.json`
 2. Run `/levelup.clarify` to resolve ambiguities
-3. Mark CDRs as "Accepted" or "Rejected"
+3. Mark modules as "accepted" or "deprecated"
 4. Run `/levelup.implement` to create PR
 ```
 
-### Phase 9: Handoff Options
+### Phase 11: Handoff Options
 
 Present manual handoff options (no auto-trigger):
 
@@ -518,11 +518,11 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Context Directive Records |
+| `{TEAM_DIRECTIVES}/.cdrs.json` | Context Directive Records |
 
 ## Notes
 
-- CDRs start with status "Discovered" - they need review before implementation
+- Modules start with status "proposed" - they need review before implementation
 - Existing CDRs are preserved; new discoveries are appended
 - The `--cdr-heuristic` flag significantly affects output volume
 - Gaps are documented for follow-up with `/levelup.clarify`

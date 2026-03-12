@@ -24,15 +24,16 @@ If no input provided, ask the user to specify a skill name or CDR ID.
 
 ## Goal
 
-Build a **single skill** from accepted CDRs based on user input. Skills are self-contained capabilities that can be loaded by AI agents.
+Build a **single skill** from accepted modules based on user input. Skills are self-contained capabilities that can be loaded by AI agents.
 
 **Input**:
-- User-specified skill name, CDR ID, or topic
-- Accepted CDRs from `.specify/memory/cdr.md`
+- User-specified skill name, module ID, or topic
+- Accepted modules from `{TEAM_DIRECTIVES}/.cdrs.json` (status "accepted")
 
 **Output**:
 - Skill directory in `.specify/drafts/skills/{skill-name}/`
-- Ready for `/levelup.implement` to move to team-ai-directives
+- Entry added to `{TEAM_DIRECTIVES}/.skills.json` with status "proposed"
+- Ready for `/levelup.implement` to activate
 
 ## Role & Context
 
@@ -94,9 +95,7 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 ```json
 {
   "REPO_ROOT": "/path/to/project",
-  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
   "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
-  "TEAM_DIRECTIVES_EXISTS": true,
   "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
   "BRANCH": "current-branch"
 }
@@ -106,7 +105,22 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 
 Skills will be created in SKILLS_DRAFTS directory.
 
-### Phase 1: Parse User Input
+### Phase 1: Validate Environment
+
+**Objective**: Ensure team-ai-directives is configured
+
+#### Step 1: Verify Team Directives
+
+Check if TEAM_DIRECTIVES has a value from script output.
+
+If empty, **STOP**:
+```
+Team AI directives repository not configured.
+Run: specify init --team-ai-directives <path-or-url>
+Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
+```
+
+### Phase 2: Parse User Input
 
 **Objective**: Determine which skill to build
 
@@ -120,41 +134,41 @@ Parse user input to identify:
 
 If input is ambiguous, ask for clarification.
 
-### Phase 2: Load and Filter CDRs
+### Phase 3: Load and Filter Modules
 
-**Objective**: Find relevant accepted CDRs
+**Objective**: Find relevant accepted modules
 
-#### Step 1: Load CDRs
+#### Step 1: Load Modules
 
-Read CDR_FILE (from script output) and filter:
-- Status = "Accepted"
-- Context Type = "Skill" (primary) or related types
+Read `{TEAM_DIRECTIVES}/.cdrs.json` and filter modules:
+- Status = "accepted"
+- Type = "skill" (primary) or related types
 
-#### Step 2: Match CDRs to Input
+#### Step 2: Match Modules to Input
 
-If CDR ID provided:
-- Use that specific CDR
-- Optionally include related CDRs
+If module ID provided:
+- Use that specific module
+- Optionally include related modules
 
 If skill name/topic provided:
-- Search CDR titles and content
+- Search module paths and content
 - Match by keywords
 - Present matches for confirmation
 
 ```markdown
-### Matching CDRs for "{input}"
+### Matching Modules for "{input}"
 
-| CDR | Title | Type | Relevance |
-|-----|-------|------|-----------|
-| CDR-005 | Kubernetes Deployment Pattern | Skill | High |
-| CDR-007 | Container Best Practices | Rule | Medium |
+| Module | Path | Type | Relevance |
+|--------|------|------|-----------|
+| k8s_deployment | context_modules/rules/devops/k8s_deployment.md | rule | High |
+| container_patterns | context_modules/rules/devops/container_patterns.md | rule | Medium |
 
 **Selected**: CDR-005, CDR-007
 
 Proceed with these CDRs? (Y/N or specify different CDRs)
 ```
 
-### Phase 3: Generate Skill Structure
+### Phase 4: Generate Skill Structure
 
 **Objective**: Create skill directory and files
 
@@ -243,7 +257,7 @@ references/
     └── validation.md # Validation checklist
 ```
 
-### Phase 4: Prepare Skills Manifest Entry
+### Phase 5: Prepare Skills Manifest Entry
 
 **Objective**: Prepare entry for `.skills.json`
 
@@ -261,7 +275,7 @@ Generate the entry for team-ai-directives `.skills.json`:
 
 Save to `.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`.
 
-### Phase 5: Validation
+### Phase 6: Validation
 
 **Objective**: Validate skill structure
 
@@ -273,7 +287,7 @@ Check skill completeness:
 - [ ] References linked correctly (if any)
 - [ ] `.skills-entry.json` generated
 
-### Phase 6: Summary
+### Phase 7: Summary
 
 **Objective**: Present skill for review
 
@@ -320,19 +334,20 @@ Check skill completeness:
 |------|-------------|
 | `.specify/drafts/skills/{skill-name}/SKILL.md` | Main skill definition |
 | `.specify/drafts/skills/{skill-name}/references/` | Supporting content |
-| `.specify/drafts/skills/{skill-name}/.skills-entry.json` | Manifest entry |
+| `{TEAM_DIRECTIVES}/.skills.json` | Updated with proposed skill entry |
 
 ## Notes
 
 - Builds ONE skill at a time - user specifies which
-- Only uses CDRs with status "Accepted"
-- Skills follow team-ai-directives format for compatibility with #49
+- Only uses modules with status "accepted" from `.cdrs.json`
+- Skills follow team-ai-directives format for compatibility
 - Review generated skill before running `/levelup.implement`
 - Skill can be edited manually before implementation
+- Entry in `.skills.json` gets status "proposed" until `/levelup.implement` activates it
 
 ## Related Commands
 
-- `/levelup.init` - Discover CDRs from codebase
-- `/levelup.clarify` - Accept CDRs for skill building
-- `/levelup.specify` - Enrich CDRs with feature context
-- `/levelup.implement` - Move skill to team-ai-directives
+- `/levelup.init` - Discover modules from codebase
+- `/levelup.clarify` - Accept modules for skill building
+- `/levelup.specify` - Enrich modules with feature context
+- `/levelup.implement` - Move skill to team-ai-directives and set status to "active"

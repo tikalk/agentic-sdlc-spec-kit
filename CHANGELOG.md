@@ -7,6 +7,19 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.125] - 2026-03-12
+
+### Changed
+
+- **Breaking**: Migrated CDR (Context Directive Record) system from `.specify/memory/cdr.md` to `{TEAM_DIRECTIVES}/.cdrs.json`
+  - Removed local `cdr.md` file creation and management
+  - Created `.cdrs.json` in team-ai-directives to track context modules (34 modules pre-populated)
+  - Added `status` field to `.skills.json` for skill lifecycle tracking
+  - Updated all levelup commands to read/write from `.cdrs.json` in team-ai-directives
+  - Status values: `discovered` | `proposed` | `accepted` | `active` | `deprecated`
+  - Migration path: All levelup commands now work directly with upstream repository
+  - **Removed**: Redundant `TEAM_DIRECTIVES_EXISTS` flag from setup scripts - existence is now checked implicitly via `TEAM_DIRECTIVES` value
+
 ## [0.2.1] - 2026-03-11
 
 ### Changed

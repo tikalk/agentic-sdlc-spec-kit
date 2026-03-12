@@ -35,11 +35,11 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Resolve ambiguities in discovered or proposed CDRs through **clarifying questions**. Update CDR statuses based on answers.
+Resolve ambiguities in discovered or proposed CDRs through **clarifying questions**. Update module statuses based on answers.
 
-**Input**: CDRs from `.specify/memory/cdr.md` with status "Discovered" or "Proposed"
+**Input**: Modules from `{TEAM_DIRECTIVES}/.cdrs.json` with status "discovered" or "proposed"
 
-**Output**: Updated CDRs with refined content and new statuses
+**Output**: Updated modules with refined content and new statuses in `.cdrs.json`
 
 **Key Concept**:
 
@@ -76,9 +76,7 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 ```json
 {
   "REPO_ROOT": "/path/to/project",
-  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
   "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
-  "TEAM_DIRECTIVES_EXISTS": true,
   "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
   "BRANCH": "current-branch"
 }
@@ -86,30 +84,45 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 
 **IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
 
-### Phase 1: Load Current State
+### Phase 1: Validate Environment
+
+**Objective**: Ensure team-ai-directives is configured
+
+#### Step 1: Verify Team Directives
+
+Check if TEAM_DIRECTIVES has a value from script output.
+
+If empty, **STOP**:
+```
+Team AI directives repository not configured.
+Run: specify init --team-ai-directives <path-or-url>
+Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
+```
+
+### Phase 2: Load Current State
 
 **Objective**: Load CDRs and team-ai-directives for validation
 
 #### Step 1: Load CDRs
 
-Read CDR_FILE (from script output) and parse all CDRs.
+Read `{TEAM_DIRECTIVES}/.cdrs.json` and parse all modules.
 
-Filter CDRs by status:
-- **Primary**: Status = "Discovered" or "Proposed"
-- **Skip**: Status = "Accepted", "Rejected", "Implemented"
+Filter modules by status:
+- **Primary**: Status = "discovered" or "proposed"
+- **Skip**: Status = "accepted", "active", "deprecated"
 
-If user specified specific CDR IDs, filter to those.
+If user specified specific module IDs, filter to those.
 
 #### Step 2: Load Team Directives
 
-If TEAM_DIRECTIVES_EXISTS is true, load existing team-ai-directives for comparison:
+If `TEAM_DIRECTIVES` has a value, load existing team-ai-directives for comparison:
 - `context_modules/constitution.md`
 - `context_modules/rules/**/*.md`
 - `context_modules/personas/*.md`
 - `context_modules/examples/**/*.md`
 - `skills/**/*`
 
-### Phase 2: Clarification Loop
+### Phase 3: Clarification Loop
 
 **Objective**: Ask clarifying questions for each CDR
 
@@ -207,7 +220,7 @@ Current proposed content:
     - {user input for changes}
 ```
 
-### Phase 3: Process Answers
+### Phase 4: Process Answers
 
 **Objective**: Update CDRs based on clarification answers
 
@@ -232,33 +245,38 @@ If content needs revision:
 2. Update proposed content in CDR
 3. Keep status as "Proposed" for another review cycle
 
-### Phase 4: Update CDRs
+### Phase 5: Update Modules
 
-**Objective**: Write updated CDRs to file
+**Objective**: Write updated modules to `.cdrs.json`
 
-#### Step 1: Update CDR File
+#### Step 1: Update Module File
 
-Update CDR_FILE (from script output) for each clarified CDR:
+Update `{TEAM_DIRECTIVES}/.cdrs.json` for each clarified module:
 
-1. Update status
-2. Update content if revised
-3. Add clarification notes:
+1. Update status field
+2. Add or update content if revised
+3. Add clarification metadata:
 
-```markdown
-### Clarification Notes
-
-**Clarified**: {date}
-**Validation**: {validity answer}
-**Scope**: {scope answer}
-**Priority**: {priority answer}
-**Changes Made**: {list of changes}
+```json
+{
+  "modules": {
+    "{module-id}": {
+      "path": "context_modules/rules/{domain}/{file}.md",
+      "type": "rule",
+      "status": "accepted",
+      "clarification": {
+        "date": "2026-03-12",
+        "validation": "{validity answer}",
+        "scope": "{scope answer}",
+        "priority": "{priority answer}",
+        "changes": ["{list of changes}"]
+      }
+    }
+  }
+}
 ```
 
-#### Step 2: Update CDR Index
-
-Update the index table with new statuses.
-
-### Phase 5: Summary
+### Phase 6: Summary
 
 **Objective**: Present clarification results
 
@@ -301,7 +319,7 @@ Update the index table with new statuses.
 3. **Build Skills**: Run `/levelup.skills {topic}` for skill-type CDRs
 ```
 
-### Phase 6: Handoff Options
+### Phase 7: Handoff Options
 
 Present manual handoff options:
 
@@ -327,13 +345,13 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Updated Context Directive Records |
+| `{TEAM_DIRECTIVES}/.cdrs.json` | Updated Context Directive Records |
 
 ## Notes
 
-- Only CDRs with status "Discovered" or "Proposed" are clarified
-- Accepted CDRs are ready for `/levelup.implement`
-- Rejected CDRs remain in the file for historical record
+- Only modules with status "discovered" or "proposed" are clarified
+- Accepted modules (status "accepted") are ready for `/levelup.implement`
+- Rejected modules can be removed or kept with status "deprecated"
 - Content can be revised multiple times before acceptance
 - No automatic handoff - user decides next step
 

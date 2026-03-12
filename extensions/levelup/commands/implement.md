@@ -25,7 +25,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. Create or update context modules based on CDR decisions.
 
 **Input**:
-- Accepted CDRs from `.specify/memory/cdr.md`
+- Accepted CDRs from `{TEAM_DIRECTIVES}/.cdrs.json` (with status "accepted")
 - Draft skills from `.specify/drafts/skills/`
 - Team-ai-directives repository
 
@@ -33,7 +33,7 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 - New branch in team-ai-directives
 - Created/updated context modules
 - Draft PR (or ready PR with `--ready` flag)
-- Updated CDR statuses to "Implemented"
+- Updated CDR statuses to "active" in `.cdrs.json`
 
 **MCP Integration**:
 
@@ -53,7 +53,7 @@ You are acting as a **Context Publisher** - moving accepted CDRs from local draf
 ### Prerequisites
 
 Before running:
-1. At least one CDR with status "Accepted"
+1. At least one module with status "accepted" in `{TEAM_DIRECTIVES}/.cdrs.json`
 2. Team-ai-directives repository configured and accessible
 3. Working tree at team-ai-directives is clean
 4. Git credentials configured for push
@@ -69,9 +69,7 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 ```json
 {
   "REPO_ROOT": "/path/to/project",
-  "CDR_FILE": "/path/to/project/.specify/memory/cdr.md",
   "TEAM_DIRECTIVES": "/path/to/team-ai-directives",
-  "TEAM_DIRECTIVES_EXISTS": true,
   "SKILLS_DRAFTS": "/path/to/project/.specify/drafts/skills",
   "BRANCH": "current-branch"
 }
@@ -85,12 +83,13 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 
 #### Step 1: Verify Team Directives
 
-Check TEAM_DIRECTIVES_EXISTS from script output.
+Check if TEAM_DIRECTIVES has a value from script output.
 
-If false, **STOP**:
+If empty, **STOP**:
 ```
-Team AI directives repository not found.
+Team AI directives repository not configured.
 Run: specify init --team-ai-directives <path-or-url>
+Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
 ```
 
 #### Step 2: Check Working Tree
@@ -110,10 +109,10 @@ Please commit or stash changes before running /levelup.implement.
 
 #### Step 3: Load Accepted CDRs
 
-Read CDR_FILE (from script output) and filter:
-- Status = "Accepted"
+Read `{TEAM_DIRECTIVES}/.cdrs.json` and filter modules with:
+- Status = "accepted"
 
-If no accepted CDRs, **STOP**:
+If no accepted modules, **STOP**:
 ```
 No accepted CDRs found.
 Run /levelup.clarify to review and accept CDRs first.
@@ -326,21 +325,30 @@ MCP tools not available. Create PR manually:
 
 ### Phase 5: Update CDR Statuses
 
-**Objective**: Mark CDRs as implemented
+**Objective**: Mark CDRs as active
 
-Update CDR_FILE (from script output):
+Update `{TEAM_DIRECTIVES}/.cdrs.json`:
 
-For each implemented CDR:
-- Change status: "Accepted" → "Implemented"
-- Add implementation notes:
+For each implemented module:
+- Change status: "accepted" → "active"
 
-```markdown
-### Implementation Notes
-
-**Implemented**: {date}
-**Branch**: {BRANCH_NAME}
-**PR**: {PR-URL or "Manual"}
-**Commit**: {commit-sha}
+Add implementation metadata to the module entry:
+```json
+{
+  "modules": {
+    "{module-id}": {
+      "path": "context_modules/rules/{domain}/{file}.md",
+      "type": "rule",
+      "status": "active",
+      "implemented": {
+        "date": "2026-03-12",
+        "branch": "{BRANCH_NAME}",
+        "pr": "{PR-URL}",
+        "commit": "{commit-sha}"
+      }
+    }
+  }
+}
 ```
 
 ### Phase 6: Summary
@@ -397,7 +405,7 @@ For each implemented CDR:
 
 | File | Description |
 |------|-------------|
-| `.specify/memory/cdr.md` | Updated CDR statuses |
+| `{TEAM_DIRECTIVES}/.cdrs.json` | Updated CDR statuses (accepted → active) |
 | `{TEAM_DIRECTIVES}/context_modules/**` | New/updated context modules |
 | `{TEAM_DIRECTIVES}/skills/**` | New skills |
 | `{TEAM_DIRECTIVES}/.skills.json` | Updated manifest |
@@ -412,8 +420,8 @@ For each implemented CDR:
 ## Notes
 
 - Creates draft PR by default for review before merge
-- Only implements CDRs with status "Accepted"
-- Updates CDR statuses to "Implemented" after successful PR creation
+- Only implements modules with status "accepted" in `.cdrs.json`
+- Updates module statuses to "active" after successful PR creation
 - Skills from `.specify/drafts/skills/` are included unless `--skip-skills`
 - If MCP unavailable, provides manual instructions
 - Working tree must be clean before running
