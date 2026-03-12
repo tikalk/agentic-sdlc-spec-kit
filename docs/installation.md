@@ -17,15 +17,15 @@
 The easiest way to get started is to initialize a new project:
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
 ```
 
 Or initialize in the current directory:
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init .
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init .
 # or use the --here flag
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init --here
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init --here
 ```
 
 ### Specify AI Agent
@@ -33,10 +33,10 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 You can proactively specify your AI agent during initialization:
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai gemini
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai copilot
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai codebuddy
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai gemini
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai copilot
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai codebuddy
 ```
 
 ### Specify Script Type (Shell vs PowerShell)
@@ -52,8 +52,8 @@ Auto behavior:
 Force a specific script type:
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --script sh
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --script ps
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --script sh
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --script ps
 ```
 
 ### Ignore Agent Tools Check
@@ -61,7 +61,7 @@ uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init 
 If you prefer to get the templates without checking for the right tools:
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude --ignore-agent-tools
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude --ignore-agent-tools
 ```
 
 ### Configure Team AI Directives
@@ -70,10 +70,10 @@ Connect to shared team knowledge and standards:
 
 ```bash
 # Use local team-ai-directives directory
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives ~/workspace/team-ai-directives
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives ~/workspace/team-ai-directives
 
 # Clone from remote repository
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives.git
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives.git
 ```
 
 ## Verification

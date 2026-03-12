@@ -131,16 +131,16 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 
 ```bash
 # Create a new project directory
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
 # OR initialize in the current directory
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init .
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init .
 ```
 
 Pick script type explicitly (optional):
 
 ```bash
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
-uvx --from git+https://github.com/github/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script ps  # Force PowerShell
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME> --script sh  # Force POSIX shell
 ```
 
 ### Step 2: Define Your Constitution

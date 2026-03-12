@@ -43,6 +43,7 @@ This fork represents the evolution from a development process to a complete orga
 
 ## Table of Contents
 
+- [🎯 Project Vision](#-project-vision)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
 - [🎯 Core Features](#-core-features)
