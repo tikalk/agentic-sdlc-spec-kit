@@ -45,14 +45,17 @@ This fork represents the evolution from a development process to a complete orga
 
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
-- [📽️ Video Overview](#️-video-overview)
-- [🚶 Community Walkthroughs](#-community-walkthroughs)
+- [🎯 Core Features](#-core-features)
+- [📦 Extensions](#-extensions)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
+- [📦 Skills Package Manager](#-skills-package-manager)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [📚 Core Philosophy](#-core-philosophy)
 - [🌟 Development Phases](#-development-phases)
 - [🎯 Experimental Goals](#-experimental-goals)
 - [🔧 Prerequisites](#-prerequisites)
+- [📽️ Video Overview](#️-video-overview)
+- [🚶 Community Walkthroughs](#-community-walkthroughs)
 - [📖 Learn More](#-learn-more)
 - [📋 Detailed Process](#-detailed-process)
 - [🔍 Troubleshooting](#-troubleshooting)
@@ -148,7 +151,11 @@ specify init my-project --ai kilocode
 specify init my-project --ai auggie
 specify init my-project --ai codebuddy
 specify init my-project --ai roo
-specify init my-project --ai q
+specify init my-project --ai vibe
+specify init my-project --ai kimi
+specify init my-project --ai agy
+specify init my-project --ai bob
+specify init my-project --ai qodercli
 ```
 
 #### Script Type Selection
@@ -421,32 +428,138 @@ See Spec-Driven Development in action across different scenarios with these comm
 - **[Greenfield Spring Boot + React platform](https://github.com/mnriem/spec-kit-spring-react-demo)** — Builds an LLM performance analytics platform (REST API, graphs, iteration tracking) from scratch using Spring Boot, embedded React, PostgreSQL, and Docker Compose, with a clarify step and a cross-artifact consistency analysis pass included.
 
 - **[Brownfield ASP.NET CMS extension](https://github.com/mnriem/spec-kit-aspnet-brownfield-demo)** — Extends an existing open-source .NET CMS (CarrotCakeCMS-Core) with two new features — cross-platform Docker Compose infrastructure and a token-authenticated headless REST API — demonstrating how spec-kit fits into existing codebases without prior specs or a constitution.
+
+## 🎯 Core Features
+
+### Spec-Driven Development Workflow
+
+The core of Agentic SDLC Spec Kit is a structured workflow that guides AI-assisted development:
+
+| Phase | Command | Purpose |
+|-------|---------|---------|
+| **Establish Principles** | `/spec.constitution` | Create project governing principles and development guidelines |
+| **Define Requirements** | `/spec.specify` | Define what you want to build (requirements and user stories) |
+| **Technical Planning** | `/spec.plan` | Create technical implementation plans with tech stack & execution modes |
+| **Task Breakdown** | `/spec.tasks` | Generate actionable task lists for implementation |
+| **Implementation** | `/spec.implement` | Execute all tasks to build the feature with dual execution loops (SYNC/ASYNC) |
+| **Session Traces** | `/spec.trace` | Generate AI session execution traces with decisions and patterns |
+
+### Team AI Directives Integration
+
+The toolkit integrates with team-ai-directives repositories to provide consistent AI behavior across projects:
+
+```bash
+# Use local team-ai-directives directory
+specify init my-project --team-ai-directives ~/workspace/team-ai-directives
+
+# Clone from remote repository
+specify init my-project --team-ai-directives https://github.com/your-org/team-ai-directives.git
+
+# Use the official Agentic SDLC team-ai-directives template
+specify init my-project --team-ai-directives https://github.com/tikalk/agentic-sdlc-team-ai-directives.git
+```
+
+**Team AI Directives Structure:**
+- **Constitution** - Core principles that govern all AI behavior
+- **Personas** - Role-specific guidance (DevOps, Java, Python, Data, Platform)
+- **Rules** - Domain-specific patterns (security, testing, style guides)
+- **Skills** - Self-contained capabilities with trigger-based activation
+
+## 📦 Extensions
+
+Extensions provide additional capabilities beyond the core Spec-Driven Development workflow. All extensions are bundled and auto-installed during `specify init`.
+
+### Architect Extension
+
+Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions using the Rozanski & Woods methodology.
+
+**Key Features:**
+- **Two-level architecture** - System-level ADRs on main branch, feature-level ADRs on feature branches
+- **Automatic integration** - Hooks create feature ADRs during `/spec.plan` and validate alignment
+- **Greenfield & Brownfield** - `/architect.specify` for new projects, `/architect.init` for existing codebases
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `/architect.init` | Reverse-engineer architecture from codebase (brownfield) |
+| `/architect.specify` | Interactive PRD exploration to create ADRs (greenfield) |
+| `/architect.clarify` | Refine ADRs through clarification questions |
+| `/architect.implement` | Generate AD.md from ADRs |
+| `/architect.analyze` | Validate ADR ↔ AD consistency |
+| `/architect.validate` | Validate plan alignment with architecture (READ-ONLY) |
+
+📖 **Full documentation:** [extensions/architect/README.md](./extensions/architect/README.md)
+
+### LevelUp Extension
+
+Extract patterns from completed features and contribute reusable knowledge back to your team's shared repository via Context Decision Records (CDRs).
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `/levelup.init` | Discover CDRs from entire codebase (brownfield analysis) |
+| `/levelup.specify` | Extract CDRs from current feature spec context |
+| `/levelup.clarify` | Resolve ambiguities in discovered CDRs |
+| `/levelup.skills` | Build a single skill from accepted CDRs |
+| `/levelup.implement` | Compile accepted CDRs into PR to team-ai-directives |
+| `/levelup.trace` | Generate AI session execution traces |
+
+📖 **Full documentation:** [extensions/levelup/README.md](./extensions/levelup/README.md)
+
+### TDD Extension
+
+Test-Driven Development workflow with RED→GREEN→REFACTOR cycles.
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `/tdd.plan` | Planning phase - design before coding |
+| `/tdd.tasks` | Detect language/framework + generate hybrid tests |
+| `/tdd.implement` | Execute RED→GREEN→REFACTOR |
+| `/tdd.validate` | Validate test quality |
+
+📖 **Full documentation:** [extensions/tdd/README.md](./extensions/tdd/README.md)
+
+### Product Extension
+
+Product management workflows for feature prioritization, roadmapping, and release planning.
+
+📖 **Full documentation:** [extensions/product/README.md](./extensions/product/README.md)
+
+### Quick Extension
+
+Quick start templates for rapid project bootstrapping.
+
+📖 **Full documentation:** [extensions/quick/README.md](./extensions/quick/README.md)
+
 ## 🤖 Supported AI Agents
 
 | Agent                                                                                | Support | Notes                                                                                                                                     |
 | ------------------------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| [Qoder CLI](https://qoder.com/cli)                                                   | ✅      |                                                                                                                                           |
-| [Kiro CLI](https://kiro.dev/docs/cli/)                                               | ✅      | Use `--ai kiro-cli` (alias: `--ai kiro`)                                                                                                 |
-| [Amp](https://ampcode.com/)                                                          | ✅      |                                                                                                                                           |
-| [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅      |                                                                                                                                           |
-| [Claude Code](https://www.anthropic.com/claude-code)                                 | ✅      |                                                                                                                                           |
-| [CodeBuddy CLI](https://www.codebuddy.ai/cli)                                        | ✅      |                                                                                                                                           |
-| [Codex CLI](https://github.com/openai/codex)                                         | ✅      |                                                                                                                                           |
-| [Cursor](https://cursor.sh/)                                                         | ✅      |                                                                                                                                           |
-| [Gemini CLI](https://github.com/google-gemini/gemini-cli)                            | ✅      |                                                                                                                                           |
-| [GitHub Copilot](https://code.visualstudio.com/)                                     | ✅      |                                                                                                                                           |
-| [IBM Bob](https://www.ibm.com/products/bob)                                          | ✅      | IDE-based agent with slash command support                                                                                                |
-| [Jules](https://jules.google.com/)                                                   | ✅      |                                                                                                                                           |
-| [Kilo Code](https://github.com/Kilo-Org/kilocode)                                    | ✅      |                                                                                                                                           |
-| [opencode](https://opencode.ai/)                                                     | ✅      |                                                                                                                                           |
-| [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅      |                                                                                                                                           |
-| [Roo Code](https://roocode.com/)                                                     | ✅      |                                                                                                                                           |
-| [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      |                                                                                                                                           |
-| [Tabnine CLI](https://docs.tabnine.com/main/getting-started/tabnine-cli)             | ✅      |                                                                                                                                           |
-| [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | ✅      |                                                                                                                                           |
-| [Kimi Code](https://code.kimi.com/)                                                  | ✅      |                                                                                                                                           |
-| [Windsurf](https://windsurf.com/)                                                    | ✅      |                                                                                                                                           |
-| [Antigravity (agy)](https://antigravity.google/)                                     | ✅      |                                                                                                                                           |
+| **CLI-Based Agents**                                                                 |         |                                                                                                                                           |
+| [Claude Code](https://www.anthropic.com/claude-code)                                 | ✅      | Anthropic's Claude Code CLI                                                                                                               |
+| [Gemini CLI](https://github.com/google-gemini/gemini-cli)                            | ✅      | Google's Gemini CLI                                                                                                                       |
+| [Cursor](https://cursor.sh/)                                                         | ✅      | Cursor IDE with CLI support (`cursor-agent`)                                                                                              |
+| [Codex CLI](https://github.com/openai/codex)                                         | ✅      | OpenAI Codex CLI                                                                                                                          |
+| [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅      | Alibaba's Qwen Code CLI                                                                                                                   |
+| [opencode](https://opencode.ai/)                                                     | ✅      | opencode CLI                                                                                                                              |
+| [Kiro CLI](https://kiro.dev/docs/cli/)                                               | ✅      | Kiro CLI (`kiro-cli`, alias: `kiro`)                                                                                                      |
+| [CodeBuddy CLI](https://www.codebuddy.ai/cli)                                        | ✅      | CodeBuddy CLI                                                                                                                             |
+| [Qoder CLI](https://qoder.com/cli)                                                   | ✅      | Qoder CLI (`qodercli`)                                                                                                                    |
+| [Amp](https://ampcode.com/)                                                          | ✅      | Amp CLI                                                                                                                                   |
+| [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      | SHAI CLI                                                                                                                                  |
+| [Tabnine CLI](https://docs.tabnine.com/main/getting-started/tabnine-cli)             | ✅      | Tabnine CLI                                                                                                                               |
+| [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅      | Auggie CLI                                                                                                                                |
+| **IDE-Based Agents**                                                                 |         |                                                                                                                                           |
+| [GitHub Copilot](https://code.visualstudio.com/)                                     | ✅      | GitHub Copilot in VS Code and compatible editors                                                                                          |
+| [Windsurf](https://windsurf.com/)                                                    | ✅      | Windsurf IDE workflows                                                                                                                    |
+| [Kilo Code](https://github.com/Kilo-Org/kilocode)                                    | ✅      | Kilo Code IDE                                                                                                                             |
+| [Kimi Code](https://code.kimi.com/)                                                  | ✅      | Kimi Code CLI (Moonshot AI)                                                                                                               |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | ✅      | Mistral Vibe                                                                                                                              |
+| [Roo Code](https://roocode.com/)                                                     | ✅      | Roo Code IDE                                                                                                                              |
+| [Antigravity (agy)](https://antigravity.google/)                                     | ✅      | Antigravity agent                                                                                                                         |
+| [IBM Bob](https://www.ibm.com/products/bob)                                          | ✅      | IBM Bob IDE                                                                                                                               |
+| **Custom**                                                                           |         |                                                                                                                                           |
 | Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
 
 ## 📦 Skills Package Manager
@@ -575,69 +688,45 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 
 ### Commands
 
-<<<<<<< HEAD
-| Command     | Description                                                    |
-|-------------|----------------------------------------------------------------|
-| `init`      | Initialize a new Specify project from the latest template      |
-| `check`     | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`) |
-| `skill`     | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
+| Command | Description |
+| ------- | ----------- |
+| `init` | Initialize a new Specify project from the latest template |
+| `check` | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`) |
+| `skill` | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
 
-| Argument/Option              | Type     | Description                                                                 |
-|------------------------------|----------|-----------------------------------------------------------------------------|
-| `<project-name>`             | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `q`, `agy`, `bob`, `qodercli`, or `generic` (requires `--ai-commands-dir`) |
-| `--ai-commands-dir`          | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
-| `--script`                   | Option   | Script type: `sh` (POSIX) or `ps` (PowerShell)                              |
-| `--ignore-agent-tools`       | Flag     | Skip checks for AI agent tools like Claude                                  |
-| `--no-git`                   | Flag     | Skip git repository initialization                                          |
-| `--here`                     | Flag     | Initialize project in the current directory instead of creating a new one   |
-| `--force`                    | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation) |
-| `--skip-tls`                 | Flag     | Skip SSL/TLS verification (not recommended)                                 |
-| `--debug`                    | Flag     | Enable detailed debug output for troubleshooting                            |
-| `--github-token`             | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)   |
-| `--team-ai-directives`       | Option   | Path or URL to team-ai-directives repository                                |
-| `--ai-skills`                | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
+| Argument/Option | Type | Description |
+| --------------- | ---- | ----------- |
+| `<project-name>` | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
+| `--ai` | Option | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai-commands-dir` | Option | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
+| `--script` | Option | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell) |
+| `--ignore-agent-tools` | Flag | Skip checks for AI agent tools like Claude Code |
+| `--no-git` | Flag | Skip git repository initialization |
+| `--here` | Flag | Initialize project in the current directory instead of creating a new one |
+| `--force` | Flag | Force merge/overwrite when initializing in current directory (skip confirmation) |
+| `--skip-tls` | Flag | Skip SSL/TLS verification (not recommended) |
+| `--debug` | Flag | Enable detailed debug output for troubleshooting |
+| `--github-token` | Option | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable) |
+| `--team-ai-directives` | Option | Path or URL to team-ai-directives repository |
+| `--ai-skills` | Flag | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
 
 ### `specify skill` Commands & Options
 
 The Skills Package Manager is accessed via the `specify skill` subcommand:
 
-| Command                          | Description                                                            |
-|----------------------------------|------------------------------------------------------------------------|
-| `search <query>`                 | Search the public skills.sh registry for matching skills              |
-| `install <ref>`                  | Install a skill (GitHub: `github:owner/repo/skill`, GitLab: `gitlab:host/owner/repo/skill`, Local: `local:./path`) |
-| `list [--outdated\|--json]`     | List installed skills with optional filtering                         |
+| Command | Description |
+| ------- | ----------- |
+| `search <query>` | Search the public skills.sh registry for matching skills |
+| `install <ref>` | Install a skill (GitHub: `github:owner/repo/skill`, GitLab: `gitlab:host/owner/repo/skill`, Local: `local:./path`) |
+| `list [--outdated\|--json]` | List installed skills with optional filtering |
 | `eval <path> [--review\|--task\|--full\|--report]` | Evaluate skill quality: review (structure), task (behavior), full (both), or report (HTML) |
-| `update [name\|--all]`           | Update specified skill or all skills to latest versions               |
-| `remove <name>`                  | Uninstall a skill                                                      |
-| `sync-team [--dry-run]`          | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
-| `check-updates`                  | Check for available skill updates                                     |
-| `config [key] [value]`           | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`) |
-=======
-| Command | Description                                                                                                                                             |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `init`  | Initialize a new Specify project from the latest template                                                                                               |
-| `check` | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`) |
-
-### `specify init` Arguments & Options
-
-| Argument/Option        | Type     | Description                                                                                                                                                                                  |
-| ---------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory)                                                                                           |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, or `generic` (requires `--ai-commands-dir`) |
-| `--ai-commands-dir`    | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`)                                                                                                  |
-| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                                                                                                                                  |
-| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                                                                                                                                              |
-| `--no-git`             | Flag     | Skip git repository initialization                                                                                                                                                           |
-| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one                                                                                                                    |
-| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)                                                                                                             |
-| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                                                                                                                                  |
-| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                                                                                                                                             |
-| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)                                                                                                                    |
-| `--ai-skills`          | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`)                                                                                          |
->>>>>>> upstream/main
+| `update [name\|--all]` | Update specified skill or all skills to latest versions |
+| `remove <name>` | Uninstall a skill |
+| `sync-team [--dry-run]` | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
+| `check-updates` | Check for available skill updates |
+| `config [key] [value]` | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`)
 
 ### Examples
 
