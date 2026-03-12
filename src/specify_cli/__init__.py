@@ -1560,10 +1560,7 @@ def show_banner():
                     if len(ext_names) > 4:
                         ext_list += f" [+{len(ext_names) - 4} more]"
 
-                    ext_summary = Text.assemble(
-                        ("Extensions: ", "dim"),
-                        (ext_list, ""),
-                    )
+                    ext_summary = Text.from_markup(f"[dim]Extensions:[/dim] {ext_list}")
                     console.print(Align.center(ext_summary))
                     console.print()
         except Exception:
