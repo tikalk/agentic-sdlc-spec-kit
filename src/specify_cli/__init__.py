@@ -2480,16 +2480,15 @@ def install_ai_skills(
                 body = content
 
             command_name = command_file.stem
-            # Normalize: extracted commands may be named "speckit.<cmd>.md";
-            # strip the "speckit." prefix so skill names stay clean and
-            # SKILL_DESCRIPTIONS lookups work.
-            if command_name.startswith("speckit."):
-                command_name = command_name[len("speckit.") :]
+            # Normalize: extracted commands may be named "adlc.<ext>.<cmd>.md";
+            # strip the "adlc." prefix and convert dots to hyphens for clean skill names.
+            if command_name.startswith("adlc."):
+                command_name = command_name[len("adlc.") :]
             # Kimi uses dot separator for skill names, others use hyphen
             if selected_ai == "kimi":
-                skill_name = f"speckit.{command_name}"
+                skill_name = command_name.replace(".", ".")
             else:
-                skill_name = f"speckit-{command_name}"
+                skill_name = command_name.replace(".", "-")
 
             # Create skill directory (additive — never removes existing content)
             skill_dir = skills_dir / skill_name
@@ -2497,8 +2496,10 @@ def install_ai_skills(
 
             # Select the best description available
             original_desc = frontmatter.get("description", "")
+            # Extract the command name (last part after dot) for SKILL_DESCRIPTIONS lookup
+            command_key = command_name.split(".")[-1]
             enhanced_desc = SKILL_DESCRIPTIONS.get(
-                command_name,
+                command_key,
                 original_desc or f"Spec-kit workflow command: {command_name}",
             )
 
@@ -2506,11 +2507,11 @@ def install_ai_skills(
             # Use yaml.safe_dump to safely serialise the frontmatter and
             # avoid YAML injection from descriptions containing colons,
             # quotes, or newlines.
-            # Normalize source filename for metadata — strip speckit. prefix
+            # Normalize source filename for metadata — strip adlc. prefix
             # so it matches the canonical templates/commands/<cmd>.md path.
             source_name = command_file.name
-            if source_name.startswith("speckit."):
-                source_name = source_name[len("speckit.") :]
+            if source_name.startswith("adlc."):
+                source_name = source_name[len("adlc.") :]
 
             frontmatter_data = {
                 "name": skill_name,
@@ -2526,7 +2527,7 @@ def install_ai_skills(
                 f"---\n"
                 f"{frontmatter_text}\n"
                 f"---\n\n"
-                f"# Speckit {command_name.title()} Skill\n\n"
+                f"# Spec-kit {command_name.title()} Skill\n\n"
                 f"{body}\n"
             )
 

@@ -11,6 +11,10 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 ### Changed
 
+- **Breaking**: Aligned `--ai-skills` skill names with the `adlc.*` command namespace
+  - Skills now strip `adlc.` prefix and use hyphens (e.g., `spec-specify`, `tdd-plan`, `levelup-init`)
+  - Kimi agent uses dot notation (e.g., `spec.specify`, `levelup.specify`)
+  - Matches the short command form used by extensions
 - Added February 2026 newsletter (#1812)
 - feat: add Kimi Code CLI agent support (#1790)
 - docs: fix broken links in quickstart guide (#1759) (#1797)
