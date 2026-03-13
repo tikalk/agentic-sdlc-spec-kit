@@ -2582,7 +2582,7 @@ def _ensure_commands_for_agent(
         extensions_dir: Directory containing extension directories
         agent_name: Agent name to register commands for
     """
-    from .extensions import CommandRegistrar, ExtensionManifest, ExtensionRegistry
+    from .extensions import CommandRegistrar, ExtensionManifest
 
     if agent_name not in CommandRegistrar.AGENT_CONFIGS:
         return
@@ -2590,8 +2590,6 @@ def _ensure_commands_for_agent(
     project_extensions_dir = project_path / ".specify" / "extensions"
     if not project_extensions_dir.exists():
         return
-
-    registry = ExtensionRegistry(project_extensions_dir)
 
     for ext_dir in project_extensions_dir.iterdir():
         if not ext_dir.is_dir() or ext_dir.name.startswith("."):
@@ -2602,14 +2600,8 @@ def _ensure_commands_for_agent(
             continue
 
         try:
-            # Check if commands already registered for this agent
-            if registry.is_installed(ext_dir.name):
-                reg_data = registry.get(ext_dir.name)
-                registered = reg_data.get("registered_commands", {}) if reg_data else {}
-                if agent_name in registered:
-                    continue
-
-            # Register commands for this agent
+            # Always re-register commands on init to ensure they're up-to-date
+            # (removed skip logic that prevented updates when re-running init)
             manifest = ExtensionManifest(ext_manifest_file)
             registrar = CommandRegistrar()
             registrar.register_commands_for_agent(
@@ -2751,12 +2743,10 @@ def install_bundled_extensions(
             continue
 
         try:
-            # Check if already installed
+            # Always install to ensure latest version
+            # Remove existing extension first to allow reinstall (install_from_directory rejects existing)
             if manager.registry.is_installed(ext_name):
-                skipped.append(f"{ext_name} (existing)")
-                continue
-
-            # Install from bundled directory
+                manager.remove(ext_name, keep_config=True)
             manager.install_from_directory(ext_dir, speckit_version)
             installed.append(ext_name)
         except ExtensionError as e:

@@ -156,9 +156,9 @@ detect_subsystems() {
         fi
     fi
     
-    # Output as JSON array if JSON mode
+    # Output as JSON array if JSON mode (without outer braces - will be merged into main output)
     if $JSON_MODE; then
-        printf '{"subsystems":['
+        printf '"subsystems":['
         local first=true
         for d in "${dirs[@]}"; do
             if [[ "$first" == "true" ]]; then
@@ -168,7 +168,7 @@ detect_subsystems() {
             fi
             printf '{"id":"%s","name":"%s","detection_method":"directory","evidence":"%s/"}' "$d" "$d" "$d"
         done
-        printf '],"decomposition":%s}' "$DECOMPOSE"
+        printf '],"decomposition":%s' "$DECOMPOSE"
     else
         # Human-readable output
         if [[ ${#dirs[@]} -eq 0 ]]; then
@@ -185,10 +185,23 @@ detect_subsystems() {
 # Resolve team-ai-directives path
 # Priority:
 # 1. SPECIFY_TEAM_DIRECTIVES environment variable
-# 2. .specify/team-ai-directives (submodule - recommended)
-# 3. .specify/memory/team-ai-directives (clone - legacy)
+# 2. .specify/config.json team_directives.path (from specify init)
+# 3. .specify/team-ai-directives (submodule - recommended)
+# 4. .specify/memory/team-ai-directives (clone - legacy)
 
 TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
+
+if [[ -z "$TEAM_DIRECTIVES" ]]; then
+    # Try reading from config.json (written by specify init)
+    CONFIG_FILE="$REPO_ROOT/.specify/config.json"
+    if [[ -f "$CONFIG_FILE" ]]; then
+        # Extract team_directives.path using grep/sed (no jq dependency)
+        CONFIG_PATH=$(grep -o '"path"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
+        if [[ -n "$CONFIG_PATH" && -d "$CONFIG_PATH" ]]; then
+            TEAM_DIRECTIVES="$CONFIG_PATH"
+        fi
+    fi
+fi
 
 if [[ -z "$TEAM_DIRECTIVES" ]]; then
     if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
@@ -218,7 +231,7 @@ fi
 if $JSON_MODE; then
     subsystem_data=$(detect_subsystems)
     printf '{"REPO_ROOT":"%s","TEAM_DIRECTIVES":"%s","SKILLS_DRAFTS":"%s","CDR_FILE":"%s","BRANCH":"%s",%s}\n' \
-        "$REPO_ROOT" "$TEAM_DIRECTIVES" "$SKILLS_DRAFTS" "$CDR_FILE" "$CURRENT_BRANCH" "${subsystem_data:1}"
+        "$REPO_ROOT" "$TEAM_DIRECTIVES" "$SKILLS_DRAFTS" "$CDR_FILE" "$CURRENT_BRANCH" "$subsystem_data"
 else
     echo "REPO_ROOT: $REPO_ROOT"
     if [[ -n "$TEAM_DIRECTIVES" ]]; then

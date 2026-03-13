@@ -137,10 +137,29 @@ function Detect-Subsystems {
 # Resolve team-ai-directives path
 # Priority:
 # 1. SPECIFY_TEAM_DIRECTIVES environment variable
-# 2. .specify/team-ai-directives (submodule - recommended)
-# 3. .specify/memory/team-ai-directives (clone - legacy)
+# 2. .specify/config.json team_directives.path (from specify init)
+# 3. .specify/team-ai-directives (submodule - recommended)
+# 4. .specify/memory/team-ai-directives (clone - legacy)
 
 $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
+
+if (-not $teamDirectives) {
+    # Try reading from config.json (written by specify init)
+    $configFile = Join-Path $repoRoot ".specify/config.json"
+    if (Test-Path $configFile) {
+        try {
+            $config = Get-Content $configFile -Raw | ConvertFrom-Json
+            if ($config.team_directives -and $config.team_directives.path) {
+                $configPath = $config.team_directives.path
+                if (Test-Path $configPath) {
+                    $teamDirectives = $configPath
+                }
+            }
+        } catch {
+            # Ignore JSON parsing errors, fall through to other methods
+        }
+    }
+}
 
 if (-not $teamDirectives) {
     $submodulePath = Join-Path $repoRoot ".specify/team-ai-directives"
