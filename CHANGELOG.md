@@ -7,6 +7,25 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.130] - 2026-03-13
+
+### Added
+
+- **doctor extension**: Added to community catalog for project health diagnostics
+
+### Changed
+
+- **Security hardening**: Shell injection prevention in bash scripts via `printf '%q'`
+- **JSON safety**: Safe JSON construction with `jq -cn` when available, `json_escape()` fallback
+- **Bash 3.2 compatibility**: Replaced `declare -A` with indexed arrays for macOS support
+
+### Fixed
+
+- **Extension commands always refresh on init**: Re-running `specify init` now overwrites existing extension command files with fresh versions, ensuring updates are applied correctly
+- **setup-levelup.sh reads config.json**: LevelUp scripts now read `team_directives.path` from `.specify/config.json` (written by `specify init`), fixing `TEAM_DIRECTIVES` resolution when path is outside standard locations
+- **JSON output fix**: Fixed malformed JSON output in `setup-levelup.sh` (double `}}` removed)
+- **Timestamp matching**: Handle 'Last updated' with or without bold markers
+
 ## [0.0.129] - 2026-03-13
 
 ### Added
