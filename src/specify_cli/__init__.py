@@ -2743,10 +2743,13 @@ def install_bundled_extensions(
             continue
 
         try:
-            # Always install to ensure latest version
-            # Remove existing extension first to allow reinstall (install_from_directory rejects existing)
+            # Check if already installed - skip to avoid issues with source directory
+            # Commands are refreshed via _ensure_commands_for_agent instead
             if manager.registry.is_installed(ext_name):
-                manager.remove(ext_name, keep_config=True)
+                skipped.append(f"{ext_name} (existing)")
+                continue
+
+            # Install from bundled directory
             manager.install_from_directory(ext_dir, speckit_version)
             installed.append(ext_name)
         except ExtensionError as e:
