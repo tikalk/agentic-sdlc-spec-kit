@@ -28,7 +28,9 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 # Get all paths and variables from common functions
-eval $(get_feature_paths)
+_paths_output=$(get_feature_paths) || { echo "ERROR: Failed to resolve feature paths" >&2; exit 1; }
+eval "$_paths_output"
+unset _paths_output
 
 # Check if we're on a proper feature branch (only for git repos)
 check_feature_branch "$CURRENT_BRANCH" "$HAS_GIT" || exit 1
@@ -136,8 +138,24 @@ fi
 
 # Output results
 if $JSON_MODE; then
-    printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","TEAM_AGENTS_MD":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
-        "$FEATURE_SPEC" "$IMPL_PLAN" "$FEATURE_DIR" "$CURRENT_BRANCH" "$HAS_GIT" "$CONSTITUTION_FILE" "$TEAM_DIRECTIVES_DIR" "$TEAM_AGENTS_MD" "$AD_FILE" "$ADR_FILE" "$CONTEXT_FILE"
+    if has_jq; then
+        jq -cn \
+            --arg feature_spec "$FEATURE_SPEC" \
+            --arg impl_plan "$IMPL_PLAN" \
+            --arg specs_dir "$FEATURE_DIR" \
+            --arg branch "$CURRENT_BRANCH" \
+            --arg has_git "$HAS_GIT" \
+            --arg constitution "$CONSTITUTION_FILE" \
+            --arg team_directives "$TEAM_DIRECTIVES_DIR" \
+            --arg team_agents_md "$TEAM_AGENTS_MD" \
+            --arg ad "$AD_FILE" \
+            --arg adr "$ADR_FILE" \
+            --arg context_file "$CONTEXT_FILE" \
+            '{FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,SPECS_DIR:$specs_dir,BRANCH:$branch,HAS_GIT:$has_git,CONSTITUTION:$constitution,TEAM_DIRECTIVES:$team_directives,TEAM_AGENTS_MD:$team_agents_md,AD:$ad,ADR:$adr,CONTEXT_FILE:$context_file}'
+    else
+        printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","TEAM_AGENTS_MD":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
+            "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$HAS_GIT")" "$(json_escape "$CONSTITUTION_FILE")" "$(json_escape "$TEAM_DIRECTIVES_DIR")" "$(json_escape "$TEAM_AGENTS_MD")" "$(json_escape "$AD_FILE")" "$(json_escape "$ADR_FILE")" "$(json_escape "$CONTEXT_FILE")"
+    fi
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
     echo "IMPL_PLAN: $IMPL_PLAN"
