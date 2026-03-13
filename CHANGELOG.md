@@ -7,6 +7,30 @@ Recent changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-03-13
+
+### Changed
+
+- No changes have been documented for this release yet.
+
+<!-- Entries for 0.2.x and earlier releases are documented in their respective sections below. -->
+- make c ignores consistent with c++ (#1747)
+- chore: bump version to 0.1.13 (#1746)
+- feat: add kiro-cli and AGENT_CONFIG consistency coverage (#1690)
+- feat: add verify extension to community catalog (#1726)
+- Add Retrospective Extension to community catalog README table (#1741)
+- fix(scripts): add empty description validation and branch checkout error handling (#1559)
+- fix: correct Copilot extension command registration (#1724)
+- fix(implement): remove Makefile from C ignore patterns (#1558)
+- Add sync extension to community catalog (#1728)
+- fix(checklist): clarify file handling behavior for append vs create (#1556)
+- fix(clarify): correct conflicting question limit from 10 to 5 (#1557)
+- chore: bump version to 0.1.12 (#1737)
+- fix: use RELEASE_PAT so tag push triggers release workflow (#1736)
+- fix: release-trigger uses release branch + PR instead of direct push to main (#1733)
+- fix: Split release process to sync pyproject.toml version with git tags (#1732)
+
+
 ## [Unreleased]
 
 ### Added
