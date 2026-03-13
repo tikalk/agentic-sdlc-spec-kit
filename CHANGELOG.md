@@ -7,6 +7,24 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.129] - 2026-03-13
+
+### Added
+
+- **selftest extension**: New core extension for validating extension lifecycle (discovery, installation, registration)
+- **Jules agent**: Added Google's Jules agent to supported agents list
+- **agy deprecation handler**: Explicit `--ai agy` without `--ai-skills` now fails with clear guidance
+
+### Changed
+
+- **Qwen format**: Migrated Qwen Code CLI from TOML to Markdown format
+- **Extension resolution**: Improved extension ID/name resolution for catalog operations
+
+### Fixed
+
+- Test version requirements updated to `>=0.0.80` for compatibility
+- Cleaned up command templates (specify, analyze)
+
 ## [0.0.128] - 2026-03-13
 
 ### Changed
