@@ -37,7 +37,7 @@ Scan your codebase for patterns that could become team-wide directives:
 /levelup.init
 ```
 
-This creates proposed entries in `{TEAM_DIRECTIVES}/.cdrs.json` with status "proposed".
+This creates proposed CDRs in `{PROJECT}/.specify/memory/cdr.md` with status "Discovered" or "Proposed".
 
 ### 2. Clarify and Accept CDRs
 
@@ -71,22 +71,25 @@ This creates a draft PR with all accepted contributions.
 
 ## Context Directive Records (CDRs)
 
-CDRs are tracked in `{TEAM_DIRECTIVES}/.cdrs.json` and define:
+CDRs are stored in markdown format:
+
+- **Local**: `{PROJECT}/.specify/memory/cdr.md` - Working copy during discovery/clarification
+- **Approved**: `{TEAM_DIRECTIVES}/CDR.md` - Approved contributions tracked in team-ai-directives
+
+CDRs define:
 
 - **Target Module**: Where the contribution goes in team-ai-directives
 - **Context Type**: Rule, Persona, Example, or Skill
-- **Status**: discovered → proposed → accepted → active
-- **Evidence**: Links to code, commits, and discussions
+- **Status**: Discovered → Proposed → Accepted | Rejected
 
 ### CDR Status Values
 
 | Status | Description |
 |--------|-------------|
-| **discovered** | Inferred from codebase during brownfield analysis |
-| **proposed** | Suggested for review, awaiting validation |
-| **accepted** | Approved for implementation |
-| **active** | Merged to team-ai-directives and ready for use |
-| **deprecated** | No longer recommended (kept for history) |
+| **Discovered** | Inferred from codebase during brownfield analysis |
+| **Proposed** | Suggested for review, awaiting validation |
+| **Accepted** | Approved for implementation |
+| **Rejected** | Not approved (reason documented in CDR) |
 
 ## Configuration
 
@@ -105,8 +108,8 @@ Optional configuration in `.specify/extensions/levelup/levelup-config.yml`:
 ```yaml
 cdr:
   heuristic: "surprising"  # surprising | all | minimal
-  # CDR manifest location (relative to team-ai-directives root)
-  location: ".cdrs.json"
+  # CDR file location (local project)
+  location: ".specify/memory/cdr.md"
 
 skills:
   drafts_location: ".specify/drafts/skills"

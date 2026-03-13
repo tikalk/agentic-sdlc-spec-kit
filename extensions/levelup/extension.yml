@@ -102,7 +102,7 @@ tags:
 defaults:
   cdr:
     heuristic: "surprising"  # surprising | all | minimal
-    location: ".cdrs.json"
+    location: ".specify/memory/cdr.md"
   skills:
     drafts_location: ".specify/drafts/skills"
   team_directives:

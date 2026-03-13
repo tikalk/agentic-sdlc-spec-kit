@@ -20,9 +20,9 @@ cdr:
   # - minimal: Only high-value/novel patterns
   heuristic: "surprising"
 
-  # Location of CDR file (relative to team-ai-directives root)
-  # The CDR manifest tracks context module contributions
-  location: ".cdrs.json"
+  # Location of CDR file (local project)
+  # CDRs stored in markdown format
+  location: ".specify/memory/cdr.md"
 
 # Skills Settings
 skills:

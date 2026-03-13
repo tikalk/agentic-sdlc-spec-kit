@@ -242,7 +242,7 @@ Run `{SCRIPT}` to set up the infrastructure:
 - Creates skills drafts directory at `.specify/drafts/skills/`
 - Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-The `.cdrs.json` file should already exist in team-ai-directives (created during init).
+The `.specify/memory/cdr.md` file will be created in the project directory.
 
 ### Phase 4: Load Existing Directives
 
