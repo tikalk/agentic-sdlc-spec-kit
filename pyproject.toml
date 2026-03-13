@@ -30,6 +30,7 @@ packages = ["src/specify_cli"]
 "extensions/levelup" = "specify_cli/bundled_extensions/levelup"
 "extensions/architect" = "specify_cli/bundled_extensions/architect"
 "extensions/quick" = "specify_cli/bundled_extensions/quick"
+"extensions/product" = "specify_cli/bundled_extensions/product"
 
 [tool.hatch.build.targets.sdist]
 include = [
@@ -37,6 +38,7 @@ include = [
     "extensions/levelup/",
     "extensions/architect/",
     "extensions/quick/",
+    "extensions/product/",
 ]
 
 [project.optional-dependencies]
