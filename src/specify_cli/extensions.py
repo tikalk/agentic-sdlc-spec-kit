@@ -748,9 +748,9 @@ class CommandRegistrar:
         },
         "qwen": {
             "dir": ".qwen/commands",
-            "format": "toml",
-            "args": "{{args}}",
-            "extension": ".toml"
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md"
         },
         "opencode": {
             "dir": ".opencode/command",
