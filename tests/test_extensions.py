@@ -309,11 +309,14 @@ class TestExtensionRegistry:
         extensions_dir.mkdir()
 
         registry = ExtensionRegistry(extensions_dir)
-        registry.add("test-ext", {
-            "version": "1.0.0",
-            "enabled": True,
-            "registered_commands": {"claude": ["cmd1", "cmd2"]},
-        })
+        registry.add(
+            "test-ext",
+            {
+                "version": "1.0.0",
+                "enabled": True,
+                "registered_commands": {"claude": ["cmd1", "cmd2"]},
+            },
+        )
 
         # Update with partial metadata (only enabled field)
         registry.update("test-ext", {"enabled": False})
@@ -322,7 +325,9 @@ class TestExtensionRegistry:
         updated_data = registry.get("test-ext")
         assert updated_data["enabled"] is False
         assert updated_data["version"] == "1.0.0"  # Preserved
-        assert updated_data["registered_commands"] == {"claude": ["cmd1", "cmd2"]}  # Preserved
+        assert updated_data["registered_commands"] == {
+            "claude": ["cmd1", "cmd2"]
+        }  # Preserved
 
     def test_update_raises_for_missing_extension(self, temp_dir):
         """Test that update() raises KeyError for non-installed extension."""
@@ -913,7 +918,7 @@ class TestIntegration:
                     "version": "1.0.0",
                     "description": f"Extension {i}",
                 },
-                "requires": {"speckit_version": ">=0.1.0"},
+                "requires": {"speckit_version": ">=0.0.80"},
                 "provides": {
                     "commands": [
                         {
@@ -1580,12 +1585,15 @@ class TestCatalogStack:
         project_dir = self._make_project(temp_dir)
         config_path = project_dir / ".specify" / "extension-catalogs.yml"
         with open(config_path, "w") as f:
-            yaml_module.dump({
-                "catalogs": [
-                    {"name": "no-url-catalog", "priority": 1},
-                    {"name": "another-no-url", "description": "Also missing URL"},
-                ]
-            }, f)
+            yaml_module.dump(
+                {
+                    "catalogs": [
+                        {"name": "no-url-catalog", "priority": 1},
+                        {"name": "another-no-url", "description": "Also missing URL"},
+                    ]
+                },
+                f,
+            )
 
         catalog = ExtensionCatalog(project_dir)
 
@@ -1798,7 +1806,9 @@ class TestCatalogStack:
 class TestExtensionIgnore:
     """Test .extensionignore support during extension installation."""
 
-    def _make_extension(self, temp_dir, valid_manifest_data, extra_files=None, ignore_content=None):
+    def _make_extension(
+        self, temp_dir, valid_manifest_data, extra_files=None, ignore_content=None
+    ):
         """Helper to create an extension directory with optional extra files and .extensionignore."""
         import yaml
 
@@ -1813,7 +1823,7 @@ class TestExtensionIgnore:
         commands_dir = ext_dir / "commands"
         commands_dir.mkdir()
         (commands_dir / "hello.md").write_text(
-            "---\ndescription: \"Test hello command\"\n---\n\n# Hello\n\n$ARGUMENTS\n"
+            '---\ndescription: "Test hello command"\n---\n\n# Hello\n\n$ARGUMENTS\n'
         )
 
         # Create any extra files/dirs
@@ -1970,7 +1980,9 @@ class TestExtensionIgnore:
         assert (dest / "docs" / "guide.md").exists()
         assert not (dest / "docs" / "internal" / "draft.md").exists()
 
-    def test_extensionignore_dotdot_pattern_is_noop(self, temp_dir, valid_manifest_data):
+    def test_extensionignore_dotdot_pattern_is_noop(
+        self, temp_dir, valid_manifest_data
+    ):
         """Patterns with '..' should not escape the extension root."""
         ext_dir = self._make_extension(
             temp_dir,
@@ -1992,7 +2004,9 @@ class TestExtensionIgnore:
         assert (dest / "extension.yml").exists()
         assert (dest / "commands" / "hello.md").exists()
 
-    def test_extensionignore_absolute_path_pattern_is_noop(self, temp_dir, valid_manifest_data):
+    def test_extensionignore_absolute_path_pattern_is_noop(
+        self, temp_dir, valid_manifest_data
+    ):
         """Absolute path patterns should not match anything."""
         ext_dir = self._make_extension(
             temp_dir,
@@ -2036,7 +2050,9 @@ class TestExtensionIgnore:
         # .extensionignore itself is still excluded
         assert not (dest / ".extensionignore").exists()
 
-    def test_extensionignore_windows_backslash_patterns(self, temp_dir, valid_manifest_data):
+    def test_extensionignore_windows_backslash_patterns(
+        self, temp_dir, valid_manifest_data
+    ):
         """Backslash patterns (Windows-style) are normalised to forward slashes."""
         ext_dir = self._make_extension(
             temp_dir,
@@ -2059,7 +2075,9 @@ class TestExtensionIgnore:
         assert (dest / "docs" / "guide.md").exists()
         assert not (dest / "docs" / "internal" / "draft.md").exists()
 
-    def test_extensionignore_star_does_not_cross_directories(self, temp_dir, valid_manifest_data):
+    def test_extensionignore_star_does_not_cross_directories(
+        self, temp_dir, valid_manifest_data
+    ):
         """'*' should NOT match across directory boundaries (gitignore semantics)."""
         ext_dir = self._make_extension(
             temp_dir,
@@ -2083,7 +2101,9 @@ class TestExtensionIgnore:
         assert not (dest / "docs" / "api.draft.md").exists()
         assert (dest / "docs" / "sub" / "api.draft.md").exists()
 
-    def test_extensionignore_doublestar_crosses_directories(self, temp_dir, valid_manifest_data):
+    def test_extensionignore_doublestar_crosses_directories(
+        self, temp_dir, valid_manifest_data
+    ):
         """'**' should match across directory boundaries."""
         ext_dir = self._make_extension(
             temp_dir,
@@ -2167,6 +2187,7 @@ class TestExtensionAddCLI:
 
         # Track what ID was passed to download_extension
         download_called_with = []
+
         def mock_download(extension_id):
             download_called_with.append(extension_id)
             # Return a path that will fail install (we just want to verify the ID)
@@ -2174,8 +2195,10 @@ class TestExtensionAddCLI:
 
         mock_catalog.download_extension.side_effect = mock_download
 
-        with patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog), \
-             patch.object(Path, "cwd", return_value=project_dir):
+        with (
+            patch("specify_cli.extensions.ExtensionCatalog", return_value=mock_catalog),
+            patch.object(Path, "cwd", return_value=project_dir),
+        ):
             result = runner.invoke(
                 app,
                 ["extension", "add", "Jira Integration"],
@@ -2198,7 +2221,9 @@ class TestExtensionUpdateCLI:
     """CLI integration tests for extension update command."""
 
     @staticmethod
-    def _create_extension_source(base_dir: Path, version: str, include_config: bool = False) -> Path:
+    def _create_extension_source(
+        base_dir: Path, version: str, include_config: bool = False
+    ) -> Path:
         """Create a minimal extension source directory for install tests."""
         import yaml
 
@@ -2213,7 +2238,7 @@ class TestExtensionUpdateCLI:
                 "version": version,
                 "description": "A test extension",
             },
-            "requires": {"speckit_version": ">=0.1.0"},
+            "requires": {"speckit_version": ">=0.0.80"},
             "provides": {
                 "commands": [
                     {
@@ -2234,9 +2259,13 @@ class TestExtensionUpdateCLI:
         (ext_dir / "extension.yml").write_text(yaml.dump(manifest, sort_keys=False))
         commands_dir = ext_dir / "commands"
         commands_dir.mkdir(exist_ok=True)
-        (commands_dir / "hello.md").write_text("---\ndescription: Test\n---\n\n$ARGUMENTS\n")
+        (commands_dir / "hello.md").write_text(
+            "---\ndescription: Test\n---\n\n$ARGUMENTS\n"
+        )
         if include_config:
-            (ext_dir / "linear-config.yml").write_text("custom: true\nvalue: original\n")
+            (ext_dir / "linear-config.yml").write_text(
+                "custom: true\nvalue: original\n"
+            )
         return ext_dir
 
     @staticmethod
@@ -2253,8 +2282,12 @@ class TestExtensionUpdateCLI:
                 "version": version,
                 "description": "A test extension",
             },
-            "requires": {"speckit_version": ">=0.1.0"},
-            "provides": {"commands": [{"name": "speckit.test.hello", "file": "commands/hello.md"}]},
+            "requires": {"speckit_version": ">=0.0.80"},
+            "provides": {
+                "commands": [
+                    {"name": "speckit.test.hello", "file": "commands/hello.md"}
+                ]
+            },
         }
 
         with zipfile.ZipFile(zip_path, "w") as zf:
@@ -2287,16 +2320,27 @@ class TestExtensionUpdateCLI:
         def fake_install_from_zip(self_obj, _zip_path, speckit_version):
             return self_obj.install_from_directory(v2_dir, speckit_version)
 
-        with patch.object(Path, "cwd", return_value=project_dir), \
-             patch.object(ExtensionCatalog, "get_extension_info", return_value={
-                 "id": "test-ext",
-                 "name": "Test Extension",
-                 "version": "2.0.0",
-                 "_install_allowed": True,
-             }), \
-             patch.object(ExtensionCatalog, "download_extension", return_value=zip_path), \
-             patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip):
-            result = runner.invoke(app, ["extension", "update", "test-ext"], input="y\n", catch_exceptions=True)
+        with (
+            patch.object(Path, "cwd", return_value=project_dir),
+            patch.object(
+                ExtensionCatalog,
+                "get_extension_info",
+                return_value={
+                    "id": "test-ext",
+                    "name": "Test Extension",
+                    "version": "2.0.0",
+                    "_install_allowed": True,
+                },
+            ),
+            patch.object(ExtensionCatalog, "download_extension", return_value=zip_path),
+            patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip),
+        ):
+            result = runner.invoke(
+                app,
+                ["extension", "update", "test-ext"],
+                input="y\n",
+                catch_exceptions=True,
+            )
 
         assert result.exit_code == 0, result.output
 
@@ -2326,7 +2370,9 @@ class TestExtensionUpdateCLI:
         manager.install_from_directory(v1_dir, "0.1.0")
 
         backup_registry_entry = manager.registry.get("test-ext")
-        hooks_before = yaml.safe_load((project_dir / ".specify" / "extensions.yml").read_text())
+        hooks_before = yaml.safe_load(
+            (project_dir / ".specify" / "extensions.yml").read_text()
+        )
 
         registered_commands = backup_registry_entry.get("registered_commands", {})
         command_files = []
@@ -2342,29 +2388,50 @@ class TestExtensionUpdateCLI:
 
         assert command_files, "Expected at least one registered command file"
         for cmd_file in command_files:
-            assert cmd_file.exists(), f"Expected command file to exist before update: {cmd_file}"
+            assert cmd_file.exists(), (
+                f"Expected command file to exist before update: {cmd_file}"
+            )
 
         zip_path = tmp_path / "test-ext-update.zip"
         self._create_catalog_zip(zip_path, "2.0.0")
 
-        with patch.object(Path, "cwd", return_value=project_dir), \
-             patch.object(ExtensionCatalog, "get_extension_info", return_value={
-                 "id": "test-ext",
-                 "name": "Test Extension",
-                 "version": "2.0.0",
-                 "_install_allowed": True,
-             }), \
-             patch.object(ExtensionCatalog, "download_extension", return_value=zip_path), \
-             patch.object(ExtensionManager, "install_from_zip", side_effect=RuntimeError("install failed")):
-            result = runner.invoke(app, ["extension", "update", "test-ext"], input="y\n", catch_exceptions=True)
+        with (
+            patch.object(Path, "cwd", return_value=project_dir),
+            patch.object(
+                ExtensionCatalog,
+                "get_extension_info",
+                return_value={
+                    "id": "test-ext",
+                    "name": "Test Extension",
+                    "version": "2.0.0",
+                    "_install_allowed": True,
+                },
+            ),
+            patch.object(ExtensionCatalog, "download_extension", return_value=zip_path),
+            patch.object(
+                ExtensionManager,
+                "install_from_zip",
+                side_effect=RuntimeError("install failed"),
+            ),
+        ):
+            result = runner.invoke(
+                app,
+                ["extension", "update", "test-ext"],
+                input="y\n",
+                catch_exceptions=True,
+            )
 
         assert result.exit_code == 1, result.output
 
         restored_entry = ExtensionManager(project_dir).registry.get("test-ext")
         assert restored_entry == backup_registry_entry
 
-        hooks_after = yaml.safe_load((project_dir / ".specify" / "extensions.yml").read_text())
+        hooks_after = yaml.safe_load(
+            (project_dir / ".specify" / "extensions.yml").read_text()
+        )
         assert hooks_after == hooks_before
 
         for cmd_file in command_files:
-            assert cmd_file.exists(), f"Expected command file to be restored after rollback: {cmd_file}"
+            assert cmd_file.exists(), (
+                f"Expected command file to be restored after rollback: {cmd_file}"
+            )
