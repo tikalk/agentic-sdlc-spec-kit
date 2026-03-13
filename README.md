@@ -560,8 +560,9 @@ Quick start templates for rapid project bootstrapping.
 | [Kimi Code](https://code.kimi.com/)                                                  | ✅      | Kimi Code CLI (Moonshot AI)                                                                                                               |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | ✅      | Mistral Vibe                                                                                                                              |
 | [Roo Code](https://roocode.com/)                                                     | ✅      | Roo Code IDE                                                                                                                              |
-| [Antigravity (agy)](https://antigravity.google/)                                     | ✅      | Antigravity agent                                                                                                                         |
+| [Antigravity (agy)](https://antigravity.google/)                                     | ✅      | Antigravity agent (Requires `--ai-skills`)                                                                                                |
 | [IBM Bob](https://www.ibm.com/products/bob)                                          | ✅      | IBM Bob IDE                                                                                                                               |
+| [Jules](https://jules.google.com/)                                                   | ✅      | Google's Jules agent                                                                                                                      |
 | **Custom**                                                                           |         |                                                                                                                                           |
 | Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
 
@@ -805,7 +806,7 @@ specify init my-project --ai bob
 
 
 # Initialize with Antigravity support
-specify init my-project --ai agy
+specify init my-project --ai agy --ai-skills
 
 # Initialize with an unsupported agent (generic / bring your own agent)
 specify init my-project --ai generic --ai-commands-dir .myagent/commands/

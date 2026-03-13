@@ -385,7 +385,7 @@ function Build-Variant {
         }
         'qwen' {
             $cmdDir = Join-Path $baseDir ".qwen/commands"
-            Generate-Commands -Agent 'qwen' -Extension 'toml' -ArgFormat '{{args}}' -OutputDir $cmdDir -ScriptVariant $Script
+            Generate-Commands -Agent 'qwen' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
             if (Test-Path "agent_templates/qwen/QWEN.md") {
                 Copy-Item -Path "agent_templates/qwen/QWEN.md" -Destination (Join-Path $baseDir "QWEN.md")
             }
@@ -445,7 +445,7 @@ function Build-Variant {
             if (Test-Path $tabnineTemplate) { Copy-Item $tabnineTemplate (Join-Path $baseDir 'TABNINE.md') }
         }
         'agy' {
-            $cmdDir = Join-Path $baseDir ".agent/workflows"
+            $cmdDir = Join-Path $baseDir ".agent/commands"
             Generate-Commands -Agent 'agy' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
         }
         'vibe' {
