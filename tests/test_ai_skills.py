@@ -661,6 +661,59 @@ class TestCliValidation:
         assert "Usage:" in result.output
         assert "--ai" in result.output
 
+    def test_agy_without_ai_skills_fails(self):
+        """--ai agy without --ai-skills should fail with exit code 1."""
+        from typer.testing import CliRunner
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "test-proj", "--ai", "agy"])
+
+        assert result.exit_code == 1
+        assert "Explicit command support was deprecated in Antigravity version 1.20.5." in result.output
+        assert "--ai-skills" in result.output
+
+    def test_interactive_agy_without_ai_skills_prompts_skills(self, monkeypatch):
+        """Interactive selector returning agy without --ai-skills should automatically enable --ai-skills."""
+        from typer.testing import CliRunner
+
+        # Mock select_with_arrows to simulate the user picking 'agy' for AI,
+        # and return a deterministic default for any other prompts to avoid
+        # calling the real interactive implementation.
+        def _fake_select_with_arrows(*args, **kwargs):
+            options = kwargs.get("options")
+            if options is None and len(args) >= 1:
+                options = args[0]
+
+            # If the options include 'agy', simulate selecting it.
+            if isinstance(options, dict) and "agy" in options:
+                return "agy"
+            if isinstance(options, (list, tuple)) and "agy" in options:
+                return "agy"
+
+            # For any other prompt, return a deterministic, non-interactive default:
+            # pick the first option if available.
+            if isinstance(options, dict) and options:
+                return next(iter(options.keys()))
+            if isinstance(options, (list, tuple)) and options:
+                return options[0]
+
+            # If no options are provided, fall back to None (should not occur in normal use).
+            return None
+
+        monkeypatch.setattr("specify_cli.select_with_arrows", _fake_select_with_arrows)
+        
+        # Mock download_and_extract_template to prevent real HTTP downloads during testing
+        monkeypatch.setattr("specify_cli.download_and_extract_template", lambda *args, **kwargs: None)
+        # We need to bypass the `git init` step, wait, it has `--no-git` by default in tests maybe?
+        runner = CliRunner()
+        # Create temp dir to avoid directory already exists errors or whatever
+        with runner.isolated_filesystem():
+            result = runner.invoke(app, ["init", "test-proj", "--no-git"])
+
+            # Interactive selection should NOT raise the deprecation error!
+            assert result.exit_code == 0
+            assert "Explicit command support was deprecated" not in result.output
+
     def test_ai_skills_flag_appears_in_help(self):
         """--ai-skills should appear in init --help output."""
         from typer.testing import CliRunner
