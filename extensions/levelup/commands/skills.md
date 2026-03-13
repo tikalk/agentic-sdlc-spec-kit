@@ -28,11 +28,11 @@ Build a **single skill** from accepted modules based on user input. Skills are s
 
 **Input**:
 - User-specified skill name, module ID, or topic
-- Accepted modules from `{TEAM_DIRECTIVES}/.cdrs.json` (status "accepted")
+- Accepted CDRs from `{REPO_ROOT}/.specify/memory/cdr.md` (status "Accepted")
 
 **Output**:
 - Skill directory in `.specify/drafts/skills/{skill-name}/`
-- Entry added to `{TEAM_DIRECTIVES}/.skills.json` with status "proposed"
+- Entry added to `.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`
 - Ready for `/levelup.implement` to activate
 
 ## Role & Context
@@ -140,8 +140,8 @@ If input is ambiguous, ask for clarification.
 
 #### Step 1: Load Modules
 
-Read `{TEAM_DIRECTIVES}/.cdrs.json` and filter modules:
-- Status = "accepted"
+Read `{REPO_ROOT}/.specify/memory/cdr.md` and filter CDRs:
+- Status = "Accepted"
 - Type = "skill" (primary) or related types
 
 #### Step 2: Match Modules to Input
@@ -334,16 +334,15 @@ Check skill completeness:
 |------|-------------|
 | `.specify/drafts/skills/{skill-name}/SKILL.md` | Main skill definition |
 | `.specify/drafts/skills/{skill-name}/references/` | Supporting content |
-| `{TEAM_DIRECTIVES}/.skills.json` | Updated with proposed skill entry |
+| `.specify/drafts/skills/{skill-name}/.skills-entry.json` | Entry for `.skills.json` (applied during implement) |
 
 ## Notes
 
 - Builds ONE skill at a time - user specifies which
-- Only uses modules with status "accepted" from `.cdrs.json`
+- Only uses CDRs with status "Accepted" from `.specify/memory/cdr.md`
 - Skills follow team-ai-directives format for compatibility
 - Review generated skill before running `/levelup.implement`
 - Skill can be edited manually before implementation
-- Entry in `.skills.json` gets status "proposed" until `/levelup.implement` activates it
 
 ## Related Commands
 

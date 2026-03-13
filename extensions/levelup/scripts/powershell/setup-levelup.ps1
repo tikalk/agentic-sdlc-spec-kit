@@ -155,10 +155,16 @@ if (-not $teamDirectives) {
 
 # Skills drafts location
 $skillsDrafts = Join-Path $repoRoot ".specify/drafts/skills"
+$cdrFile = Join-Path $repoRoot ".specify/memory/cdr.md"
 
-# Ensure directories exist
 if (-not (Test-Path $skillsDrafts)) {
     New-Item -ItemType Directory -Path $skillsDrafts -Force | Out-Null
+}
+
+# Ensure .specify/memory exists
+$memoryDir = Join-Path $repoRoot ".specify/memory"
+if (-not (Test-Path $memoryDir)) {
+    New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
 }
 
 # Get current git branch
@@ -185,6 +191,7 @@ if ($Json) {
         REPO_ROOT = $repoRoot
         TEAM_DIRECTIVES = if ($teamDirectives) { $teamDirectives } else { "" }
         SKILLS_DRAFTS = $skillsDrafts
+        CDR_FILE = $cdrFile
         BRANCH = $currentBranch
         subsystems = $subsystemObjects
         decomposition = -not $NoDecompose
@@ -198,6 +205,7 @@ if ($Json) {
         Write-Host "TEAM_DIRECTIVES: (not configured)"
     }
     Write-Host "SKILLS_DRAFTS: $skillsDrafts"
+    Write-Host "CDR_FILE: $cdrFile"
     Write-Host "BRANCH: $currentBranch"
 
     $subsystems = Detect-Subsystems

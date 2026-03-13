@@ -201,7 +201,11 @@ fi
 # Skills drafts location
 SKILLS_DRAFTS="$REPO_ROOT/.specify/drafts/skills"
 
+# CDR file location
+CDR_FILE="$REPO_ROOT/.specify/memory/cdr.md"
+
 # Ensure directories exist
+mkdir -p "$REPO_ROOT/.specify/memory"
 mkdir -p "$SKILLS_DRAFTS"
 
 # Get current git branch
@@ -213,8 +217,8 @@ fi
 # Output results
 if $JSON_MODE; then
     subsystem_data=$(detect_subsystems)
-    printf '{"REPO_ROOT":"%s","TEAM_DIRECTIVES":"%s","SKILLS_DRAFTS":"%s","BRANCH":"%s",%s}\n' \
-        "$REPO_ROOT" "$TEAM_DIRECTIVES" "$SKILLS_DRAFTS" "$CURRENT_BRANCH" "${subsystem_data:1}"
+    printf '{"REPO_ROOT":"%s","TEAM_DIRECTIVES":"%s","SKILLS_DRAFTS":"%s","CDR_FILE":"%s","BRANCH":"%s",%s}\n' \
+        "$REPO_ROOT" "$TEAM_DIRECTIVES" "$SKILLS_DRAFTS" "$CDR_FILE" "$CURRENT_BRANCH" "${subsystem_data:1}"
 else
     echo "REPO_ROOT: $REPO_ROOT"
     if [[ -n "$TEAM_DIRECTIVES" ]]; then
@@ -223,6 +227,7 @@ else
         echo "TEAM_DIRECTIVES: (not configured)"
     fi
     echo "SKILLS_DRAFTS: $SKILLS_DRAFTS"
+    echo "CDR_FILE: $CDR_FILE"
     echo "BRANCH: $CURRENT_BRANCH"
     detect_subsystems
 fi

@@ -45,7 +45,7 @@ Scan an **existing codebase** (brownfield) and discover patterns that could beco
 
 **Output**:
 
-1. **Proposed modules** added to `{TEAM_DIRECTIVES}/.cdrs.json` with status "proposed"
+1. **Proposed modules** added to `{REPO_ROOT}/.specify/memory/cdr.md` with status "Discovered" or "Proposed"
 2. **Summary** of discovered patterns by context type
 3. **Manual handoff options** to `/levelup.clarify` or `/levelup.specify`
 
@@ -99,7 +99,7 @@ You are acting as a **Context Archaeologist** uncovering implicit team AI direct
 7. **Deduplication** (Phase 7): Filter out patterns already in team-ai-directives
 8. **CDR Generation** (Phase 8): Create CDRs for discovered patterns (status: "proposed")
 9. **Gap Analysis** (Phase 9): Identify areas where patterns are unclear
-10. **Output** (Phase 10): Write modules to `{TEAM_DIRECTIVES}/.cdrs.json`
+10. **Output** (Phase 10): Write CDRs to `{REPO_ROOT}/.specify/memory/cdr.md`
 11. **Handoff Options** (Phase 11): Present next step options
 
 ## Execution Steps
@@ -233,7 +233,7 @@ Run `{SCRIPT}` to set up the infrastructure:
 - Creates skills drafts directory at `.specify/drafts/skills/`
 - Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-The `.cdrs.json` file should already exist in team-ai-directives.
+The `.specify/memory/cdr.md` file will be created in the project directory.
 
 #### Step 2: Setup Directories
 
@@ -436,12 +436,12 @@ Document gaps for `/levelup.clarify`:
 
 #### Step 1: Write CDRs
 
-Add proposed modules to `{TEAM_DIRECTIVES}/.cdrs.json`:
+Add proposed CDRs to `{REPO_ROOT}/.specify/memory/cdr.md`:
 
-- Load existing `.cdrs.json`
-- Add new proposed modules with unique IDs
-- Save updated JSON
-- Do not overwrite existing active/accepted modules
+- Create `.specify/memory/` directory if it doesn't exist
+- Use the CDR template format (markdown with CDR index table)
+- Add new CDRs with unique IDs (CDR-001, CDR-002, etc.)
+- Do not overwrite existing accepted/active CDRs
 
 #### Step 2: Create Summary
 
@@ -480,9 +480,9 @@ Present discovery summary:
 
 ### Next Steps
 
-1. Review proposed modules in `{TEAM_DIRECTIVES}/.cdrs.json`
+1. Review proposed CDRs in `{REPO_ROOT}/.specify/memory/cdr.md`
 2. Run `/levelup.clarify` to resolve ambiguities
-3. Mark modules as "accepted" or "deprecated"
+3. Mark CDRs as "Accepted" or "Rejected"
 4. Run `/levelup.implement` to create PR
 ```
 
@@ -518,7 +518,7 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `{TEAM_DIRECTIVES}/.cdrs.json` | Context Directive Records |
+| `{REPO_ROOT}/.specify/memory/cdr.md` | Context Directive Records (markdown) |
 
 ## Notes
 

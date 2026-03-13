@@ -37,9 +37,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Resolve ambiguities in discovered or proposed CDRs through **clarifying questions**. Update module statuses based on answers.
 
-**Input**: Modules from `{TEAM_DIRECTIVES}/.cdrs.json` with status "discovered" or "proposed"
+**Input**: CDRs from `{REPO_ROOT}/.specify/memory/cdr.md` with status "Discovered" or "Proposed"
 
-**Output**: Updated modules with refined content and new statuses in `.cdrs.json`
+**Output**: Updated CDRs with refined content and new statuses in `.specify/memory/cdr.md`
 
 **Key Concept**:
 
@@ -105,11 +105,11 @@ Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
 
 #### Step 1: Load CDRs
 
-Read `{TEAM_DIRECTIVES}/.cdrs.json` and parse all modules.
+Read `{REPO_ROOT}/.specify/memory/cdr.md` and parse all CDRs.
 
 Filter modules by status:
-- **Primary**: Status = "discovered" or "proposed"
-- **Skip**: Status = "accepted", "active", "deprecated"
+- **Primary**: Status = "Discovered" or "Proposed"
+- **Skip**: Status = "Accepted", "Rejected", "Deprecated"
 
 If user specified specific module IDs, filter to those.
 
@@ -247,33 +247,30 @@ If content needs revision:
 
 ### Phase 5: Update Modules
 
-**Objective**: Write updated modules to `.cdrs.json`
+**Objective**: Write updated CDRs to `.specify/memory/cdr.md`
 
-#### Step 1: Update Module File
+#### Step 1: Update CDR File
 
-Update `{TEAM_DIRECTIVES}/.cdrs.json` for each clarified module:
+Update `{REPO_ROOT}/.specify/memory/cdr.md` for each clarified CDR:
 
-1. Update status field
+1. Update status in the CDR index table
 2. Add or update content if revised
-3. Add clarification metadata:
+3. Add clarification metadata in the CDR section:
 
-```json
-{
-  "modules": {
-    "{module-id}": {
-      "path": "context_modules/rules/{domain}/{file}.md",
-      "type": "rule",
-      "status": "accepted",
-      "clarification": {
-        "date": "2026-03-12",
-        "validation": "{validity answer}",
-        "scope": "{scope answer}",
-        "priority": "{priority answer}",
-        "changes": ["{list of changes}"]
-      }
-    }
-  }
-}
+```markdown
+### CDR-{ID}: {Title}
+
+**Status**
+
+**Accepted** | Proposed | Rejected
+
+### Clarification
+
+- **Date**: {YYYY-MM-DD}
+- **Validation**: {validity answer}
+- **Scope**: {scope answer}
+- **Priority**: {priority answer}
+- **Changes**: {list of changes}
 ```
 
 ### Phase 6: Summary
@@ -345,13 +342,13 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `{TEAM_DIRECTIVES}/.cdrs.json` | Updated Context Directive Records |
+| `{REPO_ROOT}/.specify/memory/cdr.md` | Updated Context Directive Records |
 
 ## Notes
 
-- Only modules with status "discovered" or "proposed" are clarified
-- Accepted modules (status "accepted") are ready for `/levelup.implement`
-- Rejected modules can be removed or kept with status "deprecated"
+- Only CDRs with status "Discovered" or "Proposed" are clarified
+- Accepted CDRs (status "Accepted") are ready for `/levelup.implement`
+- Rejected CDRs can be removed or kept with status "Deprecated"
 - Content can be revised multiple times before acceptance
 - No automatic handoff - user decides next step
 

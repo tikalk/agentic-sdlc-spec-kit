@@ -7,6 +7,18 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.127] - 2026-03-13
+
+### Changed
+
+- **Breaking**: Reverted CDR storage from JSON to markdown
+  - `/levelup.init` now outputs to `{PROJECT}/.specify/memory/cdr.md` (local)
+  - `/levelup.clarify` reads/writes `.specify/memory/cdr.md`
+  - `/levelup.skills` validates only CDRs with status "Accepted"
+  - `/levelup.implement` copies only accepted CDRs to `{TEAM_DIRECTIVES}/CDR.md` (root)
+  - Added `CDR_FILE` to setup-levelup scripts output
+  - Removed status field from `.skills.json` references
+
 ## [0.0.126] - 2026-03-12
 
 ### Changed
