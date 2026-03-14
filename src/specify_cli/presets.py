@@ -807,6 +807,33 @@ class PresetManager:
         self.registry.remove(pack_id)
         return True
 
+    def refresh_preset_commands(self, pack_id: str) -> None:
+        """Re-run command registration for an existing preset.
+
+        This ensures the 'replaces' logic is applied even for presets that
+        were installed before the replaces feature was added. Called during
+        init to clean up superseded commands (e.g., speckit.* -> adlc.spec.*).
+
+        Args:
+            pack_id: Preset ID to refresh
+        """
+        if not self.registry.is_installed(pack_id):
+            return
+
+        pack_dir = self.presets_dir / pack_id
+        manifest_path = pack_dir / "preset.yml"
+
+        if not manifest_path.exists():
+            return
+
+        try:
+            manifest = PresetManifest(manifest_path)
+            # Re-run command registration which includes replaces logic
+            self._register_commands(manifest, pack_dir)
+        except PresetValidationError:
+            # Invalid manifest, skip silently
+            pass
+
     def list_installed(self) -> List[Dict[str, Any]]:
         """List all installed presets with metadata.
 
