@@ -425,3 +425,50 @@ class CommandRegistrar:
                     )
                     if prompt_file.exists():
                         prompt_file.unlink()
+
+    def remove_replaced_commands(
+        self, replaced_commands: List[str], project_root: Path
+    ) -> Dict[str, List[str]]:
+        """Remove command files that are being replaced by a preset.
+
+        Scans all detected agent directories and removes command files
+        matching the names in replaced_commands.
+
+        Args:
+            replaced_commands: List of command names to remove (e.g. ["speckit.specify"])
+            project_root: Path to project root
+
+        Returns:
+            Dictionary mapping agent names to lists of removed command names
+        """
+        removed = {}
+
+        for agent_name, agent_config in self.AGENT_CONFIGS.items():
+            agent_dir = project_root / agent_config["dir"].split("/")[0]
+
+            if not agent_dir.exists():
+                continue
+
+            commands_dir = project_root / agent_config["dir"]
+            if not commands_dir.exists():
+                continue
+
+            removed_for_agent = []
+            for cmd_name in replaced_commands:
+                cmd_file = commands_dir / f"{cmd_name}{agent_config['extension']}"
+                if cmd_file.exists():
+                    cmd_file.unlink()
+                    removed_for_agent.append(cmd_name)
+
+                # Also remove Copilot prompt files
+                if agent_name == "copilot":
+                    prompt_file = (
+                        project_root / ".github" / "prompts" / f"{cmd_name}.prompt.md"
+                    )
+                    if prompt_file.exists():
+                        prompt_file.unlink()
+
+            if removed_for_agent:
+                removed[agent_name] = removed_for_agent
+
+        return removed

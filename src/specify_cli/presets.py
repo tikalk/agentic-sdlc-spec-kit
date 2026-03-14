@@ -27,6 +27,7 @@ from packaging.specifiers import SpecifierSet, InvalidSpecifier
 @dataclass
 class PresetCatalogEntry:
     """Represents a single entry in the preset catalog stack."""
+
     url: str
     name: str
     priority: int
@@ -36,16 +37,19 @@ class PresetCatalogEntry:
 
 class PresetError(Exception):
     """Base exception for preset-related errors."""
+
     pass
 
 
 class PresetValidationError(PresetError):
     """Raised when preset manifest validation fails."""
+
     pass
 
 
 class PresetCompatibilityError(PresetError):
     """Raised when preset is incompatible with current environment."""
+
     pass
 
 
@@ -74,7 +78,7 @@ class PresetManifest:
     def _load_yaml(self, path: Path) -> dict:
         """Load YAML file safely."""
         try:
-            with open(path, 'r') as f:
+            with open(path, "r") as f:
                 return yaml.safe_load(f) or {}
         except yaml.YAMLError as e:
             raise PresetValidationError(f"Invalid YAML in {path}: {e}")
@@ -102,7 +106,7 @@ class PresetManifest:
                 raise PresetValidationError(f"Missing preset.{field}")
 
         # Validate pack ID format
-        if not re.match(r'^[a-z0-9-]+$', pack["id"]):
+        if not re.match(r"^[a-z0-9-]+$", pack["id"]):
             raise PresetValidationError(
                 f"Invalid preset ID '{pack['id']}': "
                 "must be lowercase alphanumeric with hyphens only"
@@ -122,9 +126,7 @@ class PresetManifest:
         # Validate provides section
         provides = self.data["provides"]
         if "templates" not in provides or not provides["templates"]:
-            raise PresetValidationError(
-                "Preset must provide at least one template"
-            )
+            raise PresetValidationError("Preset must provide at least one template")
 
         # Validate templates
         for tmpl in provides["templates"]:
@@ -151,13 +153,13 @@ class PresetManifest:
             # Validate template name format
             if tmpl["type"] == "command":
                 # Commands use dot notation (e.g. speckit.specify)
-                if not re.match(r'^[a-z0-9.-]+$', tmpl["name"]):
+                if not re.match(r"^[a-z0-9.-]+$", tmpl["name"]):
                     raise PresetValidationError(
                         f"Invalid command name '{tmpl['name']}': "
                         "must be lowercase alphanumeric with hyphens and dots only"
                     )
             else:
-                if not re.match(r'^[a-z0-9-]+$', tmpl["name"]):
+                if not re.match(r"^[a-z0-9-]+$", tmpl["name"]):
                     raise PresetValidationError(
                         f"Invalid template name '{tmpl['name']}': "
                         "must be lowercase alphanumeric with hyphens only"
@@ -205,7 +207,7 @@ class PresetManifest:
 
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""
-        with open(self.path, 'rb') as f:
+        with open(self.path, "rb") as f:
             return f"sha256:{hashlib.sha256(f.read()).hexdigest()}"
 
 
@@ -228,24 +230,18 @@ class PresetRegistry:
     def _load(self) -> dict:
         """Load registry from disk."""
         if not self.registry_path.exists():
-            return {
-                "schema_version": self.SCHEMA_VERSION,
-                "presets": {}
-            }
+            return {"schema_version": self.SCHEMA_VERSION, "presets": {}}
 
         try:
-            with open(self.registry_path, 'r') as f:
+            with open(self.registry_path, "r") as f:
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
-            return {
-                "schema_version": self.SCHEMA_VERSION,
-                "presets": {}
-            }
+            return {"schema_version": self.SCHEMA_VERSION, "presets": {}}
 
     def _save(self):
         """Save registry to disk."""
         self.packs_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.registry_path, 'w') as f:
+        with open(self.registry_path, "w") as f:
             json.dump(self.data, f, indent=2)
 
     def add(self, pack_id: str, metadata: dict):
@@ -257,7 +253,7 @@ class PresetRegistry:
         """
         self.data["presets"][pack_id] = {
             **metadata,
-            "installed_at": datetime.now(timezone.utc).isoformat()
+            "installed_at": datetime.now(timezone.utc).isoformat(),
         }
         self._save()
 
@@ -330,9 +326,7 @@ class PresetManager:
         self.registry = PresetRegistry(self.presets_dir)
 
     def check_compatibility(
-        self,
-        manifest: PresetManifest,
-        speckit_version: str
+        self, manifest: PresetManifest, speckit_version: str
     ) -> bool:
         """Check if preset is compatible with current spec-kit version.
 
@@ -358,22 +352,21 @@ class PresetManager:
                     f"Upgrade spec-kit with: uv tool install specify-cli --force"
                 )
         except InvalidSpecifier:
-            raise PresetCompatibilityError(
-                f"Invalid version specifier: {required}"
-            )
+            raise PresetCompatibilityError(f"Invalid version specifier: {required}")
 
         return True
 
     def _register_commands(
-        self,
-        manifest: PresetManifest,
-        preset_dir: Path
+        self, manifest: PresetManifest, preset_dir: Path
     ) -> Dict[str, List[str]]:
         """Register preset command overrides with all detected AI agents.
 
         Scans the preset's templates for type "command", reads each command
         file, and writes it to every detected agent directory using the
         CommandRegistrar from the agents module.
+
+        Commands with a "replaces" field will have the replaced command files
+        removed from all agent directories before the new commands are written.
 
         Args:
             manifest: Preset manifest
@@ -410,6 +403,12 @@ class PresetManager:
             return {}
 
         registrar = CommandRegistrar()
+
+        # Collect commands to be replaced and remove them before registering new ones
+        replaced_commands = [cmd["replaces"] for cmd in filtered if cmd.get("replaces")]
+        if replaced_commands:
+            registrar.remove_replaced_commands(replaced_commands, self.project_root)
+
         return registrar.register_commands_for_all_agents(
             filtered, manifest.id, preset_dir, self.project_root
         )
@@ -518,7 +517,7 @@ class PresetManager:
             # Derive the short command name (e.g. "specify" from "speckit.specify")
             short_name = cmd_name
             if short_name.startswith("speckit."):
-                short_name = short_name[len("speckit."):]
+                short_name = short_name[len("speckit.") :]
             # Kimi CLI discovers skills by directory name and invokes them as
             # /skill:<name> — use dot separator to match packaging convention.
             if selected_ai == "kimi":
@@ -604,9 +603,9 @@ class PresetManager:
             # Derive command name from skill name (speckit-specify -> specify)
             short_name = skill_name
             if short_name.startswith("speckit-"):
-                short_name = short_name[len("speckit-"):]
+                short_name = short_name[len("speckit-") :]
             elif short_name.startswith("speckit."):
-                short_name = short_name[len("speckit."):]
+                short_name = short_name[len("speckit.") :]
 
             skill_subdir = skills_dir / skill_name
             skill_file = skill_subdir / "SKILL.md"
@@ -614,7 +613,11 @@ class PresetManager:
                 continue
 
             # Try to find the core command template
-            core_file = core_templates_dir / f"{short_name}.md" if core_templates_dir.exists() else None
+            core_file = (
+                core_templates_dir / f"{short_name}.md"
+                if core_templates_dir.exists()
+                else None
+            )
             if core_file and not core_file.exists():
                 core_file = None
 
@@ -650,7 +653,9 @@ class PresetManager:
                         "source": f"templates/commands/{short_name}.md",
                     },
                 }
-                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                frontmatter_text = yaml.safe_dump(
+                    frontmatter_data, sort_keys=False
+                ).strip()
                 skill_content = (
                     f"---\n"
                     f"{frontmatter_text}\n"
@@ -706,15 +711,18 @@ class PresetManager:
         # Update corresponding skills when --ai-skills was previously used
         registered_skills = self._register_skills(manifest, dest_dir)
 
-        self.registry.add(manifest.id, {
-            "version": manifest.version,
-            "source": "local",
-            "manifest_hash": manifest.get_hash(),
-            "enabled": True,
-            "priority": priority,
-            "registered_commands": registered_commands,
-            "registered_skills": registered_skills,
-        })
+        self.registry.add(
+            manifest.id,
+            {
+                "version": manifest.version,
+                "source": "local",
+                "manifest_hash": manifest.get_hash(),
+                "enabled": True,
+                "priority": priority,
+                "registered_commands": registered_commands,
+                "registered_skills": registered_skills,
+            },
+        )
 
         return manifest
 
@@ -740,7 +748,7 @@ class PresetManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_path = Path(tmpdir)
 
-            with zipfile.ZipFile(zip_path, 'r') as zf:
+            with zipfile.ZipFile(zip_path, "r") as zf:
                 temp_path_resolved = temp_path.resolve()
                 for member in zf.namelist():
                     member_path = (temp_path / member).resolve()
@@ -763,9 +771,7 @@ class PresetManager:
                     manifest_path = pack_dir / "preset.yml"
 
             if not manifest_path.exists():
-                raise PresetValidationError(
-                    "No preset.yml found in ZIP file"
-                )
+                raise PresetValidationError("No preset.yml found in ZIP file")
 
             return self.install_from_directory(pack_dir, speckit_version, priority)
 
@@ -783,7 +789,9 @@ class PresetManager:
 
         # Unregister commands from AI agents
         metadata = self.registry.get(pack_id)
-        registered_commands = metadata.get("registered_commands", {}) if metadata else {}
+        registered_commands = (
+            metadata.get("registered_commands", {}) if metadata else {}
+        )
         if registered_commands:
             self._unregister_commands(registered_commands)
 
@@ -813,29 +821,33 @@ class PresetManager:
 
             try:
                 manifest = PresetManifest(manifest_path)
-                result.append({
-                    "id": pack_id,
-                    "name": manifest.name,
-                    "version": metadata["version"],
-                    "description": manifest.description,
-                    "enabled": metadata.get("enabled", True),
-                    "installed_at": metadata.get("installed_at"),
-                    "template_count": len(manifest.templates),
-                    "tags": manifest.tags,
-                    "priority": metadata.get("priority", 10),
-                })
+                result.append(
+                    {
+                        "id": pack_id,
+                        "name": manifest.name,
+                        "version": metadata["version"],
+                        "description": manifest.description,
+                        "enabled": metadata.get("enabled", True),
+                        "installed_at": metadata.get("installed_at"),
+                        "template_count": len(manifest.templates),
+                        "tags": manifest.tags,
+                        "priority": metadata.get("priority", 10),
+                    }
+                )
             except PresetValidationError:
-                result.append({
-                    "id": pack_id,
-                    "name": pack_id,
-                    "version": metadata.get("version", "unknown"),
-                    "description": "⚠️ Corrupted preset",
-                    "enabled": False,
-                    "installed_at": metadata.get("installed_at"),
-                    "template_count": 0,
-                    "tags": [],
-                    "priority": metadata.get("priority", 10),
-                })
+                result.append(
+                    {
+                        "id": pack_id,
+                        "name": pack_id,
+                        "version": metadata.get("version", "unknown"),
+                        "description": "⚠️ Corrupted preset",
+                        "enabled": False,
+                        "installed_at": metadata.get("installed_at"),
+                        "template_count": 0,
+                        "tags": [],
+                        "priority": metadata.get("priority", 10),
+                    }
+                )
 
         return result
 
@@ -867,7 +879,9 @@ class PresetCatalog:
     mirroring the extension catalog system.
     """
 
-    DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/presets/catalog.json"
+    DEFAULT_CATALOG_URL = (
+        "https://raw.githubusercontent.com/github/spec-kit/main/presets/catalog.json"
+    )
     COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/presets/catalog.community.json"
     CACHE_DURATION = 3600  # 1 hour in seconds
 
@@ -896,19 +910,17 @@ class PresetCatalog:
 
         parsed = urlparse(url)
         is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (
-            parsed.scheme == "http" and is_localhost
-        ):
+        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
             raise PresetValidationError(
                 f"Catalog URL must use HTTPS (got {parsed.scheme}://). "
                 "HTTP is only allowed for localhost."
             )
         if not parsed.netloc:
-            raise PresetValidationError(
-                "Catalog URL must be a valid URL with a host."
-            )
+            raise PresetValidationError("Catalog URL must be a valid URL with a host.")
 
-    def _load_catalog_config(self, config_path: Path) -> Optional[List[PresetCatalogEntry]]:
+    def _load_catalog_config(
+        self, config_path: Path
+    ) -> Optional[List[PresetCatalogEntry]]:
         """Load catalog stack configuration from a YAML file.
 
         Args:
@@ -963,13 +975,15 @@ class PresetCatalog:
                 install_allowed = raw_install.strip().lower() in ("true", "yes", "1")
             else:
                 install_allowed = bool(raw_install)
-            entries.append(PresetCatalogEntry(
-                url=url,
-                name=str(item.get("name", f"catalog-{idx + 1}")),
-                priority=priority,
-                install_allowed=install_allowed,
-                description=str(item.get("description", "")),
-            ))
+            entries.append(
+                PresetCatalogEntry(
+                    url=url,
+                    name=str(item.get("name", f"catalog-{idx + 1}")),
+                    priority=priority,
+                    install_allowed=install_allowed,
+                    description=str(item.get("description", "")),
+                )
+            )
         entries.sort(key=lambda e: e.priority)
         return entries if entries else None
 
@@ -1002,7 +1016,15 @@ class PresetCatalog:
                         file=sys.stderr,
                     )
                     self._non_default_catalog_warning_shown = True
-            return [PresetCatalogEntry(url=catalog_url, name="custom", priority=1, install_allowed=True, description="Custom catalog via SPECKIT_PRESET_CATALOG_URL")]
+            return [
+                PresetCatalogEntry(
+                    url=catalog_url,
+                    name="custom",
+                    priority=1,
+                    install_allowed=True,
+                    description="Custom catalog via SPECKIT_PRESET_CATALOG_URL",
+                )
+            ]
 
         # 2. Project-level config overrides all defaults
         project_config_path = self.project_root / ".specify" / "preset-catalogs.yml"
@@ -1018,8 +1040,20 @@ class PresetCatalog:
 
         # 4. Built-in default stack
         return [
-            PresetCatalogEntry(url=self.DEFAULT_CATALOG_URL, name="default", priority=1, install_allowed=True, description="Built-in catalog of installable presets"),
-            PresetCatalogEntry(url=self.COMMUNITY_CATALOG_URL, name="community", priority=2, install_allowed=False, description="Community-contributed presets (discovery only)"),
+            PresetCatalogEntry(
+                url=self.DEFAULT_CATALOG_URL,
+                name="default",
+                priority=1,
+                install_allowed=True,
+                description="Built-in catalog of installable presets",
+            ),
+            PresetCatalogEntry(
+                url=self.COMMUNITY_CATALOG_URL,
+                name="community",
+                priority=2,
+                install_allowed=False,
+                description="Community-contributed presets (discovery only)",
+            ),
         ]
 
     def get_catalog_url(self) -> str:
@@ -1061,14 +1095,14 @@ class PresetCatalog:
             cached_at = datetime.fromisoformat(metadata.get("cached_at", ""))
             if cached_at.tzinfo is None:
                 cached_at = cached_at.replace(tzinfo=timezone.utc)
-            age_seconds = (
-                datetime.now(timezone.utc) - cached_at
-            ).total_seconds()
+            age_seconds = (datetime.now(timezone.utc) - cached_at).total_seconds()
             return age_seconds < self.CACHE_DURATION
         except (json.JSONDecodeError, ValueError, KeyError, TypeError):
             return False
 
-    def _fetch_single_catalog(self, entry: PresetCatalogEntry, force_refresh: bool = False) -> Dict[str, Any]:
+    def _fetch_single_catalog(
+        self, entry: PresetCatalogEntry, force_refresh: bool = False
+    ) -> Dict[str, Any]:
         """Fetch a single catalog with per-URL caching.
 
         Args:
@@ -1096,10 +1130,7 @@ class PresetCatalog:
             with urllib.request.urlopen(entry.url, timeout=10) as response:
                 catalog_data = json.loads(response.read())
 
-            if (
-                "schema_version" not in catalog_data
-                or "presets" not in catalog_data
-            ):
+            if "schema_version" not in catalog_data or "presets" not in catalog_data:
                 raise PresetError("Invalid preset catalog format")
 
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -1115,11 +1146,11 @@ class PresetCatalog:
         except (ImportError, Exception) as e:
             if isinstance(e, PresetError):
                 raise
-            raise PresetError(
-                f"Failed to fetch preset catalog from {entry.url}: {e}"
-            )
+            raise PresetError(f"Failed to fetch preset catalog from {entry.url}: {e}")
 
-    def _get_merged_packs(self, force_refresh: bool = False) -> Dict[str, Dict[str, Any]]:
+    def _get_merged_packs(
+        self, force_refresh: bool = False
+    ) -> Dict[str, Dict[str, Any]]:
         """Fetch and merge presets from all active catalogs.
 
         Higher-priority catalogs (lower priority number) win on ID conflicts.
@@ -1134,7 +1165,11 @@ class PresetCatalog:
             try:
                 data = self._fetch_single_catalog(entry, force_refresh)
                 for pack_id, pack_data in data.get("presets", {}).items():
-                    pack_data_with_catalog = {**pack_data, "_catalog_name": entry.name, "_install_allowed": entry.install_allowed}
+                    pack_data_with_catalog = {
+                        **pack_data,
+                        "_catalog_name": entry.name,
+                        "_install_allowed": entry.install_allowed,
+                    }
                     merged[pack_id] = pack_data_with_catalog
             except PresetError:
                 continue
@@ -1155,9 +1190,7 @@ class PresetCatalog:
             cached_at = datetime.fromisoformat(metadata.get("cached_at", ""))
             if cached_at.tzinfo is None:
                 cached_at = cached_at.replace(tzinfo=timezone.utc)
-            age_seconds = (
-                datetime.now(timezone.utc) - cached_at
-            ).total_seconds()
+            age_seconds = (datetime.now(timezone.utc) - cached_at).total_seconds()
             return age_seconds < self.CACHE_DURATION
         except (json.JSONDecodeError, ValueError, KeyError, TypeError):
             return False
@@ -1192,10 +1225,7 @@ class PresetCatalog:
             with urllib.request.urlopen(catalog_url, timeout=10) as response:
                 catalog_data = json.loads(response.read())
 
-            if (
-                "schema_version" not in catalog_data
-                or "presets" not in catalog_data
-            ):
+            if "schema_version" not in catalog_data or "presets" not in catalog_data:
                 raise PresetError("Invalid preset catalog format")
 
             self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -1205,18 +1235,14 @@ class PresetCatalog:
                 "cached_at": datetime.now(timezone.utc).isoformat(),
                 "catalog_url": catalog_url,
             }
-            self.cache_metadata_file.write_text(
-                json.dumps(metadata, indent=2)
-            )
+            self.cache_metadata_file.write_text(json.dumps(metadata, indent=2))
 
             return catalog_data
 
         except (ImportError, Exception) as e:
             if isinstance(e, PresetError):
                 raise
-            raise PresetError(
-                f"Failed to fetch preset catalog from {catalog_url}: {e}"
-            )
+            raise PresetError(f"Failed to fetch preset catalog from {catalog_url}: {e}")
 
     def search(
         self,
@@ -1271,9 +1297,7 @@ class PresetCatalog:
 
         return results
 
-    def get_pack_info(
-        self, pack_id: str
-    ) -> Optional[Dict[str, Any]]:
+    def get_pack_info(self, pack_id: str) -> Optional[Dict[str, Any]]:
         """Get detailed information about a specific preset.
 
         Searches across all active catalogs (merged by priority).
@@ -1293,9 +1317,7 @@ class PresetCatalog:
             return {**packs[pack_id], "id": pack_id}
         return None
 
-    def download_pack(
-        self, pack_id: str, target_dir: Optional[Path] = None
-    ) -> Path:
+    def download_pack(self, pack_id: str, target_dir: Optional[Path] = None) -> Path:
         """Download preset ZIP from catalog.
 
         Args:
@@ -1313,9 +1335,7 @@ class PresetCatalog:
 
         pack_info = self.get_pack_info(pack_id)
         if not pack_info:
-            raise PresetError(
-                f"Preset '{pack_id}' not found in catalog"
-            )
+            raise PresetError(f"Preset '{pack_id}' not found in catalog")
 
         if not pack_info.get("_install_allowed", True):
             catalog_name = pack_info.get("_catalog_name", "unknown")
@@ -1326,20 +1346,14 @@ class PresetCatalog:
 
         download_url = pack_info.get("download_url")
         if not download_url:
-            raise PresetError(
-                f"Preset '{pack_id}' has no download URL"
-            )
+            raise PresetError(f"Preset '{pack_id}' has no download URL")
 
         from urllib.parse import urlparse
 
         parsed = urlparse(download_url)
         is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (
-            parsed.scheme == "http" and is_localhost
-        ):
-            raise PresetError(
-                f"Preset download URL must use HTTPS: {download_url}"
-            )
+        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
+            raise PresetError(f"Preset download URL must use HTTPS: {download_url}")
 
         if target_dir is None:
             target_dir = self.cache_dir / "downloads"
@@ -1357,9 +1371,7 @@ class PresetCatalog:
             return zip_path
 
         except urllib.error.URLError as e:
-            raise PresetError(
-                f"Failed to download preset from {download_url}: {e}"
-            )
+            raise PresetError(f"Failed to download preset from {download_url}: {e}")
         except IOError as e:
             raise PresetError(f"Failed to save preset ZIP: {e}")
 
