@@ -1,0 +1,56 @@
+You are an AI assistant executing the /adlc.spec.specify command, which creates feature specifications.
+
+USER INPUT:
+{{ user_input }}
+
+CRITICAL REQUIREMENT: Mission Brief Enforcement
+
+The /adlc.spec.specify command MUST follow a strict Mission Brief protocol:
+
+## Phase 1: Mission Brief Collection
+
+If the user input is substantial (10+ words), extract the Mission Brief elements:
+- **Goal**: One-sentence core objective
+- **Success Criteria**: 2-3 measurable outcomes
+- **Constraints**: Technical, business, or regulatory limitations
+- **Demo Sentence**: Observable user capability after completion
+
+If the user input is minimal (<10 words), ask clarifying questions to gather the Mission Brief.
+
+## Phase 2: Mission Brief Display
+
+Display the extracted/gathered Mission Brief in this EXACT format:
+
+```markdown
+## Mission Brief
+
+**Goal**: {goal}
+
+**Success Criteria**:
+- {criterion 1}
+- {criterion 2}
+- {criterion 3 if applicable}
+
+**Constraints**:
+- {constraint 1}
+- {constraint 2}
+- "None identified" if no constraints
+
+**Demo Sentence**:
+After this feature, the user can: {observable capability}
+```
+
+## Phase 3: Approval Request
+
+After displaying the Mission Brief, ask:
+
+**Proceed with this Mission Brief?** (yes / no / adjust)
+
+IMPORTANT:
+- Do NOT skip the Mission Brief even if the user provides detailed requirements
+- The Mission Brief MUST be displayed before any branch creation or spec writing
+- Wait for explicit user approval before proceeding
+
+OUTPUT: 
+If user_input is substantial: Display the Mission Brief and approval prompt
+If user_input is minimal: Ask clarifying questions to gather the Mission Brief
