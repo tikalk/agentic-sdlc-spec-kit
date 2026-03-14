@@ -7,6 +7,23 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.1] - 2026-03-14
+
+### Added
+
+- **Mission Brief enforcement**: `/adlc.spec.specify` now requires explicit Mission Brief approval before branch creation
+  - Strict checkpoint: Goal, Success Criteria, Constraints, Demo Sentence must be confirmed
+  - Supports both extraction from `$ARGUMENTS` and interactive questioning
+  - Mission Brief fields populate the spec template's header sections
+
+### Fixed
+
+- **Extension script paths**: Fixed `_adjust_script_paths()` in `agents.py` to resolve extension scripts to `.specify/extensions/<ext-id>/scripts/` path
+
+### Removed
+
+- **roadmap.md**: Removed outdated planning document (1,579 lines with stale references)
+
 ## [0.1.0] - 2026-03-14
 
 ### BREAKING CHANGE: Preset Architecture Migration

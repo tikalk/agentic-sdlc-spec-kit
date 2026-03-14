@@ -26,116 +26,116 @@ class CommandRegistrar:
             "dir": ".claude/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "gemini": {
             "dir": ".gemini/commands",
             "format": "toml",
             "args": "{{args}}",
-            "extension": ".toml"
+            "extension": ".toml",
         },
         "copilot": {
             "dir": ".github/agents",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".agent.md"
+            "extension": ".agent.md",
         },
         "cursor": {
             "dir": ".cursor/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "qwen": {
             "dir": ".qwen/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "opencode": {
             "dir": ".opencode/command",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "codex": {
             "dir": ".codex/prompts",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "windsurf": {
             "dir": ".windsurf/workflows",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "kilocode": {
             "dir": ".kilocode/workflows",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "auggie": {
             "dir": ".augment/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "roo": {
             "dir": ".roo/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "codebuddy": {
             "dir": ".codebuddy/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "qodercli": {
             "dir": ".qoder/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "kiro-cli": {
             "dir": ".kiro/prompts",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "amp": {
             "dir": ".agents/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "shai": {
             "dir": ".shai/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "tabnine": {
             "dir": ".tabnine/agent/commands",
             "format": "toml",
             "args": "{{args}}",
-            "extension": ".toml"
+            "extension": ".toml",
         },
         "bob": {
             "dir": ".bob/commands",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": ".md"
+            "extension": ".md",
         },
         "kimi": {
             "dir": ".kimi/skills",
             "format": "markdown",
             "args": "$ARGUMENTS",
-            "extension": "/SKILL.md"
-        }
+            "extension": "/SKILL.md",
+        },
     }
 
     @staticmethod
@@ -157,7 +157,7 @@ class CommandRegistrar:
             return {}, content
 
         frontmatter_str = content[3:end_marker].strip()
-        body = content[end_marker + 3:].strip()
+        body = content[end_marker + 3 :].strip()
 
         try:
             frontmatter = yaml.safe_load(frontmatter_str) or {}
@@ -182,11 +182,12 @@ class CommandRegistrar:
         yaml_str = yaml.dump(fm, default_flow_style=False, sort_keys=False)
         return f"---\n{yaml_str}---\n"
 
-    def _adjust_script_paths(self, frontmatter: dict) -> dict:
+    def _adjust_script_paths(self, frontmatter: dict, source_id: str = None) -> dict:
         """Adjust script paths from extension-relative to repo-relative.
 
         Args:
             frontmatter: Frontmatter dictionary
+            source_id: Extension or preset ID (for resolving extension scripts)
 
         Returns:
             Modified frontmatter with adjusted paths
@@ -196,14 +197,15 @@ class CommandRegistrar:
                 script_path = frontmatter["scripts"][key]
                 if script_path.startswith("../../scripts/"):
                     frontmatter["scripts"][key] = f".specify/scripts/{script_path[14:]}"
+                elif source_id and script_path.startswith("scripts/"):
+                    # Extension/preset scripts: resolve to installed extension location
+                    frontmatter["scripts"][key] = (
+                        f".specify/extensions/{source_id}/{script_path}"
+                    )
         return frontmatter
 
     def render_markdown_command(
-        self,
-        frontmatter: dict,
-        body: str,
-        source_id: str,
-        context_note: str = None
+        self, frontmatter: dict, body: str, source_id: str, context_note: str = None
     ) -> str:
         """Render command in Markdown format.
 
@@ -220,12 +222,7 @@ class CommandRegistrar:
             context_note = f"\n<!-- Source: {source_id} -->\n"
         return self.render_frontmatter(frontmatter) + "\n" + context_note + body
 
-    def render_toml_command(
-        self,
-        frontmatter: dict,
-        body: str,
-        source_id: str
-    ) -> str:
+    def render_toml_command(self, frontmatter: dict, body: str, source_id: str) -> str:
         """Render command in TOML format.
 
         Args:
@@ -252,7 +249,9 @@ class CommandRegistrar:
 
         return "\n".join(toml_lines)
 
-    def _convert_argument_placeholder(self, content: str, from_placeholder: str, to_placeholder: str) -> str:
+    def _convert_argument_placeholder(
+        self, content: str, from_placeholder: str, to_placeholder: str
+    ) -> str:
         """Convert argument placeholder format.
 
         Args:
@@ -272,7 +271,7 @@ class CommandRegistrar:
         source_id: str,
         source_dir: Path,
         project_root: Path,
-        context_note: str = None
+        context_note: str = None,
     ) -> List[str]:
         """Register commands for a specific agent.
 
@@ -310,14 +309,16 @@ class CommandRegistrar:
             content = source_file.read_text(encoding="utf-8")
             frontmatter, body = self.parse_frontmatter(content)
 
-            frontmatter = self._adjust_script_paths(frontmatter)
+            frontmatter = self._adjust_script_paths(frontmatter, source_id)
 
             body = self._convert_argument_placeholder(
                 body, "$ARGUMENTS", agent_config["args"]
             )
 
             if agent_config["format"] == "markdown":
-                output = self.render_markdown_command(frontmatter, body, source_id, context_note)
+                output = self.render_markdown_command(
+                    frontmatter, body, source_id, context_note
+                )
             elif agent_config["format"] == "toml":
                 output = self.render_toml_command(frontmatter, body, source_id)
             else:
@@ -361,7 +362,7 @@ class CommandRegistrar:
         source_id: str,
         source_dir: Path,
         project_root: Path,
-        context_note: str = None
+        context_note: str = None,
     ) -> Dict[str, List[str]]:
         """Register commands for all detected agents in the project.
 
@@ -383,8 +384,12 @@ class CommandRegistrar:
             if agent_dir.exists():
                 try:
                     registered = self.register_commands(
-                        agent_name, commands, source_id, source_dir, project_root,
-                        context_note=context_note
+                        agent_name,
+                        commands,
+                        source_id,
+                        source_dir,
+                        project_root,
+                        context_note=context_note,
                     )
                     if registered:
                         results[agent_name] = registered
@@ -394,9 +399,7 @@ class CommandRegistrar:
         return results
 
     def unregister_commands(
-        self,
-        registered_commands: Dict[str, List[str]],
-        project_root: Path
+        self, registered_commands: Dict[str, List[str]], project_root: Path
     ) -> None:
         """Remove previously registered command files from agent directories.
 
@@ -417,6 +420,8 @@ class CommandRegistrar:
                     cmd_file.unlink()
 
                 if agent_name == "copilot":
-                    prompt_file = project_root / ".github" / "prompts" / f"{cmd_name}.prompt.md"
+                    prompt_file = (
+                        project_root / ".github" / "prompts" / f"{cmd_name}.prompt.md"
+                    )
                     if prompt_file.exists():
                         prompt_file.unlink()

@@ -13,6 +13,19 @@ scripts:
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
+## ⚠️ ENFORCEMENT MODE: MISSION BRIEF REQUIRED
+
+### CRITICAL RULES
+
+1. **MUST COLLECT MISSION BRIEF** - Gather Goal, Success Criteria, Constraints FIRST
+2. **MUST WAIT FOR USER APPROVAL** - Display summary and get explicit "yes"
+3. **DO NOT CREATE BRANCH WITHOUT APPROVAL** - Mission Brief must be confirmed
+4. **DO NOT SKIP MISSION BRIEF** - Even if $ARGUMENTS is provided, extract and confirm
+
+**Failure to follow these rules violates the adlc.spec.specify contract.**
+
+---
+
 ## User Input
 
 ```text
@@ -21,11 +34,88 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+---
+
+## ⚠️ ENFORCEMENT CHECKPOINT 1: Mission Brief
+
+### STOP: COLLECT MISSION BRIEF BEFORE PROCEEDING
+
+---
+
+### Phase 1: Extract or Ask for Mission Brief
+
+**If $ARGUMENTS is provided (non-empty):**
+
+Extract the following from the user's description:
+- **Goal**: The core purpose/objective (one sentence)
+- **Success Criteria**: 2-3 measurable outcomes
+- **Constraints**: Technical, business, or regulatory limitations
+- **Demo Sentence**: Observable user capability after completion
+
+Use reasonable inference for any missing elements based on context.
+
+**If $ARGUMENTS is empty or minimal (less than 10 words):**
+
+Ask the Mission Brief Questions:
+
+```markdown
+## Mission Brief Questions
+
+### Question 1: What needs to be built?
+What is the primary feature, capability, or change you need?
+
+### Question 2: What defines success?
+How will we know when this feature is complete? What outcomes matter?
+
+### Question 3: Any constraints?
+Time constraints? Technical limitations? Dependencies? Regulatory requirements?
+```
+
+**⚠️ STOP HERE if questions asked**: Wait for user answers before proceeding.
+
+---
+
+### CHECKPOINT 1: Display Mission Brief for APPROVAL
+
+After collecting/extracting information, display Mission Brief in this EXACT format:
+
+```markdown
+## Mission Brief
+
+**Goal**: {extracted or provided goal - one sentence}
+
+**Success Criteria**:
+- {criterion 1 - measurable}
+- {criterion 2 - measurable}
+- {criterion 3 - if applicable}
+
+**Constraints**:
+- {constraint 1}
+- {constraint 2}
+- "None identified" if no constraints
+
+**Demo Sentence**:
+After this feature, the user can: {observable, demo-able capability}
+```
+
+### MANDATORY: Get User Confirmation
+
+```markdown
+**Proceed with this Mission Brief?** (yes / no / adjust)
+```
+
+**⚠️ STOP**: Wait for explicit response.
+
+- If **"no"** or **"adjust"**: Ask what needs to change. Re-display Mission Brief with adjustments. Ask again.
+- If **"yes"**: Proceed to Outline (branch creation and spec writing).
+
+---
+
 ## Outline
 
-The text the user typed after `/adlc.spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/adlc.spec.specify` in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
 
-Given that feature description, do this:
+Given the approved Mission Brief, do this:
 
 1. **Generate a concise short name** (2-4 words) for the branch:
    - Analyze the feature description and extract the most meaningful keywords
@@ -54,12 +144,15 @@ Given that feature description, do this:
 
 3. Load `templates/spec-template.md` to understand required sections.
 
-4. Follow this execution flow:
+4. Follow this execution flow (Mission Brief already approved):
 
-    1. Parse user description from Input
-       If empty: ERROR "No feature description provided"
-    2. Extract key concepts from description
-       Identify: actors, actions, data, constraints
+    1. Use the approved Mission Brief as the foundation:
+       - **Goal** → spec header's Goal field
+       - **Success Criteria** → spec's Success Criteria section (expand with details)
+       - **Constraints** → spec header's Constraints field
+       - **Demo Sentence** → spec's Demo Sentence section
+    2. Extract additional key concepts from original description
+       Identify: actors, actions, data, edge cases
     3. For unclear aspects:
        - Make informed guesses based on context and industry standards
        - Only mark with [NEEDS CLARIFICATION: specific question] if:
