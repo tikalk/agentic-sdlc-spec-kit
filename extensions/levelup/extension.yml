@@ -53,7 +53,7 @@ provides:
     - name: "adlc.levelup.trace"
       file: "commands/trace.md"
       description: "Generate and validate AI session execution traces from implementation metadata"
-      aliases: ["levelup.trace", "trace"]
+      aliases: ["levelup.trace"]
 
   config:
     - name: "levelup-config.yml"
