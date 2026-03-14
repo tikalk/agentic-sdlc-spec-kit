@@ -45,9 +45,9 @@ fi
 mkdir -p "$FEATURE_DIR"
 
 # Select plan template
-TEMPLATE="$REPO_ROOT/.specify/templates/plan-template.md"
+TEMPLATE=$(resolve_template "plan-template" "$REPO_ROOT")
 
-if [[ -f "$TEMPLATE" ]]; then
+if [[ -n "$TEMPLATE" && -f "$TEMPLATE" ]]; then
     cp "$TEMPLATE" "$IMPL_PLAN"
     echo "Copied plan template to $IMPL_PLAN"
 else

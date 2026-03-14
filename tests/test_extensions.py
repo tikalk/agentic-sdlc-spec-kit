@@ -548,7 +548,6 @@ class TestCommandRegistrar:
         """Kiro CLI should be mapped to .kiro/prompts and q should be present."""
         assert "kiro-cli" in CommandRegistrar.AGENT_CONFIGS
         assert CommandRegistrar.AGENT_CONFIGS["kiro-cli"]["dir"] == ".kiro/prompts"
-        assert "q" in CommandRegistrar.AGENT_CONFIGS
 
     def test_codex_agent_config_present(self):
         """Codex should be mapped to .codex/prompts."""

@@ -191,6 +191,7 @@ json_escape() {
 # to searching for repository markers so the workflow still functions in repositories that
 # were initialised with --no-git.
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/common.sh"
 
 if git rev-parse --show-toplevel >/dev/null 2>&1; then
     REPO_ROOT=$(git rev-parse --show-toplevel)
@@ -364,9 +365,9 @@ replace_date_placeholders() {
 }
 
 # Apply defaults for options if not explicitly set
-TEMPLATE="$REPO_ROOT/.specify/templates/spec-template.md"
+TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT")
 SPEC_FILE="$FEATURE_DIR/spec.md"
-if [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
 # Replace options metadata in spec.md
 if [ -f "$SPEC_FILE" ]; then
@@ -383,7 +384,7 @@ fi
 # Replace [DATE] placeholders with current date
 replace_date_placeholders "$SPEC_FILE"
 
-CONTEXT_TEMPLATE="$REPO_ROOT/.specify/templates/context-template.md"
+CONTEXT_TEMPLATE=$(resolve_template "context-template" "$REPO_ROOT")
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
 # Function to discover team directives (Issue #47)

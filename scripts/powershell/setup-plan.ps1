@@ -35,9 +35,9 @@ New-Item -ItemType Directory -Path $paths.FEATURE_DIR -Force | Out-Null
 $currentMode = Get-CurrentMode
 
 if ($currentMode -eq 'build') {
-    $template = Join-Path $paths.REPO_ROOT '.specify/templates/plan-template-build.md'
+    $template = Resolve-Template -TemplateName 'plan-template-build' -RepoRoot $paths.REPO_ROOT
 } else {
-    $template = Join-Path $paths.REPO_ROOT '.specify/templates/plan-template.md'
+    $template = Resolve-Template -TemplateName 'plan-template' -RepoRoot $paths.REPO_ROOT
 }
 
 if (Test-Path $template) { 

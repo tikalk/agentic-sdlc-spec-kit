@@ -329,7 +329,7 @@ function Replace-DatePlaceholders {
 }
 
 # Use default template
-$template = Join-Path $repoRoot '.specify/templates/spec-template.md'
+$template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
 $specFile = Join-Path $featureDir 'spec.md'
 if (Test-Path $template) {
     Copy-Item $template $specFile -Force
@@ -410,7 +410,7 @@ function Populate-ContextFile {
 }
 
 # Populate context.md with defaults
-$contextTemplate = Join-Path $repoRoot '.specify/templates/context-template.md'
+$contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
 $contextFile = Join-Path $featureDir 'context.md'
 if (Test-Path $contextTemplate) {
     Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
