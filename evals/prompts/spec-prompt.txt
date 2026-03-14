@@ -17,6 +17,27 @@ Create a feature specification document with the following structure.
 
 IMPORTANT: Use ## (level 2) markdown headers for ALL major sections below:
 
+## Header Section (at the top)
+Include:
+- **Goal**: One-sentence objective describing the core purpose
+- **Success Criteria**: 2-3 measurable outcomes (summary)
+- **Constraints**: Key technical, business, or regulatory constraints
+
+## Demo Sentence (MANDATORY)
+Complete the sentence: "After this feature, the user can: [observable, demo-able capability]"
+- Must be a concrete, observable outcome that a human can verify
+- Good: "sign up with email and receive a welcome message"
+- Bad: "have authentication" (not observable)
+
+## Boundary Map (MANDATORY for multi-feature projects)
+### Produces
+What this feature exports for other features to consume:
+| Artifact | Type | Exports/Provides |
+
+### Consumes
+What this feature requires from other features:
+| From Feature | Artifact | Imports/Uses |
+
 ## 1. Overview Section
 Brief description of the feature
 

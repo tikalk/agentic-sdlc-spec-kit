@@ -7,6 +7,25 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.2] - 2026-03-14
+
+### Added
+
+- **Evals for fork-specific features**: New test coverage for agentic-sdlc preset functionality
+  - Mission Brief test suite: 4 tests for completeness, quality, constraint extraction, approval flow
+  - Fork spec section tests: 3 tests for Goal, Demo Sentence, Boundary Map, Constraints
+  - New graders: `check_mission_brief_completeness`, `check_mission_brief_quality`, `check_fork_spec_sections`
+- **spec-prompt.txt updated**: Added fork-specific sections (Goal, Demo Sentence, Boundary Map, Constraints)
+- **promptfooconfig-mission-brief.js**: Dedicated config for Mission Brief tests
+
+### Fixed
+
+- **Command pattern grader**: `check_extension_manifest` now accepts both `speckit.*` and `adlc.*` command patterns
+
+### Changed
+
+- **Eval test counts**: 29 LLM tests + 39 unit tests across 7 suites (was 22 + 39 across 6)
+
 ## [0.1.1] - 2026-03-14
 
 ### Added
