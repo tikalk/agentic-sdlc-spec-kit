@@ -12,6 +12,7 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 ### Fixed
 
 - **Product extension bundling**: Added `extensions/product` to bundled extensions in pyproject.toml, fixing "Manifest not found" error during installation
+- **levelup.implement validation**: Added explicit verification checkpoints to prevent skipping context module file creation (rules, personas, examples, skills). The command now requires verifying all output files exist before committing.
 
 ## [0.0.133] - 2026-03-13
 

@@ -29,12 +29,16 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 - Draft skills from `.specify/drafts/skills/`
 - Team-ai-directives repository
 
-**Output**:
+**Output** (ALL of these MUST be created):
 - New branch in team-ai-directives
-- Created/updated context modules
-- Draft PR (or ready PR with `--ready` flag)
-- Creates/updates context modules in team-ai-directives
-- Copies accepted CDRs to `{TEAM_DIRECTIVES}/CDR.md`
+- ✅ `context_modules/rules/**/*.md` - Rule files (one per accepted Rule CDR)
+- ✅ `context_modules/personas/*.md` - Persona files (one per accepted Persona CDR)
+- ✅ `context_modules/examples/**/*.md` - Example files (one per accepted Example CDR)
+- ✅ `context_modules/constitution.md` - Append amendments (if Constitution CDR accepted)
+- ✅ `skills/*/` - Skill directories (if draft skills exist and not --skip-skills)
+- ✅ `CDR.md` - Index of accepted CDRs (create LAST)
+
+**⚠️ CRITICAL**: You must create ALL of the above. Do NOT create CDR.md first and skip the actual module files.
 
 **MCP Integration**:
 
@@ -191,7 +195,21 @@ CDR: {CDR-ID}
 <!-- CDR: {CDR-ID}, Date: {date} -->
 ```
 
-#### Step 4: Process Draft Skills
+#### ⚠️ Step 4: VERIFY Context Modules Created
+
+**MUST DO BEFORE PROCEEDING**: Verify all context module files were created.
+
+Run this command and report the count:
+```bash
+cd "$TEAM_DIRECTIVES"
+echo "Rules: $(find context_modules/rules -name '*.md' 2>/dev/null | wc -l)"
+echo "Personas: $(find context_modules/personas -name '*.md' 2>/dev/null | wc -l)"  
+echo "Examples: $(find context_modules/examples -name '*.md' 2>/dev/null | wc -l)"
+```
+
+**If any count is 0 but you have accepted CDRs for that type, you MUST go back and create the files.**
+
+#### Step 5: Process Draft Skills
 
 If SKILLS_DRAFTS (from script output) contains skills (and not `--skip-skills`):
 
@@ -214,7 +232,18 @@ Update `.skills.json`:
 }
 ```
 
-#### Step 5: Extract Accepted CDRs to CDR.md
+#### ⚠️ Step 6: VERIFY Skills Copied
+
+If you have draft skills (and didn't use --skip-skills), verify they were copied:
+
+```bash
+cd "$TEAM_DIRECTIVES"
+echo "Skills: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+```
+
+**If skills should exist but count is 0, you MUST go back and copy them.**
+
+#### Step 7: Extract Accepted CDRs to CDR.md
 
 Extract only CDRs with status "Accepted" from `{REPO_ROOT}/.specify/memory/cdr.md` and create `{TEAM_DIRECTIVES}/CDR.md`:
 
@@ -269,7 +298,34 @@ Rule | Persona | Example | Constitution Amendment
 
 ```
 
-### Phase 3: Commit Changes
+### ⚠️ Phase 3: VERIFY ALL OUTPUTS CREATED
+
+**MUST DO BEFORE COMMITTING**: Run this verification:
+
+```bash
+cd "$TEAM_DIRECTIVES"
+echo "=== Context Module Files ==="
+echo "Rules: $(find context_modules/rules -name '*.md' 2>/dev/null | wc -l)"
+echo "Personas: $(find context_modules/personas -name '*.md' 2>/dev/null | wc -l)"
+echo "Examples: $(find context_modules/examples -name '*.md' 2>/dev/null | wc -l)"
+echo "Constitution: $(wc -l < context_modules/constitution.md 2>/dev/null || echo 0)"
+echo "=== Skills ==="
+echo "Skill directories: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
+echo "=== CDR Index ==="
+echo "CDR.md exists: $(test -f CDR.md && echo YES || echo NO)"
+echo "==="
+echo "Files to be committed:"
+git status --porcelain
+```
+
+**STOP if**:
+- Any context module category shows 0 files but you have accepted CDRs for that type
+- Skills directory is empty but you have draft skills
+- CDR.md does not exist
+
+**If any check fails, you MUST go back and create the missing files before proceeding.**
+
+### Phase 4: Commit Changes
 
 **Objective**: Stage and commit all changes
 

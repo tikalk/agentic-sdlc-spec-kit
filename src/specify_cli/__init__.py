@@ -4314,7 +4314,7 @@ def extension_remove(
     )
 
     # Get extension info for command count
-    ext_manifest = manager.get_extension(extension_id)
+    ext_manifest = manager.get_extension(extension_id) if extension_id else None
     cmd_count = len(ext_manifest.commands) if ext_manifest else 0
 
     # Confirm removal
@@ -4332,7 +4332,10 @@ def extension_remove(
             raise typer.Exit(0)
 
     # Remove extension
-    success = manager.remove(extension_id, keep_config=keep_config)
+    if extension_id:
+        success = manager.remove(extension_id, keep_config=keep_config)
+    else:
+        success = False
 
     if success:
         console.print(
@@ -4498,10 +4501,12 @@ def extension_info(
     if resolved_installed_id:
         # Get local manifest info
         ext_manifest = manager.get_extension(resolved_installed_id)
-        metadata = manager.registry.get(resolved_installed_id)
+        metadata = (
+            manager.registry.get(resolved_installed_id) if resolved_installed_id else {}
+        )
 
         console.print(
-            f"\n[bold]{resolved_installed_name}[/bold] (v{metadata.get('version', 'unknown')})"
+            f"\n[bold]{resolved_installed_name}[/bold] (v{metadata.get('version', 'unknown') if metadata else 'unknown'})"
         )
         console.print(f"ID: {resolved_installed_id}")
         console.print()
@@ -4688,7 +4693,7 @@ def extension_update(
             extension_id, _ = _resolve_installed_extension(
                 extension, installed, "update"
             )
-            extensions_to_update = [extension_id]
+            extensions_to_update = [extension_id] if extension_id else []
         else:
             # Update all extensions
             extensions_to_update = [ext["id"] for ext in installed]
@@ -4702,6 +4707,8 @@ def extension_update(
         updates_available = []
 
         for ext_id in extensions_to_update:
+            if ext_id is None:
+                continue
             # Get installed version
             metadata = manager.registry.get(ext_id)
             if metadata is None or "version" not in metadata:
@@ -4817,8 +4824,10 @@ def extension_update(
                         shutil.copy2(cfg_file, backup_config_dir / cfg_file.name)
 
                 # 3. Backup command files for all agents
-                registered_commands = backup_registry_entry.get(
-                    "registered_commands", {}
+                registered_commands = (
+                    (backup_registry_entry.get("registered_commands", {}) or {})
+                    if backup_registry_entry
+                    else {}
                 )
                 for agent_name, cmd_names in registered_commands.items():
                     if agent_name not in registrar.AGENT_CONFIGS:
@@ -5143,10 +5152,13 @@ def extension_enable(
     )
 
     # Update registry
-    metadata = manager.registry.get(extension_id)
+    if extension_id:
+        metadata = manager.registry.get(extension_id)
+    else:
+        metadata = None
     if metadata is None:
         console.print(
-            f"[red]Error:[/red] Extension '{extension_id}' not found in registry (corrupted state)"
+            f"[red]Error:[/red] Extension '{extension_id or extension}' not found in registry (corrupted state)"
         )
         raise typer.Exit(1)
 
@@ -5155,7 +5167,8 @@ def extension_enable(
         raise typer.Exit(0)
 
     metadata["enabled"] = True
-    manager.registry.update(extension_id, metadata)
+    if extension_id:
+        manager.registry.update(extension_id, metadata)
 
     # Enable hooks in extensions.yml
     config = hook_executor.get_project_config()
@@ -5197,10 +5210,13 @@ def extension_disable(
     )
 
     # Update registry
-    metadata = manager.registry.get(extension_id)
+    if extension_id:
+        metadata = manager.registry.get(extension_id)
+    else:
+        metadata = None
     if metadata is None:
         console.print(
-            f"[red]Error:[/red] Extension '{extension_id}' not found in registry (corrupted state)"
+            f"[red]Error:[/red] Extension '{extension_id or extension}' not found in registry (corrupted state)"
         )
         raise typer.Exit(1)
 
@@ -5211,7 +5227,8 @@ def extension_disable(
         raise typer.Exit(0)
 
     metadata["enabled"] = False
-    manager.registry.update(extension_id, metadata)
+    if extension_id:
+        manager.registry.update(extension_id, metadata)
 
     # Disable hooks in extensions.yml
     config = hook_executor.get_project_config()
