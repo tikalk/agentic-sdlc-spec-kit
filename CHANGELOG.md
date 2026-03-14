@@ -7,6 +7,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.5] - 2026-03-15
+
+### Fixed
+
+- **Existing presets now apply `replaces` logic on re-init**: When running `specify init --here` on a project with an existing preset, the `replaces` field is now applied to remove superseded commands
+  - Added `refresh_preset_commands()` method to `PresetManager`
+  - `install_bundled_presets()` now calls refresh for existing presets
+  - Fixes issue where `speckit.*` commands persisted after updating to v0.1.3+
+
 ## [0.1.3] - 2026-03-15
 
 ### Fixed
