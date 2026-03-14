@@ -215,10 +215,10 @@ fi
 SKILLS_DRAFTS="$REPO_ROOT/.specify/drafts/skills"
 
 # CDR file location
-CDR_FILE="$REPO_ROOT/.specify/memory/cdr.md"
+CDR_FILE="$REPO_ROOT/.specify/drafts/cdr.md"
 
 # Ensure directories exist
-mkdir -p "$REPO_ROOT/.specify/memory"
+mkdir -p "$REPO_ROOT/.specify/drafts"
 mkdir -p "$SKILLS_DRAFTS"
 
 # Get current git branch

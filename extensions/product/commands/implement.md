@@ -47,16 +47,17 @@ You are acting as a **Product Writer** synthesizing PDRs into comprehensive prod
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/memory/pdr.md` | Product decisions with rationale | Input |
-| `PRD.md` (root) | Full Product Requirements Document | Output |
+| `.specify/drafts/pdr.md` | Product decisions with rationale | Input |
+| `PRD.md` (root) | Full Product Requirements Document | Output (when TD not configured) |
+| `{TEAM_DIRECTIVES}/PRD.md` | Full Product Requirements Document | Output via PR (when TD configured) |
 | `.specify/memory/constitution.md` | Product vision/strategy | Constraint |
 
 ## Outline
 
-1. **Load PDRs**: Parse all PDRs from `.specify/memory/pdr.md`
+1. **Load PDRs**: Parse all PDRs from `.specify/drafts/pdr.md`
 2. **Determine Sections**: Parse `--sections` flag to determine which sections to generate
 3. **Generate Sections**: Create all requested PRD sections
-4. **Output**: Write complete `PRD.md` to project root
+4. **Output**: Write `PRD.md` to team-ai-directives via PR (if configured) or project root
 
 ## Execution Steps
 
@@ -69,7 +70,7 @@ You are acting as a **Product Writer** synthesizing PDRs into comprehensive prod
    - Creates `PRD.md` from template if it doesn't exist
 
 2. **Load PDRs**:
-   - Read `.specify/memory/pdr.md`
+   - Read `.specify/drafts/pdr.md`
    - Parse each PDR: ID, title, category, context, decision, consequences
    - Build decision index
 
@@ -267,7 +268,7 @@ You are acting as a **Product Writer** synthesizing PDRs into comprehensive prod
 
 1. **Build Summary Table**:
    - All PDRs with ID, Category, Decision, Status, Impact
-   - Links back to `.specify/memory/pdr.md`
+   - Links back to `.specify/drafts/pdr.md`
 
 2. **Cross-Reference Check**:
    - Verify all PDR categories are represented
@@ -282,21 +283,73 @@ You are acting as a **Product Writer** synthesizing PDRs into comprehensive prod
    - Ensure each section has content
    - Verify PDR traceability
 
-2. **Write PRD.md**:
+2. **Determine Output Location**:
+   - Check if team-ai-directives is configured (via `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives`)
+   - If configured: Output to `{TEAM_DIRECTIVES}/PRD.md` via PR workflow
+   - If NOT configured: Output to `{REPO_ROOT}/PRD.md` (project root)
+
+3. **Write PRD.md**:
    - Use `templates/prd-template.md` as base
    - Replace placeholders with generated content
-   - Write to project root as `PRD.md`
+   - Write to determined output location
 
-3. **Update References**:
-   - Ensure `.specify/memory/pdr.md` link is correct
+4. **Write Accepted PDRs to context_modules/** (when TD configured):
+   - Filter PDRs with status "Accepted" from `.specify/drafts/pdr.md`
+   - Write to `{TEAM_DIRECTIVES}/context_modules/pdr.md`
+
+5. **If team-ai-directives configured - Execute PR Workflow**:
+
+   a. **Check Working Tree**:
+   ```bash
+   cd "{TEAM_DIRECTIVES}"
+   git status --porcelain
+   ```
+
+   b. **Create Branch**:
+   ```bash
+   BRANCH_NAME="context/{project-name}"
+   git checkout -b "$BRANCH_NAME" main
+   ```
+
+   c. **Write files**:
+   ```bash
+   cp PRD.md "$TEAM_DIRECTIVES/PRD.md"
+   cp .specify/drafts/pdr.md "$TEAM_DIRECTIVES/context_modules/pdr.md"
+   ```
+
+   d. **Commit and Push**:
+   ```bash
+   git add PRD.md context_modules/pdr.md
+   git commit -m "Add product from {project-name}"
+   git push -u origin "$BRANCH_NAME"
+   ```
+
+   e. **Create PR via MCP**:
+   ```
+   Tool: create_pull_request (GitHub) or create_merge_request (GitLab)
+   Parameters:
+     - title: "Add Product Requirements from {project-name}"
+     - body: "Product Requirements Document and PDRs from {project-name}"
+     - source_branch: "{BRANCH_NAME}"
+     - target_branch: "main"
+   ```
+
+6. **Cleanup Phase** (when NOT configured):
+   - Filter PDRs with status "Accepted" from `.specify/drafts/pdr.md`
+   - Copy accepted PDRs to `.specify/memory/pdr.md`
+   - Check if `.specify/drafts/pdr.md` has any remaining non-accepted PDRs
+   - If no remaining records → remove `.specify/drafts/` directory
+
+7. **Update References**:
+   - Ensure `.specify/drafts/pdr.md` link is correct
    - Update version and timestamp
 
-4. **Generate Report**:
+6. **Generate Report**:
 
 ```markdown
 ## Product Requirements Document Generated
 
-**Output**: PRD.md (project root)
+**Output**: [PRD.md (project root)|{TEAM_DIRECTIVES}/PRD.md via PR]
 **Sections**: [all|custom]
 
 **Sections Generated**:

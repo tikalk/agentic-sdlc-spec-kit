@@ -28,7 +28,7 @@ Build a **single skill** from accepted modules based on user input. Skills are s
 
 **Input**:
 - User-specified skill name, module ID, or topic
-- Accepted CDRs from `{REPO_ROOT}/.specify/memory/cdr.md` (status "Accepted")
+- Accepted CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` (status "Accepted")
 
 **Output**:
 - Skill directory in `.specify/drafts/skills/{skill-name}/`
@@ -140,7 +140,7 @@ If input is ambiguous, ask for clarification.
 
 #### Step 1: Load Modules
 
-Read `{REPO_ROOT}/.specify/memory/cdr.md` and filter CDRs:
+Read `{REPO_ROOT}/.specify/drafts/cdr.md` and filter CDRs:
 - Status = "Accepted"
 - Type = "skill" (primary) or related types
 
@@ -339,7 +339,7 @@ Check skill completeness:
 ## Notes
 
 - Builds ONE skill at a time - user specifies which
-- Only uses CDRs with status "Accepted" from `.specify/memory/cdr.md`
+- Only uses CDRs with status "Accepted" from `.specify/drafts/cdr.md`
 - Skills follow team-ai-directives format for compatibility
 - Review generated skill before running `/levelup.implement`
 - Skill can be edited manually before implementation

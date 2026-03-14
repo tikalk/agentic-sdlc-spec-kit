@@ -79,8 +79,10 @@ You are acting as an **Architecture Analyst** validating architecture documentat
    - Parse JSON for file paths and existence status
 
 2. **Load System-Level Artifacts**:
-   - Read `AD.md` (project root) if exists
-   - Read `.specify/memory/adr.md` if exists
+   - Check if team-ai-directives is configured
+   - Read `{TEAM_DIRECTIVES}/AD.md` if TD configured and exists
+   - Read `AD.md` (project root) if exists (fallback)
+   - Read `.specify/drafts/adr.md` if exists
    - Read `.specify/memory/constitution.md` if exists
 
 3. **Load Feature-Level Artifacts** (if analyzing features):
@@ -91,8 +93,8 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 
    | Artifact | Path | Status |
    |----------|------|--------|
-   | System AD | `AD.md` | Found/Missing |
-   | System ADRs | `.specify/memory/adr.md` | Found/Missing |
+   | System AD | `{TEAM_DIRECTIVES}/AD.md` or `AD.md` | Found/Missing |
+   | System ADRs | `.specify/drafts/adr.md` | Found/Missing |
    | Constitution | `.specify/memory/constitution.md` | Found/Missing |
    | Feature ADs | `specs/*/AD.md` | Count: N |
    | Feature ADRs | `specs/*/adr.md` | Count: N |
@@ -106,7 +108,7 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 | User Input | Scope | Artifacts Analyzed |
 |------------|-------|-------------------|
 | (empty) | Full | All system + all feature artifacts |
-| `"system"` | System only | AD.md, .specify/memory/adr.md |
+| `"system"` | System only | AD.md, .specify/drafts/adr.md |
 | `"feature {name}"` | Single feature | specs/{name}/AD.md, specs/{name}/adr.md |
 | `"adrs"` | ADR quality | All adr.md files (system + feature) |
 | `"views"` | AD completeness | All AD.md files (system + feature) |

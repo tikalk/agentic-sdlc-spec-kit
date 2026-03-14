@@ -25,7 +25,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. Create or update context modules based on CDR decisions.
 
 **Input**:
-- Accepted CDRs from `{REPO_ROOT}/.specify/memory/cdr.md` (with status "Accepted")
+- Accepted CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` (with status "Accepted")
 - Draft skills from `.specify/drafts/skills/`
 - Team-ai-directives repository
 
@@ -36,9 +36,9 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 - ✅ `context_modules/examples/**/*.md` - Example files (one per accepted Example CDR)
 - ✅ `context_modules/constitution.md` - Append amendments (if Constitution CDR accepted)
 - ✅ `skills/*/` - Skill directories (if draft skills exist and not --skip-skills)
-- ✅ `CDR.md` - Index of accepted CDRs (create LAST)
+- ✅ `context_modules/CDR.md` - Index of accepted CDRs (create LAST)
 
-**⚠️ CRITICAL**: You must create ALL of the above. Do NOT create CDR.md first and skip the actual module files.
+**⚠️ CRITICAL**: You must create ALL of the above. Do NOT create context_modules/CDR.md first and skip the actual module files.
 
 **MCP Integration**:
 
@@ -58,7 +58,7 @@ You are acting as a **Context Publisher** - moving accepted CDRs from local draf
 ### Prerequisites
 
 Before running:
-1. At least one CDR with status "Accepted" in `{REPO_ROOT}/.specify/memory/cdr.md`
+1. At least one CDR with status "Accepted" in `{REPO_ROOT}/.specify/drafts/cdr.md`
 2. Team-ai-directives repository configured and accessible
 3. Working tree at team-ai-directives is clean
 4. Git credentials configured for push
@@ -114,7 +114,7 @@ Please commit or stash changes before running /levelup.implement.
 
 #### Step 3: Load Accepted CDRs
 
-Read `{REPO_ROOT}/.specify/memory/cdr.md` and filter CDRs with:
+Read `{REPO_ROOT}/.specify/drafts/cdr.md` and filter CDRs with:
 - Status = "accepted"
 
 If no accepted modules, **STOP**:
@@ -243,13 +243,13 @@ echo "Skills: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
 
 **If skills should exist but count is 0, you MUST go back and copy them.**
 
-#### Step 7: Extract Accepted CDRs to CDR.md
+#### Step 7: Extract Accepted CDRs to context_modules/CDR.md
 
-Extract only CDRs with status "Accepted" from `{REPO_ROOT}/.specify/memory/cdr.md` and create `{TEAM_DIRECTIVES}/CDR.md`:
+Extract only CDRs with status "Accepted" from `{REPO_ROOT}/.specify/drafts/cdr.md` and create `{TEAM_DIRECTIVES}/context_modules/CDR.md`:
 
 1. Parse the source cdr.md file
 2. Filter to only include CDRs with status "Accepted"
-3. Generate new CDR.md with the accepted CDRs only
+3. Generate new context_modules/CDR.md with the accepted CDRs only
 
 ```markdown
 # Context Directive Records
@@ -312,7 +312,7 @@ echo "Constitution: $(wc -l < context_modules/constitution.md 2>/dev/null || ech
 echo "=== Skills ==="
 echo "Skill directories: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
 echo "=== CDR Index ==="
-echo "CDR.md exists: $(test -f CDR.md && echo YES || echo NO)"
+echo "context_modules/CDR.md exists: $(test -f context_modules/CDR.md && echo YES || echo NO)"
 echo "==="
 echo "Files to be committed:"
 git status --porcelain
@@ -321,7 +321,7 @@ git status --porcelain
 **STOP if**:
 - Any context module category shows 0 files but you have accepted CDRs for that type
 - Skills directory is empty but you have draft skills
-- CDR.md does not exist
+- context_modules/CDR.md does not exist
 
 **If any check fails, you MUST go back and create the missing files before proceeding.**
 
@@ -333,7 +333,7 @@ git status --porcelain
 
 ```bash
 cd "$TEAM_DIRECTIVES"
-git add context_modules/ skills/ .skills.json CDR.md
+git add context_modules/ skills/ .skills.json context_modules/CDR.md
 ```
 
 #### Step 2: Generate Commit Message
@@ -383,7 +383,7 @@ Context module contributions from **{project-name}**.
 
 ### CDR Records
 
-Accepted CDRs are recorded in `CDR.md` for tracking.
+Accepted CDRs are recorded in `context_modules/CDR.md` for tracking.
 
 ### Skills Added
 
@@ -490,11 +490,26 @@ MCP tools not available. Create PR manually:
    ```
 ```
 
+### Phase 6: Cleanup (when NOT configured)
+
+**When team-ai-directives is NOT configured:**
+
+**Objective**: Archive accepted CDRs and clean up drafts
+
+1. **Copy Accepted CDRs**:
+   - Filter CDRs with status "Accepted" from `.specify/drafts/cdr.md`
+   - Copy to `.specify/memory/cdr.md`
+
+2. **Cleanup Drafts**:
+   - Check if `.specify/drafts/cdr.md` has any remaining non-accepted CDRs
+   - Check if `.specify/drafts/skills/` has any draft skills
+   - If no remaining drafts → remove `.specify/drafts/` directory
+
 ## Output Files
 
 | File | Description |
 |------|-------------|
-| `{TEAM_DIRECTIVES}/CDR.md` | Accepted CDRs from this contribution |
+| `{TEAM_DIRECTIVES}/context_modules/CDR.md` | Accepted CDRs from this contribution |
 | `{TEAM_DIRECTIVES}/context_modules/**` | New/updated context modules |
 | `{TEAM_DIRECTIVES}/skills/**` | New skills |
 | `{TEAM_DIRECTIVES}/.skills.json` | Updated manifest |
@@ -509,8 +524,9 @@ MCP tools not available. Create PR manually:
 ## Notes
 
 - Creates draft PR by default for review before merge
-- Only implements CDRs with status "Accepted" from `.specify/memory/cdr.md`
-- Copies only accepted CDRs to `{TEAM_DIRECTIVES}/CDR.md`
+- Only implements CDRs with status "Accepted" from `.specify/drafts/cdr.md`
+- When TD configured: Copies only accepted CDRs to `{TEAM_DIRECTIVES}/context_modules/CDR.md`
+- When NOT configured: Copies accepted CDRs to `.specify/memory/cdr.md` and cleans up drafts
 - Skills from `.specify/drafts/skills/` are included unless `--skip-skills`
 - If MCP unavailable, provides manual instructions
 - Working tree must be clean before running

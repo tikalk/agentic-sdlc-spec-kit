@@ -261,7 +261,7 @@ function Get-FeaturePathsEnv {
     # New architecture document structure (AD.md at root or feature level, ADR in memory/)
     $systemAdFile = Join-Path $repoRoot 'AD.md'
     $featureAdFile = Join-Path $featureDir 'AD.md'
-    $adrFile = Join-Path $repoRoot '.specify/memory/adr.md'
+    $adrFile = Join-Path $repoRoot '.specify/drafts/adr.md'
     
     # Determine which AD file to use
     $adFile = if (Test-Path $featureAdFile) { $featureAdFile } elseif (Test-Path $systemAdFile) { $systemAdFile } else { $null }

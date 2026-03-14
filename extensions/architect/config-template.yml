@@ -9,11 +9,15 @@ adr:
   heuristic: "surprising"
   
   # System-level ADR file location
-  location: ".specify/memory/adr.md"
+  location: ".specify/drafts/adr.md"
 
 ad:
   # Architecture Description file location
   location: "AD.md"
+  
+  # Team-ai-directives output (when configured)
+  team_location: "AD.md"
+  team_pr: true  # Create PR to team-ai-directives when configured
 
 views:
   # Default views to generate

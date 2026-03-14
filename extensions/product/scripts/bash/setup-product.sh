@@ -52,8 +52,32 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Default locations
-PDR_LOCATION=".specify/memory/pdr.md"
-PRD_LOCATION="PRD.md"
+PDR_LOCATION=".specify/drafts/pdr.md"
+
+# Resolve team-ai-directives path
+TEAM_DIRECTIVES=""
+if [[ -n "$SPECIFY_TEAM_DIRECTIVES" ]]; then
+    if [[ -d "$SPECIFY_TEAM_DIRECTIVES" ]]; then
+        TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+    fi
+fi
+
+if [[ -z "$TEAM_DIRECTIVES" ]]; then
+    if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
+    elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
+        TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
+    fi
+fi
+
+# PRD output location - use TD if configured, else project root
+if [[ -n "$TEAM_DIRECTIVES" ]]; then
+    PRD_LOCATION="$TEAM_DIRECTIVES/PRD.md"
+    PRD_TEAM_MODE=true
+else
+    PRD_LOCATION="PRD.md"
+    PRD_TEAM_MODE=false
+fi
 
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"
@@ -321,7 +345,7 @@ setup_prd() {
 **Date:** YYYY-MM-DD  
 **Author:** [Author]  
 **Status:** Draft  
-**PDR Reference:** [.specify/memory/pdr.md](.specify/memory/pdr.md)
+**PDR Reference:** [.specify/drafts/pdr.md](.specify/drafts/pdr.md)
 
 ---
 

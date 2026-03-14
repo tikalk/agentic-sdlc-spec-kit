@@ -124,8 +124,13 @@ tags:
 defaults:
   pdr:
     heuristic: "surprising"
-    location: ".specify/memory/pdr.md"
+    location: ".specify/drafts/pdr.md"
+    # When team-ai-directives is configured, output accepted PDRs to context_modules/
+    team_location: "context_modules/pdr.md"
   prd:
     location: "PRD.md"
+    # When team-ai-directives is configured, output to TD root via PR
+    team_location: "PRD.md"
+    team_pr: true
   sections: "all"
   decompose: true

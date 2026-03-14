@@ -22,7 +22,7 @@ cdr:
 
   # Location of CDR file (local project)
   # CDRs stored in markdown format
-  location: ".specify/memory/cdr.md"
+  location: ".specify/drafts/cdr.md"
 
 # Skills Settings
 skills:

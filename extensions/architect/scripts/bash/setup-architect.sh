@@ -120,14 +120,38 @@ fi
 # Get all paths and variables from common functions
 eval "$(get_feature_paths)"
 
-# Ensure the memory directory exists
-mkdir -p "$REPO_ROOT/.specify/memory"
+# Ensure the drafts directory exists
+mkdir -p "$REPO_ROOT/.specify/drafts"
 
-# Architecture files (new structure: AD.md at root, ADRs in memory/)
-AD_FILE="$REPO_ROOT/AD.md"
-ADR_FILE="$REPO_ROOT/.specify/memory/adr.md"
+# Resolve team-ai-directives path
+TEAM_DIRECTIVES=""
+if [[ -n "$SPECIFY_TEAM_DIRECTIVES" ]]; then
+    if [[ -d "$SPECIFY_TEAM_DIRECTIVES" ]]; then
+        TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+    fi
+fi
+
+if [[ -z "$TEAM_DIRECTIVES" ]]; then
+    if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
+    elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
+        TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
+    fi
+fi
+
+# Architecture files (new structure: AD.md at root, ADRs in drafts/)
+ADR_FILE="$REPO_ROOT/.specify/drafts/adr.md"
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
+
+# AD output location - use TD if configured, else project root
+if [[ -n "$TEAM_DIRECTIVES" ]]; then
+    AD_FILE="$TEAM_DIRECTIVES/AD.md"
+    AD_TEAM_MODE=true
+else
+    AD_FILE="$REPO_ROOT/AD.md"
+    AD_TEAM_MODE=false
+fi
 
 # Export for use in functions
 export ARCHITECTURE_VIEWS="$VIEWS"
@@ -612,13 +636,13 @@ $diagram_code
 
 # Action: Specify (greenfield - interactive PRD exploration to create ADRs)
 action_specify() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "📐 Setting up for interactive ADR creation..." >&2
     
     # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/.specify/memory"
+    mkdir -p "$REPO_ROOT/.specify/drafts"
     
     # Show decomposition status
     if [[ "$DECOMPOSE" == "true" ]]; then
@@ -666,7 +690,7 @@ EOF
     echo "  1. Analyze your PRD/requirements input" >&2
     echo "  2. Ask clarifying questions about architecture" >&2
     echo "  3. Create ADRs for each key decision" >&2
-    echo "  4. Save decisions to .specify/memory/adr.md" >&2
+    echo "  4. Save decisions to .specify/drafts/adr.md" >&2
     if [[ "$DECOMPOSE" == "true" ]]; then
         echo "  5. Organize ADRs by sub-system" >&2
     fi
@@ -680,7 +704,7 @@ EOF
 
 # Action: Clarify (refine existing ADRs)
 action_clarify() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     
     if [[ ! -f "$adr_file" ]]; then
         echo "❌ ADR file does not exist: $adr_file" >&2
@@ -710,7 +734,7 @@ action_clarify() {
 
 # Action: Implement (generate full AD.md from ADRs)
 action_implement() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local ad_file="$REPO_ROOT/AD.md"
     local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
     
@@ -743,7 +767,7 @@ action_implement() {
     echo "" >&2
     echo "Ready for Architecture Description generation." >&2
     echo "The AI agent will:" >&2
-    echo "  1. Read all $adr_count ADR(s) from .specify/memory/adr.md" >&2
+    echo "  1. Read all $adr_count ADR(s) from .specify/drafts/adr.md" >&2
     echo "  2. Generate 7 Rozanski & Woods viewpoints" >&2
     echo "  3. Apply Security and Performance perspectives" >&2
     echo "  4. Create Mermaid diagrams for each view" >&2
@@ -756,13 +780,13 @@ action_implement() {
 
 # Action: Initialize (brownfield - reverse-engineer from codebase, ADRs only)
 action_init() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "🔍 Initializing brownfield architecture discovery..." >&2
     
     # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/.specify/memory"
+    mkdir -p "$REPO_ROOT/.specify/drafts"
     
     # Scan existing docs for deduplication
     local existing_docs
@@ -1041,7 +1065,7 @@ action_analyze() {
     echo ""
     
     local ad_file="$REPO_ROOT/AD.md"
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local constitution_file="$REPO_ROOT/.specify/memory/constitution.md"
     
     local ad_exists=false
@@ -1116,7 +1140,7 @@ action_analyze() {
 
 # Action: Validate (READ-ONLY architecture validation for plan alignment)
 action_validate() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     
     echo "🔍 Architecture Validation Mode (READ-ONLY)" >&2
     echo ""

@@ -63,10 +63,10 @@ You are acting as a **Product Strategist** facilitating a product discovery sess
 
 | Level | Location | PDR File | PRD Document |
 |-------|----------|----------|--------------|
-| **Product** | Main branch | `.specify/memory/pdr.md` | `PRD.md` (root) |
+| **Product** | Main branch | `.specify/drafts/pdr.md` | `PRD.md` (root) |
 | **Feature** | Feature branch | `specs/{feature}/pdr.md` | `specs/{feature}/PRD.md` |
 
-This command operates at the **Product level**, creating PDRs in `.specify/memory/pdr.md`.
+This command operates at the **Product level**, creating PDRs in `.specify/drafts/pdr.md`.
 
 ## Outline
 
@@ -77,7 +77,7 @@ Given the product input, execute this workflow:
 3. **Load Constitution**: Check `.specify/memory/constitution.md` for product vision/strategy constraints
 4. **Exploration Phase**: Interactive discussion to surface trade-offs and options (per feature area)
 5. **Decision Phase**: Document decisions as PDRs with full rationale (organized by feature area)
-6. **Output**: Write PDRs to `.specify/memory/pdr.md` with feature area organization
+6. **Output**: Write PDRs to `.specify/drafts/pdr.md` with feature area organization
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing PDRs.
 
@@ -428,12 +428,12 @@ Proposed
 **Objective**: Write finalized PDRs to file
 
 1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to ensure `.specify/memory/pdr.md` exists
+   - Execute `{SCRIPT}` to ensure `.specify/drafts/pdr.md` exists
    - Script creates from template if file doesn't exist
    - Pass `--no-decompose` if decomposition was disabled
 
 2. **Write PDRs**:
-   - Append new PDRs to `.specify/memory/pdr.md`
+   - Append new PDRs to `.specify/drafts/pdr.md`
    - Update PDR index table at top of file (include Feature Area column)
    - Preserve any existing PDRs (don't overwrite)
    - **If decomposed**: Add section headers for each feature area

@@ -37,9 +37,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Resolve ambiguities in discovered or proposed CDRs through **clarifying questions**. Update module statuses based on answers.
 
-**Input**: CDRs from `{REPO_ROOT}/.specify/memory/cdr.md` with status "Discovered" or "Proposed"
+**Input**: CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` with status "Discovered" or "Proposed"
 
-**Output**: Updated CDRs with refined content and new statuses in `.specify/memory/cdr.md`
+**Output**: Updated CDRs with refined content and new statuses in `.specify/drafts/cdr.md`
 
 **Key Concept**:
 
@@ -105,7 +105,7 @@ Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
 
 #### Step 1: Load CDRs
 
-Read `{REPO_ROOT}/.specify/memory/cdr.md` and parse all CDRs.
+Read `{REPO_ROOT}/.specify/drafts/cdr.md` and parse all CDRs.
 
 Filter modules by status:
 - **Primary**: Status = "Discovered" or "Proposed"
@@ -247,11 +247,11 @@ If content needs revision:
 
 ### Phase 5: Update Modules
 
-**Objective**: Write updated CDRs to `.specify/memory/cdr.md`
+**Objective**: Write updated CDRs to `.specify/drafts/cdr.md`
 
 #### Step 1: Update CDR File
 
-Update `{REPO_ROOT}/.specify/memory/cdr.md` for each clarified CDR:
+Update `{REPO_ROOT}/.specify/drafts/cdr.md` for each clarified CDR:
 
 1. Update status in the CDR index table
 2. Add or update content if revised
@@ -342,7 +342,7 @@ Run `/levelup.implement` to:
 
 | File | Description |
 |------|-------------|
-| `{REPO_ROOT}/.specify/memory/cdr.md` | Updated Context Directive Records |
+| `{REPO_ROOT}/.specify/drafts/cdr.md` | Updated Context Directive Records |
 
 ## Notes
 

@@ -7,6 +7,24 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.0.138] - 2026-03-14
+
+### Fixed
+
+- **Cross-reference fixes**: Corrected remaining references to output file locations
+  - Fixed `context_modules/AD.md` → `{TD}/AD.md` (TD root)
+  - Fixed `context_modules/PRD.md` → `{TD}/PRD.md` (TD root)
+
+## [0.0.137] - 2026-03-14
+
+### Changed
+
+- **Refined output file locations for extensions**:
+  - architect.implement: AD.md → `{TD}/AD.md` (TD root), accepted ADRs → `{TD}/context_modules/adr.md`
+  - product.implement: PRD.md → `{TD}/PRD.md` (TD root), accepted PDRs → `{TD}/context_modules/pdr.md`
+  - levelup.implement: accepted CDRs → `{TD}/context_modules/cdr.md`
+  - When NOT configured: All extensions copy accepted records to `.specify/memory/` and clean up `.specify/drafts/`
+
 ## [0.0.136] - 2026-03-13
 
 ### Fixed

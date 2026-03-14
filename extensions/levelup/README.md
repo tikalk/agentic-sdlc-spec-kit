@@ -37,7 +37,7 @@ Scan your codebase for patterns that could become team-wide directives:
 /levelup.init
 ```
 
-This creates proposed CDRs in `{PROJECT}/.specify/memory/cdr.md` with status "Discovered" or "Proposed".
+This creates proposed CDRs in `{PROJECT}/.specify/drafts/cdr.md` with status "Discovered" or "Proposed".
 
 ### 2. Clarify and Accept CDRs
 
@@ -73,7 +73,7 @@ This creates a draft PR with all accepted contributions.
 
 CDRs are stored in markdown format:
 
-- **Local**: `{PROJECT}/.specify/memory/cdr.md` - Working copy during discovery/clarification
+- **Local**: `{PROJECT}/.specify/drafts/cdr.md` - Working copy during discovery/clarification
 - **Approved**: `{TEAM_DIRECTIVES}/CDR.md` - Approved contributions tracked in team-ai-directives
 
 CDRs define:
@@ -109,7 +109,7 @@ Optional configuration in `.specify/extensions/levelup/levelup-config.yml`:
 cdr:
   heuristic: "surprising"  # surprising | all | minimal
   # CDR file location (local project)
-  location: ".specify/memory/cdr.md"
+  location: ".specify/drafts/cdr.md"
 
 skills:
   drafts_location: ".specify/drafts/skills"

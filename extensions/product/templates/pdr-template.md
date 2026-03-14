@@ -183,7 +183,7 @@ This field indicates what type of product decision this PDR represents.
 
 **Integration with PRD:**
 
-- Product Decision Records go in `.specify/memory/pdr.md`
+- Product Decision Records go in `.specify/drafts/pdr.md`
 - PRD synthesizes all PDRs into a cohesive requirements document
 - PDRs should reference each other for dependencies
 - Conflicts with product vision should be flagged as VIOLATION

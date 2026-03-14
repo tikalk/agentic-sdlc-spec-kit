@@ -84,8 +84,8 @@ Greenfield:   /architect.specify --> /architect.clarify --> /architect.implement
 
 | File | Location | Purpose |
 |------|----------|---------|
-| System ADRs | `.specify/memory/adr.md` | Architecture Decision Records |
-| System AD | `AD.md` (project root) | Full Architecture Description |
+| System ADRs | `.specify/drafts/adr.md` | Architecture Decision Records |
+| System AD | `AD.md` (root) or `{TEAM_DIRECTIVES}/AD.md` via PR | Full Architecture Description |
 | Feature ADRs | `specs/{feature}/adr.md` | Feature-level decisions |
 | Feature AD | `specs/{feature}/AD.md` | Feature-level architecture |
 | Constitution | `.specify/memory/constitution.md` | Governance principles |
@@ -203,7 +203,7 @@ Architecture commands work alongside specification commands via extension hooks:
 |------|--------|---------|
 | **before_plan** | Before plan generation | Create feature ADRs using architect.specify/clarify/implement |
 | **after_plan** | After plan generation | Validate plan alignment using architect.validate --for-plan (READ-ONLY) |
-| **Activation** | adr.md exists | Hooks only fire if `.specify/memory/adr.md` present |
+| **Activation** | adr.md exists | Hooks only fire if `.specify/drafts/adr.md` present |
 
 **Feature Architecture Generation**:
 
@@ -218,7 +218,7 @@ Optional configuration in `.specify/extensions/architect/architect-config.yml`:
 ```yaml
 adr:
   heuristic: "surprising"  # surprising | all | minimal
-  location: ".specify/memory/adr.md"
+  location: ".specify/drafts/adr.md"
 
 views:
   default: "core"  # core | all | concurrency,operational

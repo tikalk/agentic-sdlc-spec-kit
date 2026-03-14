@@ -56,7 +56,7 @@ You are acting as a **Product Validator** ensuring feature specs align with prod
 |----------|---------|------|
 | `PRD.md` (root) | Product Requirements | Baseline |
 | Feature `SPEC.md` | Feature Specification | Validation Target |
-| `.specify/memory/pdr.md` | Product Decisions | Traceability Source |
+| `.specify/drafts/pdr.md` | Product Decisions | Traceability Source |
 
 ## Outline
 
@@ -78,7 +78,7 @@ You are acting as a **Product Validator** ensuring feature specs align with prod
    - Extract Milestone Roadmap
 
 2. **Load PDRs**:
-   - Read `.specify/memory/pdr.md`
+   - Read `.specify/drafts/pdr.md`
    - Build decision index
 
 3. **Build Baseline**:

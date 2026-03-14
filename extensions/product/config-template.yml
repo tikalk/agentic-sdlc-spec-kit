@@ -7,7 +7,10 @@ product:
   # PDR (Product Decision Record) settings
   pdr:
     # Location for PDR file (relative to project root)
-    location: ".specify/memory/pdr.md"
+    location: ".specify/drafts/pdr.md"
+    
+    # Team-ai-directives output (when configured)
+    team_location: "context_modules/pdr.md"
     
     # Heuristic for PDR generation: surprising | all | minimal
     # - surprising: Skip obvious product defaults
@@ -22,6 +25,10 @@ product:
   prd:
     # Location for PRD file (relative to project root)
     location: "PRD.md"
+    
+    # Team-ai-directives output (when configured)
+    team_location: "PRD.md"
+    team_pr: true
     
     # Required sections: all | core
     # - all: Generate all 9 sections

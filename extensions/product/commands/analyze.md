@@ -80,7 +80,7 @@ You are acting as a **Product Analyst** validating product documentation quality
 
 2. **Load System-Level Artifacts**:
    - Read `PRD.md` (project root) if exists
-   - Read `.specify/memory/pdr.md` if exists
+   - Read `.specify/drafts/pdr.md` if exists
    - Read `.specify/memory/constitution.md` if exists
 
 3. **Load Feature-Level Artifacts** (if analyzing features):
@@ -92,7 +92,7 @@ You are acting as a **Product Analyst** validating product documentation quality
    | Artifact | Path | Status |
    |----------|------|--------|
    | Product PRD | `PRD.md` | Found/Missing |
-   | Product PDRs | `.specify/memory/pdr.md` | Found/Missing |
+   | Product PDRs | `.specify/drafts/pdr.md` | Found/Missing |
    | Constitution | `.specify/memory/constitution.md` | Found/Missing |
    | Feature PRDs | `specs/*/PRD.md` | Count: N |
    | Feature PDRs | `specs/*/pdr.md` | Count: N |
@@ -106,7 +106,7 @@ You are acting as a **Product Analyst** validating product documentation quality
 | User Input | Scope | Artifacts Analyzed |
 |------------|-------|-------------------|
 | (empty) | Full | All system + all feature artifacts |
-| `"product"` | Product only | PRD.md, .specify/memory/pdr.md |
+| `"product"` | Product only | PRD.md, .specify/drafts/pdr.md |
 | `"feature {name}"` | Single feature | specs/{name}/PRD.md, specs/{name}/pdr.md |
 | `"pdrs"` | PDR quality | All pdr.md files (system + feature) |
 | `"sections"` | PRD completeness | All PRD.md files (system + feature) |

@@ -10,7 +10,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Default locations
-$PDR_LOCATION = ".specify/memory/pdr.md"
+$PDR_LOCATION = ".specify/drafts/pdr.md"
 $PRD_LOCATION = "PRD.md"
 
 function Write-LogInfo {
@@ -248,7 +248,7 @@ function Setup-PRD {
 **Date:** YYYY-MM-DD  
 **Author:** [Author]  
 **Status:** Draft  
-**PDR Reference:** [.specify/memory/pdr.md](.specify/memory/pdr.md)
+**PDR Reference:** [.specify/drafts/pdr.md](.specify/drafts/pdr.md)
 
 ---
 
@@ -316,6 +316,32 @@ function Setup-PRD {
 }
 
 $REPO_ROOT = Get-RepoRoot
+
+# Resolve team-ai-directives path
+$teamDirectives = $null
+if ($env:SPECIFY_TEAM_DIRECTIVES) {
+    if (Test-Path $env:SPECIFY_TEAM_DIRECTIVES) {
+        $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
+    }
+}
+if (-not $teamDirectives) {
+    $tdPath1 = Join-Path $REPO_ROOT ".specify\team-ai-directives"
+    $tdPath2 = Join-Path $REPO_ROOT ".specify\memory\team-ai-directives"
+    if (Test-Path $tdPath1) {
+        $teamDirectives = $tdPath1
+    } elseif (Test-Path $tdPath2) {
+        $teamDirectives = $tdPath2
+    }
+}
+
+# PRD output location - use TD if configured
+if ($teamDirectives) {
+    $PRD_LOCATION = Join-Path $teamDirectives "PRD.md"
+    $prdTeamMode = $true
+} else {
+    $PRD_LOCATION = "PRD.md"
+    $prdTeamMode = $false
+}
 
 switch ($Command.ToLower()) {
     "specify" {

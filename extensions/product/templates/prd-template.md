@@ -4,7 +4,7 @@
 **Date:** YYYY-MM-DD  
 **Author:** [Author]  
 **Status:** Draft | Review | Approved  
-**PDR Reference:** [.specify/memory/pdr.md](.specify/memory/pdr.md)
+**PDR Reference:** [.specify/drafts/pdr.md](.specify/drafts/pdr.md)
 
 ---
 
@@ -264,7 +264,7 @@
 
 ## 11. PDR Summary
 
-Detailed Product Decision Records are maintained in [.specify/memory/pdr.md](.specify/memory/pdr.md).
+Detailed Product Decision Records are maintained in [.specify/drafts/pdr.md](.specify/drafts/pdr.md).
 
 ### Key Decisions
 

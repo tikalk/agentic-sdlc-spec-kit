@@ -174,16 +174,16 @@ if (-not $teamDirectives) {
 
 # Skills drafts location
 $skillsDrafts = Join-Path $repoRoot ".specify/drafts/skills"
-$cdrFile = Join-Path $repoRoot ".specify/memory/cdr.md"
+$cdrFile = Join-Path $repoRoot ".specify/drafts/cdr.md"
 
 if (-not (Test-Path $skillsDrafts)) {
     New-Item -ItemType Directory -Path $skillsDrafts -Force | Out-Null
 }
 
-# Ensure .specify/memory exists
-$memoryDir = Join-Path $repoRoot ".specify/memory"
-if (-not (Test-Path $memoryDir)) {
-    New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
+# Ensure .specify/drafts exists
+$draftsDir = Join-Path $repoRoot ".specify/drafts"
+if (-not (Test-Path $draftsDir)) {
+    New-Item -ItemType Directory -Path $draftsDir -Force | Out-Null
 }
 
 # Get current git branch
