@@ -12,11 +12,12 @@ from pathlib import Path
 
 
 def test_trace_generation_script_exists():
-    """Test that trace generation scripts exist and are executable"""
+    """Test that trace generation scripts exist and are executable (in levelup extension)"""
     repo_root = Path(__file__).parent.parent
 
-    bash_script = repo_root / "scripts/bash/generate-trace.sh"
-    ps_script = repo_root / "scripts/powershell/generate-trace.ps1"
+    # Trace scripts are now in the levelup extension
+    bash_script = repo_root / "extensions/levelup/scripts/bash/generate-trace.sh"
+    ps_script = repo_root / "extensions/levelup/scripts/powershell/generate-trace.ps1"
 
     assert bash_script.exists(), (
         f"Bash trace generation script not found: {bash_script}"
@@ -30,11 +31,12 @@ def test_trace_generation_script_exists():
 
 
 def test_trace_validation_script_exists():
-    """Test that trace validation scripts exist and are executable"""
+    """Test that trace validation scripts exist and are executable (in levelup extension)"""
     repo_root = Path(__file__).parent.parent
 
-    bash_script = repo_root / "scripts/bash/validate-trace.sh"
-    ps_script = repo_root / "scripts/powershell/validate-trace.ps1"
+    # Trace scripts are now in the levelup extension
+    bash_script = repo_root / "extensions/levelup/scripts/bash/validate-trace.sh"
+    ps_script = repo_root / "extensions/levelup/scripts/powershell/validate-trace.ps1"
 
     assert bash_script.exists(), f"Bash validation script not found: {bash_script}"
     assert ps_script.exists(), f"PowerShell validation script not found: {ps_script}"
@@ -108,7 +110,7 @@ def test_levelup_integration():
 def test_trace_generation_help():
     """Test that trace generation script has help text"""
     repo_root = Path(__file__).parent.parent
-    bash_script = repo_root / "scripts/bash/generate-trace.sh"
+    bash_script = repo_root / "extensions/levelup/scripts/bash/generate-trace.sh"
 
     try:
         result = subprocess.run(
@@ -129,7 +131,7 @@ def test_trace_generation_help():
 def test_trace_validation_help():
     """Test that trace validation script has help text"""
     repo_root = Path(__file__).parent.parent
-    bash_script = repo_root / "scripts/bash/validate-trace.sh"
+    bash_script = repo_root / "extensions/levelup/scripts/bash/validate-trace.sh"
 
     try:
         result = subprocess.run(
@@ -185,8 +187,9 @@ def test_summary_section_in_generation_scripts():
     """Test that generation scripts include Summary extraction functions"""
     repo_root = Path(__file__).parent.parent
 
-    bash_script = repo_root / "scripts/bash/generate-trace.sh"
-    ps_script = repo_root / "scripts/powershell/generate-trace.ps1"
+    # Trace scripts are now in the levelup extension
+    bash_script = repo_root / "extensions/levelup/scripts/bash/generate-trace.sh"
+    ps_script = repo_root / "extensions/levelup/scripts/powershell/generate-trace.ps1"
 
     bash_content = bash_script.read_text()
     ps_content = ps_script.read_text()
@@ -216,8 +219,9 @@ def test_summary_validation_in_scripts():
     """Test that validation scripts check Summary section"""
     repo_root = Path(__file__).parent.parent
 
-    bash_validate = repo_root / "scripts/bash/validate-trace.sh"
-    ps_validate = repo_root / "scripts/powershell/validate-trace.ps1"
+    # Trace scripts are now in the levelup extension
+    bash_validate = repo_root / "extensions/levelup/scripts/bash/validate-trace.sh"
+    ps_validate = repo_root / "extensions/levelup/scripts/powershell/validate-trace.ps1"
 
     bash_content = bash_validate.read_text()
     ps_content = ps_validate.read_text()

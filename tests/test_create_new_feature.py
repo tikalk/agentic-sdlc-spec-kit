@@ -18,11 +18,23 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     project_root = Path(__file__).resolve().parent.parent
     top_level_root = project_root.parent
 
-    shutil.copy(project_root / "scripts" / "bash" / "create-new-feature.sh", script_dir / "create-new-feature.sh")
-    shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
-    shutil.copy(project_root / "templates" / "spec-template.md", template_dir / "spec-template.md")
-    shutil.copy(project_root / "templates" / "context-template.md", template_dir / "context-template.md")
-    shutil.copy(project_root / "templates" / "context-template.md", repo_root / "templates" / "context-template.md")
+    shutil.copy(
+        project_root / "scripts" / "bash" / "create-new-feature.sh",
+        script_dir / "create-new-feature.sh",
+    )
+    shutil.copy(
+        project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh"
+    )
+    shutil.copy(
+        project_root / "templates" / "spec-template.md",
+        template_dir / "spec-template.md",
+    )
+    # context-template.md is now in the agentic-sdlc preset
+    preset_context = (
+        project_root / "presets" / "agentic-sdlc" / "templates" / "context-template.md"
+    )
+    shutil.copy(preset_context, template_dir / "context-template.md")
+    shutil.copy(preset_context, repo_root / "templates" / "context-template.md")
 
     constitution_path = memory_dir / "constitution.md"
     constitution_path.write_text("Principles")

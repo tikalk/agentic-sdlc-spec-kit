@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/plan-template.md` for the execution workflow.
+**Note**: This template is filled in by the `/spec.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
@@ -39,12 +39,12 @@
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # This file (/spec.plan command output)
+├── research.md          # Phase 0 output (/spec.plan command)
+├── data-model.md        # Phase 1 output (/spec.plan command)
+├── quickstart.md        # Phase 1 output (/spec.plan command)
+├── contracts/           # Phase 1 output (/spec.plan command)
+└── tasks.md             # Phase 2 output (/spec.tasks command - NOT created by /spec.plan)
 ```
 
 ### Source Code (repository root)
@@ -93,6 +93,39 @@ ios/ or android/
 
 **Structure Decision**: [Document the selected structure and reference the real
 directories captured above]
+
+## Triage Framework: [SYNC] vs [ASYNC] Classification
+
+**Execution Strategy**: This feature will use a hybrid execution model combining human expertise ([SYNC]) with autonomous agent delegation ([ASYNC]).
+
+### Preliminary Task Classification
+
+Complete during planning phase - will be validated and refined during task generation
+
+| Task Category | Estimated [SYNC] Tasks | Estimated [ASYNC] Tasks | Rationale |
+|---------------|----------------------|----------------------|-----------|
+| Business Logic | [count] | [count] | [why this split] |
+| Data Operations | [count] | [count] | [why this split] |
+| UI Components | [count] | [count] | [why this split] |
+| Integrations | [count] | [count] | [why this split] |
+| Infrastructure | [count] | [count] | [why this split] |
+
+### Triage Decision Criteria Applied
+
+**High-Risk [SYNC] Classifications:**
+
+- [List specific tasks that MUST be human-reviewed due to complexity/security/criticality]
+
+**Agent-Delegated [ASYNC] Classifications:**
+
+- [List specific tasks suitable for autonomous execution]
+
+### Triage Audit Trail
+
+| Task | Classification | Primary Criteria | Risk Level | Rationale |
+|------|----------------|------------------|------------|-----------|
+| [Task 1] | [SYNC/ASYNC] | [criteria] | [Low/Med/High] | [explanation] |
+| [Task 2] | [SYNC/ASYNC] | [criteria] | [Low/Med/High] | [explanation] |
 
 ## Complexity Tracking
 

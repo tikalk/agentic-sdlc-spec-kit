@@ -2347,7 +2347,6 @@ def ensure_constitution_from_template(
             )
 
 
-
 INIT_OPTIONS_FILE = ".specify/init-options.json"
 
 
@@ -2847,6 +2846,97 @@ def get_preinstalled_extensions(project_path: Path) -> list[dict]:
     return extensions
 
 
+def install_bundled_presets(
+    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
+) -> None:
+    """Install bundled presets that ship with spec-kit.
+
+    Looks for presets in the following locations (in order):
+    1. Package's bundled_presets/ (installed with pip/uv)
+    2. Repository's presets/ directory (for development)
+
+    The agentic-sdlc preset is installed with priority 1 (highest precedence)
+    to ensure fork-specific templates and commands override core ones.
+
+    Args:
+        project_path: Target project directory
+        selected_ai: Selected AI assistant (for command registration)
+        tracker: Optional progress tracker
+    """
+    from .presets import PresetManager, PresetError
+
+    # Try multiple locations for bundled presets (in priority order)
+    bundled_presets_dir = None
+    search_paths = [
+        Path(__file__).parent / "bundled_presets",
+        Path(__file__).parent.parent.parent / "presets",
+    ]
+
+    for preset_path in search_paths:
+        if preset_path.exists():
+            # Check if any preset.yml exists in subdirectories
+            has_presets = any(
+                (preset_path / d / "preset.yml").exists()
+                for d in preset_path.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if has_presets:
+                bundled_presets_dir = preset_path
+                break
+
+    if not bundled_presets_dir:
+        if tracker:
+            tracker.skip("presets", "bundled presets not found")
+        return
+
+    # Find presets to install (all subdirs with preset.yml)
+    bundled_presets = [
+        d.name
+        for d in bundled_presets_dir.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and (d / "preset.yml").exists()
+    ]
+
+    if not bundled_presets:
+        if tracker:
+            tracker.skip("presets", "no presets to install")
+        return
+
+    manager = PresetManager(project_path)
+    speckit_version = get_speckit_version()
+
+    installed = []
+    skipped = []
+
+    for preset_name in bundled_presets:
+        preset_dir = bundled_presets_dir / preset_name
+        if not preset_dir.exists() or not (preset_dir / "preset.yml").exists():
+            skipped.append(f"{preset_name} (not found)")
+            continue
+
+        try:
+            # Check if already installed - skip to avoid duplicates
+            if manager.registry.is_installed(preset_name):
+                skipped.append(f"{preset_name} (existing)")
+                continue
+
+            # Install with priority 1 (highest precedence for fork presets)
+            manager.install_from_directory(preset_dir, speckit_version, priority=1)
+            installed.append(preset_name)
+        except PresetError as e:
+            skipped.append(f"{preset_name} ({str(e)[:30]})")
+        except Exception as e:
+            skipped.append(f"{preset_name} ({str(e)[:40]})")
+
+    # Report results
+    if tracker:
+        if installed:
+            tracker.complete("presets", f"{', '.join(installed)}")
+        elif skipped:
+            tracker.skip("presets", f"{', '.join(skipped)}")
+        else:
+            tracker.skip("presets", "none available")
+
+
 def _handle_agy_deprecation(console: Console) -> None:
     """
     Print the deprecation error for the Antigravity (agy) agent and exit.
@@ -2908,7 +2998,6 @@ def _validate_ai_commands_dir(value: Optional[str]) -> Optional[str]:
 
 @app.command()
 def init(
-
     project_name: Optional[str] = typer.Argument(
         None,
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
@@ -2973,7 +3062,9 @@ def init(
         "--ai-skills",
         help="Install Prompt.MD templates as agent skills (requires --ai)",
     ),
-    preset: str = typer.Option(None, "--preset", help="Install a preset during initialization (by preset ID)"),
+    preset: str = typer.Option(
+        None, "--preset", help="Install a preset during initialization (by preset ID)"
+    ),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -3337,6 +3428,14 @@ def init(
                 tracker.error("extensions", f"failed: {str(e)}")
                 # Non-fatal - continue with project setup
 
+            # Install bundled presets (agentic-sdlc)
+            tracker.start("presets")
+            try:
+                install_bundled_presets(project_path, selected_ai, tracker=tracker)
+            except Exception as e:
+                tracker.error("presets", f"failed: {str(e)}")
+                # Non-fatal - continue with project setup
+
             if ai_skills:
                 skills_ok = install_ai_skills(
                     project_path, selected_ai, tracker=tracker
@@ -3386,20 +3485,24 @@ def init(
             # Persist the CLI options so later operations (e.g. preset add)
             # can adapt their behaviour without re-scanning the filesystem.
             # Must be saved BEFORE preset install so _get_skills_dir() works.
-            save_init_options(project_path, {
-                "ai": selected_ai,
-                "ai_skills": ai_skills,
-                "ai_commands_dir": ai_commands_dir,
-                "here": here,
-                "preset": preset,
-                "script": selected_script,
-                "speckit_version": get_speckit_version(),
-            })
+            save_init_options(
+                project_path,
+                {
+                    "ai": selected_ai,
+                    "ai_skills": ai_skills,
+                    "ai_commands_dir": ai_commands_dir,
+                    "here": here,
+                    "preset": preset,
+                    "script": selected_script,
+                    "speckit_version": get_speckit_version(),
+                },
+            )
 
             # Install preset if specified
             if preset:
                 try:
                     from .presets import PresetManager, PresetCatalog, PresetError
+
                     preset_manager = PresetManager(project_path)
                     speckit_ver = get_speckit_version()
 
@@ -3411,7 +3514,9 @@ def init(
                         preset_catalog = PresetCatalog(project_path)
                         pack_info = preset_catalog.get_pack_info(preset)
                         if not pack_info:
-                            console.print(f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping.")
+                            console.print(
+                                f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping."
+                            )
                         else:
                             try:
                                 zip_path = preset_catalog.download_pack(preset)
@@ -3423,9 +3528,13 @@ def init(
                                     # Best-effort cleanup; failure to delete is non-fatal
                                     pass
                             except PresetError as preset_err:
-                                console.print(f"[yellow]Warning:[/yellow] Failed to install preset '{preset}': {preset_err}")
+                                console.print(
+                                    f"[yellow]Warning:[/yellow] Failed to install preset '{preset}': {preset_err}"
+                                )
                 except Exception as preset_err:
-                    console.print(f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}")
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
+                    )
 
             tracker.complete("final", "project ready")
         except Exception as e:
@@ -3834,7 +3943,9 @@ def preset_list():
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -3849,9 +3960,15 @@ def preset_list():
 
     console.print("\n[bold cyan]Installed Presets:[/bold cyan]\n")
     for pack in installed:
-        status = "[green]enabled[/green]" if pack.get("enabled", True) else "[red]disabled[/red]"
-        pri = pack.get('priority', 10)
-        console.print(f"  [bold]{pack['name']}[/bold] ({pack['id']}) v{pack['version']} — {status} — priority {pri}")
+        status = (
+            "[green]enabled[/green]"
+            if pack.get("enabled", True)
+            else "[red]disabled[/red]"
+        )
+        pri = pack.get("priority", 10)
+        console.print(
+            f"  [bold]{pack['name']}[/bold] ({pack['id']}) v{pack['version']} — {status} — priority {pri}"
+        )
         console.print(f"    {pack['description']}")
         if pack.get("tags"):
             tags_str = ", ".join(pack["tags"])
@@ -3864,8 +3981,14 @@ def preset_list():
 def preset_add(
     pack_id: str = typer.Argument(None, help="Preset ID to install from catalog"),
     from_url: str = typer.Option(None, "--from", help="Install from a URL (ZIP file)"),
-    dev: str = typer.Option(None, "--dev", help="Install from local directory (development mode)"),
-    priority: int = typer.Option(10, "--priority", help="Resolution priority (lower = higher precedence, default 10)"),
+    dev: str = typer.Option(
+        None, "--dev", help="Install from local directory (development mode)"
+    ),
+    priority: int = typer.Option(
+        10,
+        "--priority",
+        help="Resolution priority (lower = higher precedence, default 10)",
+    ),
 ):
     """Install a preset."""
     from .presets import (
@@ -3880,7 +4003,9 @@ def preset_add(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -3895,16 +4020,25 @@ def preset_add(
                 raise typer.Exit(1)
 
             console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
-            manifest = manager.install_from_directory(dev_path, speckit_version, priority)
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            manifest = manager.install_from_directory(
+                dev_path, speckit_version, priority
+            )
+            console.print(
+                f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
+            )
 
         elif from_url:
             # Validate URL scheme before downloading
             from urllib.parse import urlparse as _urlparse
+
             _parsed = _urlparse(from_url)
             _is_localhost = _parsed.hostname in ("localhost", "127.0.0.1", "::1")
-            if _parsed.scheme != "https" and not (_parsed.scheme == "http" and _is_localhost):
-                console.print(f"[red]Error:[/red] URL must use HTTPS (got {_parsed.scheme}://). HTTP is only allowed for localhost.")
+            if _parsed.scheme != "https" and not (
+                _parsed.scheme == "http" and _is_localhost
+            ):
+                console.print(
+                    f"[red]Error:[/red] URL must use HTTPS (got {_parsed.scheme}://). HTTP is only allowed for localhost."
+                )
                 raise typer.Exit(1)
 
             console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
@@ -3923,33 +4057,47 @@ def preset_add(
 
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
 
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            console.print(
+                f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
+            )
 
         elif pack_id:
             catalog = PresetCatalog(project_root)
             pack_info = catalog.get_pack_info(pack_id)
 
             if not pack_info:
-                console.print(f"[red]Error:[/red] Preset '{pack_id}' not found in catalog")
+                console.print(
+                    f"[red]Error:[/red] Preset '{pack_id}' not found in catalog"
+                )
                 raise typer.Exit(1)
 
             if not pack_info.get("_install_allowed", True):
                 catalog_name = pack_info.get("_catalog_name", "unknown")
-                console.print(f"[red]Error:[/red] Preset '{pack_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed).")
-                console.print("Add the catalog with --install-allowed or install from the preset's repository directly with --from.")
+                console.print(
+                    f"[red]Error:[/red] Preset '{pack_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed)."
+                )
+                console.print(
+                    "Add the catalog with --install-allowed or install from the preset's repository directly with --from."
+                )
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]...")
+            console.print(
+                f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]..."
+            )
 
             try:
                 zip_path = catalog.download_pack(pack_id)
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
-                console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+                console.print(
+                    f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
+                )
             finally:
-                if 'zip_path' in locals() and zip_path.exists():
+                if "zip_path" in locals() and zip_path.exists():
                     zip_path.unlink(missing_ok=True)
         else:
-            console.print("[red]Error:[/red] Specify a preset ID, --from URL, or --dev path")
+            console.print(
+                "[red]Error:[/red] Specify a preset ID, --from URL, or --dev path"
+            )
             raise typer.Exit(1)
 
     except PresetCompatibilityError as e:
@@ -3974,7 +4122,9 @@ def preset_remove(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4004,7 +4154,9 @@ def preset_search(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4022,7 +4174,9 @@ def preset_search(
 
     console.print(f"\n[bold cyan]Presets ({len(results)} found):[/bold cyan]\n")
     for pack in results:
-        console.print(f"  [bold]{pack.get('name', pack['id'])}[/bold] ({pack['id']}) v{pack.get('version', '?')}")
+        console.print(
+            f"  [bold]{pack.get('name', pack['id'])}[/bold] ({pack['id']}) v{pack.get('version', '?')}"
+        )
         console.print(f"    {pack.get('description', '')}")
         if pack.get("tags"):
             tags_str = ", ".join(pack["tags"])
@@ -4032,7 +4186,9 @@ def preset_search(
 
 @preset_app.command("resolve")
 def preset_resolve(
-    template_name: str = typer.Argument(..., help="Template name to resolve (e.g., spec-template)"),
+    template_name: str = typer.Argument(
+        ..., help="Template name to resolve (e.g., spec-template)"
+    ),
 ):
     """Show which template will be resolved for a given name."""
     from .presets import PresetResolver
@@ -4041,7 +4197,9 @@ def preset_resolve(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4053,7 +4211,9 @@ def preset_resolve(
         console.print(f"    [dim](from: {result['source']})[/dim]")
     else:
         console.print(f"  [yellow]{template_name}[/yellow]: not found")
-        console.print("    [dim]No template with this name exists in the resolution stack[/dim]")
+        console.print(
+            "    [dim]No template with this name exists in the resolution stack[/dim]"
+        )
 
 
 @preset_app.command("info")
@@ -4067,7 +4227,9 @@ def preset_info(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4086,7 +4248,9 @@ def preset_info(
             console.print(f"  Tags:        {', '.join(local_pack.tags)}")
         console.print(f"  Templates:   {len(local_pack.templates)}")
         for tmpl in local_pack.templates:
-            console.print(f"    - {tmpl['name']} ({tmpl['type']}): {tmpl.get('description', '')}")
+            console.print(
+                f"    - {tmpl['name']} ({tmpl['type']}): {tmpl.get('description', '')}"
+            )
         repo = local_pack.data.get("preset", {}).get("repository")
         if repo:
             console.print(f"  Repository:  {repo}")
@@ -4105,10 +4269,14 @@ def preset_info(
         pack_info = None
 
     if not pack_info:
-        console.print(f"[red]Error:[/red] Preset '{pack_id}' not found (not installed and not in catalog)")
+        console.print(
+            f"[red]Error:[/red] Preset '{pack_id}' not found (not installed and not in catalog)"
+        )
         raise typer.Exit(1)
 
-    console.print(f"\n[bold cyan]Preset: {pack_info.get('name', pack_id)}[/bold cyan]\n")
+    console.print(
+        f"\n[bold cyan]Preset: {pack_info.get('name', pack_id)}[/bold cyan]\n"
+    )
     console.print(f"  ID:          {pack_info['id']}")
     console.print(f"  Version:     {pack_info.get('version', '?')}")
     console.print(f"  Description: {pack_info.get('description', '')}")
@@ -4137,7 +4305,9 @@ def preset_catalog_list():
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4166,17 +4336,25 @@ def preset_catalog_list():
     config_path = project_root / ".specify" / "preset-catalogs.yml"
     user_config_path = Path.home() / ".specify" / "preset-catalogs.yml"
     if os.environ.get("SPECKIT_PRESET_CATALOG_URL"):
-        console.print("[dim]Catalog configured via SPECKIT_PRESET_CATALOG_URL environment variable.[/dim]")
+        console.print(
+            "[dim]Catalog configured via SPECKIT_PRESET_CATALOG_URL environment variable.[/dim]"
+        )
     else:
         try:
-            proj_loaded = config_path.exists() and catalog._load_catalog_config(config_path) is not None
+            proj_loaded = (
+                config_path.exists()
+                and catalog._load_catalog_config(config_path) is not None
+            )
         except PresetValidationError:
             proj_loaded = False
         if proj_loaded:
             console.print(f"[dim]Config: {config_path.relative_to(project_root)}[/dim]")
         else:
             try:
-                user_loaded = user_config_path.exists() and catalog._load_catalog_config(user_config_path) is not None
+                user_loaded = (
+                    user_config_path.exists()
+                    and catalog._load_catalog_config(user_config_path) is not None
+                )
             except PresetValidationError:
                 user_loaded = False
             if user_loaded:
@@ -4192,12 +4370,17 @@ def preset_catalog_list():
 def preset_catalog_add(
     url: str = typer.Argument(help="Catalog URL (must use HTTPS)"),
     name: str = typer.Option(..., "--name", help="Catalog name"),
-    priority: int = typer.Option(10, "--priority", help="Priority (lower = higher priority)"),
+    priority: int = typer.Option(
+        10, "--priority", help="Priority (lower = higher priority)"
+    ),
     install_allowed: bool = typer.Option(
-        False, "--install-allowed/--no-install-allowed",
+        False,
+        "--install-allowed/--no-install-allowed",
         help="Allow presets from this catalog to be installed",
     ),
-    description: str = typer.Option("", "--description", help="Description of the catalog"),
+    description: str = typer.Option(
+        "", "--description", help="Description of the catalog"
+    ),
 ):
     """Add a catalog to .specify/preset-catalogs.yml."""
     from .presets import PresetCatalog, PresetValidationError
@@ -4206,7 +4389,9 @@ def preset_catalog_add(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -4232,29 +4417,39 @@ def preset_catalog_add(
 
     catalogs = config.get("catalogs", [])
     if not isinstance(catalogs, list):
-        console.print("[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list.")
+        console.print(
+            "[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list."
+        )
         raise typer.Exit(1)
 
     # Check for duplicate name
     for existing in catalogs:
         if isinstance(existing, dict) and existing.get("name") == name:
-            console.print(f"[yellow]Warning:[/yellow] A catalog named '{name}' already exists.")
-            console.print("Use 'specify preset catalog remove' first, or choose a different name.")
+            console.print(
+                f"[yellow]Warning:[/yellow] A catalog named '{name}' already exists."
+            )
+            console.print(
+                "Use 'specify preset catalog remove' first, or choose a different name."
+            )
             raise typer.Exit(1)
 
-    catalogs.append({
-        "name": name,
-        "url": url,
-        "priority": priority,
-        "install_allowed": install_allowed,
-        "description": description,
-    })
+    catalogs.append(
+        {
+            "name": name,
+            "url": url,
+            "priority": priority,
+            "install_allowed": install_allowed,
+            "description": description,
+        }
+    )
 
     config["catalogs"] = catalogs
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False))
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})")
+    console.print(
+        f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})"
+    )
     console.print(f"  URL: {url}")
     console.print(f"  Priority: {priority}")
     console.print(f"\nConfig saved to {config_path.relative_to(project_root)}")
@@ -4269,13 +4464,17 @@ def preset_catalog_remove(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
     config_path = specify_dir / "preset-catalogs.yml"
     if not config_path.exists():
-        console.print("[red]Error:[/red] No preset catalog config found. Nothing to remove.")
+        console.print(
+            "[red]Error:[/red] No preset catalog config found. Nothing to remove."
+        )
         raise typer.Exit(1)
 
     try:
@@ -4286,7 +4485,9 @@ def preset_catalog_remove(
 
     catalogs = config.get("catalogs", [])
     if not isinstance(catalogs, list):
-        console.print("[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list.")
+        console.print(
+            "[red]Error:[/red] Invalid catalog config: 'catalogs' must be a list."
+        )
         raise typer.Exit(1)
     original_count = len(catalogs)
     catalogs = [c for c in catalogs if isinstance(c, dict) and c.get("name") != name]
@@ -4300,7 +4501,9 @@ def preset_catalog_remove(
 
     console.print(f"[green]✓[/green] Removed catalog '{name}'")
     if not catalogs:
-        console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
+        console.print(
+            "\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]"
+        )
 
 
 # ===== Extension Commands =====

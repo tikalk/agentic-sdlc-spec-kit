@@ -7,6 +7,42 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.0] - 2026-03-14
+
+### BREAKING CHANGE: Preset Architecture Migration
+
+This release migrates fork-specific customizations to a preset system to reduce merge conflicts with upstream GitHub Spec Kit.
+
+### Added
+
+- **`agentic-sdlc` preset**: Fork-specific templates and commands now bundled as a preset
+  - Auto-installed with priority 1 (highest precedence) during `specify init`
+  - Templates: `context-template.md`, `delegation-template.md`, enhanced `spec-template.md`, `plan-template.md`, `tasks-template.md`, `checklist-template.md`, `constitution-template.md`
+  - Commands: `adlc.spec.specify`, `adlc.spec.plan`, `adlc.spec.clarify`, `adlc.spec.tasks`, `adlc.spec.checklist`, `adlc.spec.analyze`, `adlc.spec.implement`, `adlc.spec.constitution` (with `spec.*` aliases)
+  - Governance features: team-ai-directives integration, dual execution loop, before_plan/after_plan hooks
+- **`install_bundled_presets()`**: New function to auto-install bundled presets during init
+- **Extension script consolidation**: Trace scripts moved to levelup extension, diagram scripts moved to architect extension
+
+### Changed
+
+- **Core templates/commands reset to upstream**: All core `templates/` and `templates/commands/` now match upstream spec-kit
+- **Extension scripts moved**:
+  - `generate-trace.sh`, `validate-trace.sh` → `extensions/levelup/scripts/bash/`
+  - `ascii-generator.sh`, `mermaid-generator.sh` → `extensions/architect/scripts/bash/`
+
+### Removed
+
+- **Duplicate architecture templates**: `templates/adr-template.md`, `AD-template.md`, `feature-AD-template.md` (use architect extension templates)
+- **Fork-only templates from core**: `context-template.md`, `delegation-template.md` (now in preset)
+- **Unused scripts**: `constitution-evolution.sh`, `verify-dates.sh`, `test-dual-execution-loop.sh`
+- **Extension scripts from core**: Trace and diagram scripts (now in their respective extensions)
+
+### Migration Guide
+
+**For existing projects**: Run `specify preset add agentic-sdlc` or re-run `specify init --here` to get the preset installed.
+
+**For new projects**: The preset is automatically installed during `specify init`.
+
 ## [0.0.139] - 2026-03-14
 
 ### Added
