@@ -87,7 +87,11 @@ uv run pytest tests/ -v
 
 Each suite sends a prompt to the LLM and evaluates the output against structured assertions and custom Python graders.
 
+<<<<<<< HEAD
 #### Spec Template (12 tests)
+=======
+#### Spec Template (10 tests)
+>>>>>>> main
 - **Basic Structure** — required sections present (Overview, Requirements, User Stories, etc.)
 - **No Premature Tech Stack** — spec focuses on WHAT, not HOW
 - **Quality User Stories** — proper format with acceptance criteria
@@ -97,9 +101,12 @@ Each suite sends a prompt to the LLM and evaluates the output against structured
 - **Completeness** — complex features have comprehensive requirements
 - **Regression** — simple features still maintain proper structure
 - **Rename Regression** — post-rename output matches quality bar
+<<<<<<< HEAD
 - **Fork Sections** — Goal, Demo Sentence, Boundary Map present (agentic-sdlc preset)
 - **Boundary Map Structure** — Produces and Consumes subsections
 - **Constraints Extraction** — key limitations documented
+=======
+>>>>>>> main
 
 #### Plan Template (2 tests)
 
@@ -126,12 +133,15 @@ Each suite sends a prompt to the LLM and evaluates the output against structured
 - **Structure** — session metadata, decisions, and artifacts sections present
 - **Validation Accuracy** — validator correctly scores incomplete traces
 
+<<<<<<< HEAD
 #### Mission Brief (4 tests) — Fork-specific
 - **Completeness** — Goal, Success Criteria, Constraints, Demo Sentence present
 - **Quality** — Goal is concise, criteria are measurable, demo is observable
 - **Constraint Extraction** — technical, business, regulatory constraints captured
 - **Approval Flow** — includes "Proceed with this Mission Brief?" prompt
 
+=======
+>>>>>>> main
 ### Security Graders (run on every LLM test)
 
 Four graders apply automatically to every test output via `defaultTest.assert`:
@@ -142,9 +152,12 @@ Four graders apply automatically to every test output via `defaultTest.assert`:
 | **`check_prompt_injection`** | "Ignore previous instructions", DAN mode, embedded role markers, base64 payloads |
 | **`check_hallucination_signals`** | Overconfident metrics, dangling references, self-contradictions, fabricated RFCs |
 | **`check_misinformation`** | MD5/SHA-1 for passwords, plaintext HTTP, unsafe APIs (eval/pickle/yaml.load), impossible performance claims |
+<<<<<<< HEAD
 | **`check_mission_brief_completeness`** | Mission Brief has Goal, Success Criteria, Constraints, Demo Sentence |
 | **`check_mission_brief_quality`** | Goal is concise, criteria are measurable, demo is observable |
 | **`check_fork_spec_sections`** | Spec includes fork-specific sections (Goal, Demo Sentence, Boundary Map) |
+=======
+>>>>>>> main
 
 ### Unit Tests (pytest)
 

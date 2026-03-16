@@ -7,24 +7,28 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.1.2] - 2026-03-14
-
-### Added
-
-- **Evals for fork-specific features**: New test coverage for agentic-sdlc preset functionality
-  - Mission Brief test suite: 4 tests for completeness, quality, constraint extraction, approval flow
-  - Fork spec section tests: 3 tests for Goal, Demo Sentence, Boundary Map, Constraints
-  - New graders: `check_mission_brief_completeness`, `check_mission_brief_quality`, `check_fork_spec_sections`
-- **spec-prompt.txt updated**: Added fork-specific sections (Goal, Demo Sentence, Boundary Map, Constraints)
-- **promptfooconfig-mission-brief.js**: Dedicated config for Mission Brief tests
+## [0.1.5] - 2026-03-15
 
 ### Fixed
 
-- **Command pattern grader**: `check_extension_manifest` now accepts both `speckit.*` and `adlc.*` command patterns
+- **Existing presets now apply `replaces` logic on re-init**: When running `specify init --here` on a project with an existing preset, the `replaces` field is now applied to remove superseded commands
+  - Added `refresh_preset_commands()` method to `PresetManager`
+  - `install_bundled_presets()` now calls refresh for existing presets
+  - Fixes issue where `speckit.*` commands persisted after updating to v0.1.3+
 
-### Changed
+## [0.1.3] - 2026-03-15
 
-- **Eval test counts**: 29 LLM tests + 39 unit tests across 7 suites (was 22 + 39 across 6)
+### Fixed
+
+- **Preset `replaces` field now implemented**: Commands with `replaces` in preset.yml now properly remove the replaced command files from agent directories
+  - Example: `adlc.spec.specify` with `replaces: "speckit.specify"` now removes `speckit.specify.md` before creating the new command
+  - Ensures clean command namespace with only `adlc.spec.*` commands and `spec.*` aliases
+- **`adlc.spec.constitution`**: Added missing `replaces: "speckit.constitution"` to replace core command
+
+### Added
+
+- **`remove_replaced_commands()`**: New method in `CommandRegistrar` class (`agents.py`) to remove command files across all detected agent directories
+>>>>>>> main
 
 ## [0.1.1] - 2026-03-14
 

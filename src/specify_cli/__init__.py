@@ -2914,8 +2914,11 @@ def install_bundled_presets(
             continue
 
         try:
-            # Check if already installed - skip to avoid duplicates
+            # Check if already installed
             if manager.registry.is_installed(preset_name):
+                # Even for existing presets, refresh command registration to ensure
+                # 'replaces' logic is applied (removes superseded speckit.* commands)
+                manager.refresh_preset_commands(preset_name)
                 skipped.append(f"{preset_name} (existing)")
                 continue
 

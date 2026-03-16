@@ -1,5 +1,5 @@
 // PromptFoo combined configuration — all test suites
-// Individual suite configs: promptfooconfig-{spec,plan,arch,ext,clarify,trace,mission-brief}.js
+// Individual suite configs: promptfooconfig-{spec,plan,arch,ext,clarify,trace}.js
 module.exports = {
   description: 'Spec-Kit Quality Evaluation — Full Suite',
 
@@ -39,7 +39,7 @@ module.exports = {
   },
 
   // ============================================================
-  // FULL TEST SUITE (31 tests across 7 categories)
+  // FULL TEST SUITE (27 tests across 6 categories)
   // ============================================================
   tests: [
     // ========================================
@@ -541,75 +541,6 @@ module.exports = {
             '5. Are lessons learned included?\n' +
             'Return average score 0-1.',
           threshold: 0.7,
-        },
-      ],
-    },
-
-    // ========================================
-    // MISSION BRIEF TESTS (4 tests) - Fork-specific
-    // ========================================
-
-    // Test 26: Mission Brief Completeness
-    {
-      description: 'Mission Brief: Extracts complete Mission Brief from detailed input',
-      prompt: 'file://../prompts/mission-brief-prompt.txt',
-      vars: {
-        user_input:
-          'Build a user authentication system with email/password login, password reset via email, and session management. Users should be able to stay logged in for 30 days. The system must support 10,000 concurrent users and comply with GDPR for European users.',
-      },
-      assert: [
-        { type: 'python', value: 'file://../graders/custom_graders.py:check_mission_brief_completeness' },
-        { type: 'icontains', value: 'goal' },
-        { type: 'icontains', value: 'success criteria' },
-        { type: 'icontains', value: 'demo sentence' },
-      ],
-    },
-
-    // Test 27: Mission Brief Quality
-    {
-      description: 'Mission Brief: Goal is concise and captures core purpose',
-      prompt: 'file://../prompts/mission-brief-prompt.txt',
-      vars: {
-        user_input:
-          'Create a dashboard where admins can view real-time analytics including user signups, active sessions, revenue metrics, and system health. The dashboard should update every 5 seconds and support drill-down into individual metrics.',
-      },
-      assert: [
-        { type: 'python', value: 'file://../graders/custom_graders.py:check_mission_brief_quality' },
-      ],
-    },
-
-    // Test 28: Mission Brief Constraint Extraction
-    {
-      description: 'Mission Brief: Extracts constraints from requirements',
-      prompt: 'file://../prompts/mission-brief-prompt.txt',
-      vars: {
-        user_input:
-          'Build a payment processing integration for our e-commerce platform. Must comply with PCI-DSS, support credit cards and PayPal, process transactions under 3 seconds, and work with our existing Django backend.',
-      },
-      assert: [
-        { type: 'icontains', value: 'constraint' },
-        { type: 'icontains', value: 'pci' },
-      ],
-    },
-
-    // Test 29: Mission Brief Approval Flow
-    {
-      description: 'Mission Brief: Includes approval prompt',
-      prompt: 'file://../prompts/mission-brief-prompt.txt',
-      vars: {
-        user_input:
-          'Create a notification system that sends email, SMS, and push notifications. Users can configure their preferences per notification type.',
-      },
-      assert: [
-        { type: 'icontains', value: 'proceed' },
-        {
-          type: 'llm-rubric',
-          value:
-            'Check if the response includes a clear approval request:\n' +
-            '1. Is there a "Proceed with this Mission Brief?" question?\n' +
-            '2. Are options provided (yes/no/adjust or similar)?\n' +
-            'Return 1.0 if proper approval flow, 0.0 if missing.',
-          threshold: 0.8,
         },
       ],
     },

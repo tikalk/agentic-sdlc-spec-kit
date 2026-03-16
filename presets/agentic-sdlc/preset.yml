@@ -109,8 +109,9 @@ provides:
     - type: "command"
       name: "adlc.spec.constitution"
       file: "commands/adlc.spec.constitution.md"
-      description: "Create/update project constitution (fork only)"
+      description: "Create/update project constitution (fork enhanced)"
       aliases: ["spec.constitution"]
+      replaces: "speckit.constitution"
 
 tags:
   - "governance"
