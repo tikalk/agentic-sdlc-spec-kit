@@ -79,6 +79,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | DocGuard — CDD Enforcement | Canonical-Driven Development enforcement. Validates, scores, and traces project documentation with automated checks, AI-driven workflows, and spec-kit hooks. Zero dependencies. | [spec-kit-docguard](https://github.com/raccioly/docguard) |
 | Fleet Orchestrator | Orchestrate a full feature lifecycle with human-in-the-loop gates across all SpecKit phases | [spec-kit-fleet](https://github.com/sharathsatish/spec-kit-fleet) |
 | Jira Integration | Create Jira Epics, Stories, and Issues from spec-kit specifications and task breakdowns with configurable hierarchy and custom field support | [spec-kit-jira](https://github.com/mbachorik/spec-kit-jira) |
+| Learning Extension | Generate educational guides from implementations and enhance clarifications with mentoring context | [spec-kit-learn](https://github.com/imviancagrace/spec-kit-learn) |
 | Project Health Check | Diagnose a Spec Kit project and report health issues across structure, agents, features, scripts, extensions, and git | [spec-kit-doctor](https://github.com/KhawarHabibKhan/spec-kit-doctor) |
 | Project Status | Show current SDD workflow progress — active feature, artifact status, task completion, workflow phase, and extensions summary | [spec-kit-status](https://github.com/KhawarHabibKhan/spec-kit-status) |
 | Ralph Loop | Autonomous implementation loop using AI agent CLI | [spec-kit-ralph](https://github.com/Rubiss/spec-kit-ralph) |
