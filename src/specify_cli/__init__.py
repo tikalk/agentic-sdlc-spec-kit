@@ -2000,6 +2000,11 @@ def preset_add(
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
+    # Validate priority
+    if priority < 1:
+        console.print("[red]Error:[/red] Priority must be a positive integer (1 or higher)")
+        raise typer.Exit(1)
+
     manager = PresetManager(project_root)
     speckit_version = get_speckit_version()
 
@@ -2177,6 +2182,7 @@ def preset_info(
     pack_id: str = typer.Argument(..., help="Preset ID to get info about"),
 ):
     """Show detailed information about a preset."""
+    from .extensions import normalize_priority
     from .presets import PresetCatalog, PresetManager, PresetError
 
     project_root = Path.cwd()
@@ -2210,6 +2216,10 @@ def preset_info(
         if license_val:
             console.print(f"  License:     {license_val}")
         console.print("\n  [green]Status: installed[/green]")
+        # Get priority from registry
+        pack_metadata = manager.registry.get(pack_id)
+        priority = normalize_priority(pack_metadata.get("priority") if isinstance(pack_metadata, dict) else None)
+        console.print(f"  [dim]Priority:[/dim] {priority}")
         console.print()
         return
 
@@ -2239,6 +2249,58 @@ def preset_info(
     console.print("\n  [yellow]Status: not installed[/yellow]")
     console.print(f"  Install with: [cyan]specify preset add {pack_id}[/cyan]")
     console.print()
+
+
+@preset_app.command("set-priority")
+def preset_set_priority(
+    pack_id: str = typer.Argument(help="Preset ID"),
+    priority: int = typer.Argument(help="New priority (lower = higher precedence)"),
+):
+    """Set the resolution priority of an installed preset."""
+    from .presets import PresetManager
+
+    project_root = Path.cwd()
+
+    # Check if we're in a spec-kit project
+    specify_dir = project_root / ".specify"
+    if not specify_dir.exists():
+        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print("Run this command from a spec-kit project root")
+        raise typer.Exit(1)
+
+    # Validate priority
+    if priority < 1:
+        console.print("[red]Error:[/red] Priority must be a positive integer (1 or higher)")
+        raise typer.Exit(1)
+
+    manager = PresetManager(project_root)
+
+    # Check if preset is installed
+    if not manager.registry.is_installed(pack_id):
+        console.print(f"[red]Error:[/red] Preset '{pack_id}' is not installed")
+        raise typer.Exit(1)
+
+    # Get current metadata
+    metadata = manager.registry.get(pack_id)
+    if metadata is None or not isinstance(metadata, dict):
+        console.print(f"[red]Error:[/red] Preset '{pack_id}' not found in registry (corrupted state)")
+        raise typer.Exit(1)
+
+    from .extensions import normalize_priority
+    raw_priority = metadata.get("priority")
+    # Only skip if the stored value is already a valid int equal to requested priority
+    # This ensures corrupted values (e.g., "high") get repaired even when setting to default (10)
+    if isinstance(raw_priority, int) and raw_priority == priority:
+        console.print(f"[yellow]Preset '{pack_id}' already has priority {priority}[/yellow]")
+        raise typer.Exit(0)
+
+    old_priority = normalize_priority(raw_priority)
+
+    # Update priority
+    manager.registry.update(pack_id, {"priority": priority})
+
+    console.print(f"[green]✓[/green] Preset '{pack_id}' priority changed: {old_priority} → {priority}")
+    console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
 # ===== Preset Catalog Commands =====
@@ -2578,7 +2640,7 @@ def extension_list(
             console.print(f"  [{status_color}]{status_icon}[/{status_color}] [bold]{ext['name']}[/bold] (v{ext['version']})")
             console.print(f"     [dim]{ext['id']}[/dim]")
             console.print(f"     {ext['description']}")
-            console.print(f"     Commands: {ext['command_count']} | Hooks: {ext['hook_count']} | Status: {'Enabled' if ext['enabled'] else 'Disabled'}")
+            console.print(f"     Commands: {ext['command_count']} | Hooks: {ext['hook_count']} | Priority: {ext['priority']} | Status: {'Enabled' if ext['enabled'] else 'Disabled'}")
             console.print()
 
     if available or all_extensions:
@@ -2766,6 +2828,7 @@ def extension_add(
     extension: str = typer.Argument(help="Extension name or path"),
     dev: bool = typer.Option(False, "--dev", help="Install from local directory"),
     from_url: Optional[str] = typer.Option(None, "--from", help="Install from custom URL"),
+    priority: int = typer.Option(10, "--priority", help="Resolution priority (lower = higher precedence, default 10)"),
 ):
     """Install an extension."""
     from .extensions import ExtensionManager, ExtensionCatalog, ExtensionError, ValidationError, CompatibilityError
@@ -2777,6 +2840,11 @@ def extension_add(
     if not specify_dir.exists():
         console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
         console.print("Run this command from a spec-kit project root")
+        raise typer.Exit(1)
+
+    # Validate priority
+    if priority < 1:
+        console.print("[red]Error:[/red] Priority must be a positive integer (1 or higher)")
         raise typer.Exit(1)
 
     manager = ExtensionManager(project_root)
@@ -2795,7 +2863,7 @@ def extension_add(
                     console.print(f"[red]Error:[/red] No extension.yml found in {source_path}")
                     raise typer.Exit(1)
 
-                manifest = manager.install_from_directory(source_path, speckit_version)
+                manifest = manager.install_from_directory(source_path, speckit_version, priority=priority)
 
             elif from_url:
                 # Install from URL (ZIP file)
@@ -2828,7 +2896,7 @@ def extension_add(
                     zip_path.write_bytes(zip_data)
 
                     # Install from downloaded ZIP
-                    manifest = manager.install_from_zip(zip_path, speckit_version)
+                    manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority)
                 except urllib.error.URLError as e:
                     console.print(f"[red]Error:[/red] Failed to download from {from_url}: {e}")
                     raise typer.Exit(1)
@@ -2872,7 +2940,7 @@ def extension_add(
 
                 try:
                     # Install from downloaded ZIP
-                    manifest = manager.install_from_zip(zip_path, speckit_version)
+                    manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority)
                 finally:
                     # Clean up downloaded ZIP
                     if zip_path.exists():
@@ -3048,7 +3116,7 @@ def extension_info(
     extension: str = typer.Argument(help="Extension ID or name"),
 ):
     """Show detailed information about an extension."""
-    from .extensions import ExtensionCatalog, ExtensionManager
+    from .extensions import ExtensionCatalog, ExtensionManager, normalize_priority
 
     project_root = Path.cwd()
 
@@ -3085,8 +3153,15 @@ def extension_info(
         # Get local manifest info
         ext_manifest = manager.get_extension(resolved_installed_id)
         metadata = manager.registry.get(resolved_installed_id)
+        metadata_is_dict = isinstance(metadata, dict)
+        if not metadata_is_dict:
+            console.print(
+                "[yellow]Warning:[/yellow] Extension metadata appears to be corrupted; "
+                "some information may be unavailable."
+            )
+        version = metadata.get("version", "unknown") if metadata_is_dict else "unknown"
 
-        console.print(f"\n[bold]{resolved_installed_name}[/bold] (v{metadata.get('version', 'unknown')})")
+        console.print(f"\n[bold]{resolved_installed_name}[/bold] (v{version})")
         console.print(f"ID: {resolved_installed_id}")
         console.print()
 
@@ -3114,6 +3189,8 @@ def extension_info(
 
         console.print()
         console.print("[green]✓ Installed[/green]")
+        priority = normalize_priority(metadata.get("priority") if metadata_is_dict else None)
+        console.print(f"[dim]Priority:[/dim] {priority}")
         console.print(f"\nTo remove: specify extension remove {resolved_installed_id}")
         return
 
@@ -3129,6 +3206,8 @@ def extension_info(
 
 def _print_extension_info(ext_info: dict, manager):
     """Print formatted extension info from catalog data."""
+    from .extensions import normalize_priority
+
     # Header
     verified_badge = " [green]✓ Verified[/green]" if ext_info.get("verified") else ""
     console.print(f"\n[bold]{ext_info['name']}[/bold] (v{ext_info['version']}){verified_badge}")
@@ -3207,6 +3286,9 @@ def _print_extension_info(ext_info: dict, manager):
     install_allowed = ext_info.get("_install_allowed", True)
     if is_installed:
         console.print("[green]✓ Installed[/green]")
+        metadata = manager.registry.get(ext_info['id'])
+        priority = normalize_priority(metadata.get("priority") if isinstance(metadata, dict) else None)
+        console.print(f"[dim]Priority:[/dim] {priority}")
         console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
@@ -3233,6 +3315,7 @@ def extension_update(
         ValidationError,
         CommandRegistrar,
         HookExecutor,
+        normalize_priority,
     )
     from packaging import version as pkg_version
     import shutil
@@ -3272,7 +3355,7 @@ def extension_update(
         for ext_id in extensions_to_update:
             # Get installed version
             metadata = manager.registry.get(ext_id)
-            if metadata is None or "version" not in metadata:
+            if metadata is None or not isinstance(metadata, dict) or "version" not in metadata:
                 console.print(f"⚠  {ext_id}: Registry entry corrupted or missing (skipping)")
                 continue
             try:
@@ -3457,19 +3540,23 @@ def extension_update(
                                 shutil.copy2(cfg_file, new_extension_dir / cfg_file.name)
 
                     # 9. Restore metadata from backup (installed_at, enabled state)
-                    if backup_registry_entry:
+                    if backup_registry_entry and isinstance(backup_registry_entry, dict):
                         # Copy current registry entry to avoid mutating internal
                         # registry state before explicit restore().
                         current_metadata = manager.registry.get(extension_id)
-                        if current_metadata is None:
+                        if current_metadata is None or not isinstance(current_metadata, dict):
                             raise RuntimeError(
-                                f"Registry entry for '{extension_id}' missing after install — update incomplete"
+                                f"Registry entry for '{extension_id}' missing or corrupted after install — update incomplete"
                             )
                         new_metadata = dict(current_metadata)
 
                         # Preserve the original installation timestamp
                         if "installed_at" in backup_registry_entry:
                             new_metadata["installed_at"] = backup_registry_entry["installed_at"]
+
+                        # Preserve the original priority (normalized to handle corruption)
+                        if "priority" in backup_registry_entry:
+                            new_metadata["priority"] = normalize_priority(backup_registry_entry["priority"])
 
                         # If extension was disabled before update, disable it again
                         if not backup_registry_entry.get("enabled", True):
@@ -3524,7 +3611,7 @@ def extension_update(
                     # (files that weren't in the original backup)
                     try:
                         new_registry_entry = manager.registry.get(extension_id)
-                        if new_registry_entry is None:
+                        if new_registry_entry is None or not isinstance(new_registry_entry, dict):
                             new_registered_commands = {}
                         else:
                             new_registered_commands = new_registry_entry.get("registered_commands", {})
@@ -3644,10 +3731,10 @@ def extension_enable(
 
     # Update registry
     metadata = manager.registry.get(extension_id)
-    if metadata is None:
+    if metadata is None or not isinstance(metadata, dict):
         console.print(f"[red]Error:[/red] Extension '{extension_id}' not found in registry (corrupted state)")
         raise typer.Exit(1)
-    
+
     if metadata.get("enabled", True):
         console.print(f"[yellow]Extension '{display_name}' is already enabled[/yellow]")
         raise typer.Exit(0)
@@ -3692,10 +3779,10 @@ def extension_disable(
 
     # Update registry
     metadata = manager.registry.get(extension_id)
-    if metadata is None:
+    if metadata is None or not isinstance(metadata, dict):
         console.print(f"[red]Error:[/red] Extension '{extension_id}' not found in registry (corrupted state)")
         raise typer.Exit(1)
-    
+
     if not metadata.get("enabled", True):
         console.print(f"[yellow]Extension '{display_name}' is already disabled[/yellow]")
         raise typer.Exit(0)
@@ -3715,6 +3802,57 @@ def extension_disable(
     console.print(f"[green]✓[/green] Extension '{display_name}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: specify extension enable {extension_id}")
+
+
+@extension_app.command("set-priority")
+def extension_set_priority(
+    extension: str = typer.Argument(help="Extension ID or name"),
+    priority: int = typer.Argument(help="New priority (lower = higher precedence)"),
+):
+    """Set the resolution priority of an installed extension."""
+    from .extensions import ExtensionManager
+
+    project_root = Path.cwd()
+
+    # Check if we're in a spec-kit project
+    specify_dir = project_root / ".specify"
+    if not specify_dir.exists():
+        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print("Run this command from a spec-kit project root")
+        raise typer.Exit(1)
+
+    # Validate priority
+    if priority < 1:
+        console.print("[red]Error:[/red] Priority must be a positive integer (1 or higher)")
+        raise typer.Exit(1)
+
+    manager = ExtensionManager(project_root)
+
+    # Resolve extension ID from argument (handles ambiguous names)
+    installed = manager.list_installed()
+    extension_id, display_name = _resolve_installed_extension(extension, installed, "set-priority")
+
+    # Get current metadata
+    metadata = manager.registry.get(extension_id)
+    if metadata is None or not isinstance(metadata, dict):
+        console.print(f"[red]Error:[/red] Extension '{extension_id}' not found in registry (corrupted state)")
+        raise typer.Exit(1)
+
+    from .extensions import normalize_priority
+    raw_priority = metadata.get("priority")
+    # Only skip if the stored value is already a valid int equal to requested priority
+    # This ensures corrupted values (e.g., "high") get repaired even when setting to default (10)
+    if isinstance(raw_priority, int) and raw_priority == priority:
+        console.print(f"[yellow]Extension '{display_name}' already has priority {priority}[/yellow]")
+        raise typer.Exit(0)
+
+    old_priority = normalize_priority(raw_priority)
+
+    # Update priority
+    manager.registry.update(extension_id, {"priority": priority})
+
+    console.print(f"[green]✓[/green] Extension '{display_name}' priority changed: {old_priority} → {priority}")
+    console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
 def main():
