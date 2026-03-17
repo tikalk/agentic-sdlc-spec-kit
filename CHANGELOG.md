@@ -28,6 +28,7 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 ### Added
 
 - **`remove_replaced_commands()`**: New method in `CommandRegistrar` class (`agents.py`) to remove command files across all detected agent directories
+>>>>>>> main
 
 ## [0.1.1] - 2026-03-14
 
