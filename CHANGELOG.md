@@ -7,6 +7,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.8] - 2026-03-18
+
+### Changed
+
+- **Upstream sync**: Merged upstream commit f97c8e9
+  - Updated cognitive-squad extension catalog entry with Triadic Model description
+
 ## [0.1.7] - 2026-03-18
 
 ### Fixed
