@@ -33,7 +33,6 @@ from specify_cli import (
 
 # ===== Fixtures =====
 
-
 @pytest.fixture
 def temp_dir():
     """Create a temporary directory for tests."""
@@ -62,13 +61,13 @@ def templates_dir(project_dir):
     tpl_root = project_dir / ".claude" / "commands"
     tpl_root.mkdir(parents=True, exist_ok=True)
 
-    # Template with valid YAML frontmatter - simulating adlc.spec.specify
-    (tpl_root / "adlc.spec.specify.md").write_text(
+    # Template with valid YAML frontmatter
+    (tpl_root / "speckit.specify.md").write_text(
         "---\n"
         "description: Create or update the feature specification.\n"
         "handoffs:\n"
         "  - label: Build Plan\n"
-        "    agent: adlc.tdd.plan\n"
+        "    agent: speckit.plan\n"
         "scripts:\n"
         "  sh: scripts/bash/create-new-feature.sh\n"
         "---\n"
@@ -79,8 +78,8 @@ def templates_dir(project_dir):
         encoding="utf-8",
     )
 
-    # Template with minimal frontmatter - simulating adlc.tdd.plan
-    (tpl_root / "adlc.tdd.plan.md").write_text(
+    # Template with minimal frontmatter
+    (tpl_root / "speckit.plan.md").write_text(
         "---\n"
         "description: Generate implementation plan.\n"
         "---\n"
@@ -91,15 +90,22 @@ def templates_dir(project_dir):
         encoding="utf-8",
     )
 
-    # Template with no frontmatter - simulating adlc.tdd.tasks
-    (tpl_root / "adlc.tdd.tasks.md").write_text(
-        "# Tasks Command\n\nBody without frontmatter.\n",
+    # Template with no frontmatter
+    (tpl_root / "speckit.tasks.md").write_text(
+        "# Tasks Command\n"
+        "\n"
+        "Body without frontmatter.\n",
         encoding="utf-8",
     )
 
-    # Template with empty YAML frontmatter - simulating adlc.levelup.specify
-    (tpl_root / "adlc.levelup.specify.md").write_text(
-        "---\n---\n\n# Empty Frontmatter Command\n\nBody with empty frontmatter.\n",
+    # Template with empty YAML frontmatter (yaml.safe_load returns None)
+    (tpl_root / "speckit.empty_fm.md").write_text(
+        "---\n"
+        "---\n"
+        "\n"
+        "# Empty Frontmatter Command\n"
+        "\n"
+        "Body with empty frontmatter.\n",
         encoding="utf-8",
     )
 
@@ -111,7 +117,7 @@ def commands_dir_claude(project_dir):
     """Create a populated .claude/commands directory simulating template extraction."""
     cmd_dir = project_dir / ".claude" / "commands"
     cmd_dir.mkdir(parents=True, exist_ok=True)
-    for name in ["adlc.spec.specify.md", "adlc.tdd.plan.md", "adlc.tdd.tasks.md"]:
+    for name in ["speckit.specify.md", "speckit.plan.md", "speckit.tasks.md"]:
         (cmd_dir / name).write_text(f"# {name}\nContent here\n")
     return cmd_dir
 
@@ -121,7 +127,7 @@ def commands_dir_gemini(project_dir):
     """Create a populated .gemini/commands directory (TOML format)."""
     cmd_dir = project_dir / ".gemini" / "commands"
     cmd_dir.mkdir(parents=True)
-    for name in ["adlc.spec.specify.toml", "adlc.tdd.plan.toml", "adlc.tdd.tasks.toml"]:
+    for name in ["speckit.specify.toml", "speckit.plan.toml", "speckit.tasks.toml"]:
         (cmd_dir / name).write_text(f'[command]\nname = "{name}"\n')
     return cmd_dir
 
@@ -137,7 +143,6 @@ def commands_dir_qwen(project_dir):
 
 
 # ===== _get_skills_dir Tests =====
-
 
 class TestGetSkillsDir:
     """Test the _get_skills_dir() helper function."""
@@ -177,6 +182,11 @@ class TestGetSkillsDir:
         result = _get_skills_dir(project_dir, "kiro-cli")
         assert result == project_dir / ".kiro" / "skills"
 
+    def test_pi_skills_dir(self, project_dir):
+        """Pi should use .pi/skills/."""
+        result = _get_skills_dir(project_dir, "pi")
+        assert result == project_dir / ".pi" / "skills"
+
     def test_unknown_agent_uses_default(self, project_dir):
         """Unknown agents should fall back to DEFAULT_SKILLS_DIR."""
         result = _get_skills_dir(project_dir, "nonexistent-agent")
@@ -201,7 +211,6 @@ class TestGetSkillsDir:
 
 # ===== install_ai_skills Tests =====
 
-
 class TestInstallAiSkills:
     """Test SKILL.md generation and installation logic."""
 
@@ -214,36 +223,36 @@ class TestInstallAiSkills:
         skills_dir = project_dir / ".claude" / "skills"
         assert skills_dir.exists()
 
-        # Check that skill directories were created (adlc. prefix stripped, dots->hyphens)
+        # Check that skill directories were created
         skill_dirs = sorted([d.name for d in skills_dir.iterdir() if d.is_dir()])
-        assert "tdd-plan" in skill_dirs
-        assert "spec-specify" in skill_dirs
-        assert "tdd-tasks" in skill_dirs
-        assert "levelup-specify" in skill_dirs
+        assert "speckit-plan" in skill_dirs
+        assert "speckit-specify" in skill_dirs
+        assert "speckit-tasks" in skill_dirs
+        assert "speckit-empty_fm" in skill_dirs
 
-        # Verify SKILL.md content for spec-specify
-        skill_file = skills_dir / "spec-specify" / "SKILL.md"
+        # Verify SKILL.md content for speckit-specify
+        skill_file = skills_dir / "speckit-specify" / "SKILL.md"
         assert skill_file.exists()
         content = skill_file.read_text()
 
         # Check agentskills.io frontmatter
         assert content.startswith("---\n")
-        assert "name: spec-specify" in content
+        assert "name: speckit-specify" in content
         assert "description:" in content
         assert "compatibility:" in content
         assert "metadata:" in content
         assert "author: github-spec-kit" in content
-        assert "source: templates/commands/spec.specify.md" in content
+        assert "source: templates/commands/specify.md" in content
 
-        # Check body content is included (uses original command_name with dots for title)
-        assert "# Spec-kit Spec.Specify Skill" in content
+        # Check body content is included
+        assert "# Speckit Specify Skill" in content
         assert "Run this to create a spec." in content
 
     def test_generated_skill_has_parseable_yaml(self, project_dir, templates_dir):
         """Generated SKILL.md should contain valid, parseable YAML frontmatter."""
         install_ai_skills(project_dir, "claude")
 
-        skill_file = project_dir / ".claude" / "skills" / "spec-specify" / "SKILL.md"
+        skill_file = project_dir / ".claude" / "skills" / "speckit-specify" / "SKILL.md"
         content = skill_file.read_text()
 
         # Extract and parse frontmatter
@@ -253,7 +262,7 @@ class TestInstallAiSkills:
         parsed = yaml.safe_load(parts[1])
         assert isinstance(parsed, dict)
         assert "name" in parsed
-        assert parsed["name"] == "spec-specify"
+        assert parsed["name"] == "speckit-specify"
         assert "description" in parsed
 
     def test_empty_yaml_frontmatter(self, project_dir, templates_dir):
@@ -262,19 +271,17 @@ class TestInstallAiSkills:
 
         assert result is True
 
-        skill_file = project_dir / ".claude" / "skills" / "levelup-specify" / "SKILL.md"
+        skill_file = project_dir / ".claude" / "skills" / "speckit-empty_fm" / "SKILL.md"
         assert skill_file.exists()
         content = skill_file.read_text()
-        assert "name: levelup-specify" in content
+        assert "name: speckit-empty_fm" in content
         assert "Body with empty frontmatter." in content
 
-    def test_enhanced_descriptions_used_when_available(
-        self, project_dir, templates_dir
-    ):
+    def test_enhanced_descriptions_used_when_available(self, project_dir, templates_dir):
         """SKILL_DESCRIPTIONS take precedence over template frontmatter descriptions."""
         install_ai_skills(project_dir, "claude")
 
-        skill_file = project_dir / ".claude" / "skills" / "spec-specify" / "SKILL.md"
+        skill_file = project_dir / ".claude" / "skills" / "speckit-specify" / "SKILL.md"
         content = skill_file.read_text()
 
         # Parse the generated YAML to compare the description value
@@ -289,12 +296,12 @@ class TestInstallAiSkills:
         """Templates without YAML frontmatter should still produce valid skills."""
         install_ai_skills(project_dir, "claude")
 
-        skill_file = project_dir / ".claude" / "skills" / "tdd-tasks" / "SKILL.md"
+        skill_file = project_dir / ".claude" / "skills" / "speckit-tasks" / "SKILL.md"
         assert skill_file.exists()
         content = skill_file.read_text()
 
         # Should still have valid SKILL.md structure
-        assert "name: tdd-tasks" in content
+        assert "name: speckit-tasks" in content
         assert "Body without frontmatter." in content
 
     def test_missing_templates_directory(self, project_dir):
@@ -335,7 +342,7 @@ class TestInstallAiSkills:
         cmds_dir = project_dir / ".claude" / "commands"
         cmds_dir.mkdir(parents=True)
 
-        (cmds_dir / "broken.md").write_text(
+        (cmds_dir / "speckit.broken.md").write_text(
             "---\n"
             "description: [unclosed bracket\n"
             "  invalid: yaml: content: here\n"
@@ -383,10 +390,8 @@ class TestInstallAiSkills:
         # Simulate gemini template extraction: .gemini/commands/ with .toml files only
         cmds_dir = project_dir / ".gemini" / "commands"
         cmds_dir.mkdir(parents=True)
-        (cmds_dir / "adlc.spec.specify.toml").write_text(
-            '[command]\nname = "specify"\n'
-        )
-        (cmds_dir / "adlc.tdd.plan.toml").write_text('[command]\nname = "plan"\n')
+        (cmds_dir / "speckit.specify.toml").write_text('[command]\nname = "specify"\n')
+        (cmds_dir / "speckit.plan.toml").write_text('[command]\nname = "plan"\n')
 
         # The __file__ fallback should find the real repo templates/commands/*.md
         result = install_ai_skills(project_dir, "gemini")
@@ -398,7 +403,7 @@ class TestInstallAiSkills:
         skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
         assert len(skill_dirs) >= 1
         # .toml commands should be untouched
-        assert (cmds_dir / "adlc.spec.specify.toml").exists()
+        assert (cmds_dir / "speckit.specify.toml").exists()
 
     def test_qwen_md_commands_dir_installs_skills(self, project_dir):
         """Qwen now uses Markdown format; skills should install directly from .qwen/commands/."""
@@ -422,9 +427,28 @@ class TestInstallAiSkills:
         assert (cmds_dir / "speckit.specify.md").exists()
         assert (cmds_dir / "speckit.plan.md").exists()
 
-    @pytest.mark.parametrize(
-        "agent_key", [k for k in AGENT_CONFIG.keys() if k != "generic"]
-    )
+    def test_pi_prompt_dir_installs_skills(self, project_dir):
+        """Pi should install skills directly from .pi/prompts/."""
+        prompts_dir = project_dir / ".pi" / "prompts"
+        prompts_dir.mkdir(parents=True)
+        (prompts_dir / "speckit.specify.md").write_text(
+            "---\ndescription: Create or update the feature specification.\n---\n\n# Specify\n\nBody.\n"
+        )
+        (prompts_dir / "speckit.plan.md").write_text(
+            "---\ndescription: Generate implementation plan.\n---\n\n# Plan\n\nBody.\n"
+        )
+
+        result = install_ai_skills(project_dir, "pi")
+
+        assert result is True
+        skills_dir = project_dir / ".pi" / "skills"
+        assert skills_dir.exists()
+        skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        assert len(skill_dirs) >= 1
+        assert (prompts_dir / "speckit.specify.md").exists()
+        assert (prompts_dir / "speckit.plan.md").exists()
+
+    @pytest.mark.parametrize("agent_key", [k for k in AGENT_CONFIG.keys() if k != "generic"])
     def test_skills_install_for_all_agents(self, temp_dir, agent_key):
         """install_ai_skills should produce skills for every configured agent."""
         proj = temp_dir / f"proj-{agent_key}"
@@ -435,7 +459,9 @@ class TestInstallAiSkills:
         commands_subdir = AGENT_CONFIG[agent_key].get("commands_subdir", "commands")
         cmds_dir = proj / agent_folder.rstrip("/") / commands_subdir
         cmds_dir.mkdir(parents=True)
-        (cmds_dir / "adlc.spec.specify.md").write_text(
+        # Copilot uses speckit.*.agent.md templates; other agents use speckit.*.md
+        fname = "speckit.specify.agent.md" if agent_key == "copilot" else "speckit.specify.md"
+        (cmds_dir / fname).write_text(
             "---\ndescription: Test command\n---\n\n# Test\n\nBody.\n"
         )
 
@@ -445,12 +471,106 @@ class TestInstallAiSkills:
         skills_dir = _get_skills_dir(proj, agent_key)
         assert skills_dir.exists()
         skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
-        # Kimi uses dot-separator (spec.specify) to match /skill:spec.* invocation;
-        # all other agents use hyphen-separator (spec-specify).
-        expected_skill_name = "spec.specify" if agent_key == "kimi" else "spec-specify"
+        # Kimi uses dot-separator (speckit.specify) to match /skill:speckit.* invocation;
+        # all other agents use hyphen-separator (speckit-specify).
+        expected_skill_name = "speckit.specify" if agent_key == "kimi" else "speckit-specify"
         assert expected_skill_name in skill_dirs
         assert (skills_dir / expected_skill_name / "SKILL.md").exists()
 
+    def test_copilot_ignores_non_speckit_agents(self, project_dir):
+        """Non-speckit markdown in .github/agents/ must not produce skills."""
+        agents_dir = project_dir / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        (agents_dir / "speckit.plan.agent.md").write_text(
+            "---\ndescription: Generate implementation plan.\n---\n\n# Plan\n\nBody.\n"
+        )
+        (agents_dir / "my-custom-agent.agent.md").write_text(
+            "---\ndescription: A user custom agent\n---\n\n# Custom\n\nBody.\n"
+        )
+
+        result = install_ai_skills(project_dir, "copilot")
+
+        assert result is True
+        skills_dir = _get_skills_dir(project_dir, "copilot")
+        assert skills_dir.exists()
+        skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        assert "speckit-plan" in skill_dirs
+        assert "speckit-my-custom-agent.agent" not in skill_dirs
+        assert "speckit-my-custom-agent" not in skill_dirs
+
+    @pytest.mark.parametrize("agent_key,custom_file", [
+        ("claude", "review.md"),
+        ("cursor-agent", "deploy.md"),
+        ("qwen", "my-workflow.md"),
+    ])
+    def test_non_speckit_commands_ignored_for_all_agents(self, temp_dir, agent_key, custom_file):
+        """User-authored command files must not produce skills for any agent."""
+        proj = temp_dir / f"proj-{agent_key}"
+        proj.mkdir()
+
+        agent_folder = AGENT_CONFIG[agent_key]["folder"]
+        commands_subdir = AGENT_CONFIG[agent_key].get("commands_subdir", "commands")
+        cmds_dir = proj / agent_folder.rstrip("/") / commands_subdir
+        cmds_dir.mkdir(parents=True)
+        (cmds_dir / "speckit.specify.md").write_text(
+            "---\ndescription: Create spec.\n---\n\n# Specify\n\nBody.\n"
+        )
+        (cmds_dir / custom_file).write_text(
+            "---\ndescription: User custom command\n---\n\n# Custom\n\nBody.\n"
+        )
+
+        result = install_ai_skills(proj, agent_key)
+
+        assert result is True
+        skills_dir = _get_skills_dir(proj, agent_key)
+        skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        assert "speckit-specify" in skill_dirs
+        custom_stem = Path(custom_file).stem
+        assert f"speckit-{custom_stem}" not in skill_dirs
+
+    def test_copilot_fallback_when_only_non_speckit_agents(self, project_dir):
+        """Fallback to templates/commands/ when .github/agents/ has no speckit.*.md files."""
+        agents_dir = project_dir / ".github" / "agents"
+        agents_dir.mkdir(parents=True, exist_ok=True)
+        # Only a user-authored agent, no speckit.* templates
+        (agents_dir / "my-custom-agent.agent.md").write_text(
+            "---\ndescription: A user custom agent\n---\n\n# Custom\n\nBody.\n"
+        )
+
+        result = install_ai_skills(project_dir, "copilot")
+
+        # Should succeed via fallback to templates/commands/
+        assert result is True
+        skills_dir = _get_skills_dir(project_dir, "copilot")
+        assert skills_dir.exists()
+        skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        # Should have skills from fallback templates, not from the custom agent
+        assert "speckit-plan" in skill_dirs
+        assert not any("my-custom" in d for d in skill_dirs)
+
+    @pytest.mark.parametrize("agent_key", ["claude", "cursor-agent", "qwen"])
+    def test_fallback_when_only_non_speckit_commands(self, temp_dir, agent_key):
+        """Fallback to templates/commands/ when agent dir has no speckit.*.md files."""
+        proj = temp_dir / f"proj-{agent_key}"
+        proj.mkdir()
+
+        agent_folder = AGENT_CONFIG[agent_key]["folder"]
+        commands_subdir = AGENT_CONFIG[agent_key].get("commands_subdir", "commands")
+        cmds_dir = proj / agent_folder.rstrip("/") / commands_subdir
+        cmds_dir.mkdir(parents=True)
+        # Only a user-authored command, no speckit.* templates
+        (cmds_dir / "my-custom-command.md").write_text(
+            "---\ndescription: User custom command\n---\n\n# Custom\n\nBody.\n"
+        )
+
+        result = install_ai_skills(proj, agent_key)
+
+        # Should succeed via fallback to templates/commands/
+        assert result is True
+        skills_dir = _get_skills_dir(proj, agent_key)
+        assert skills_dir.exists()
+        skill_dirs = [d.name for d in skills_dir.iterdir() if d.is_dir()]
+        assert not any("my-custom" in d for d in skill_dirs)
 
 class TestCommandCoexistence:
     """Verify install_ai_skills never touches command files.
@@ -460,33 +580,29 @@ class TestCommandCoexistence:
     install_ai_skills leaves existing commands intact.
     """
 
-    def test_existing_commands_preserved_claude(
-        self, project_dir, templates_dir, commands_dir_claude
-    ):
+    def test_existing_commands_preserved_claude(self, project_dir, templates_dir, commands_dir_claude):
         """install_ai_skills must NOT remove pre-existing .claude/commands files."""
-        # Verify commands exist before
-        assert len(list(commands_dir_claude.glob("adlc.*"))) == 4
+        # Verify commands exist before (templates_dir adds 4 speckit.* files,
+        # commands_dir_claude overlaps with 3 of them)
+        before = list(commands_dir_claude.glob("speckit.*"))
+        assert len(before) >= 3
 
         install_ai_skills(project_dir, "claude")
 
         # Commands must still be there — install_ai_skills never touches them
-        remaining = list(commands_dir_claude.glob("adlc.*"))
-        assert len(remaining) == 4
+        remaining = list(commands_dir_claude.glob("speckit.*"))
+        assert len(remaining) == len(before)
 
-    def test_existing_commands_preserved_gemini(
-        self, project_dir, templates_dir, commands_dir_gemini
-    ):
+    def test_existing_commands_preserved_gemini(self, project_dir, templates_dir, commands_dir_gemini):
         """install_ai_skills must NOT remove pre-existing .gemini/commands files."""
-        assert len(list(commands_dir_gemini.glob("adlc.*"))) == 3
+        assert len(list(commands_dir_gemini.glob("speckit.*"))) == 3
 
         install_ai_skills(project_dir, "gemini")
 
-        remaining = list(commands_dir_gemini.glob("adlc.*"))
+        remaining = list(commands_dir_gemini.glob("speckit.*"))
         assert len(remaining) == 3
 
-    def test_existing_commands_preserved_qwen(
-        self, project_dir, templates_dir, commands_dir_qwen
-    ):
+    def test_existing_commands_preserved_qwen(self, project_dir, templates_dir, commands_dir_qwen):
         """install_ai_skills must NOT remove pre-existing .qwen/commands files."""
         assert len(list(commands_dir_qwen.glob("speckit.*"))) == 3
 
@@ -495,9 +611,7 @@ class TestCommandCoexistence:
         remaining = list(commands_dir_qwen.glob("speckit.*"))
         assert len(remaining) == 3
 
-    def test_commands_dir_not_removed(
-        self, project_dir, templates_dir, commands_dir_claude
-    ):
+    def test_commands_dir_not_removed(self, project_dir, templates_dir, commands_dir_claude):
         """install_ai_skills must not remove the commands directory."""
         install_ai_skills(project_dir, "claude")
 
@@ -512,7 +626,6 @@ class TestCommandCoexistence:
 
 
 # ===== New-Project Command Skip Tests =====
-
 
 class TestNewProjectCommandSkip:
     """Test that init() removes extracted commands for new projects only.
@@ -529,7 +642,7 @@ class TestNewProjectCommandSkip:
         if agent_folder:
             cmds_dir = project_path / agent_folder.rstrip("/") / commands_subdir
             cmds_dir.mkdir(parents=True, exist_ok=True)
-            (cmds_dir / "adlc.spec.specify.md").write_text("# spec")
+            (cmds_dir / "speckit.specify.md").write_text("# spec")
 
     def test_new_project_commands_removed_after_skills_succeed(self, tmp_path):
         """For new projects, commands should be removed when skills succeed."""
@@ -541,29 +654,13 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             self._fake_extract("claude", project_path)
 
-        with (
-            patch(
-                "specify_cli.download_and_extract_template", side_effect=fake_download
-            ),
-            patch("specify_cli.ensure_executable_scripts"),
-            patch("specify_cli.ensure_constitution_from_template"),
-            patch("specify_cli.install_ai_skills", return_value=True) as mock_skills,
-            patch("specify_cli.is_git_repo", return_value=False),
-            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    str(target),
-                    "--ai",
-                    "claude",
-                    "--ai-skills",
-                    "--script",
-                    "sh",
-                    "--no-git",
-                ],
-            )
+        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
+             patch("specify_cli.ensure_executable_scripts"), \
+             patch("specify_cli.ensure_constitution_from_template"), \
+             patch("specify_cli.install_ai_skills", return_value=True) as mock_skills, \
+             patch("specify_cli.is_git_repo", return_value=False), \
+             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
+            result = runner.invoke(app, ["init", str(target), "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"])
 
         assert result.exit_code == 0
         # Skills should have been called
@@ -573,9 +670,7 @@ class TestNewProjectCommandSkip:
         cmds_dir = target / ".claude" / "commands"
         assert not cmds_dir.exists()
 
-    def test_new_project_nonstandard_commands_subdir_removed_after_skills_succeed(
-        self, tmp_path
-    ):
+    def test_new_project_nonstandard_commands_subdir_removed_after_skills_succeed(self, tmp_path):
         """For non-standard agents, configured commands_subdir should be removed on success."""
         from typer.testing import CliRunner
 
@@ -585,29 +680,13 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             self._fake_extract("kiro-cli", project_path)
 
-        with (
-            patch(
-                "specify_cli.download_and_extract_template", side_effect=fake_download
-            ),
-            patch("specify_cli.ensure_executable_scripts"),
-            patch("specify_cli.ensure_constitution_from_template"),
-            patch("specify_cli.install_ai_skills", return_value=True) as mock_skills,
-            patch("specify_cli.is_git_repo", return_value=False),
-            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    str(target),
-                    "--ai",
-                    "kiro-cli",
-                    "--ai-skills",
-                    "--script",
-                    "sh",
-                    "--no-git",
-                ],
-            )
+        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
+             patch("specify_cli.ensure_executable_scripts"), \
+             patch("specify_cli.ensure_constitution_from_template"), \
+             patch("specify_cli.install_ai_skills", return_value=True) as mock_skills, \
+             patch("specify_cli.is_git_repo", return_value=False), \
+             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
+            result = runner.invoke(app, ["init", str(target), "--ai", "kiro-cli", "--ai-skills", "--script", "sh", "--no-git"])
 
         assert result.exit_code == 0
         mock_skills.assert_called_once()
@@ -625,35 +704,19 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             self._fake_extract("claude", project_path)
 
-        with (
-            patch(
-                "specify_cli.download_and_extract_template", side_effect=fake_download
-            ),
-            patch("specify_cli.ensure_executable_scripts"),
-            patch("specify_cli.ensure_constitution_from_template"),
-            patch("specify_cli.install_ai_skills", return_value=False),
-            patch("specify_cli.is_git_repo", return_value=False),
-            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    str(target),
-                    "--ai",
-                    "claude",
-                    "--ai-skills",
-                    "--script",
-                    "sh",
-                    "--no-git",
-                ],
-            )
+        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
+             patch("specify_cli.ensure_executable_scripts"), \
+             patch("specify_cli.ensure_constitution_from_template"), \
+             patch("specify_cli.install_ai_skills", return_value=False), \
+             patch("specify_cli.is_git_repo", return_value=False), \
+             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
+            result = runner.invoke(app, ["init", str(target), "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"])
 
         assert result.exit_code == 0
         # Commands should still exist since skills failed
         cmds_dir = target / ".claude" / "commands"
         assert cmds_dir.exists()
-        assert (cmds_dir / "adlc.spec.specify.md").exists()
+        assert (cmds_dir / "speckit.specify.md").exists()
 
     def test_here_mode_commands_preserved(self, tmp_path, monkeypatch):
         """For --here on existing repos, commands must NOT be removed."""
@@ -666,7 +729,7 @@ class TestNewProjectCommandSkip:
         agent_folder = AGENT_CONFIG["claude"]["folder"]
         cmds_dir = target / agent_folder.rstrip("/") / "commands"
         cmds_dir.mkdir(parents=True)
-        (cmds_dir / "adlc.spec.specify.md").write_text("# spec")
+        (cmds_dir / "speckit.specify.md").write_text("# spec")
 
         # --here uses CWD, so chdir into the target
         monkeypatch.chdir(target)
@@ -674,47 +737,29 @@ class TestNewProjectCommandSkip:
         def fake_download(project_path, *args, **kwargs):
             pass  # commands already exist, no need to re-create
 
-        with (
-            patch(
-                "specify_cli.download_and_extract_template", side_effect=fake_download
-            ),
-            patch("specify_cli.ensure_executable_scripts"),
-            patch("specify_cli.ensure_constitution_from_template"),
-            patch("specify_cli.install_ai_skills", return_value=True),
-            patch("specify_cli.is_git_repo", return_value=True),
-            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
-        ):
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--ai",
-                    "claude",
-                    "--ai-skills",
-                    "--script",
-                    "sh",
-                    "--no-git",
-                ],
-                input="y\n",
-            )
+        with patch("specify_cli.download_and_extract_template", side_effect=fake_download), \
+             patch("specify_cli.ensure_executable_scripts"), \
+             patch("specify_cli.ensure_constitution_from_template"), \
+             patch("specify_cli.install_ai_skills", return_value=True), \
+             patch("specify_cli.is_git_repo", return_value=True), \
+             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
+            result = runner.invoke(app, ["init", "--here", "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git"], input="y\n")
 
         assert result.exit_code == 0
         # Commands must remain for --here
         assert cmds_dir.exists()
-        assert (cmds_dir / "adlc.spec.specify.md").exists()
+        assert (cmds_dir / "speckit.specify.md").exists()
 
 
 # ===== Skip-If-Exists Tests =====
-
 
 class TestSkipIfExists:
     """Test that install_ai_skills does not overwrite existing SKILL.md files."""
 
     def test_existing_skill_not_overwritten(self, project_dir, templates_dir):
         """Pre-existing SKILL.md should not be replaced on re-run."""
-        # Pre-create a custom SKILL.md for spec-specify
-        skill_dir = project_dir / ".claude" / "skills" / "spec-specify"
+        # Pre-create a custom SKILL.md for speckit-specify
+        skill_dir = project_dir / ".claude" / "skills" / "speckit-specify"
         skill_dir.mkdir(parents=True)
         custom_content = "# My Custom Specify Skill\nUser-modified content\n"
         (skill_dir / "SKILL.md").write_text(custom_content)
@@ -726,8 +771,8 @@ class TestSkipIfExists:
 
         # But other skills should still be installed
         assert result is True
-        assert (project_dir / ".claude" / "skills" / "tdd-plan" / "SKILL.md").exists()
-        assert (project_dir / ".claude" / "skills" / "tdd-tasks" / "SKILL.md").exists()
+        assert (project_dir / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project_dir / ".claude" / "skills" / "speckit-tasks" / "SKILL.md").exists()
 
     def test_fresh_install_writes_all_skills(self, project_dir, templates_dir):
         """On first install (no pre-existing skills), all should be written."""
@@ -742,32 +787,21 @@ class TestSkipIfExists:
 
 # ===== SKILL_DESCRIPTIONS Coverage Tests =====
 
-
 class TestSkillDescriptions:
     """Test SKILL_DESCRIPTIONS constants."""
 
     def test_all_known_commands_have_descriptions(self):
         """All standard spec-kit commands should have enhanced descriptions."""
         expected_commands = [
-            "specify",
-            "plan",
-            "tasks",
-            "implement",
-            "analyze",
-            "clarify",
-            "constitution",
-            "checklist",
-            "taskstoissues",
+            "specify", "plan", "tasks", "implement", "analyze",
+            "clarify", "constitution", "checklist", "taskstoissues",
         ]
         for cmd in expected_commands:
             assert cmd in SKILL_DESCRIPTIONS, f"Missing description for '{cmd}'"
-            assert len(SKILL_DESCRIPTIONS[cmd]) > 20, (
-                f"Description for '{cmd}' is too short"
-            )
+            assert len(SKILL_DESCRIPTIONS[cmd]) > 20, f"Description for '{cmd}' is too short"
 
 
 # ===== CLI Validation Tests =====
-
 
 class TestCliValidation:
     """Test --ai-skills CLI flag validation."""
@@ -800,10 +834,7 @@ class TestCliValidation:
         result = runner.invoke(app, ["init", "test-proj", "--ai", "agy"])
 
         assert result.exit_code == 1
-        assert (
-            "Explicit command support was deprecated in Antigravity version 1.20.5."
-            in result.output
-        )
+        assert "Explicit command support was deprecated in Antigravity version 1.20.5." in result.output
         assert "--ai-skills" in result.output
 
     def test_interactive_agy_without_ai_skills_prompts_skills(self, monkeypatch):
@@ -835,11 +866,9 @@ class TestCliValidation:
             return None
 
         monkeypatch.setattr("specify_cli.select_with_arrows", _fake_select_with_arrows)
-
+        
         # Mock download_and_extract_template to prevent real HTTP downloads during testing
-        monkeypatch.setattr(
-            "specify_cli.download_and_extract_template", lambda *args, **kwargs: None
-        )
+        monkeypatch.setattr("specify_cli.download_and_extract_template", lambda *args, **kwargs: None)
         # We need to bypass the `git init` step, wait, it has `--no-git` by default in tests maybe?
         runner = CliRunner()
         # Create temp dir to avoid directory already exists errors or whatever
@@ -857,7 +886,7 @@ class TestCliValidation:
         runner = CliRunner()
         result = runner.invoke(app, ["init", "--help"])
 
-        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        plain = re.sub(r'\x1b\[[0-9;]*m', '', result.output)
         assert "--ai-skills" in plain
         assert "agent skills" in plain.lower()
 
@@ -868,13 +897,11 @@ class TestCliValidation:
         runner = CliRunner()
         target = tmp_path / "kiro-alias-proj"
 
-        with (
-            patch("specify_cli.download_and_extract_template") as mock_download,
-            patch("specify_cli.ensure_executable_scripts"),
-            patch("specify_cli.ensure_constitution_from_template"),
-            patch("specify_cli.is_git_repo", return_value=False),
-            patch("specify_cli.shutil.which", return_value="/usr/bin/git"),
-        ):
+        with patch("specify_cli.download_and_extract_template") as mock_download, \
+             patch("specify_cli.ensure_executable_scripts"), \
+             patch("specify_cli.ensure_constitution_from_template"), \
+             patch("specify_cli.is_git_repo", return_value=False), \
+             patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
             result = runner.invoke(
                 app,
                 [
@@ -894,9 +921,9 @@ class TestCliValidation:
         # download_and_extract_template(project_path, ai_assistant, script_type, ...)
         assert mock_download.call_args.args[1] == "kiro-cli"
 
-    def test_q_and_kiro_cli_both_in_agent_config(self):
-        """Fork keeps both q and kiro-cli in AGENT_CONFIG for backward compatibility."""
-        assert "q" in AGENT_CONFIG
+    def test_q_removed_from_agent_config(self):
+        """Amazon Q legacy key should not remain in AGENT_CONFIG."""
+        assert "q" not in AGENT_CONFIG
         assert "kiro-cli" in AGENT_CONFIG
 
 
@@ -955,9 +982,7 @@ class TestParameterOrderingIssue:
         from typer.testing import CliRunner
 
         runner = CliRunner()
-        result = runner.invoke(
-            app, ["init", "myproject", "--ai", "generic", "--ai-commands-dir", "--here"]
-        )
+        result = runner.invoke(app, ["init", "myproject", "--ai", "generic", "--ai-commands-dir", "--here"])
 
         assert result.exit_code == 1
         assert "Invalid value for --ai-commands-dir" in result.output

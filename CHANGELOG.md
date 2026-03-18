@@ -230,6 +230,26 @@ This release migrates fork-specific customizations to a preset system to reduce 
   - Migration path: All levelup commands now work directly with upstream repository
   - **Removed**: Redundant `TEAM_DIRECTIVES_EXISTS` flag from setup scripts - existence is now checked implicitly via `TEAM_DIRECTIVES` value
 
+## [0.3.1] - 2026-03-17
+
+### Changed
+
+- docs: add greenfield Spring Boot pirate-speak preset demo to README (#1878)
+- fix(ai-skills): exclude non-speckit copilot agent markdown from skills (#1867)
+- feat: add Trae IDE support as a new agent (#1817)
+- feat(cli): polite deep merge for settings.json and support JSONC (#1874)
+- feat(extensions,presets): add priority-based resolution ordering (#1855)
+- fix(scripts): suppress stdout from git fetch in create-new-feature.sh (#1876)
+- fix(scripts): harden bash scripts — escape, compat, and error handling (#1869)
+- Add cognitive-squad to community extension catalog (#1870)
+- docs: add Go / React brownfield walkthrough to community walkthroughs (#1868)
+- chore: update DocGuard extension to v0.9.8 (#1859)
+- Feature: add specify status command (#1837)
+- fix(extensions): show extension ID in list output (#1843)
+- feat(extensions): add Archive and Reconcile extensions to community catalog (#1844)
+- feat: Add DocGuard CDD enforcement extension to community catalog (#1838)
+
+
 ## [0.3.0] - 2026-03-13
 
 ### Changed
@@ -258,6 +278,7 @@ This release migrates fork-specific customizations to a preset system to reduce 
 
 ### Added
 
+- feat(cli): polite deep merge for VSCode settings.json with JSONC support via `json5` and zero-data-loss fallbacks
 - feat(presets): Pluggable preset system with preset catalog and template resolver
 - Preset manifest (`preset.yml`) with validation for artifact, command, and script types
 - `PresetManifest`, `PresetRegistry`, `PresetManager`, `PresetCatalog`, `PresetResolver` classes in `src/specify_cli/presets.py`
