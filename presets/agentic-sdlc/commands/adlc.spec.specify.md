@@ -113,7 +113,7 @@ After this feature, the user can: {observable, demo-able capability}
 
 ## Outline
 
-The text the user typed after `/adlc.spec.specify` in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
+The text the user typed after `/spec.specify` (or `/adlc.spec.specify`) in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
 
 Given the approved Mission Brief, do this:
 
@@ -213,7 +213,7 @@ Given the approved Mission Brief, do this:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `/adlc.spec.clarify` or `/adlc.spec.plan`
+      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan` (or `/adlc.spec.clarify`, `/adlc.spec.plan`)
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -267,7 +267,7 @@ Given the approved Mission Brief, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/adlc.spec.clarify` or `/adlc.spec.plan`).
+7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`, or `/adlc.spec.clarify`, `/adlc.spec.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
