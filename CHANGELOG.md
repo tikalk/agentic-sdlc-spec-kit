@@ -7,6 +7,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.9] - 2026-03-18
+
+### Changed
+
+- **Upstream sync**: Merged upstream commit 33c83a6
+  - Updated DocGuard extension to v0.9.11
+
 ## [0.1.8] - 2026-03-18
 
 ### Changed
