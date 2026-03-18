@@ -50,18 +50,17 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
-| `AD.md` (root) | Full Architecture Description | Output (when TD not configured) |
-| `{TEAM_DIRECTIVES}/AD.md` | Full Architecture Description | Output via PR (when TD configured) |
+| `.specify/memory/adr.md` | Architectural decisions with rationale | Input |
+| `AD.md` (root) | Full Architecture Description | Output |
 | `.specify/memory/constitution.md` | Governance principles | Constraint |
 
 ## Outline
 
-1. **Load ADRs**: Parse all ADRs from `.specify/drafts/adr.md`
+1. **Load ADRs**: Parse all ADRs from `.specify/memory/adr.md`
 2. **Determine Views**: Parse `--views` flag to determine which views to generate
 3. **Generate Views**: Create requested viewpoints (core 5 by default, optionally +2)
 4. **Apply Perspectives**: Add Security and Performance perspectives
-5. **Output**: Write `AD.md` to team-ai-directives via PR (if configured) or project root
+5. **Output**: Write complete `AD.md` to project root
 
 ## Execution Steps
 
@@ -74,7 +73,7 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
    - Creates `AD.md` from template if it doesn't exist
 
 2. **Load ADRs**:
-   - Read `.specify/drafts/adr.md`
+   - Read `.specify/memory/adr.md`
    - Parse each ADR: ID, title, context, decision, consequences
    - Build decision index
 
@@ -372,7 +371,7 @@ graph TB
    - Document architectural principles
 
 2. **ADR Summary**:
-   - Create summary table linking to `.specify/drafts/adr.md`
+   - Create summary table linking to `.specify/memory/adr.md`
    - List key decisions with impact levels
 
 3. **Tech Stack Summary**:
@@ -388,73 +387,21 @@ graph TB
    - Ensure both perspectives are present
    - Validate diagram syntax
 
-2. **Determine Output Location**:
-   - Check if team-ai-directives is configured (via `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives`)
-   - If configured: Output AD.md to `{TEAM_DIRECTIVES}/AD.md` via PR workflow
-   - If NOT configured: Output to `{REPO_ROOT}/AD.md` (project root)
-
-3. **Write AD.md**:
+2. **Write AD.md**:
    - Use `templates/AD-template.md` as base
    - Replace placeholders with generated content
-   - Write to determined output location
+   - Write to project root as `AD.md`
 
-4. **Write Accepted ADRs to context_modules/** (when TD configured):
-   - Filter ADRs with status "Accepted" from `.specify/drafts/adr.md`
-   - Write to `{TEAM_DIRECTIVES}/context_modules/adr.md`
-
-5. **If team-ai-directives configured - Execute PR Workflow**:
-
-   a. **Check Working Tree**:
-   ```bash
-   cd "{TEAM_DIRECTIVES}"
-   git status --porcelain
-   ```
-
-   b. **Create Branch**:
-   ```bash
-   BRANCH_NAME="context/{project-name}"
-   git checkout -b "$BRANCH_NAME" main
-   ```
-
-   c. **Write files**:
-   ```bash
-   cp AD.md "$TEAM_DIRECTIVES/AD.md"
-   cp .specify/drafts/adr.md "$TEAM_DIRECTIVES/context_modules/adr.md"
-   ```
-
-   d. **Commit and Push**:
-   ```bash
-   git add AD.md context_modules/adr.md
-   git commit -m "Add architecture from {project-name}"
-   git push -u origin "$BRANCH_NAME"
-   ```
-
-   e. **Create PR via MCP**:
-   ```
-   Tool: create_pull_request (GitHub) or create_merge_request (GitLab)
-   Parameters:
-     - title: "Add Architecture from {project-name}"
-     - body: "Architecture Description and ADRs from {project-name}"
-     - source_branch: "{BRANCH_NAME}"
-     - target_branch: "main"
-   ```
-
-6. **Cleanup Phase** (when NOT configured):
-   - Filter ADRs with status "Accepted" from `.specify/drafts/adr.md`
-   - Copy accepted ADRs to `.specify/memory/adr.md`
-   - Check if `.specify/drafts/adr.md` has any remaining non-accepted ADRs
-   - If no remaining records → remove `.specify/drafts/` directory
-
-7. **Update References**:
-   - Ensure `.specify/drafts/adr.md` link is correct
+3. **Update References**:
+   - Ensure `.specify/memory/adr.md` link is correct
    - Update version and timestamp
 
-8. **Generate Report**:
+4. **Generate Report**:
 
 ```markdown
 ## Architecture Description Generated
 
-**Output**: [AD.md (project root)|{TEAM_DIRECTIVES}/AD.md via PR]
+**Output**: AD.md (project root)
 **Views Mode**: [core|all|custom]
 
 **Views Generated** (based on --views flag):

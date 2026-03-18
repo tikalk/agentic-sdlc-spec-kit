@@ -55,8 +55,8 @@ Greenfield:   /architect.specify --> /architect.clarify --> /architect.implement
 
 | File | Location | Purpose |
 |------|----------|---------|
-| System ADRs | `.specify/drafts/adr.md` | Architecture Decision Records |
-| System AD | `AD.md` (root) or `{TEAM_DIRECTIVES}/AD.md` via PR | Full Architecture Description |
+| System ADRs | `.specify/memory/adr.md` | Architecture Decision Records |
+| System AD | `AD.md` (root) | Full Architecture Description |
 | Feature ADRs | `specs/{feature}/adr.md` | Feature-level decisions |
 | Feature AD | `specs/{feature}/AD.md` | Feature-level architecture |
 
@@ -64,11 +64,9 @@ Greenfield:   /architect.specify --> /architect.clarify --> /architect.implement
 
 | Level | Location | ADR File | Architecture Description | Hook Timing |
 |-------|----------|----------|--------------------------|--------------|
-| **System** | Main branch | `.specify/drafts/adr.md` | `AD.md` (root) or `{TEAM_DIRECTIVES}/AD.md` via PR | N/A |
+| **System** | Main branch | `memory/adr.md` | `AD.md` (root) | N/A |
 | **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` | before_plan hook |
 | **Validation** | Plan level | READ-ONLY via architect.validate | Validates plan alignment | after_plan hook |
-
-**When team-ai-directives is configured**, the architect.implement command will create a PR to `{TEAM_DIRECTIVES}/AD.md` instead of writing to project root.
 
 **Feature-level ADRs and AD.md** are created automatically via extension hooks during `/spec.plan` execution (if system architecture exists).
 
@@ -132,7 +130,7 @@ Optional configuration in `.specify/extensions/architect/architect-config.yml`:
 ```yaml
 adr:
   heuristic: "surprising"  # surprising | all | minimal
-  location: ".specify/drafts/adr.md"
+  location: ".specify/memory/adr.md"
 
 views:
   default: "core"  # core | all | concurrency,operational
@@ -244,7 +242,7 @@ Architecture works with specification commands via extension hooks:
 /spec.specify --> /spec.plan --> /spec.tasks --> /spec.implement
 ```
 
-**Hooks only execute when `.specify/drafts/adr.md` exists (architecture detection)**
+**Hooks only execute when `.specify/memory/adr.md` exists (architecture detection)**
 
 | Hook | When it Runs | Command | Purpose |
 |------|--------------|---------|---------|

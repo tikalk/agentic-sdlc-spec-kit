@@ -502,10 +502,10 @@ function Invoke-Specify {
         Write-Host "   (AI agent will generate monolithic ADRs)" -ForegroundColor Gray
     }
     
-    # Ensure drafts directory exists
-    $draftsDir = Join-Path $repoRoot ".specify\drafts"
-    if (-not (Test-Path $draftsDir)) {
-        New-Item -ItemType Directory -Path $draftsDir -Force | Out-Null
+    # Ensure memory directory exists
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
+    if (-not (Test-Path $memoryDir)) {
+        New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
     
     # Initialize ADR file from template if it doesn't exist
@@ -544,7 +544,7 @@ function Invoke-Specify {
     Write-Host "  1. Analyze your PRD/requirements input"
     Write-Host "  2. Ask clarifying questions about architecture"
     Write-Host "  3. Create ADRs for each key decision"
-    Write-Host "  4. Save decisions to .specify/drafts/adr.md"
+    Write-Host "  4. Save decisions to .specify/memory/adr.md"
     if ($Decompose) {
         Write-Host "  5. Organize ADRs by sub-system"
     }
@@ -623,7 +623,7 @@ function Invoke-Implement {
     Write-Host ""
     Write-Host "Ready for Architecture Description generation."
     Write-Host "The AI agent will:"
-    Write-Host "  1. Read all $adrCount ADR(s) from .specify/drafts/adr.md"
+    Write-Host "  1. Read all $adrCount ADR(s) from .specify/memory/adr.md"
     Write-Host "  2. Generate 7 Rozanski & Woods viewpoints"
     Write-Host "  3. Apply Security and Performance perspectives"
     Write-Host "  4. Create Mermaid diagrams for each view"
@@ -643,10 +643,10 @@ function Invoke-Init {
     
     Write-Host "🔍 Initializing brownfield architecture discovery..." -ForegroundColor Cyan
     
-    # Ensure drafts directory exists
-    $draftsDir = Join-Path $repoRoot ".specify\drafts"
-    if (-not (Test-Path $draftsDir)) {
-        New-Item -ItemType Directory -Path $draftsDir -Force | Out-Null
+    # Ensure memory directory exists
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
+    if (-not (Test-Path $memoryDir)) {
+        New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
     
     # Scan existing docs for deduplication
@@ -1038,41 +1038,17 @@ function Invoke-Validate {
 try {
     $repoRoot = Get-RepositoryRoot
     
-    # Ensure drafts directory exists
-    $draftsDir = Join-Path $repoRoot ".specify\drafts"
-    if (-not (Test-Path $draftsDir)) {
-        New-Item -ItemType Directory -Path $draftsDir -Force | Out-Null
+    # Ensure memory directory exists
+    $memoryDir = Join-Path $repoRoot ".specify\memory"
+    if (-not (Test-Path $memoryDir)) {
+        New-Item -ItemType Directory -Path $memoryDir -Force | Out-Null
     }
     
-    # Resolve team-ai-directives path
-    $teamDirectives = $null
-    if ($env:SPECIFY_TEAM_DIRECTIVES) {
-        if (Test-Path $env:SPECIFY_TEAM_DIRECTIVES) {
-            $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
-        }
-    }
-    if (-not $teamDirectives) {
-        $tdPath1 = Join-Path $repoRoot ".specify\team-ai-directives"
-        $tdPath2 = Join-Path $repoRoot ".specify\memory\team-ai-directives"
-        if (Test-Path $tdPath1) {
-            $teamDirectives = $tdPath1
-        } elseif (Test-Path $tdPath2) {
-            $teamDirectives = $tdPath2
-        }
-    }
-    
-    # Architecture files - use TD if configured
-    $adrFile = Join-Path $repoRoot ".specify\drafts\adr.md"
+    # Architecture files (new structure: AD.md at root, ADRs in memory/)
+    $adFile = Join-Path $repoRoot "AD.md"
+    $adrFile = Join-Path $repoRoot ".specify\memory\adr.md"
     $templateFile = Join-Path $repoRoot ".specify\templates\architecture-template.md"
     $adTemplateFile = Join-Path $repoRoot ".specify\templates\AD-template.md"
-    
-    if ($teamDirectives) {
-        $adFile = Join-Path $teamDirectives "AD.md"
-        $adTeamMode = $true
-    } else {
-        $adFile = Join-Path $repoRoot "AD.md"
-        $adTeamMode = $false
-    }
     
     # Export for use in functions
     $env:ARCHITECTURE_VIEWS = $Views

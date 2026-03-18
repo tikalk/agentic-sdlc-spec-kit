@@ -137,7 +137,7 @@ hooks:
 defaults:
   adr:
     heuristic: "surprising"  # surprising | all | minimal
-    location: ".specify/drafts/adr.md"
+    location: ".specify/memory/adr.md"
   ad:
     location: "AD.md"
     # When team-ai-directives is configured, output to TD root via PR

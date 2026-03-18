@@ -30,9 +30,9 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 
 ### When Architecture Exists
 
-If `.specify/drafts/adr.md` exists:
-1. Load all ADRs from `.specify/drafts/adr.md`
-2. Check if team-ai-directives is configured and load AD from `{TEAM_DIRECTIVES}/AD.md` if exists, else load from `AD.md` (project root)
+If `.specify/memory/adr.md` exists:
+1. Load all ADRs from `.specify/memory/adr.md`
+2. Load architecture description from `AD.md` (if present)
 3. Load the generated plan from `.specify/memory/plan.md`
 4. Execute 7 PILLAR 3 checks:
    - **PILLAR_1**: Component-level ADR alignment with plan
@@ -50,13 +50,13 @@ If `.specify/drafts/adr.md` exists:
 
 ### When Architecture Doesn't Exist
 
-If `.specify/drafts/adr.md` doesn't exist:
+If `.specify/memory/adr.md` doesn't exist:
 - Skip validation gracefully
 - Return `{"status":"skipped","reason":"architecture_not_found"}` if `--json` flag used
 
 Example output:
 ```
-⏭️  Architecture not found: .specify/drafts/adr.md
+⏭️  Architecture not found: .specify/memory/adr.md
      Skipping validation gracefully
 ```
 
@@ -67,7 +67,7 @@ Example output:
 ```
 🔍 Architecture Validation Mode (READ-ONLY)
 
-📋 ADR file found: .specify/drafts/adr.md
+📋 ADR file found: .specify/memory/adr.md
    Found 12 ADR(s)
 
 Executing validation checks...
@@ -91,7 +91,7 @@ Warnings: 5
 {
   "status": "success",
   "action": "validate",
-  "adr_file": ".specify/drafts/adr.md",
+  "adr_file": ".specify/memory/adr.md",
   "adr_count": 12,
   "findings": {
     "blocking": [],
