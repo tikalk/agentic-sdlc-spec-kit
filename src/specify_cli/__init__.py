@@ -52,6 +52,7 @@ from rich.tree import Tree
 from typer.core import TyperGroup
 
 # For cross-platform keyboard input
+import platformdirs
 import readchar
 import ssl
 import truststore
@@ -353,7 +354,6 @@ AGENT_CHOICES = list(AGENT_CONFIG.keys())
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 # Consolidated Configuration Management
-import platformdirs
 
 
 def get_global_config_path() -> Path:
