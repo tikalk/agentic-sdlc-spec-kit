@@ -7,6 +7,24 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.6] - 2026-03-18
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (commit cfd99ad)
+  - New agents: kimi, trae, pi, bob, vibe, tabnine, and more
+  - Updated preset system with PresetCatalog features
+  - Extension system enhancements
+
+### Preserved
+
+- All tikalk-specific features maintained:
+  - Skills package manager (`specify skill` subcommand)
+  - Config management system
+  - Bundled extensions and presets installation
+  - Team AI directives sync
+  - Orange branding theme
+
 ## [0.1.5] - 2026-03-15
 
 ### Fixed
@@ -28,7 +46,6 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 ### Added
 
 - **`remove_replaced_commands()`**: New method in `CommandRegistrar` class (`agents.py`) to remove command files across all detected agent directories
->>>>>>> main
 
 ## [0.1.1] - 2026-03-14
 
