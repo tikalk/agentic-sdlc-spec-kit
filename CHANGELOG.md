@@ -7,6 +7,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.7] - 2026-03-18
+
+### Fixed
+
+- **Release workflow**: Fixed release package naming mismatch (`agentic-sdlc-spec-kit-template-*` vs `spec-kit-template-*`)
+- **Missing dependency**: Added `json5` to dependencies (required by upstream merge)
+
 ## [0.1.6] - 2026-03-18
 
 ### Changed
