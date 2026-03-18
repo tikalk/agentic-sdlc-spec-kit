@@ -267,36 +267,9 @@ team-ai-directives/
 - `plan.md`: AI refresh section before implementation
 - `context-template.md`: Structured placeholders for DISCOVERED_DIRECTIVES/DISCOVERED_SKILLS
 
-### Optional Architecture Support
+### Architecture Support
 
-The toolkit includes comprehensive architecture documentation support via the **Architect extension**, which creates and manages Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using the Rozanski & Woods methodology.
-
-> **Note**: The Architect extension is bundled and auto-installed during `specify init`.
-
-**Key Features:**
-- **Two-level architecture** - System-level ADRs on main branch, feature-level ADRs on feature branches
-- **Automatic integration** - Hooks create feature ADRs during `/spec.plan` and validate alignment
-- **Greenfield & Brownfield** - `/architect.specify` for new projects, `/architect.init` for existing codebases
-
-**Quick Start:**
-
-```bash
-# Greenfield: Create ADRs from PRD
-/architect.specify "B2B SaaS platform for real-time supply chain management"
-
-# Brownfield: Reverse-engineer ADRs from code
-/architect.init "Django monolith with PostgreSQL, React frontend"
-
-# Generate Architecture Description
-/architect.implement
-
-# Validate consistency
-/architect.analyze
-```
-
-**Commands:** `architect.init`, `architect.specify`, `architect.clarify`, `architect.implement`, `architect.analyze`, `architect.validate`
-
-📖 **Full documentation:** [extensions/architect/README.md](./extensions/architect/README.md)
+The toolkit includes architecture documentation support via the **Architect extension** (creates ADRs and Architecture Descriptions). Bundled and auto-installed during `specify init`. See the [Extensions section](#-extensions) for details.
 
 ### Framework Options
 
@@ -386,32 +359,25 @@ Use **`/spec.implement`** to execute all tasks and build your feature according 
 /spec.implement
 ```
 
-### 7. Generate session trace (optional)
+### 7. Level up and contribute knowledge (optional)
 
-Use **`/spec.trace`** to generate comprehensive AI session execution traces capturing decisions, patterns, and outcomes.
-
-```bash
-/spec.trace
-```
-
-**Benefits**: Session traces document AI agent decision-making, execution context, quality gates, and reusable patterns. Stored in `specs/{BRANCH}/trace.md` with your feature artifacts. Optional but enriches `/levelup.specify` CDR extraction when present.
-
-### 8. Level up and contribute knowledge
-
-Use the **levelup extension** to extract patterns from your completed feature and contribute reusable knowledge back to your team's shared repository via Context Decision Records (CDRs).
+Use the **LevelUp extension** to extract patterns from your completed feature and contribute reusable knowledge back to your team's shared repository via Context Decision Records (CDRs).
 
 ```bash
 /levelup.specify      # Extract CDRs from current feature spec (after /implement)
-/levelup.clarify   # Resolve ambiguities in discovered CDRs
+/levelup.clarify       # Resolve ambiguities in discovered CDRs
 /levelup.skills python-patterns  # Build a skill from accepted CDRs
-/levelup.implement # Create PR to team-ai-directives
+/levelup.implement     # Create PR to team-ai-directives
+/levelup.trace         # Generate AI session execution traces
 ```
 
 For brownfield projects, use `/levelup.init` to scan the entire codebase for patterns.
 
-**Commands:** `levelup.init`, `levelup.specify`, `levelup.clarify`, `levelup.skills`, `levelup.implement`, `levelup.trace`
-
 📖 **Full documentation:** [extensions/levelup/README.md](./extensions/levelup/README.md)
+
+### 8. Iterate and improve
+
+Repeat steps 3-7 for each new feature. The cycle of specification → planning → implementation → knowledge extraction continuously improves your team capabilities.
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
 
@@ -446,7 +412,7 @@ The core of Agentic SDLC Spec Kit is a structured workflow that guides AI-assist
 | **Technical Planning** | `/spec.plan` | Create technical implementation plans with tech stack & execution modes |
 | **Task Breakdown** | `/spec.tasks` | Generate actionable task lists for implementation |
 | **Implementation** | `/spec.implement` | Execute all tasks to build the feature with dual execution loops (SYNC/ASYNC) |
-| **Session Traces** | `/spec.trace` | Generate AI session execution traces with decisions and patterns |
+| **Knowledge Extraction** | `/levelup.*` | Extract patterns and contribute reusable knowledge (LevelUp extension) |
 
 ### Team AI Directives Integration
 
@@ -528,11 +494,26 @@ Test-Driven Development workflow with RED→GREEN→REFACTOR cycles.
 
 Product management workflows for feature prioritization, roadmapping, and release planning.
 
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `/product.init` | Initialize product management workflow |
+| `/product.specify` | Create Product Requirements Document (PRD) |
+| `/product.clarify` | Clarify product requirements |
+| `/product.implement` | Generate Product Decision Record (PDR) |
+| `/product.analyze` | Analyze product decisions consistency |
+| `/product.validate` | Validate product alignment |
+
 📖 **Full documentation:** [extensions/product/README.md](./extensions/product/README.md)
 
 ### Quick Extension
 
-Quick start templates for rapid project bootstrapping.
+One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology.
+
+**Commands:**
+| Command | Description |
+|---------|-------------|
+| `/quick.implement` | Execute session-based ad-hoc task (Mission Brief → Context → Plan → Execute) |
 
 📖 **Full documentation:** [extensions/quick/README.md](./extensions/quick/README.md)
 
@@ -859,7 +840,6 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec.plan`          | Create technical implementation plans with your chosen tech stack & SYNC/ASYNC triage          |
 | `/spec.tasks`         | Generate actionable task lists for implementation     |
 | `/spec.implement`     | Execute all tasks to build the feature according to the plan with dual execution loops (SYNC/ASYNC modes)           |
-| `/spec.trace`         | Generate AI session execution traces with decisions, patterns, and evidence (optional, enriches `/levelup.specify`) |
 
 #### Optional Commands
 
@@ -871,40 +851,7 @@ Additional commands for enhanced quality and validation:
 | `/spec.analyze`   | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
 | `/spec.checklist` | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
-#### Extension Commands
-
-Commands provided by bundled extensions. See extension READMEs for full documentation.
-
-**Architect Extension** - [📖 Documentation](./extensions/architect/README.md)
-
-| Command                  | Description                                                           |
-|--------------------------|-----------------------------------------------------------------------|
-| `/architect.init`     | Reverse-engineer architecture from codebase (brownfield) |
-| `/architect.specify`  | Interactive PRD exploration to create ADRs (greenfield) |
-| `/architect.clarify`  | Refine ADRs through clarification questions |
-| `/architect.implement`| Generate AD.md from ADRs |
-| `/architect.analyze`  | Validate ADR ↔ AD consistency |
-| `/architect.validate` | Validate plan alignment with architecture (READ-ONLY) |
-
-**LevelUp Extension** - [📖 Documentation](./extensions/levelup/README.md)
-
-| Command                  | Description                                                           |
-|--------------------------|-----------------------------------------------------------------------|
-| `/levelup.init`       | Discover CDRs from entire codebase (brownfield analysis)             |
-| `/levelup.specify`    | Extract CDRs from current feature spec context |
-| `/levelup.clarify`    | Resolve ambiguities in discovered CDRs                               |
-| `/levelup.skills`     | Build a single skill from accepted CDRs                              |
-| `/levelup.implement`  | Compile accepted CDRs into PR to team-ai-directives                  |
-| `/levelup.trace`      | Generate AI session execution traces |
-
-**TDD Extension** - [📖 Documentation](./extensions/tdd/README.md)
-
-| Command                  | Description                                                           |
-|--------------------------|-----------------------------------------------------------------------|
-| `/tdd.plan`     | Planning phase - design before coding |
-| `/tdd.tasks`    | Detect language/framework + generate hybrid tests |
-| `/tdd.implement`| Execute RED→GREEN→REFACTOR |
-| `/tdd.validate` | Validate test quality |
+All extension commands are documented in the [Extensions section](#-extensions) above.
 
 ### Environment Variables
 
