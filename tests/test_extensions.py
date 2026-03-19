@@ -420,6 +420,48 @@ class TestExtensionRegistry:
         assert registry.is_installed("test-ext")
         assert registry.get("test-ext")["version"] == "1.0.0"
 
+    def test_restore_rejects_none_metadata(self, temp_dir):
+        """Test restore() raises ValueError for None metadata."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+        registry = ExtensionRegistry(extensions_dir)
+
+        with pytest.raises(ValueError, match="metadata must be a dict"):
+            registry.restore("test-ext", None)
+
+    def test_restore_rejects_non_dict_metadata(self, temp_dir):
+        """Test restore() raises ValueError for non-dict metadata."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+        registry = ExtensionRegistry(extensions_dir)
+
+        with pytest.raises(ValueError, match="metadata must be a dict"):
+            registry.restore("test-ext", "not-a-dict")
+
+        with pytest.raises(ValueError, match="metadata must be a dict"):
+            registry.restore("test-ext", ["list", "not", "dict"])
+
+    def test_restore_uses_deep_copy(self, temp_dir):
+        """Test restore() deep copies metadata to prevent mutation."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+        registry = ExtensionRegistry(extensions_dir)
+
+        original_metadata = {
+            "version": "1.0.0",
+            "nested": {"key": "original"},
+        }
+        registry.restore("test-ext", original_metadata)
+
+        # Mutate the original metadata after restore
+        original_metadata["version"] = "MUTATED"
+        original_metadata["nested"]["key"] = "MUTATED"
+
+        # Registry should have the original values
+        stored = registry.get("test-ext")
+        assert stored["version"] == "1.0.0"
+        assert stored["nested"]["key"] == "original"
+
     def test_get_returns_deep_copy(self, temp_dir):
         """Test that get() returns deep copies for nested structures."""
         extensions_dir = temp_dir / "extensions"
@@ -439,6 +481,26 @@ class TestExtensionRegistry:
         internal = registry.data["extensions"]["test-ext"]
         assert internal["registered_commands"] == {"claude": ["cmd1"]}
 
+    def test_get_returns_none_for_corrupted_entry(self, temp_dir):
+        """Test that get() returns None for corrupted (non-dict) entries."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+
+        registry = ExtensionRegistry(extensions_dir)
+
+        # Directly corrupt the registry with non-dict entries
+        registry.data["extensions"]["corrupted-string"] = "not a dict"
+        registry.data["extensions"]["corrupted-list"] = ["not", "a", "dict"]
+        registry.data["extensions"]["corrupted-int"] = 42
+        registry._save()
+
+        # All corrupted entries should return None
+        assert registry.get("corrupted-string") is None
+        assert registry.get("corrupted-list") is None
+        assert registry.get("corrupted-int") is None
+        # Non-existent should also return None
+        assert registry.get("nonexistent") is None
+
     def test_list_returns_deep_copy(self, temp_dir):
         """Test that list() returns deep copies for nested structures."""
         extensions_dir = temp_dir / "extensions"
@@ -457,6 +519,20 @@ class TestExtensionRegistry:
         # Internal registry must remain unchanged.
         internal = registry.data["extensions"]["test-ext"]
         assert internal["registered_commands"] == {"claude": ["cmd1"]}
+
+    def test_list_returns_empty_dict_for_corrupted_registry(self, temp_dir):
+        """Test that list() returns empty dict when extensions is not a dict."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+        registry = ExtensionRegistry(extensions_dir)
+
+        # Corrupt the registry - extensions is a list instead of dict
+        registry.data["extensions"] = ["not", "a", "dict"]
+        registry._save()
+
+        # list() should return empty dict, not crash
+        result = registry.list()
+        assert result == {}
 
 
 # ===== ExtensionManager Tests =====
@@ -2509,6 +2585,40 @@ class TestExtensionPriority:
         assert [item[0] for item in result] == ["ext-high", "ext-invalid"]
         assert result[1][1]["priority"] == 10
 
+    def test_list_by_priority_excludes_disabled(self, temp_dir):
+        """Test that list_by_priority excludes disabled extensions by default."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+
+        registry = ExtensionRegistry(extensions_dir)
+        registry.add("ext-enabled", {"version": "1.0.0", "enabled": True, "priority": 5})
+        registry.add("ext-disabled", {"version": "1.0.0", "enabled": False, "priority": 1})
+        registry.add("ext-default", {"version": "1.0.0", "priority": 10})  # no enabled field = True
+
+        # Default: exclude disabled
+        by_priority = registry.list_by_priority()
+        ext_ids = [p[0] for p in by_priority]
+        assert "ext-enabled" in ext_ids
+        assert "ext-default" in ext_ids
+        assert "ext-disabled" not in ext_ids
+
+    def test_list_by_priority_includes_disabled_when_requested(self, temp_dir):
+        """Test that list_by_priority includes disabled extensions when requested."""
+        extensions_dir = temp_dir / "extensions"
+        extensions_dir.mkdir()
+
+        registry = ExtensionRegistry(extensions_dir)
+        registry.add("ext-enabled", {"version": "1.0.0", "enabled": True, "priority": 5})
+        registry.add("ext-disabled", {"version": "1.0.0", "enabled": False, "priority": 1})
+
+        # Include disabled
+        by_priority = registry.list_by_priority(include_disabled=True)
+        ext_ids = [p[0] for p in by_priority]
+        assert "ext-enabled" in ext_ids
+        assert "ext-disabled" in ext_ids
+        # Disabled ext has lower priority number, so it comes first when included
+        assert ext_ids[0] == "ext-disabled"
+
     def test_install_with_priority(self, extension_dir, project_dir):
         """Test that install_from_directory stores priority."""
         manager = ExtensionManager(project_dir)
@@ -2550,8 +2660,8 @@ class TestExtensionPriority:
         assert updated["priority"] == 5  # Preserved
         assert updated["enabled"] is False  # Updated
 
-    def test_resolve_uses_unregistered_extension_dirs_when_registry_partially_corrupted(self, project_dir):
-        """Resolution scans unregistered extension dirs after valid registry entries."""
+    def test_corrupted_extension_entry_not_picked_up_as_unregistered(self, project_dir):
+        """Corrupted registry entries are still tracked and NOT picked up as unregistered."""
         extensions_dir = project_dir / ".specify" / "extensions"
 
         valid_dir = extensions_dir / "valid-ext" / "templates"
@@ -2564,20 +2674,21 @@ class TestExtensionPriority:
 
         registry = ExtensionRegistry(extensions_dir)
         registry.add("valid-ext", {"version": "1.0.0", "priority": 10})
+        # Corrupt the entry - should still be tracked, not picked up as unregistered
         registry.data["extensions"]["broken-ext"] = "corrupted"
         registry._save()
 
         from specify_cli.presets import PresetResolver
 
         resolver = PresetResolver(project_dir)
+        # Corrupted extension templates should NOT be resolved
         resolved = resolver.resolve("target-template")
-        sourced = resolver.resolve_with_source("target-template")
+        assert resolved is None
 
-        assert resolved is not None
-        assert resolved.name == "target-template.md"
-        assert "Broken Target" in resolved.read_text()
-        assert sourced is not None
-        assert sourced["source"] == "extension:broken-ext (unregistered)"
+        # Valid extension template should still resolve
+        valid_resolved = resolver.resolve("other-template")
+        assert valid_resolved is not None
+        assert "Valid" in valid_resolved.read_text()
 
 
 class TestExtensionPriorityCLI:
