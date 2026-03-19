@@ -412,7 +412,6 @@ The core of Agentic SDLC Spec Kit is a structured workflow that guides AI-assist
 | **Technical Planning** | `/spec.plan` | Create technical implementation plans with tech stack & execution modes |
 | **Task Breakdown** | `/spec.tasks` | Generate actionable task lists for implementation |
 | **Implementation** | `/spec.implement` | Execute all tasks to build the feature with dual execution loops (SYNC/ASYNC) |
-| **Knowledge Extraction** | `/levelup.*` | Extract patterns and contribute reusable knowledge (LevelUp extension) |
 
 ### Team AI Directives Integration
 
