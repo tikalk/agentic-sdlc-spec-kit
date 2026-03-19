@@ -7,6 +7,16 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.12] - 2026-03-19
+
+### Fixed
+
+- **Type annotations**: Fixed multiple LSP/type-checker warnings in `__init__.py`
+  - Added `Optional[str]` type hint to `select_with_arrows()` parameter
+  - Added module-level `_specify_tracker_active` variable instead of dynamic `sys` attribute
+  - Fixed `original_cwd` possibly unbound error in `init_git_repo()`
+  - Fixed `zip_path` initialization in `preset add` command
+
 ## [0.1.11] - 2026-03-19
 
 ### Fixed

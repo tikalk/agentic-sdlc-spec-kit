@@ -61,6 +61,9 @@ from datetime import datetime, timezone
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
 
+# Module-level tracker state (used to coordinate tracker output across functions)
+_specify_tracker_active: bool = False
+
 # Color constants for orange theme
 ACCENT_COLOR = "#f47721"
 BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]
@@ -830,7 +833,9 @@ def get_key():
 
 
 def select_with_arrows(
-    options: dict, prompt_text: str = "Select an option", default_key: str = None
+    options: dict,
+    prompt_text: str = "Select an option",
+    default_key: Optional[str] = None,
 ) -> str:
     """
     Interactive selection using arrow keys with Rich Live display.
@@ -1787,8 +1792,8 @@ def init_git_repo(
     Returns:
         Tuple of (success: bool, error_message: Optional[str])
     """
+    original_cwd = Path.cwd()
     try:
-        original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
             console.print("[cyan]Initializing git repository...[/cyan]")
@@ -3391,7 +3396,8 @@ def init(
 
     tracker = StepTracker("Initialize Specify Project")
 
-    sys._specify_tracker_active = True
+    global _specify_tracker_active
+    _specify_tracker_active = True
 
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
@@ -4056,6 +4062,7 @@ def preset_add(
                 f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]..."
             )
 
+            zip_path: Optional[Path] = None
             try:
                 zip_path = catalog.download_pack(pack_id)
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
@@ -4063,7 +4070,7 @@ def preset_add(
                     f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
                 )
             finally:
-                if "zip_path" in locals() and zip_path.exists():
+                if zip_path is not None and zip_path.exists():
                     zip_path.unlink(missing_ok=True)
         else:
             console.print(
