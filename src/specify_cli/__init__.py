@@ -773,7 +773,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(Text(self.title, style=ACCENT_COLOR), guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -784,7 +784,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = "[cyan]○[/cyan]"
+                symbol = f"[{ACCENT_COLOR}]○[/{ACCENT_COLOR}]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -859,14 +859,20 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style="cyan", justify="left", width=3)
+        table.add_column(style=ACCENT_COLOR, justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row(
+                    "▶",
+                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
+                )
             else:
-                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row(
+                    " ",
+                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
+                )
 
         table.add_row("", "")
         table.add_row(
@@ -876,7 +882,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=ACCENT_COLOR,
             padding=(1, 2),
         )
 
@@ -1796,7 +1802,9 @@ def init_git_repo(
     try:
         os.chdir(project_path)
         if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
+            console.print(
+                f"[{ACCENT_COLOR}]Initializing git repository...[/{ACCENT_COLOR}]"
+            )
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(
@@ -1987,7 +1995,9 @@ def merge_json_files(
         return None
 
     if verbose:
-        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
+        console.print(
+            f"[{ACCENT_COLOR}]Merged JSON file:[/{ACCENT_COLOR}] {existing_path.name}"
+        )
 
     return merged
 
@@ -2009,7 +2019,9 @@ def download_template_from_github(
         client = httpx.Client(verify=ssl_context)
 
     if verbose:
-        console.print("[cyan]Fetching latest release information...[/cyan]")
+        console.print(
+            f"[{ACCENT_COLOR}]Fetching latest release information...[/{ACCENT_COLOR}]"
+        )
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
 
     try:
@@ -2066,13 +2078,15 @@ def download_template_from_github(
     file_size = asset["size"]
 
     if verbose:
-        console.print(f"[cyan]Found template:[/cyan] {filename}")
-        console.print(f"[cyan]Size:[/cyan] {file_size:,} bytes")
-        console.print(f"[cyan]Release:[/cyan] {release_data['tag_name']}")
+        console.print(f"[{ACCENT_COLOR}]Found template:[/{ACCENT_COLOR}] {filename}")
+        console.print(f"[{ACCENT_COLOR}]Size:[/{ACCENT_COLOR}] {file_size:,} bytes")
+        console.print(
+            f"[{ACCENT_COLOR}]Release:[/{ACCENT_COLOR}] {release_data['tag_name']}"
+        )
 
     zip_path = download_dir / filename
     if verbose:
-        console.print("[cyan]Downloading template...[/cyan]")
+        console.print(f"[{ACCENT_COLOR}]Downloading template...[/{ACCENT_COLOR}]")
 
     try:
         with client.stream(
@@ -2190,7 +2204,9 @@ def download_and_extract_template(
                 tracker.start("zip-list")
                 tracker.complete("zip-list", f"{len(zip_contents)} entries")
             elif verbose:
-                console.print(f"[cyan]ZIP contains {len(zip_contents)} items[/cyan]")
+                console.print(
+                    f"[{ACCENT_COLOR}]ZIP contains {len(zip_contents)} items[/{ACCENT_COLOR}]"
+                )
 
             if is_current_dir:
                 with tempfile.TemporaryDirectory() as temp_dir:
@@ -2205,7 +2221,7 @@ def download_and_extract_template(
                         )
                     elif verbose:
                         console.print(
-                            f"[cyan]Extracted {len(extracted_items)} items to temp location[/cyan]"
+                            f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to temp location[/{ACCENT_COLOR}]"
                         )
 
                     source_dir = temp_path
@@ -2216,7 +2232,7 @@ def download_and_extract_template(
                             tracker.complete("flatten")
                         elif verbose:
                             console.print(
-                                "[cyan]Found nested directory structure[/cyan]"
+                                f"[{ACCENT_COLOR}]Found nested directory structure[/{ACCENT_COLOR}]"
                             )
 
                     for item in source_dir.iterdir():
@@ -2258,7 +2274,7 @@ def download_and_extract_template(
                             shutil.copy2(item, dest_path)
                     if verbose and not tracker:
                         console.print(
-                            "[cyan]Template files merged into current directory[/cyan]"
+                            f"[{ACCENT_COLOR}]Template files merged into current directory[/{ACCENT_COLOR}]"
                         )
             else:
                 zip_ref.extractall(project_path)
@@ -2271,7 +2287,7 @@ def download_and_extract_template(
                     )
                 elif verbose:
                     console.print(
-                        f"[cyan]Extracted {len(extracted_items)} items to {project_path}:[/cyan]"
+                        f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to {project_path}:[/{ACCENT_COLOR}]"
                     )
                     for item in extracted_items:
                         console.print(
@@ -2292,7 +2308,7 @@ def download_and_extract_template(
                         tracker.complete("flatten")
                     elif verbose:
                         console.print(
-                            "[cyan]Flattened nested directory structure[/cyan]"
+                            f"[{ACCENT_COLOR}]Flattened nested directory structure[/{ACCENT_COLOR}]"
                         )
 
     except Exception as e:
@@ -2373,7 +2389,7 @@ def ensure_executable_scripts(
     else:
         if updated:
             console.print(
-                f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]"
+                f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]"
             )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
@@ -2412,7 +2428,9 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print("[cyan]Initialized constitution from template[/cyan]")
+            console.print(
+                f"[{ACCENT_COLOR}]Initialized constitution from template[/{ACCENT_COLOR}]"
+            )
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -3256,7 +3274,7 @@ def init(
             )
             if force:
                 console.print(
-                    "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
+                    f"[{ACCENT_COLOR}]--force supplied: skipping confirmation and proceeding with merge[/{ACCENT_COLOR}]"
                 )
             else:
                 response = typer.confirm("Do you want to continue?")
@@ -3329,7 +3347,7 @@ def init(
     current_dir = Path.cwd()
 
     setup_lines = [
-        "[cyan]Specify Project Setup[/cyan]",
+        f"[{ACCENT_COLOR}]Specify Project Setup[/{ACCENT_COLOR}]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -3338,7 +3356,9 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+    console.print(
+        Panel("\n".join(setup_lines), border_style=ACCENT_COLOR, padding=(1, 2))
+    )
 
     should_init_git = False
     if not no_git:
@@ -3354,10 +3374,10 @@ def init(
             install_url = agent_config["install_url"]
             if not check_tool(selected_ai):
                 error_panel = Panel(
-                    f"[cyan]{selected_ai}[/cyan] not found\n"
-                    f"Install from: [cyan]{install_url}[/cyan]\n"
+                    f"[{ACCENT_COLOR}]{selected_ai}[/{ACCENT_COLOR}] not found\n"
+                    f"Install from: [{ACCENT_COLOR}]{install_url}[/{ACCENT_COLOR}]\n"
                     f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                    f"Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
                     padding=(1, 2),
@@ -3385,8 +3405,12 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
-    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(
+        f"[{ACCENT_COLOR}]Selected AI assistant:[/{ACCENT_COLOR}] {selected_ai}"
+    )
+    console.print(
+        f"[{ACCENT_COLOR}]Selected script type:[/{ACCENT_COLOR}] {selected_script}"
+    )
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -3638,10 +3662,10 @@ def init(
             f"[yellow]Warning:[/yellow] Git repository initialization failed\n\n"
             f"{git_error_message}\n\n"
             f"[dim]You can initialize git manually later with:[/dim]\n"
-            f"[cyan]cd {project_path if not here else '.'}[/cyan]\n"
-            f"[cyan]git init[/cyan]\n"
-            f"[cyan]git add .[/cyan]\n"
-            f'[cyan]git commit -m "Initial commit"[/cyan]',
+            f"[{ACCENT_COLOR}]cd {project_path if not here else '.'}[/{ACCENT_COLOR}]\n"
+            f"[{ACCENT_COLOR}]git init[/{ACCENT_COLOR}]\n"
+            f"[{ACCENT_COLOR}]git add .[/{ACCENT_COLOR}]\n"
+            f'[{ACCENT_COLOR}]git commit -m "Initial commit"[/{ACCENT_COLOR}]',
             title="[red]Git Initialization Failed[/red]",
             border_style="red",
             padding=(1, 2),
@@ -3685,24 +3709,33 @@ def init(
             cmd = f"export CODEX_HOME={quoted_path}"
 
         steps_lines.append(
-            f"{step_num}. Set [cyan]CODEX_HOME[/cyan] environment variable before running Codex: [cyan]{cmd}[/cyan]"
+            f"{step_num}. Set [{ACCENT_COLOR}]CODEX_HOME[/{ACCENT_COLOR}] environment variable before running Codex: [{ACCENT_COLOR}]{cmd}[/{ACCENT_COLOR}]"
         )
         step_num += 1
 
     steps_lines.append(f"{step_num}. Start using slash commands with your AI agent:")
 
     steps_lines.append(
-        "   2.1 [cyan]/speckit.constitution[/] - Establish project principles"
+        f"   2.1 [{ACCENT_COLOR}]/spec.constitution[/] - Establish project principles"
     )
     steps_lines.append(
-        "   2.2 [cyan]/speckit.specify[/] - Create baseline specification"
+        f"   2.2 [{ACCENT_COLOR}]/spec.specify[/] - Create baseline specification"
     )
-    steps_lines.append("   2.3 [cyan]/speckit.plan[/] - Create implementation plan")
-    steps_lines.append("   2.4 [cyan]/speckit.tasks[/] - Generate actionable tasks")
-    steps_lines.append("   2.5 [cyan]/speckit.implement[/] - Execute implementation")
+    steps_lines.append(
+        f"   2.3 [{ACCENT_COLOR}]/spec.plan[/] - Create implementation plan"
+    )
+    steps_lines.append(
+        f"   2.4 [{ACCENT_COLOR}]/spec.tasks[/] - Generate actionable tasks"
+    )
+    steps_lines.append(
+        f"   2.5 [{ACCENT_COLOR}]/spec.implement[/] - Execute implementation"
+    )
 
     steps_panel = Panel(
-        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
+        "\n".join(steps_lines),
+        title="Next Steps",
+        border_style=ACCENT_COLOR,
+        padding=(1, 2),
     )
     console.print()
     console.print(steps_panel)
@@ -3710,18 +3743,44 @@ def init(
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/speckit.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]/speckit.plan[/] if used)",
-        "○ [cyan]/speckit.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/speckit.tasks[/], before [cyan]/speckit.implement[/])",
-        "○ [cyan]/speckit.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/speckit.plan[/])",
+        f"○ [{ACCENT_COLOR}]/spec.clarify[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]/spec.plan[/] if used)",
+        f"○ [{ACCENT_COLOR}]/spec.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]/spec.tasks[/], before [{ACCENT_COLOR}]/spec.implement[/])",
+        f"○ [{ACCENT_COLOR}]/spec.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]/spec.plan[/])",
     ]
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title="Enhancement Commands",
-        border_style="cyan",
+        border_style=ACCENT_COLOR,
         padding=(1, 2),
     )
     console.print()
     console.print(enhancements_panel)
+
+    # Show pre-installed extensions with their commands
+    preinstalled = get_preinstalled_extensions(project_path)
+    if preinstalled:
+        ext_lines = []
+        for ext in preinstalled:
+            ext_lines.append(f"[{ACCENT_COLOR}]📦 {ext['name']}[/{ACCENT_COLOR}]")
+            ext_lines.append(f"  {ext['description']}")
+            ext_lines.append("")
+
+            for cmd in ext.get("commands", []):
+                cmd_display = "/" + cmd.replace(".", ".")
+                ext_lines.append(f"    [{ACCENT_COLOR}]{cmd_display}[/{ACCENT_COLOR}]")
+
+            ext_lines.append("")
+
+        if ext_lines:
+            ext_lines = ext_lines[:-1]
+            preinstalled_panel = Panel(
+                "\n".join(ext_lines),
+                title="Pre-Installed Extensions",
+                border_style=ACCENT_COLOR,
+                padding=(1, 2),
+            )
+            console.print()
+            console.print(preinstalled_panel)
 
 
 @app.command()
@@ -4996,7 +5055,9 @@ def extension_add(
     speckit_version = get_speckit_version()
 
     try:
-        with console.status(f"[cyan]Installing extension: {extension}[/cyan]"):
+        with console.status(
+            f"[{ACCENT_COLOR}]Installing extension: {extension}[/{ACCENT_COLOR}]"
+        ):
             if dev:
                 # Install from local directory
                 source_path = Path(extension).expanduser().resolve()
