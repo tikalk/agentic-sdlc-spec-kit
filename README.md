@@ -524,7 +524,7 @@ One-command, session-based workflow for ad-hoc task execution without file artif
 | [Claude Code](https://www.anthropic.com/claude-code)                                 | ✅      | Anthropic's Claude Code CLI                                                                                                               |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli)                            | ✅      | Google's Gemini CLI                                                                                                                       |
 | [Cursor](https://cursor.sh/)                                                         | ✅      | Cursor IDE with CLI support (`cursor-agent`)                                                                                              |
-| [Codex CLI](https://github.com/openai/codex)                                         | ✅      | OpenAI Codex CLI                                                                                                                          |
+| [Codex CLI](https://github.com/openai/codex)                                         | ✅      | OpenAI Codex CLI (Requires `--ai-skills`)                                                                                                 |
 | [Qwen Code](https://github.com/QwenLM/qwen-code)                                     | ✅      | Alibaba's Qwen Code CLI                                                                                                                   |
 | [opencode](https://opencode.ai/)                                                     | ✅      | opencode CLI                                                                                                                              |
 | [Kiro CLI](https://kiro.dev/docs/cli/)                                               | ✅      | Kiro CLI (`kiro-cli`, alias: `kiro`)                                                                                                      |
@@ -534,6 +534,8 @@ One-command, session-based workflow for ad-hoc task execution without file artif
 | [SHAI (OVHcloud)](https://github.com/ovh/shai)                                       | ✅      | SHAI CLI                                                                                                                                  |
 | [Tabnine CLI](https://docs.tabnine.com/main/getting-started/tabnine-cli)             | ✅      | Tabnine CLI                                                                                                                               |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅      | Auggie CLI                                                                                                                                |
+| [iFlow CLI](https://docs.iflow.cn/en/cli/quickstart)                                 | ✅      | iFlow CLI                                                                                                                                 |
+| [Pi Coding Agent](https://pi.dev)                                                    | ✅      | Pi terminal coding agent                                                                                                                  |
 | **IDE-Based Agents**                                                                 |         |                                                                                                                                           |
 | [GitHub Copilot](https://code.visualstudio.com/)                                     | ✅      | GitHub Copilot in VS Code and compatible editors                                                                                          |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      | Windsurf IDE workflows                                                                                                                    |
@@ -544,6 +546,7 @@ One-command, session-based workflow for ad-hoc task execution without file artif
 | [Antigravity (agy)](https://antigravity.google/)                                     | ✅      | Antigravity agent (Requires `--ai-skills`)                                                                                                |
 | [IBM Bob](https://www.ibm.com/products/bob)                                          | ✅      | IBM Bob IDE                                                                                                                               |
 | [Jules](https://jules.google.com/)                                                   | ✅      | Google's Jules agent                                                                                                                      |
+| [Trae](https://www.trae.ai/)                                                         | ✅      | Trae IDE                                                                                                                                  |
 | **Custom**                                                                           |         |                                                                                                                                           |
 | Generic                                                                              | ✅      | Bring your own agent — use `--ai generic --ai-commands-dir <path>` for unsupported agents                                                 |
 
@@ -676,7 +679,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Command | Description |
 | ------- | ----------- |
 | `init` | Initialize a new Specify project from the latest template |
-| `check` | Check for installed tools (`git`, `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`) |
+| `check` | Check for installed tools: `git` plus all CLI-based agents configured in `AGENT_CONFIG` (e.g., `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, etc.) |
 | `skill` | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
@@ -684,7 +687,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Argument/Option | Type | Description |
 | --------------- | ---- | ----------- |
 | `<project-name>` | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai` | Option | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai` | Option | AI assistant to use (see `AGENT_CONFIG` for the full list): `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, or `generic` (requires `--ai-commands-dir`) |
 | `--ai-commands-dir` | Option | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
 | `--script` | Option | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell) |
 | `--ignore-agent-tools` | Flag | Skip checks for AI agent tools like Claude Code |
@@ -786,6 +789,9 @@ specify init my-project --ai vibe
 specify init my-project --ai bob
 
 
+# Initialize with Codex CLI support
+specify init my-project --ai codex --ai-skills
+
 # Initialize with Antigravity support
 specify init my-project --ai agy --ai-skills
 
@@ -826,7 +832,9 @@ specify check
 
 ### Available Slash Commands
 
-After running `specify init`, your AI coding agent will have access to these slash commands for structured development:
+After running `specify init`, your AI coding agent will have access to these slash commands for structured development.
+
+For Codex CLI, `--ai-skills` installs spec-kit as agent skills instead of slash-command prompt files. In Codex skills mode, invoke spec-kit as `$speckit-constitution`, `$speckit-specify`, `$speckit-plan`, `$speckit-tasks`, and `$speckit-implement`.
 
 #### Core Commands
 
@@ -1031,11 +1039,11 @@ specify init <project_name> --ai copilot
 
 # Or in current directory:
 specify init . --ai claude
-specify init . --ai codex
+specify init . --ai codex --ai-skills
 
 # or use --here flag
 specify init --here --ai claude
-specify init --here --ai codex
+specify init --here --ai codex --ai-skills
 
 # Force merge into a non-empty current directory
 specify init . --force --ai claude

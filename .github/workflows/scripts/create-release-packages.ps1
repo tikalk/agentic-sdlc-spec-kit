@@ -14,7 +14,7 @@
 
 .PARAMETER Agents
     Comma or space separated subset of agents to build (default: all)
-    Valid agents: claude, gemini, copilot, cursor-agent, qwen, opencode, windsurf, codex, kilocode, auggie, roo, codebuddy, amp, kiro-cli, bob, qodercli, shai, tabnine, agy, vibe, kimi, trae, pi, generic
+    Valid agents: claude, gemini, copilot, cursor-agent, qwen, opencode, windsurf, codex, kilocode, auggie, roo, codebuddy, amp, kiro-cli, bob, qodercli, shai, tabnine, agy, vibe, kimi, trae, pi, iflow, generic
 
 .PARAMETER Scripts
     Comma or space separated subset of script types to build (default: both)
@@ -204,20 +204,22 @@ agent: $basename
     }
 }
 
-# Create Kimi Code skills in .kimi/skills/<name>/SKILL.md format.
-# Kimi CLI discovers skills as directories containing a SKILL.md file,
-# invoked with /skill:<name> (e.g. /skill:speckit.specify).
-function New-KimiSkills {
+# Create skills in <skills_dir>\<name>\SKILL.md format.
+# Most agents use hyphenated names (e.g. speckit-plan); Kimi is the
+# current dotted-name exception (e.g. speckit.plan).
+function New-Skills {
     param(
         [string]$SkillsDir,
-        [string]$ScriptVariant
+        [string]$ScriptVariant,
+        [string]$AgentName,
+        [string]$Separator = '-'
     )
 
     $templates = Get-ChildItem -Path "templates/commands/*.md" -File -ErrorAction SilentlyContinue
 
     foreach ($template in $templates) {
         $name = [System.IO.Path]::GetFileNameWithoutExtension($template.Name)
-        $skillName = "speckit.$name"
+        $skillName = "speckit${Separator}$name"
         $skillDir = Join-Path $SkillsDir $skillName
         New-Item -ItemType Directory -Force -Path $skillDir | Out-Null
 
@@ -270,7 +272,7 @@ function New-KimiSkills {
 
         $body = $outputLines -join "`n"
         $body = $body -replace '\{ARGS\}', '$ARGUMENTS'
-        $body = $body -replace '__AGENT__', 'kimi'
+        $body = $body -replace '__AGENT__', $AgentName
         $body = Rewrite-Paths -Content $body
 
         # Strip existing frontmatter, keep only body
@@ -399,8 +401,9 @@ function Build-Variant {
             Generate-Commands -Agent 'windsurf' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
         }
         'codex' {
-            $cmdDir = Join-Path $baseDir ".codex/prompts"
-            Generate-Commands -Agent 'codex' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
+            $skillsDir = Join-Path $baseDir ".agents/skills"
+            New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
+            New-Skills -SkillsDir $skillsDir -ScriptVariant $Script -AgentName 'codex' -Separator '-'
         }
         'kilocode' {
             $cmdDir = Join-Path $baseDir ".kilocode/workflows"
@@ -455,7 +458,7 @@ function Build-Variant {
         'kimi' {
             $skillsDir = Join-Path $baseDir ".kimi/skills"
             New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
-            New-KimiSkills -SkillsDir $skillsDir -ScriptVariant $Script
+            New-Skills -SkillsDir $skillsDir -ScriptVariant $Script -AgentName 'kimi' -Separator '.'
         }
         'trae' {
             $rulesDir = Join-Path $baseDir ".trae/rules"
@@ -465,6 +468,10 @@ function Build-Variant {
         'pi' {
             $cmdDir = Join-Path $baseDir ".pi/prompts"
             Generate-Commands -Agent 'pi' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
+        }
+        'iflow' {
+            $cmdDir = Join-Path $baseDir ".iflow/commands"
+            Generate-Commands -Agent 'iflow' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
         }
         'generic' {
             $cmdDir = Join-Path $baseDir ".speckit/commands"
@@ -482,7 +489,7 @@ function Build-Variant {
 }
 
 # Define all agents and scripts
-$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'kimi', 'trae', 'pi', 'generic')
+$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'kimi', 'trae', 'pi', 'iflow', 'generic')
 $AllScripts = @('sh', 'ps')
 
 function Normalize-List {

@@ -62,6 +62,8 @@ gh release create "$VERSION" \
   .genreleases/agentic-sdlc-spec-kit-template-trae-ps-"$VERSION".zip \
   .genreleases/agentic-sdlc-spec-kit-template-pi-sh-"$VERSION".zip \
   .genreleases/agentic-sdlc-spec-kit-template-pi-ps-"$VERSION".zip \
+  .genreleases/agentic-sdlc-spec-kit-template-iflow-sh-"$VERSION".zip \
+  .genreleases/agentic-sdlc-spec-kit-template-iflow-ps-"$VERSION".zip \
   .genreleases/agentic-sdlc-spec-kit-template-generic-sh-"$VERSION".zip \
   .genreleases/agentic-sdlc-spec-kit-template-generic-ps-"$VERSION".zip \
   --title "Agentic SDLC Spec Kit Templates - $VERSION_NO_V" \

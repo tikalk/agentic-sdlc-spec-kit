@@ -112,7 +112,7 @@ jobs:
               echo ""
               echo "## [${{ steps.version.outputs.version }}] - $DATE"
               echo ""
-              echo "### Changed"
+              echo "### Changes"
               echo ""
               echo "$COMMITS"
               echo ""
