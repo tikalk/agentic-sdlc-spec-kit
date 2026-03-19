@@ -3348,12 +3348,6 @@ def init(
                 "[yellow]Git not found - will skip repository initialization[/yellow]"
             )
 
-    git_required_for_directives = bool(
-        team_ai_directives and team_ai_directives.strip()
-    )
-    git_required = should_init_git or git_required_for_directives
-    git_available = True
-
     if not ignore_agent_tools:
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
@@ -3514,15 +3508,13 @@ def init(
             install_bundled_presets(project_path, selected_ai, tracker=tracker)
 
             # Sync team-ai-directives if provided
-            resolved_team_directives = None
             team_arg = team_ai_directives.strip() if team_ai_directives else ""
             if team_arg:
                 tracker.start("directives")
                 try:
-                    status, resolved_path = sync_team_ai_directives(
+                    status, _resolved_path = sync_team_ai_directives(
                         team_arg, project_path, skip_tls=skip_tls
                     )
-                    resolved_team_directives = resolved_path
                     tracker.complete("directives", status)
                 except Exception as e:
                     tracker.error("directives", str(e))
