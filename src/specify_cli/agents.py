@@ -71,6 +71,12 @@ class CommandRegistrar:
             "args": "$ARGUMENTS",
             "extension": ".md"
         },
+        "junie": {
+            "dir": ".junie/commands",
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md"
+        },
         "kilocode": {
             "dir": ".kilocode/workflows",
             "format": "markdown",
