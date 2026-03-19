@@ -3137,6 +3137,12 @@ def init(
         "--github-token",
         help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)",
     ),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        "--team-ai-directive",
+        help="Clone or reference a team-ai-directives repository during setup",
+    ),
     ai_skills: bool = typer.Option(
         False,
         "--ai-skills",
@@ -3155,7 +3161,8 @@ def init(
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally set up AI assistant commands
+    6. Optionally clone or reference a shared team-ai-directives repository
+    7. Optionally set up AI assistant commands
 
     Examples:
         specify init my-project
@@ -3174,6 +3181,8 @@ def init(
         specify init --here --ai gemini --ai-skills
         specify init my-project --ai generic --ai-commands-dir .myagent/commands/  # Unsupported agent
         specify init my-project --ai claude --preset healthcare-compliance  # With preset
+        specify init --here --ai claude --team-ai-directives https://github.com/org/team-ai-directives.git  # With team directives
+        specify init --here --ai claude --team-ai-directives ~/workspace/team-ai-directives  # Local team directives
     """
 
     show_banner()
@@ -3334,6 +3343,12 @@ def init(
                 "[yellow]Git not found - will skip repository initialization[/yellow]"
             )
 
+    git_required_for_directives = bool(
+        team_ai_directives and team_ai_directives.strip()
+    )
+    git_required = should_init_git or git_required_for_directives
+    git_available = True
+
     if not ignore_agent_tools:
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
@@ -3398,6 +3413,8 @@ def init(
         tracker.add("ai-skills", "Install agent skills")
     tracker.add("extensions", "Install bundled extensions")
     tracker.add("presets", "Install bundled presets")
+    if team_ai_directives:
+        tracker.add("directives", "Sync team-ai-directives")
     for key, label in [
         ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
@@ -3489,6 +3506,23 @@ def init(
 
             # Install bundled presets
             install_bundled_presets(project_path, selected_ai, tracker=tracker)
+
+            # Sync team-ai-directives if provided
+            resolved_team_directives = None
+            team_arg = team_ai_directives.strip() if team_ai_directives else ""
+            if team_arg:
+                tracker.start("directives")
+                try:
+                    status, resolved_path = sync_team_ai_directives(
+                        team_arg, project_path, skip_tls=skip_tls
+                    )
+                    resolved_team_directives = resolved_path
+                    tracker.complete("directives", status)
+                except Exception as e:
+                    tracker.error("directives", str(e))
+                    raise
+            else:
+                tracker.skip("directives", "not provided")
 
             # When --ai-skills is used on a NEW project and skills were
             # successfully installed, remove the command files that the
