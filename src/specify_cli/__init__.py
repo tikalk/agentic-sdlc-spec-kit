@@ -3508,11 +3508,12 @@ def init(
             install_bundled_presets(project_path, selected_ai, tracker=tracker)
 
             # Sync team-ai-directives if provided
+            resolved_team_directives = None
             team_arg = team_ai_directives.strip() if team_ai_directives else ""
             if team_arg:
                 tracker.start("directives")
                 try:
-                    status, _resolved_path = sync_team_ai_directives(
+                    status, resolved_team_directives = sync_team_ai_directives(
                         team_arg, project_path, skip_tls=skip_tls
                     )
                     tracker.complete("directives", status)
@@ -3521,6 +3522,16 @@ def init(
                     raise
             else:
                 tracker.skip("directives", "not provided")
+
+            # Save team directives path to config for bash script retrieval
+            if resolved_team_directives is not None:
+                config = load_config(project_path)
+                if "team_directives" not in config:
+                    config["team_directives"] = {}
+                if not isinstance(config["team_directives"], dict):
+                    config["team_directives"] = {}
+                config["team_directives"]["path"] = str(resolved_team_directives)
+                save_config(project_path, config)
 
             # When --ai-skills is used on a NEW project and skills were
             # successfully installed, remove the command files that the
