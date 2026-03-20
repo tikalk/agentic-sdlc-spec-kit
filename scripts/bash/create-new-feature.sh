@@ -36,6 +36,11 @@ while [ $i -le $# ]; do
                 exit 1
             fi
             i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --number requires a value' >&2
+                exit 1
+            fi
             BRANCH_NUMBER="$next_arg"
             ;;
         --contracts)
@@ -391,7 +396,7 @@ replace_date_placeholders() {
 }
 
 # Apply defaults for options if not explicitly set
-TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT")
+TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
 SPEC_FILE="$FEATURE_DIR/spec.md"
 if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
 
@@ -410,7 +415,7 @@ fi
 # Replace [DATE] placeholders with current date
 replace_date_placeholders "$SPEC_FILE"
 
-CONTEXT_TEMPLATE=$(resolve_template "context-template" "$REPO_ROOT")
+CONTEXT_TEMPLATE=$(resolve_template "context-template" "$REPO_ROOT") || true
 CONTEXT_FILE="$FEATURE_DIR/context.md"
 
 # Function to discover team directives (Issue #47)
