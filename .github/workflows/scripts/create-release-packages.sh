@@ -26,9 +26,27 @@ fi
 echo "Building release packages for $NEW_VERSION"
 
 # Create and use .genreleases directory for all build artifacts
-GENRELEASES_DIR=".genreleases"
+# Override via GENRELEASES_DIR env var (e.g. for tests writing to a temp dir)
+GENRELEASES_DIR="${GENRELEASES_DIR:-.genreleases}"
+
+# Guard against unsafe GENRELEASES_DIR values before cleaning
+if [[ -z "$GENRELEASES_DIR" ]]; then
+  echo "GENRELEASES_DIR must not be empty" >&2
+  exit 1
+fi
+case "$GENRELEASES_DIR" in
+  '/'|'.'|'..')
+    echo "Refusing to use unsafe GENRELEASES_DIR value: $GENRELEASES_DIR" >&2
+    exit 1
+    ;;
+esac
+if [[ "$GENRELEASES_DIR" == *".."* ]]; then
+  echo "Refusing to use GENRELEASES_DIR containing '..' path segments: $GENRELEASES_DIR" >&2
+  exit 1
+fi
+
 mkdir -p "$GENRELEASES_DIR"
-rm -rf "$GENRELEASES_DIR"/* || true
+rm -rf "${GENRELEASES_DIR%/}/"* || true
 
 rewrite_paths() {
   sed -E \
@@ -228,7 +246,7 @@ build_variant() {
     esac
   fi
 
-  [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" -exec cp --parents {} "$SPEC_DIR"/ \; ; echo "Copied templates -> .specify/templates"; }
+  [[ -d templates ]] && { mkdir -p "$SPEC_DIR/templates"; find templates -type f -not -path "templates/commands/*" -not -name "vscode-settings.json" | while IFS= read -r f; do d="$SPEC_DIR/$(dirname "$f")"; mkdir -p "$d"; cp "$f" "$d/"; done; echo "Copied templates -> .specify/templates"; }
 
   case $agent in
     claude)
@@ -325,34 +343,35 @@ build_variant() {
 ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf junie codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi trae pi iflow generic)
 ALL_SCRIPTS=(sh ps)
 
-norm_list() {
-  tr ',\n' '  ' | awk '{for(i=1;i<=NF;i++){if(!seen[$i]++){printf((out?"\n":"") $i);out=1}}}END{printf("\n")}'
-}
-
 validate_subset() {
-  local type=$1; shift; local -n allowed=$1; shift; local items=("$@")
+  local type=$1; shift
+  local allowed_str="$1"; shift
   local invalid=0
-  for it in "${items[@]}"; do
+  for it in "$@"; do
     local found=0
-    for a in "${allowed[@]}"; do [[ $it == "$a" ]] && { found=1; break; }; done
+    for a in $allowed_str; do
+      if [[ "$it" == "$a" ]]; then found=1; break; fi
+    done
     if [[ $found -eq 0 ]]; then
-      echo "Error: unknown $type '$it' (allowed: ${allowed[*]})" >&2
+      echo "Error: unknown $type '$it' (allowed: $allowed_str)" >&2
       invalid=1
     fi
   done
   return $invalid
 }
 
+read_list() { tr ',\n' '  ' | awk '{for(i=1;i<=NF;i++){if(!seen[$i]++){printf((out?" ":"") $i);out=1}}}END{printf("\n")}'; }
+
 if [[ -n ${AGENTS:-} ]]; then
-  mapfile -t AGENT_LIST < <(printf '%s' "$AGENTS" | norm_list)
-  validate_subset agent ALL_AGENTS "${AGENT_LIST[@]}" || exit 1
+  read -ra AGENT_LIST <<< "$(printf '%s' "$AGENTS" | read_list)"
+  validate_subset agent "${ALL_AGENTS[*]}" "${AGENT_LIST[@]}" || exit 1
 else
   AGENT_LIST=("${ALL_AGENTS[@]}")
 fi
 
 if [[ -n ${SCRIPTS:-} ]]; then
-  mapfile -t SCRIPT_LIST < <(printf '%s' "$SCRIPTS" | norm_list)
-  validate_subset script ALL_SCRIPTS "${SCRIPT_LIST[@]}" || exit 1
+  read -ra SCRIPT_LIST <<< "$(printf '%s' "$SCRIPTS" | read_list)"
+  validate_subset script "${ALL_SCRIPTS[*]}" "${SCRIPT_LIST[@]}" || exit 1
 else
   SCRIPT_LIST=("${ALL_SCRIPTS[@]}")
 fi

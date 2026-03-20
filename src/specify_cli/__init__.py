@@ -315,6 +315,9 @@ AI_ASSISTANT_ALIASES = {
     "kiro": "kiro-cli",
 }
 
+# Agents that use TOML command format (others use Markdown)
+_TOML_AGENTS = frozenset({"gemini", "tabnine"})
+
 def _build_ai_assistant_help() -> str:
     """Build the --ai help text from AGENT_CONFIG so it stays in sync with runtime config."""
 
@@ -1095,6 +1098,241 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, script_
     return project_path
 
 
+def _locate_core_pack() -> Path | None:
+    """Return the filesystem path to the bundled core_pack directory, or None.
+
+    Only present in wheel installs: hatchling's force-include copies
+    templates/, scripts/ etc. into specify_cli/core_pack/ at build time.
+
+    Source-checkout and editable installs do NOT have this directory.
+    Callers that need to work in both environments must check the repo-root
+    trees (templates/, scripts/) as a fallback when this returns None.
+    """
+    # Wheel install: core_pack is a sibling directory of this file
+    candidate = Path(__file__).parent / "core_pack"
+    if candidate.is_dir():
+        return candidate
+    return None
+
+
+def _locate_release_script() -> tuple[Path, str]:
+    """Return (script_path, shell_cmd) for the platform-appropriate release script.
+
+    Checks the bundled core_pack first, then falls back to the source checkout.
+    Returns the bash script on Unix and the PowerShell script on Windows.
+    Raises FileNotFoundError if neither can be found.
+    """
+    if os.name == "nt":
+        name = "create-release-packages.ps1"
+        shell = shutil.which("pwsh")
+        if not shell:
+            raise FileNotFoundError(
+                "'pwsh' (PowerShell 7+) not found on PATH. "
+                "The bundled release script requires PowerShell 7+ (pwsh), "
+                "not Windows PowerShell 5.x (powershell.exe). "
+                "Install from https://aka.ms/powershell to use offline scaffolding."
+            )
+    else:
+        name = "create-release-packages.sh"
+        shell = "bash"
+
+    # Wheel install: core_pack/release_scripts/
+    candidate = Path(__file__).parent / "core_pack" / "release_scripts" / name
+    if candidate.is_file():
+        return candidate, shell
+
+    # Source-checkout fallback
+    repo_root = Path(__file__).parent.parent.parent
+    candidate = repo_root / ".github" / "workflows" / "scripts" / name
+    if candidate.is_file():
+        return candidate, shell
+
+    raise FileNotFoundError(f"Release script '{name}' not found in core_pack or source checkout")
+
+
+def scaffold_from_core_pack(
+    project_path: Path,
+    ai_assistant: str,
+    script_type: str,
+    is_current_dir: bool = False,
+    *,
+    tracker: StepTracker | None = None,
+) -> bool:
+    """Scaffold a project from bundled core_pack assets — no network access required.
+
+    Invokes the bundled create-release-packages script (bash on Unix, PowerShell
+    on Windows) to generate the full project scaffold for a single agent.  This
+    guarantees byte-for-byte parity between ``specify init`` and the GitHub
+    release ZIPs because both use the exact same script.
+
+    Returns True on success.  Returns False if offline scaffolding failed for
+    any reason, including missing or unreadable assets, missing required tools
+    (bash, pwsh, zip), release-script failure or timeout, or unexpected runtime
+    exceptions.  When ``--offline`` is active the caller should treat False as
+    a hard error rather than falling back to a network download.
+    """
+    # --- Locate asset sources ---
+    core = _locate_core_pack()
+
+    # Command templates
+    if core and (core / "commands").is_dir():
+        commands_dir = core / "commands"
+    else:
+        repo_root = Path(__file__).parent.parent.parent
+        commands_dir = repo_root / "templates" / "commands"
+        if not commands_dir.is_dir():
+            if tracker:
+                tracker.error("scaffold", "command templates not found")
+            return False
+
+    # Scripts directory (parent of bash/ and powershell/)
+    if core and (core / "scripts").is_dir():
+        scripts_dir = core / "scripts"
+    else:
+        repo_root = Path(__file__).parent.parent.parent
+        scripts_dir = repo_root / "scripts"
+        if not scripts_dir.is_dir():
+            if tracker:
+                tracker.error("scaffold", "scripts directory not found")
+            return False
+
+    # Page templates (spec-template.md, plan-template.md, vscode-settings.json, etc.)
+    if core and (core / "templates").is_dir():
+        templates_dir = core / "templates"
+    else:
+        repo_root = Path(__file__).parent.parent.parent
+        templates_dir = repo_root / "templates"
+        if not templates_dir.is_dir():
+            if tracker:
+                tracker.error("scaffold", "page templates not found")
+            return False
+
+    # Release script
+    try:
+        release_script, shell_cmd = _locate_release_script()
+    except FileNotFoundError as exc:
+        if tracker:
+            tracker.error("scaffold", str(exc))
+        return False
+
+    # Preflight: verify required external tools are available
+    if os.name != "nt":
+        if not shutil.which("bash"):
+            msg = "'bash' not found on PATH. Required for offline scaffolding."
+            if tracker:
+                tracker.error("scaffold", msg)
+            return False
+        if not shutil.which("zip"):
+            msg = "'zip' not found on PATH. Required for offline scaffolding. Install with: apt install zip / brew install zip"
+            if tracker:
+                tracker.error("scaffold", msg)
+            return False
+
+    if tracker:
+        tracker.start("scaffold", "applying bundled assets")
+
+    try:
+        if not is_current_dir:
+            project_path.mkdir(parents=True, exist_ok=True)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+
+            # Set up a repo-like directory layout in the temp dir so the
+            # release script finds templates/commands/, scripts/, etc.
+            tmpl_cmds = tmp / "templates" / "commands"
+            tmpl_cmds.mkdir(parents=True)
+            for f in commands_dir.iterdir():
+                if f.is_file():
+                    shutil.copy2(f, tmpl_cmds / f.name)
+
+            # Page templates (needed for vscode-settings.json etc.)
+            if templates_dir.is_dir():
+                tmpl_root = tmp / "templates"
+                for f in templates_dir.iterdir():
+                    if f.is_file():
+                        shutil.copy2(f, tmpl_root / f.name)
+
+            # Scripts (bash/ and powershell/)
+            for subdir in ("bash", "powershell"):
+                src = scripts_dir / subdir
+                if src.is_dir():
+                    dst = tmp / "scripts" / subdir
+                    dst.mkdir(parents=True, exist_ok=True)
+                    for f in src.iterdir():
+                        if f.is_file():
+                            shutil.copy2(f, dst / f.name)
+
+            # Run the release script for this single agent + script type
+            env = os.environ.copy()
+            # Pin GENRELEASES_DIR inside the temp dir so a user-exported
+            # value cannot redirect output or cause rm -rf outside the sandbox.
+            env["GENRELEASES_DIR"] = str(tmp / ".genreleases")
+            if os.name == "nt":
+                cmd = [
+                    shell_cmd, "-File", str(release_script),
+                    "-Version", "v0.0.0",
+                    "-Agents", ai_assistant,
+                    "-Scripts", script_type,
+                ]
+            else:
+                cmd = [shell_cmd, str(release_script), "v0.0.0"]
+                env["AGENTS"] = ai_assistant
+                env["SCRIPTS"] = script_type
+
+            try:
+                result = subprocess.run(
+                    cmd, cwd=str(tmp), env=env,
+                    capture_output=True, text=True,
+                    timeout=120,
+                )
+            except subprocess.TimeoutExpired:
+                msg = "release script timed out after 120 seconds"
+                if tracker:
+                    tracker.error("scaffold", msg)
+                else:
+                    console.print(f"[red]Error:[/red] {msg}")
+                return False
+
+            if result.returncode != 0:
+                msg = result.stderr.strip() or result.stdout.strip() or "unknown error"
+                if tracker:
+                    tracker.error("scaffold", f"release script failed: {msg}")
+                else:
+                    console.print(f"[red]Release script failed:[/red] {msg}")
+                return False
+
+            # Copy the generated files to the project directory
+            build_dir = tmp / ".genreleases" / f"sdd-{ai_assistant}-package-{script_type}"
+            if not build_dir.is_dir():
+                if tracker:
+                    tracker.error("scaffold", "release script produced no output")
+                return False
+
+            for item in build_dir.rglob("*"):
+                if item.is_file():
+                    rel = item.relative_to(build_dir)
+                    dest = project_path / rel
+                    dest.parent.mkdir(parents=True, exist_ok=True)
+                    # When scaffolding into an existing directory (--here),
+                    # use the same merge semantics as the GitHub-download path.
+                    if is_current_dir and dest.name == "settings.json" and dest.parent.name == ".vscode":
+                        handle_vscode_settings(item, dest, rel, verbose=False, tracker=tracker)
+                    else:
+                        shutil.copy2(item, dest)
+
+        if tracker:
+            tracker.complete("scaffold", "bundled assets applied")
+        return True
+
+    except Exception as e:
+        if tracker:
+            tracker.error("scaffold", str(e))
+        else:
+            console.print(f"[red]Error scaffolding from bundled assets:[/red] {e}")
+        return False
+
+
 def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = None) -> None:
     """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
@@ -1487,20 +1725,31 @@ def init(
     debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str = typer.Option(None, "--github-token", help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)"),
     ai_skills: bool = typer.Option(False, "--ai-skills", help="Install Prompt.MD templates as agent skills (requires --ai)"),
+    offline: bool = typer.Option(False, "--offline", help="Use assets bundled in the specify-cli package instead of downloading from GitHub (no network access required). Bundled assets will become the default in v0.6.0 and this flag will be removed."),
     preset: str = typer.Option(None, "--preset", help="Install a preset during initialization (by preset ID)"),
     branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, ...) or 'timestamp' (YYYYMMDD-HHMMSS)"),
 ):
     """
-    Initialize a new Specify project from the latest template.
-    
+    Initialize a new Specify project.
+
+    By default, project files are downloaded from the latest GitHub release.
+    Use --offline to scaffold from assets bundled inside the specify-cli
+    package instead (no internet access required, ideal for air-gapped or
+    enterprise environments).
+
+    NOTE: Starting with v0.6.0, bundled assets will be used by default and
+    the --offline flag will be removed. The GitHub download path will be
+    retired because bundled assets eliminate the need for network access,
+    avoid proxy/firewall issues, and guarantee that templates always match
+    the installed CLI version.
+
     This command will:
     1. Check that required tools are installed (git is optional)
     2. Let you choose your AI assistant
-    3. Download the appropriate template from GitHub
-    4. Extract the template to a new project directory or current directory
-    5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally set up AI assistant commands
-    
+    3. Download template from GitHub (or use bundled assets with --offline)
+    4. Initialize a fresh git repository (if not --no-git and no existing repo)
+    5. Optionally set up AI assistant commands
+
     Examples:
         specify init my-project
         specify init my-project --ai claude
@@ -1517,6 +1766,7 @@ def init(
         specify init my-project --ai claude --ai-skills   # Install agent skills
         specify init --here --ai gemini --ai-skills
         specify init my-project --ai generic --ai-commands-dir .myagent/commands/  # Unsupported agent
+        specify init my-project --offline  # Use bundled assets (no network access)
         specify init my-project --ai claude --preset healthcare-compliance  # With preset
     """
 
@@ -1689,12 +1939,37 @@ def init(
     tracker.complete("ai-select", f"{selected_ai}")
     tracker.add("script-select", "Select script type")
     tracker.complete("script-select", selected_script)
+
+    # Determine whether to use bundled assets or download from GitHub (default).
+    # --offline opts in to bundled assets; without it, always use GitHub.
+    # When --offline is set, scaffold_from_core_pack() will try the wheel's
+    # core_pack/ first, then fall back to source-checkout paths. If neither
+    # location has the required assets it returns False and we error out.
+    _core = _locate_core_pack()
+
+    use_github = not offline
+
+    if use_github and _core is not None:
+        console.print(
+            "[yellow]Note:[/yellow] Bundled assets are available in this install. "
+            "Use [bold]--offline[/bold] to skip the GitHub download — faster, "
+            "no network required, and guaranteed version match.\n"
+            "This will become the default in v0.6.0."
+        )
+
+    if use_github:
+        for key, label in [
+            ("fetch", "Fetch latest release"),
+            ("download", "Download template"),
+            ("extract", "Extract template"),
+            ("zip-list", "Archive contents"),
+            ("extracted-summary", "Extraction summary"),
+        ]:
+            tracker.add(key, label)
+    else:
+        tracker.add("scaffold", "Apply bundled assets")
+
     for key, label in [
-        ("fetch", "Fetch latest release"),
-        ("download", "Download template"),
-        ("extract", "Extract template"),
-        ("zip-list", "Archive contents"),
-        ("extracted-summary", "Extraction summary"),
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
     ]:
@@ -1716,9 +1991,28 @@ def init(
         try:
             verify = not skip_tls
             local_ssl_context = ssl_context if verify else False
-            local_client = httpx.Client(verify=local_ssl_context)
 
-            download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
+            if use_github:
+                with httpx.Client(verify=local_ssl_context) as local_client:
+                    download_and_extract_template(project_path, selected_ai, selected_script, here, verbose=False, tracker=tracker, client=local_client, debug=debug, github_token=github_token)
+            else:
+                scaffold_ok = scaffold_from_core_pack(project_path, selected_ai, selected_script, here, tracker=tracker)
+                if not scaffold_ok:
+                    # --offline explicitly requested: never attempt a network download
+                    console.print(
+                        "\n[red]Error:[/red] --offline was specified but scaffolding from bundled assets failed.\n"
+                        "Common causes: missing bash/pwsh, script permission errors, or incomplete wheel.\n"
+                        "Remove --offline to attempt a GitHub download instead."
+                    )
+                    # Surface the specific failure reason from the tracker
+                    for step in tracker.steps:
+                        if step["key"] == "scaffold" and step["detail"]:
+                            console.print(f"[red]Detail:[/red] {step['detail']}")
+                            break
+                    # Clean up partial project directory (same as the GitHub-download failure path)
+                    if not here and project_path.exists():
+                        shutil.rmtree(project_path)
+                    raise typer.Exit(1)
 
             # For generic agent, rename placeholder directory to user-specified path
             if selected_ai == "generic" and ai_commands_dir:
@@ -1799,6 +2093,7 @@ def init(
                 "branch_numbering": branch_numbering or "sequential",
                 "here": here,
                 "preset": preset,
+                "offline": offline,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
             })
@@ -1834,7 +2129,13 @@ def init(
                 except Exception as preset_err:
                     console.print(f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}")
 
+            # Scaffold path has no zip archive to clean up
+            if not use_github:
+                tracker.skip("cleanup", "not needed (no download)")
+
             tracker.complete("final", "project ready")
+        except (typer.Exit, SystemExit):
+            raise
         except Exception as e:
             tracker.error("final", str(e))
             console.print(Panel(f"Initialization failed: {e}", title="Failure", border_style="red"))
