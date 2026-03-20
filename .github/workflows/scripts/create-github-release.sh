@@ -12,8 +12,9 @@ fi
 
 VERSION="$1"
 
-# Remove 'v' prefix from version for release title
+# Remove 'v' prefix and agentic-sdlc- prefix for release title
 VERSION_NO_V=${VERSION#v}
+VERSION_NO_V=${VERSION_NO_V#agentic-sdlc-}
 
 gh release create "$VERSION" \
   .genreleases/agentic-sdlc-spec-kit-template-copilot-sh-"$VERSION".zip \
