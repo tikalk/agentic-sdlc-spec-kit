@@ -30,8 +30,11 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 
 ### When Architecture Exists
 
-If `.specify/memory/adr.md` exists:
-1. Load all ADRs from `.specify/memory/adr.md`
+If ADRs exist in any location (check all three):
+1. Load ADRs from all locations (priority order):
+   - `.specify/memory/adr.md` (canonical - Accepted ADRs)
+   - `team-ai-directives/context_modules/adr.md` (team canonical - if configured)
+   - `.specify/drafts/adr.md` (working copy - Proposed/Discovered)
 2. Load architecture description from `AD.md` (if present)
 3. Load the generated plan from `.specify/memory/plan.md`
 4. Execute 7 PILLAR 3 checks:
@@ -50,13 +53,13 @@ If `.specify/memory/adr.md` exists:
 
 ### When Architecture Doesn't Exist
 
-If `.specify/memory/adr.md` doesn't exist:
+If no ADRs exist in any location:
 - Skip validation gracefully
 - Return `{"status":"skipped","reason":"architecture_not_found"}` if `--json` flag used
 
 Example output:
 ```
-⏭️  Architecture not found: .specify/memory/adr.md
+⏭️  Architecture not found (no ADRs in drafts/memory/team)
      Skipping validation gracefully
 ```
 
@@ -67,8 +70,10 @@ Example output:
 ```
 🔍 Architecture Validation Mode (READ-ONLY)
 
-📋 ADR file found: .specify/memory/adr.md
-   Found 12 ADR(s)
+📋 ADR files found: N
+   - memory: X ADR(s)
+   - team: Y ADR(s) [if configured]
+   - drafts: Z ADR(s)
 
 Executing validation checks...
    ✓ PILLAR_1: Component alignment (0 issues)
@@ -91,7 +96,11 @@ Warnings: 5
 {
   "status": "success",
   "action": "validate",
-  "adr_file": ".specify/memory/adr.md",
+  "adr_locations": {
+    "memory": ".specify/memory/adr.md",
+    "team": "team-ai-directives/context_modules/adr.md",
+    "drafts": ".specify/drafts/adr.md"
+  },
   "adr_count": 12,
   "findings": {
     "blocking": [],

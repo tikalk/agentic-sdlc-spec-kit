@@ -8,16 +8,17 @@ adr:
   # minimal: Only document critical decisions
   heuristic: "surprising"
   
-  # System-level ADR file location
-  location: ".specify/drafts/adr.md"
+  # ADR file locations (ADR Lifecycle)
+  # Working copy - init/specify/clarify write here
+  drafts_location: ".specify/drafts/adr.md"
+  # Project canonical - Accepted ADRs (when no team-ai-directives)
+  memory_location: ".specify/memory/adr.md"
+  # Team canonical - Accepted ADRs (when team-ai-directives is configured)
+  team_location: "context_modules/adr.md"
 
 ad:
   # Architecture Description file location
   location: "AD.md"
-  
-  # Team-ai-directives output (when configured)
-  team_location: "AD.md"
-  team_pr: true  # Create PR to team-ai-directives when configured
 
 views:
   # Default views to generate

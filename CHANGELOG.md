@@ -17,6 +17,17 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
   - docs: update SUPPORT.md, fix issue templates, add preset submission template (#1910)
   - docs: update publishing guide with Category and Effect columns (#1913)
 
+- **architect extension v1.0.0**: ADR lifecycle with sequential viewpoint generation
+  - Sequential viewpoint generation: "Generate views in this order (earlier views inform later ones)"
+  - ADR lifecycle management:
+    - `init`/`specify` output to `.specify/drafts/adr.md` (Proposed/Discovered status)
+    - `clarify` refines ADRs in drafts
+    - `implement` moves Accepted ADRs to canonical location:
+      - `.specify/memory/adr.md` (project canonical)
+      - `team-ai-directives/context_modules/adr.md` (if team-ai-directives configured)
+    - `analyze`/`validate` read from all locations (memory, team, drafts)
+  - Updated `extension.yml` and `config-template.yml` with ADR location defaults
+
 ### Preserved
 
 - All tikalk-specific features maintained:

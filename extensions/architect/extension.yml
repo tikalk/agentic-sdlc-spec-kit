@@ -137,11 +137,16 @@ hooks:
 defaults:
   adr:
     heuristic: "surprising"  # surprising | all | minimal
-    location: ".specify/memory/adr.md"
+    drafts_location: ".specify/drafts/adr.md"      # Working copy (init/specify/clarify)
+    memory_location: ".specify/memory/adr.md"      # Accepted ADRs (project canonical)
+    team_location: "context_modules/adr.md"         # Accepted ADRs (team-ai-directives)
   ad:
     location: "AD.md"
-    # When team-ai-directives is configured, output to TD root via PR
-    team_location: "AD.md"
-    team_pr: true  # Create PR to team-ai-directives when configured
   views: "core"  # core | all | comma-separated
   decompose: true
+
+# ADR Lifecycle:
+# 1. init/specify -> drafts (Proposed/Discovered status)
+# 2. clarify -> drafts (refines in place)
+# 3. implement -> Accepted ADRs to memory or team-ai-directives
+# 4. analyze/validate -> read from all locations

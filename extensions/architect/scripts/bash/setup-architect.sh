@@ -120,14 +120,24 @@ fi
 # Get all paths and variables from common functions
 eval "$(get_feature_paths)"
 
-# Ensure the memory directory exists
+# Ensure directories exist
 mkdir -p "$REPO_ROOT/.specify/memory"
+mkdir -p "$REPO_ROOT/.specify/drafts"
 
-# Architecture files (new structure: AD.md at root, ADRs in memory/)
+# Architecture files (ADR Lifecycle)
 AD_FILE="$REPO_ROOT/AD.md"
-ADR_FILE="$REPO_ROOT/.specify/memory/adr.md"
+ADR_DRAFTS_FILE="$REPO_ROOT/.specify/drafts/adr.md"
+ADR_MEMORY_FILE="$REPO_ROOT/.specify/memory/adr.md"
+ADR_FILE="$REPO_ROOT/.specify/drafts/adr.md"  # Default to drafts
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
+
+# Team-ai-directives (if configured)
+TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")}"
+if [[ -n "$TEAM_DIRECTIVES" ]] && [[ -d "$TEAM_DIRECTIVES" ]]; then
+    mkdir -p "$TEAM_DIRECTIVES/context_modules"
+    ADR_TEAM_FILE="$TEAM_DIRECTIVES/context_modules/adr.md"
+fi
 
 # Export for use in functions
 export ARCHITECTURE_VIEWS="$VIEWS"
@@ -612,13 +622,13 @@ $diagram_code
 
 # Action: Specify (greenfield - interactive PRD exploration to create ADRs)
 action_specify() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "📐 Setting up for interactive ADR creation..." >&2
     
-    # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/.specify/memory"
+    # Ensure drafts directory exists
+    mkdir -p "$REPO_ROOT/.specify/drafts"
     
     # Show decomposition status
     if [[ "$DECOMPOSE" == "true" ]]; then
@@ -646,7 +656,7 @@ action_specify() {
 
 | ID | Sub-System | Decision | Status | Date | Owner |
 |----|------------|----------|--------|------|-------|
-
+ 
 ---
 
 EOF
@@ -666,7 +676,8 @@ EOF
     echo "  1. Analyze your PRD/requirements input" >&2
     echo "  2. Ask clarifying questions about architecture" >&2
     echo "  3. Create ADRs for each key decision" >&2
-    echo "  4. Save decisions to .specify/memory/adr.md" >&2
+    echo "  4. Save decisions to .specify/drafts/adr.md (Proposed status)" >&2
+    echo "     (ADRs will be moved to memory/team after /architect.implement)" >&2
     if [[ "$DECOMPOSE" == "true" ]]; then
         echo "  5. Organize ADRs by sub-system" >&2
     fi
@@ -710,12 +721,12 @@ action_clarify() {
 
 # Action: Implement (generate full AD.md from ADRs)
 action_implement() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local ad_file="$REPO_ROOT/AD.md"
     local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
     
     if [[ ! -f "$adr_file" ]]; then
-        echo "❌ ADR file does not exist: $adr_file" >&2
+        echo "❌ ADR drafts file does not exist: $adr_file" >&2
         echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
@@ -743,11 +754,18 @@ action_implement() {
     echo "" >&2
     echo "Ready for Architecture Description generation." >&2
     echo "The AI agent will:" >&2
-    echo "  1. Read all $adr_count ADR(s) from .specify/memory/adr.md" >&2
+    echo "  1. Read all $adr_count ADR(s) from .specify/drafts/adr.md" >&2
     echo "  2. Generate 7 Rozanski & Woods viewpoints" >&2
     echo "  3. Apply Security and Performance perspectives" >&2
     echo "  4. Create Mermaid diagrams for each view" >&2
     echo "  5. Write complete AD.md to project root" >&2
+    echo "  6. Move Accepted ADRs to canonical location" >&2
+    if [[ -n "$TEAM_DIRECTIVES" ]]; then
+        echo "     - Accepted ADRs -> team-ai-directives/context_modules/adr.md" >&2
+    else
+        echo "     - Accepted ADRs -> .specify/memory/adr.md" >&2
+    fi
+    echo "  7. Clean up drafts if all ADRs are Accepted" >&2
     
     if $JSON_MODE; then
         echo "{\"status\":\"success\",\"action\":\"implement\",\"adr_file\":\"$adr_file\",\"ad_file\":\"$ad_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
@@ -756,13 +774,13 @@ action_implement() {
 
 # Action: Initialize (brownfield - reverse-engineer from codebase, ADRs only)
 action_init() {
-    local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
     
     echo "🔍 Initializing brownfield architecture discovery..." >&2
     
-    # Ensure memory directory exists
-    mkdir -p "$REPO_ROOT/.specify/memory"
+    # Ensure drafts directory exists
+    mkdir -p "$REPO_ROOT/.specify/drafts"
     
     # Scan existing docs for deduplication
     local existing_docs

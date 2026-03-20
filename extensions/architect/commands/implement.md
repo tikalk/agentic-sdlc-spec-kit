@@ -50,13 +50,13 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/memory/adr.md` | Architectural decisions with rationale | Input |
+| `.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
 | `AD.md` (root) | Full Architecture Description | Output |
 | `.specify/memory/constitution.md` | Governance principles | Constraint |
 
 ## Outline
 
-1. **Load ADRs**: Parse all ADRs from `.specify/memory/adr.md`
+1. **Load ADRs**: Parse all ADRs from `.specify/drafts/adr.md`
 2. **Determine Views**: Parse `--views` flag to determine which views to generate
 3. **Generate Views**: Create requested viewpoints (core 5 by default, optionally +2)
 4. **Apply Perspectives**: Add Security and Performance perspectives
@@ -73,7 +73,7 @@ You are acting as a **Technical Writer** synthesizing ADRs into comprehensive ar
    - Creates `AD.md` from template if it doesn't exist
 
 2. **Load ADRs**:
-   - Read `.specify/memory/adr.md`
+   - Read `.specify/drafts/adr.md`
    - Parse each ADR: ID, title, context, decision, consequences
    - Build decision index
 
@@ -371,7 +371,7 @@ graph TB
    - Document architectural principles
 
 2. **ADR Summary**:
-   - Create summary table linking to `.specify/memory/adr.md`
+   - Create summary table linking to `.specify/drafts/adr.md`
    - List key decisions with impact levels
 
 3. **Tech Stack Summary**:
@@ -393,7 +393,7 @@ graph TB
    - Write to project root as `AD.md`
 
 3. **Update References**:
-   - Ensure `.specify/memory/adr.md` link is correct
+   - Ensure `.specify/drafts/adr.md` link is correct
    - Update version and timestamp
 
 4. **Generate Report**:
@@ -445,6 +445,68 @@ graph TB
 - [ ] Concurrency View (skipped - use --views all to include)
 - [ ] Operational View (skipped - use --views all to include)
 ```
+
+### Phase 6: ADR Lifecycle Management
+
+**Objective**: Move accepted ADRs to canonical location and clean up drafts
+
+After generating AD.md, manage the ADR lifecycle:
+
+1. **Determine Canonical ADR Location**:
+   - Check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
+   - If team-ai-directives configured → Canonical: `{TEAM_DIRECTIVES}/context_modules/adr.md`
+   - Otherwise → Canonical: `.specify/memory/adr.md`
+
+2. **Read Working Draft ADRs**:
+   - Read `.specify/drafts/adr.md`
+   - Parse each ADR and identify status
+
+3. **Filter ADRs by Status**:
+
+   | Status | Action |
+   |--------|--------|
+   | **Accepted** | Copy to canonical location |
+   | Proposed | Keep in drafts |
+   | Discovered | Keep in drafts |
+   | Deprecated | Remove from canonical (if exists), keep reference |
+   | Superseded | Remove from canonical (if exists), update reference |
+
+4. **Write Accepted ADRs to Canonical Location**:
+   ```
+   a. Create/overwrite canonical ADR file with:
+      - All Accepted ADRs from drafts
+      - Preserve full ADR content (context, decision, consequences)
+   
+   b. Example canonical file structure:
+      # Architecture Decision Records - Canonical
+      
+      ## ADR Index
+      | ID | Sub-System | Decision | Status | Date | Owner |
+      |----|------------|----------|--------|------|-------|
+      | ADR-001 | System | [Decision] | Accepted | YYYY-MM-DD | [Owner] |
+   ```
+
+5. **Update Drafts**:
+   - If all ADRs are Accepted → Remove `.specify/drafts/adr.md`
+   - Otherwise → Keep only non-Accepted ADRs in drafts
+
+6. **Generate ADR Lifecycle Report**:
+
+   ```markdown
+   ## ADR Lifecycle Report
+   
+   **Canonical Location**: [.specify/memory/adr.md|team-ai-directives/context_modules/adr.md]
+   
+   **ADRs Promoted to Canonical**: N
+   - [ADR-001] Accepted
+   - [ADR-003] Accepted
+   
+   **ADRs Remaining in Drafts**: M
+   - [ADR-002] Proposed (pending clarification)
+   - [ADR-004] Discovered (pending validation)
+   
+   **Drafts Cleaned**: [yes|no]
+   ```
 
 ## Diagram Generation
 

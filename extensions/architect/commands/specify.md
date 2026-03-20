@@ -64,10 +64,10 @@ You are acting as a **Solutions Architect** facilitating an architectural discov
 
 | Level | Location | ADR File | Architecture Description |
 |-------|----------|----------|--------------------------|
-| **System** | Main branch | `.specify/memory/adr.md` | `AD.md` (root) |
+| **System** | Main branch | `.specify/drafts/adr.md` | `AD.md` (root) |
 | **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` |
 
-This command operates at the **System level**, creating ADRs in `.specify/memory/adr.md`.
+This command operates at the **System level**, creating ADRs in `.specify/drafts/adr.md`.
 
 ## Outline
 
@@ -78,7 +78,7 @@ Given the PRD input, execute this workflow:
 3. **Load Governance**: Check `.specify/memory/constitution.md` for architectural constraints
 4. **Exploration Phase**: Interactive discussion to surface trade-offs and options (per sub-system)
 5. **Decision Phase**: Document decisions as ADRs with full rationale (organized by sub-system)
-6. **Output**: Write ADRs to `.specify/memory/adr.md` with sub-system organization
+6. **Output**: Write ADRs to `.specify/drafts/adr.md` with sub-system organization
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing ADRs.
 
@@ -406,12 +406,12 @@ Proposed
 **Objective**: Write finalized ADRs to file
 
 1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to ensure `.specify/memory/adr.md` exists
+   - Execute `{SCRIPT}` to ensure `.specify/drafts/adr.md` exists
    - Script creates from template if file doesn't exist
    - Pass `--no-decompose` if decomposition was disabled
 
 2. **Write ADRs**:
-   - Append new ADRs to `.specify/memory/adr.md`
+   - Append new ADRs to `.specify/drafts/adr.md`
    - Update ADR index table at top of file (include Sub-System column)
    - Preserve any existing ADRs (don't overwrite)
    - **If decomposed**: Add section headers for each sub-system
