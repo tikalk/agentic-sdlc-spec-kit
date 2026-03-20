@@ -1050,10 +1050,12 @@ class TestCliValidation:
         target = tmp_path / "kiro-alias-proj"
 
         with patch("specify_cli.download_and_extract_template") as mock_download, \
+             patch("specify_cli.scaffold_from_core_pack", create=True) as mock_scaffold, \
              patch("specify_cli.ensure_executable_scripts"), \
              patch("specify_cli.ensure_constitution_from_template"), \
              patch("specify_cli.is_git_repo", return_value=False), \
              patch("specify_cli.shutil.which", return_value="/usr/bin/git"):
+            mock_scaffold.return_value = True
             result = runner.invoke(
                 app,
                 [
@@ -1069,9 +1071,14 @@ class TestCliValidation:
             )
 
         assert result.exit_code == 0
-        assert mock_download.called
-        # download_and_extract_template(project_path, ai_assistant, script_type, ...)
+        # Without --offline, the download path should be taken.
+        assert mock_download.called, (
+            "Expected download_and_extract_template to be called (default non-offline path)"
+        )
         assert mock_download.call_args.args[1] == "kiro-cli"
+        assert not mock_scaffold.called, (
+            "scaffold_from_core_pack should not be called without --offline"
+        )
 
     def test_q_removed_from_agent_config(self):
         """Amazon Q legacy key should not remain in AGENT_CONFIG."""

@@ -27,13 +27,27 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/specify_cli"]
 
-# Include bundled extensions and presets in the wheel
+# Include bundled extensions, presets, and core assets in the wheel
 [tool.hatch.build.targets.wheel.force-include]
+# Tikalk bundled extensions and presets
 "extensions/levelup" = "specify_cli/bundled_extensions/levelup"
 "extensions/architect" = "specify_cli/bundled_extensions/architect"
 "extensions/quick" = "specify_cli/bundled_extensions/quick"
 "extensions/product" = "specify_cli/bundled_extensions/product"
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
+# Core pack assets for offline/air-gapped scaffolding
+"templates/agent-file-template.md" = "specify_cli/core_pack/templates/agent-file-template.md"
+"templates/checklist-template.md" = "specify_cli/core_pack/templates/checklist-template.md"
+"templates/constitution-template.md" = "specify_cli/core_pack/templates/constitution-template.md"
+"templates/plan-template.md" = "specify_cli/core_pack/templates/plan-template.md"
+"templates/spec-template.md" = "specify_cli/core_pack/templates/spec-template.md"
+"templates/tasks-template.md" = "specify_cli/core_pack/templates/tasks-template.md"
+"templates/vscode-settings.json" = "specify_cli/core_pack/templates/vscode-settings.json"
+"templates/commands" = "specify_cli/core_pack/commands"
+"scripts/bash" = "specify_cli/core_pack/scripts/bash"
+"scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
+".github/workflows/scripts/create-release-packages.sh" = "specify_cli/core_pack/release_scripts/create-release-packages.sh"
+".github/workflows/scripts/create-release-packages.ps1" = "specify_cli/core_pack/release_scripts/create-release-packages.ps1"
 
 [tool.hatch.build.targets.sdist]
 include = [

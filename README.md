@@ -78,7 +78,7 @@ Choose your preferred installation method:
 
 #### Option 1: Persistent Installation (Recommended)
 
-Install once and use everywhere:
+Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/github/spec-kit/releases) for the latest):
 
 ```bash
 uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
@@ -121,6 +121,12 @@ uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init 
 - Cleaner shell configuration
 
 ### 2. Initialize Your Project
+
+#### Option 3: Enterprise / Air-Gapped Installation
+
+If your environment blocks access to PyPI or GitHub, see the [Enterprise / Air-Gapped Installation](./docs/installation.md#enterprise--air-gapped-installation) guide for step-by-step instructions on using `pip download` to create portable, OS-specific wheel bundles on a connected machine.
+
+### 2. Establish project principles
 
 The `specify init` command supports comprehensive configuration options:
 
