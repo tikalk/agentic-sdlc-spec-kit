@@ -5,6 +5,26 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.16] - 2026-03-20
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (6 commits)
+  - feat: add Junie agent support (#1831)
+  - feat: add timestamp-based branch naming option (`--branch-numbering timestamp`) (#1911)
+  - fix: Align native skills frontmatter with install_ai_skills (#1920)
+  - docs: add Extension Comparison Guide for community extensions (#1897)
+  - docs: update SUPPORT.md, fix issue templates, add preset submission template (#1910)
+  - docs: update publishing guide with Category and Effect columns (#1913)
+
+### Preserved
+
+- All tikalk-specific features maintained:
+  - Orange branding theme (#f47721)
+  - `--team-ai-directives` CLI parameter
+  - Skills package manager (`specify skill` subcommand)
+  - Bundled extensions/presets installation
+
 ## [0.1.15] - 2026-03-19
 
 ### Changed

@@ -206,6 +206,13 @@ AGENT_CONFIG = {
         "install_url": None,  # IDE-based
         "requires_cli": False,
     },
+    "junie": {
+        "name": "Junie",
+        "folder": ".junie/",
+        "commands_subdir": "commands",
+        "install_url": "https://junie.jetbrains.com/",
+        "requires_cli": True,
+    },
     "kilocode": {
         "name": "Kilo Code",
         "folder": ".kilocode/",
@@ -2486,6 +2493,15 @@ AGENT_SKILLS_DIR_OVERRIDES = {
 DEFAULT_SKILLS_DIR = ".agents/skills"
 
 # Agents whose downloaded template already contains skills in the final layout.
+#
+# Technical debt note:
+# - Spec-kit currently has multiple SKILL.md generators:
+#   1) release packaging scripts that build the template zip (native skills),
+#   2) `install_ai_skills()` which converts extracted command templates to skills,
+#   3) extension/preset overrides via `agents.CommandRegistrar.render_skill_command()`.
+# - Keep the skills frontmatter schema aligned across all generators
+#   (at minimum: name/description/compatibility/metadata.{author,source}).
+# - When adding fields here, update the release scripts and override writers too.
 NATIVE_SKILLS_AGENTS = {"codex", "kimi"}
 
 # Enhanced descriptions for each spec-kit command skill
@@ -3206,6 +3222,11 @@ def init(
     preset: str = typer.Option(
         None, "--preset", help="Install a preset during initialization (by preset ID)"
     ),
+    branch_numbering: str = typer.Option(
+        None,
+        "--branch-numbering",
+        help="Branch numbering strategy: 'sequential' (001, 002, ...) or 'timestamp' (YYYYMMDD-HHMMSS)",
+    ),
 ):
     """
     Initialize a new Specify project from the latest template.
@@ -3289,6 +3310,13 @@ def init(
         console.print("[red]Error:[/red] --ai-skills requires --ai to be specified")
         console.print(
             "[yellow]Usage:[/yellow] specify init <project> --ai <agent> --ai-skills"
+        )
+        raise typer.Exit(1)
+
+    BRANCH_NUMBERING_CHOICES = {"sequential", "timestamp"}
+    if branch_numbering and branch_numbering not in BRANCH_NUMBERING_CHOICES:
+        console.print(
+            f"[red]Error:[/red] Invalid --branch-numbering value '{branch_numbering}'. Choose from: {', '.join(sorted(BRANCH_NUMBERING_CHOICES))}"
         )
         raise typer.Exit(1)
 
@@ -3589,6 +3617,7 @@ def init(
                     "ai": selected_ai,
                     "ai_skills": ai_skills,
                     "ai_commands_dir": ai_commands_dir,
+                    "branch_numbering": branch_numbering or "sequential",
                     "here": here,
                     "preset": preset,
                     "script": selected_script,

@@ -536,6 +536,7 @@ One-command, session-based workflow for ad-hoc task execution without file artif
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)                              | ✅      | Auggie CLI                                                                                                                                |
 | [iFlow CLI](https://docs.iflow.cn/en/cli/quickstart)                                 | ✅      | iFlow CLI                                                                                                                                 |
 | [Pi Coding Agent](https://pi.dev)                                                    | ✅      | Pi terminal coding agent                                                                                                                  |
+| [Junie](https://junie.jetbrains.com/)                                                | ✅      | JetBrains Junie CLI                                                                                                                       |
 | **IDE-Based Agents**                                                                 |         |                                                                                                                                           |
 | [GitHub Copilot](https://code.visualstudio.com/)                                     | ✅      | GitHub Copilot in VS Code and compatible editors                                                                                          |
 | [Windsurf](https://windsurf.com/)                                                    | ✅      | Windsurf IDE workflows                                                                                                                    |
@@ -679,7 +680,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Command | Description |
 | ------- | ----------- |
 | `init` | Initialize a new Specify project from the latest template |
-| `check` | Check for installed tools: `git` plus all CLI-based agents configured in `AGENT_CONFIG` (e.g., `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, etc.) |
+| `check` | Check for installed tools: `git` plus all CLI-based agents configured in `AGENT_CONFIG` (e.g., `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `junie`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, etc.) |
 | `skill` | Manage agent skills: search, install, list, eval, update, remove, sync-team, check-updates, config |
 
 ### `specify init` Arguments & Options
@@ -687,7 +688,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | Argument/Option | Type | Description |
 | --------------- | ---- | ----------- |
 | `<project-name>` | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai` | Option | AI assistant to use (see `AGENT_CONFIG` for the full list): `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai` | Option | AI assistant to use (see `AGENT_CONFIG` for the full list): `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `junie`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, or `generic` (requires `--ai-commands-dir`) |
 | `--ai-commands-dir` | Option | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
 | `--script` | Option | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell) |
 | `--ignore-agent-tools` | Flag | Skip checks for AI agent tools like Claude Code |
@@ -699,6 +700,7 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 | `--github-token` | Option | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable) |
 | `--team-ai-directives` | Option | Path or URL to team-ai-directives repository |
 | `--ai-skills` | Flag | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
+| `--branch-numbering` | Option | Branch numbering strategy: `sequential` (default — `001`, `002`, `003`) or `timestamp` (`YYYYMMDD-HHMMSS`). Timestamp mode is useful for distributed teams to avoid numbering conflicts |
 
 ### `specify skill` Commands & Options
 
@@ -825,6 +827,9 @@ specify init my-project --ai claude --team-ai-directives https://github.com/your
 
 # Initialize in current directory
 specify init . --ai copilot --script sh
+
+# Use timestamp-based branch numbering (useful for distributed teams)
+specify init my-project --ai claude --branch-numbering timestamp
 
 # Check system requirements
 specify check

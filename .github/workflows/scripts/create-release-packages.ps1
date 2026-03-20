@@ -14,7 +14,7 @@
 
 .PARAMETER Agents
     Comma or space separated subset of agents to build (default: all)
-    Valid agents: claude, gemini, copilot, cursor-agent, qwen, opencode, windsurf, codex, kilocode, auggie, roo, codebuddy, amp, kiro-cli, bob, qodercli, shai, tabnine, agy, vibe, kimi, trae, pi, iflow, generic
+    Valid agents: claude, gemini, copilot, cursor-agent, qwen, opencode, windsurf, junie, codex, kilocode, auggie, roo, codebuddy, amp, kiro-cli, bob, qodercli, shai, tabnine, agy, vibe, kimi, trae, pi, iflow, generic
 
 .PARAMETER Scripts
     Comma or space separated subset of script types to build (default: both)
@@ -207,6 +207,10 @@ agent: $basename
 # Create skills in <skills_dir>\<name>\SKILL.md format.
 # Most agents use hyphenated names (e.g. speckit-plan); Kimi is the
 # current dotted-name exception (e.g. speckit.plan).
+#
+# Technical debt note:
+# Keep SKILL.md frontmatter aligned with `install_ai_skills()` and extension
+# overrides (at minimum: name/description/compatibility/metadata.{author,source}).
 function New-Skills {
     param(
         [string]$SkillsDir,
@@ -288,7 +292,7 @@ function New-Skills {
             if ($inBody) { $templateBody += "$line`n" }
         }
 
-        $skillContent = "---`nname: `"$skillName`"`ndescription: `"$description`"`n---`n`n$templateBody"
+        $skillContent = "---`nname: `"$skillName`"`ndescription: `"$description`"`ncompatibility: `"Requires spec-kit project structure with .specify/ directory`"`nmetadata:`n  author: `"github-spec-kit`"`n  source: `"templates/commands/$name.md`"`n---`n`n$templateBody"
         Set-Content -Path (Join-Path $skillDir "SKILL.md") -Value $skillContent -NoNewline
     }
 }
@@ -400,6 +404,10 @@ function Build-Variant {
             $cmdDir = Join-Path $baseDir ".windsurf/workflows"
             Generate-Commands -Agent 'windsurf' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
         }
+        'junie' {
+            $cmdDir = Join-Path $baseDir ".junie/commands"
+            Generate-Commands -Agent 'junie' -Extension 'md' -ArgFormat '$ARGUMENTS' -OutputDir $cmdDir -ScriptVariant $Script
+        }
         'codex' {
             $skillsDir = Join-Path $baseDir ".agents/skills"
             New-Item -ItemType Directory -Force -Path $skillsDir | Out-Null
@@ -489,7 +497,7 @@ function Build-Variant {
 }
 
 # Define all agents and scripts
-$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'kimi', 'trae', 'pi', 'iflow', 'generic')
+$AllAgents = @('claude', 'gemini', 'copilot', 'cursor-agent', 'qwen', 'opencode', 'windsurf', 'junie', 'codex', 'kilocode', 'auggie', 'roo', 'codebuddy', 'amp', 'kiro-cli', 'bob', 'qodercli', 'shai', 'tabnine', 'agy', 'vibe', 'kimi', 'trae', 'pi', 'iflow', 'generic')
 $AllScripts = @('sh', 'ps')
 
 function Normalize-List {

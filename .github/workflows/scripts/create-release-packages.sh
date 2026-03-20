@@ -6,7 +6,7 @@ set -euo pipefail
 # Usage: .github/workflows/scripts/create-release-packages.sh <version>
 #   Version argument should include leading 'v'.
 #   Optionally set AGENTS and/or SCRIPTS env vars to limit what gets built.
-#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi trae pi iflow generic (default: all)
+#     AGENTS  : space or comma separated subset of: claude gemini copilot cursor-agent qwen opencode windsurf junie codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi trae pi iflow generic (default: all)
 #     SCRIPTS : space or comma separated subset of: sh ps (default: both)
 #   Examples:
 #     AGENTS=claude SCRIPTS=sh $0 v0.2.0
@@ -126,6 +126,10 @@ EOF
 # Create skills in <skills_dir>/<name>/SKILL.md format.
 # Most agents use hyphenated names (e.g. speckit-plan); Kimi is the
 # current dotted-name exception (e.g. speckit.plan).
+#
+# Technical debt note:
+# Keep SKILL.md frontmatter aligned with `install_ai_skills()` and extension
+# overrides (at minimum: name/description/compatibility/metadata.{author,source}).
 create_skills() {
   local skills_dir="$1"
   local script_variant="$2"
@@ -189,6 +193,10 @@ create_skills() {
       printf -- '---\n'
       printf 'name: "%s"\n' "$skill_name"
       printf 'description: "%s"\n' "$description"
+      printf 'compatibility: "%s"\n' "Requires spec-kit project structure with .specify/ directory"
+      printf -- 'metadata:\n'
+      printf '  author: "%s"\n' "github-spec-kit"
+      printf '  source: "%s"\n' "templates/commands/${name}.md"
       printf -- '---\n\n'
       printf '%s\n' "$template_body"
     } > "$skill_dir/SKILL.md"
@@ -252,6 +260,9 @@ build_variant() {
     windsurf)
       mkdir -p "$base_dir/.windsurf/workflows"
       generate_commands windsurf md "\$ARGUMENTS" "$base_dir/.windsurf/workflows" "$script" ;;
+    junie)
+      mkdir -p "$base_dir/.junie/commands"
+      generate_commands junie md "\$ARGUMENTS" "$base_dir/.junie/commands" "$script" ;;
     codex)
       mkdir -p "$base_dir/.agents/skills"
       create_skills "$base_dir/.agents/skills" "$script" "codex" "-" ;;
@@ -313,7 +324,7 @@ build_variant() {
 }
 
 # Determine agent list
-ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi trae pi iflow generic)
+ALL_AGENTS=(claude gemini copilot cursor-agent qwen opencode windsurf junie codex kilocode auggie roo codebuddy amp shai tabnine kiro-cli agy bob vibe qodercli kimi trae pi iflow generic)
 ALL_SCRIPTS=(sh ps)
 
 norm_list() {
