@@ -334,11 +334,67 @@ You are acting as a **Product Writer** synthesizing PDRs into comprehensive prod
      - target_branch: "main"
    ```
 
-6. **Cleanup Phase** (when NOT configured):
-   - Filter PDRs with status "Accepted" from `.specify/drafts/pdr.md`
-   - Copy accepted PDRs to `.specify/memory/pdr.md`
-   - Check if `.specify/drafts/pdr.md` has any remaining non-accepted PDRs
-   - If no remaining records → remove `.specify/drafts/` directory
+### Phase 6: PDR Lifecycle Management
+
+**Objective**: Move accepted PDRs to canonical location and clean up drafts
+
+After generating PRD, manage the PDR lifecycle:
+
+1. **Determine Canonical PDR Location**:
+   - Check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
+   - If team-ai-directives configured → Canonical: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
+   - Otherwise → Canonical: `.specify/memory/pdr.md`
+
+2. **Read Working Draft PDRs**:
+   - Read `.specify/drafts/pdr.md`
+   - Parse each PDR and identify status
+
+3. **Filter PDRs by Status**:
+
+   | Status | Action |
+   |--------|--------|
+   | **Accepted** | Copy to canonical location |
+   | Proposed | Keep in drafts |
+   | Discovered | Keep in drafts |
+   | Deprecated | Remove from canonical (if exists), keep reference |
+   | Superseded | Remove from canonical (if exists), update reference |
+
+4. **Write Accepted PDRs to Canonical Location**:
+   ```
+   a. Create/overwrite canonical PDR file with:
+      - All Accepted PDRs from drafts
+      - Preserve full PDR content (context, decision, consequences)
+   
+   b. Example canonical file structure:
+      # Product Decision Records - Canonical
+      
+      ## PDR Index
+      | ID | Category | Decision | Status | Date | Owner |
+      |----|----------|----------|--------|------|-------|
+      | PDR-001 | Problem | [Decision] | Accepted | YYYY-MM-DD | [Owner] |
+   ```
+
+5. **Update Drafts**:
+   - If all PDRs are Accepted → Remove `.specify/drafts/pdr.md`
+   - Otherwise → Keep only non-Accepted PDRs in drafts
+
+6. **Generate PDR Lifecycle Report**:
+
+   ```markdown
+   ## PDR Lifecycle Report
+   
+   **Canonical Location**: [.specify/memory/pdr.md|team-ai-directives/context_modules/pdr.md]
+   
+   **PDRs Promoted to Canonical**: N
+   - [PDR-001] Accepted
+   - [PDR-003] Accepted
+   
+   **PDRs Remaining in Drafts**: M
+   - [PDR-002] Proposed (pending clarification)
+   - [PDR-004] Discovered (pending validation)
+   
+   **Drafts Cleaned**: [yes|no]
+   ```
 
 7. **Update References**:
    - Ensure `.specify/drafts/pdr.md` link is correct

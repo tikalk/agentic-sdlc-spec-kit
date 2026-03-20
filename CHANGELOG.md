@@ -5,6 +5,20 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.17] - 2026-03-20
+
+### Changed
+
+- **product extension v1.0.1**: PDR lifecycle alignment with architect extension
+  - Added explicit `drafts_location` and `memory_location` keys in `extension.yml`
+  - Added PDR lifecycle documentation comment
+  - Renamed "Cleanup Phase" to "Phase 6: PDR Lifecycle Management" in implement.md
+  - Updated pdr-template.md with 3-location model
+
+### Preserved
+
+- All tikalk-specific features maintained (orange branding, --team-ai-directives, skills, bundled extensions)
+
 ## [0.1.16] - 2026-03-20
 
 ### Changed

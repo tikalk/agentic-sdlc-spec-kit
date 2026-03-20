@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.0.0"
+  version: "1.0.1"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -124,13 +124,18 @@ tags:
 defaults:
   pdr:
     heuristic: "surprising"
-    location: ".specify/drafts/pdr.md"
-    # When team-ai-directives is configured, output accepted PDRs to context_modules/
-    team_location: "context_modules/pdr.md"
+    drafts_location: ".specify/drafts/pdr.md"      # Working copy (init/specify/clarify)
+    memory_location: ".specify/memory/pdr.md"      # Accepted PDRs (project canonical)
+    team_location: "context_modules/pdr.md"         # Accepted PDRs (team-ai-directives)
   prd:
     location: "PRD.md"
-    # When team-ai-directives is configured, output to TD root via PR
     team_location: "PRD.md"
     team_pr: true
   sections: "all"
   decompose: true
+
+# PDR Lifecycle:
+# 1. init/specify -> drafts (Proposed/Discovered status)
+# 2. clarify -> drafts (refines in place)
+# 3. implement -> Accepted PDRs to memory or team-ai-directives
+# 4. analyze/validate -> read from all locations

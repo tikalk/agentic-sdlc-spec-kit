@@ -2,6 +2,22 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.0.1] - 2026-03-20
+
+### Changed
+
+- **PDR lifecycle alignment** with architect extension pattern
+  - `extension.yml`: Added explicit `drafts_location` and `memory_location` keys
+  - `extension.yml`: Added lifecycle documentation comment
+  - `commands/implement.md`: Renamed "Cleanup Phase" to "Phase 6: PDR Lifecycle Management"
+  - `commands/implement.md`: Added structured lifecycle steps matching architect pattern
+  - `templates/pdr-template.md`: Updated integration section with 3-location model
+
+### Migration
+
+- Existing projects: No action needed (changes are additive/non-breaking)
+- PDR files in `.specify/drafts/pdr.md` continue to work as before
+
 ## [1.0.0] - 2026-03-09
 
 ### Added
