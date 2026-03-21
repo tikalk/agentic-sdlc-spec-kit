@@ -5,6 +5,12 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.18] - 2026-03-21
+
+### Fixed
+
+- **Version detection for fork packages**: `specify init` now correctly resolves the CLI version when the package is installed under `agentic-sdlc-specify-cli` (e.g., via `uv tool install`). Previously it only tried `specify-cli`, causing preset compatibility checks to fail with `Invalid version: 'unknown'` for bundled presets like `agentic-sdlc`.
+
 ## [0.1.17] - 2026-03-20
 
 ### Changed

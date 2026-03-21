@@ -69,6 +69,31 @@ BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_wh
 
 TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 
+_PKG_NAMES = ("specify-cli", "agentic-sdlc-specify-cli")
+
+
+def _get_cli_version() -> str:
+    """Try to get the CLI version from package metadata, trying known package names."""
+    import importlib.metadata
+
+    for pkg_name in _PKG_NAMES:
+        try:
+            return importlib.metadata.version(pkg_name)
+        except Exception:
+            pass
+
+    try:
+        import tomllib
+
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                return data.get("project", {}).get("version", "unknown")
+    except Exception:
+        pass
+    return "unknown"
+
 
 def _github_token(cli_token: str | None = None) -> str | None:
     """Return sanitized GitHub token (cli arg takes precedence) or None."""
@@ -4272,26 +4297,10 @@ def check():
 def version():
     """Display version and system information."""
     import platform
-    import importlib.metadata
 
     show_banner()
 
-    # Get CLI version from package metadata
-    cli_version = "unknown"
-    try:
-        cli_version = importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml if running from source
-        try:
-            import tomllib
-
-            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                    cli_version = data.get("project", {}).get("version", "unknown")
-        except Exception:
-            pass
+    cli_version = _get_cli_version()
 
     # Fetch latest template release version
     repo_owner = "github"
@@ -4382,25 +4391,7 @@ preset_app.add_typer(preset_catalog_app, name="catalog")
 
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
-    import importlib.metadata
-
-    try:
-        return importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml
-        try:
-            import tomllib
-
-            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                    return data.get("project", {}).get("version", "unknown")
-        except Exception:
-            # Intentionally ignore any errors while reading/parsing pyproject.toml.
-            # If this lookup fails for any reason, we fall back to returning "unknown" below.
-            pass
-    return "unknown"
+    return _get_cli_version()
 
 
 # ===== Preset Commands =====
