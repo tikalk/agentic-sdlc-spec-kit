@@ -5,6 +5,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.19] - 2026-03-22
+
+### Fixed
+
+- **StepTracker key for team directives**: Fixed mismatch between tracker key used in `init` (was `"directives"`, now `"team-ai-directives"`) and the key used in StepTracker initialization, ensuring team AI directives are tracked correctly.
+- **Template version for fork packages**: Changed `specify version` to fetch the template version from `tikalk/agentic-sdlc-spec-kit` instead of `github/spec-kit`.
+- **Type annotation fixes**: Fixed various pre-existing type annotation issues in `__init__.py` (optional parameters with `None` defaults, `None` guard for extension ID, `None` guard for project name, and `None` guard for backup registry entry).
+- **Preset command refresh**: Added `refresh_preset_commands()` method to `PresetManager` to properly re-register commands for already-installed presets during `preset update`.
+
 ## [0.1.18] - 2026-03-21
 
 ### Fixed

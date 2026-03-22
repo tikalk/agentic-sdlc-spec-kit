@@ -1695,7 +1695,7 @@ def run_command(
         return None
 
 
-def check_tool(tool: str, tracker: StepTracker = None) -> bool:
+def check_tool(tool: str, tracker: StepTracker | None = None) -> bool:
     """Check if a tool is installed. Optionally update tracker.
 
     Args:
@@ -1806,7 +1806,7 @@ def sync_team_ai_directives(
         raise RuntimeError(f"Git operation failed: {message}") from exc
 
 
-def is_git_repo(path: Path = None) -> bool:
+def is_git_repo(path: Path | None = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
         path = Path.cwd()
@@ -2050,9 +2050,9 @@ def download_template_from_github(
     script_type: str = "sh",
     verbose: bool = True,
     show_progress: bool = True,
-    client: httpx.Client = None,
+    client: httpx.Client | None = None,
     debug: bool = False,
-    github_token: str = None,
+    github_token: str | None = None,
 ) -> Tuple[Path, dict]:
     repo_owner = "github"
     repo_name = "spec-kit"
@@ -2193,9 +2193,9 @@ def download_and_extract_template(
     *,
     verbose: bool = True,
     tracker: StepTracker | None = None,
-    client: httpx.Client = None,
+    client: httpx.Client | None = None,
     debug: bool = False,
-    github_token: str = None,
+    github_token: str | None = None,
 ) -> Path:
     """Download the latest release and extract it to create a new project.
     Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
@@ -3641,6 +3641,8 @@ def init(
                     console.print("[yellow]Operation cancelled[/yellow]")
                     raise typer.Exit(0)
     else:
+        if project_name is None:
+            raise typer.Exit(1)
         project_path = Path(project_name).resolve()
         if project_path.exists():
             error_panel = Panel(
@@ -3816,7 +3818,7 @@ def init(
     tracker.add("extensions", "Install bundled extensions")
     tracker.add("presets", "Install bundled presets")
     if team_ai_directives:
-        tracker.add("directives", "Sync team-ai-directives")
+        tracker.add("team-ai-directives", "Sync team-ai-directives")
     for key, label in [
         ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
@@ -3981,17 +3983,17 @@ def init(
             resolved_team_directives = None
             team_arg = team_ai_directives.strip() if team_ai_directives else ""
             if team_arg:
-                tracker.start("directives")
+                tracker.start("team-ai-directives")
                 try:
                     status, resolved_team_directives = sync_team_ai_directives(
                         team_arg, project_path, skip_tls=skip_tls
                     )
-                    tracker.complete("directives", status)
+                    tracker.complete("team-ai-directives", status)
                 except Exception as e:
-                    tracker.error("directives", str(e))
+                    tracker.error("team-ai-directives", str(e))
                     raise
             else:
-                tracker.skip("directives", "not provided")
+                tracker.skip("team-ai-directives", "not provided")
 
             # Save team directives path to config for bash script retrieval
             if resolved_team_directives is not None:
@@ -4303,8 +4305,8 @@ def version():
     cli_version = _get_cli_version()
 
     # Fetch latest template release version
-    repo_owner = "github"
-    repo_name = "spec-kit"
+    repo_owner = "tikalk"
+    repo_name = "agentic-sdlc-spec-kit"
     api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
 
     template_version = "unknown"
@@ -5752,6 +5754,8 @@ def extension_remove(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "remove"
     )
+    if extension_id is None:
+        raise typer.Exit(1)
 
     # Get extension info for command count
     ext_manifest = manager.get_extension(extension_id)
@@ -6159,6 +6163,8 @@ def extension_update(
         updates_available = []
 
         for ext_id in extensions_to_update:
+            if not isinstance(ext_id, str) or not ext_id:
+                continue
             # Get installed version
             metadata = manager.registry.get(ext_id)
             if (
@@ -6278,7 +6284,7 @@ def extension_update(
                         shutil.copy2(cfg_file, backup_config_dir / cfg_file.name)
 
                 # 3. Backup command files for all agents
-                registered_commands = backup_registry_entry.get(
+                registered_commands = (backup_registry_entry or {}).get(
                     "registered_commands", {}
                 )
                 for agent_name, cmd_names in registered_commands.items():
@@ -6614,6 +6620,8 @@ def extension_enable(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "enable"
     )
+    if extension_id is None:
+        raise typer.Exit(1)
 
     # Update registry
     metadata = manager.registry.get(extension_id)
@@ -6667,6 +6675,8 @@ def extension_disable(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "disable"
     )
+    if extension_id is None:
+        raise typer.Exit(1)
 
     # Update registry
     metadata = manager.registry.get(extension_id)
@@ -6731,6 +6741,8 @@ def extension_set_priority(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "set-priority"
     )
+    if extension_id is None:
+        raise typer.Exit(1)
 
     # Get current metadata
     metadata = manager.registry.get(extension_id)
