@@ -1,11 +1,22 @@
 # Changelog
 
-## [0.3.2] - 2026-03-19
+## [0.4.0] - 2026-03-23
 
 ### Changes
 
-- chore: bump version to 0.3.2
-- Add conduct extension to community catalog (#1908)
+- fix(cli): add allow_unicode=True and encoding="utf-8" to YAML I/O (#1936)
+- fix(codex): native skills fallback refresh + legacy prompt suppression (#1930)
+- feat(cli): embed core pack in wheel for offline/air-gapped deployment (#1803)
+- ci: increase stale workflow operations-per-run to 250 (#1922)
+- docs: update publishing guide with Category and Effect columns (#1913)
+- fix: Align native skills frontmatter with install_ai_skills (#1920)
+- feat: add timestamp-based branch naming option for `specify init` (#1911)
+- docs: add Extension Comparison Guide for community extensions (#1897)
+- docs: update SUPPORT.md, fix issue templates, add preset submission template (#1910)
+- Add support for Junie (#1831)
+- feat: migrate Codex/agy init to native skills workflow (#1906)
+- chore: bump version to 0.3.2 (#1909)
+
 - feat(extensions): add verify-tasks extension to community catalog (#1871)
 - feat(presets): add enable/disable toggle and update semantics (#1891)
 - feat: add iFlow CLI support (#1875)
@@ -20,6 +31,13 @@
 - chore: update DocGuard extension to v0.9.10 (#1890)
 - Feature/spec kit add pi coding agent pullrequest (#1853)
 - feat: register spec-kit-learn extension (#1883)
+
+## [0.3.2] - 2026-03-19
+
+### Changes
+
+- chore: bump version to 0.3.2
+- Add conduct extension to community catalog (#1908)
 
 ## [0.3.1] - 2026-03-17
 
