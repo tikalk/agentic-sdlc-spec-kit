@@ -5,6 +5,17 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.23] - 2026-03-25
+
+### Added
+
+- **Assumptions section**: Added new Assumptions section to spec-template.md for documenting project assumptions
+- **Preset alignment**: Updated agentic-sdlc preset to align with upstream template changes
+
+### Changed
+
+- **Success Criteria terminology**: Updated preset commands to use "Success Criteria" instead of "Non-Functional Requirements" (aligning with upstream v0.4.1)
+
 ## [0.1.22] - 2026-03-25
 
 ### Added

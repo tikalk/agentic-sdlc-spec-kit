@@ -81,7 +81,7 @@ Load available artifacts (spec.md required, plan.md and tasks.md recommended):
 
 - Overview/Context
 - Functional Requirements
-- Non-Functional Requirements
+- Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
 - User Stories
 - Edge Cases (if present)
 
@@ -168,7 +168,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 - Requirements with zero associated tasks (if tasks.md exists)
 - Tasks with no mapped requirement/story (if tasks.md exists)
-- Non-functional requirements not reflected in tasks (if tasks.md exists)
+- Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
 
 #### F. Inconsistency
 
