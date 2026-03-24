@@ -8,6 +8,9 @@
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"
 
+**Milestone Reference**: [e.g., "M01: Q2 2026" - from PDR]
+**Feature PDR Reference**: [e.g., "PDR-003" - from PDR]
+
 **Goal**: [one-sentence objective - core purpose]  
 **Success Criteria**: [2-3 measurable outcomes - summary]  
 **Constraints**: [key constraints - technical/business/regulatory]

@@ -107,7 +107,49 @@ After this feature, the user can: {observable, demo-able capability}
 **⚠️ STOP**: Wait for explicit response.
 
 - If **"no"** or **"adjust"**: Ask what needs to change. Re-display Mission Brief with adjustments. Ask again.
-- If **"yes"**: Proceed to Outline (branch creation and spec writing).
+- If **"yes"**: Proceed to Phase 2 (or Outline if no PDR)
+
+---
+
+### Phase 2: PDR Reference Selection (Optional)
+
+This phase links the feature to Product Decision Records for traceability. Skip if no PDR exists.
+
+**Check for PDR file**:
+1. First check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
+2. If yes, try to read: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
+3. If file doesn't exist or TD not configured, try: `.specify/memory/pdr.md`
+4. If neither exists, skip this phase (no PDR configured)
+
+**If PDR file exists**:
+1. Parse all PDRs with `Category: Feature`
+2. For each Feature PDR, check if it references a Milestone PDR (look in "Related PDRs" or "Belongs to Milestone" field)
+3. Build a list of Feature PDRs with their Milestone reference
+
+**Present to user**:
+
+```markdown
+## PDR Reference Selection
+
+Which Feature PDR does this feature belong to?
+
+| Option | Feature PDR | Milestone |
+|--------|--------------|-----------|
+| 1 | PDR-003: OAuth2 Login | M01: Q2 User Auth |
+| 2 | PDR-004: SSO Integration | M01: Q2 User Auth |
+| 3 | PDR-005: Password Reset | M02: Q3 Enhancements |
+| 4 | Skip - No PDR linkage |
+
+**Your choice**: _[Wait for user response]_
+```
+
+**If user selects an option**:
+- Store for embedding in spec header:
+  - **Milestone Reference**: [e.g., "M01: Q2 User Auth"]
+  - **Feature PDR Reference**: [e.g., "PDR-003"]
+
+**If user skips or no PDR exists**:
+- Leave fields empty in spec header (optional fields)
 
 ---
 
@@ -144,13 +186,15 @@ Given the approved Mission Brief, do this:
 
 3. Load `templates/spec-template.md` to understand required sections.
 
-4. Follow this execution flow (Mission Brief already approved):
+4. Follow this execution flow (Mission Brief approved, Phase 2 may have PDR references):
 
-    1. Use the approved Mission Brief as the foundation:
-       - **Goal** → spec header's Goal field
-       - **Success Criteria** → spec's Success Criteria section (expand with details)
-       - **Constraints** → spec header's Constraints field
-       - **Demo Sentence** → spec's Demo Sentence section
+     1. Use the approved Mission Brief as foundation AND include PDR references from Phase 2:
+        - **Goal** → spec header's Goal field
+        - **Success Criteria** → spec's Success Criteria section (expand with details)
+        - **Constraints** → spec header's Constraints field
+        - **Demo Sentence** → spec's Demo Sentence section
+        - **Milestone Reference** (from Phase 2) → spec header's Milestone Reference field
+        - **Feature PDR Reference** (from Phase 2) → spec header's Feature PDR Reference field
     2. Extract additional key concepts from original description
        Identify: actors, actions, data, edge cases
     3. For unclear aspects:

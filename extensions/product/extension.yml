@@ -49,6 +49,11 @@ provides:
       description: "Validate feature spec alignment with PRD (READ-ONLY)"
       aliases: ["product.validate"]
 
+    - name: "adlc.product.roadmap"
+      file: "commands/roadmap.md"
+      description: "Track milestone progress from feature spec task completion and update PDR status"
+      aliases: ["product.roadmap"]
+
   config:
     - name: "product-config.yml"
       template: "config-template.yml"
@@ -95,6 +100,10 @@ handoffs:
       agent: "spec.specify"
       prompt: "Create a feature specification within this product"
       send: false
+    - label: "Track Roadmap Progress"
+      agent: "product.roadmap"
+      prompt: "Track milestone progress and update PDR completion status"
+      send: false
     - label: "Analyze Product"
       agent: "product.analyze"
       prompt: "Validate PDR-PRD consistency and completeness"
@@ -102,6 +111,12 @@ handoffs:
     - label: "Create Architecture"
       agent: "architect.specify"
       prompt: "Create architecture from product requirements"
+      send: false
+
+  product.roadmap:
+    - label: "Regenerate PRD"
+      agent: "product.implement"
+      prompt: "Regenerate PRD with updated PDR completion status"
       send: false
 
 hooks:

@@ -5,6 +5,24 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.1.22] - 2026-03-25
+
+### Added
+
+- **product.roadmap command**: New command to track milestone progress by analyzing feature spec task completion and update PDR status to "Completed"
+- **PDR reference fields in spec template**: Added `Milestone Reference` and `Feature PDR Reference` fields to spec header for traceability
+- **Phase 2 PDR selection in spec.specify**: Added optional phase to read PDR file and prompt user to select which Feature PDR the feature belongs to
+
+### Changed
+
+- **product.implement handoffs**: Added tracking of roadmap progress after generating PRD
+
+## [0.1.21] - 2026-03-23
+
+### Changed
+
+- Removed extension summary from banner display
+
 ## [0.1.20] - 2026-03-22
 
 ### Fixed
