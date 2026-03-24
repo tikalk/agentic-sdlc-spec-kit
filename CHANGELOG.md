@@ -1,11 +1,22 @@
 # Changelog
 
+## [0.4.1] - 2026-03-24
+
+### Changes
+
+- Add checkpoint extension (#1947)
+- fix(scripts): prioritize .specify over git for repo root detection (#1933)
+- docs: add AIDE extension demo to community projects (#1943)
+- fix(templates): add missing Assumptions section to spec template (#1939)
+- chore: bump version to 0.4.1 (#1937)
+
 ## [0.4.0] - 2026-03-23
 
 ### Changes
 
 - fix(cli): add allow_unicode=True and encoding="utf-8" to YAML I/O (#1936)
 - fix(codex): native skills fallback refresh + legacy prompt suppression (#1930)
+
 - feat(cli): embed core pack in wheel for offline/air-gapped deployment (#1803)
 - ci: increase stale workflow operations-per-run to 250 (#1922)
 - docs: update publishing guide with Category and Effect columns (#1913)
