@@ -6,6 +6,22 @@
 
 - Add checkpoint extension (#1947)
 - fix(scripts): prioritize .specify over git for repo root detection (#1933)
+
+## [0.4.2] - 2026-03-25
+
+### Changes
+
+- feat: Auto-register ai-skills for extensions whenever applicable (#1840)
+- docs: add manual testing guide for slash command validation (#1955)
+- Add AIDE, Extensify, and Presetify to community extensions (#1961)
+- docs: add community presets section to main README (#1960)
+- docs: move community extensions table to main README for discoverability (#1959)
+- docs(readme): consolidate Community Friends sections and fix ToC anchors (#1958)
+- fix(commands): rename NFR references to success criteria in analyze and clarify (#1935)
+- Add Community Friends section to README (#1956)
+- docs: add Community Friends section with Spec Kit Assistant VS Code extension (#1944)
+- chore: bump version to 0.4.1 (#1953)
+
 - docs: add AIDE extension demo to community projects (#1943)
 - fix(templates): add missing Assumptions section to spec template (#1939)
 - chore: bump version to 0.4.1 (#1937)
