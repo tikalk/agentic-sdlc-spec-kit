@@ -2,6 +2,14 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.4.3] - 2026-03-26
+
+### Changed
+
+- Unify Kimi/Codex skill naming and migrate legacy dotted Kimi dirs (#1971)
+- fix(ps1): replace null-conditional operator for PowerShell 5.1 compatibility (#1975)
+- chore: bump version to 0.4.2 (#1973)
+
 ## [0.4.2] - 2026-03-25
 
 ### Changed
