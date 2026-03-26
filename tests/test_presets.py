@@ -1942,10 +1942,10 @@ class TestInitOptions:
 class TestPresetSkills:
     """Tests for preset skill registration and unregistration."""
 
-    def _write_init_options(self, project_dir, ai="claude", ai_skills=True):
+    def _write_init_options(self, project_dir, ai="claude", ai_skills=True, script="sh"):
         from specify_cli import save_init_options
 
-        save_init_options(project_dir, {"ai": ai, "ai_skills": ai_skills})
+        save_init_options(project_dir, {"ai": ai, "ai_skills": ai_skills, "script": script})
 
     def _create_skill(self, skills_dir, skill_name, body="original body"):
         skill_dir = skills_dir / skill_name
@@ -1995,6 +1995,26 @@ class TestPresetSkills:
         content = skill_file.read_text()
         assert "untouched" in content, "Skill should not be modified when ai_skills=False"
 
+    def test_get_skills_dir_returns_none_for_non_string_ai(self, project_dir):
+        """Corrupted init-options ai values should not crash preset skill resolution."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text('{"ai":["codex"],"ai_skills":true,"script":"sh"}')
+
+        manager = PresetManager(project_dir)
+
+        assert manager._get_skills_dir() is None
+
+    def test_get_skills_dir_returns_none_for_non_dict_init_options(self, project_dir):
+        """Corrupted non-dict init-options payloads should fail closed."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text("[]")
+
+        manager = PresetManager(project_dir)
+
+        assert manager._get_skills_dir() is None
+
     def test_skill_not_updated_without_init_options(self, project_dir, temp_dir):
         """When no init-options.json exists, preset install should not touch skills."""
         skills_dir = project_dir / ".claude" / "skills"
@@ -2040,6 +2060,52 @@ class TestPresetSkills:
         assert "preset:self-test" not in content, "Preset content should be gone"
         assert "templates/commands/specify.md" in content, "Should reference core template"
 
+    def test_skill_restored_on_remove_resolves_script_placeholders(self, project_dir):
+        """Core restore should resolve {SCRIPT}/{ARGS} placeholders like other skill paths."""
+        self._write_init_options(project_dir, ai="claude", ai_skills=True, script="sh")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify", body="old")
+        (project_dir / ".claude" / "commands").mkdir(parents=True, exist_ok=True)
+
+        core_cmds = project_dir / ".specify" / "templates" / "commands"
+        core_cmds.mkdir(parents=True, exist_ok=True)
+        (core_cmds / "specify.md").write_text(
+            "---\n"
+            "description: Core specify command\n"
+            "scripts:\n"
+            "  sh: .specify/scripts/bash/create-new-feature.sh --json \"{ARGS}\"\n"
+            "---\n\n"
+            "Run:\n"
+            "{SCRIPT}\n"
+        )
+
+        manager = PresetManager(project_dir)
+        SELF_TEST_DIR = Path(__file__).parent.parent / "presets" / "self-test"
+        manager.install_from_directory(SELF_TEST_DIR, "0.1.5")
+        manager.remove("self-test")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "{SCRIPT}" not in content
+        assert "{ARGS}" not in content
+        assert ".specify/scripts/bash/create-new-feature.sh --json \"$ARGUMENTS\"" in content
+
+    def test_skill_not_overridden_when_skill_path_is_file(self, project_dir):
+        """Preset install should skip non-directory skill targets."""
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        (skills_dir / "speckit-specify").write_text("not-a-directory")
+
+        (project_dir / ".claude" / "commands").mkdir(parents=True, exist_ok=True)
+
+        manager = PresetManager(project_dir)
+        SELF_TEST_DIR = Path(__file__).parent.parent / "presets" / "self-test"
+        manager.install_from_directory(SELF_TEST_DIR, "0.1.5")
+
+        assert (skills_dir / "speckit-specify").is_file()
+        metadata = manager.registry.get("self-test")
+        assert "speckit-specify" not in metadata.get("registered_skills", [])
+
     def test_no_skills_registered_when_no_skill_dir_exists(self, project_dir, temp_dir):
         """Skills should not be created when no existing skill dir is found."""
         self._write_init_options(project_dir, ai="claude")
@@ -2053,6 +2119,304 @@ class TestPresetSkills:
 
         metadata = manager.registry.get("self-test")
         assert metadata.get("registered_skills", []) == []
+
+    def test_extension_skill_override_matches_hyphenated_multisegment_name(self, project_dir, temp_dir):
+        """Preset overrides for speckit.<ext>.<cmd> should target speckit-<ext>-<cmd> skills."""
+        self._write_init_options(project_dir, ai="codex")
+        skills_dir = project_dir / ".agents" / "skills"
+        self._create_skill(skills_dir, "speckit-fakeext-cmd", body="untouched")
+        (project_dir / ".specify" / "extensions" / "fakeext").mkdir(parents=True, exist_ok=True)
+
+        preset_dir = temp_dir / "ext-skill-override"
+        preset_dir.mkdir()
+        (preset_dir / "commands").mkdir()
+        (preset_dir / "commands" / "speckit.fakeext.cmd.md").write_text(
+            "---\ndescription: Override fakeext cmd\n---\n\npreset:ext-skill-override\n"
+        )
+        manifest_data = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "ext-skill-override",
+                "name": "Ext Skill Override",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [
+                    {
+                        "type": "command",
+                        "name": "speckit.fakeext.cmd",
+                        "file": "commands/speckit.fakeext.cmd.md",
+                    }
+                ]
+            },
+        }
+        with open(preset_dir / "preset.yml", "w") as f:
+            yaml.dump(manifest_data, f)
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+
+        skill_file = skills_dir / "speckit-fakeext-cmd" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "preset:ext-skill-override" in content
+        assert "name: speckit-fakeext-cmd" in content
+        assert "# Speckit Fakeext Cmd Skill" in content
+
+        metadata = manager.registry.get("ext-skill-override")
+        assert "speckit-fakeext-cmd" in metadata.get("registered_skills", [])
+
+    def test_extension_skill_restored_on_preset_remove(self, project_dir, temp_dir):
+        """Preset removal should restore an extension-backed skill instead of deleting it."""
+        self._write_init_options(project_dir, ai="codex")
+        skills_dir = project_dir / ".agents" / "skills"
+        self._create_skill(skills_dir, "speckit-fakeext-cmd", body="original extension skill")
+
+        extension_dir = project_dir / ".specify" / "extensions" / "fakeext"
+        (extension_dir / "commands").mkdir(parents=True, exist_ok=True)
+        (extension_dir / "commands" / "cmd.md").write_text(
+            "---\n"
+            "description: Extension fakeext cmd\n"
+            "scripts:\n"
+            "  sh: ../../scripts/bash/setup-plan.sh --json \"{ARGS}\"\n"
+            "---\n\n"
+            "extension:fakeext\n"
+            "Run {SCRIPT}\n"
+        )
+        extension_manifest = {
+            "schema_version": "1.0",
+            "extension": {
+                "id": "fakeext",
+                "name": "Fake Extension",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "commands": [
+                    {
+                        "name": "speckit.fakeext.cmd",
+                        "file": "commands/cmd.md",
+                        "description": "Fake extension command",
+                    }
+                ]
+            },
+        }
+        with open(extension_dir / "extension.yml", "w") as f:
+            yaml.dump(extension_manifest, f)
+
+        preset_dir = temp_dir / "ext-skill-restore"
+        preset_dir.mkdir()
+        (preset_dir / "commands").mkdir()
+        (preset_dir / "commands" / "speckit.fakeext.cmd.md").write_text(
+            "---\ndescription: Override fakeext cmd\n---\n\npreset:ext-skill-restore\n"
+        )
+        preset_manifest = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "ext-skill-restore",
+                "name": "Ext Skill Restore",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [
+                    {
+                        "type": "command",
+                        "name": "speckit.fakeext.cmd",
+                        "file": "commands/speckit.fakeext.cmd.md",
+                    }
+                ]
+            },
+        }
+        with open(preset_dir / "preset.yml", "w") as f:
+            yaml.dump(preset_manifest, f)
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+
+        skill_file = skills_dir / "speckit-fakeext-cmd" / "SKILL.md"
+        assert "preset:ext-skill-restore" in skill_file.read_text()
+
+        manager.remove("ext-skill-restore")
+
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "preset:ext-skill-restore" not in content
+        assert "source: extension:fakeext" in content
+        assert "extension:fakeext" in content
+        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
+        assert "# Fakeext Cmd Skill" in content
+
+    def test_preset_remove_skips_skill_dir_without_skill_file(self, project_dir, temp_dir):
+        """Preset removal should not delete arbitrary directories missing SKILL.md."""
+        self._write_init_options(project_dir, ai="codex")
+        skills_dir = project_dir / ".agents" / "skills"
+        stray_skill_dir = skills_dir / "speckit-fakeext-cmd"
+        stray_skill_dir.mkdir(parents=True, exist_ok=True)
+        note_file = stray_skill_dir / "notes.txt"
+        note_file.write_text("user content", encoding="utf-8")
+
+        preset_dir = temp_dir / "ext-skill-missing-file"
+        preset_dir.mkdir()
+        (preset_dir / "commands").mkdir()
+        (preset_dir / "commands" / "speckit.fakeext.cmd.md").write_text(
+            "---\ndescription: Override fakeext cmd\n---\n\npreset:ext-skill-missing-file\n"
+        )
+        preset_manifest = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "ext-skill-missing-file",
+                "name": "Ext Skill Missing File",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [
+                    {
+                        "type": "command",
+                        "name": "speckit.fakeext.cmd",
+                        "file": "commands/speckit.fakeext.cmd.md",
+                    }
+                ]
+            },
+        }
+        with open(preset_dir / "preset.yml", "w") as f:
+            yaml.dump(preset_manifest, f)
+
+        manager = PresetManager(project_dir)
+        installed_preset_dir = manager.presets_dir / "ext-skill-missing-file"
+        shutil.copytree(preset_dir, installed_preset_dir)
+        manager.registry.add(
+            "ext-skill-missing-file",
+            {
+                "version": "1.0.0",
+                "source": str(preset_dir),
+                "provides_templates": ["speckit.fakeext.cmd"],
+                "registered_skills": ["speckit-fakeext-cmd"],
+                "priority": 10,
+            },
+        )
+
+        manager.remove("ext-skill-missing-file")
+
+        assert stray_skill_dir.is_dir()
+        assert note_file.read_text(encoding="utf-8") == "user content"
+
+    def test_kimi_legacy_dotted_skill_override_still_applies(self, project_dir, temp_dir):
+        """Preset overrides should still target legacy dotted Kimi skill directories."""
+        self._write_init_options(project_dir, ai="kimi")
+        skills_dir = project_dir / ".kimi" / "skills"
+        self._create_skill(skills_dir, "speckit.specify", body="untouched")
+
+        (project_dir / ".kimi" / "commands").mkdir(parents=True, exist_ok=True)
+
+        manager = PresetManager(project_dir)
+        self_test_dir = Path(__file__).parent.parent / "presets" / "self-test"
+        manager.install_from_directory(self_test_dir, "0.1.5")
+
+        skill_file = skills_dir / "speckit.specify" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "preset:self-test" in content
+        assert "name: speckit.specify" in content
+
+        metadata = manager.registry.get("self-test")
+        assert "speckit.specify" in metadata.get("registered_skills", [])
+
+    def test_kimi_skill_updated_even_when_ai_skills_disabled(self, project_dir, temp_dir):
+        """Kimi presets should still propagate command overrides to existing skills."""
+        self._write_init_options(project_dir, ai="kimi", ai_skills=False)
+        skills_dir = project_dir / ".kimi" / "skills"
+        self._create_skill(skills_dir, "speckit-specify", body="untouched")
+
+        (project_dir / ".kimi" / "commands").mkdir(parents=True, exist_ok=True)
+
+        manager = PresetManager(project_dir)
+        self_test_dir = Path(__file__).parent.parent / "presets" / "self-test"
+        manager.install_from_directory(self_test_dir, "0.1.5")
+
+        skill_file = skills_dir / "speckit-specify" / "SKILL.md"
+        assert skill_file.exists()
+        content = skill_file.read_text()
+        assert "preset:self-test" in content
+        assert "name: speckit-specify" in content
+
+        metadata = manager.registry.get("self-test")
+        assert "speckit-specify" in metadata.get("registered_skills", [])
+
+    def test_kimi_preset_skill_override_resolves_script_placeholders(self, project_dir, temp_dir):
+        """Kimi preset skill overrides should resolve placeholders and rewrite project paths."""
+        self._write_init_options(project_dir, ai="kimi", ai_skills=False, script="sh")
+        skills_dir = project_dir / ".kimi" / "skills"
+        self._create_skill(skills_dir, "speckit-specify", body="untouched")
+        (project_dir / ".kimi" / "commands").mkdir(parents=True, exist_ok=True)
+
+        preset_dir = temp_dir / "kimi-placeholder-override"
+        preset_dir.mkdir()
+        (preset_dir / "commands").mkdir()
+        (preset_dir / "commands" / "speckit.specify.md").write_text(
+            "---\n"
+            "description: Kimi placeholder override\n"
+            "scripts:\n"
+            "  sh: scripts/bash/create-new-feature.sh --json \"{ARGS}\"\n"
+            "---\n\n"
+            "Execute `{SCRIPT}` for __AGENT__\n"
+            "Review templates/checklist.md and memory/constitution.md\n"
+        )
+        manifest_data = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "kimi-placeholder-override",
+                "name": "Kimi Placeholder Override",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "templates": [
+                    {
+                        "type": "command",
+                        "name": "speckit.specify",
+                        "file": "commands/speckit.specify.md",
+                    }
+                ]
+            },
+        }
+        with open(preset_dir / "preset.yml", "w") as f:
+            yaml.dump(manifest_data, f)
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "{SCRIPT}" not in content
+        assert "__AGENT__" not in content
+        assert ".specify/scripts/bash/create-new-feature.sh --json \"$ARGUMENTS\"" in content
+        assert ".specify/templates/checklist.md" in content
+        assert ".specify/memory/constitution.md" in content
+        assert "for kimi" in content
+
+    def test_preset_skill_registration_handles_non_dict_init_options(self, project_dir, temp_dir):
+        """Non-dict init-options payloads should not crash preset install/remove flows."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text("[]")
+
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify", body="untouched")
+        (project_dir / ".claude" / "commands").mkdir(parents=True, exist_ok=True)
+
+        manager = PresetManager(project_dir)
+        self_test_dir = Path(__file__).parent.parent / "presets" / "self-test"
+        manager.install_from_directory(self_test_dir, "0.1.5")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "untouched" in content
 
 
 class TestPresetSetPriority:

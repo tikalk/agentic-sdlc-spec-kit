@@ -22,6 +22,7 @@ from specify_cli.extensions import (
     ExtensionRegistry,
     ExtensionManager,
     CommandRegistrar,
+    HookExecutor,
     ExtensionCatalog,
     ExtensionError,
     ValidationError,
@@ -759,6 +760,81 @@ $ARGUMENTS
         assert "Prüfe Konformität" in output
         assert "\\u" not in output
 
+    def test_adjust_script_paths_does_not_mutate_input(self):
+        """Path adjustments should not mutate caller-owned frontmatter dicts."""
+        from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
+        registrar = AgentCommandRegistrar()
+        original = {
+            "scripts": {
+                "sh": "../../scripts/bash/setup-plan.sh {ARGS}",
+                "ps": "../../scripts/powershell/setup-plan.ps1 {ARGS}",
+            }
+        }
+        before = json.loads(json.dumps(original))
+
+        adjusted = registrar._adjust_script_paths(original)
+
+        assert original == before
+        assert adjusted["scripts"]["sh"] == ".specify/scripts/bash/setup-plan.sh {ARGS}"
+        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-plan.ps1 {ARGS}"
+
+    def test_adjust_script_paths_preserves_extension_local_paths(self):
+        """Extension-local script paths should not be rewritten into .specify/.specify."""
+        from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
+        registrar = AgentCommandRegistrar()
+        original = {
+            "scripts": {
+                "sh": ".specify/extensions/test-ext/scripts/setup.sh {ARGS}",
+                "ps": "scripts/powershell/setup-plan.ps1 {ARGS}",
+            }
+        }
+
+        adjusted = registrar._adjust_script_paths(original)
+
+        assert adjusted["scripts"]["sh"] == ".specify/extensions/test-ext/scripts/setup.sh {ARGS}"
+        assert adjusted["scripts"]["ps"] == ".specify/scripts/powershell/setup-plan.ps1 {ARGS}"
+
+    def test_rewrite_project_relative_paths_preserves_extension_local_body_paths(self):
+        """Body rewrites should preserve extension-local assets while fixing top-level refs."""
+        from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
+
+        body = (
+            "Read `.specify/extensions/test-ext/templates/spec.md`\n"
+            "Run scripts/bash/setup-plan.sh\n"
+        )
+
+        rewritten = AgentCommandRegistrar._rewrite_project_relative_paths(body)
+
+        assert ".specify/extensions/test-ext/templates/spec.md" in rewritten
+        assert ".specify/scripts/bash/setup-plan.sh" in rewritten
+
+    def test_render_toml_command_handles_embedded_triple_double_quotes(self):
+        """TOML renderer should stay valid when body includes triple double-quotes."""
+        from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
+        registrar = AgentCommandRegistrar()
+        output = registrar.render_toml_command(
+            {"description": "x"},
+            'line1\n"""danger"""\nline2',
+            "extension:test-ext",
+        )
+
+        assert "prompt = '''" in output
+        assert '"""danger"""' in output
+
+    def test_render_toml_command_escapes_when_both_triple_quote_styles_exist(self):
+        """If body has both triple quote styles, fall back to escaped basic string."""
+        from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
+        registrar = AgentCommandRegistrar()
+        output = registrar.render_toml_command(
+            {"description": "x"},
+            'a """ b\nc \'\'\' d',
+            "extension:test-ext",
+        )
+
+        assert 'prompt = "' in output
+        assert "\\n" in output
+        assert "\\\"\\\"\\\"" in output
+
     def test_register_commands_for_claude(self, extension_dir, project_dir):
         """Test registering commands for Claude agent."""
         # Create .claude directory
@@ -875,11 +951,11 @@ $ARGUMENTS
         registrar = CommandRegistrar()
         registrar.register_commands_for_agent("codex", manifest, extension_dir, project_dir)
 
-        skill_file = skills_dir / "speckit-test.hello" / "SKILL.md"
+        skill_file = skills_dir / "speckit-test-hello" / "SKILL.md"
         assert skill_file.exists()
 
         content = skill_file.read_text()
-        assert "name: speckit-test.hello" in content
+        assert "name: speckit-test-hello" in content
         assert "description: Test hello command" in content
         assert "compatibility:" in content
         assert "metadata:" in content
@@ -944,7 +1020,7 @@ Agent __AGENT__
         registrar = CommandRegistrar()
         registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
 
-        skill_file = skills_dir / "speckit-test.plan" / "SKILL.md"
+        skill_file = skills_dir / "speckit-test-plan" / "SKILL.md"
         assert skill_file.exists()
 
         content = skill_file.read_text()
@@ -994,12 +1070,12 @@ Agent __AGENT__
         registrar = CommandRegistrar()
         registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
 
-        primary = skills_dir / "speckit-alias.cmd" / "SKILL.md"
+        primary = skills_dir / "speckit-alias-cmd" / "SKILL.md"
         alias = skills_dir / "speckit-shortcut" / "SKILL.md"
 
         assert primary.exists()
         assert alias.exists()
-        assert "name: speckit-alias.cmd" in primary.read_text()
+        assert "name: speckit-alias-cmd" in primary.read_text()
         assert "name: speckit-shortcut" in alias.read_text()
 
     def test_codex_skill_registration_uses_fallback_script_variant_without_init_options(
@@ -1056,7 +1132,7 @@ Then {AGENT_SCRIPT}
         registrar = CommandRegistrar()
         registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
 
-        skill_file = skills_dir / "speckit-fallback.plan" / "SKILL.md"
+        skill_file = skills_dir / "speckit-fallback-plan" / "SKILL.md"
         assert skill_file.exists()
 
         content = skill_file.read_text()
@@ -1064,6 +1140,62 @@ Then {AGENT_SCRIPT}
         assert "{AGENT_SCRIPT}" not in content
         assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
         assert ".specify/scripts/bash/update-agent-context.sh codex" in content
+
+    def test_codex_skill_registration_handles_non_dict_init_options(
+        self, project_dir, temp_dir
+    ):
+        """Non-dict init-options payloads should not crash skill placeholder resolution."""
+        import yaml
+
+        ext_dir = temp_dir / "ext-script-list-init"
+        ext_dir.mkdir()
+        (ext_dir / "commands").mkdir()
+
+        manifest_data = {
+            "schema_version": "1.0",
+            "extension": {
+                "id": "ext-script-list-init",
+                "name": "List init options",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "commands": [
+                    {
+                        "name": "speckit.list.plan",
+                        "file": "commands/plan.md",
+                    }
+                ]
+            },
+        }
+        with open(ext_dir / "extension.yml", "w") as f:
+            yaml.dump(manifest_data, f)
+
+        (ext_dir / "commands" / "plan.md").write_text(
+            """---
+description: "List init scripted command"
+scripts:
+  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"
+---
+
+Run {SCRIPT}
+"""
+        )
+
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text("[]")
+
+        skills_dir = project_dir / ".agents" / "skills"
+        skills_dir.mkdir(parents=True)
+
+        manifest = ExtensionManifest(ext_dir / "extension.yml")
+        registrar = CommandRegistrar()
+        registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
+
+        content = (skills_dir / "speckit-list-plan" / "SKILL.md").read_text()
+        assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
 
     def test_codex_skill_registration_fallback_prefers_powershell_on_windows(
         self, project_dir, temp_dir, monkeypatch
@@ -1121,7 +1253,7 @@ Then {AGENT_SCRIPT}
         registrar = CommandRegistrar()
         registrar.register_commands_for_agent("codex", manifest, ext_dir, project_dir)
 
-        skill_file = skills_dir / "speckit-windows.plan" / "SKILL.md"
+        skill_file = skills_dir / "speckit-windows-plan" / "SKILL.md"
         assert skill_file.exists()
 
         content = skill_file.read_text()
@@ -3231,3 +3363,128 @@ class TestExtensionPriorityBackwardsCompatibility:
         assert result[0][0] == "ext-with-priority"
         assert result[1][0] == "legacy-ext"
         assert result[2][0] == "ext-low-priority"
+
+
+class TestHookInvocationRendering:
+    """Test hook invocation formatting for different agent modes."""
+
+    def test_kimi_hooks_render_skill_invocation(self, project_dir):
+        """Kimi projects should render /skill:speckit-* invocations."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
+
+        hook_executor = HookExecutor(project_dir)
+        message = hook_executor.format_hook_message(
+            "before_plan",
+            [
+                {
+                    "extension": "test-ext",
+                    "command": "speckit.plan",
+                    "optional": False,
+                }
+            ],
+        )
+
+        assert "Executing: `/skill:speckit-plan`" in message
+        assert "EXECUTE_COMMAND: speckit.plan" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /skill:speckit-plan" in message
+
+    def test_codex_hooks_render_dollar_skill_invocation(self, project_dir):
+        """Codex projects with --ai-skills should render $speckit-* invocations."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text(json.dumps({"ai": "codex", "ai_skills": True}))
+
+        hook_executor = HookExecutor(project_dir)
+        execution = hook_executor.execute_hook(
+            {
+                "extension": "test-ext",
+                "command": "speckit.tasks",
+                "optional": False,
+            }
+        )
+
+        assert execution["command"] == "speckit.tasks"
+        assert execution["invocation"] == "$speckit-tasks"
+
+    def test_non_skill_command_keeps_slash_invocation(self, project_dir):
+        """Custom hook commands should keep slash invocation style."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
+
+        hook_executor = HookExecutor(project_dir)
+        message = hook_executor.format_hook_message(
+            "before_tasks",
+            [
+                {
+                    "extension": "test-ext",
+                    "command": "pre_tasks_test",
+                    "optional": False,
+                }
+            ],
+        )
+
+        assert "Executing: `/pre_tasks_test`" in message
+        assert "EXECUTE_COMMAND: pre_tasks_test" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /pre_tasks_test" in message
+
+    def test_extension_command_uses_hyphenated_skill_invocation(self, project_dir):
+        """Multi-segment extension command ids should map to hyphenated skills."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
+
+        hook_executor = HookExecutor(project_dir)
+        message = hook_executor.format_hook_message(
+            "after_tasks",
+            [
+                {
+                    "extension": "test-ext",
+                    "command": "speckit.test.hello",
+                    "optional": False,
+                }
+            ],
+        )
+
+        assert "Executing: `/skill:speckit-test-hello`" in message
+        assert "EXECUTE_COMMAND: speckit.test.hello" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /skill:speckit-test-hello" in message
+
+    def test_hook_executor_caches_init_options_lookup(self, project_dir, monkeypatch):
+        """Init options should be loaded once per executor instance."""
+        calls = {"count": 0}
+
+        def fake_load_init_options(_project_root):
+            calls["count"] += 1
+            return {"ai": "kimi", "ai_skills": False}
+
+        monkeypatch.setattr("specify_cli.load_init_options", fake_load_init_options)
+
+        hook_executor = HookExecutor(project_dir)
+        assert hook_executor._render_hook_invocation("speckit.plan") == "/skill:speckit-plan"
+        assert hook_executor._render_hook_invocation("speckit.tasks") == "/skill:speckit-tasks"
+        assert calls["count"] == 1
+
+    def test_hook_message_falls_back_when_invocation_is_empty(self, project_dir):
+        """Hook messages should still render actionable command placeholders."""
+        init_options = project_dir / ".specify" / "init-options.json"
+        init_options.parent.mkdir(parents=True, exist_ok=True)
+        init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
+
+        hook_executor = HookExecutor(project_dir)
+        message = hook_executor.format_hook_message(
+            "after_tasks",
+            [
+                {
+                    "extension": "test-ext",
+                    "command": None,
+                    "optional": False,
+                }
+            ],
+        )
+
+        assert "Executing: `/<missing command>`" in message
+        assert "EXECUTE_COMMAND: <missing command>" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /<missing command>" in message

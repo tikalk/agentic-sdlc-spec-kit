@@ -556,24 +556,31 @@ class PresetManager:
         registrar.unregister_commands(registered_commands, self.project_root)
 
     def _get_skills_dir(self) -> Optional[Path]:
-        """Return the skills directory if ``--ai-skills`` was used during init.
+        """Return the active skills directory for preset skill overrides.
 
         Reads ``.specify/init-options.json`` to determine whether skills
         are enabled and which agent was selected, then delegates to
         the module-level ``_get_skills_dir()`` helper for the concrete path.
 
+        Kimi is treated as a native-skills agent: if ``ai == "kimi"`` and
+        ``.kimi/skills`` exists, presets should still propagate command
+        overrides to skills even when ``ai_skills`` is false.
+
         Returns:
             The skills directory ``Path``, or ``None`` if skills were not
-            enabled or the init-options file is missing.
+            enabled and no native-skills fallback applies.
         """
         from . import load_init_options, _get_skills_dir
 
         opts = load_init_options(self.project_root)
-        if not opts.get("ai_skills"):
+        if not isinstance(opts, dict):
+            opts = {}
+        agent = opts.get("ai")
+        if not isinstance(agent, str) or not agent:
             return None
 
-        agent = opts.get("ai")
-        if not agent:
+        ai_skills_enabled = bool(opts.get("ai_skills"))
+        if not ai_skills_enabled and agent != "kimi":
             return None
 
         skills_dir = _get_skills_dir(self.project_root, agent)
@@ -581,6 +588,76 @@ class PresetManager:
             return None
 
         return skills_dir
+
+    @staticmethod
+    def _skill_names_for_command(cmd_name: str) -> tuple[str, str]:
+        """Return the modern and legacy skill directory names for a command."""
+        raw_short_name = cmd_name
+        if raw_short_name.startswith("speckit."):
+            raw_short_name = raw_short_name[len("speckit."):]
+
+        modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
+        legacy_skill_name = f"speckit.{raw_short_name}"
+        return modern_skill_name, legacy_skill_name
+
+    @staticmethod
+    def _skill_title_from_command(cmd_name: str) -> str:
+        """Return a human-friendly title for a skill command name."""
+        title_name = cmd_name
+        if title_name.startswith("speckit."):
+            title_name = title_name[len("speckit."):]
+        return title_name.replace(".", " ").replace("-", " ").title()
+
+    def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
+        """Index extension-backed skill restore data by skill directory name."""
+        from .extensions import ExtensionManifest, ValidationError
+
+        resolver = PresetResolver(self.project_root)
+        extensions_dir = self.project_root / ".specify" / "extensions"
+        restore_index: Dict[str, Dict[str, Any]] = {}
+
+        for _priority, ext_id, _metadata in resolver._get_all_extensions_by_priority():
+            ext_dir = extensions_dir / ext_id
+            manifest_path = ext_dir / "extension.yml"
+            if not manifest_path.is_file():
+                continue
+
+            try:
+                manifest = ExtensionManifest(manifest_path)
+            except ValidationError:
+                continue
+
+            ext_root = ext_dir.resolve()
+            for cmd_info in manifest.commands:
+                cmd_name = cmd_info.get("name")
+                cmd_file_rel = cmd_info.get("file")
+                if not isinstance(cmd_name, str) or not isinstance(cmd_file_rel, str):
+                    continue
+
+                cmd_path = Path(cmd_file_rel)
+                if cmd_path.is_absolute():
+                    continue
+
+                try:
+                    source_file = (ext_root / cmd_path).resolve()
+                    source_file.relative_to(ext_root)
+                except (OSError, ValueError):
+                    continue
+
+                if not source_file.is_file():
+                    continue
+
+                restore_info = {
+                    "command_name": cmd_name,
+                    "source_file": source_file,
+                    "source": f"extension:{manifest.id}",
+                }
+                modern_skill_name, legacy_skill_name = self._skill_names_for_command(cmd_name)
+                restore_index.setdefault(modern_skill_name, restore_info)
+                if legacy_skill_name != modern_skill_name:
+                    restore_index.setdefault(legacy_skill_name, restore_info)
+
+        return restore_index
 
     def _register_skills(
         self,
@@ -629,9 +706,15 @@ class PresetManager:
             return []
 
         from . import SKILL_DESCRIPTIONS, load_init_options
+        from .agents import CommandRegistrar
 
-        opts = load_init_options(self.project_root)
-        selected_ai = opts.get("ai", "")
+        init_opts = load_init_options(self.project_root)
+        if not isinstance(init_opts, dict):
+            init_opts = {}
+        selected_ai = init_opts.get("ai")
+        if not isinstance(selected_ai, str):
+            return []
+        registrar = CommandRegistrar()
 
         written: List[str] = []
 
@@ -643,62 +726,61 @@ class PresetManager:
                 continue
 
             # Derive the short command name (e.g. "specify" from "speckit.specify")
-            short_name = cmd_name
-            if short_name.startswith("speckit."):
-                short_name = short_name[len("speckit."):]
-            if selected_ai == "kimi":
-                skill_name = f"speckit.{short_name}"
-            else:
-                skill_name = f"speckit-{short_name}"
+            raw_short_name = cmd_name
+            if raw_short_name.startswith("speckit."):
+                raw_short_name = raw_short_name[len("speckit."):]
+            short_name = raw_short_name.replace(".", "-")
+            skill_name, legacy_skill_name = self._skill_names_for_command(cmd_name)
+            skill_title = self._skill_title_from_command(cmd_name)
 
-            # Only overwrite if the skill already exists (i.e. --ai-skills was used)
-            skill_subdir = skills_dir / skill_name
-            if not skill_subdir.exists():
+            # Only overwrite skills that already exist under skills_dir,
+            # including Kimi native skills when ai_skills is false.
+            # If both modern and legacy directories exist, update both.
+            target_skill_names: List[str] = []
+            if (skills_dir / skill_name).is_dir():
+                target_skill_names.append(skill_name)
+            if legacy_skill_name != skill_name and (skills_dir / legacy_skill_name).is_dir():
+                target_skill_names.append(legacy_skill_name)
+            if not target_skill_names:
                 continue
 
             # Parse the command file
             content = source_file.read_text(encoding="utf-8")
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    frontmatter = yaml.safe_load(parts[1])
-                    if not isinstance(frontmatter, dict):
-                        frontmatter = {}
-                    body = parts[2].strip()
-                else:
-                    frontmatter = {}
-                    body = content
-            else:
-                frontmatter = {}
-                body = content
+            frontmatter, body = registrar.parse_frontmatter(content)
 
             original_desc = frontmatter.get("description", "")
             enhanced_desc = SKILL_DESCRIPTIONS.get(
                 short_name,
                 original_desc or f"Spec-kit workflow command: {short_name}",
             )
-
-            frontmatter_data = {
-                "name": skill_name,
-                "description": enhanced_desc,
-                "compatibility": "Requires spec-kit project structure with .specify/ directory",
-                "metadata": {
-                    "author": "github-spec-kit",
-                    "source": f"preset:{manifest.id}",
-                },
-            }
-            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
-            skill_content = (
-                f"---\n"
-                f"{frontmatter_text}\n"
-                f"---\n\n"
-                f"# Speckit {short_name.title()} Skill\n\n"
-                f"{body}\n"
+            frontmatter = dict(frontmatter)
+            frontmatter["description"] = enhanced_desc
+            body = registrar.resolve_skill_placeholders(
+                selected_ai, frontmatter, body, self.project_root
             )
 
-            skill_file = skill_subdir / "SKILL.md"
-            skill_file.write_text(skill_content, encoding="utf-8")
-            written.append(skill_name)
+            for target_skill_name in target_skill_names:
+                frontmatter_data = {
+                    "name": target_skill_name,
+                    "description": enhanced_desc,
+                    "compatibility": "Requires spec-kit project structure with .specify/ directory",
+                    "metadata": {
+                        "author": "github-spec-kit",
+                        "source": f"preset:{manifest.id}",
+                    },
+                }
+                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                skill_content = (
+                    f"---\n"
+                    f"{frontmatter_text}\n"
+                    f"---\n\n"
+                    f"# Speckit {skill_title} Skill\n\n"
+                    f"{body}\n"
+                )
+
+                skill_file = skills_dir / target_skill_name / "SKILL.md"
+                skill_file.write_text(skill_content, encoding="utf-8")
+                written.append(target_skill_name)
 
         return written
 
@@ -720,10 +802,17 @@ class PresetManager:
         if not skills_dir:
             return
 
-        from . import SKILL_DESCRIPTIONS
+        from . import SKILL_DESCRIPTIONS, load_init_options
+        from .agents import CommandRegistrar
 
         # Locate core command templates from the project's installed templates
         core_templates_dir = self.project_root / ".specify" / "templates" / "commands"
+        init_opts = load_init_options(self.project_root)
+        if not isinstance(init_opts, dict):
+            init_opts = {}
+        selected_ai = init_opts.get("ai")
+        registrar = CommandRegistrar()
+        extension_restore_index = self._build_extension_skill_restore_index()
 
         for skill_name in skill_names:
             # Derive command name from skill name (speckit-specify -> specify)
@@ -735,7 +824,10 @@ class PresetManager:
 
             skill_subdir = skills_dir / skill_name
             skill_file = skill_subdir / "SKILL.md"
-            if not skill_file.exists():
+            if not skill_subdir.is_dir():
+                continue
+            if not skill_file.is_file():
+                # Only manage directories that contain the expected skill entrypoint.
                 continue
 
             # Try to find the core command template
@@ -746,19 +838,11 @@ class PresetManager:
             if core_file:
                 # Restore from core template
                 content = core_file.read_text(encoding="utf-8")
-                if content.startswith("---"):
-                    parts = content.split("---", 2)
-                    if len(parts) >= 3:
-                        frontmatter = yaml.safe_load(parts[1])
-                        if not isinstance(frontmatter, dict):
-                            frontmatter = {}
-                        body = parts[2].strip()
-                    else:
-                        frontmatter = {}
-                        body = content
-                else:
-                    frontmatter = {}
-                    body = content
+                frontmatter, body = registrar.parse_frontmatter(content)
+                if isinstance(selected_ai, str):
+                    body = registrar.resolve_skill_placeholders(
+                        selected_ai, frontmatter, body, self.project_root
+                    )
 
                 original_desc = frontmatter.get("description", "")
                 enhanced_desc = SKILL_DESCRIPTIONS.get(
@@ -776,16 +860,49 @@ class PresetManager:
                     },
                 }
                 frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                skill_title = self._skill_title_from_command(short_name)
                 skill_content = (
                     f"---\n"
                     f"{frontmatter_text}\n"
                     f"---\n\n"
-                    f"# Speckit {short_name.title()} Skill\n\n"
+                    f"# Speckit {skill_title} Skill\n\n"
+                    f"{body}\n"
+                )
+                skill_file.write_text(skill_content, encoding="utf-8")
+                continue
+
+            extension_restore = extension_restore_index.get(skill_name)
+            if extension_restore:
+                content = extension_restore["source_file"].read_text(encoding="utf-8")
+                frontmatter, body = registrar.parse_frontmatter(content)
+                if isinstance(selected_ai, str):
+                    body = registrar.resolve_skill_placeholders(
+                        selected_ai, frontmatter, body, self.project_root
+                    )
+
+                command_name = extension_restore["command_name"]
+                title_name = self._skill_title_from_command(command_name)
+
+                frontmatter_data = {
+                    "name": skill_name,
+                    "description": frontmatter.get("description", f"Extension command: {command_name}"),
+                    "compatibility": "Requires spec-kit project structure with .specify/ directory",
+                    "metadata": {
+                        "author": "github-spec-kit",
+                        "source": extension_restore["source"],
+                    },
+                }
+                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                skill_content = (
+                    f"---\n"
+                    f"{frontmatter_text}\n"
+                    f"---\n\n"
+                    f"# {title_name} Skill\n\n"
                     f"{body}\n"
                 )
                 skill_file.write_text(skill_content, encoding="utf-8")
             else:
-                # No core template — remove the skill entirely
+                # No core or extension template — remove the skill entirely
                 shutil.rmtree(skill_subdir)
 
     def install_from_directory(
@@ -915,17 +1032,26 @@ class PresetManager:
         if not self.registry.is_installed(pack_id):
             return False
 
-        # Unregister commands from AI agents
         metadata = self.registry.get(pack_id)
-        registered_commands = metadata.get("registered_commands", {}) if metadata else {}
-        if registered_commands:
-            self._unregister_commands(registered_commands)
-
         # Restore original skills when preset is removed
         registered_skills = metadata.get("registered_skills", []) if metadata else []
+        registered_commands = metadata.get("registered_commands", {}) if metadata else {}
         pack_dir = self.presets_dir / pack_id
         if registered_skills:
             self._unregister_skills(registered_skills, pack_dir)
+            try:
+                from . import NATIVE_SKILLS_AGENTS
+            except ImportError:
+                NATIVE_SKILLS_AGENTS = set()
+            registered_commands = {
+                agent_name: cmd_names
+                for agent_name, cmd_names in registered_commands.items()
+                if agent_name not in NATIVE_SKILLS_AGENTS
+            }
+
+        # Unregister non-skill command files from AI agents.
+        if registered_commands:
+            self._unregister_commands(registered_commands)
 
         if pack_dir.exists():
             shutil.rmtree(pack_dir)

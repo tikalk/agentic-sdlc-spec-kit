@@ -511,24 +511,32 @@ class ExtensionManager:
         return _ignore
 
     def _get_skills_dir(self) -> Optional[Path]:
-        """Return the skills directory if ``--ai-skills`` was used during init.
+        """Return the active skills directory for extension skill registration.
 
         Reads ``.specify/init-options.json`` to determine whether skills
         are enabled and which agent was selected, then delegates to
         the module-level ``_get_skills_dir()`` helper for the concrete path.
 
+        Kimi is treated as a native-skills agent: if ``ai == "kimi"`` and
+        ``.kimi/skills`` exists, extension installs should still propagate
+        command skills even when ``ai_skills`` is false.
+
         Returns:
             The skills directory ``Path``, or ``None`` if skills were not
-            enabled or the init-options file is missing.
+            enabled and no native-skills fallback applies.
         """
         from . import load_init_options, _get_skills_dir as resolve_skills_dir
 
         opts = load_init_options(self.project_root)
-        if not opts.get("ai_skills"):
-            return None
+        if not isinstance(opts, dict):
+            opts = {}
 
         agent = opts.get("ai")
-        if not agent:
+        if not isinstance(agent, str) or not agent:
+            return None
+
+        ai_skills_enabled = bool(opts.get("ai_skills"))
+        if not ai_skills_enabled and agent != "kimi":
             return None
 
         skills_dir = resolve_skills_dir(self.project_root, agent)
@@ -561,12 +569,17 @@ class ExtensionManager:
             return []
 
         from . import load_init_options
+        from .agents import CommandRegistrar
         import yaml
 
-        opts = load_init_options(self.project_root)
-        selected_ai = opts.get("ai", "")
-
         written: List[str] = []
+        opts = load_init_options(self.project_root)
+        if not isinstance(opts, dict):
+            opts = {}
+        selected_ai = opts.get("ai")
+        if not isinstance(selected_ai, str) or not selected_ai:
+            return []
+        registrar = CommandRegistrar()
 
         for cmd_info in manifest.commands:
             cmd_name = cmd_info["name"]
@@ -587,17 +600,12 @@ class ExtensionManager:
             if not source_file.is_file():
                 continue
 
-            # Derive skill name from command name, matching the convention used by
-            # presets.py: strip the leading "speckit." prefix, then form:
-            #   Kimi  → "speckit.{short_name}"  (dot preserved for Kimi agent)
-            #   other → "speckit-{short_name}"  (hyphen separator)
+            # Derive skill name from command name using the same hyphenated
+            # convention as hook rendering and preset skill registration.
             short_name_raw = cmd_name
             if short_name_raw.startswith("speckit."):
                 short_name_raw = short_name_raw[len("speckit."):]
-            if selected_ai == "kimi":
-                skill_name = f"speckit.{short_name_raw}"
-            else:
-                skill_name = f"speckit-{short_name_raw}"
+            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
@@ -621,22 +629,11 @@ class ExtensionManager:
                     except OSError:
                         pass  # best-effort cleanup
                 continue
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    try:
-                        frontmatter = yaml.safe_load(parts[1])
-                    except yaml.YAMLError:
-                        frontmatter = {}
-                    if not isinstance(frontmatter, dict):
-                        frontmatter = {}
-                    body = parts[2].strip()
-                else:
-                    frontmatter = {}
-                    body = content
-            else:
-                frontmatter = {}
-                body = content
+            frontmatter, body = registrar.parse_frontmatter(content)
+            frontmatter = registrar._adjust_script_paths(frontmatter)
+            body = registrar.resolve_skill_placeholders(
+                selected_ai, frontmatter, body, self.project_root
+            )
 
             original_desc = frontmatter.get("description", "")
             description = original_desc or f"Extension command: {cmd_name}"
@@ -738,11 +735,9 @@ class ExtensionManager:
                 shutil.rmtree(skill_subdir)
         else:
             # Fallback: scan all possible agent skills directories
-            from . import AGENT_CONFIG, AGENT_SKILLS_DIR_OVERRIDES, DEFAULT_SKILLS_DIR
+            from . import AGENT_CONFIG, DEFAULT_SKILLS_DIR
 
             candidate_dirs: set[Path] = set()
-            for override_path in AGENT_SKILLS_DIR_OVERRIDES.values():
-                candidate_dirs.add(self.project_root / override_path)
             for cfg in AGENT_CONFIG.values():
                 folder = cfg.get("folder", "")
                 if folder:
@@ -1940,6 +1935,52 @@ class HookExecutor:
         self.project_root = project_root
         self.extensions_dir = project_root / ".specify" / "extensions"
         self.config_file = project_root / ".specify" / "extensions.yml"
+        self._init_options_cache: Optional[Dict[str, Any]] = None
+
+    def _load_init_options(self) -> Dict[str, Any]:
+        """Load persisted init options used to determine invocation style.
+
+        Uses the shared helper from specify_cli and caches values per executor
+        instance to avoid repeated filesystem reads during hook rendering.
+        """
+        if self._init_options_cache is None:
+            from . import load_init_options
+
+            payload = load_init_options(self.project_root)
+            self._init_options_cache = payload if isinstance(payload, dict) else {}
+        return self._init_options_cache
+
+    @staticmethod
+    def _skill_name_from_command(command: Any) -> str:
+        """Map a command id like speckit.plan to speckit-plan skill name."""
+        if not isinstance(command, str):
+            return ""
+        command_id = command.strip()
+        if not command_id.startswith("speckit."):
+            return ""
+        return f"speckit-{command_id[len('speckit.'):].replace('.', '-')}"
+
+    def _render_hook_invocation(self, command: Any) -> str:
+        """Render an agent-specific invocation string for a hook command."""
+        if not isinstance(command, str):
+            return ""
+
+        command_id = command.strip()
+        if not command_id:
+            return ""
+
+        init_options = self._load_init_options()
+        selected_ai = init_options.get("ai")
+        codex_skill_mode = selected_ai == "codex" and bool(init_options.get("ai_skills"))
+        kimi_skill_mode = selected_ai == "kimi"
+
+        skill_name = self._skill_name_from_command(command_id)
+        if codex_skill_mode and skill_name:
+            return f"${skill_name}"
+        if kimi_skill_mode and skill_name:
+            return f"/skill:{skill_name}"
+
+        return f"/{command_id}"
 
     def get_project_config(self) -> Dict[str, Any]:
         """Load project-level extension configuration.
@@ -2183,21 +2224,27 @@ class HookExecutor:
         for hook in hooks:
             extension = hook.get("extension")
             command = hook.get("command")
+            invocation = self._render_hook_invocation(command)
+            command_text = command if isinstance(command, str) and command.strip() else "<missing command>"
+            display_invocation = invocation or (
+                f"/{command_text}" if command_text != "<missing command>" else "/<missing command>"
+            )
             optional = hook.get("optional", True)
             prompt = hook.get("prompt", "")
             description = hook.get("description", "")
 
             if optional:
                 lines.append(f"\n**Optional Hook**: {extension}")
-                lines.append(f"Command: `/{command}`")
+                lines.append(f"Command: `{display_invocation}`")
                 if description:
                     lines.append(f"Description: {description}")
                 lines.append(f"\nPrompt: {prompt}")
-                lines.append(f"To execute: `/{command}`")
+                lines.append(f"To execute: `{display_invocation}`")
             else:
                 lines.append(f"\n**Automatic Hook**: {extension}")
-                lines.append(f"Executing: `/{command}`")
-                lines.append(f"EXECUTE_COMMAND: {command}")
+                lines.append(f"Executing: `{display_invocation}`")
+                lines.append(f"EXECUTE_COMMAND: {command_text}")
+                lines.append(f"EXECUTE_COMMAND_INVOCATION: {display_invocation}")
 
         return "\n".join(lines)
 
@@ -2261,6 +2308,7 @@ class HookExecutor:
         """
         return {
             "command": hook.get("command"),
+            "invocation": self._render_hook_invocation(hook.get("command")),
             "extension": hook.get("extension"),
             "optional": hook.get("optional", True),
             "description": hook.get("description", ""),
@@ -2304,4 +2352,3 @@ class HookExecutor:
                     hook["enabled"] = False
 
         self.save_project_config(config)
-
