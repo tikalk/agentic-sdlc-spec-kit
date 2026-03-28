@@ -1,26 +1,26 @@
 # Quick Extension - Session-Based Ad-Hoc Task Execution
 
-A streamlined, session-based workflow for ad-hoc task execution without file artifacts. Quick compresses the full spec-driven workflow into a single command with conversation-only interactions.
+A streamlined, session-based workflow for ad-hoc task execution without file artifacts. Quick compresses the full spec-driven workflow into a single command with minimal interaction.
 
 ## Overview
 
 Quick follows the 12-factors methodology in a compact, single-command session:
 
 ```
-Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution
+Mission Brief → Context Discovery → Task Breakdown → Execution (with commits)
 ```
 
 **No file artifacts are created** - everything happens in the conversation with your AI agent.
 
-### Enforcement Mode
+### Low-Friction Design
 
-Quick uses **strict enforcement checkpoints** to ensure the workflow is followed correctly:
-- **7 enforcement checkpoints** (**⚠️**) with mandatory user confirmations
-- **Sequential execution only** - No phase can be skipped
-- **Stop-and-wait** - AI pauses at each checkpoint for user approval
-- **No auto-proceed** - Every phase requires explicit user confirmation
+Quick uses **task-level commits** as checkpoints instead of interactive stops:
+- **1 stop**: After Mission Brief (for approval)
+- **Auto-commit**: After each task completes
+- **Auto-proceed**: No pauses between tasks
+- **Error commits**: "WIP" commit on failure before asking user
 
-This prevents the AI from skipping phases or defaulting to file analysis mode.
+This provides rollback capability while keeping interaction minimal.
 
 ## Quick Start
 
@@ -30,7 +30,7 @@ This prevents the AI from skipping phases or defaulting to file analysis mode.
 
 ## How It Works
 
-### Phase 1: Mission Brief (⚠️ Enforcement Checkpoint)
+### Phase 1: Mission Brief (⚠️ Stop)
 Quick asks 2-3 questions to understand what you're doing:
 - What needs to be done?
 - What defines success?
@@ -39,48 +39,42 @@ Quick asks 2-3 questions to understand what you're doing:
 **Approval #1**: You see the Mission Brief and confirm before proceeding.
 - **⚠️ Mandatory stop**: AI waits for "yes" confirmation
 
-### Phase 2: Context Discovery (⚠️ Enforcement Checkpoint)
+### Phase 2: Context Discovery (Auto)
 You provide any relevant context:
 - Project files to examine
 - Documentation to reference
 - Technical constraints
-- Examples to follow
 
-**⚠️ Mandatory stop**: AI waits for context confirmation before reading files.
+Quick proceeds automatically after brief input.
 
-### Phase 3: Plan Generation (Internal)
-Quick mentally plans the approach based on your brief and context. This is AI internal reasoning - not displayed.
-
-### Phase 4: Task Breakdown (⚠️ Enforcement Checkpoint)
+### Phase 3: Task Breakdown (Auto)
 Quick generates a concrete task checklist:
 ```markdown
 - [ ] Add error handling to login API
 - [ ] Update session token validation
 - [ ] Add unit tests for auth flow
-- [ ] Update documentation
 ```
 
-**Approval #2**: You see the full task list and confirm before execution.
-- **⚠️ Mandatory stop**: AI waits for "yes" confirmation
+**No stop** - proceeds directly to execution.
 
-### Phase 5: Sequential Execution (⚠️ Enforcement Checkpoint)
+### Phase 4: Execution with Task-Level Commits
 Quick executes tasks one at a time:
 - Displays task being executed
 - Makes necessary code changes
-- Shows what was done
-- Confirms completion
-- **⚠️ Mandatory pause**: Waits for "Next task ready?" confirmation before proceeding
+- **Auto-commits** after each task
+- Proceeds to next task automatically
 
-**Stop on error**: If a task fails, Quick stops and asks what to do next.
-- **⚠️ Mandatory wait**: Does not auto-retry or auto-skip
+```bash
+git commit -m "[quick] Task 1: Add error handling to login API"
+```
 
-### Phase 6: Summary (⚠️ Enforcement Checkpoint)
+**Error handling**: If a task fails, Quick commits the WIP state and asks what to do next.
+
+### Phase 5: Summary
 Quick shows completion status:
 - All tasks completed ✅
 - Files modified
 - Next steps (testing, review, etc.)
-
-**⚠️ Final summary**: Only shows completion after all tasks verified.
 
 ## When to Use Quick
 
@@ -109,11 +103,12 @@ Quick shows completion status:
 |--------|-------|---------------|
 | File Artifacts | None (session-only) | spec.md, plan.md, tasks.md, etc. |
 | Commands | 1 (`/quick.implement`) | 4+ commands |
-| Interaction | 2 approval points | Review at each stage |
+| Interactive Stops | 1 (Mission Brief) | Review at each stage |
+| Checkpoints | Task-level commits | Review phases + commits |
 | Task Complexity | Simple checklist | Detailed task breakdown with phases |
 | Use Case | Ad-hoc, small tasks | Full-featured spec-driven development |
 
-## Execution Flow (With Enforcement Checkpoints)
+## Execution Flow
 
 ```text
 /quick.implement "your task description"
@@ -122,33 +117,45 @@ Quick shows completion status:
   ↓
 ⚠️ STOP: Approval #1: "Proceed with this brief?"
   ↓
-⚠️ CHECKPOINT 2: Context Discovery (user provides context)
+Context Discovery (brief input)
   ↓
-⚠️ STOP: Approval context received?
+Task Breakdown (auto-display)
   ↓
-⚠️ CHECKPOINT 3: Plan Generation (AI internal planning)
+Execution (auto-proceed with commits):
+  Task 1 → make changes → git commit "[quick] Task 1: ..."
+  Task 2 → make changes → git commit "[quick] Task 2: ..."
+  Task 3 → make changes → git commit "[quick] Task 3: ..."
   ↓
-⚠️ CHECKPOINT 4: Task Breakdown (show checklist)
-  ↓
-⚠️ STOP: Approval #2: "Proceed with these tasks?"
-  ↓
-⚠️ CHECKPOINT 5: Sequential Execution (one task at a time)
-  ↓
-⚠️ STOP: "Next task ready?" (per task)
-  ↓
-⚠️ CHECKPOINT 6: Summary
-  ↓
-⚠️ STOP: Implementation complete
+Summary
 ```
 
-### Enforcement Guarantees
+## Checkpoint Strategy
 
-- **Phase 1**: Mission Brief must be collected and approved
-- **Phase 2**: Context must be collected and confirmed
-- **Phase 5**: Each task must complete before next task starts
-- **All phases**: Require explicit user "yes" to proceed
-- **No skipping**: Phases cannot be bypassed
-- **No auto-proceed**: AI never moves forward without confirmation
+Quick uses **task-level commits** as checkpoints instead of interactive stops:
+
+| Checkpoint Type | Trigger | Purpose |
+|-----------------|---------|---------|
+| Mission Brief | User confirmation | Ensure understanding of goal |
+| Task commit | After each task | Rollback capability |
+| Error commit | On failure | Save WIP state before asking |
+
+**Benefits**:
+- User can `git reset` to any task checkpoint
+- Commit history shows progress
+- No need to wait for user confirmation between tasks
+- Error commits save state before asking what to do
+
+## Commit Format
+
+**Successful task**:
+```
+[quick] Task 1: Add error handling to login API
+```
+
+**Failed task (WIP)**:
+```
+[quick] Task 2: WIP - session validation fix failed
+```
 
 ## Error Handling
 
@@ -159,13 +166,15 @@ If a task fails during execution:
 
 Error: TypeError: Cannot read property 'token' of undefined
 
+[Committed WIP checkpoint: [quick] Task 1: WIP - login API error]
+
 What would you like to do?
 - Retry this task
 - Skip and continue to next task
 - Stop execution
 ```
 
-Quick **always stops on error** and waits for your decision.
+Quick **commits the WIP state** before asking your decision, so you can always rollback.
 
 ## Examples
 
@@ -225,10 +234,10 @@ Quick requires **no configuration** - it's designed to work out-of-the-box for s
 ## Limitations
 
 1. **No file artifacts** - Quick doesn't save workflow state to files
-2. **Session-only** - History is lost after conversation ends
-3. **Sequential execution** - One task at a time, no parallel work
+2. **Session-only** - History is lost after conversation ends (but commits persist)
+3. **Auto-proceed** - No pause between tasks (relies on commits for checkpoints)
 4. **Simple task structure** - No complex phases, dependencies, or sync/async modes
-5. **Error handling required** - Must interact with user on failures
+5. **Manual push** - User decides when to push/merge commits
 
 ## Comparison to Full Spec-Driven Workflow
 
@@ -242,11 +251,11 @@ Quick requires **no configuration** - it's designed to work out-of-the-box for s
 
 ### Quick (/quick.implement)
 - No documentation files
-- 2 approval points only
+- 1 interactive stop only
 - Simple task checklist
-- Sequential execution only
-- No auto-commits
-- Session-only workflow
+- Sequential execution with auto-commits
+- Task-level commits as checkpoints
+- Session-only workflow (commits for history)
 
 ## Related Extensions
 

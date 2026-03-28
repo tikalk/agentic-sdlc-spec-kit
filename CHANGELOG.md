@@ -5,6 +5,12 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.2.1] - 2026-03-28
+
+### Changed
+
+- **Quick extension**: Redesigned to low-friction mode with 1-stop (Mission Brief) + task-level commits as checkpoints
+
 ## [0.1.23] - 2026-03-25
 
 ### Added
