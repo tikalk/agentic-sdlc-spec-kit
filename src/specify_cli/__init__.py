@@ -3956,6 +3956,9 @@ def init(
 
             ensure_constitution_from_template(project_path, tracker=tracker)
 
+            # Track whether skills were installed for later command cleanup
+            skills_ok = False
+
             # Determine skills directory and migrate any legacy Kimi dotted skills.
             migrated_legacy_kimi_skills = 0
             removed_legacy_kimi_skills = 0
@@ -4263,7 +4266,7 @@ def init(
         if codex_skill_mode:
             return f"$speckit-{name}"
         if kimi_skill_mode:
-            return f"/skill:speckit.{name}"
+            return f"/skill:speckit-{name}"
         # Use spec.* aliases for tikalk fork
         return f"/spec.{name}"
 
