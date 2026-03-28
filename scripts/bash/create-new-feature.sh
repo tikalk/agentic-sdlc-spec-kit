@@ -3,6 +3,7 @@
 set -e
 
 JSON_MODE=false
+ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
 CONTRACTS="true"
@@ -15,6 +16,9 @@ while [ $i -le $# ]; do
     case "$arg" in
         --json)
             JSON_MODE=true
+            ;;
+        --allow-existing-branch)
+            ALLOW_EXISTING=true
             ;;
         --short-name)
             if [ $((i + 1)) -gt $# ]; then
@@ -58,11 +62,12 @@ while [ $i -le $# ]; do
         --timestamp)
             USE_TIMESTAMP=true
             ;;
-        --help|-h) 
-            echo "Usage: $0 [OPTIONS] <feature_description>"
+        --help|-h)
+            echo "Usage: $0 [--json] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json                  Output in JSON format"
+            echo "  --allow-existing-branch Switch to branch if it already exists instead of failing"
             echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
             echo "  --number N              Specify branch number manually (overrides auto-detection)"
             echo "  --timestamp             Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
@@ -88,7 +93,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>" >&2
     exit 1
 fi
 
@@ -108,9 +113,9 @@ get_highest_from_specs() {
         for dir in "$specs_dir"/*; do
             [ -d "$dir" ] || continue
             dirname=$(basename "$dir")
-            # Only match sequential prefixes (###-*), skip timestamp dirs
-            if echo "$dirname" | grep -q '^[0-9]\{3\}-'; then
-                number=$(echo "$dirname" | grep -o '^[0-9]\{3\}')
+            # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
+            if echo "$dirname" | grep -Eq '^[0-9]{3,}-' && ! echo "$dirname" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
+                number=$(echo "$dirname" | grep -Eo '^[0-9]+')
                 number=$((10#$number))
                 if [ "$number" -gt "$highest" ]; then
                     highest=$number
@@ -134,9 +139,9 @@ get_highest_from_branches() {
             # Clean branch name: remove leading markers and remote prefixes
             clean_branch=$(echo "$branch" | sed 's/^[* ]*//; s|^remotes/[^/]*/||')
             
-            # Extract feature number if branch matches pattern ###-*
-            if echo "$clean_branch" | grep -q '^[0-9]\{3\}-'; then
-                number=$(echo "$clean_branch" | grep -o '^[0-9]\{3\}' || echo "0")
+            # Extract sequential feature number (>=3 digits), skip timestamp branches.
+            if echo "$clean_branch" | grep -Eq '^[0-9]{3,}-' && ! echo "$clean_branch" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
+                number=$(echo "$clean_branch" | grep -Eo '^[0-9]+' || echo "0")
                 number=$((10#$number))
                 if [ "$number" -gt "$highest" ]; then
                     highest=$number
@@ -342,12 +347,19 @@ if [ "$HAS_GIT" = true ]; then
     if ! git checkout -b "$BRANCH_NAME" 2>/dev/null; then
         # Check if branch already exists
         if git branch --list "$BRANCH_NAME" | grep -q .; then
-            if [ "$USE_TIMESTAMP" = true ]; then
+            if [ "$ALLOW_EXISTING" = true ]; then
+                # Switch to the existing branch instead of failing
+                if ! git checkout "$BRANCH_NAME" 2>/dev/null; then
+                    >&2 echo "Error: Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
+                    exit 1
+                fi
+            elif [ "$USE_TIMESTAMP" = true ]; then
                 >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
+                exit 1
             else
                 >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
+                exit 1
             fi
-            exit 1
         else
             >&2 echo "Error: Failed to create git branch '$BRANCH_NAME'. Please check your git configuration and try again."
             exit 1
@@ -378,11 +390,18 @@ replace_date_placeholders() {
 }
 
 # Apply defaults for options if not explicitly set
-TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
 SPEC_FILE="$FEATURE_DIR/spec.md"
-if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then cp "$TEMPLATE" "$SPEC_FILE"; else touch "$SPEC_FILE"; fi
+if [ ! -f "$SPEC_FILE" ]; then
+    TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
+    if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then
+        cp "$TEMPLATE" "$SPEC_FILE"
+    else
+        echo "Warning: Spec template not found; created empty spec file" >&2
+        touch "$SPEC_FILE"
+    fi
+fi
 
-# Replace options metadata in spec.md
+# Replace options metadata in spec.md (tikalk customization)
 if [ -f "$SPEC_FILE" ]; then
     # Use awk to replace placeholders - simpler than complex sed
     awk -v contracts_val="$CONTRACTS" -v datamodels_val="$DATA_MODELS" '

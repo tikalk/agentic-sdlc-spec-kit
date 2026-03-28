@@ -4,8 +4,10 @@
 [CmdletBinding()]
 param(
     [switch]$Json,
+    [switch]$AllowExistingBranch,
     [string]$ShortName,
-    [int]$Number = 0,
+    [Parameter()]
+    [long]$Number = 0,
     [switch]$Timestamp,
     [switch]$Help,
     [switch]$Contracts,
@@ -49,10 +51,11 @@ function Get-GlobalConfigPath {
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
+    Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
@@ -72,7 +75,7 @@ if ($Help) {
 
 # Check if feature description provided
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-ShortName <name>] [-Number N] [-Timestamp] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] <feature description>"
+    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] <feature description>"
     exit 1
 }
 
@@ -87,12 +90,15 @@ if ([string]::IsNullOrWhiteSpace($featureDesc)) {
 function Get-HighestNumberFromSpecs {
     param([string]$SpecsDir)
     
-    $highest = 0
+    [long]$highest = 0
     if (Test-Path $SpecsDir) {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
-            if ($_.Name -match '^(\d{3})-') {
-                $num = [int]$matches[1]
-                if ($num -gt $highest) { $highest = $num }
+            # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
+            if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
+                [long]$num = 0
+                if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
+                    $highest = $num
+                }
             }
         }
     }
@@ -102,7 +108,7 @@ function Get-HighestNumberFromSpecs {
 function Get-HighestNumberFromBranches {
     param()
     
-    $highest = 0
+    [long]$highest = 0
     try {
         $branches = git branch -a 2>$null
         if ($LASTEXITCODE -eq 0) {
@@ -110,10 +116,12 @@ function Get-HighestNumberFromBranches {
                 # Clean branch name: remove leading markers and remote prefixes
                 $cleanBranch = $branch.Trim() -replace '^\*?\s+', '' -replace '^remotes/[^/]+/', ''
                 
-                # Extract feature number if branch matches pattern ###-*
-                if ($cleanBranch -match '^(\d{3})-') {
-                    $num = [int]$matches[1]
-                    if ($num -gt $highest) { $highest = $num }
+                # Extract sequential feature number (>=3 digits), skip timestamp branches.
+                if ($cleanBranch -match '^(\d{3,})-' -and $cleanBranch -notmatch '^\d{8}-\d{6}-') {
+                    [long]$num = 0
+                    if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
+                        $highest = $num
+                    }
                 }
             }
         }
@@ -285,12 +293,20 @@ if ($hasGit) {
         # Check if branch already exists
         $existingBranch = git branch --list $branchName 2>$null
         if ($existingBranch) {
-            if ($Timestamp) {
+            if ($AllowExistingBranch) {
+                # Switch to the existing branch instead of failing
+                git checkout -q $branchName 2>$null | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    Write-Error "Error: Branch '$branchName' exists but could not be checked out. Resolve any uncommitted changes or conflicts and try again."
+                    exit 1
+                }
+            } elseif ($Timestamp) {
                 Write-Error "Error: Branch '$branchName' already exists. Rerun to get a new timestamp or use a different -ShortName."
+                exit 1
             } else {
                 Write-Error "Error: Branch '$branchName' already exists. Please use a different feature name or specify a different number with -Number."
+                exit 1
             }
-            exit 1
         } else {
             Write-Error "Error: Failed to create git branch '$branchName'. Please check your git configuration and try again."
             exit 1
@@ -315,19 +331,21 @@ function Replace-DatePlaceholders {
     }
 }
 
-# Use default template
+# Use default template (tikalk customization with framework options)
 $template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
 $specFile = Join-Path $featureDir 'spec.md'
-if (Test-Path $template) {
-    Copy-Item $template $specFile -Force
-} else {
-    New-Item -ItemType File -Path $specFile | Out-Null
+if (-not (Test-Path -PathType Leaf $specFile)) {
+    if ($template -and (Test-Path $template)) {
+        Copy-Item $template $specFile -Force
+    } else {
+        New-Item -ItemType File -Path $specFile | Out-Null
+    }
 }
 
 # Replace [DATE] placeholders with current date
 Replace-DatePlaceholders -FilePath $specFile
 
-# Replace metadata placeholders with actual values
+# Replace metadata placeholders with actual values (tikalk customization)
 if (Test-Path $specFile) {
     $content = Get-Content -Path $specFile -Raw
     
@@ -338,7 +356,7 @@ if (Test-Path $specFile) {
     Set-Content -Path $specFile -Value $content -NoNewline
 }
 
-# Function to populate context.md with defaults
+# Function to populate context.md with defaults (tikalk customization)
 function Populate-ContextFile {
     param(
         [string]$ContextFile,
@@ -396,7 +414,7 @@ function Populate-ContextFile {
     $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
 }
 
-# Populate context.md with defaults
+# Populate context.md with defaults (tikalk customization)
 $contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
 $contextFile = Join-Path $featureDir 'context.md'
 if (Test-Path $contextTemplate) {
@@ -434,4 +452,3 @@ if ($Json) {
     Write-Output "HAS_GIT: $hasGit"
     Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
 }
-

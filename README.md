@@ -402,9 +402,18 @@ Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.c
 
 The following community-contributed extensions are available in [`catalog.community.json`](extensions/catalog.community.json):
 
-**Categories:** `docs` — reads, validates, or generates spec artifacts · `code` — reviews, validates, or modifies source code · `process` — orchestrates workflow across phases · `integration` — syncs with external platforms · `visibility` — reports on project health or progress
+**Categories:**
 
-**Effect:** `Read-only` — produces reports without modifying files · `Read+Write` — modifies files, creates artifacts, or updates specs
+- `docs` — reads, validates, or generates spec artifacts
+- `code` — reviews, validates, or modifies source code
+- `process` — orchestrates workflow across phases
+- `integration` — syncs with external platforms
+- `visibility` — reports on project health or progress
+
+**Effect:**
+
+- `Read-only` — produces reports without modifying files
+- `Read+Write` — modifies files, creates artifacts, or updates specs
 
 | Extension | Purpose | Category | Effect | URL |
 |-----------|---------|----------|--------|-----|
@@ -421,6 +430,15 @@ The following community-contributed extensions are available in [`catalog.commun
 | Iterate | Iterate on spec documents with a two-phase define-and-apply workflow — refine specs mid-implementation and go straight back to building | `docs` | Read+Write | [spec-kit-iterate](https://github.com/imviancagrace/spec-kit-iterate) |
 | Jira Integration | Create Jira Epics, Stories, and Issues from spec-kit specifications and task breakdowns with configurable hierarchy and custom field support | `integration` | Read+Write | [spec-kit-jira](https://github.com/mbachorik/spec-kit-jira) |
 | Learning Extension | Generate educational guides from implementations and enhance clarifications with mentoring context | `docs` | Read+Write | [spec-kit-learn](https://github.com/imviancagrace/spec-kit-learn) |
+| MAQA — Multi-Agent & Quality Assurance | Coordinator → feature → QA agent workflow with parallel worktree-based implementation. Language-agnostic. Auto-detects installed board plugins. Optional CI gate. | `process` | Read+Write | [spec-kit-maqa-ext](https://github.com/GenieRobot/spec-kit-maqa-ext) |
+| MAQA Azure DevOps Integration | Azure DevOps Boards integration for MAQA — syncs User Stories and Task children as features progress | `integration` | Read+Write | [spec-kit-maqa-azure-devops](https://github.com/GenieRobot/spec-kit-maqa-azure-devops) |
+| MAQA CI/CD Gate | Auto-detects GitHub Actions, CircleCI, GitLab CI, and Bitbucket Pipelines. Blocks QA handoff until pipeline is green. | `process` | Read+Write | [spec-kit-maqa-ci](https://github.com/GenieRobot/spec-kit-maqa-ci) |
+| MAQA GitHub Projects Integration | GitHub Projects v2 integration for MAQA — syncs draft issues and Status columns as features progress | `integration` | Read+Write | [spec-kit-maqa-github-projects](https://github.com/GenieRobot/spec-kit-maqa-github-projects) |
+| MAQA Jira Integration | Jira integration for MAQA — syncs Stories and Subtasks as features progress through the board | `integration` | Read+Write | [spec-kit-maqa-jira](https://github.com/GenieRobot/spec-kit-maqa-jira) |
+| MAQA Linear Integration | Linear integration for MAQA — syncs issues and sub-issues across workflow states as features progress | `integration` | Read+Write | [spec-kit-maqa-linear](https://github.com/GenieRobot/spec-kit-maqa-linear) |
+| MAQA Trello Integration | Trello board integration for MAQA — populates board from specs, moves cards, real-time checklist ticking | `integration` | Read+Write | [spec-kit-maqa-trello](https://github.com/GenieRobot/spec-kit-maqa-trello) |
+| Onboard | Contextual onboarding and progressive growth for developers new to spec-kit projects. Explains specs, maps dependencies, validates understanding, and guides the next step | `process` | Read+Write | [spec-kit-onboard](https://github.com/dmux/spec-kit-onboard) |
+| Plan Review Gate | Require spec.md and plan.md to be merged via MR/PR before allowing task generation | `process` | Read-only | [spec-kit-plan-review-gate](https://github.com/luno/spec-kit-plan-review-gate) |
 | Presetify | Create and validate presets and preset catalogs | `process` | Read+Write | [presetify](https://github.com/mnriem/spec-kit-extensions/tree/main/presetify) |
 | Project Health Check | Diagnose a Spec Kit project and report health issues across structure, agents, features, scripts, extensions, and git | `visibility` | Read-only | [spec-kit-doctor](https://github.com/KhawarHabibKhan/spec-kit-doctor) |
 | Project Status | Show current SDD workflow progress — active feature, artifact status, task completion, workflow phase, and extensions summary | `visibility` | Read-only | [spec-kit-status](https://github.com/KhawarHabibKhan/spec-kit-status) |
@@ -756,38 +774,22 @@ Skills configuration is stored in `~/.config/specify/config.json`:
 
 ### `specify init` Arguments & Options
 
-| Argument/Option | Type | Description |
-| --------------- | ---- | ----------- |
-| `<project-name>` | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory) |
-| `--ai` | Option | AI assistant to use (see `AGENT_CONFIG` for the full list): `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `junie`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, or `generic` (requires `--ai-commands-dir`) |
-| `--ai-commands-dir` | Option | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`) |
-| `--script` | Option | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell) |
-| `--ignore-agent-tools` | Flag | Skip checks for AI agent tools like Claude Code |
-| `--no-git` | Flag | Skip git repository initialization |
-| `--here` | Flag | Initialize project in the current directory instead of creating a new one |
-| `--force` | Flag | Force merge/overwrite when initializing in current directory (skip confirmation) |
-| `--skip-tls` | Flag | Skip SSL/TLS verification (not recommended) |
-| `--debug` | Flag | Enable detailed debug output for troubleshooting |
-| `--github-token` | Option | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable) |
-| `--team-ai-directives` | Option | Path or URL to team-ai-directives repository |
-| `--ai-skills` | Flag | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`) |
-| `--branch-numbering` | Option | Branch numbering strategy: `sequential` (default — `001`, `002`, `003`) or `timestamp` (`YYYYMMDD-HHMMSS`). Timestamp mode is useful for distributed teams to avoid numbering conflicts |
-
-### `specify skill` Commands & Options
-
-The Skills Package Manager is accessed via the `specify skill` subcommand:
-
-| Command | Description |
-| ------- | ----------- |
-| `search <query>` | Search the public skills.sh registry for matching skills |
-| `install <ref>` | Install a skill (GitHub: `github:owner/repo/skill`, GitLab: `gitlab:host/owner/repo/skill`, Local: `local:./path`) |
-| `list [--outdated\|--json]` | List installed skills with optional filtering |
-| `eval <path> [--review\|--task\|--full\|--report]` | Evaluate skill quality: review (structure), task (behavior), full (both), or report (HTML) |
-| `update [name\|--all]` | Update specified skill or all skills to latest versions |
-| `remove <name>` | Uninstall a skill |
-| `sync-team [--dry-run]` | Sync installed skills with team manifest (show changes before applying with `--dry-run`) |
-| `check-updates` | Check for available skill updates |
-| `config [key] [value]` | View or modify skills configuration (e.g., `config auto_activation_threshold 0.8`)
+| Argument/Option        | Type     | Description                                                                                                                                                                                                                                                                                                                                                                               |
+| ---------------------- | -------- |-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `<project-name>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory)                                                                                                                                                                                                                                                                                        |
+| `--ai`                 | Option   | AI assistant to use (see `AGENT_CONFIG` for the full, up-to-date list). Common options include: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `junie`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, or `generic` (requires `--ai-commands-dir`) |
+| `--ai-commands-dir`    | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`)                                                                                                                                                                                                                                                                                               |
+| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                                                                                                                                                                                                                                                                                                                               |
+| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                                                                                                                                                                                                                                                                                                                                           |
+| `--no-git`             | Flag     | Skip git repository initialization                                                                                                                                                                                                                                                                                                                                                        |
+| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one                                                                                                                                                                                                                                                                                                                 |
+| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)                                                                                                                                                                                                                                                                                                          |
+| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                                                                                                                                                                                                                                                                                                                               |
+| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                                                                                                                                                                                                                                                                                                                                          |
+| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)                                                                                                                                                                                                                                                                                                                 |
+| `--team-ai-directives` | Option   | Path or URL to team-ai-directives repository (tikalk fork only)                                                                                                                                                                                                                                                                                                                          |
+| `--ai-skills`          | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`). Extension commands are also auto-registered as skills when extensions are added later.                                                                                                                                                                                               |
+| `--branch-numbering`   | Option   | Branch numbering strategy: `sequential` (default — `001`, `002`, `003`) or `timestamp` (`YYYYMMDD-HHMMSS`). Timestamp mode is useful for distributed teams to avoid numbering conflicts                                                                                                                                                                                                  |
 
 ### Examples
 

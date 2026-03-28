@@ -10,6 +10,8 @@ from pathlib import Path
 from typing import Dict, List, Any
 
 import platform
+import re
+from copy import deepcopy
 import yaml
 
 
@@ -211,23 +213,51 @@ class CommandRegistrar:
         return f"---\n{yaml_str}---\n"
 
     def _adjust_script_paths(self, frontmatter: dict) -> dict:
-        """Adjust script paths from extension-relative to repo-relative.
+        """Normalize script paths in frontmatter to generated project locations.
+
+        Rewrites known repo-relative and top-level script paths under the
+        `scripts` and `agent_scripts` keys (for example `../../scripts/`,
+        `../../templates/`, `../../memory/`, `scripts/`, `templates/`, and
+        `memory/`) to the `.specify/...` paths used in generated projects.
 
         Args:
             frontmatter: Frontmatter dictionary
 
         Returns:
-            Modified frontmatter with adjusted paths
+            Modified frontmatter with normalized project paths
         """
+        frontmatter = deepcopy(frontmatter)
+
         for script_key in ("scripts", "agent_scripts"):
             scripts = frontmatter.get(script_key)
             if not isinstance(scripts, dict):
                 continue
 
             for key, script_path in scripts.items():
-                if isinstance(script_path, str) and script_path.startswith("../../scripts/"):
-                    scripts[key] = f".specify/scripts/{script_path[14:]}"
+                if isinstance(script_path, str):
+                    scripts[key] = self._rewrite_project_relative_paths(script_path)
         return frontmatter
+
+    @staticmethod
+    def _rewrite_project_relative_paths(text: str) -> str:
+        """Rewrite repo-relative paths to their generated project locations."""
+        if not isinstance(text, str) or not text:
+            return text
+
+        for old, new in (
+            ("../../memory/", ".specify/memory/"),
+            ("../../scripts/", ".specify/scripts/"),
+            ("../../templates/", ".specify/templates/"),
+        ):
+            text = text.replace(old, new)
+
+        # Only rewrite top-level style references so extension-local paths like
+        # ".specify/extensions/<ext>/scripts/..." remain intact.
+        text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?memory/', r"\1.specify/memory/", text)
+        text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?scripts/', r"\1.specify/scripts/", text)
+        text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?templates/', r"\1.specify/templates/", text)
+
+        return text.replace(".specify/.specify/", ".specify/").replace(".specify.specify/", ".specify/")
 
     def render_markdown_command(
         self,
@@ -277,9 +307,25 @@ class CommandRegistrar:
         toml_lines.append(f"# Source: {source_id}")
         toml_lines.append("")
 
-        toml_lines.append('prompt = """')
-        toml_lines.append(body)
-        toml_lines.append('"""')
+        # Keep TOML output valid even when body contains triple-quote delimiters.
+        # Prefer multiline forms, then fall back to escaped basic string.
+        if '"""' not in body:
+            toml_lines.append('prompt = """')
+            toml_lines.append(body)
+            toml_lines.append('"""')
+        elif "'''" not in body:
+            toml_lines.append("prompt = '''")
+            toml_lines.append(body)
+            toml_lines.append("'''")
+        else:
+            escaped_body = (
+                body.replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("\n", "\\n")
+                .replace("\r", "\\r")
+                .replace("\t", "\\t")
+            )
+            toml_lines.append(f'prompt = "{escaped_body}"')
 
         return "\n".join(toml_lines)
 
@@ -308,8 +354,8 @@ class CommandRegistrar:
         if not isinstance(frontmatter, dict):
             frontmatter = {}
 
-        if agent_name == "codex":
-            body = self._resolve_codex_skill_placeholders(frontmatter, body, project_root)
+        if agent_name in {"codex", "kimi"}:
+            body = self.resolve_skill_placeholders(agent_name, frontmatter, body, project_root)
 
         description = frontmatter.get("description", f"Spec-kit workflow command: {skill_name}")
         skill_frontmatter = {
@@ -324,13 +370,8 @@ class CommandRegistrar:
         return self.render_frontmatter(skill_frontmatter) + "\n" + body
 
     @staticmethod
-    def _resolve_codex_skill_placeholders(frontmatter: dict, body: str, project_root: Path) -> str:
-        """Resolve script placeholders for Codex skill overrides.
-
-        This intentionally scopes the fix to Codex, which is the newly
-        migrated runtime path in this PR. Existing Kimi behavior is left
-        unchanged for now.
-        """
+    def resolve_skill_placeholders(agent_name: str, frontmatter: dict, body: str, project_root: Path) -> str:
+        """Resolve script placeholders for skills-backed agents."""
         try:
             from . import load_init_options
         except ImportError:
@@ -346,7 +387,11 @@ class CommandRegistrar:
         if not isinstance(agent_scripts, dict):
             agent_scripts = {}
 
-        script_variant = load_init_options(project_root).get("script")
+        init_opts = load_init_options(project_root)
+        if not isinstance(init_opts, dict):
+            init_opts = {}
+
+        script_variant = init_opts.get("script")
         if script_variant not in {"sh", "ps"}:
             fallback_order = []
             default_variant = "ps" if platform.system().lower().startswith("win") else "sh"
@@ -376,7 +421,8 @@ class CommandRegistrar:
             agent_script_command = agent_script_command.replace("{ARGS}", "$ARGUMENTS")
             body = body.replace("{AGENT_SCRIPT}", agent_script_command)
 
-        return body.replace("{ARGS}", "$ARGUMENTS").replace("__AGENT__", "codex")
+        body = body.replace("{ARGS}", "$ARGUMENTS").replace("__AGENT__", agent_name)
+        return CommandRegistrar._rewrite_project_relative_paths(body)
 
     def _convert_argument_placeholder(self, content: str, from_placeholder: str, to_placeholder: str) -> str:
         """Convert argument placeholder format.
@@ -400,8 +446,9 @@ class CommandRegistrar:
         short_name = cmd_name
         if short_name.startswith("speckit."):
             short_name = short_name[len("speckit."):]
+        short_name = short_name.replace(".", "-")
 
-        return f"speckit.{short_name}" if agent_name == "kimi" else f"speckit-{short_name}"
+        return f"speckit-{short_name}"
 
     def register_commands(
         self,

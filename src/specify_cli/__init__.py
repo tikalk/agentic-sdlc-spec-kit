@@ -740,6 +740,9 @@ def set_skills_config(key: str, value, project_path: Optional[Path] = None) -> N
 
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
+CLAUDE_NPM_LOCAL_PATH = (
+    Path.home() / ".claude" / "local" / "node_modules" / ".bin" / "claude"
+)
 
 BANNER = """
 ███████╗██████╗ ███████╗ ██████╗██╗███████╗██╗   ██╗
@@ -1681,13 +1684,15 @@ def check_tool(tool: str, tracker: StepTracker | None = None) -> bool:
     Returns:
         True if tool is found, False otherwise
     """
-    # Special handling for Claude CLI after `claude migrate-installer`
+    # Special handling for Claude CLI local installs
     # See: https://github.com/github/spec-kit/issues/123
-    # The migrate-installer command REMOVES the original executable from PATH
-    # and creates an alias at ~/.claude/local/claude instead
-    # This path should be prioritized over other claude executables in PATH
+    # See: https://github.com/github/spec-kit/issues/550
+    # Claude Code can be installed in two local paths:
+    #   1. ~/.claude/local/claude          (after `claude migrate-installer`)
+    #   2. ~/.claude/local/node_modules/.bin/claude  (npm-local install, e.g. via nvm)
+    # Neither path may be on the system PATH, so we check them explicitly.
     if tool == "claude":
-        if CLAUDE_LOCAL_PATH.exists() and CLAUDE_LOCAL_PATH.is_file():
+        if CLAUDE_LOCAL_PATH.is_file() or CLAUDE_NPM_LOCAL_PATH.is_file():
             if tracker:
                 tracker.complete(tool, "available")
             return True
@@ -2778,12 +2783,6 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return {}
 
 
-# Agent-specific skill directory overrides for agents whose skills directory
-# doesn't follow the standard <agent_folder>/skills/ pattern
-AGENT_SKILLS_DIR_OVERRIDES = {
-    "codex": ".agents/skills",  # Codex agent layout override
-}
-
 # Default skills directory for agents not in AGENT_CONFIG
 DEFAULT_SKILLS_DIR = ".agents/skills"
 
@@ -2816,13 +2815,9 @@ SKILL_DESCRIPTIONS = {
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
     """Resolve the agent-specific skills directory for the given AI assistant.
 
-    Uses ``AGENT_SKILLS_DIR_OVERRIDES`` first, then falls back to
-    ``AGENT_CONFIG[agent]["folder"] + "skills"``, and finally to
-    ``DEFAULT_SKILLS_DIR``.
+    Uses ``AGENT_CONFIG[agent]["folder"] + "skills"`` and falls back to
+    ``DEFAULT_SKILLS_DIR`` for unknown agents.
     """
-    if selected_ai in AGENT_SKILLS_DIR_OVERRIDES:
-        return project_path / AGENT_SKILLS_DIR_OVERRIDES[selected_ai]
-
     agent_config = AGENT_CONFIG.get(selected_ai, {})
     agent_folder = agent_config.get("folder", "")
     if agent_folder:
@@ -2940,12 +2935,7 @@ def install_ai_skills(
                 command_name = command_name[len("speckit.") :]
             if command_name.endswith(".agent"):
                 command_name = command_name[: -len(".agent")]
-            # Kimi CLI discovers skills by directory name and invokes them as
-            # /skill:<name> — use dot separator to match packaging convention.
-            if selected_ai == "kimi":
-                skill_name = f"speckit.{command_name}"
-            else:
-                skill_name = f"speckit-{command_name}"
+            skill_name = f"speckit-{command_name.replace('.', '-')}"
 
             # Create skill directory (additive — never removes existing content)
             skill_dir = skills_dir / skill_name
@@ -3380,8 +3370,64 @@ def _has_bundled_skills(project_path: Path, selected_ai: str) -> bool:
     if not skills_dir.is_dir():
         return False
 
-    pattern = "speckit.*/SKILL.md" if selected_ai == "kimi" else "speckit-*/SKILL.md"
-    return any(skills_dir.glob(pattern))
+    return any(skills_dir.glob("speckit-*/SKILL.md"))
+
+
+def _migrate_legacy_kimi_dotted_skills(skills_dir: Path) -> tuple[int, int]:
+    """Migrate legacy Kimi dotted skill dirs (speckit.xxx) to hyphenated format.
+
+    Temporary migration helper:
+    - Intended removal window: after 2026-06-25.
+    - Purpose: one-time cleanup for projects initialized before Kimi moved to
+      hyphenated skills (speckit-xxx).
+
+    Returns:
+        Tuple[migrated_count, removed_count]
+        - migrated_count: old dotted dir renamed to hyphenated dir
+        - removed_count: old dotted dir deleted when equivalent hyphenated dir existed
+    """
+    if not skills_dir.is_dir():
+        return (0, 0)
+
+    migrated_count = 0
+    removed_count = 0
+
+    for legacy_dir in sorted(skills_dir.glob("speckit.*")):
+        if not legacy_dir.is_dir():
+            continue
+        if not (legacy_dir / "SKILL.md").exists():
+            continue
+
+        suffix = legacy_dir.name[len("speckit.") :]
+        if not suffix:
+            continue
+
+        target_dir = skills_dir / f"speckit-{suffix.replace('.', '-')}"
+
+        if not target_dir.exists():
+            shutil.move(str(legacy_dir), str(target_dir))
+            migrated_count += 1
+            continue
+
+        # If the new target already exists, avoid destructive cleanup unless
+        # both SKILL.md files are byte-identical.
+        target_skill = target_dir / "SKILL.md"
+        legacy_skill = legacy_dir / "SKILL.md"
+        if target_skill.is_file():
+            try:
+                if target_skill.read_bytes() == legacy_skill.read_bytes():
+                    # Preserve legacy directory when it contains extra user files.
+                    has_extra_entries = any(
+                        child.name != "SKILL.md" for child in legacy_dir.iterdir()
+                    )
+                    if not has_extra_entries:
+                        shutil.rmtree(legacy_dir)
+                        removed_count += 1
+            except OSError:
+                # Best-effort migration: preserve legacy dir on read failures.
+                pass
+
+    return (migrated_count, removed_count)
 
 
 AGENT_SKILLS_MIGRATIONS = {
@@ -3910,23 +3956,35 @@ def init(
 
             ensure_constitution_from_template(project_path, tracker=tracker)
 
-            # Track whether skills were installed for later command cleanup
-            skills_ok = False
+            # Determine skills directory and migrate any legacy Kimi dotted skills.
+            migrated_legacy_kimi_skills = 0
+            removed_legacy_kimi_skills = 0
+            skills_dir: Optional[Path] = None
+            if selected_ai in NATIVE_SKILLS_AGENTS:
+                skills_dir = _get_skills_dir(project_path, selected_ai)
+                if selected_ai == "kimi" and skills_dir.is_dir():
+                    (
+                        migrated_legacy_kimi_skills,
+                        removed_legacy_kimi_skills,
+                    ) = _migrate_legacy_kimi_dotted_skills(skills_dir)
+
             if ai_skills:
                 if selected_ai in NATIVE_SKILLS_AGENTS:
-                    skills_dir = _get_skills_dir(project_path, selected_ai)
                     bundled_found = _has_bundled_skills(project_path, selected_ai)
                     if bundled_found:
+                        detail = (
+                            f"bundled skills → {skills_dir.relative_to(project_path)}"
+                        )
+                        if migrated_legacy_kimi_skills or removed_legacy_kimi_skills:
+                            detail += (
+                                f" (migrated {migrated_legacy_kimi_skills}, "
+                                f"removed {removed_legacy_kimi_skills} legacy Kimi dotted skills)"
+                            )
                         if tracker:
                             tracker.start("ai-skills")
-                            tracker.complete(
-                                "ai-skills",
-                                f"bundled skills → {skills_dir.relative_to(project_path)}",
-                            )
+                            tracker.complete("ai-skills", detail)
                         else:
-                            console.print(
-                                f"[green]✓[/green] Using bundled agent skills in {skills_dir.relative_to(project_path)}/"
-                            )
+                            console.print(f"[green]✓[/green] Using {detail}")
                     else:
                         # Compatibility fallback: convert command templates to skills
                         # when an older template archive does not include native skills.
@@ -5768,6 +5826,17 @@ def extension_add(
         for cmd in manifest.commands:
             console.print(f"  • {cmd['name']} - {cmd.get('description', '')}")
 
+        # Report agent skills registration
+        reg_meta = manager.registry.get(manifest.id)
+        reg_skills = reg_meta.get("registered_skills", []) if reg_meta else []
+        # Normalize to guard against corrupted registry entries
+        if not isinstance(reg_skills, list):
+            reg_skills = []
+        if reg_skills:
+            console.print(
+                f"\n[green]✓[/green] {len(reg_skills)} agent skill(s) auto-registered"
+            )
+
         console.print("\n[yellow]⚠[/yellow]  Configuration may be required")
         console.print(f"   Check: .specify/extensions/{manifest.id}/")
 
@@ -5814,14 +5883,19 @@ def extension_remove(
     if extension_id is None:
         raise typer.Exit(1)
 
-    # Get extension info for command count
+    # Get extension info for command and skill counts
     ext_manifest = manager.get_extension(extension_id)
     cmd_count = len(ext_manifest.commands) if ext_manifest else 0
+    reg_meta = manager.registry.get(extension_id)
+    raw_skills = reg_meta.get("registered_skills") if reg_meta else None
+    skill_count = len(raw_skills) if isinstance(raw_skills, list) else 0
 
     # Confirm removal
     if not force:
         console.print("\n[yellow]⚠  This will remove:[/yellow]")
         console.print(f"   • {cmd_count} commands from AI agent")
+        if skill_count:
+            console.print(f"   • {skill_count} agent skill(s)")
         console.print(f"   • Extension directory: .specify/extensions/{extension_id}/")
         if not keep_config:
             console.print("   • Config files (will be backed up)")

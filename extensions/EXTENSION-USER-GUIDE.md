@@ -187,6 +187,21 @@ Provided commands:
    Check: .specify/extensions/jira/
 ```
 
+### Automatic Agent Skill Registration
+
+If your project was initialized with `--ai-skills`, extension commands are **automatically registered as agent skills** during installation. This ensures that extensions are discoverable by agents that use the [agentskills.io](https://agentskills.io) skill specification.
+
+```text
+✓ Extension installed successfully!
+
+Jira Integration (v1.0.0)
+  ...
+
+✓ 3 agent skill(s) auto-registered
+```
+
+When an extension is removed, its corresponding skills are also cleaned up automatically. Pre-existing skills that were manually customized are never overwritten.
+
 ---
 
 ## Using Extensions
@@ -199,8 +214,8 @@ Extensions add commands that appear in your AI agent (Claude Code):
 # In Claude Code
 > /speckit.jira.specstoissues
 
-# Or use short alias (if provided)
-> /speckit.specstoissues
+# Or use a namespaced alias (if provided)
+> /speckit.jira.sync
 ```
 
 ### Extension Configuration
