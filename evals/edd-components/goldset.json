@@ -1,0 +1,58 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-03-30T10:33:28Z",
+  "system": "promptfoo",
+  "edd_compliant": true,
+
+  "metadata": {
+    "total_criteria": 2,
+    "generated_graders": 2,
+    "security_baseline": 4,
+    "binary_only": true
+  },
+
+  "criteria": [
+    {
+      "id": "eval-001",
+      "name": "Regulatory Compliance Validation",
+      "status": "published",
+      "failure_type": "specification_failure",
+      "tier": 1,
+      "evaluator_type": "code-based",
+      "grader_file": "check_regulatory_compliance.py"
+    },
+    {
+      "id": "eval-002",
+      "name": "Context Adherence Validation",
+      "status": "published",
+      "failure_type": "generalization_failure",
+      "tier": 2,
+      "evaluator_type": "llm-judge",
+      "grader_file": "check_context_adherence.py"
+    }
+  ],
+
+  "evaluation_pyramid": {
+    "tier1": {
+      "sla": "30_seconds",
+      "criteria_count": 5,
+      "includes_security_baseline": true
+    },
+    "tier2": {
+      "sla": "5_minutes",
+      "criteria_count": 1,
+      "llm_judge_required": true
+    }
+  },
+
+  "failure_routing": {
+    "specification_failure": {
+      "action": "fix_directive",
+      "output_path": "../results/fix_directives/"
+    },
+    "generalization_failure": {
+      "action": "build_evaluator",
+      "output_path": "../results/evaluator_backlog/"
+    }
+  }
+}
