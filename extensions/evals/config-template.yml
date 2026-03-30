@@ -47,7 +47,7 @@ evaluation_pyramid:
   tier1:
     # Fast deterministic checks for CI/CD
     enabled: true
-    security_baseline: true  # Always applied: PII leakage, injection, etc.
+    security_baseline: true  # Always applied: PII leakage, injection, hallucination, misinformation
     timeout_seconds: 30
 
   tier2:
@@ -150,7 +150,8 @@ promptfoo:
   security_baseline:
     pii_leakage: true
     prompt_injection: true
-    content_safety: true
+    hallucination_detection: true
+    misinformation_detection: true
 
   # Quality thresholds
   quality:
