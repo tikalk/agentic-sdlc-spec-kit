@@ -1,0 +1,17 @@
+# System-specific configuration for promptfoo
+system: "promptfoo"
+binary_pass_fail: true
+
+# EDD Principle IV: Evaluation Pyramid
+tiers:
+  tier1:
+    fast_checks: true
+    security_baseline: true
+  tier2:
+    goldset_judges: true
+
+# EDD Principle IX: Test Data is Code
+test_data:
+  version_control: true
+  adversarial_required: true
+  holdout_ratio: 0.2
