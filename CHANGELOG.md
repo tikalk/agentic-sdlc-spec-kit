@@ -5,6 +5,19 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.2.4] - 2026-04-01
+
+### Changed
+
+- **LevelUp clarify DX improvements**:
+  - Cap at 5 CDRs per session (mirrors SPEC KIT pattern)
+  - Sequential one-CDR-at-a-time (replaces batch questioning)
+  - Bulk actions FIRST (Accept All / Reject All / Individual)
+  - Auto-skip coverage questions if no TEAM_DIRECTIVES
+  - Early exit support ("stop", "done", "skip remaining")
+  - Dynamic question limit (10 if TEAM_DIRECTIVES exists, 5 if not)
+- **LevelUp extension**: Version bumped to 1.1.0
+
 ## [0.2.1] - 2026-03-28
 
 ### Changed
