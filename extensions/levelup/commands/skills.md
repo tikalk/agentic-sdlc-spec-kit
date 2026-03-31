@@ -84,6 +84,80 @@ Skills follow the team-ai-directives format:
 {Links to supporting content in references/}
 ```
 
+### Instruction Types
+
+Based on the article "Encoding Team Standards" (<https://martinfowler.com/articles/reduce-friction-ai/encoding-team-standards.html>), skills can be classified by instruction type:
+
+| Instruction Type | Purpose | Example Trigger Phrases |
+|------------------|---------|-------------------------|
+| **Generation** | How team generates new code | "create a new service", "implement feature", "write a function" |
+| **Review** | How team reviews code | "review this PR", "check quality", "audit code" |
+| **Refactor** | How team improves existing code | "clean up", "simplify", "optimize", "refactor" |
+| **Security** | How team checks for vulnerabilities | "check security", "audit", "vulnerability" |
+| **General Capability** | Self-contained capability | Any other reusable skill |
+
+#### Detecting Instruction Type
+
+When user input matches these patterns, auto-detect the instruction type:
+
+- Contains "generate", "create", "implement", "write new" → **Generation**
+- Contains "review", "check quality", "audit" → **Review**
+- Contains "refactor", "clean up", "simplify", "optimize" → **Refactor**
+- Contains "security", "vulnerability", "audit" → **Security**
+- Otherwise → **General Capability**
+
+### Four-Part Anatomy (Executable Standards)
+
+For **Generation**, **Review**, **Refactor**, and **Security** instruction types, apply the four-part anatomy from "Encoding Team Standards":
+
+#### Part 1: Role Definition
+
+Set the expertise level and perspective:
+
+```markdown
+Role: {senior engineer | reviewer | security expert} following team patterns for {instruction type}
+```
+
+#### Part 2: Context Requirements
+
+Specify what the instruction needs to operate:
+
+```markdown
+## Context Requirements
+
+- **Required**: {code context, project architecture, team conventions}
+- **Optional**: {additional constraints}
+```
+
+#### Part 3: Categorized Standards
+
+Priority structure per the article:
+
+```markdown
+## Categorized Standards
+
+### Critical (Must Follow)
+- {Non-negotiable patterns, security requirements, architectural constraints}
+
+### Standard (Should Follow)
+- {Conventions that are most commonly corrected}
+
+### Preference (Nice to Have)
+- {Style variations, minor optimizations}
+```
+
+#### Part 4: Output Format
+
+Structured response format:
+
+```markdown
+## Output Format
+
+- **Summary**: {Brief overview of what was done}
+- **Categorized Findings**: {Critical/Standard/Preference structure}
+- **Next Steps**: {Action items for the developer}
+```
+
 ## Execution Steps
 
 ### Phase 0: Environment Setup
@@ -122,7 +196,7 @@ Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
 
 ### Phase 2: Parse User Input
 
-**Objective**: Determine which skill to build
+**Objective**: Determine which skill to build and detect instruction type
 
 Parse user input to identify:
 
@@ -131,6 +205,26 @@ Parse user input to identify:
 | CDR ID | Matches `CDR-\d+` | Build skill from that CDR |
 | Skill name | kebab-case string | Use as skill name, find matching CDRs |
 | Topic | Multi-word phrase | Search CDRs by topic |
+
+#### Instruction Type Detection
+
+After parsing input, detect the instruction type:
+
+1. Check user input for trigger phrases (see Instruction Types section above)
+2. If matched, set instruction type accordingly
+3. If no match, default to "General Capability"
+
+**Prompt user**:
+```markdown
+**Instruction Type Detected**: {type}
+
+Apply four-part anatomy for executable standards? (Y/n)
+
+- Y: Use the four-part structure (Role → Context → Categorized Standards → Output Format)
+- n: Use standard skill format
+```
+
+If user confirms Y, apply the four-part anatomy template in Phase 4.
 
 If input is ambiguous, ask for clarification.
 
@@ -180,9 +274,18 @@ Use SKILLS_DRAFTS from script output:
 mkdir -p {SKILLS_DRAFTS}/{skill-name}/references
 ```
 
-#### Step 2: Generate SKILL.md
+#### Step 2: Detect Instruction Type from CDR
 
-Build SKILL.md from CDR content:
+If not already detected in Phase 2, check the CDR's instruction type:
+
+1. Read the CDR's Context Type and any instruction_type field
+2. If instruction type is Generation/Review/Refactor/Security, apply four-part anatomy
+
+#### Step 3: Generate SKILL.md (Standard Format)
+
+If instruction type is **General Capability** or user chose "n" for standard format:
+
+Build SKILL.md from CDR content using standard format:
 
 ```markdown
 # {Skill Name}
@@ -243,6 +346,75 @@ Built from CDRs:
 *Compatible with team-ai-directives*
 ```
 
+#### Step 4: Generate SKILL.md (Four-Part Anatomy)
+
+If instruction type is **Generation**, **Review**, **Refactor**, or **Security** and user chose "Y":
+
+Build SKILL.md using the four-part anatomy:
+
+```markdown
+# {Skill Name}
+
+{Description from CDR with trigger keywords}
+
+**Instruction Type**: {Generation | Review | Refactor | Security}
+
+Use this skill when: {trigger conditions}
+
+## Part 1: Role Definition
+
+Role: {senior engineer | reviewer | security expert} following team patterns for {instruction type}
+
+## Part 2: Context Requirements
+
+- **Required**: {code context, project architecture, team conventions}
+- **Optional**: {additional constraints}
+
+## Part 3: Categorized Standards
+
+### Critical (Must Follow)
+- {Non-negotiable patterns, security requirements, architectural constraints}
+- {Add from CDR proposed content}
+
+### Standard (Should Follow)
+- {Conventions that are most commonly corrected}
+- {Add from CDR proposed content}
+
+### Preference (Nice to Have)
+- {Style variations, minor optimizations}
+- {Add from CDR proposed content}
+
+## Part 4: Output Format
+
+- **Summary**: {Brief overview of what was done}
+- **Categorized Findings**: {Critical/Standard/Preference structure}
+- **Next Steps**: {Action items for the developer}
+
+## Trigger Keywords
+
+{keywords for skill discovery}
+
+## Examples
+
+### Example 1: {Example Name}
+
+{Code or usage example from CDR evidence}
+
+### Example 2: {Another Example}
+
+{Additional example}
+
+## Source
+
+Built from CDRs:
+- CDR-{N}: {title}
+
+---
+
+*Skill Version: 1.0.0*
+*Executable Team Standard - Compatible with team-ai-directives*
+```
+
 #### Step 3: Create Reference Files
 
 If CDRs contain substantial content, create reference files:
@@ -268,10 +440,13 @@ Generate the entry for team-ai-directives `.skills.json`:
   "local:./skills/{skill-name}": {
     "version": "1.0.0",
     "description": "{description with trigger keywords}",
-    "categories": ["{category1}", "{category2}"]
+    "categories": ["{category1}", "{category2}"],
+    "instruction_type": "{Generation|Review|Refactor|Security|General Capability}"
   }
 }
 ```
+
+**Note**: The `instruction_type` field encodes how the skill should be used by AI agents - this follows the "Encoding Team Standards" article's approach.
 
 Save to `.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`.
 
@@ -286,6 +461,8 @@ Check skill completeness:
 - [ ] At least one example provided
 - [ ] References linked correctly (if any)
 - [ ] `.skills-entry.json` generated
+- [ ] Instruction type is specified (for Generation/Review/Refactor/Security types, four-part anatomy is applied)
+- [ ] For executable standards: Categorized Standards section has Critical/Standard/Preference structure
 
 ### Phase 7: Summary
 

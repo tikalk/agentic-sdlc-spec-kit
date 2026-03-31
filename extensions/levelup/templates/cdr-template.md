@@ -4,9 +4,9 @@ Context Directive Records (CDRs) track decisions about contributing context modu
 
 ## CDR Index
 
-| ID | Target Module | Context Type | Status | Date | Source |
-|----|---------------|--------------|--------|------|--------|
-| CDR-001 | [target path] | [type] | Proposed | YYYY-MM-DD | [source] |
+| ID | Target Module | Context Type | Instruction Type | Priority | Status | Date | Source |
+|----|---------------|--------------|------------------|----------|--------|------|--------|
+| CDR-001 | [target path] | [type] | [Generation/Review/Refactor/Security/General] | [Critical/Standard/Preference] | Proposed | YYYY-MM-DD | [source] |
 
 ---
 
@@ -31,6 +31,54 @@ YYYY-MM-DD
 ### Context Type
 
 Rule | Persona | Example | Constitution Amendment | Skill
+
+### Instruction Type
+
+**Required if Context Type = Skill** (based on "Encoding Team Standards" article)
+
+| Instruction Type | Purpose | Example Trigger Phrases |
+|------------------|---------|-------------------------|
+| **Generation** | How team generates new code | "create a new service", "implement feature", "write a function" |
+| **Review** | How team reviews code | "review this PR", "check quality", "audit code" |
+| **Refactor** | How team improves existing code | "clean up", "simplify", "optimize", "refactor" |
+| **Security** | How team checks for vulnerabilities | "check security", "audit", "vulnerability" |
+| **General Capability** | Self-contained capability | Any other reusable skill |
+
+### Priority Structure
+
+**Optional - for executable standards** (follows "Encoding Team Standards" article)
+
+| Priority | Meaning | Action |
+|----------|---------|--------|
+| **Critical** | Must follow | Block merge if violated |
+| **Standard** | Should follow | Require in code review |
+| **Preference** | Nice to have | Suggest but don't require |
+
+When applying to skills, prioritize:
+
+1. **Critical**: Non-negotiable patterns, security requirements, architectural constraints
+2. **Standard**: Conventions most commonly corrected in review
+3. **Preference**: Style variations, minor optimizations
+
+### Categorized Standards
+
+> **Note:** Required if Instruction Type = Generation/Review/Refactor/Security
+
+Following the "Encoding Team Standards" article's approach:
+
+```markdown
+### Critical (Must Follow)
+- {Non-negotiable pattern 1}
+- {Security requirement}
+
+### Standard (Should Follow)
+- {Convention 1}
+- {Convention 2}
+
+### Preference (Nice to Have)
+- {Style preference 1}
+- {Optimization suggestion}
+```
 
 ### Context
 
