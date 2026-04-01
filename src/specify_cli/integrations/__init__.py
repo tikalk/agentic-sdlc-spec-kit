@@ -37,10 +37,57 @@ def get_integration(key: str) -> IntegrationBase | None:
 # -- Register built-in integrations --------------------------------------
 
 def _register_builtins() -> None:
-    """Register all built-in integrations."""
-    from .copilot import CopilotIntegration
+    """Register all built-in integrations.
 
+    Package directories use Python-safe identifiers (e.g. ``kiro_cli``,
+    ``cursor_agent``).  The user-facing integration key stored in
+    ``IntegrationBase.key`` stays hyphenated (``"kiro-cli"``,
+    ``"cursor-agent"``) to match the actual CLI tool / binary name that
+    users install and invoke.
+    """
+    # -- Imports (alphabetical) -------------------------------------------
+    from .amp import AmpIntegration
+    from .auggie import AuggieIntegration
+    from .bob import BobIntegration
+    from .claude import ClaudeIntegration
+    from .codebuddy import CodebuddyIntegration
+    from .copilot import CopilotIntegration
+    from .cursor_agent import CursorAgentIntegration
+    from .iflow import IflowIntegration
+    from .junie import JunieIntegration
+    from .kilocode import KilocodeIntegration
+    from .kiro_cli import KiroCliIntegration
+    from .opencode import OpencodeIntegration
+    from .pi import PiIntegration
+    from .qodercli import QodercliIntegration
+    from .qwen import QwenIntegration
+    from .roo import RooIntegration
+    from .shai import ShaiIntegration
+    from .trae import TraeIntegration
+    from .vibe import VibeIntegration
+    from .windsurf import WindsurfIntegration
+
+    # -- Registration (alphabetical) --------------------------------------
+    _register(AmpIntegration())
+    _register(AuggieIntegration())
+    _register(BobIntegration())
+    _register(ClaudeIntegration())
+    _register(CodebuddyIntegration())
     _register(CopilotIntegration())
+    _register(CursorAgentIntegration())
+    _register(IflowIntegration())
+    _register(JunieIntegration())
+    _register(KilocodeIntegration())
+    _register(KiroCliIntegration())
+    _register(OpencodeIntegration())
+    _register(PiIntegration())
+    _register(QodercliIntegration())
+    _register(QwenIntegration())
+    _register(RooIntegration())
+    _register(ShaiIntegration())
+    _register(TraeIntegration())
+    _register(VibeIntegration())
+    _register(WindsurfIntegration())
 
 
 _register_builtins()

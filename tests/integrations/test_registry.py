@@ -1,4 +1,4 @@
-"""Tests for INTEGRATION_REGISTRY."""
+"""Tests for INTEGRATION_REGISTRY — mechanics, completeness, and registrar alignment."""
 
 import pytest
 
@@ -9,6 +9,16 @@ from specify_cli.integrations import (
 )
 from specify_cli.integrations.base import MarkdownIntegration
 from .conftest import StubIntegration
+
+
+# Every integration key that must be registered (Stage 2 + Stage 3).
+ALL_INTEGRATION_KEYS = [
+    "copilot",
+    # Stage 3 — standard markdown integrations
+    "claude", "qwen", "opencode", "junie", "kilocode", "auggie",
+    "roo", "codebuddy", "qodercli", "amp", "shai", "bob", "trae",
+    "pi", "iflow", "kiro-cli", "windsurf", "vibe", "cursor-agent",
+]
 
 
 class TestRegistry:
@@ -41,5 +51,26 @@ class TestRegistry:
         finally:
             INTEGRATION_REGISTRY.pop("stub", None)
 
-    def test_copilot_registered(self):
-        assert "copilot" in INTEGRATION_REGISTRY
+
+class TestRegistryCompleteness:
+    """Every expected integration must be registered."""
+
+    @pytest.mark.parametrize("key", ALL_INTEGRATION_KEYS)
+    def test_key_registered(self, key):
+        assert key in INTEGRATION_REGISTRY, f"{key} missing from registry"
+
+
+class TestRegistrarKeyAlignment:
+    """Every integration key must have a matching AGENT_CONFIGS entry."""
+
+    @pytest.mark.parametrize("key", ALL_INTEGRATION_KEYS)
+    def test_integration_key_in_registrar(self, key):
+        from specify_cli.agents import CommandRegistrar
+        assert key in CommandRegistrar.AGENT_CONFIGS, (
+            f"Integration '{key}' is registered but has no AGENT_CONFIGS entry"
+        )
+
+    def test_no_stale_cursor_shorthand(self):
+        """The old 'cursor' shorthand must not appear in AGENT_CONFIGS."""
+        from specify_cli.agents import CommandRegistrar
+        assert "cursor" not in CommandRegistrar.AGENT_CONFIGS
