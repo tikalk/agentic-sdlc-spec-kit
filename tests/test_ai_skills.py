@@ -756,7 +756,6 @@ class TestLegacyDownloadPath:
 
         assert not (tmp_path / "evil.txt").exists()
 
-
 # ===== Skip-If-Exists Tests =====
 
 class TestSkipIfExists:
@@ -925,7 +924,7 @@ class TestCliValidation:
 
         plain = strip_ansi(result.output)
         assert "--ai-skills" in plain
-        assert "agent skills" in plain.lower()
+        assert "skills" in plain.lower()
 
     def test_q_removed_from_agent_config(self):
         """Amazon Q legacy key should not remain in AGENT_CONFIG."""

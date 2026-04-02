@@ -1640,6 +1640,8 @@ def install_ai_skills(
         ``True`` if at least one skill was installed or all skills were
         already present (idempotent re-run), ``False`` otherwise.
     """
+    from .agents import CommandRegistrar
+
     # Locate command templates in the agent's extracted commands directory.
     # download_and_extract_template() already placed the .md files here.
     agent_config = AGENT_CONFIG.get(selected_ai, {})
@@ -1741,15 +1743,12 @@ def install_ai_skills(
             if source_name.endswith(".agent.md"):
                 source_name = source_name[:-len(".agent.md")] + ".md"
 
-            frontmatter_data = {
-                "name": skill_name,
-                "description": enhanced_desc,
-                "compatibility": "Requires spec-kit project structure with .specify/ directory",
-                "metadata": {
-                    "author": "github-spec-kit",
-                    "source": f"templates/commands/{source_name}",
-                },
-            }
+            frontmatter_data = CommandRegistrar.build_skill_frontmatter(
+                selected_ai,
+                skill_name,
+                enhanced_desc,
+                f"templates/commands/{source_name}",
+            )
             frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
             skill_content = (
                 f"---\n"
@@ -1859,6 +1858,23 @@ def _migrate_legacy_kimi_dotted_skills(skills_dir: Path) -> tuple[int, int]:
 
 
 AGENT_SKILLS_MIGRATIONS = {
+    "claude": {
+        "error": (
+            "Claude Code now installs spec-kit as agent skills; "
+            "legacy .claude/commands projects are kept for backwards compatibility."
+        ),
+        "usage": "specify init <project> --ai claude",
+        "interactive_note": (
+            "'claude' was selected interactively; enabling [cyan]--ai-skills[/cyan] "
+            "automatically so spec-kit is installed to [cyan].claude/skills[/cyan]."
+        ),
+        "explicit_note": (
+            "'claude' now installs spec-kit as agent skills; enabling "
+            "[cyan]--ai-skills[/cyan] automatically so commands are written to "
+            "[cyan].claude/skills[/cyan]."
+        ),
+        "auto_enable_explicit": True,
+    },
     "agy": {
         "error": "Explicit command support was deprecated in Antigravity version 1.20.5.",
         "usage": "specify init <project> --ai agy --ai-skills",
@@ -1943,7 +1959,7 @@ def init(
         specify init --here --ai vibe      # Initialize with Mistral Vibe support
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
-        specify init my-project --ai claude --ai-skills   # Install agent skills
+        specify init my-project --ai claude   # Claude installs skills by default
         specify init --here --ai gemini --ai-skills
         specify init my-project --ai generic --ai-commands-dir .myagent/commands/  # Unsupported agent
         specify init my-project --offline  # Use bundled assets (no network access)
@@ -1977,6 +1993,7 @@ def init(
 
     # Auto-promote: --ai <key> → integration path with a nudge (if registered)
     use_integration = False
+    resolved_integration = None
     if integration:
         from .integrations import INTEGRATION_REGISTRY, get_integration
         resolved_integration = get_integration(integration)
@@ -2098,11 +2115,13 @@ def init(
         # If selected interactively (no --ai provided), automatically enable
         # ai_skills so the agent remains usable without requiring an extra flag.
         # Preserve fail-fast behavior only for explicit '--ai <agent>' without skills.
-        if ai_assistant:
+        migration = AGENT_SKILLS_MIGRATIONS[selected_ai]
+        if ai_assistant and not migration.get("auto_enable_explicit", False):
             _handle_agent_skills_migration(console, selected_ai)
         else:
             ai_skills = True
-            console.print(f"\n[yellow]Note:[/yellow] {AGENT_SKILLS_MIGRATIONS[selected_ai]['interactive_note']}")
+            note_key = "explicit_note" if ai_assistant else "interactive_note"
+            console.print(f"\n[yellow]Note:[/yellow] {migration[note_key]}")
 
     # Validate --ai-commands-dir usage.
     # Skip validation when --integration-options is provided — the integration
@@ -2540,27 +2559,33 @@ def init(
         step_num = 2
 
     # Determine skill display mode for the next-steps panel.
-    # Skills integrations (codex, kimi, agy) should show skill invocation syntax
-    # regardless of whether --ai-skills was explicitly passed.
+    # Skills integrations (codex, claude, kimi, agy) should show skill
+    # invocation syntax regardless of whether --ai-skills was explicitly passed.
     _is_skills_integration = False
     if use_integration:
         from .integrations.base import SkillsIntegration as _SkillsInt
         _is_skills_integration = isinstance(resolved_integration, _SkillsInt)
 
     codex_skill_mode = selected_ai == "codex" and (ai_skills or _is_skills_integration)
+    claude_skill_mode = selected_ai == "claude" and (ai_skills or _is_skills_integration)
     kimi_skill_mode = selected_ai == "kimi"
     agy_skill_mode = selected_ai == "agy" and _is_skills_integration
-    native_skill_mode = codex_skill_mode or kimi_skill_mode or agy_skill_mode
+    native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode
 
     if codex_skill_mode and not ai_skills:
         # Integration path installed skills; show the helpful notice
         steps_lines.append(f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]")
+        step_num += 1
+    if claude_skill_mode and not ai_skills:
+        steps_lines.append(f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]")
         step_num += 1
     usage_label = "skills" if native_skill_mode else "slash commands"
 
     def _display_cmd(name: str) -> str:
         if codex_skill_mode or agy_skill_mode:
             return f"$speckit-{name}"
+        if claude_skill_mode:
+            return f"/speckit-{name}"
         if kimi_skill_mode:
             return f"/skill:speckit-{name}"
         return f"/speckit.{name}"
