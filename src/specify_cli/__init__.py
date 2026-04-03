@@ -42,7 +42,6 @@ import typer
 import httpx
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.text import Text
 from rich.live import Live
 from rich.align import Align
@@ -51,48 +50,13 @@ from rich.tree import Tree
 from typer.core import TyperGroup
 
 # For cross-platform keyboard input
-import platformdirs
 import readchar
 import ssl
 import truststore
-from datetime import datetime, timezone
+from datetime import datetime
 
 ssl_context = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
 client = httpx.Client(verify=ssl_context)
-
-# Module-level tracker state (used to coordinate tracker output across functions)
-_specify_tracker_active: bool = False
-
-# Color constants for orange theme
-ACCENT_COLOR = "#f47721"
-BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]
-
-TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
-
-_PKG_NAMES = ("specify-cli", "agentic-sdlc-specify-cli")
-
-
-def _get_cli_version() -> str:
-    """Try to get the CLI version from package metadata, trying known package names."""
-    import importlib.metadata
-
-    for pkg_name in _PKG_NAMES:
-        try:
-            return importlib.metadata.version(pkg_name)
-        except Exception:
-            pass
-
-    try:
-        import tomllib
-
-        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-        if pyproject_path.exists():
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-                return data.get("project", {}).get("version", "unknown")
-    except Exception:
-        pass
-    return "unknown"
 
 
 def _github_token(cli_token: str | None = None) -> str | None:
@@ -102,262 +66,29 @@ def _github_token(cli_token: str | None = None) -> str | None:
     ) or None
 
 
+def _pkg_names() -> tuple[str, ...]:
+    """Return package names this CLI may be installed as."""
+    return ("specify-cli", "agentic-sdlc-specify-cli")
+
+
 def _github_auth_headers(cli_token: str | None = None) -> dict:
     """Return Authorization header dict only when a non-empty token exists."""
     token = _github_token(cli_token)
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 
-def _parse_rate_limit_headers(headers: httpx.Headers) -> dict:
-    """Extract and parse GitHub rate-limit headers."""
-    info = {}
+def _build_agent_config() -> dict[str, dict[str, Any]]:
+    """Derive AGENT_CONFIG from INTEGRATION_REGISTRY."""
+    from .integrations import INTEGRATION_REGISTRY
 
-    # Standard GitHub rate-limit headers
-    if "X-RateLimit-Limit" in headers:
-        info["limit"] = headers.get("X-RateLimit-Limit")
-    if "X-RateLimit-Remaining" in headers:
-        info["remaining"] = headers.get("X-RateLimit-Remaining")
-    if "X-RateLimit-Reset" in headers:
-        reset_epoch = int(headers.get("X-RateLimit-Reset", "0"))
-        if reset_epoch:
-            reset_time = datetime.fromtimestamp(reset_epoch, tz=timezone.utc)
-            info["reset_epoch"] = reset_epoch
-            info["reset_time"] = reset_time
-            info["reset_local"] = reset_time.astimezone()
-
-    # Retry-After header (seconds or HTTP-date)
-    if "Retry-After" in headers:
-        retry_after = headers.get("Retry-After")
-        try:
-            info["retry_after_seconds"] = int(retry_after)
-        except ValueError:
-            # HTTP-date format - not implemented, just store as string
-            info["retry_after"] = retry_after
-
-    return info
+    config: dict[str, dict[str, Any]] = {}
+    for key, integration in INTEGRATION_REGISTRY.items():
+        if integration.config:
+            config[key] = dict(integration.config)
+    return config
 
 
-def _format_rate_limit_error(status_code: int, headers: httpx.Headers, url: str) -> str:
-    """Format a user-friendly error message with rate-limit information."""
-    rate_info = _parse_rate_limit_headers(headers)
-
-    lines = [f"GitHub API returned status {status_code} for {url}"]
-    lines.append("")
-
-    if rate_info:
-        lines.append("[bold]Rate Limit Information:[/bold]")
-        if "limit" in rate_info:
-            lines.append(f"  • Rate Limit: {rate_info['limit']} requests/hour")
-        if "remaining" in rate_info:
-            lines.append(f"  • Remaining: {rate_info['remaining']}")
-        if "reset_local" in rate_info:
-            reset_str = rate_info["reset_local"].strftime("%Y-%m-%d %H:%M:%S %Z")
-            lines.append(f"  • Resets at: {reset_str}")
-        if "retry_after_seconds" in rate_info:
-            lines.append(f"  • Retry after: {rate_info['retry_after_seconds']} seconds")
-        lines.append("")
-
-    # Add troubleshooting guidance
-    lines.append("[bold]Troubleshooting Tips:[/bold]")
-    lines.append(
-        "  • If you're on a shared CI or corporate environment, you may be rate-limited."
-    )
-    lines.append(
-        "  • Consider using a GitHub token via --github-token or the GH_TOKEN/GITHUB_TOKEN"
-    )
-    lines.append("    environment variable to increase rate limits.")
-    lines.append(
-        "  • Authenticated requests have a limit of 5,000/hour vs 60/hour for unauthenticated."
-    )
-
-    return "\n".join(lines)
-
-
-# Agent configuration with name, folder, install URL, CLI tool requirement, and commands subdirectory
-AGENT_CONFIG = {
-    "copilot": {
-        "name": "GitHub Copilot",
-        "folder": ".github/",
-        "commands_subdir": "agents",  # Special: uses agents/ not commands/
-        "install_url": None,  # IDE-based, no CLI check needed
-        "requires_cli": False,
-    },
-    "claude": {
-        "name": "Claude Code",
-        "folder": ".claude/",
-        "commands_subdir": "commands",
-        "install_url": "https://docs.anthropic.com/en/docs/claude-code/setup",
-        "requires_cli": True,
-    },
-    "gemini": {
-        "name": "Gemini CLI",
-        "folder": ".gemini/",
-        "commands_subdir": "commands",
-        "install_url": "https://github.com/google-gemini/gemini-cli",
-        "requires_cli": True,
-    },
-    "cursor-agent": {
-        "name": "Cursor",
-        "folder": ".cursor/",
-        "commands_subdir": "commands",
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "qwen": {
-        "name": "Qwen Code",
-        "folder": ".qwen/",
-        "commands_subdir": "commands",
-        "install_url": "https://github.com/QwenLM/qwen-code",
-        "requires_cli": True,
-    },
-    "opencode": {
-        "name": "opencode",
-        "folder": ".opencode/",
-        "commands_subdir": "command",  # Special: singular 'command' not 'commands'
-        "install_url": "https://opencode.ai",
-        "requires_cli": True,
-    },
-    "codex": {
-        "name": "Codex CLI",
-        "folder": ".agents/",
-        "commands_subdir": "skills",  # Codex now uses project skills directly
-        "install_url": "https://github.com/openai/codex",
-        "requires_cli": True,
-    },
-    "windsurf": {
-        "name": "Windsurf",
-        "folder": ".windsurf/",
-        "commands_subdir": "workflows",  # Special: uses workflows/ not commands/
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "junie": {
-        "name": "Junie",
-        "folder": ".junie/",
-        "commands_subdir": "commands",
-        "install_url": "https://junie.jetbrains.com/",
-        "requires_cli": True,
-    },
-    "kilocode": {
-        "name": "Kilo Code",
-        "folder": ".kilocode/",
-        "commands_subdir": "workflows",  # Special: uses workflows/ not commands/
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "auggie": {
-        "name": "Auggie CLI",
-        "folder": ".augment/",
-        "commands_subdir": "commands",
-        "install_url": "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli",
-        "requires_cli": True,
-    },
-    "codebuddy": {
-        "name": "CodeBuddy",
-        "folder": ".codebuddy/",
-        "commands_subdir": "commands",
-        "install_url": "https://www.codebuddy.ai/cli",
-        "requires_cli": True,
-    },
-    "qodercli": {
-        "name": "Qoder CLI",
-        "folder": ".qoder/",
-        "commands_subdir": "commands",
-        "install_url": "https://qoder.com/cli",
-        "requires_cli": True,
-    },
-    "roo": {
-        "name": "Roo Code",
-        "folder": ".roo/",
-        "commands_subdir": "commands",
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "kiro-cli": {
-        "name": "Kiro CLI",
-        "folder": ".kiro/",
-        "commands_subdir": "prompts",  # Special: uses prompts/ not commands/
-        "install_url": "https://kiro.dev/docs/cli/",
-        "requires_cli": True,
-    },
-    "amp": {
-        "name": "Amp",
-        "folder": ".agents/",
-        "commands_subdir": "commands",
-        "install_url": "https://ampcode.com/manual#install",
-        "requires_cli": True,
-    },
-    "shai": {
-        "name": "SHAI",
-        "folder": ".shai/",
-        "commands_subdir": "commands",
-        "install_url": "https://github.com/ovh/shai",
-        "requires_cli": True,
-    },
-    "tabnine": {
-        "name": "Tabnine CLI",
-        "folder": ".tabnine/agent/",
-        "commands_subdir": "commands",
-        "install_url": "https://docs.tabnine.com/main/getting-started/tabnine-cli",
-        "requires_cli": True,
-    },
-    "agy": {
-        "name": "Antigravity",
-        "folder": ".agent/",
-        "commands_subdir": "commands",
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "bob": {
-        "name": "IBM Bob",
-        "folder": ".bob/",
-        "commands_subdir": "commands",
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "vibe": {
-        "name": "Mistral Vibe",
-        "folder": ".vibe/",
-        "commands_subdir": "prompts",
-        "install_url": "https://github.com/mistralai/mistral-vibe",
-        "requires_cli": True,
-    },
-    "kimi": {
-        "name": "Kimi Code",
-        "folder": ".kimi/",
-        "commands_subdir": "skills",  # Kimi uses /skill:<name> with .kimi/skills/<name>/SKILL.md
-        "install_url": "https://code.kimi.com/",
-        "requires_cli": True,
-    },
-    "trae": {
-        "name": "Trae",
-        "folder": ".trae/",
-        "commands_subdir": "rules",  # Trae uses .trae/rules/ for project rules
-        "install_url": None,  # IDE-based
-        "requires_cli": False,
-    },
-    "pi": {
-        "name": "Pi Coding Agent",
-        "folder": ".pi/",
-        "commands_subdir": "prompts",
-        "install_url": "https://www.npmjs.com/package/@mariozechner/pi-coding-agent",
-        "requires_cli": True,
-    },
-    "iflow": {
-        "name": "iFlow CLI",
-        "folder": ".iflow/",
-        "commands_subdir": "commands",
-        "install_url": "https://docs.iflow.cn/en/cli/quickstart",
-        "requires_cli": True,
-    },
-    "generic": {
-        "name": "Generic (bring your own agent)",
-        "folder": None,  # Set dynamically via --ai-commands-dir
-        "commands_subdir": "commands",
-        "install_url": None,
-        "requires_cli": False,
-    },
-}
+AGENT_CONFIG = _build_agent_config()
 
 AI_ASSISTANT_ALIASES = {
     "kiro": "kiro-cli",
@@ -393,351 +124,7 @@ def _build_ai_assistant_help() -> str:
 
 AI_ASSISTANT_HELP = _build_ai_assistant_help()
 
-AGENT_CHOICES = list(AGENT_CONFIG.keys())
-
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
-
-# Consolidated Configuration Management
-
-
-def get_global_config_path() -> Path:
-    """Get the global config path using XDG Base Directory spec.
-
-    Platform-specific locations:
-    - Linux: ~/.config/specify/config.json
-    - macOS: ~/Library/Application Support/specify/config.json
-    - Windows: %APPDATA%\\specify\\config.json
-    """
-    config_dir = Path(platformdirs.user_config_dir("specify"))
-    return config_dir / "config.json"
-
-
-def get_project_config_path(project_path: Optional[Path] = None) -> Path:
-    """Get project-level config path (.specify/config.json).
-
-    Args:
-        project_path: Path to project root (default: current directory)
-
-    Returns:
-        Path to .specify/config.json in the specified project
-    """
-    if project_path is None:
-        project_path = Path.cwd()
-    return project_path / ".specify" / "config.json"
-
-
-def get_config_path(project_path: Optional[Path] = None) -> Path:
-    """Get config path with hierarchical resolution.
-
-    Priority order:
-    1. Project-level config: .specify/config.json
-    2. User-level config: ~/.config/specify/config.json (backward compat)
-    3. Default to project-level path (will be created on save)
-
-    Args:
-        project_path: Path to project root (default: current directory)
-
-    Returns:
-        Path to config file (project-level preferred)
-    """
-    project_config = get_project_config_path(project_path)
-    user_config = get_global_config_path()
-
-    # Project config takes precedence if it exists
-    if project_config.exists():
-        return project_config
-
-    # Fallback to user config for backward compatibility
-    if user_config.exists():
-        return user_config
-
-    # Default to project-level config (will be created on write)
-    return project_config
-
-
-def load_config(project_path: Optional[Path] = None) -> dict:
-    """Load the global configuration file.
-
-    Args:
-        project_path: (Ignored - global config is used for all projects)
-
-    Returns:
-        Configuration dict or defaults if config doesn't exist
-    """
-    config_path = get_global_config_path()
-    if not config_path.exists():
-        return get_default_config()
-
-    try:
-        with open(config_path, "r") as f:
-            return json.load(f)
-    except (json.JSONDecodeError, IOError) as e:
-        console.print(
-            f"[yellow]Warning:[/yellow] Could not load config file {config_path}: {e}"
-        )
-        console.print("[yellow]Using default configuration[/yellow]")
-        return get_default_config()
-
-
-def save_config(
-    project_path: Optional[Path] = None, config: Optional[dict] = None
-) -> None:
-    """Save the configuration to project-level location.
-
-    Args:
-        project_path: Path to project root (default: current directory)
-        config: Configuration dict to save
-    """
-    if config is None:
-        config = {}
-
-    config_path = get_project_config_path(project_path)
-
-    try:
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-    except OSError as e:
-        console.print(
-            f"[red]Error:[/red] Could not create config directory {config_path.parent}: {e}"
-        )
-        return
-
-    # Update last_modified timestamp
-    if "project" not in config:
-        config["project"] = {}
-    if not isinstance(config["project"], dict):
-        config["project"] = {}
-    config["project"]["last_modified"] = (
-        __import__("datetime").datetime.now().isoformat()
-    )
-
-    try:
-        with open(config_path, "w") as f:
-            json.dump(config, f, indent=2)
-    except OSError as e:
-        console.print(
-            f"[red]Error:[/red] Could not write config file {config_path}: {e}"
-        )
-
-
-def get_default_config() -> dict:
-    """Get the default configuration structure."""
-    from datetime import datetime
-
-    now = datetime.now().isoformat()
-
-    return {
-        "version": "1.0",
-        "project": {"created": now, "last_modified": now},
-        "team_directives": {"path": None},
-        "architecture": {
-            "diagram_format": "mermaid",  # Options: "mermaid" or "ascii"
-            "views": "core",  # Options: "core", "all", or comma-separated list
-            "adr": {
-                "heuristic": "surprising",  # Options: "surprising" (default), "all", "minimal"
-                "check_constitution": True,  # Always check constitution for duplicates
-                "allow_overrides": True,  # Allow constitution overrides with justification
-                "duplication_threshold": "strict",  # Strict: no duplicates allowed
-                "max_adrs": 10,  # Maximum ADRs to generate
-                "custom_rules": {  # Project-specific obvious/surprising decisions
-                    "obvious": [],
-                    "surprising": [],
-                },
-            },
-            "deduplication": {
-                "enabled": True,
-                "scan_paths": [
-                    "docs/",
-                    "*.md",
-                ],  # Default: docs/ dir and root .md files
-                "reference_instead_of_duplicate": True,
-                "auto_merge_existing": True,  # Auto-merge when existing architecture found
-            },
-        },
-        "skills": {
-            "auto_activation_threshold": 0.7,  # Minimum relevance score for auto-discovery
-            "max_auto_skills": 3,  # Maximum skills to auto-inject into context
-            "preserve_user_edits": True,  # Preserve user modifications in context.md
-            "registry_url": "https://skills.sh/api",  # Skills registry API URL
-        },
-    }
-
-
-def get_architecture_diagram_format(project_path: Optional[Path] = None) -> str:
-    """Get the configured architecture diagram format.
-
-    Args:
-        project_path: (Ignored - global config is used)
-
-    Returns:
-        Diagram format: "mermaid" or "ascii" (defaults to "mermaid")
-    """
-    config = load_config(project_path)
-
-    # Ensure architecture section exists
-    if "architecture" not in config:
-        config["architecture"] = {"diagram_format": "mermaid"}
-        save_config(project_path, config)
-        return "mermaid"
-
-    # Get diagram format with fallback to mermaid
-    return config.get("architecture", {}).get("diagram_format", "mermaid")
-
-
-def set_architecture_diagram_format(
-    diagram_format: str, project_path: Optional[Path] = None
-) -> None:
-    """Set the architecture diagram format.
-
-    Args:
-        diagram_format: "mermaid" or "ascii"
-        project_path: (Ignored - global config is used)
-    """
-    if diagram_format not in ["mermaid", "ascii"]:
-        console.print(
-            f"[red]Error:[/red] Invalid diagram format '{diagram_format}'. "
-            f"Must be 'mermaid' or 'ascii'."
-        )
-        return
-
-    config = load_config(project_path)
-
-    # Ensure architecture section exists
-    if "architecture" not in config:
-        config["architecture"] = {}
-
-    config["architecture"]["diagram_format"] = diagram_format
-    save_config(project_path, config)
-
-    console.print(
-        f"[green]✓[/green] Architecture diagram format set to: {diagram_format}"
-    )
-
-
-def get_architecture_views(project_path: Optional[Path] = None) -> str:
-    """Get the configured architecture views setting.
-
-    Args:
-        project_path: (Ignored - global config is used)
-
-    Returns:
-        Views setting: "core", "all", or comma-separated list (defaults to "core")
-    """
-    config = load_config(project_path)
-
-    if "architecture" not in config:
-        config["architecture"] = {"views": "core"}
-        save_config(project_path, config)
-        return "core"
-
-    return config.get("architecture", {}).get("views", "core")
-
-
-def get_adr_heuristic(project_path: Optional[Path] = None) -> str:
-    """Get the configured ADR heuristic.
-
-    Args:
-        project_path: (Ignored - global config is used)
-
-    Returns:
-        Heuristic: "surprising", "all", or "minimal" (defaults to "surprising")
-    """
-    config = load_config(project_path)
-
-    if "architecture" not in config or "adr" not in config.get("architecture", {}):
-        return "surprising"
-
-    return config.get("architecture", {}).get("adr", {}).get("heuristic", "surprising")
-
-
-def get_architecture_config(project_path: Optional[Path] = None) -> dict:
-    """Get the complete architecture configuration.
-
-    Args:
-        project_path: (Ignored - global config is used)
-
-    Returns:
-        Dictionary containing all architecture configuration
-    """
-    config = load_config(project_path)
-
-    default_config = {
-        "diagram_format": "mermaid",
-        "views": "core",
-        "adr": {
-            "heuristic": "surprising",
-            "check_constitution": True,
-            "allow_overrides": True,
-            "duplication_threshold": "strict",
-            "max_adrs": 10,
-            "custom_rules": {"obvious": [], "surprising": []},
-        },
-        "deduplication": {
-            "enabled": True,
-            "scan_paths": ["docs/", "*.md"],
-            "reference_instead_of_duplicate": True,
-            "auto_merge_existing": True,
-        },
-    }
-
-    if "architecture" not in config:
-        return default_config
-
-    arch_config = config.get("architecture", {})
-
-    # Merge with defaults
-    result = default_config.copy()
-    result.update({k: v for k, v in arch_config.items() if v is not None})
-
-    return result
-
-
-# Skills configuration helpers
-
-
-def get_skills_config(project_path: Optional[Path] = None) -> dict:
-    """Get skills configuration from global config.
-
-    Args:
-        project_path: (Ignored - global config is used)
-
-    Returns:
-        Skills config dict with defaults
-    """
-    config = load_config(project_path)
-
-    # Return skills section with defaults
-    defaults = {
-        "auto_activation_threshold": 0.7,
-        "max_auto_skills": 3,
-        "preserve_user_edits": True,
-        "registry_url": "https://skills.sh/api",
-    }
-
-    skills_config = config.get("skills", {})
-    # Merge with defaults
-    for key, value in defaults.items():
-        if key not in skills_config:
-            skills_config[key] = value
-
-    return skills_config
-
-
-def set_skills_config(key: str, value, project_path: Optional[Path] = None) -> None:
-    """Set a skills configuration value.
-
-    Args:
-        key: Config key to set
-        value: Value to set
-        project_path: (Ignored - global config is used)
-    """
-    config = load_config(project_path)
-
-    if "skills" not in config:
-        config["skills"] = {}
-
-    config["skills"][key] = value
-    save_config(project_path, config)
-
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 CLAUDE_NPM_LOCAL_PATH = (
@@ -747,13 +134,13 @@ CLAUDE_NPM_LOCAL_PATH = (
 BANNER = """
 ███████╗██████╗ ███████╗ ██████╗██╗███████╗██╗   ██╗
 ██╔════╝██╔══██╗██╔════╝██╔════╝██║██╔════╝╚██╗ ██╔╝
-███████╗██████╔╝█████╗  ██║     ██║█████╗   ╚████╔╝ 
-╚════██║██╔═══╝ ██╔══╝  ██║     ██║██╔══╝    ╚██╔╝  
-███████║██║     ███████╗╚██████╗██║██║        ██║   
-╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝   
+███████╗██████╔╝█████╗  ██║     ██║█████╗   ╚████╔╝
+╚════██║██╔═══╝ ██╔══╝  ██║     ██║██╔══╝    ╚██╔╝
+███████║██║     ███████╗╚██████╗██║██║        ██║
+╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
 
-TAGLINE = "Agentic SDLC Spec Kit - Spec-Driven Development Toolkit"
+TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
 
 
 class StepTracker:
@@ -817,7 +204,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(Text(self.title, style=ACCENT_COLOR), guide_style="grey50")
+        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -828,7 +215,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = f"[{ACCENT_COLOR}]○[/{ACCENT_COLOR}]"
+                symbol = "[cyan]○[/cyan]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -877,9 +264,7 @@ def get_key():
 
 
 def select_with_arrows(
-    options: dict,
-    prompt_text: str = "Select an option",
-    default_key: Optional[str] = None,
+    options: dict, prompt_text: str = "Select an option", default_key: str = None
 ) -> str:
     """
     Interactive selection using arrow keys with Rich Live display.
@@ -903,20 +288,14 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style=ACCENT_COLOR, justify="left", width=3)
+        table.add_column(style="cyan", justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row(
-                    "▶",
-                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
-                )
+                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
             else:
-                table.add_row(
-                    " ",
-                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
-                )
+                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
 
         table.add_row("", "")
         table.add_row(
@@ -926,7 +305,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style=ACCENT_COLOR,
+            border_style="cyan",
             padding=(1, 2),
         )
 
@@ -989,639 +368,11 @@ app = typer.Typer(
     cls=BannerGroup,
 )
 
-# Skill subcommand app
-skill_app = typer.Typer(
-    name="skill",
-    help="Manage agent skills - search, install, update, and evaluate skills",
-    add_completion=False,
-    invoke_without_command=True,
-)
-
-
-@skill_app.callback()
-def skill_callback(ctx: typer.Context):
-    """Show skills banner when no subcommand is provided."""
-    if ctx.invoked_subcommand is None:
-        show_skills_banner()
-
-
-@skill_app.command("search")
-def skill_search(
-    query: str = typer.Argument(..., help="Search query for skills"),
-    category: Optional[str] = typer.Option(
-        None, "--category", "-c", help="Filter by category"
-    ),
-    min_score: Optional[int] = typer.Option(
-        None, "--min-score", "-s", help="Minimum evaluation score"
-    ),
-    limit: int = typer.Option(20, "--limit", "-l", help="Maximum results to return"),
-    json_output: bool = typer.Option(
-        False, "--json", "-j", help="Output as JSON for scripting"
-    ),
-):
-    """Search for skills in the skills.sh registry."""
-    from .skills import SkillsRegistryClient
-
-    registry = SkillsRegistryClient()
-    results = registry.search(query, limit=limit, min_installs=0)
-
-    # Filter by category if specified
-    if category:
-        results = [
-            r
-            for r in results
-            if category.lower() in [c.lower() for c in (r.categories or [])]
-        ]
-
-    # Filter by score if specified (note: registry results don't have scores yet)
-    if min_score:
-        console.print(
-            "[yellow]Note:[/yellow] Score filtering not available in registry search"
-        )
-
-    if json_output:
-        import json as json_module
-
-        output = [
-            {
-                "name": r.name,
-                "owner": r.owner,
-                "repo": r.repo,
-                "description": r.description,
-                "installs": r.installs,
-                "categories": r.categories,
-                "skill_ref": r.skill_ref,
-            }
-            for r in results
-        ]
-        console.print(json_module.dumps(output, indent=2))
-    else:
-        if not results:
-            console.print(f"[yellow]No skills found matching '{query}'[/yellow]")
-            return
-
-        console.print(
-            f"\n[bold]Found {len(results)} skills matching '{query}':[/bold]\n"
-        )
-
-        for r in results:
-            console.print(
-                f"[{ACCENT_COLOR}]{r.name}[/{ACCENT_COLOR}] ({r.owner}/{r.repo})"
-            )
-            if r.description:
-                console.print(f"  {r.description}")
-            if r.installs:
-                console.print(f"  [dim]Installs: {r.installs:,}[/dim]")
-            if r.categories:
-                console.print(f"  [dim]Categories: {', '.join(r.categories)}[/dim]")
-            console.print(
-                f"  [cyan]Install: specify skill install {r.skill_ref}[/cyan]"
-            )
-            console.print()
-
-
-@skill_app.command("install")
-def skill_install(
-    skill_ref: str = typer.Argument(
-        ...,
-        help="Skill reference (github:org/repo/skill, local:./path, or registry:name)",
-    ),
-    version: Optional[str] = typer.Option(
-        None, "--version", "-v", help="Specific version to install"
-    ),
-    no_save: bool = typer.Option(
-        False, "--no-save", help="Don't save to skills.json manifest"
-    ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Reinstall even if already installed"
-    ),
-    evaluate: bool = typer.Option(
-        False, "--eval", "-e", help="Run evaluation after install"
-    ),
-    skip_blocked_check: bool = typer.Option(
-        False, "--skip-blocked-check", help="Skip team blocked skills check"
-    ),
-):
-    """Install a skill from various sources."""
-    from .skills import SkillsManifest, SkillInstaller, SkillEvaluator
-    from .skills.manifest import TeamSkillsManifest
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-
-    # Check for team manifest and blocked skills enforcement
-    team_manifest = None
-    if not skip_blocked_check:
-        config = load_config(project_path)
-        team_directives_path = config.get("team_directives", {}).get("path")
-        if not team_directives_path:
-            default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-            if default_path.exists():
-                team_directives_path = str(default_path)
-
-        if team_directives_path:
-            team_directives = Path(team_directives_path)
-            if team_directives.exists():
-                team_manifest = TeamSkillsManifest(team_directives)
-                if team_manifest.exists() and team_manifest.should_enforce_blocked():
-                    blocked = team_manifest.get_blocked_skills()
-                    # Check if skill is blocked (partial match)
-                    for blocked_skill in blocked:
-                        if blocked_skill in skill_ref or skill_ref in blocked_skill:
-                            console.print(
-                                f"[red]✗ Skill blocked by team policy:[/red] {skill_ref}\n"
-                                f"  Blocked pattern: {blocked_skill}\n"
-                                f"  Use --skip-blocked-check to override (not recommended)"
-                            )
-                            raise typer.Exit(1)
-
-    installer = SkillInstaller(manifest, team_manifest)
-
-    console.print(f"[{ACCENT_COLOR}]Installing skill:[/{ACCENT_COLOR}] {skill_ref}")
-
-    success, message = installer.install(
-        skill_ref, version=version, save=not no_save, force=force
-    )
-
-    if success:
-        console.print(f"[green]✓[/green] {message}")
-
-        if evaluate:
-            console.print(f"\n[{ACCENT_COLOR}]Running evaluation...[/{ACCENT_COLOR}]")
-            # Find the installed skill directory
-            skills_dir = manifest.skills_dir
-            for skill_dir in skills_dir.iterdir():
-                if skill_dir.is_dir():
-                    evaluator = SkillEvaluator()
-                    result = evaluator.evaluate_review(skill_dir)
-                    console.print(
-                        f"\nReview Score: {result.total_score}/{result.max_score} ({result.rating})"
-                    )
-                    break
-    else:
-        console.print(f"[red]✗[/red] {message}")
-        raise typer.Exit(1)
-
-
-@skill_app.command("update")
-def skill_update(
-    skill_name: Optional[str] = typer.Argument(
-        None, help="Skill name to update (or all if not specified)"
-    ),
-    all_skills: bool = typer.Option(
-        False, "--all", "-a", help="Update all installed skills"
-    ),
-    dry_run: bool = typer.Option(
-        False, "--dry-run", "-n", help="Show what would be updated without updating"
-    ),
-):
-    """Update installed skills to latest versions."""
-    from .skills import SkillsManifest, SkillInstaller
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-    installer = SkillInstaller(manifest)
-
-    if not manifest.exists():
-        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
-        return
-
-    if skill_name:
-        # Update specific skill
-        success, message, updates = installer.update(skill_name, dry_run=dry_run)
-    elif all_skills:
-        # Update all skills
-        success, message, updates = installer.update(None, dry_run=dry_run)
-    else:
-        console.print(
-            "[yellow]Specify a skill name or use --all to update all skills[/yellow]"
-        )
-        return
-
-    if success:
-        console.print(f"[green]✓[/green] {message}")
-        if updates:
-            for skill_id, status in updates.items():
-                console.print(f"  - {skill_id}: {status}")
-    else:
-        console.print(f"[red]✗[/red] {message}")
-
-
-@skill_app.command("remove")
-def skill_remove(
-    skill_name: str = typer.Argument(..., help="Skill name to remove"),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Remove without confirmation"
-    ),
-):
-    """Remove an installed skill."""
-    from .skills import SkillsManifest, SkillInstaller
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-
-    if not manifest.exists():
-        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
-        return
-
-    # Find skill by name (partial match)
-    skills = manifest.list_skills()
-    skill_id = None
-
-    for sid in skills.keys():
-        if skill_name in sid:
-            skill_id = sid
-            break
-
-    if not skill_id:
-        console.print(f"[red]Skill not found:[/red] {skill_name}")
-        raise typer.Exit(1)
-
-    if not force:
-        confirm = typer.confirm(f"Remove {skill_id}?")
-        if not confirm:
-            console.print("Cancelled")
-            return
-
-    installer = SkillInstaller(manifest)
-    success, message = installer.uninstall(skill_id)
-
-    if success:
-        console.print(f"[green]✓[/green] {message}")
-    else:
-        console.print(f"[red]✗[/red] {message}")
-
-
-@skill_app.command("list")
-def skill_list(
-    outdated: bool = typer.Option(
-        False, "--outdated", "-o", help="Show only outdated skills"
-    ),
-    json_output: bool = typer.Option(
-        False, "--json", "-j", help="Output as JSON for scripting"
-    ),
-):
-    """List installed skills."""
-    from .skills import SkillsManifest
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-
-    if not manifest.exists():
-        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
-        console.print(
-            "[dim]Run 'specify skill install <skill>' to install skills[/dim]"
-        )
-        return
-
-    skills = manifest.list_skills()
-
-    if not skills:
-        console.print("[yellow]No skills installed.[/yellow]")
-        console.print("[dim]Run 'specify skill search <query>' to find skills[/dim]")
-        return
-
-    if json_output:
-        import json as json_module
-
-        output = {
-            skill_id: {
-                "version": m.version,
-                "source": m.source,
-                "installed_at": m.installed_at,
-                "evaluation": (
-                    {
-                        "review_score": m.evaluation.review_score,
-                        "task_score": m.evaluation.task_score,
-                    }
-                    if m.evaluation
-                    else None
-                ),
-            }
-            for skill_id, m in skills.items()
-        }
-        console.print(json_module.dumps(output, indent=2))
-    else:
-        console.print(f"\n[bold]Installed Skills ({len(skills)}):[/bold]\n")
-
-        for skill_id, metadata in skills.items():
-            eval_info = ""
-            if metadata.evaluation:
-                review = metadata.evaluation.review_score
-                task = metadata.evaluation.task_score
-                if review is not None or task is not None:
-                    scores = []
-                    if review is not None:
-                        scores.append(f"Review: {review}")
-                    if task is not None:
-                        scores.append(f"Task: {task}")
-                    eval_info = f" ({', '.join(scores)})"
-
-            console.print(
-                f"[{ACCENT_COLOR}]{skill_id}[/{ACCENT_COLOR}]@{metadata.version}"
-            )
-            console.print(f"  Source: {metadata.source}")
-            console.print(f"  Installed: {metadata.installed_at[:10]}{eval_info}")
-            console.print()
-
-
-@skill_app.command("eval")
-def skill_eval(
-    skill_path: str = typer.Argument(
-        ..., help="Path to skill directory or installed skill name"
-    ),
-    review: bool = typer.Option(
-        False, "--review", "-r", help="Run review evaluation only"
-    ),
-    task: bool = typer.Option(False, "--task", "-t", help="Run task evaluation only"),
-    full: bool = typer.Option(
-        False, "--full", "-f", help="Run both review and task evaluations"
-    ),
-    report: bool = typer.Option(
-        False, "--report", help="Show detailed check-by-check report"
-    ),
-):
-    """Evaluate skill quality."""
-    from .skills import SkillsManifest, SkillEvaluator
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-    evaluator = SkillEvaluator()
-
-    # Resolve skill path
-    skill_path_obj = Path(skill_path)
-
-    if not skill_path_obj.exists():
-        # Try to find in installed skills
-        if manifest.exists():
-            skills_dir = manifest.skills_dir
-            if skills_dir.exists():
-                for skill_dir in skills_dir.iterdir():
-                    if skill_dir.is_dir() and skill_path in skill_dir.name:
-                        skill_path_obj = skill_dir
-                        break
-
-    if not skill_path_obj.exists():
-        console.print(f"[red]Skill not found:[/red] {skill_path}")
-        raise typer.Exit(1)
-
-    console.print(
-        f"\n[{ACCENT_COLOR}]Evaluating skill:[/{ACCENT_COLOR}] {skill_path_obj.name}\n"
-    )
-
-    # Run review evaluation (default if no flags)
-    if review or full or (not review and not task):
-        result = evaluator.evaluate_review(skill_path_obj)
-
-        console.print(
-            f"[bold]Review Score:[/bold] {result.total_score}/{result.max_score} ({result.rating})"
-        )
-        console.print()
-
-        console.print("[bold]Breakdown:[/bold]")
-        for category, score in result.breakdown.items():
-            console.print(f"  {category}: {score} points")
-
-        if report:
-            console.print()
-            console.print("[bold]Detailed Checks:[/bold]")
-            for check in result.checks:
-                if check.passed:
-                    console.print(
-                        f"  [green]✓[/green] {check.name} ({check.points}/{check.max_points})"
-                    )
-                else:
-                    console.print(
-                        f"  [red]✗[/red] {check.name} ({check.points}/{check.max_points})"
-                    )
-                    if check.message:
-                        console.print(f"    [dim]{check.message}[/dim]")
-
-    # Task evaluation is not yet implemented
-    if task or full:
-        console.print()
-        console.print(
-            "[yellow]Note:[/yellow] Task evaluation requires test scenarios (not yet available)"
-        )
-
-
-@skill_app.command("sync-team")
-def skill_sync_team(
-    dry_run: bool = typer.Option(
-        False, "--dry-run", "-n", help="Show what would be synced without syncing"
-    ),
-    force: bool = typer.Option(
-        False, "--force", "-f", help="Force reinstall of all team skills"
-    ),
-):
-    """Sync with team skills manifest (install required, suggest recommended)."""
-    from .skills import SkillsManifest, SkillInstaller
-    from .skills.manifest import TeamSkillsManifest
-
-    project_path = Path.cwd()
-    config = load_config(project_path)
-
-    # Find team directives path
-    team_directives_path = config.get("team_directives", {}).get("path")
-    if not team_directives_path:
-        # Try default location
-        default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-        if default_path.exists():
-            team_directives_path = str(default_path)
-
-    if not team_directives_path:
-        console.print(
-            "[yellow]No team directives configured.[/yellow]\n"
-            "Run 'specify init --team-ai-directives <path-or-url>' to configure."
-        )
-        return
-
-    team_directives = Path(team_directives_path)
-    if not team_directives.exists():
-        console.print(f"[red]Team directives not found:[/red] {team_directives}")
-        return
-
-    team_manifest = TeamSkillsManifest(team_directives)
-    if not team_manifest.exists():
-        console.print(
-            f"[yellow]No .skills.json found in team directives.[/yellow]\n"
-            f"Expected at: {team_directives / '.skills.json'}"
-        )
-        return
-
-    manifest = SkillsManifest(project_path)
-    installer = SkillInstaller(manifest, team_manifest)
-
-    # Get required and recommended skills
-    required = team_manifest.get_required_skills()
-    blocked = team_manifest.get_blocked_skills()
-
-    console.print(f"\n[{ACCENT_COLOR}]Team Skills Manifest:[/{ACCENT_COLOR}]")
-    console.print(f"  Required: {len(required)}")
-    console.print(f"  Blocked: {len(blocked)}")
-    console.print()
-
-    # Install required skills
-    if required:
-        console.print("[bold]Required Skills:[/bold]")
-        for skill_ref, version_spec in required.items():
-            current = manifest.get_skill(skill_ref)
-            if current and not force:
-                console.print(
-                    f"  [green]✓[/green] {skill_ref}@{current.version} (already installed)"
-                )
-            else:
-                if dry_run:
-                    console.print(f"  [cyan]→[/cyan] Would install: {skill_ref}")
-                else:
-                    version = version_spec.lstrip("^~") if version_spec != "*" else None
-                    success, message = installer.install(
-                        skill_ref, version=version, force=force
-                    )
-                    if success:
-                        console.print(f"  [green]✓[/green] {message}")
-                    else:
-                        console.print(f"  [red]✗[/red] {message}")
-
-    # Show blocked skills warning
-    if blocked:
-        console.print()
-        console.print("[bold]Blocked Skills (will be rejected on install):[/bold]")
-        for skill_id in blocked:
-            console.print(f"  [red]✗[/red] {skill_id}")
-
-
-@skill_app.command("check-updates")
-def skill_check_updates():
-    """Check for available skill updates."""
-    from .skills import SkillsManifest
-
-    project_path = Path.cwd()
-    manifest = SkillsManifest(project_path)
-
-    if not manifest.exists():
-        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
-        return
-
-    skills = manifest.list_skills()
-    if not skills:
-        console.print("[yellow]No skills installed.[/yellow]")
-        return
-
-    console.print(f"\n[{ACCENT_COLOR}]Checking for updates...[/{ACCENT_COLOR}]\n")
-
-    # For now, we can't check actual versions from registry
-    # Just show what's installed and note that manual check is needed
-    has_updates = False
-    for skill_id, metadata in skills.items():
-        if metadata.source == "local":
-            console.print(f"  [dim]○[/dim] {skill_id} (local - no update check)")
-        else:
-            # GitHub/GitLab skills could be checked against latest tag
-            # For now, just show current version
-            if metadata.version in ("main", "master", "*"):
-                console.print(
-                    f"  [yellow]?[/yellow] {skill_id}@{metadata.version} "
-                    f"(tracking branch - run 'specify skill update {skill_id}' to refresh)"
-                )
-                has_updates = True
-            else:
-                console.print(f"  [green]✓[/green] {skill_id}@{metadata.version}")
-
-    if has_updates:
-        console.print()
-        console.print(
-            "[dim]Tip: Run 'specify skill update --all' to update all skills[/dim]"
-        )
-    else:
-        console.print()
-        console.print("[green]All skills are up to date.[/green]")
-
-
-@skill_app.command("config")
-def skill_config(
-    key: Optional[str] = typer.Argument(None, help="Config key to get/set"),
-    value: Optional[str] = typer.Argument(None, help="Value to set"),
-):
-    """View or modify skills configuration."""
-    skills_config = get_skills_config()
-
-    if key is None:
-        # Show all config
-        console.print(f"\n[{ACCENT_COLOR}]Skills Configuration:[/{ACCENT_COLOR}]\n")
-        for k, v in skills_config.items():
-            console.print(f"  {k}: {v}")
-        console.print()
-        console.print("[dim]Set with: specify skill config <key> <value>[/dim]")
-        return
-
-    if value is None:
-        # Show specific key
-        if key in skills_config:
-            console.print(f"{key}: {skills_config[key]}")
-        else:
-            console.print(f"[red]Unknown config key:[/red] {key}")
-            console.print(
-                f"[dim]Available keys: {', '.join(skills_config.keys())}[/dim]"
-            )
-        return
-
-    # Set value
-    valid_keys = {
-        "auto_activation_threshold": float,
-        "max_auto_skills": int,
-        "preserve_user_edits": lambda x: x.lower() in ("true", "1", "yes"),
-        "registry_url": str,
-    }
-
-    if key not in valid_keys:
-        console.print(f"[red]Unknown config key:[/red] {key}")
-        console.print(f"[dim]Available keys: {', '.join(valid_keys.keys())}[/dim]")
-        return
-
-    try:
-        converter = valid_keys[key]
-        converted_value = converter(value)
-        set_skills_config(key, converted_value)
-        console.print(f"[green]✓[/green] Set {key} = {converted_value}")
-    except (ValueError, TypeError) as e:
-        console.print(f"[red]Invalid value:[/red] {e}")
-
-
-# Register skill subapp with main app
-app.add_typer(skill_app, name="skill")
-
-
-def show_skills_banner():
-    """Display the Skills Package Manager banner with key features."""
-    skills_info = Panel(
-        "[bold]Skills Package Manager[/bold]\n"
-        "[dim]Auto-discover and inject relevant agent skills based on feature descriptions[/dim]\n\n"
-        "[bold green]Key Features:[/bold green]\n"
-        "  [cyan]Auto-Discovery[/cyan] - Automatically matched skills to features (60% description, 40% content)\n"
-        "  [cyan]Dual Registry[/cyan] - Search skills.sh registry + install from GitHub/local paths\n"
-        "  [cyan]Team Curation[/cyan] - Required/recommended/blocked skills via team-ai-directives\n"
-        "  [cyan]Quality Evaluation[/cyan] - Built-in 100-point review scoring framework\n"
-        "  [cyan]Zero Dependencies[/cyan] - Direct GitHub installation, no npm required\n\n"
-        "[bold]Available Commands:[/bold]\n"
-        "  [yellow]specify skill search <query>[/yellow]     Search public skills registry\n"
-        "  [yellow]specify skill install <ref>[/yellow]      Install from GitHub/GitLab\n"
-        "  [yellow]specify skill list[/yellow]              Show installed skills\n"
-        "  [yellow]specify skill eval <path>[/yellow]       Evaluate skill quality\n"
-        "  [yellow]specify skill sync-team[/yellow]         Sync with team manifest\n\n"
-        "[dim]Learn more: https://github.com/tikalk/agentic-sdlc-spec-kit[/dim]",
-        border_style=ACCENT_COLOR,
-        padding=(1, 2),
-        title="[bold]Skill-Powered Development[/bold]",
-    )
-    console.print(skills_info)
-    console.print()
-
 
 def show_banner():
     """Display the ASCII art banner."""
     banner_lines = BANNER.strip().split("\n")
-    colors = BANNER_COLORS
+    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -1629,7 +380,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style=f"italic {ACCENT_COLOR}")))
+    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
     console.print()
 
 
@@ -1674,7 +425,7 @@ def run_command(
         return None
 
 
-def check_tool(tool: str, tracker: StepTracker | None = None) -> bool:
+def check_tool(tool: str, tracker: StepTracker = None) -> bool:
     """Check if a tool is installed. Optionally update tracker.
 
     Args:
@@ -1713,81 +464,7 @@ def check_tool(tool: str, tracker: StepTracker | None = None) -> bool:
     return found
 
 
-def _run_git_command(
-    args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None
-) -> subprocess.CompletedProcess:
-    """Run a git command with optional working directory and environment overrides."""
-    cmd = ["git"]
-    if cwd is not None:
-        cmd.extend(["-C", str(cwd)])
-    cmd.extend(args)
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
-
-
-def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, skip_tls: bool = False
-) -> tuple[str, Path]:
-    """Clone or update the team-ai-directives repository.
-
-    When repo_url points to a local directory, return it without cloning.
-    Returns a tuple of (status, resolved_path).
-    """
-    repo_url = (repo_url or "").strip()
-    if not repo_url:
-        raise ValueError("Team AI directives repository URL cannot be empty")
-
-    potential_path = Path(repo_url).expanduser()
-    if potential_path.exists() and potential_path.is_dir():
-        return ("local", potential_path.resolve())
-
-    memory_root = project_root / ".specify" / "memory"
-    memory_root.mkdir(parents=True, exist_ok=True)
-    destination = memory_root / TEAM_DIRECTIVES_DIRNAME
-
-    git_env = os.environ.copy()
-    if skip_tls:
-        git_env["GIT_SSL_NO_VERIFY"] = "1"
-
-    try:
-        if destination.exists() and any(destination.iterdir()):
-            _run_git_command(
-                ["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env
-            )
-            try:
-                existing_remote = _run_git_command(
-                    [
-                        "config",
-                        "--get",
-                        "remote.origin.url",
-                    ],
-                    cwd=destination,
-                    env=git_env,
-                ).stdout.strip()
-            except subprocess.CalledProcessError:
-                existing_remote = ""
-
-            if existing_remote and existing_remote != repo_url:
-                _run_git_command(
-                    ["remote", "set-url", "origin", repo_url],
-                    cwd=destination,
-                    env=git_env,
-                )
-
-            _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
-            return ("updated", destination)
-
-        if destination.exists() and not any(destination.iterdir()):
-            shutil.rmtree(destination)
-
-        memory_root.mkdir(parents=True, exist_ok=True)
-        _run_git_command(["clone", repo_url, str(destination)], env=git_env)
-        return ("cloned", destination)
-    except subprocess.CalledProcessError as exc:
-        message = exc.stderr.strip() if exc.stderr else str(exc)
-        raise RuntimeError(f"Git operation failed: {message}") from exc
-
-
-def is_git_repo(path: Path | None = None) -> bool:
+def is_git_repo(path: Path = None) -> bool:
     """Check if the specified path is inside a git repository."""
     if path is None:
         path = Path.cwd()
@@ -1820,13 +497,11 @@ def init_git_repo(
     Returns:
         Tuple of (success: bool, error_message: Optional[str])
     """
-    original_cwd = Path.cwd()
     try:
+        original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print(
-                f"[{ACCENT_COLOR}]Initializing git repository...[/{ACCENT_COLOR}]"
-            )
+            console.print("[cyan]Initializing git repository...[/cyan]")
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(
@@ -2017,388 +692,9 @@ def merge_json_files(
         return None
 
     if verbose:
-        console.print(
-            f"[{ACCENT_COLOR}]Merged JSON file:[/{ACCENT_COLOR}] {existing_path.name}"
-        )
+        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
 
     return merged
-
-
-def download_template_from_github(
-    ai_assistant: str,
-    download_dir: Path,
-    *,
-    script_type: str = "sh",
-    verbose: bool = True,
-    show_progress: bool = True,
-    client: httpx.Client | None = None,
-    debug: bool = False,
-    github_token: str | None = None,
-) -> Tuple[Path, dict]:
-    repo_owner = "tikalk"
-    repo_name = "agentic-sdlc-spec-kit"
-    if client is None:
-        client = httpx.Client(verify=ssl_context)
-
-    if verbose:
-        console.print(
-            f"[{ACCENT_COLOR}]Fetching latest release information...[/{ACCENT_COLOR}]"
-        )
-    api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
-
-    try:
-        response = client.get(
-            api_url,
-            timeout=30,
-            follow_redirects=True,
-            headers=_github_auth_headers(github_token),
-        )
-        status = response.status_code
-        if status != 200:
-            # Format detailed error message with rate-limit info
-            error_msg = _format_rate_limit_error(status, response.headers, api_url)
-            if debug:
-                error_msg += f"\n\n[dim]Response body (truncated 500):[/dim]\n{response.text[:500]}"
-            raise RuntimeError(error_msg)
-        try:
-            release_data = response.json()
-        except ValueError as je:
-            raise RuntimeError(
-                f"Failed to parse release JSON: {je}\nRaw (truncated 400): {response.text[:400]}"
-            )
-    except Exception as e:
-        console.print("[red]Error fetching release information[/red]")
-        console.print(Panel(str(e), title="Fetch Error", border_style="red"))
-        raise typer.Exit(1)
-
-    assets = release_data.get("assets", [])
-    pattern = f"spec-kit-template-{ai_assistant}-{script_type}"
-    matching_assets = [
-        asset
-        for asset in assets
-        if pattern in asset["name"] and asset["name"].endswith(".zip")
-    ]
-
-    asset = matching_assets[0] if matching_assets else None
-
-    if asset is None:
-        console.print(
-            f"[red]No matching release asset found[/red] for [bold]{ai_assistant}[/bold] (expected pattern: [bold]{pattern}[/bold])"
-        )
-        asset_names = [a.get("name", "?") for a in assets]
-        console.print(
-            Panel(
-                "\n".join(asset_names) or "(no assets)",
-                title="Available Assets",
-                border_style="yellow",
-            )
-        )
-        raise typer.Exit(1)
-
-    download_url = asset["browser_download_url"]
-    filename = asset["name"]
-    file_size = asset["size"]
-
-    if verbose:
-        console.print(f"[{ACCENT_COLOR}]Found template:[/{ACCENT_COLOR}] {filename}")
-        console.print(f"[{ACCENT_COLOR}]Size:[/{ACCENT_COLOR}] {file_size:,} bytes")
-        console.print(
-            f"[{ACCENT_COLOR}]Release:[/{ACCENT_COLOR}] {release_data['tag_name']}"
-        )
-
-    zip_path = download_dir / filename
-    if verbose:
-        console.print(f"[{ACCENT_COLOR}]Downloading template...[/{ACCENT_COLOR}]")
-
-    try:
-        with client.stream(
-            "GET",
-            download_url,
-            timeout=60,
-            follow_redirects=True,
-            headers=_github_auth_headers(github_token),
-        ) as response:
-            if response.status_code != 200:
-                # Handle rate-limiting on download as well
-                error_msg = _format_rate_limit_error(
-                    response.status_code, response.headers, download_url
-                )
-                if debug:
-                    error_msg += f"\n\n[dim]Response body (truncated 400):[/dim]\n{response.text[:400]}"
-                raise RuntimeError(error_msg)
-            total_size = int(response.headers.get("content-length", 0))
-            with open(zip_path, "wb") as f:
-                if total_size == 0:
-                    for chunk in response.iter_bytes(chunk_size=8192):
-                        f.write(chunk)
-                else:
-                    if show_progress:
-                        with Progress(
-                            SpinnerColumn(),
-                            TextColumn("[progress.description]{task.description}"),
-                            TextColumn("[progress.percentage]{task.percentage:>3.0f}%"),
-                            console=console,
-                        ) as progress:
-                            task = progress.add_task("Downloading...", total=total_size)
-                            downloaded = 0
-                            for chunk in response.iter_bytes(chunk_size=8192):
-                                f.write(chunk)
-                                downloaded += len(chunk)
-                                progress.update(task, completed=downloaded)
-                    else:
-                        for chunk in response.iter_bytes(chunk_size=8192):
-                            f.write(chunk)
-    except Exception as e:
-        console.print("[red]Error downloading template[/red]")
-        detail = str(e)
-        if zip_path.exists():
-            zip_path.unlink()
-        console.print(Panel(detail, title="Download Error", border_style="red"))
-        raise typer.Exit(1)
-    if verbose:
-        console.print(f"Downloaded: {filename}")
-    metadata = {
-        "filename": filename,
-        "size": file_size,
-        "release": release_data["tag_name"],
-        "asset_url": download_url,
-    }
-    return zip_path, metadata
-
-
-def download_and_extract_template(
-    project_path: Path,
-    ai_assistant: str,
-    script_type: str,
-    is_current_dir: bool = False,
-    skip_legacy_codex_prompts: bool = False,
-    verbose: bool = True,
-    tracker: StepTracker | None = None,
-    client: httpx.Client | None = None,
-    debug: bool = False,
-    github_token: str | None = None,
-) -> Path:
-    """Download the latest release and extract it to create a new project.
-    Returns project_path. Uses tracker if provided (with keys: fetch, download, extract, cleanup)
-
-    Note:
-        ``skip_legacy_codex_prompts`` suppresses the legacy top-level
-        ``.codex`` directory from older template archives in Codex skills mode.
-        The name is kept for backward compatibility with existing callers.
-    """
-    current_dir = Path.cwd()
-
-    if tracker:
-        tracker.start("fetch", "contacting GitHub API")
-    try:
-        zip_path, meta = download_template_from_github(
-            ai_assistant,
-            current_dir,
-            script_type=script_type,
-            verbose=verbose and tracker is None,
-            show_progress=(tracker is None),
-            client=client,
-            debug=debug,
-            github_token=github_token,
-        )
-        if tracker:
-            tracker.complete(
-                "fetch", f"release {meta['release']} ({meta['size']:,} bytes)"
-            )
-            tracker.add("download", "Download template")
-            tracker.complete("download", meta["filename"])
-    except Exception as e:
-        if tracker:
-            tracker.error("fetch", str(e))
-        else:
-            if verbose:
-                console.print(f"[red]Error downloading template:[/red] {e}")
-        raise
-
-    if tracker:
-        tracker.add("extract", "Extract template")
-        tracker.start("extract")
-    elif verbose:
-        console.print("Extracting template...")
-
-    try:
-        if not is_current_dir:
-            project_path.mkdir(parents=True)
-
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-
-            def _validate_zip_members_within(root: Path) -> None:
-                """Validate all ZIP members stay within ``root`` (Zip Slip guard)."""
-                root_resolved = root.resolve()
-                for member in zip_ref.namelist():
-                    member_path = (root / member).resolve()
-                    try:
-                        member_path.relative_to(root_resolved)
-                    except ValueError:
-                        raise RuntimeError(
-                            f"Unsafe path in ZIP archive: {member} "
-                            "(potential path traversal)"
-                        )
-
-            zip_contents = zip_ref.namelist()
-            if tracker:
-                tracker.start("zip-list")
-                tracker.complete("zip-list", f"{len(zip_contents)} entries")
-            elif verbose:
-                console.print(
-                    f"[{ACCENT_COLOR}]ZIP contains {len(zip_contents)} items[/{ACCENT_COLOR}]"
-                )
-
-            if is_current_dir:
-                with tempfile.TemporaryDirectory() as temp_dir:
-                    temp_path = Path(temp_dir)
-                    _validate_zip_members_within(temp_path)
-                    zip_ref.extractall(temp_path)
-
-                    extracted_items = list(temp_path.iterdir())
-                    if tracker:
-                        tracker.start("extracted-summary")
-                        tracker.complete(
-                            "extracted-summary", f"temp {len(extracted_items)} items"
-                        )
-                    elif verbose:
-                        console.print(
-                            f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to temp location[/{ACCENT_COLOR}]"
-                        )
-
-                    source_dir = temp_path
-                    if len(extracted_items) == 1 and extracted_items[0].is_dir():
-                        source_dir = extracted_items[0]
-                        if tracker:
-                            tracker.add("flatten", "Flatten nested directory")
-                            tracker.complete("flatten")
-                        elif verbose:
-                            console.print(
-                                f"[{ACCENT_COLOR}]Found nested directory structure[/{ACCENT_COLOR}]"
-                            )
-
-                    for item in source_dir.iterdir():
-                        # In Codex skills mode, do not materialize the legacy
-                        # top-level .codex directory from older prompt-based
-                        # template archives.
-                        if (
-                            skip_legacy_codex_prompts
-                            and ai_assistant == "codex"
-                            and item.name == ".codex"
-                        ):
-                            continue
-                        dest_path = project_path / item.name
-                        if item.is_dir():
-                            if dest_path.exists():
-                                if verbose and not tracker:
-                                    console.print(
-                                        f"[yellow]Merging directory:[/yellow] {item.name}"
-                                    )
-                                for sub_item in item.rglob("*"):
-                                    if sub_item.is_file():
-                                        rel_path = sub_item.relative_to(item)
-                                        dest_file = dest_path / rel_path
-                                        dest_file.parent.mkdir(
-                                            parents=True, exist_ok=True
-                                        )
-                                        # Special handling for .vscode/settings.json - merge instead of overwrite
-                                        if (
-                                            dest_file.name == "settings.json"
-                                            and dest_file.parent.name == ".vscode"
-                                        ):
-                                            handle_vscode_settings(
-                                                sub_item,
-                                                dest_file,
-                                                rel_path,
-                                                verbose,
-                                                tracker,
-                                            )
-                                        else:
-                                            shutil.copy2(sub_item, dest_file)
-                            else:
-                                shutil.copytree(item, dest_path)
-                        else:
-                            if dest_path.exists() and verbose and not tracker:
-                                console.print(
-                                    f"[yellow]Overwriting file:[/yellow] {item.name}"
-                                )
-                            shutil.copy2(item, dest_path)
-                    if verbose and not tracker:
-                        console.print(
-                            f"[{ACCENT_COLOR}]Template files merged into current directory[/{ACCENT_COLOR}]"
-                        )
-            else:
-                _validate_zip_members_within(project_path)
-                zip_ref.extractall(project_path)
-
-                extracted_items = list(project_path.iterdir())
-                if tracker:
-                    tracker.start("extracted-summary")
-                    tracker.complete(
-                        "extracted-summary", f"{len(extracted_items)} top-level items"
-                    )
-                elif verbose:
-                    console.print(
-                        f"[{ACCENT_COLOR}]Extracted {len(extracted_items)} items to {project_path}:[/{ACCENT_COLOR}]"
-                    )
-                    for item in extracted_items:
-                        console.print(
-                            f"  - {item.name} ({'dir' if item.is_dir() else 'file'})"
-                        )
-
-                if len(extracted_items) == 1 and extracted_items[0].is_dir():
-                    nested_dir = extracted_items[0]
-                    temp_move_dir = project_path.parent / f"{project_path.name}_temp"
-
-                    shutil.move(str(nested_dir), str(temp_move_dir))
-
-                    project_path.rmdir()
-
-                    shutil.move(str(temp_move_dir), str(project_path))
-                    if tracker:
-                        tracker.add("flatten", "Flatten nested directory")
-                        tracker.complete("flatten")
-                    elif verbose:
-                        console.print(
-                            f"[{ACCENT_COLOR}]Flattened nested directory structure[/{ACCENT_COLOR}]"
-                        )
-
-                # For fresh-directory Codex skills init, suppress legacy
-                # top-level .codex layout extracted from older archives.
-                if skip_legacy_codex_prompts and ai_assistant == "codex":
-                    legacy_codex_dir = project_path / ".codex"
-                    if legacy_codex_dir.is_dir():
-                        shutil.rmtree(legacy_codex_dir, ignore_errors=True)
-
-    except Exception as e:
-        if tracker:
-            tracker.error("extract", str(e))
-        else:
-            if verbose:
-                console.print(f"[red]Error extracting template:[/red] {e}")
-                if debug:
-                    console.print(
-                        Panel(str(e), title="Extraction Error", border_style="red")
-                    )
-
-        if not is_current_dir and project_path.exists():
-            shutil.rmtree(project_path)
-        raise typer.Exit(1)
-    else:
-        if tracker:
-            tracker.complete("extract")
-    finally:
-        if tracker:
-            tracker.add("cleanup", "Remove temporary archive")
-
-        if zip_path.exists():
-            zip_path.unlink()
-            if tracker:
-                tracker.complete("cleanup")
-            elif verbose:
-                console.print(f"Cleaned up: {zip_path.name}")
-
-    return project_path
 
 
 def _locate_core_pack() -> Path | None:
@@ -2418,241 +714,89 @@ def _locate_core_pack() -> Path | None:
     return None
 
 
-def _locate_release_script() -> tuple[Path, str]:
-    """Return (script_path, shell_cmd) for the platform-appropriate release script.
-
-    Checks the bundled core_pack first, then falls back to the source checkout.
-    Returns the bash script on Unix and the PowerShell script on Windows.
-    Raises FileNotFoundError if neither can be found.
-    """
-    if os.name == "nt":
-        name = "create-release-packages.ps1"
-        shell = shutil.which("pwsh")
-        if not shell:
-            raise FileNotFoundError(
-                "'pwsh' (PowerShell 7+) not found on PATH. "
-                "The bundled release script requires PowerShell 7+ (pwsh), "
-                "not Windows PowerShell 5.x (powershell.exe). "
-                "Install from https://aka.ms/powershell to use offline scaffolding."
-            )
-    else:
-        name = "create-release-packages.sh"
-        shell = "bash"
-
-    # Wheel install: core_pack/release_scripts/
-    candidate = Path(__file__).parent / "core_pack" / "release_scripts" / name
-    if candidate.is_file():
-        return candidate, shell
-
-    # Source-checkout fallback
-    repo_root = Path(__file__).parent.parent.parent
-    candidate = repo_root / ".github" / "workflows" / "scripts" / name
-    if candidate.is_file():
-        return candidate, shell
-
-    raise FileNotFoundError(
-        f"Release script '{name}' not found in core_pack or source checkout"
-    )
-
-
-def scaffold_from_core_pack(
+def _install_shared_infra(
     project_path: Path,
-    ai_assistant: str,
     script_type: str,
-    is_current_dir: bool = False,
-    *,
     tracker: StepTracker | None = None,
 ) -> bool:
-    """Scaffold a project from bundled core_pack assets — no network access required.
+    """Install shared infrastructure files into *project_path*.
 
-    Invokes the bundled create-release-packages script (bash on Unix, PowerShell
-    on Windows) to generate the full project scaffold for a single agent.  This
-    guarantees byte-for-byte parity between ``specify init`` and the GitHub
-    release ZIPs because both use the exact same script.
-
-    Returns True on success.  Returns False if offline scaffolding failed for
-    any reason, including missing or unreadable assets, missing required tools
-    (bash, pwsh, zip), release-script failure or timeout, or unexpected runtime
-    exceptions.  When ``--offline`` is active the caller should treat False as
-    a hard error rather than falling back to a network download.
+    Copies ``.specify/scripts/`` and ``.specify/templates/`` from the
+    bundled core_pack or source checkout.  Tracks all installed files
+    in ``speckit.manifest.json``.
+    Returns ``True`` on success.
     """
-    # --- Locate asset sources ---
+    from .integrations.manifest import IntegrationManifest
+
     core = _locate_core_pack()
+    manifest = IntegrationManifest(
+        "speckit", project_path, version=get_speckit_version()
+    )
 
-    # Command templates
-    if core and (core / "commands").is_dir():
-        commands_dir = core / "commands"
-    else:
-        repo_root = Path(__file__).parent.parent.parent
-        commands_dir = repo_root / "templates" / "commands"
-        if not commands_dir.is_dir():
-            if tracker:
-                tracker.error("scaffold", "command templates not found")
-            return False
-
-    # Scripts directory (parent of bash/ and powershell/)
+    # Scripts
     if core and (core / "scripts").is_dir():
-        scripts_dir = core / "scripts"
+        scripts_src = core / "scripts"
     else:
         repo_root = Path(__file__).parent.parent.parent
-        scripts_dir = repo_root / "scripts"
-        if not scripts_dir.is_dir():
-            if tracker:
-                tracker.error("scaffold", "scripts directory not found")
-            return False
+        scripts_src = repo_root / "scripts"
 
-    # Page templates (spec-template.md, plan-template.md, vscode-settings.json, etc.)
-    if core and (core / "templates").is_dir():
-        templates_dir = core / "templates"
-    else:
-        repo_root = Path(__file__).parent.parent.parent
-        templates_dir = repo_root / "templates"
-        if not templates_dir.is_dir():
-            if tracker:
-                tracker.error("scaffold", "page templates not found")
-            return False
+    skipped_files: list[str] = []
 
-    # Release script
-    try:
-        release_script, shell_cmd = _locate_release_script()
-    except FileNotFoundError as exc:
-        if tracker:
-            tracker.error("scaffold", str(exc))
-        return False
-
-    # Preflight: verify required external tools are available
-    if os.name != "nt":
-        if not shutil.which("bash"):
-            msg = "'bash' not found on PATH. Required for offline scaffolding."
-            if tracker:
-                tracker.error("scaffold", msg)
-            return False
-        if not shutil.which("zip"):
-            msg = "'zip' not found on PATH. Required for offline scaffolding. Install with: apt install zip / brew install zip"
-            if tracker:
-                tracker.error("scaffold", msg)
-            return False
-
-    if tracker:
-        tracker.start("scaffold", "applying bundled assets")
-
-    try:
-        if not is_current_dir:
-            project_path.mkdir(parents=True, exist_ok=True)
-
-        with tempfile.TemporaryDirectory() as tmpdir:
-            tmp = Path(tmpdir)
-
-            # Set up a repo-like directory layout in the temp dir so the
-            # release script finds templates/commands/, scripts/, etc.
-            tmpl_cmds = tmp / "templates" / "commands"
-            tmpl_cmds.mkdir(parents=True)
-            for f in commands_dir.iterdir():
-                if f.is_file():
-                    shutil.copy2(f, tmpl_cmds / f.name)
-
-            # Page templates (needed for vscode-settings.json etc.)
-            if templates_dir.is_dir():
-                tmpl_root = tmp / "templates"
-                for f in templates_dir.iterdir():
-                    if f.is_file():
-                        shutil.copy2(f, tmpl_root / f.name)
-
-            # Scripts (bash/ and powershell/)
-            for subdir in ("bash", "powershell"):
-                src = scripts_dir / subdir
-                if src.is_dir():
-                    dst = tmp / "scripts" / subdir
-                    dst.mkdir(parents=True, exist_ok=True)
-                    for f in src.iterdir():
-                        if f.is_file():
-                            shutil.copy2(f, dst / f.name)
-
-            # Run the release script for this single agent + script type
-            env = os.environ.copy()
-            # Pin GENRELEASES_DIR inside the temp dir so a user-exported
-            # value cannot redirect output or cause rm -rf outside the sandbox.
-            env["GENRELEASES_DIR"] = str(tmp / ".genreleases")
-            version = f"agentic-sdlc-v{get_speckit_version()}"
-            if os.name == "nt":
-                cmd = [
-                    shell_cmd,
-                    "-File",
-                    str(release_script),
-                    "-Version",
-                    version,
-                    "-Agents",
-                    ai_assistant,
-                    "-Scripts",
-                    script_type,
-                ]
-            else:
-                cmd = [shell_cmd, str(release_script), version]
-                env["AGENTS"] = ai_assistant
-                env["SCRIPTS"] = script_type
-
-            try:
-                result = subprocess.run(
-                    cmd,
-                    cwd=str(tmp),
-                    env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=120,
-                )
-            except subprocess.TimeoutExpired:
-                msg = "release script timed out after 120 seconds"
-                if tracker:
-                    tracker.error("scaffold", msg)
-                else:
-                    console.print(f"[red]Error:[/red] {msg}")
-                return False
-
-            if result.returncode != 0:
-                msg = result.stderr.strip() or result.stdout.strip() or "unknown error"
-                if tracker:
-                    tracker.error("scaffold", f"release script failed: {msg}")
-                else:
-                    console.print(f"[red]Release script failed:[/red] {msg}")
-                return False
-
-            # Copy the generated files to the project directory
-            build_dir = (
-                tmp / ".genreleases" / f"sdd-{ai_assistant}-package-{script_type}"
-            )
-            if not build_dir.is_dir():
-                if tracker:
-                    tracker.error("scaffold", "release script produced no output")
-                return False
-
-            for item in build_dir.rglob("*"):
-                if item.is_file():
-                    rel = item.relative_to(build_dir)
-                    dest = project_path / rel
-                    dest.parent.mkdir(parents=True, exist_ok=True)
-                    # When scaffolding into an existing directory (--here),
-                    # use the same merge semantics as the GitHub-download path.
-                    if (
-                        is_current_dir
-                        and dest.name == "settings.json"
-                        and dest.parent.name == ".vscode"
-                    ):
-                        handle_vscode_settings(
-                            item, dest, rel, verbose=False, tracker=tracker
-                        )
+    if scripts_src.is_dir():
+        dest_scripts = project_path / ".specify" / "scripts"
+        dest_scripts.mkdir(parents=True, exist_ok=True)
+        variant_dir = "bash" if script_type == "sh" else "powershell"
+        variant_src = scripts_src / variant_dir
+        if variant_src.is_dir():
+            dest_variant = dest_scripts / variant_dir
+            dest_variant.mkdir(parents=True, exist_ok=True)
+            # Merge without overwriting — only add files that don't exist yet
+            for src_path in variant_src.rglob("*"):
+                if src_path.is_file():
+                    rel_path = src_path.relative_to(variant_src)
+                    dst_path = dest_variant / rel_path
+                    if dst_path.exists():
+                        skipped_files.append(str(dst_path.relative_to(project_path)))
                     else:
-                        shutil.copy2(item, dest)
+                        dst_path.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(src_path, dst_path)
+                        rel = dst_path.relative_to(project_path).as_posix()
+                        manifest.record_existing(rel)
 
-        if tracker:
-            tracker.complete("scaffold", "bundled assets applied")
-        return True
+    # Page templates (not command templates, not vscode-settings.json)
+    if core and (core / "templates").is_dir():
+        templates_src = core / "templates"
+    else:
+        repo_root = Path(__file__).parent.parent.parent
+        templates_src = repo_root / "templates"
 
-    except Exception as e:
-        if tracker:
-            tracker.error("scaffold", str(e))
-        else:
-            console.print(f"[red]Error scaffolding from bundled assets:[/red] {e}")
-        return False
+    if templates_src.is_dir():
+        dest_templates = project_path / ".specify" / "templates"
+        dest_templates.mkdir(parents=True, exist_ok=True)
+        for f in templates_src.iterdir():
+            if (
+                f.is_file()
+                and f.name != "vscode-settings.json"
+                and not f.name.startswith(".")
+            ):
+                dst = dest_templates / f.name
+                if dst.exists():
+                    skipped_files.append(str(dst.relative_to(project_path)))
+                else:
+                    shutil.copy2(f, dst)
+                    rel = dst.relative_to(project_path).as_posix()
+                    manifest.record_existing(rel)
+
+    if skipped_files:
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "The following shared files already exist and were not overwritten:\n%s",
+            "\n".join(f"  {f}" for f in skipped_files),
+        )
+
+    manifest.save()
+    return True
 
 
 def ensure_executable_scripts(
@@ -2702,7 +846,7 @@ def ensure_executable_scripts(
     else:
         if updated:
             console.print(
-                f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]"
+                f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]"
             )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
@@ -2741,9 +885,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print(
-                f"[{ACCENT_COLOR}]Initialized constitution from template[/{ACCENT_COLOR}]"
-            )
+            console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -2783,745 +925,46 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return {}
 
 
-# Default skills directory for agents not in AGENT_CONFIG
-DEFAULT_SKILLS_DIR = ".agents/skills"
-
-# Agents whose downloaded template already contains skills in the final layout.
-#
-# Technical debt note:
-# - Spec-kit currently has multiple SKILL.md generators:
-#   1) release packaging scripts that build the template zip (native skills),
-#   2) `install_ai_skills()` which converts extracted command templates to skills,
-#   3) extension/preset overrides via `agents.CommandRegistrar.render_skill_command()`.
-# - Keep the skills frontmatter schema aligned across all generators
-#   (at minimum: name/description/compatibility/metadata.{author,source}).
-# - When adding fields here, update the release scripts and override writers too.
-NATIVE_SKILLS_AGENTS = {"codex", "kimi"}
-
-# Enhanced descriptions for each spec-kit command skill
-SKILL_DESCRIPTIONS = {
-    "specify": "Create or update feature specifications from natural language descriptions. Use when starting new features or refining requirements. Generates spec.md with user stories, functional requirements, and acceptance criteria following spec-driven development methodology.",
-    "plan": "Generate technical implementation plans from feature specifications. Use after creating a spec to define architecture, tech stack, and implementation phases. Creates plan.md with detailed technical design.",
-    "tasks": "Break down implementation plans into actionable task lists. Use after planning to create a structured task breakdown. Generates tasks.md with ordered, dependency-aware tasks.",
-    "implement": "Execute all tasks from the task breakdown to build the feature. Use after task generation to systematically implement the planned solution following TDD approach where applicable.",
-    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md. Use after task generation to identify gaps, duplications, and inconsistencies before implementation.",
-    "clarify": "Structured clarification workflow for underspecified requirements. Use before planning to resolve ambiguities through coverage-based questioning. Records answers in spec clarifications section.",
-    "constitution": "Create or update project governing principles and development guidelines. Use at project start to establish code quality, testing standards, and architectural constraints that guide all development.",
-    "checklist": "Generate custom quality checklists for validating requirements completeness and clarity. Use to create unit tests for English that ensure spec quality before implementation.",
-    "taskstoissues": "Convert tasks from tasks.md into GitHub issues. Use after task breakdown to track work items in GitHub project management.",
-}
-
-
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
-    """Resolve the agent-specific skills directory for the given AI assistant.
+    """Resolve the agent-specific skills directory.
 
-    Uses ``AGENT_CONFIG[agent]["folder"] + "skills"`` and falls back to
-    ``DEFAULT_SKILLS_DIR`` for unknown agents.
+    Returns ``project_path / <agent_folder> / "skills"``, falling back
+    to ``project_path / ".agents/skills"`` for unknown agents.
     """
     agent_config = AGENT_CONFIG.get(selected_ai, {})
     agent_folder = agent_config.get("folder", "")
     if agent_folder:
         return project_path / agent_folder.rstrip("/") / "skills"
-
-    return project_path / DEFAULT_SKILLS_DIR
-
-
-def install_ai_skills(
-    project_path: Path,
-    selected_ai: str,
-    tracker: StepTracker | None = None,
-    *,
-    overwrite_existing: bool = False,
-) -> bool:
-    """Install Prompt.MD files from templates/commands/ as agent skills.
-
-    Skills are written to the agent-specific skills directory following the
-    `agentskills.io <https://agentskills.io/specification>`_ specification.
-    Installation is additive by default — existing files are never removed and
-    prompt command files in the agent's commands directory are left untouched.
-
-    Args:
-        project_path: Target project directory.
-        selected_ai: AI assistant key from ``AGENT_CONFIG``.
-        tracker: Optional progress tracker.
-        overwrite_existing: When True, overwrite any existing ``SKILL.md`` file
-            in the target skills directory (including user-authored content).
-            Defaults to False.
-
-    Returns:
-        ``True`` if at least one skill was installed or all skills were
-        already present (idempotent re-run), ``False`` otherwise.
-    """
-    # Locate command templates in the agent's extracted commands directory.
-    # download_and_extract_template() already placed the .md files here.
-    agent_config = AGENT_CONFIG.get(selected_ai, {})
-    agent_folder = agent_config.get("folder", "")
-    commands_subdir = agent_config.get("commands_subdir", "commands")
-    if agent_folder:
-        templates_dir = project_path / agent_folder.rstrip("/") / commands_subdir
-    else:
-        templates_dir = project_path / commands_subdir
-
-    # Only consider speckit.*.md templates so that user-authored command
-    # files (e.g. custom slash commands, agent files) coexisting in the
-    # same commands directory are not incorrectly converted into skills.
-    template_glob = "speckit.*.md"
-
-    if not templates_dir.exists() or not any(templates_dir.glob(template_glob)):
-        # Fallback: try the repo-relative path (for running from source checkout)
-        # This also covers agents whose extracted commands are in a different
-        # format (e.g. gemini/tabnine use .toml, not .md).
-        script_dir = Path(__file__).parent.parent.parent  # up from src/specify_cli/
-        fallback_dir = script_dir / "templates" / "commands"
-        if fallback_dir.exists() and any(fallback_dir.glob("*.md")):
-            templates_dir = fallback_dir
-            template_glob = "*.md"
-
-    if not templates_dir.exists() or not any(templates_dir.glob(template_glob)):
-        if tracker:
-            tracker.error("ai-skills", "command templates not found")
-        else:
-            console.print(
-                "[yellow]Warning: command templates not found, skipping skills installation[/yellow]"
-            )
-        return False
-
-    command_files = sorted(templates_dir.glob(template_glob))
-    if not command_files:
-        if tracker:
-            tracker.skip("ai-skills", "no command templates found")
-        else:
-            console.print("[yellow]No command templates found to install[/yellow]")
-        return False
-
-    # Resolve the correct skills directory for this agent
-    skills_dir = _get_skills_dir(project_path, selected_ai)
-    skills_dir.mkdir(parents=True, exist_ok=True)
-
-    if tracker:
-        tracker.start("ai-skills")
-
-    installed_count = 0
-    skipped_count = 0
-    for command_file in command_files:
-        try:
-            content = command_file.read_text(encoding="utf-8")
-
-            # Parse YAML frontmatter
-            if content.startswith("---"):
-                parts = content.split("---", 2)
-                if len(parts) >= 3:
-                    frontmatter = yaml.safe_load(parts[1])
-                    if not isinstance(frontmatter, dict):
-                        frontmatter = {}
-                    body = parts[2].strip()
-                else:
-                    # File starts with --- but has no closing ---
-                    console.print(
-                        f"[yellow]Warning: {command_file.name} has malformed frontmatter (no closing ---), treating as plain content[/yellow]"
-                    )
-                    frontmatter = {}
-                    body = content
-            else:
-                frontmatter = {}
-                body = content
-
-            command_name = command_file.stem
-            # Normalize: extracted commands may be named "speckit.<cmd>.md"
-            # or "speckit.<cmd>.agent.md"; strip the "speckit." prefix and
-            # any trailing ".agent" suffix so skill names stay clean and
-            # SKILL_DESCRIPTIONS lookups work.
-            if command_name.startswith("speckit."):
-                command_name = command_name[len("speckit.") :]
-            if command_name.endswith(".agent"):
-                command_name = command_name[: -len(".agent")]
-            skill_name = f"speckit-{command_name.replace('.', '-')}"
-
-            # Create skill directory (additive — never removes existing content)
-            skill_dir = skills_dir / skill_name
-            skill_dir.mkdir(parents=True, exist_ok=True)
-
-            # Select the best description available
-            original_desc = frontmatter.get("description", "")
-            enhanced_desc = SKILL_DESCRIPTIONS.get(
-                command_name,
-                original_desc or f"Spec-kit workflow command: {command_name}",
-            )
-
-            # Build SKILL.md following agentskills.io spec
-            # Use yaml.safe_dump to safely serialise the frontmatter and
-            # avoid YAML injection from descriptions containing colons,
-            # quotes, or newlines.
-            # Normalize source filename for metadata — strip speckit. prefix
-            # so it matches the canonical templates/commands/<cmd>.md path.
-            source_name = command_file.name
-            if source_name.startswith("speckit."):
-                source_name = source_name[len("speckit.") :]
-            if source_name.endswith(".agent.md"):
-                source_name = source_name[: -len(".agent.md")] + ".md"
-
-            frontmatter_data = {
-                "name": skill_name,
-                "description": enhanced_desc,
-                "compatibility": "Requires spec-kit project structure with .specify/ directory",
-                "metadata": {
-                    "author": "github-spec-kit",
-                    "source": f"templates/commands/{source_name}",
-                },
-            }
-            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
-            skill_content = (
-                f"---\n"
-                f"{frontmatter_text}\n"
-                f"---\n\n"
-                f"# Speckit {command_name.title()} Skill\n\n"
-                f"{body}\n"
-            )
-
-            skill_file = skill_dir / "SKILL.md"
-            if skill_file.exists():
-                if not overwrite_existing:
-                    # Default behavior: do not overwrite user-customized skills on re-runs
-                    skipped_count += 1
-                    continue
-            skill_file.write_text(skill_content, encoding="utf-8")
-            installed_count += 1
-
-        except Exception as e:
-            console.print(
-                f"[yellow]Warning: Failed to install skill {command_file.stem}: {e}[/yellow]"
-            )
-            continue
-
-    if tracker:
-        if installed_count > 0 and skipped_count > 0:
-            tracker.complete(
-                "ai-skills",
-                f"{installed_count} new + {skipped_count} existing skills in {skills_dir.relative_to(project_path)}",
-            )
-        elif installed_count > 0:
-            tracker.complete(
-                "ai-skills",
-                f"{installed_count} skills → {skills_dir.relative_to(project_path)}",
-            )
-        elif skipped_count > 0:
-            tracker.complete("ai-skills", f"{skipped_count} skills already present")
-        else:
-            tracker.error("ai-skills", "no skills installed")
-    else:
-        if installed_count > 0:
-            console.print(
-                f"[green]✓[/green] Installed {installed_count} agent skills to {skills_dir.relative_to(project_path)}/"
-            )
-        elif skipped_count > 0:
-            console.print(
-                f"[green]✓[/green] {skipped_count} agent skills already present in {skills_dir.relative_to(project_path)}/"
-            )
-        else:
-            console.print("[yellow]No skills were installed[/yellow]")
-
-    return installed_count > 0 or skipped_count > 0
-
-
-def _ensure_commands_for_agent(
-    project_path: Path, extensions_dir: Path, agent_name: str
-) -> None:
-    """Ensure commands are registered for a specific agent.
-
-    This handles cases where extensions were already installed but didn't register
-    commands for this agent (e.g., new agent recently added to AGENT_CONFIGS).
-
-    Args:
-        project_path: Target project directory
-        extensions_dir: Directory containing extension directories
-        agent_name: Agent name to register commands for
-    """
-    from .extensions import CommandRegistrar, ExtensionManifest
-
-    if agent_name not in CommandRegistrar.AGENT_CONFIGS:
-        return
-
-    project_extensions_dir = project_path / ".specify" / "extensions"
-    if not project_extensions_dir.exists():
-        return
-
-    for ext_dir in project_extensions_dir.iterdir():
-        if not ext_dir.is_dir() or ext_dir.name.startswith("."):
-            continue
-
-        ext_manifest_file = ext_dir / "extension.yml"
-        if not ext_manifest_file.exists():
-            continue
-
-        try:
-            # Always re-register commands on init to ensure they're up-to-date
-            # (removed skip logic that prevented updates when re-running init)
-            manifest = ExtensionManifest(ext_manifest_file)
-            registrar = CommandRegistrar()
-            registrar.register_commands_for_agent(
-                agent_name, manifest, ext_dir, project_path
-            )
-        except Exception:
-            continue
-
-
-def install_bundled_extensions(
-    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
-) -> None:
-    """Install bundled extensions that ship with spec-kit.
-
-    Reads the preinstall list from .specify/catalog.json (extensions with
-    "preinstall": true). Falls back to scanning extension directories if
-    catalog is missing or invalid.
-
-    Looks for extensions in the following locations (in order):
-    1. Project's .specify/extensions/ (bundled in release ZIP)
-    2. Repository's extensions/ directory (for development)
-
-    Args:
-        project_path: Target project directory
-        selected_ai: Selected AI assistant (for command registration)
-        tracker: Optional progress tracker
-    """
-    from .extensions import ExtensionManager, ExtensionError
-
-    # Try multiple locations for bundled extensions (in priority order)
-    # 1. Project's .specify/extensions/ (from extracted release ZIP)
-    # 2. Package's bundled_extensions/ (installed with pip/uv)
-    # 3. Repository's extensions/ directory (for development)
-    bundled_extensions_dir = None
-    catalog_path = None
-    search_paths = [
-        (
-            project_path / ".specify" / "extensions",
-            project_path / ".specify" / "catalog.json",
-        ),
-        (
-            Path(__file__).parent / "bundled_extensions",
-            Path(__file__).parent / "bundled_extensions" / "catalog.json",
-        ),
-        (
-            Path(__file__).parent.parent.parent / "extensions",
-            Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
-        ),
-    ]
-
-    for ext_path, cat_path in search_paths:
-        if ext_path.exists():
-            # Check if any extension.yml exists in subdirectories
-            has_extensions = any(
-                (ext_path / d / "extension.yml").exists()
-                for d in ext_path.iterdir()
-                if d.is_dir() and not d.name.startswith(".")
-            )
-            if has_extensions:
-                bundled_extensions_dir = ext_path
-                if cat_path.exists():
-                    catalog_path = cat_path
-                break
-            # If path exists but has no extensions, continue to check next path
-        # If path doesn't exist, continue to check next path
-
-    if not bundled_extensions_dir:
-        # Try harder: check bundled_extensions from package as fallback
-        fallback_bundled = Path(__file__).parent / "bundled_extensions"
-        if fallback_bundled.exists() and any(
-            (fallback_bundled / d / "extension.yml").exists()
-            for d in fallback_bundled.iterdir()
-            if d.is_dir() and not d.name.startswith(".")
-        ):
-            bundled_extensions_dir = fallback_bundled
-            catalog_path = (
-                None  # No catalog in bundled_extensions, will use directory scan
-            )
-
-    if not bundled_extensions_dir:
-        if tracker:
-            tracker.skip("extensions", "bundled extensions not found")
-        return
-
-    # Read preinstall list from catalog.json
-    bundled_extensions = []
-    if catalog_path and catalog_path.exists():
-        try:
-            with open(catalog_path) as f:
-                catalog_data = json.load(f)
-            extensions = catalog_data.get("extensions", {})
-            # Get extensions with preinstall: true AND that actually exist in the bundled directory
-            bundled_extensions = [
-                ext_id
-                for ext_id, ext_data in extensions.items()
-                if ext_data.get("preinstall", False)
-                and (bundled_extensions_dir / ext_id / "extension.yml").exists()
-            ]
-            # Fallback: if no preinstall field found, use all extensions in catalog that exist
-            if not bundled_extensions:
-                bundled_extensions = [
-                    ext_id
-                    for ext_id in extensions.keys()
-                    if (bundled_extensions_dir / ext_id / "extension.yml").exists()
-                ]
-        except (json.JSONDecodeError, IOError) as e:
-            console.print(
-                f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
-            )
-            # Will fall through to directory scan fallback
-
-    # Fallback: scan extension directories if no catalog or no preinstall list
-    if not bundled_extensions:
-        bundled_extensions = [
-            d.name
-            for d in bundled_extensions_dir.iterdir()
-            if d.is_dir()
-            and not d.name.startswith(".")
-            and (d / "extension.yml").exists()
-        ]
-
-    if not bundled_extensions:
-        if tracker:
-            tracker.skip("extensions", "no extensions to install")
-        return
-
-    manager = ExtensionManager(project_path)
-    speckit_version = get_speckit_version()
-
-    installed = []
-    skipped = []
-
-    for ext_name in bundled_extensions:
-        ext_dir = bundled_extensions_dir / ext_name
-        if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
-            skipped.append(f"{ext_name} (not found)")
-            continue
-
-        try:
-            # Check if already installed - skip to avoid issues with source directory
-            # Commands are refreshed via _ensure_commands_for_agent instead
-            if manager.registry.is_installed(ext_name):
-                skipped.append(f"{ext_name} (existing)")
-                continue
-
-            # Install from bundled directory
-            manager.install_from_directory(ext_dir, speckit_version)
-            installed.append(ext_name)
-        except ExtensionError as e:
-            # Log but don't fail - extension installation is non-fatal
-            if tracker:
-                pass  # Will be reported in summary
-            skipped.append(f"{ext_name} ({str(e)[:30]})")
-        except OSError:
-            # Handle case where directory doesn't exist or other OS errors
-            skipped.append(f"{ext_name} (not found)")
-        except Exception as e:
-            # Catch any other unexpected errors
-            skipped.append(f"{ext_name} ({str(e)[:40]})")
-
-    # Report results
-    if tracker:
-        if installed:
-            tracker.complete("extensions", f"{', '.join(installed)}")
-        elif skipped:
-            tracker.skip("extensions", f"{', '.join(skipped)}")
-        else:
-            tracker.skip("extensions", "none available")
-
-    # Ensure commands are registered for the selected AI agent
-    # This handles cases where extensions were already installed but didn't register
-    # commands for this agent (e.g., new agent added to AGENT_CONFIGS)
-    if bundled_extensions_dir:
-        _ensure_commands_for_agent(project_path, bundled_extensions_dir, selected_ai)
-
-
-def get_preinstalled_extensions(project_path: Path) -> list[dict]:
-    """Get list of pre-installed extensions from catalog.json.
-
-    Returns list of dicts with: id, name, description, commands
-    """
-    extensions = []
-
-    # Check multiple locations for catalog
-    catalog_paths = [
-        project_path / ".specify" / "catalog.json",
-        project_path / ".specify" / "extensions" / "catalog.json",
-        Path(__file__).parent / "bundled_extensions" / "catalog.json",
-        Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
-    ]
-
-    for catalog_path in catalog_paths:
-        if catalog_path.exists():
-            try:
-                with open(catalog_path) as f:
-                    catalog_data = json.load(f)
-
-                for ext_id, ext_data in catalog_data.get("extensions", {}).items():
-                    if ext_data.get("preinstall", False):
-                        extensions.append(
-                            {
-                                "id": ext_id,
-                                "name": ext_data.get("name", ext_id),
-                                "description": ext_data.get("description", ""),
-                                "commands": ext_data.get("commands", []),
-                            }
-                        )
-                break
-            except Exception:
-                continue
-
-    return extensions
-
-
-def install_bundled_presets(
-    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
-) -> None:
-    """Install bundled presets that ship with spec-kit.
-
-    Looks for presets in the following locations (in order):
-    1. Package's bundled_presets/ (installed with pip/uv)
-    2. Repository's presets/ directory (for development)
-
-    The agentic-sdlc preset is installed with priority 1 (highest precedence)
-    to ensure fork-specific templates and commands override core ones.
-
-    Args:
-        project_path: Target project directory
-        selected_ai: Selected AI assistant (for command registration)
-        tracker: Optional progress tracker
-    """
-    from .presets import PresetManager, PresetError
-
-    # Try multiple locations for bundled presets (in priority order)
-    bundled_presets_dir = None
-    search_paths = [
-        Path(__file__).parent / "bundled_presets",
-        Path(__file__).parent.parent.parent / "presets",
-    ]
-
-    for preset_path in search_paths:
-        if preset_path.exists():
-            # Check if any preset.yml exists in subdirectories
-            has_presets = any(
-                (preset_path / d / "preset.yml").exists()
-                for d in preset_path.iterdir()
-                if d.is_dir() and not d.name.startswith(".")
-            )
-            if has_presets:
-                bundled_presets_dir = preset_path
-                break
-
-    if not bundled_presets_dir:
-        if tracker:
-            tracker.skip("presets", "bundled presets not found")
-        return
-
-    # Find presets to install (all subdirs with preset.yml)
-    bundled_presets = [
-        d.name
-        for d in bundled_presets_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and (d / "preset.yml").exists()
-    ]
-
-    if not bundled_presets:
-        if tracker:
-            tracker.skip("presets", "no presets to install")
-        return
-
-    manager = PresetManager(project_path)
-    speckit_version = get_speckit_version()
-
-    installed = []
-    skipped = []
-
-    for preset_name in bundled_presets:
-        preset_dir = bundled_presets_dir / preset_name
-        if not preset_dir.exists() or not (preset_dir / "preset.yml").exists():
-            skipped.append(f"{preset_name} (not found)")
-            continue
-
-        try:
-            # Check if already installed
-            if manager.registry.is_installed(preset_name):
-                # Even for existing presets, refresh command registration to ensure
-                # 'replaces' logic is applied (removes superseded speckit.* commands)
-                manager.refresh_preset_commands(preset_name)
-                skipped.append(f"{preset_name} (existing)")
-                continue
-
-            # Install with priority 1 (highest precedence for fork presets)
-            manager.install_from_directory(preset_dir, speckit_version, priority=1)
-            installed.append(preset_name)
-        except PresetError as e:
-            skipped.append(f"{preset_name} ({str(e)[:30]})")
-        except Exception as e:
-            skipped.append(f"{preset_name} ({str(e)[:40]})")
-
-    # Report results
-    if tracker:
-        if installed:
-            tracker.complete("presets", f"{', '.join(installed)}")
-        elif skipped:
-            tracker.skip("presets", f"{', '.join(skipped)}")
-        else:
-            tracker.skip("presets", "none available")
-
-
-def _has_bundled_skills(project_path: Path, selected_ai: str) -> bool:
-    """Return True when a native-skills agent has spec-kit bundled skills."""
-    skills_dir = _get_skills_dir(project_path, selected_ai)
-    if not skills_dir.is_dir():
-        return False
-
-    return any(skills_dir.glob("speckit-*/SKILL.md"))
-
-
-def _migrate_legacy_kimi_dotted_skills(skills_dir: Path) -> tuple[int, int]:
-    """Migrate legacy Kimi dotted skill dirs (speckit.xxx) to hyphenated format.
-
-    Temporary migration helper:
-    - Intended removal window: after 2026-06-25.
-    - Purpose: one-time cleanup for projects initialized before Kimi moved to
-      hyphenated skills (speckit-xxx).
-
-    Returns:
-        Tuple[migrated_count, removed_count]
-        - migrated_count: old dotted dir renamed to hyphenated dir
-        - removed_count: old dotted dir deleted when equivalent hyphenated dir existed
-    """
-    if not skills_dir.is_dir():
-        return (0, 0)
-
-    migrated_count = 0
-    removed_count = 0
-
-    for legacy_dir in sorted(skills_dir.glob("speckit.*")):
-        if not legacy_dir.is_dir():
-            continue
-        if not (legacy_dir / "SKILL.md").exists():
-            continue
-
-        suffix = legacy_dir.name[len("speckit.") :]
-        if not suffix:
-            continue
-
-        target_dir = skills_dir / f"speckit-{suffix.replace('.', '-')}"
-
-        if not target_dir.exists():
-            shutil.move(str(legacy_dir), str(target_dir))
-            migrated_count += 1
-            continue
-
-        # If the new target already exists, avoid destructive cleanup unless
-        # both SKILL.md files are byte-identical.
-        target_skill = target_dir / "SKILL.md"
-        legacy_skill = legacy_dir / "SKILL.md"
-        if target_skill.is_file():
-            try:
-                if target_skill.read_bytes() == legacy_skill.read_bytes():
-                    # Preserve legacy directory when it contains extra user files.
-                    has_extra_entries = any(
-                        child.name != "SKILL.md" for child in legacy_dir.iterdir()
-                    )
-                    if not has_extra_entries:
-                        shutil.rmtree(legacy_dir)
-                        removed_count += 1
-            except OSError:
-                # Best-effort migration: preserve legacy dir on read failures.
-                pass
-
-    return (migrated_count, removed_count)
-
-
-AGENT_SKILLS_MIGRATIONS = {
-    "agy": {
-        "error": "Explicit command support was deprecated in Antigravity version 1.20.5.",
-        "usage": "specify init <project> --ai agy --ai-skills",
-        "interactive_note": (
-            "'agy' was selected interactively; enabling [cyan]--ai-skills[/cyan] "
-            "automatically for compatibility (explicit .agent/commands usage is deprecated)."
-        ),
-    },
-    "codex": {
-        "error": (
-            "Custom prompt-based spec-kit initialization is deprecated for Codex CLI; "
-            "use agent skills instead."
-        ),
-        "usage": "specify init <project> --ai codex --ai-skills",
-        "interactive_note": (
-            "'codex' was selected interactively; enabling [cyan]--ai-skills[/cyan] "
-            "automatically for compatibility (.agents/skills is the recommended Codex layout)."
-        ),
-    },
+    return project_path / ".agents" / "skills"
+
+
+# Constants kept for backward compatibility with presets and extensions.
+DEFAULT_SKILLS_DIR = ".agents/skills"
+NATIVE_SKILLS_AGENTS = {"codex", "kimi"}
+SKILL_DESCRIPTIONS = {
+    "specify": "Create or update feature specifications from natural language descriptions.",
+    "plan": "Generate technical implementation plans from feature specifications.",
+    "tasks": "Break down implementation plans into actionable task lists.",
+    "implement": "Execute all tasks from the task breakdown to build the feature.",
+    "analyze": "Perform cross-artifact consistency analysis across spec.md, plan.md, and tasks.md.",
+    "clarify": "Structured clarification workflow for underspecified requirements.",
+    "constitution": "Create or update project governing principles and development guidelines.",
+    "checklist": "Generate custom quality checklists for validating requirements completeness and clarity.",
+    "taskstoissues": "Convert tasks from tasks.md into GitHub issues.",
 }
-
-
-def _handle_agent_skills_migration(console: Console, agent_key: str) -> None:
-    """Print a fail-fast migration error for agents that now require skills."""
-    migration = AGENT_SKILLS_MIGRATIONS[agent_key]
-    console.print(f"\n[red]Error:[/red] {migration['error']}")
-    console.print(
-        "Please use [cyan]--ai-skills[/cyan] when initializing to install templates as agent skills instead."
-    )
-    console.print(f"[yellow]Usage:[/yellow] {migration['usage']}")
-    raise typer.Exit(1)
-
-
-def _validate_ai_assistant(value: Optional[str]) -> Optional[str]:
-    """Validate the ai_assistant option value."""
-    if value is None:
-        return None
-    # Check if value looks like a flag (starts with -)
-    if value.startswith("-"):
-        console.print(
-            f"[red]Invalid value for --ai:[/red] '{value}'.\n"
-            f"Hint: Did you forget to provide a value for --ai?"
-            f"\nValid options: {', '.join(AGENT_CHOICES)}"
-        )
-        raise typer.Exit(1)
-    # Check if value is in allowed choices or aliases (case-insensitive)
-    valid_choices = [c.lower() for c in AGENT_CHOICES]
-    valid_aliases = [a.lower() for a in AI_ASSISTANT_ALIASES.keys()]
-    if value.lower() not in valid_choices and value.lower() not in valid_aliases:
-        console.print(
-            f"[red]Invalid value for --ai:[/red] '{value}'.\n"
-            f"Valid options: {', '.join(AGENT_CHOICES)}"
-        )
-        raise typer.Exit(1)
-    return value
-
-
-def _validate_ai_commands_dir(value: Optional[str]) -> Optional[str]:
-    """Validate the ai_commands_dir option value."""
-    if value is None:
-        return None
-    # Check if value looks like a flag (starts with -)
-    if value.startswith("-"):
-        console.print(
-            f"[red]Invalid value for --ai-commands-dir:[/red] '{value}'.\n"
-            f"Hint: Did you forget to provide a value for --ai-commands-dir?"
-        )
-        raise typer.Exit(1)
-    return value
 
 
 @app.command()
 def init(
-    project_name: Optional[str] = typer.Argument(
+    project_name: str = typer.Argument(
         None,
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
     ),
-    ai_assistant: str = typer.Option(
-        None,
-        "--ai",
-        help=AI_ASSISTANT_HELP,
-        case_sensitive=False,
-        autocompletion=lambda: list(AGENT_CONFIG.keys()),
-        callback=_validate_ai_assistant,
-    ),
+    ai_assistant: str = typer.Option(None, "--ai", help=AI_ASSISTANT_HELP),
     ai_commands_dir: str = typer.Option(
         None,
         "--ai-commands-dir",
         help="Directory for agent command files (required with --ai generic, e.g. .myagent/commands/)",
-        allow_from_autoenv=True,
-        callback=lambda value: _validate_ai_commands_dir(value),
     ),
     script_type: str = typer.Option(
         None, "--script", help="Script type to use: sh or ps"
@@ -3545,23 +988,22 @@ def init(
         help="Force merge/overwrite when using --here (skip confirmation)",
     ),
     skip_tls: bool = typer.Option(
-        False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"
+        False,
+        "--skip-tls",
+        help="Deprecated (no-op). Previously: skip SSL/TLS verification.",
+        hidden=True,
     ),
     debug: bool = typer.Option(
         False,
         "--debug",
-        help="Show verbose diagnostic output for network and extraction failures",
+        help="Deprecated (no-op). Previously: show verbose diagnostic output.",
+        hidden=True,
     ),
     github_token: str = typer.Option(
         None,
         "--github-token",
-        help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)",
-    ),
-    team_ai_directives: str = typer.Option(
-        None,
-        "--team-ai-directives",
-        "--team-ai-directive",
-        help="Clone or reference a team-ai-directives repository during setup",
+        help="Deprecated (no-op). Previously: GitHub token for API requests.",
+        hidden=True,
     ),
     ai_skills: bool = typer.Option(
         False,
@@ -3571,7 +1013,8 @@ def init(
     offline: bool = typer.Option(
         False,
         "--offline",
-        help="Use assets bundled in the specify-cli package instead of downloading from GitHub (no network access required). Bundled assets will become the default in v0.6.0 and this flag will be removed.",
+        help="Deprecated (no-op). All scaffolding now uses bundled assets.",
+        hidden=True,
     ),
     preset: str = typer.Option(
         None, "--preset", help="Install a preset during initialization (by preset ID)"
@@ -3581,9 +1024,19 @@ def init(
         "--branch-numbering",
         help="Branch numbering strategy: 'sequential' (001, 002, ...) or 'timestamp' (YYYYMMDD-HHMMSS)",
     ),
+    integration: str = typer.Option(
+        None,
+        "--integration",
+        help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai.",
+    ),
+    integration_options: str = typer.Option(
+        None,
+        "--integration-options",
+        help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
+    ),
 ):
     """
-    Initialize a new Specify project from the latest template.
+    Initialize a new Specify project.
 
     By default, project files are downloaded from the latest GitHub release.
     Use --offline to scaffold from assets bundled inside the specify-cli
@@ -3600,10 +1053,8 @@ def init(
     1. Check that required tools are installed (git is optional)
     2. Let you choose your AI assistant
     3. Download template from GitHub (or use bundled assets with --offline)
-    4. Extract the template to a new project directory or current directory
-    5. Initialize a fresh git repository (if not --no-git and no existing repo)
-    6. Optionally clone or reference a shared team-ai-directives repository
-    7. Optionally set up AI assistant commands
+    4. Initialize a fresh git repository (if not --no-git and no existing repo)
+    5. Optionally set up AI assistant commands
 
     Examples:
         specify init my-project
@@ -3618,13 +1069,11 @@ def init(
         specify init --here --ai vibe      # Initialize with Mistral Vibe support
         specify init --here
         specify init --here --force  # Skip confirmation when current directory not empty
-        specify init my-project --ai claude --ai-skills   # Install agent skills
+        specify init my-project --ai claude   # Claude installs skills by default
         specify init --here --ai gemini --ai-skills
         specify init my-project --ai generic --ai-commands-dir .myagent/commands/  # Unsupported agent
         specify init my-project --offline  # Use bundled assets (no network access)
         specify init my-project --ai claude --preset healthcare-compliance  # With preset
-        specify init --here --ai claude --team-ai-directives https://github.com/org/team-ai-directives.git  # With team directives
-        specify init --here --ai claude --team-ai-directives ~/workspace/team-ai-directives  # Local team directives
     """
 
     show_banner()
@@ -3655,6 +1104,52 @@ def init(
 
     if ai_assistant:
         ai_assistant = AI_ASSISTANT_ALIASES.get(ai_assistant, ai_assistant)
+
+    # --integration and --ai are mutually exclusive
+    if integration and ai_assistant:
+        console.print("[red]Error:[/red] --integration and --ai are mutually exclusive")
+        raise typer.Exit(1)
+
+    # Resolve the integration — either from --integration or --ai
+    from .integrations import INTEGRATION_REGISTRY, get_integration
+
+    if integration:
+        resolved_integration = get_integration(integration)
+        if not resolved_integration:
+            console.print(f"[red]Error:[/red] Unknown integration: '{integration}'")
+            available = ", ".join(sorted(INTEGRATION_REGISTRY))
+            console.print(f"[yellow]Available integrations:[/yellow] {available}")
+            raise typer.Exit(1)
+        ai_assistant = integration
+    elif ai_assistant:
+        resolved_integration = get_integration(ai_assistant)
+        if not resolved_integration:
+            console.print(
+                f"[red]Error:[/red] Unknown agent '{ai_assistant}'. Choose from: {', '.join(sorted(INTEGRATION_REGISTRY))}"
+            )
+            raise typer.Exit(1)
+
+    # Deprecation warnings for --ai-skills and --ai-commands-dir (only when
+    # an integration has been resolved from --ai or --integration)
+    if ai_assistant or integration:
+        if ai_skills:
+            from .integrations.base import SkillsIntegration as _SkillsCheck
+
+            if isinstance(resolved_integration, _SkillsCheck):
+                console.print(
+                    "[dim]Note: --ai-skills is not needed; "
+                    "skills are the default for this integration.[/dim]"
+                )
+            else:
+                console.print(
+                    "[dim]Note: --ai-skills has no effect with "
+                    f"{resolved_integration.key}; this integration uses commands, not skills.[/dim]"
+                )
+        if ai_commands_dir and resolved_integration.key != "generic":
+            console.print(
+                "[dim]Note: --ai-commands-dir is deprecated; "
+                'use [bold]--integration generic --integration-options="--commands-dir <dir>"[/bold] instead.[/dim]'
+            )
 
     if project_name == ".":
         here = True
@@ -3700,7 +1195,7 @@ def init(
             )
             if force:
                 console.print(
-                    f"[{ACCENT_COLOR}]--force supplied: skipping confirmation and proceeding with merge[/{ACCENT_COLOR}]"
+                    "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                 )
             else:
                 response = typer.confirm("Do you want to continue?")
@@ -3708,8 +1203,6 @@ def init(
                     console.print("[yellow]Operation cancelled[/yellow]")
                     raise typer.Exit(0)
     else:
-        if project_name is None:
-            raise typer.Exit(1)
         project_path = Path(project_name).resolve()
         if project_path.exists():
             error_panel = Panel(
@@ -3737,39 +1230,30 @@ def init(
             ai_choices, "Choose your AI assistant:", "copilot"
         )
 
-    # Agents that have moved from explicit commands/prompts to agent skills.
-    if selected_ai in AGENT_SKILLS_MIGRATIONS and not ai_skills:
-        # If selected interactively (no --ai provided), automatically enable
-        # ai_skills so the agent remains usable without requiring an extra flag.
-        # Preserve fail-fast behavior only for explicit '--ai <agent>' without skills.
-        if ai_assistant:
-            _handle_agent_skills_migration(console, selected_ai)
-        else:
-            ai_skills = True
-            console.print(
-                f"\n[yellow]Note:[/yellow] {AGENT_SKILLS_MIGRATIONS[selected_ai]['interactive_note']}"
-            )
+    # Auto-promote interactively selected agents to the integration path
+    if not ai_assistant:
+        resolved_integration = get_integration(selected_ai)
+        if not resolved_integration:
+            console.print(f"[red]Error:[/red] Unknown agent '{selected_ai}'")
+            raise typer.Exit(1)
 
-    # Validate --ai-commands-dir usage
-    if selected_ai == "generic":
+    # Validate --ai-commands-dir usage.
+    # Skip validation when --integration-options is provided — the integration
+    # will validate its own options in setup().
+    if selected_ai == "generic" and not integration_options:
         if not ai_commands_dir:
             console.print(
-                "[red]Error:[/red] --ai-commands-dir is required when using --ai generic"
+                "[red]Error:[/red] --ai-commands-dir is required when using --ai generic or --integration generic"
             )
             console.print(
-                "[dim]Example: specify init my-project --ai generic --ai-commands-dir .myagent/commands/[/dim]"
+                '[dim]Example: specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"[/dim]'
             )
             raise typer.Exit(1)
-    elif ai_commands_dir:
-        console.print(
-            f"[red]Error:[/red] --ai-commands-dir can only be used with --ai generic (not '{selected_ai}')"
-        )
-        raise typer.Exit(1)
 
     current_dir = Path.cwd()
 
     setup_lines = [
-        f"[{ACCENT_COLOR}]Specify Project Setup[/{ACCENT_COLOR}]",
+        "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -3778,9 +1262,7 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(
-        Panel("\n".join(setup_lines), border_style=ACCENT_COLOR, padding=(1, 2))
-    )
+    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
 
     should_init_git = False
     if not no_git:
@@ -3796,10 +1278,10 @@ def init(
             install_url = agent_config["install_url"]
             if not check_tool(selected_ai):
                 error_panel = Panel(
-                    f"[{ACCENT_COLOR}]{selected_ai}[/{ACCENT_COLOR}] not found\n"
-                    f"Install from: [{ACCENT_COLOR}]{install_url}[/{ACCENT_COLOR}]\n"
+                    f"[cyan]{selected_ai}[/cyan] not found\n"
+                    f"Install from: [cyan]{install_url}[/cyan]\n"
                     f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    f"Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
+                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
                     padding=(1, 2),
@@ -3827,17 +1309,12 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(
-        f"[{ACCENT_COLOR}]Selected AI assistant:[/{ACCENT_COLOR}] {selected_ai}"
-    )
-    console.print(
-        f"[{ACCENT_COLOR}]Selected script type:[/{ACCENT_COLOR}] {selected_script}"
-    )
+    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
+    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
-    global _specify_tracker_active
-    _specify_tracker_active = True
+    sys._specify_tracker_active = True
 
     tracker.add("precheck", "Check required tools")
     tracker.complete("precheck", "ok")
@@ -3846,48 +1323,12 @@ def init(
     tracker.add("script-select", "Select script type")
     tracker.complete("script-select", selected_script)
 
-    # Determine whether to use bundled assets or download from GitHub (default).
-    # --offline opts in to bundled assets; without it, always use GitHub.
-    # When --offline is set, scaffold_from_core_pack() will try the wheel's
-    # core_pack/ first, then fall back to source-checkout paths. If neither
-    # location has the required assets it returns False and we error out.
-    _core = _locate_core_pack()
-
-    use_github = not offline
-
-    if use_github and _core is not None:
-        console.print(
-            "[yellow]Note:[/yellow] Bundled assets are available in this install. "
-            "Use [bold]--offline[/bold] to skip the GitHub download — faster, "
-            "no network required, and guaranteed version match.\n"
-            "This will become the default in v0.6.0."
-        )
-
-    if use_github:
-        for key, label in [
-            ("fetch", "Fetch latest release"),
-            ("download", "Download template"),
-            ("extract", "Extract template"),
-            ("zip-list", "Archive contents"),
-            ("extracted-summary", "Extraction summary"),
-        ]:
-            tracker.add(key, label)
-    else:
-        tracker.add("scaffold", "Apply bundled assets")
+    tracker.add("integration", "Install integration")
+    tracker.add("shared-infra", "Install shared infrastructure")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
-    ]:
-        tracker.add(key, label)
-    if ai_skills:
-        tracker.add("ai-skills", "Install agent skills")
-    tracker.add("extensions", "Install bundled extensions")
-    tracker.add("presets", "Install bundled presets")
-    if team_ai_directives:
-        tracker.add("team-ai-directives", "Sync team-ai-directives")
-    for key, label in [
-        ("cleanup", "Cleanup"),
         ("git", "Initialize git repository"),
         ("final", "Finalize"),
     ]:
@@ -3901,141 +1342,64 @@ def init(
     ) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
-            verify = not skip_tls
-            local_ssl_context = ssl_context if verify else False
+            # Integration-based scaffolding
+            from .integrations.manifest import IntegrationManifest
 
-            if use_github:
-                with httpx.Client(verify=local_ssl_context) as local_client:
-                    download_and_extract_template(
-                        project_path,
-                        selected_ai,
-                        selected_script,
-                        here,
-                        skip_legacy_codex_prompts=(
-                            selected_ai == "codex" and ai_skills
-                        ),
-                        verbose=False,
-                        tracker=tracker,
-                        client=local_client,
-                        debug=debug,
-                        github_token=github_token,
-                    )
-            else:
-                scaffold_ok = scaffold_from_core_pack(
-                    project_path, selected_ai, selected_script, here, tracker=tracker
+            tracker.start("integration")
+            manifest = IntegrationManifest(
+                resolved_integration.key, project_path, version=get_speckit_version()
+            )
+
+            # Forward all legacy CLI flags to the integration as parsed_options.
+            # Integrations receive every option and decide what to use;
+            # irrelevant keys are simply ignored by the integration's setup().
+            integration_parsed_options: dict[str, Any] = {}
+            if ai_commands_dir:
+                integration_parsed_options["commands_dir"] = ai_commands_dir
+            if ai_skills:
+                integration_parsed_options["skills"] = True
+
+            resolved_integration.setup(
+                project_path,
+                manifest,
+                parsed_options=integration_parsed_options or None,
+                script_type=selected_script,
+                raw_options=integration_options,
+            )
+            manifest.save()
+
+            # Write .specify/integration.json
+            script_ext = "sh" if selected_script == "sh" else "ps1"
+            integration_json = project_path / ".specify" / "integration.json"
+            integration_json.parent.mkdir(parents=True, exist_ok=True)
+            integration_json.write_text(
+                json.dumps(
+                    {
+                        "integration": resolved_integration.key,
+                        "version": get_speckit_version(),
+                        "scripts": {
+                            "update-context": f".specify/integrations/{resolved_integration.key}/scripts/update-context.{script_ext}",
+                        },
+                    },
+                    indent=2,
                 )
-                if not scaffold_ok:
-                    # --offline explicitly requested: never attempt a network download
-                    console.print(
-                        "\n[red]Error:[/red] --offline was specified but scaffolding from bundled assets failed.\n"
-                        "Common causes: missing bash/pwsh, script permission errors, or incomplete wheel.\n"
-                        "Remove --offline to attempt a GitHub download instead."
-                    )
-                    # Surface the specific failure reason from the tracker
-                    for step in tracker.steps:
-                        if step["key"] == "scaffold" and step["detail"]:
-                            console.print(f"[red]Detail:[/red] {step['detail']}")
-                            break
-                    # Clean up partial project directory (same as the GitHub-download failure path)
-                    if not here and project_path.exists():
-                        shutil.rmtree(project_path)
-                    raise typer.Exit(1)
-            # For generic agent, rename placeholder directory to user-specified path
-            if selected_ai == "generic" and ai_commands_dir:
-                placeholder_dir = project_path / ".speckit" / "commands"
-                target_dir = project_path / ai_commands_dir
-                if placeholder_dir.is_dir():
-                    target_dir.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.move(str(placeholder_dir), str(target_dir))
-                    # Clean up empty .speckit dir if it's now empty
-                    speckit_dir = project_path / ".speckit"
-                    if speckit_dir.is_dir() and not any(speckit_dir.iterdir()):
-                        speckit_dir.rmdir()
+                + "\n",
+                encoding="utf-8",
+            )
+
+            tracker.complete(
+                "integration",
+                resolved_integration.config.get("name", resolved_integration.key),
+            )
+
+            # Install shared infrastructure (scripts, templates)
+            tracker.start("shared-infra")
+            _install_shared_infra(project_path, selected_script, tracker=tracker)
+            tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
 
             ensure_executable_scripts(project_path, tracker=tracker)
 
             ensure_constitution_from_template(project_path, tracker=tracker)
-
-            # Track whether skills were installed for later command cleanup
-            skills_ok = False
-
-            # Determine skills directory and migrate any legacy Kimi dotted skills.
-            migrated_legacy_kimi_skills = 0
-            removed_legacy_kimi_skills = 0
-            skills_dir: Optional[Path] = None
-            if selected_ai in NATIVE_SKILLS_AGENTS:
-                skills_dir = _get_skills_dir(project_path, selected_ai)
-                if selected_ai == "kimi" and skills_dir.is_dir():
-                    (
-                        migrated_legacy_kimi_skills,
-                        removed_legacy_kimi_skills,
-                    ) = _migrate_legacy_kimi_dotted_skills(skills_dir)
-
-            if ai_skills:
-                if selected_ai in NATIVE_SKILLS_AGENTS:
-                    bundled_found = _has_bundled_skills(project_path, selected_ai)
-                    if bundled_found:
-                        detail = (
-                            f"bundled skills → {skills_dir.relative_to(project_path)}"
-                        )
-                        if migrated_legacy_kimi_skills or removed_legacy_kimi_skills:
-                            detail += (
-                                f" (migrated {migrated_legacy_kimi_skills}, "
-                                f"removed {removed_legacy_kimi_skills} legacy Kimi dotted skills)"
-                            )
-                        if tracker:
-                            tracker.start("ai-skills")
-                            tracker.complete("ai-skills", detail)
-                        else:
-                            console.print(f"[green]✓[/green] Using {detail}")
-                    else:
-                        # Compatibility fallback: convert command templates to skills
-                        # when an older template archive does not include native skills.
-                        # This keeps `specify init --here --ai codex --ai-skills` usable
-                        # in repos that already contain unrelated skills under .agents/skills.
-                        fallback_ok = install_ai_skills(
-                            project_path,
-                            selected_ai,
-                            tracker=tracker,
-                            overwrite_existing=True,
-                        )
-                        if not fallback_ok:
-                            raise RuntimeError(
-                                f"Expected bundled agent skills in {skills_dir.relative_to(project_path)}, "
-                                "but none were found and fallback conversion failed. "
-                                "Re-run with an up-to-date template."
-                            )
-                else:
-                    skills_ok = install_ai_skills(
-                        project_path, selected_ai, tracker=tracker
-                    )
-
-                    # When --ai-skills is used on a NEW project and skills were
-                    # successfully installed, remove the command files that the
-                    # template archive just created.  Skills replace commands, so
-                    # keeping both would be confusing.  For --here on an existing
-                    # repo we leave pre-existing commands untouched to avoid a
-                    # breaking change.  We only delete AFTER skills succeed so the
-                    # project always has at least one of {commands, skills}.
-                    if skills_ok and not here:
-                        agent_cfg = AGENT_CONFIG.get(selected_ai, {})
-                        agent_folder = agent_cfg.get("folder", "")
-                        commands_subdir = agent_cfg.get("commands_subdir", "commands")
-                        if agent_folder:
-                            cmds_dir = (
-                                project_path
-                                / agent_folder.rstrip("/")
-                                / commands_subdir
-                            )
-                            if cmds_dir.exists():
-                                try:
-                                    shutil.rmtree(cmds_dir)
-                                except OSError:
-                                    # Best-effort cleanup: skills are already installed,
-                                    # so leaving stale commands is non-fatal.
-                                    console.print(
-                                        "[yellow]Warning: could not remove extracted commands directory[/yellow]"
-                                    )
 
             if not no_git:
                 tracker.start("git")
@@ -4056,77 +1420,22 @@ def init(
             # Persist the CLI options so later operations (e.g. preset add)
             # can adapt their behaviour without re-scanning the filesystem.
             # Must be saved BEFORE preset install so _get_skills_dir() works.
-            save_init_options(
-                project_path,
-                {
-                    "ai": selected_ai,
-                    "ai_skills": ai_skills,
-                    "ai_commands_dir": ai_commands_dir,
-                    "branch_numbering": branch_numbering or "sequential",
-                    "here": here,
-                    "preset": preset,
-                    "offline": offline,
-                    "script": selected_script,
-                    "speckit_version": get_speckit_version(),
-                },
-            )
+            init_opts = {
+                "ai": selected_ai,
+                "integration": resolved_integration.key,
+                "branch_numbering": branch_numbering or "sequential",
+                "here": here,
+                "preset": preset,
+                "script": selected_script,
+                "speckit_version": get_speckit_version(),
+            }
+            # Ensure ai_skills is set for SkillsIntegration so downstream
+            # tools (extensions, presets) emit SKILL.md overrides correctly.
+            from .integrations.base import SkillsIntegration as _SkillsPersist
 
-            # Install bundled extensions
-            install_bundled_extensions(project_path, selected_ai, tracker=tracker)
-
-            # Install bundled presets
-            install_bundled_presets(project_path, selected_ai, tracker=tracker)
-
-            # Sync team-ai-directives if provided
-            resolved_team_directives = None
-            team_arg = team_ai_directives.strip() if team_ai_directives else ""
-            if team_arg:
-                tracker.start("team-ai-directives")
-                try:
-                    status, resolved_team_directives = sync_team_ai_directives(
-                        team_arg, project_path, skip_tls=skip_tls
-                    )
-                    tracker.complete("team-ai-directives", status)
-                except Exception as e:
-                    tracker.error("team-ai-directives", str(e))
-                    raise
-            else:
-                tracker.skip("team-ai-directives", "not provided")
-
-            # Save team directives path to config for bash script retrieval
-            if resolved_team_directives is not None:
-                config = load_config(project_path)
-                if "team_directives" not in config:
-                    config["team_directives"] = {}
-                if not isinstance(config["team_directives"], dict):
-                    config["team_directives"] = {}
-                config["team_directives"]["path"] = str(resolved_team_directives)
-                save_config(project_path, config)
-
-            # When --ai-skills is used on a NEW project and skills were
-            # successfully installed, remove the command files that the
-            # template archive just created.  Skills replace commands, so
-            # keeping both would be confusing.  For --here on an existing
-            # repo we leave pre-existing commands untouched to avoid a
-            # breaking change.  We only delete AFTER skills succeed so the
-            # project always has at least one of {commands, skills}.
-            # Note: This runs AFTER bundled extensions/presets to ensure
-            # any commands they create are also removed.
-            if skills_ok and not here:
-                agent_cfg = AGENT_CONFIG.get(selected_ai, {})
-                agent_folder = agent_cfg.get("folder", "")
-                commands_subdir = agent_cfg.get("commands_subdir", "commands")
-                if agent_folder:
-                    cmds_dir = project_path / agent_folder.rstrip("/") / commands_subdir
-                    if cmds_dir.exists():
-                        try:
-                            shutil.rmtree(cmds_dir)
-                        except OSError:
-                            # Best-effort cleanup: skills are already installed,
-                            # so leaving stale commands is non-fatal.
-                            console.print(
-                                "[yellow]Warning: could not remove extracted commands directory[/yellow]"
-                            )
+            if isinstance(resolved_integration, _SkillsPersist):
+                init_opts["ai_skills"] = True
+            save_init_options(project_path, init_opts)
 
             # Install preset if specified
             if preset:
@@ -4165,10 +1474,6 @@ def init(
                     console.print(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
-
-            # Scaffold path has no zip archive to clean up
-            if not use_github:
-                tracker.skip("cleanup", "not needed (no download)")
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
@@ -4214,10 +1519,10 @@ def init(
             f"[yellow]Warning:[/yellow] Git repository initialization failed\n\n"
             f"{git_error_message}\n\n"
             f"[dim]You can initialize git manually later with:[/dim]\n"
-            f"[{ACCENT_COLOR}]cd {project_path if not here else '.'}[/{ACCENT_COLOR}]\n"
-            f"[{ACCENT_COLOR}]git init[/{ACCENT_COLOR}]\n"
-            f"[{ACCENT_COLOR}]git add .[/{ACCENT_COLOR}]\n"
-            f'[{ACCENT_COLOR}]git commit -m "Initial commit"[/{ACCENT_COLOR}]',
+            f"[cyan]cd {project_path if not here else '.'}[/cyan]\n"
+            f"[cyan]git init[/cyan]\n"
+            f"[cyan]git add .[/cyan]\n"
+            f'[cyan]git commit -m "Initial commit"[/cyan]',
             title="[red]Git Initialization Failed[/red]",
             border_style="red",
             padding=(1, 2),
@@ -4251,48 +1556,64 @@ def init(
         steps_lines.append("1. You're already in the project directory!")
         step_num = 2
 
-    if selected_ai == "codex" and ai_skills:
+    # Determine skill display mode for the next-steps panel.
+    # Skills integrations (codex, kimi, agy) should show skill invocation syntax.
+    from .integrations.base import SkillsIntegration as _SkillsInt
+
+    _is_skills_integration = isinstance(resolved_integration, _SkillsInt)
+
+    codex_skill_mode = selected_ai == "codex" and (ai_skills or _is_skills_integration)
+    claude_skill_mode = selected_ai == "claude" and (
+        ai_skills or _is_skills_integration
+    )
+    kimi_skill_mode = selected_ai == "kimi"
+    agy_skill_mode = selected_ai == "agy" and _is_skills_integration
+    native_skill_mode = (
+        codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode
+    )
+
+    if codex_skill_mode and not ai_skills:
+        # Integration path installed skills; show the helpful notice
         steps_lines.append(
-            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [{ACCENT_COLOR}].agents/skills[/{ACCENT_COLOR}]"
+            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
         )
         step_num += 1
-
-    codex_skill_mode = selected_ai == "codex" and ai_skills
-    kimi_skill_mode = selected_ai == "kimi"
-    native_skill_mode = codex_skill_mode or kimi_skill_mode
+    if claude_skill_mode and not ai_skills:
+        steps_lines.append(
+            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]"
+        )
+        step_num += 1
     usage_label = "skills" if native_skill_mode else "slash commands"
 
     def _display_cmd(name: str) -> str:
-        if codex_skill_mode:
+        if codex_skill_mode or agy_skill_mode:
             return f"$speckit-{name}"
+        if claude_skill_mode:
+            return f"/speckit-{name}"
         if kimi_skill_mode:
             return f"/skill:speckit-{name}"
-        # Use spec.* aliases for tikalk fork
-        return f"/spec.{name}"
+        return f"/speckit.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
     steps_lines.append(
-        f"   {step_num}.1 [{ACCENT_COLOR}]{_display_cmd('constitution')}[/{ACCENT_COLOR}] - Establish project principles"
+        f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles"
     )
     steps_lines.append(
-        f"   {step_num}.2 [{ACCENT_COLOR}]{_display_cmd('specify')}[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
     )
     steps_lines.append(
-        f"   {step_num}.3 [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}] - Create implementation plan"
+        f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
     )
     steps_lines.append(
-        f"   {step_num}.4 [{ACCENT_COLOR}]{_display_cmd('tasks')}[/{ACCENT_COLOR}] - Generate actionable tasks"
+        f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   {step_num}.5 [{ACCENT_COLOR}]{_display_cmd('implement')}[/{ACCENT_COLOR}] - Execute implementation"
+        f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
     )
 
     steps_panel = Panel(
-        "\n".join(steps_lines),
-        title="Next Steps",
-        border_style=ACCENT_COLOR,
-        padding=(1, 2),
+        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
     )
     console.print()
     console.print(steps_panel)
@@ -4305,9 +1626,9 @@ def init(
     enhancement_lines = [
         enhancement_intro,
         "",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('clarify')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}] if used)",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('analyze')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]{_display_cmd('tasks')}[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]{_display_cmd('implement')}[/{ACCENT_COLOR}])",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('checklist')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}])",
+        f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
+        f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
+        f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
     ]
     enhancements_title = (
         "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
@@ -4315,37 +1636,11 @@ def init(
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title=enhancements_title,
-        border_style=ACCENT_COLOR,
+        border_style="cyan",
         padding=(1, 2),
     )
     console.print()
     console.print(enhancements_panel)
-
-    # Show pre-installed extensions with their commands
-    preinstalled = get_preinstalled_extensions(project_path)
-    if preinstalled:
-        ext_lines = []
-        for ext in preinstalled:
-            ext_lines.append(f"[{ACCENT_COLOR}]📦 {ext['name']}[/{ACCENT_COLOR}]")
-            ext_lines.append(f"  {ext['description']}")
-            ext_lines.append("")
-
-            for cmd in ext.get("commands", []):
-                cmd_display = "/" + cmd.replace(".", ".")
-                ext_lines.append(f"    [{ACCENT_COLOR}]{cmd_display}[/{ACCENT_COLOR}]")
-
-            ext_lines.append("")
-
-        if ext_lines:
-            ext_lines = ext_lines[:-1]
-            preinstalled_panel = Panel(
-                "\n".join(ext_lines),
-                title="Pre-Installed Extensions",
-                border_style=ACCENT_COLOR,
-                padding=(1, 2),
-            )
-            console.print()
-            console.print(preinstalled_panel)
 
 
 @app.command()
@@ -4397,10 +1692,26 @@ def check():
 def version():
     """Display version and system information."""
     import platform
+    import importlib.metadata
 
     show_banner()
 
-    cli_version = _get_cli_version()
+    # Get CLI version from package metadata
+    cli_version = "unknown"
+    try:
+        cli_version = importlib.metadata.version("specify-cli")
+    except Exception:
+        # Fallback: try reading from pyproject.toml if running from source
+        try:
+            import tomllib
+
+            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                    cli_version = data.get("project", {}).get("version", "unknown")
+        except Exception:
+            pass
 
     # Fetch latest template release version
     repo_owner = "tikalk"
@@ -4491,7 +1802,25 @@ preset_app.add_typer(preset_catalog_app, name="catalog")
 
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
-    return _get_cli_version()
+    import importlib.metadata
+
+    try:
+        return importlib.metadata.version("specify-cli")
+    except Exception:
+        # Fallback: try reading from pyproject.toml
+        try:
+            import tomllib
+
+            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                    return data.get("project", {}).get("version", "unknown")
+        except Exception:
+            # Intentionally ignore any errors while reading/parsing pyproject.toml.
+            # If this lookup fails for any reason, we fall back to returning "unknown" below.
+            pass
+    return "unknown"
 
 
 # ===== Preset Commands =====
@@ -4655,7 +1984,6 @@ def preset_add(
                 f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]..."
             )
 
-            zip_path: Optional[Path] = None
             try:
                 zip_path = catalog.download_pack(pack_id)
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
@@ -4663,7 +1991,7 @@ def preset_add(
                     f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
                 )
             finally:
-                if zip_path is not None and zip_path.exists():
+                if "zip_path" in locals() and zip_path.exists():
                     zip_path.unlink(missing_ok=True)
         else:
             console.print(
@@ -5701,9 +3029,7 @@ def extension_add(
     speckit_version = get_speckit_version()
 
     try:
-        with console.status(
-            f"[{ACCENT_COLOR}]Installing extension: {extension}[/{ACCENT_COLOR}]"
-        ):
+        with console.status(f"[cyan]Installing extension: {extension}[/cyan]"):
             if dev:
                 # Install from local directory
                 source_path = Path(extension).expanduser().resolve()
@@ -5883,8 +3209,6 @@ def extension_remove(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "remove"
     )
-    if extension_id is None:
-        raise typer.Exit(1)
 
     # Get extension info for command and skill counts
     ext_manifest = manager.get_extension(extension_id)
@@ -6297,8 +3621,6 @@ def extension_update(
         updates_available = []
 
         for ext_id in extensions_to_update:
-            if not isinstance(ext_id, str) or not ext_id:
-                continue
             # Get installed version
             metadata = manager.registry.get(ext_id)
             if (
@@ -6418,7 +3740,9 @@ def extension_update(
                         shutil.copy2(cfg_file, backup_config_dir / cfg_file.name)
 
                 # 3. Backup command files for all agents
-                registered_commands = (backup_registry_entry or {}).get(
+                from .agents import CommandRegistrar as _AgentReg
+
+                registered_commands = backup_registry_entry.get(
                     "registered_commands", {}
                 )
                 for agent_name, cmd_names in registered_commands.items():
@@ -6428,8 +3752,11 @@ def extension_update(
                     commands_dir = project_root / agent_config["dir"]
 
                     for cmd_name in cmd_names:
+                        output_name = _AgentReg._compute_output_name(
+                            agent_name, cmd_name, agent_config
+                        )
                         cmd_file = (
-                            commands_dir / f"{cmd_name}{agent_config['extension']}"
+                            commands_dir / f"{output_name}{agent_config['extension']}"
                         )
                         if cmd_file.exists():
                             backup_cmd_path = (
@@ -6624,9 +3951,12 @@ def extension_update(
                             commands_dir = project_root / agent_config["dir"]
 
                             for cmd_name in cmd_names:
+                                output_name = _AgentReg._compute_output_name(
+                                    agent_name, cmd_name, agent_config
+                                )
                                 cmd_file = (
                                     commands_dir
-                                    / f"{cmd_name}{agent_config['extension']}"
+                                    / f"{output_name}{agent_config['extension']}"
                                 )
                                 # Delete if it exists and wasn't in our backup
                                 if (
@@ -6754,8 +4084,6 @@ def extension_enable(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "enable"
     )
-    if extension_id is None:
-        raise typer.Exit(1)
 
     # Update registry
     metadata = manager.registry.get(extension_id)
@@ -6809,8 +4137,6 @@ def extension_disable(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "disable"
     )
-    if extension_id is None:
-        raise typer.Exit(1)
 
     # Update registry
     metadata = manager.registry.get(extension_id)
@@ -6875,8 +4201,6 @@ def extension_set_priority(
     extension_id, display_name = _resolve_installed_extension(
         extension, installed, "set-priority"
     )
-    if extension_id is None:
-        raise typer.Exit(1)
 
     # Get current metadata
     metadata = manager.registry.get(extension_id)

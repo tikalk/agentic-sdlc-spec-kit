@@ -1,81 +1,43 @@
 #!/usr/bin/env pwsh
-. "scripts/powershell/discovery-functions.ps1"`
 # Create a new feature
 [CmdletBinding()]
 param(
     [switch]$Json,
     [switch]$AllowExistingBranch,
+    [switch]$DryRun,
     [string]$ShortName,
     [Parameter()]
     [long]$Number = 0,
     [switch]$Timestamp,
     [switch]$Help,
-    [switch]$Contracts,
-    [switch]$NoContracts,
-    [switch]$DataModels,
-    [switch]$NoDataModels,
-    [Parameter(ValueFromRemainingArguments = $true)]
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
 $ErrorActionPreference = 'Stop'
 
-# Set default mode
-$Mode = "spec"
-$ContractsVal = $true
-$DataModelsVal = $true
-
-# Handle switch parameters for contracts and data models
-if ($NoContracts) {
-    $ContractsVal = $false
-} elseif ($Contracts) {
-    $ContractsVal = $true
-}
-
-if ($NoDataModels) {
-    $DataModelsVal = $false
-} elseif ($DataModels) {
-    $DataModelsVal = $true
-}
-
-# Get the global config path using XDG Base Directory spec
-function Get-GlobalConfigPath {
-    if ($env:XDG_CONFIG_HOME) {
-        $configDir = $env:XDG_CONFIG_HOME
-    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
-        $configDir = $env:APPDATA
-    } else {
-        $configDir = Join-Path $HOME ".config"
-    }
-    return Join-Path $configDir "specify" "config.json"
-}
-
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
+    Write-Host "  -DryRun             Compute branch name and paths without creating branches, directories, or files"
     Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-    Write-Host "  -Contracts          Enable service contracts (requires framework)"
-    Write-Host "  -NoContracts        Disable service contracts"
-    Write-Host "  -DataModels         Generate data model documentation"
-    Write-Host "  -NoDataModels      Skip data model generation"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  ./create-new-feature.ps1 'Add user authentication system' -ShortName 'user-auth'"
-    Write-Host "  ./create-new-feature.ps1 -Number 5 'Feature with specific number'"
+    Write-Host "  ./create-new-feature.ps1 'Implement OAuth2 integration for API'"
     Write-Host "  ./create-new-feature.ps1 -Timestamp -ShortName 'user-auth' 'Add user authentication'"
-    Write-Host "  ./create-new-feature.ps1 -Contracts -NoDataModels 'My feature' -ShortName 'my-feature'"
     exit 0
 }
 
 # Check if feature description provided
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] <feature description>"
+    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     exit 1
 }
 
@@ -89,7 +51,7 @@ if ([string]::IsNullOrWhiteSpace($featureDesc)) {
 
 function Get-HighestNumberFromSpecs {
     param([string]$SpecsDir)
-    
+
     [long]$highest = 0
     if (Test-Path $SpecsDir) {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
@@ -105,47 +67,86 @@ function Get-HighestNumberFromSpecs {
     return $highest
 }
 
-function Get-HighestNumberFromBranches {
-    param()
-    
+# Extract the highest sequential feature number from a list of branch/ref names.
+# Shared by Get-HighestNumberFromBranches and Get-HighestNumberFromRemoteRefs.
+function Get-HighestNumberFromNames {
+    param([string[]]$Names)
+
     [long]$highest = 0
-    try {
-        $branches = git branch -a 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            foreach ($branch in $branches) {
-                # Clean branch name: remove leading markers and remote prefixes
-                $cleanBranch = $branch.Trim() -replace '^\*?\s+', '' -replace '^remotes/[^/]+/', ''
-                
-                # Extract sequential feature number (>=3 digits), skip timestamp branches.
-                if ($cleanBranch -match '^(\d{3,})-' -and $cleanBranch -notmatch '^\d{8}-\d{6}-') {
-                    [long]$num = 0
-                    if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
-                        $highest = $num
-                    }
-                }
+    foreach ($name in $Names) {
+        if ($name -match '^(\d{3,})-' -and $name -notmatch '^\d{8}-\d{6}-') {
+            [long]$num = 0
+            if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
+                $highest = $num
             }
         }
-    } catch {
-        # If git command fails, return 0
-        Write-Verbose "Could not check Git branches: $_"
     }
     return $highest
 }
 
+function Get-HighestNumberFromBranches {
+    param()
+
+    try {
+        $branches = git branch -a 2>$null
+        if ($LASTEXITCODE -eq 0 -and $branches) {
+            $cleanNames = $branches | ForEach-Object {
+                $_.Trim() -replace '^\*?\s+', '' -replace '^remotes/[^/]+/', ''
+            }
+            return Get-HighestNumberFromNames -Names $cleanNames
+        }
+    } catch {
+        Write-Verbose "Could not check Git branches: $_"
+    }
+    return 0
+}
+
+function Get-HighestNumberFromRemoteRefs {
+    [long]$highest = 0
+    try {
+        $remotes = git remote 2>$null
+        if ($remotes) {
+            foreach ($remote in $remotes) {
+                $env:GIT_TERMINAL_PROMPT = '0'
+                $refs = git ls-remote --heads $remote 2>$null
+                $env:GIT_TERMINAL_PROMPT = $null
+                if ($LASTEXITCODE -eq 0 -and $refs) {
+                    $refNames = $refs | ForEach-Object {
+                        if ($_ -match 'refs/heads/(.+)$') { $matches[1] }
+                    } | Where-Object { $_ }
+                    $remoteHighest = Get-HighestNumberFromNames -Names $refNames
+                    if ($remoteHighest -gt $highest) { $highest = $remoteHighest }
+                }
+            }
+        }
+    } catch {
+        Write-Verbose "Could not query remote refs: $_"
+    }
+    return $highest
+}
+
+# Return next available branch number. When SkipFetch is true, queries remotes
+# via ls-remote (read-only) instead of fetching.
 function Get-NextBranchNumber {
     param(
-        [string]$SpecsDir
+        [string]$SpecsDir,
+        [switch]$SkipFetch
     )
 
-    # Fetch all remotes to get latest branch info (suppress errors if no remotes)
-    try {
-        git fetch --all --prune 2>$null | Out-Null
-    } catch {
-        # Ignore fetch errors
+    if ($SkipFetch) {
+        # Side-effect-free: query remotes via ls-remote
+        $highestBranch = Get-HighestNumberFromBranches
+        $highestRemote = Get-HighestNumberFromRemoteRefs
+        $highestBranch = [Math]::Max($highestBranch, $highestRemote)
+    } else {
+        # Fetch all remotes to get latest branch info (suppress errors if no remotes)
+        try {
+            git fetch --all --prune 2>$null | Out-Null
+        } catch {
+            # Ignore fetch errors
+        }
+        $highestBranch = Get-HighestNumberFromBranches
     }
-
-    # Get highest number from ALL branches (not just matching short name)
-    $highestBranch = Get-HighestNumberFromBranches
 
     # Get highest number from ALL specs (not just matching short name)
     $highestSpec = Get-HighestNumberFromSpecs -SpecsDir $SpecsDir
@@ -159,7 +160,7 @@ function Get-NextBranchNumber {
 
 function ConvertTo-CleanBranchName {
     param([string]$Name)
-    
+
     return $Name.ToLower() -replace '[^a-z0-9]', '-' -replace '-{2,}', '-' -replace '^-', '' -replace '-$', ''
 }
 # Load common functions (includes Get-RepoRoot, Test-HasGit, Resolve-Template)
@@ -174,12 +175,14 @@ $hasGit = Test-HasGit
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
-New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
+}
 
 # Function to generate branch name with stop word filtering and length filtering
 function Get-BranchName {
     param([string]$Description)
-    
+
     # Common stop words to filter out
     $stopWords = @(
         'i', 'a', 'an', 'the', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from',
@@ -188,17 +191,17 @@ function Get-BranchName {
         'this', 'that', 'these', 'those', 'my', 'your', 'our', 'their',
         'want', 'need', 'add', 'get', 'set'
     )
-    
+
     # Convert to lowercase and extract words (alphanumeric only)
     $cleanName = $Description.ToLower() -replace '[^a-z0-9\s]', ' '
     $words = $cleanName -split '\s+' | Where-Object { $_ }
-    
+
     # Filter words: remove stop words and words shorter than 3 chars (unless they're uppercase acronyms in original)
     $meaningfulWords = @()
     foreach ($word in $words) {
         # Skip stop words
         if ($stopWords -contains $word) { continue }
-        
+
         # Keep words that are length >= 3 OR appear as uppercase in original (likely acronyms)
         if ($word.Length -ge 3) {
             $meaningfulWords += $word
@@ -207,7 +210,7 @@ function Get-BranchName {
             $meaningfulWords += $word
         }
     }
-    
+
     # If we have meaningful words, use first 3-4 of them
     if ($meaningfulWords.Count -gt 0) {
         $maxWords = if ($meaningfulWords.Count -eq 4) { 4 } else { 3 }
@@ -243,7 +246,13 @@ if ($Timestamp) {
 } else {
     # Determine branch number
     if ($Number -eq 0) {
-        if ($hasGit) {
+        if ($DryRun -and $hasGit) {
+            # Dry-run: query remotes via ls-remote (side-effect-free, no fetch)
+            $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
+        } elseif ($DryRun) {
+            # Dry-run without git: local spec dirs only
+            $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+        } elseif ($hasGit) {
             # Check existing branches on remotes
             $Number = Get-NextBranchNumber -SpecsDir $specsDir
         } else {
@@ -264,185 +273,86 @@ if ($branchName.Length -gt $maxBranchLength) {
     # Account for prefix length: timestamp (15) + hyphen (1) = 16, or sequential (3) + hyphen (1) = 4
     $prefixLength = $featureNum.Length + 1
     $maxSuffixLength = $maxBranchLength - $prefixLength
-    
+
     # Truncate suffix
     $truncatedSuffix = $branchSuffix.Substring(0, [Math]::Min($branchSuffix.Length, $maxSuffixLength))
     # Remove trailing hyphen if truncation created one
     $truncatedSuffix = $truncatedSuffix -replace '-$', ''
-    
+
     $originalBranchName = $branchName
     $branchName = "$featureNum-$truncatedSuffix"
-    
+
     Write-Warning "[specify] Branch name exceeded GitHub's 244-byte limit"
     Write-Warning "[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)"
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
 
-if ($hasGit) {
-    $branchCreated = $false
-    try {
-        git checkout -q -b $branchName 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            $branchCreated = $true
-        }
-    } catch {
-        # Exception during git command
-    }
+$featureDir = Join-Path $specsDir $branchName
+$specFile = Join-Path $featureDir 'spec.md'
 
-    if (-not $branchCreated) {
-        # Check if branch already exists
-        $existingBranch = git branch --list $branchName 2>$null
-        if ($existingBranch) {
-            if ($AllowExistingBranch) {
-                # Switch to the existing branch instead of failing
-                git checkout -q $branchName 2>$null | Out-Null
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Error "Error: Branch '$branchName' exists but could not be checked out. Resolve any uncommitted changes or conflicts and try again."
+if (-not $DryRun) {
+    if ($hasGit) {
+        $branchCreated = $false
+        try {
+            git checkout -q -b $branchName 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $branchCreated = $true
+            }
+        } catch {
+            # Exception during git command
+        }
+
+        if (-not $branchCreated) {
+            # Check if branch already exists
+            $existingBranch = git branch --list $branchName 2>$null
+            if ($existingBranch) {
+                if ($AllowExistingBranch) {
+                    # Switch to the existing branch instead of failing
+                    git checkout -q $branchName 2>$null | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Error "Error: Branch '$branchName' exists but could not be checked out. Resolve any uncommitted changes or conflicts and try again."
+                        exit 1
+                    }
+                } elseif ($Timestamp) {
+                    Write-Error "Error: Branch '$branchName' already exists. Rerun to get a new timestamp or use a different -ShortName."
+                    exit 1
+                } else {
+                    Write-Error "Error: Branch '$branchName' already exists. Please use a different feature name or specify a different number with -Number."
                     exit 1
                 }
-            } elseif ($Timestamp) {
-                Write-Error "Error: Branch '$branchName' already exists. Rerun to get a new timestamp or use a different -ShortName."
-                exit 1
             } else {
-                Write-Error "Error: Branch '$branchName' already exists. Please use a different feature name or specify a different number with -Number."
+                Write-Error "Error: Failed to create git branch '$branchName'. Please check your git configuration and try again."
                 exit 1
             }
+        }
+    } else {
+        Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
+    }
+
+    New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
+
+    if (-not (Test-Path -PathType Leaf $specFile)) {
+        $template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
+        if ($template -and (Test-Path $template)) {
+            Copy-Item $template $specFile -Force
         } else {
-            Write-Error "Error: Failed to create git branch '$branchName'. Please check your git configuration and try again."
-            exit 1
+            New-Item -ItemType File -Path $specFile -Force | Out-Null
         }
     }
-} else {
-    Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
+
+    # Set the SPECIFY_FEATURE environment variable for the current session
+    $env:SPECIFY_FEATURE = $branchName
 }
-
-$featureDir = Join-Path $specsDir $branchName
-New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
- 
- # Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
-function Replace-DatePlaceholders {
-    param([string]$FilePath)
-    
-    if (Test-Path $FilePath) {
-        $currentDate = Get-Date -Format "yyyy-MM-dd"
-        $content = Get-Content -Path $FilePath -Raw
-        $content = $content -replace '\[DATE\]', $currentDate
-        Set-Content -Path $FilePath -Value $content -NoNewline
-    }
-}
-
-# Use default template (tikalk customization with framework options)
-$template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
-$specFile = Join-Path $featureDir 'spec.md'
-if (-not (Test-Path -PathType Leaf $specFile)) {
-    if ($template -and (Test-Path $template)) {
-        Copy-Item $template $specFile -Force
-    } else {
-        New-Item -ItemType File -Path $specFile | Out-Null
-    }
-}
-
-# Replace [DATE] placeholders with current date
-Replace-DatePlaceholders -FilePath $specFile
-
-# Replace metadata placeholders with actual values (tikalk customization)
-if (Test-Path $specFile) {
-    $content = Get-Content -Path $specFile -Raw
-    
-    # Replace framework options metadata
-    $frameworkOptions = "  contracts=$($ContractsVal.ToString().ToLower()),`n  data_models=$($DataModelsVal.ToString().ToLower())"
-    $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**:`n$frameworkOptions"
-    
-    Set-Content -Path $specFile -Value $content -NoNewline
-}
-
-# Function to populate context.md with defaults (tikalk customization)
-function Populate-ContextFile {
-    param(
-        [string]$ContextFile,
-        [string]$FeatureName,
-        [string]$FeatureDescription,
-        [string]$Mode
-    )
-
-    # Extract feature title (first line or first sentence)
-    $featureTitle = ($featureDescription -split "`n")[0].Trim()
-
-    # Extract mission (first sentence, limited to reasonable length)
-    $mission = ($featureDescription -split '[.!?]')[0]
-    if (-not $mission) {
-        $mission = $featureDescription
-    }
-    # Limit mission length for readability
-    if ($mission.Length -gt 200) {
-        $mission = $mission.Substring(0, 200).TrimEnd() + "..."
-    }
-
-    # Spec mode: Comprehensive context for full specification
-    # Detect code paths (basic detection based on common patterns)
-    $codePaths = "To be determined during planning phase"
-    if ($featureDescription -match "(?i)api|endpoint|service") {
-        $codePaths = "api/, services/"
-    } elseif ($featureDescription -match "(?i)ui|frontend|component") {
-        $codePaths = "src/components/, src/pages/"
-    } elseif ($featureDescription -match "(?i)database|data|model") {
-        $codePaths = "src/models/, database/"
-    }
-
-    # Read team directives if available
-    $directives = "None"
-    $teamDirectivesFile = Join-Path $repoRoot '.specify/memory/team-ai-directives/directives.md'
-    if (Test-Path $teamDirectivesFile) {
-        $directives = "See team-ai-directives repository for applicable guidelines"
-    }
-
-    # Set research needs
-    $research = "To be identified during specification and planning phases"
-
-    # Create context.md with populated values
-    $contextContent = @"
-# Feature Context
-
-**Feature**: $featureTitle
-**Mission**: $mission
-**Code Paths**: $codePaths
-**Directives**: $directives
-**Research**: $research
-
-"@
-
-    $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
-}
-
-# Populate context.md with defaults (tikalk customization)
-$contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
-$contextFile = Join-Path $featureDir 'context.md'
-if (Test-Path $contextTemplate) {
-    Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
-} else {
-    New-Item -ItemType File -Path $contextFile | Out-Null
-}
-
-# Set the SPECIFY_FEATURE environment variable for the current session
-$env:SPECIFY_FEATURE = $branchName
-
-# AI Discovery - Run discovery before JSON output
-if ($env:SPECIFY_TEAM_DIRECTIVES) {
-    $TEAM_DIRECTIVES_DIR = $env:SPECIFY_TEAM_DIRECTIVES
-} else {
-    $TEAM_DIRECTIVES_DIR = Join-Path $repoRoot '.specify/memory/team-ai-directives'
-}
-$DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR  
-$DISCOVERED_SKILLS = Discover-Skills -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR -SkillsCachePath (Join-Path $repoRoot '.specify/skills')
 
 if ($Json) {
-    $obj = [PSCustomObject]@{ 
+    $obj = [PSCustomObject]@{
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
         HAS_GIT = $hasGit
-        DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
-        DISCOVERED_SKILLS = $DISCOVERED_SKILLS
+    }
+    if ($DryRun) {
+        $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
     }
     $obj | ConvertTo-Json -Compress
 } else {
@@ -450,5 +360,7 @@ if ($Json) {
     Write-Output "SPEC_FILE: $specFile"
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
-    Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
+    if (-not $DryRun) {
+        Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
+    }
 }

@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.2.4"
+version = "0.2.5"
 description = "Specify CLI, part of GitHub Spec Kit. A tool to bootstrap your projects for Spec-Driven Development (SDD)."
 requires-python = ">=3.11"
 dependencies = [
@@ -14,7 +14,7 @@ dependencies = [
     "pyyaml>=6.0",
     "packaging>=23.0",
     "pathspec>=0.12.0",
-    "json5",
+    "json5>=0.13.0",
 ]
 
 [project.scripts]
@@ -46,8 +46,6 @@ packages = ["src/specify_cli"]
 "templates/commands" = "specify_cli/core_pack/commands"
 "scripts/bash" = "specify_cli/core_pack/scripts/bash"
 "scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
-".github/workflows/scripts/create-release-packages.sh" = "specify_cli/core_pack/release_scripts/create-release-packages.sh"
-".github/workflows/scripts/create-release-packages.ps1" = "specify_cli/core_pack/release_scripts/create-release-packages.ps1"
 
 [tool.hatch.build.targets.sdist]
 include = [

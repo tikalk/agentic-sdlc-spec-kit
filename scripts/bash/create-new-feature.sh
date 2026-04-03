@@ -3,11 +3,10 @@
 set -e
 
 JSON_MODE=false
+DRY_RUN=false
 ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
-CONTRACTS="true"
-DATA_MODELS="true"
 USE_TIMESTAMP=false
 ARGS=()
 i=1
@@ -16,6 +15,9 @@ while [ $i -le $# ]; do
     case "$arg" in
         --json)
             JSON_MODE=true
+            ;;
+        --dry-run)
+            DRY_RUN=true
             ;;
         --allow-existing-branch)
             ALLOW_EXISTING=true
@@ -47,41 +49,25 @@ while [ $i -le $# ]; do
             fi
             BRANCH_NUMBER="$next_arg"
             ;;
-        --contracts)
-            CONTRACTS="true"
-            ;;
-        --no-contracts)
-            CONTRACTS="false"
-            ;;
-        --data-models)
-            DATA_MODELS="true"
-            ;;
-        --no-data-models)
-            DATA_MODELS="false"
-            ;;
         --timestamp)
             USE_TIMESTAMP=true
             ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>"
+            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>"
             echo ""
             echo "Options:"
-            echo "  --json                  Output in JSON format"
-            echo "  --allow-existing-branch Switch to branch if it already exists instead of failing"
-            echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
-            echo "  --number N              Specify branch number manually (overrides auto-detection)"
-            echo "  --timestamp             Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-            echo "  --contracts             Enable service contracts (requires framework)"
-            echo "  --no-contracts          Disable service contracts"
-            echo "  --data-models           Generate data model documentation"
-            echo "  --no-data-models        Skip data model generation"
-            echo "  --help, -h              Show this help message"
+            echo "  --json              Output in JSON format"
+            echo "  --dry-run           Compute branch name and paths without creating branches, directories, or files"
+            echo "  --allow-existing-branch  Switch to branch if it already exists instead of failing"
+            echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
+            echo "  --number N          Specify branch number manually (overrides auto-detection)"
+            echo "  --timestamp         Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
+            echo "  --help, -h          Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
-            echo "  $0 --number 5 'Feature with specific number'"
+            echo "  $0 'Implement OAuth2 integration for API' --number 5"
             echo "  $0 --timestamp --short-name 'user-auth' 'Add user authentication'"
-            echo "  $0 --contracts --no-data-models 'My feature' --short-name 'my-feature'"
             exit 0
             ;;
         *)
@@ -93,7 +79,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>" >&2
     exit 1
 fi
 
@@ -129,39 +115,59 @@ get_highest_from_specs() {
 
 # Function to get highest number from git branches
 get_highest_from_branches() {
+    git branch -a 2>/dev/null | sed 's/^[* ]*//; s|^remotes/[^/]*/||' | _extract_highest_number
+}
+
+# Extract the highest sequential feature number from a list of ref names (one per line).
+# Shared by get_highest_from_branches and get_highest_from_remote_refs.
+_extract_highest_number() {
     local highest=0
-    
-    # Get all branches (local and remote)
-    branches=$(git branch -a 2>/dev/null || echo "")
-    
-    if [ -n "$branches" ]; then
-        while IFS= read -r branch; do
-            # Clean branch name: remove leading markers and remote prefixes
-            clean_branch=$(echo "$branch" | sed 's/^[* ]*//; s|^remotes/[^/]*/||')
-            
-            # Extract sequential feature number (>=3 digits), skip timestamp branches.
-            if echo "$clean_branch" | grep -Eq '^[0-9]{3,}-' && ! echo "$clean_branch" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
-                number=$(echo "$clean_branch" | grep -Eo '^[0-9]+' || echo "0")
-                number=$((10#$number))
-                if [ "$number" -gt "$highest" ]; then
-                    highest=$number
-                fi
+    while IFS= read -r name; do
+        [ -z "$name" ] && continue
+        if echo "$name" | grep -Eq '^[0-9]{3,}-' && ! echo "$name" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
+            number=$(echo "$name" | grep -Eo '^[0-9]+' || echo "0")
+            number=$((10#$number))
+            if [ "$number" -gt "$highest" ]; then
+                highest=$number
             fi
-        done <<< "$branches"
-    fi
-    
+        fi
+    done
     echo "$highest"
 }
 
-# Function to check existing branches (local and remote) and return next available number
+# Function to get highest number from remote branches without fetching (side-effect-free)
+get_highest_from_remote_refs() {
+    local highest=0
+
+    for remote in $(git remote 2>/dev/null); do
+        local remote_highest
+        remote_highest=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$remote" 2>/dev/null | sed 's|.*refs/heads/||' | _extract_highest_number)
+        if [ "$remote_highest" -gt "$highest" ]; then
+            highest=$remote_highest
+        fi
+    done
+
+    echo "$highest"
+}
+
+# Function to check existing branches (local and remote) and return next available number.
+# When skip_fetch is true, queries remotes via ls-remote (read-only) instead of fetching.
 check_existing_branches() {
     local specs_dir="$1"
+    local skip_fetch="${2:-false}"
 
-    # Fetch all remotes to get latest branch info (suppress all output)
-    git fetch --all --prune >/dev/null 2>&1 || true
-
-    # Get highest number from ALL branches (not just matching short name)
-    local highest_branch=$(get_highest_from_branches)
+    if [ "$skip_fetch" = true ]; then
+        # Side-effect-free: query remotes via ls-remote
+        local highest_remote=$(get_highest_from_remote_refs)
+        local highest_branch=$(get_highest_from_branches)
+        if [ "$highest_remote" -gt "$highest_branch" ]; then
+            highest_branch=$highest_remote
+        fi
+    else
+        # Fetch all remotes to get latest branch info (suppress errors if no remotes)
+        git fetch --all --prune >/dev/null 2>&1 || true
+        local highest_branch=$(get_highest_from_branches)
+    fi
 
     # Get highest number from ALL specs (not just matching short name)
     local highest_spec=$(get_highest_from_specs "$specs_dir")
@@ -182,17 +188,6 @@ clean_branch_name() {
     echo "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/-\+/-/g' | sed 's/^-//' | sed 's/-$//'
 }
 
-# Escape a string for safe embedding in a JSON value (fallback when jq is unavailable).
-json_escape() {
-    local s="$1"
-    s="${s//\\/\\\\}"
-    s="${s//\"/\\\"}"
-    s="${s//$'\n'/\\n}"
-    s="${s//$'\t'/\\t}"
-    s="${s//$'\r'/\\r}"
-    printf '%s' "$s"
-}
-
 # Resolve repository root using common.sh functions which prioritize .specify over git
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
@@ -208,33 +203,10 @@ fi
 
 cd "$REPO_ROOT"
 
-# Get the global config path using XDG Base Directory spec
-get_global_config_path() {
-    local config_home="${XDG_CONFIG_HOME:-$HOME/.config}"
-    echo "$config_home/specify/config.json"
-}
-
-# Get project-level config path (.specify/config.json)
-get_project_config_path() {
-    echo "$REPO_ROOT/.specify/config.json"
-}
-
-# Get config path with hierarchical resolution
-get_config_path() {
-    local project_config=$(get_project_config_path)
-    local user_config=$(get_global_config_path)
-    
-    if [[ -f "$project_config" ]]; then
-        echo "$project_config"
-    elif [[ -f "$user_config" ]]; then
-        echo "$user_config"
-    else
-        echo "$project_config"
-    fi
-}
-
 SPECS_DIR="$REPO_ROOT/specs"
-mkdir -p "$SPECS_DIR"
+if [ "$DRY_RUN" != true ]; then
+    mkdir -p "$SPECS_DIR"
+fi
 
 # Function to generate branch name with stop word filtering and length filtering
 generate_branch_name() {
@@ -306,7 +278,14 @@ if [ "$USE_TIMESTAMP" = true ]; then
 else
     # Determine branch number
     if [ -z "$BRANCH_NUMBER" ]; then
-        if [ "$HAS_GIT" = true ]; then
+        if [ "$DRY_RUN" = true ] && [ "$HAS_GIT" = true ]; then
+            # Dry-run: query remotes via ls-remote (side-effect-free, no fetch)
+            BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR" true)
+        elif [ "$DRY_RUN" = true ]; then
+            # Dry-run without git: local spec dirs only
+            HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
+            BRANCH_NUMBER=$((HIGHEST + 1))
+        elif [ "$HAS_GIT" = true ]; then
             # Check existing branches on remotes
             BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR")
         else
@@ -343,384 +322,79 @@ if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
     >&2 echo "[specify] Truncated to: $BRANCH_NAME (${#BRANCH_NAME} bytes)"
 fi
 
-if [ "$HAS_GIT" = true ]; then
-    if ! git checkout -b "$BRANCH_NAME" 2>/dev/null; then
-        # Check if branch already exists
-        if git branch --list "$BRANCH_NAME" | grep -q .; then
-            if [ "$ALLOW_EXISTING" = true ]; then
-                # Switch to the existing branch instead of failing
-                if ! git checkout "$BRANCH_NAME" 2>/dev/null; then
-                    >&2 echo "Error: Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
+FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
+SPEC_FILE="$FEATURE_DIR/spec.md"
+
+if [ "$DRY_RUN" != true ]; then
+    if [ "$HAS_GIT" = true ]; then
+        if ! git checkout -b "$BRANCH_NAME" 2>/dev/null; then
+            # Check if branch already exists
+            if git branch --list "$BRANCH_NAME" | grep -q .; then
+                if [ "$ALLOW_EXISTING" = true ]; then
+                    # Switch to the existing branch instead of failing
+                    if ! git checkout "$BRANCH_NAME" 2>/dev/null; then
+                        >&2 echo "Error: Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
+                        exit 1
+                    fi
+                elif [ "$USE_TIMESTAMP" = true ]; then
+                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
+                    exit 1
+                else
+                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
                     exit 1
                 fi
-            elif [ "$USE_TIMESTAMP" = true ]; then
-                >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
-                exit 1
             else
-                >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
+                >&2 echo "Error: Failed to create git branch '$BRANCH_NAME'. Please check your git configuration and try again."
                 exit 1
             fi
-        else
-            >&2 echo "Error: Failed to create git branch '$BRANCH_NAME'. Please check your git configuration and try again."
-            exit 1
-        fi
-    fi
-else
-    >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
-fi
-
-FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
-mkdir -p "$FEATURE_DIR"
-
-# Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
-replace_date_placeholders() {
-    local file="$1"
-    local current_date=$(date +%Y-%m-%d)
-    
-    if [ -f "$file" ]; then
-        # Use sed to replace [DATE] with current date
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            # macOS requires empty string for -i
-            sed -i '' "s/\[DATE\]/${current_date}/g" "$file"
-        else
-            # Linux/other systems
-            sed -i "s/\[DATE\]/${current_date}/g" "$file"
-        fi
-    fi
-}
-
-# Apply defaults for options if not explicitly set
-SPEC_FILE="$FEATURE_DIR/spec.md"
-if [ ! -f "$SPEC_FILE" ]; then
-    TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
-    if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then
-        cp "$TEMPLATE" "$SPEC_FILE"
-    else
-        echo "Warning: Spec template not found; created empty spec file" >&2
-        touch "$SPEC_FILE"
-    fi
-fi
-
-# Replace options metadata in spec.md (tikalk customization)
-if [ -f "$SPEC_FILE" ]; then
-    # Use awk to replace placeholders - simpler than complex sed
-    awk -v contracts_val="$CONTRACTS" -v datamodels_val="$DATA_MODELS" '
-        BEGIN { in_fw = 0 }
-        /\*\*Framework Options\*\*:/ { in_fw = 1; next }
-        in_fw && /^  contracts=/ { sub(/contracts=\{*\}/, "contracts=" contracts_val); }
-        in_fw && /^  data_models=/ { sub(/data_models=\{*\}/, "data_models=" datamodels_val); }
-        { print }
-    ' "$SPEC_FILE" > "${SPEC_FILE}.tmp" && mv "${SPEC_FILE}.tmp" "$SPEC_FILE"
-fi
-
-# Replace [DATE] placeholders with current date
-replace_date_placeholders "$SPEC_FILE"
-
-CONTEXT_TEMPLATE=$(resolve_template "context-template" "$REPO_ROOT") || true
-CONTEXT_FILE="$FEATURE_DIR/context.md"
-
-# Function to discover team directives (Issue #47)
-discover_directives() {
-    local feature_description="$1"
-    local team_directives_path="$2"
-
-    if [[ ! -d "$team_directives_path" ]]; then
-        cat <<'EOF'
-{
-    "candidates": {
-        "constitution": "",
-        "personas": [],
-        "rules": [],
-        "skills": [],
-        "examples": []
-    },
-    "search_metadata": {
-        "keywords": [],
-        "files_searched": 0,
-        "files_with_matches": 0
-    }
-}
-EOF
-        return
-    fi
-
-    local constitution=""
-    if [[ -f "$team_directives_path/constitutions/constitution.md" ]]; then
-        constitution="$team_directives_path/constitutions/constitution.md"
-    elif [[ -f "$team_directives_path/constitution.md" ]]; then
-        constitution="$team_directives_path/constitution.md"
-    fi
-
-    cat <<EOF
-{
-    "candidates": {
-        "constitution": "${constitution}",
-        "personas": [],
-        "rules": [],
-        "skills": [],
-        "examples": []
-    },
-    "search_metadata": {
-        "keywords": [],
-        "files_searched": 0,
-        "files_with_matches": 0
-    }
-}
-EOF
-}
-
-# Function to discover skills (Issue #49)
-discover_skills() {
-    local feature_description="$1"
-    local team_directives_path="$2"
-    local skills_cache_path="$3"
-    local max_skills="${4:-5}"
-    local threshold="${5:-0.7}"
-
-    mkdir -p "$skills_cache_path"
-
-    local cache_marker="$skills_cache_path/.last_refresh"
-    local current_timestamp=$(date +%s)
-    local one_day=86400
-
-    local need_refresh=false
-    if [[ -f "$cache_marker" ]]; then
-        local last_refresh=$(cat "$cache_marker")
-        local age=$((current_timestamp - last_refresh))
-        if [[ $age -gt $one_day ]]; then
-            need_refresh=true
         fi
     else
-        need_refresh=true
+        >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
     fi
 
-    if $need_refresh && [[ -d "$team_directives_path/skills" ]]; then
-        echo "[specify] Refreshing skills cache (daily refresh)..." >&2
-        cp -r "$team_directives_path/skills/"* "$skills_cache_path/" 2>/dev/null || true
-        echo "$current_timestamp" > "$cache_marker"
-    fi
+    mkdir -p "$FEATURE_DIR"
 
-    local required_skills=()
-    local blocked_skills=()
-    if [[ -f "$team_directives_path/.skills.json" ]]; then
-        local required=$(jq -r '.skills.required // {} | keys[]' "$team_directives_path/.skills.json" 2>/dev/null)
-        [[ -n "$required" ]] && while read -r skill_id; do
-            local skill_url=$(jq -r ".skills.required[\"$skill_id\"].url // empty" "$team_directives_path/.skills.json" 2>/dev/null)
-            if [[ -n "$skill_url" ]]; then
-                local cache_dir="$skills_cache_path/$(basename "$skill_id")"
-                mkdir -p "$cache_dir"
-                curl -s -o "$cache_dir/SKILL.md" "$skill_url" 2>/dev/null
-                if [[ -f "$cache_dir/SKILL.md" && -s "$cache_dir/SKILL.md" ]]; then
-                    required_skills+=("$skill_id")
-                fi
-            elif [[ "$skill_id" == "local:"* ]]; then
-                required_skills+=("$skill_id")
-            elif [[ -d "$skills_cache_path/$skill_id" && -f "$skills_cache_path/$skill_id/SKILL.md" ]]; then
-                required_skills+=("$skill_id")
-            fi
-        done <<< "$required"
-
-        local recommended=$(jq -r '.skills.recommended // {} | keys[]' "$team_directives_path/.skills.json" 2>/dev/null)
-        [[ -n "$recommended" ]] && while read -r skill_id; do
-            local skill_url=$(jq -r ".skills.recommended[\"$skill_id\"].url // empty" "$team_directives_path/.skills.json" 2>/dev/null)
-            if [[ -n "$skill_url" ]]; then
-                local cache_dir="$skills_cache_path/$(basename "$skill_id")"
-                mkdir -p "$cache_dir"
-                curl -s -o "$cache_dir/SKILL.md" "$skill_url" 2>/dev/null
-                if [[ -f "$cache_dir/SKILL.md" && -s "$cache_dir/SKILL.md" ]]; then
-                    required_skills+=("$skill_id")
-                fi
-            elif [[ "$skill_id" == "local:"* ]]; then
-                required_skills+=("$skill_id")
-            elif [[ -d "$skills_cache_path/$skill_id" && -f "$skills_cache_path/$skill_id/SKILL.md" ]]; then
-                required_skills+=("$skill_id")
-            fi
-        done <<< "$recommended"
-
-        local blocked=$(jq -r '.skills.blocked // [] | .[]' "$team_directives_path/.skills.json" 2>/dev/null)
-        [[ -n "$blocked" ]] && while read -r blocked_id; do
-            blocked_skills+=("$blocked_id")
-        done <<< "$blocked"
-    fi
-
-    local cached_skills=()
-    if [[ -d "$skills_cache_path" ]]; then
-        while IFS= read -r skill_dir; do
-            [[ "$skill_dir" == "$skills_cache_path" ]] && continue
-            [[ ! -d "$skill_dir" ]] && continue
-            local skill_name=$(basename "$skill_dir")
-            if [[ " ${required_skills[*]} " =~ " $skill_name " ]]; then
-                continue
-            fi
-            local skill_md="$skill_dir/SKILL.md"
-            if [[ ! -f "$skill_md" || ! -s "$skill_md" ]]; then
-                continue
-            fi
-            cached_skills+=("$skill_name")
-        done < <(find "$skills_cache_path" -maxdepth 1 -type d | grep -v "$skills_cache_path$")
-    fi
-
-    local candidate_list=()
-    for skill_id in "${required_skills[@]}"; do
-        local is_blocked=0
-        for blocked_id in "${blocked_skills[@]}"; do
-            [[ "$skill_id" == "$blocked_id" ]] && is_blocked=1 && break
-        done
-        [[ $is_blocked -eq 1 ]] && continue
-
-        local skill_path=""
-        local skill_name=""
-        if [[ "$skill_id" == "local:"* ]]; then
-            skill_path="$team_directives_path/${skill_id#local:}"
-            skill_name=$(basename "$skill_path")
+    if [ ! -f "$SPEC_FILE" ]; then
+        TEMPLATE=$(resolve_template "spec-template" "$REPO_ROOT") || true
+        if [ -n "$TEMPLATE" ] && [ -f "$TEMPLATE" ]; then
+            cp "$TEMPLATE" "$SPEC_FILE"
         else
-            skill_path="$skills_cache_path/$skill_id"
-            skill_name=$skill_id
+            echo "Warning: Spec template not found; created empty spec file" >&2
+            touch "$SPEC_FILE"
         fi
-
-        [[ ! -f "$skill_path/SKILL.md" || ! -s "$skill_path/SKILL.md" ]] && continue
-        candidate_list+=("required:$skill_name")
-    done
-
-    for skill_name in "${cached_skills[@]}"; do
-        local is_blocked=0
-        for blocked_id in "${blocked_skills[@]}"; do
-            [[ "$skill_name" == "$blocked_id" ]] && is_blocked=1 && break
-        done
-        [[ $is_blocked -eq 1 ]] && continue
-        [[ " ${candidate_list[*]} " =~ " required:$skill_name " ]] && continue
-        candidate_list+=("$skill_name")
-    done
-
-    local candidates_json="["
-    local first=1
-    for skill_id in "${candidate_list[@]:0:$max_skills}"; do
-        [[ $first -eq 0 ]] && candidates_json+=","
-        local skill_name="${skill_id#required:}"
-        local source="${skill_id%%:*}"
-        local base_relevance="1.0"
-        [[ "$source" != "required" ]] && base_relevance="0.65"
-        candidates_json+=$(jq -n --arg id "$skill_id" --arg name "$skill_name" --arg source "$source" --argjson base_relevance "$base_relevance" '{"id":$id,"name":$name,"source":$source,"base_relevance":$base_relevance}')
-        first=0
-    done
-    candidates_json+="]"
-
-    jq -n \
-        --argjson candidates "$candidates_json" \
-        '{
-            "candidates": $candidates,
-            "last_refresh": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
-        }'
-}
-
-# Function to populate context.md with defaults
-populate_context_file() {
-    local context_file="$1"
-    local feature_name="$2"
-    local feature_description="$3"
-
-    # Extract feature title (first line or first sentence)
-    local feature_title=$(echo "$feature_description" | head -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-
-    # Extract mission (first sentence, limited to reasonable length)
-    local mission=$(echo "$feature_description" | grep -o '^[[:print:]]*[.!?]' | head -1 | sed 's/[.!?]$//')
-    if [ -z "$mission" ]; then
-        mission="$feature_description"
-    fi
-    # Limit mission length for readability
-    if [ ${#mission} -gt 200 ]; then
-        mission=$(echo "$mission" | cut -c1-200 | sed 's/[[:space:]]*$//' | sed 's/[[:space:]]*$/.../')
     fi
 
-    # Spec mode: Comprehensive context for full specification
-    # Detect code paths (basic detection based on common patterns)
-    local code_paths="To be determined during planning phase"
-    if echo "$feature_description" | grep -qi "api\|endpoint\|service"; then
-        code_paths="api/, services/"
-    elif echo "$feature_description" | grep -qi "ui\|frontend\|component"; then
-        code_paths="src/components/, src/pages/"
-    elif echo "$feature_description" | grep -qi "database\|data\|model"; then
-        code_paths="src/models/, database/"
-    fi
-
-    # Read team directives if available
-    local directives="None"
-    local team_directives_file="$REPO_ROOT/.specify/memory/team-ai-directives/directives.md"
-    if [ -f "$team_directives_file" ]; then
-        directives="See team-ai-directives repository for applicable guidelines"
-    fi
-
-    # Set research needs
-    local research="To be identified during specification and planning phases"
-
-    # Create context.md with populated values
-    cat > "$context_file" << EOF
-# Feature Context
-
-**Feature**: $feature_title
-**Mission**: $mission
-**Code Paths**: $code_paths
-**Directives**: $directives
-**Research**: $research
-
-EOF
-}
-
-# Populate context.md with defaults
-if [ -f "$CONTEXT_TEMPLATE" ]; then
-    populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION"
-else
-    touch "$CONTEXT_FILE"
+    # Inform the user how to persist the feature variable in their own shell
+    printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
 fi
-
-# Resolve team directives path
-TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
-    TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-fi
-
-# Sync team-ai-directives if URL provided
-if [[ "$TEAM_DIRECTIVES_DIR" =~ ^https?:// ]]; then
-    echo "[specify] Syncing team-ai-directives from $TEAM_DIRECTIVES_DIR..." >&2
-    TEMP_DIR=$(mktemp -d)
-    if git clone --depth 1 "$TEAM_DIRECTIVES_DIR" "$TEMP_DIR/team-ai-directives" 2>/dev/null; then
-        TARGET_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-        rm -rf "$TARGET_DIR"
-        mv "$TEMP_DIR/team-ai-directives" "$TARGET_DIR"
-        TEAM_DIRECTIVES_DIR="$TARGET_DIR"
-        echo "[specify] Team-ai-directives synced successfully" >&2
-    else
-        echo "[specify] Warning: Failed to sync team-ai-directives" >&2
-    fi
-    rm -rf "$TEMP_DIR"
-fi
-
-# Discover directives and skills
-DISCOVERED_DIRECTIVES=$(discover_directives "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR")
-DISCOVERED_SKILLS=$(discover_skills "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR" "$REPO_ROOT/.specify/skills")
-
-# Set the SPECIFY_FEATURE environment variable for the current session
-export SPECIFY_FEATURE="$BRANCH_NAME"
-
-# Inform the user how to persist the feature variable in their own shell
-printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
 
 if $JSON_MODE; then
     if command -v jq >/dev/null 2>&1; then
-        jq -cn \
-            --arg branch_name "$BRANCH_NAME" \
-            --arg spec_file "$SPEC_FILE" \
-            --arg feature_num "$FEATURE_NUM" \
-            --argjson discovered_directives "$DISCOVERED_DIRECTIVES" \
-            --argjson discovered_skills "$DISCOVERED_SKILLS" \
-            '{BRANCH_NAME:$branch_name,SPEC_FILE:$spec_file,FEATURE_NUM:$feature_num,DISCOVERED_DIRECTIVES:$discovered_directives,DISCOVERED_SKILLS:$discovered_skills}'
+        if [ "$DRY_RUN" = true ]; then
+            jq -cn \
+                --arg branch_name "$BRANCH_NAME" \
+                --arg spec_file "$SPEC_FILE" \
+                --arg feature_num "$FEATURE_NUM" \
+                '{BRANCH_NAME:$branch_name,SPEC_FILE:$spec_file,FEATURE_NUM:$feature_num,DRY_RUN:true}'
+        else
+            jq -cn \
+                --arg branch_name "$BRANCH_NAME" \
+                --arg spec_file "$SPEC_FILE" \
+                --arg feature_num "$FEATURE_NUM" \
+                '{BRANCH_NAME:$branch_name,SPEC_FILE:$spec_file,FEATURE_NUM:$feature_num}'
+        fi
     else
-        printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","DISCOVERED_DIRECTIVES":%s,"DISCOVERED_SKILLS":%s}\n' \
-            "$(json_escape "$BRANCH_NAME")" "$(json_escape "$SPEC_FILE")" "$(json_escape "$FEATURE_NUM")" "$DISCOVERED_DIRECTIVES" "$DISCOVERED_SKILLS"
+        if [ "$DRY_RUN" = true ]; then
+            printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s","DRY_RUN":true}\n' "$(json_escape "$BRANCH_NAME")" "$(json_escape "$SPEC_FILE")" "$(json_escape "$FEATURE_NUM")"
+        else
+            printf '{"BRANCH_NAME":"%s","SPEC_FILE":"%s","FEATURE_NUM":"%s"}\n' "$(json_escape "$BRANCH_NAME")" "$(json_escape "$SPEC_FILE")" "$(json_escape "$FEATURE_NUM")"
+        fi
     fi
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "SPEC_FILE: $SPEC_FILE"
     echo "FEATURE_NUM: $FEATURE_NUM"
-    printf '# To persist in your shell: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME"
+    if [ "$DRY_RUN" != true ]; then
+        printf '# To persist in your shell: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME"
+    fi
 fi
