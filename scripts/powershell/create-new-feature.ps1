@@ -1,5 +1,4 @@
 #!/usr/bin/env pwsh
-. "scripts/powershell/discovery-functions.ps1"
 # Create a new feature
 [CmdletBinding()]
 param(
@@ -19,6 +18,9 @@ param(
     [string[]]$FeatureDescription
 )
 $ErrorActionPreference = 'Stop'
+
+# Source discovery functions (must be after param block)
+. "scripts/powershell/discovery-functions.ps1"
 
 # Set default mode
 $Mode = "spec"
