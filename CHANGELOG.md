@@ -5,6 +5,17 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.7] - 2026-04-04
+
+### Fixed
+
+- **PowerShell test fixture**: Added missing `discovery-functions.ps1` to test fixture so PowerShell dry-run tests pass in CI
+- **Extension install reporting**: Now shows both installed AND skipped extensions (previously skipped extensions were silently hidden when others succeeded)
+
+### Changed
+
+- Extension install output now sorted alphabetically for consistency
+
 ## [0.3.6] - 2026-04-04
 
 ### Fixed

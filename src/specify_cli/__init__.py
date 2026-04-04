@@ -2066,8 +2066,13 @@ def install_bundled_extensions(
 
     # Report results
     if tracker:
-        if installed:
-            tracker.complete("extensions", f"{', '.join(installed)}")
+        if installed and skipped:
+            tracker.complete(
+                "extensions",
+                f"{', '.join(sorted(installed))} (skipped: {', '.join(skipped)})",
+            )
+        elif installed:
+            tracker.complete("extensions", f"{', '.join(sorted(installed))}")
         elif skipped:
             tracker.skip("extensions", f"{', '.join(skipped)}")
         else:
