@@ -24,6 +24,12 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 - **Extension patterns**: EXTENSION_COMMAND_NAME_PATTERN and EXTENSION_ALIAS_NAME_PATTERN now dynamically built from configuration
 
+## [0.3.13] - 2026-04-04
+
+### Fixed
+
+- **Extension command registration**: Fixed bundled extensions not registering commands to agent command directories (e.g., `.opencode/command/`)
+
 ## [0.3.12] - 2026-04-04
 
 ### Fixed
