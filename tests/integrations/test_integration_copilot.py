@@ -173,10 +173,13 @@ class TestCopilotIntegration:
             assert "\nscripts:\n" not in content
             assert "\nagent_scripts:\n" not in content
 
-    def test_complete_file_inventory_sh(self, tmp_path):
+    def test_complete_file_inventory_sh(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration copilot --script sh."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / "inventory-sh"
         project.mkdir()
@@ -254,10 +257,13 @@ class TestCopilotIntegration:
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
 
-    def test_complete_file_inventory_ps(self, tmp_path):
+    def test_complete_file_inventory_ps(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration copilot --script ps."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / "inventory-ps"
         project.mkdir()

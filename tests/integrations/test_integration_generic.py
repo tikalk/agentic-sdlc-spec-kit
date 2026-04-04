@@ -224,10 +224,13 @@ class TestGenericIntegration:
         # The integration path validates via setup()
         assert result.exit_code != 0
 
-    def test_complete_file_inventory_sh(self, tmp_path):
+    def test_complete_file_inventory_sh(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration generic --ai-commands-dir ... --script sh."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / "inventory-generic-sh"
         project.mkdir()
@@ -297,10 +300,13 @@ class TestGenericIntegration:
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
 
-    def test_complete_file_inventory_ps(self, tmp_path):
+    def test_complete_file_inventory_ps(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration generic --ai-commands-dir ... --script ps."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / "inventory-generic-ps"
         project.mkdir()

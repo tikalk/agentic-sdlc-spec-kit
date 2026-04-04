@@ -5,6 +5,23 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.1] - 2026-04-04
+
+### Added
+
+- **Bundled extensions auto-install**: `install_bundled_extensions()` function now automatically installs bundled extensions (levelup, architect, quick, product) during `specify init`
+- **Bundled presets auto-install**: `install_bundled_presets()` function now automatically installs the agentic-sdlc preset during `specify init`
+- **SPECKIT_SKIP_BUNDLED env var**: Set to skip bundled extension/preset installation (used by tests)
+
+### Changed
+
+- **StepTracker theming**: Restored tikalk orange (`ACCENT_COLOR`) theming for tree title and running step indicator
+- **Init tracker steps**: Added "extensions" and "presets" progress steps to init workflow
+
+### Fixed
+
+- **Test determinism**: File inventory tests now use `SPECKIT_SKIP_BUNDLED=1` to prevent bundled assets from affecting expected file lists
+
 ## [0.3.0] - 2026-04-04
 
 ### Added

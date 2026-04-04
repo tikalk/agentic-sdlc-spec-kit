@@ -185,7 +185,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(Text(self.title, style=ACCENT_COLOR), guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -196,7 +196,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = "[cyan]○[/cyan]"
+                symbol = f"[{ACCENT_COLOR}]○[/{ACCENT_COLOR}]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -1385,6 +1385,8 @@ def init(
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
         ("git", "Initialize git repository"),
+        ("extensions", "Install bundled extensions"),
+        ("presets", "Install bundled presets"),
         ("final", "Finalize"),
     ]:
         tracker.add(key, label)
@@ -1529,6 +1531,15 @@ def init(
                     console.print(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
+
+            # Install bundled extensions and presets (tikalk customization)
+            # Skip during tests to avoid polluting test file inventories
+            if not os.environ.get("SPECKIT_SKIP_BUNDLED"):
+                install_bundled_extensions(project_path, selected_ai, tracker=tracker)
+                install_bundled_presets(project_path, selected_ai, tracker=tracker)
+            else:
+                tracker.skip("extensions", "skipped (SPECKIT_SKIP_BUNDLED)")
+                tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
@@ -1848,6 +1859,331 @@ def get_speckit_version() -> str:
         # If this lookup fails for any reason, we fall back to returning "unknown" below.
         pass
     return "unknown"
+
+
+# ===== Tikalk Bundled Extensions/Presets =====
+
+
+def _ensure_commands_for_agent(
+    project_path: Path, extensions_dir: Path, agent_name: str
+) -> None:
+    """Ensure commands are registered for a specific agent.
+
+    This handles cases where extensions were already installed but didn't register
+    commands for this agent (e.g., new agent recently added to AGENT_CONFIGS).
+
+    Args:
+        project_path: Target project directory
+        extensions_dir: Directory containing extension directories
+        agent_name: Agent name to register commands for
+    """
+    from .extensions import CommandRegistrar, ExtensionManifest
+
+    if agent_name not in CommandRegistrar.AGENT_CONFIGS:
+        return
+
+    project_extensions_dir = project_path / ".specify" / "extensions"
+    if not project_extensions_dir.exists():
+        return
+
+    for ext_dir in project_extensions_dir.iterdir():
+        if not ext_dir.is_dir() or ext_dir.name.startswith("."):
+            continue
+
+        ext_manifest_file = ext_dir / "extension.yml"
+        if not ext_manifest_file.exists():
+            continue
+
+        try:
+            # Always re-register commands on init to ensure they're up-to-date
+            manifest = ExtensionManifest(ext_manifest_file)
+            registrar = CommandRegistrar()
+            registrar.register_commands_for_agent(
+                agent_name, manifest, ext_dir, project_path
+            )
+        except Exception:
+            continue
+
+
+def install_bundled_extensions(
+    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
+) -> None:
+    """Install bundled extensions that ship with spec-kit.
+
+    Reads the preinstall list from .specify/catalog.json (extensions with
+    "preinstall": true). Falls back to scanning extension directories if
+    catalog is missing or invalid.
+
+    Looks for extensions in the following locations (in order):
+    1. Project's .specify/extensions/ (bundled in release ZIP)
+    2. Package's bundled_extensions/ (installed with pip/uv)
+    3. Repository's extensions/ directory (for development)
+
+    Args:
+        project_path: Target project directory
+        selected_ai: Selected AI assistant (for command registration)
+        tracker: Optional progress tracker
+    """
+    from .extensions import ExtensionManager, ExtensionError
+
+    # Try multiple locations for bundled extensions (in priority order)
+    bundled_extensions_dir = None
+    catalog_path = None
+    search_paths = [
+        (
+            project_path / ".specify" / "extensions",
+            project_path / ".specify" / "catalog.json",
+        ),
+        (
+            Path(__file__).parent / "bundled_extensions",
+            Path(__file__).parent / "bundled_extensions" / "catalog.json",
+        ),
+        (
+            Path(__file__).parent.parent.parent / "extensions",
+            Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
+        ),
+    ]
+
+    for ext_path, cat_path in search_paths:
+        if ext_path.exists():
+            # Check if any extension.yml exists in subdirectories
+            has_extensions = any(
+                (ext_path / d / "extension.yml").exists()
+                for d in ext_path.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if has_extensions:
+                bundled_extensions_dir = ext_path
+                if cat_path.exists():
+                    catalog_path = cat_path
+                break
+
+    if not bundled_extensions_dir:
+        # Try harder: check bundled_extensions from package as fallback
+        fallback_bundled = Path(__file__).parent / "bundled_extensions"
+        if fallback_bundled.exists() and any(
+            (fallback_bundled / d / "extension.yml").exists()
+            for d in fallback_bundled.iterdir()
+            if d.is_dir() and not d.name.startswith(".")
+        ):
+            bundled_extensions_dir = fallback_bundled
+            catalog_path = None
+
+    if not bundled_extensions_dir:
+        if tracker:
+            tracker.skip("extensions", "bundled extensions not found")
+        return
+
+    # Read preinstall list from catalog.json
+    bundled_extensions = []
+    if catalog_path and catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            extensions = catalog_data.get("extensions", {})
+            # Get extensions with preinstall: true AND that actually exist
+            bundled_extensions = [
+                ext_id
+                for ext_id, ext_data in extensions.items()
+                if ext_data.get("preinstall", False)
+                and (bundled_extensions_dir / ext_id / "extension.yml").exists()
+            ]
+            # Fallback: if no preinstall field found, use all extensions in catalog that exist
+            if not bundled_extensions:
+                bundled_extensions = [
+                    ext_id
+                    for ext_id in extensions.keys()
+                    if (bundled_extensions_dir / ext_id / "extension.yml").exists()
+                ]
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
+            )
+
+    # Fallback: scan extension directories if no catalog or no preinstall list
+    if not bundled_extensions:
+        bundled_extensions = [
+            d.name
+            for d in bundled_extensions_dir.iterdir()
+            if d.is_dir()
+            and not d.name.startswith(".")
+            and (d / "extension.yml").exists()
+        ]
+
+    if not bundled_extensions:
+        if tracker:
+            tracker.skip("extensions", "no extensions to install")
+        return
+
+    manager = ExtensionManager(project_path)
+    speckit_version = get_speckit_version()
+
+    installed = []
+    skipped = []
+
+    for ext_name in bundled_extensions:
+        ext_dir = bundled_extensions_dir / ext_name
+        if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
+            skipped.append(f"{ext_name} (not found)")
+            continue
+
+        try:
+            # Check if already installed - skip to avoid issues
+            if manager.registry.is_installed(ext_name):
+                skipped.append(f"{ext_name} (existing)")
+                continue
+
+            # Install from bundled directory
+            manager.install_from_directory(ext_dir, speckit_version)
+            installed.append(ext_name)
+        except ExtensionError as e:
+            skipped.append(f"{ext_name} ({str(e)[:30]})")
+        except OSError:
+            skipped.append(f"{ext_name} (not found)")
+        except Exception as e:
+            skipped.append(f"{ext_name} ({str(e)[:40]})")
+
+    # Report results
+    if tracker:
+        if installed:
+            tracker.complete("extensions", f"{', '.join(installed)}")
+        elif skipped:
+            tracker.skip("extensions", f"{', '.join(skipped)}")
+        else:
+            tracker.skip("extensions", "none available")
+
+    # Ensure commands are registered for the selected AI agent
+    if bundled_extensions_dir:
+        _ensure_commands_for_agent(project_path, bundled_extensions_dir, selected_ai)
+
+
+def get_preinstalled_extensions(project_path: Path) -> list[dict]:
+    """Get list of pre-installed extensions from catalog.json.
+
+    Returns list of dicts with: id, name, description, commands
+    """
+    extensions = []
+
+    # Check multiple locations for catalog
+    catalog_paths = [
+        project_path / ".specify" / "catalog.json",
+        project_path / ".specify" / "extensions" / "catalog.json",
+        Path(__file__).parent / "bundled_extensions" / "catalog.json",
+        Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
+    ]
+
+    for catalog_path in catalog_paths:
+        if catalog_path.exists():
+            try:
+                with open(catalog_path) as f:
+                    catalog_data = json.load(f)
+
+                for ext_id, ext_data in catalog_data.get("extensions", {}).items():
+                    if ext_data.get("preinstall", False):
+                        extensions.append(
+                            {
+                                "id": ext_id,
+                                "name": ext_data.get("name", ext_id),
+                                "description": ext_data.get("description", ""),
+                                "commands": ext_data.get("commands", []),
+                            }
+                        )
+                break
+            except Exception:
+                continue
+
+    return extensions
+
+
+def install_bundled_presets(
+    project_path: Path, selected_ai: str, tracker: StepTracker | None = None
+) -> None:
+    """Install bundled presets that ship with spec-kit.
+
+    Looks for presets in the following locations (in order):
+    1. Package's bundled_presets/ (installed with pip/uv)
+    2. Repository's presets/ directory (for development)
+
+    The agentic-sdlc preset is installed with priority 1 (highest precedence)
+    to ensure fork-specific templates and commands override core ones.
+
+    Args:
+        project_path: Target project directory
+        selected_ai: Selected AI assistant (for command registration)
+        tracker: Optional progress tracker
+    """
+    from .presets import PresetManager, PresetError
+
+    # Try multiple locations for bundled presets (in priority order)
+    bundled_presets_dir = None
+    search_paths = [
+        Path(__file__).parent / "bundled_presets",
+        Path(__file__).parent.parent.parent / "presets",
+    ]
+
+    for preset_path in search_paths:
+        if preset_path.exists():
+            # Check if any preset.yml exists in subdirectories
+            has_presets = any(
+                (preset_path / d / "preset.yml").exists()
+                for d in preset_path.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if has_presets:
+                bundled_presets_dir = preset_path
+                break
+
+    if not bundled_presets_dir:
+        if tracker:
+            tracker.skip("presets", "bundled presets not found")
+        return
+
+    # Find presets to install (all subdirs with preset.yml)
+    bundled_presets = [
+        d.name
+        for d in bundled_presets_dir.iterdir()
+        if d.is_dir() and not d.name.startswith(".") and (d / "preset.yml").exists()
+    ]
+
+    if not bundled_presets:
+        if tracker:
+            tracker.skip("presets", "no presets to install")
+        return
+
+    manager = PresetManager(project_path)
+    speckit_version = get_speckit_version()
+
+    installed = []
+    skipped = []
+
+    for preset_name in bundled_presets:
+        preset_dir = bundled_presets_dir / preset_name
+        if not preset_dir.exists() or not (preset_dir / "preset.yml").exists():
+            skipped.append(f"{preset_name} (not found)")
+            continue
+
+        try:
+            # Check if already installed
+            if manager.registry.is_installed(preset_name):
+                skipped.append(f"{preset_name} (existing)")
+                continue
+
+            # Install from bundled directory
+            manager.install_from_directory(preset_dir, speckit_version)
+            installed.append(preset_name)
+        except PresetError as e:
+            skipped.append(f"{preset_name} ({str(e)[:30]})")
+        except Exception as e:
+            skipped.append(f"{preset_name} ({str(e)[:40]})")
+
+    # Report results
+    if tracker:
+        if installed:
+            tracker.complete("presets", f"{', '.join(installed)}")
+        elif skipped:
+            tracker.skip("presets", f"{', '.join(skipped)}")
+        else:
+            tracker.skip("presets", "none available")
 
 
 # ===== Integration Commands =====

@@ -363,10 +363,13 @@ class TomlIntegrationTests:
         files.append(".specify/memory/constitution.md")
         return sorted(files)
 
-    def test_complete_file_inventory_sh(self, tmp_path):
+    def test_complete_file_inventory_sh(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration <key> --script sh."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / f"inventory-sh-{self.KEY}"
         project.mkdir()
@@ -399,10 +402,13 @@ class TomlIntegrationTests:
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
 
-    def test_complete_file_inventory_ps(self, tmp_path):
+    def test_complete_file_inventory_ps(self, tmp_path, monkeypatch):
         """Every file produced by specify init --integration <key> --script ps."""
         from typer.testing import CliRunner
         from specify_cli import app
+
+        # Skip bundled extensions/presets to get deterministic file inventory
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / f"inventory-ps-{self.KEY}"
         project.mkdir()
