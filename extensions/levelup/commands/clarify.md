@@ -1,5 +1,5 @@
 ---
-description: Resolve ambiguities in discovered/proposed CDRs through clarifying questions
+description: Resolve ambiguities in discovered/proposed CDRs through quick decisions and targeted clarification
 handoffs:
   - label: Refine from Feature Context
     agent: adlc.levelup.specify
@@ -35,39 +35,26 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Resolve ambiguities in discovered or proposed CDRs through **clarifying questions**. Update module statuses based on answers.
+Resolve ambiguities in discovered or proposed CDRs through **quick decisions and targeted clarification**. This is the hybrid approach: batch overview, action picker, and conditional questions only when needed.
 
 **Input**: CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` with status "Discovered" or "Proposed"
 
 **Output**: Updated CDRs with refined content and new statuses in `.specify/drafts/cdr.md`
 
-**Key Concept**:
-
-This command is the "Context Validator" - it validates and refines CDR assumptions, similar to how `/architect.clarify` validates ADRs.
-
 ## Role & Context
 
 You are acting as a **Context Validator** reviewing discovered patterns. Your role involves:
 
-- **Validating** that discovered patterns are still relevant
-- **Clarifying** pattern scope (team-wide vs project-specific)
-- **Checking** against existing team-ai-directives for overlap
-- **Prioritizing** patterns by value and impact
-- **Refining** CDR content based on answers
+- **Presenting** a clear overview of all pending CDRs
+- **Guiding** users to quick decisions (Accept/Reject/Defer/Investigate/Split)
+- **Clarifying** only when needed (Investigate triggers follow-up questions)
+- **Validating** rule CDRs against existing rules when appropriate
 
-### Clarification Categories
-
-| Category | Questions to Ask |
-|----------|------------------|
-| **Validity** | Is this pattern still actively used? Has it been deprecated? |
-| **Scope** | Is this team-wide or project-specific? Should other projects use this? |
-| **Coverage** | Does team-ai-directives already cover this? Is this an enhancement? |
-| **Priority** | Is this high-value or nice-to-have? What's the impact? |
-| **Content** | Is the proposed content accurate? What's missing? |
+---
 
 ## Execution Steps
 
-### Phase 0: Environment Setup
+### Phase 1: Environment Setup
 
 **Objective**: Initialize CDR infrastructure and resolve paths
 
@@ -82,180 +69,209 @@ Run `{SCRIPT}` from repository root and parse JSON output:
 }
 ```
 
-**IMPORTANT**: Run this script only ONCE. Use the JSON output to get all paths.
+### Phase 2: Load Pending CDRs
 
-### Phase 1: Validate Environment
+**Objective**: Load CDRs that need clarification
 
-**Objective**: Ensure team-ai-directives is configured
+Read `{REPO_ROOT}/.specify/drafts/cdr.md` and filter:
 
-#### Step 1: Verify Team Directives
-
-Check if TEAM_DIRECTIVES has a value from script output.
-
-If empty, **STOP**:
-```
-Team AI directives repository not configured.
-Run: specify init --team-ai-directives <path-or-url>
-Or set: export SPECIFY_TEAM_DIRECTIVES=/path/to/team-ai-directives
-```
-
-### Phase 2: Load Current State
-
-**Objective**: Load CDRs and team-ai-directives for validation
-
-#### Step 1: Load CDRs
-
-Read `{REPO_ROOT}/.specify/drafts/cdr.md` and parse all CDRs.
-
-Filter modules by status:
-- **Primary**: Status = "Discovered" or "Proposed"
+- **Include**: Status = "Discovered" or "Proposed"
 - **Skip**: Status = "Accepted", "Rejected", "Deprecated"
 
 If user specified specific module IDs, filter to those.
 
-#### Step 2: Load Team Directives
+### Phase 3: CDR Batch Overview
 
-If `TEAM_DIRECTIVES` has a value, load existing team-ai-directives for comparison:
-- `context_modules/constitution.md`
-- `context_modules/rules/**/*.md`
-- `context_modules/personas/*.md`
-- `context_modules/examples/**/*.md`
-- `skills/**/*`
+**Objective**: Present all pending CDRs in a summary table
 
-### Phase 3: Clarification Loop
+Show a clear table with key info:
 
-**Objective**: Ask clarifying questions for each CDR
+```markdown
+## Pending CDRs for Clarification
 
-For each CDR to clarify:
+**Total**: {N} CDRs to review
 
-#### Question Set 1: Pattern Validity
+| # | CDR | Type | Target Module | Source |
+|---|-----|------|---------------|--------|
+| 1 | CDR-001 | Rule | rules/python/error-handling | Discovered |
+| 2 | CDR-002 | Skill | skills/validation | Proposed |
+| 3 | CDR-003 | Example | examples/api/clients | Discovered |
+```
+
+### Phase 4: Quick Decision Loop
+
+**Objective**: Process each CDR with action picker
+
+For each pending CDR, present the **5 Action Options**:
 
 ```markdown
 ## CDR-{ID}: {Title}
 
 **Context Type**: {type}
 **Target Module**: {target}
+**Current Status**: {status}
 
-### Validity Questions
+### Choose Action
 
-1. **Is this pattern still actively used in the codebase?**
-   - [ ] Yes, actively used
-   - [ ] Partially used (some areas)
-   - [ ] Deprecated/outdated
-   - [ ] Unknown - needs investigation
+| # | Action | Description | Follow-up? |
+|---|--------|-------------|------------|
+| 1 | **Accept** | Approve for implementation | No |
+| 2 | **Reject** | Decline with reason | No |
+| 3 | **Defer** | Skip for now, keep pending | No |
+| 4 | **Investigate** | Need clarification | YES |
+| 5 | **Split** | Multiple concerns | YES |
 
-2. **Has this pattern proven effective?**
-   - [ ] Yes, with evidence (tests, production success)
-   - [ ] Mostly, with some issues
-   - [ ] Too new to evaluate
-   - [ ] No, has known problems
+**Your choice** (1-5): _
 ```
 
-#### Question Set 2: Scope Assessment
+#### Action 1: Accept (No Questions)
+
+Directly update status to **Accepted**:
 
 ```markdown
-### Scope Questions
+### Decision: Accept
 
-3. **Should this pattern be adopted team-wide?**
-   - [ ] Yes, all projects should use this
-   - [ ] Yes, for projects with similar tech stack
-   - [ ] Maybe, needs more evaluation
-   - [ ] No, this is project-specific
+**Status**: Discovered → **Accepted**
 
-4. **What's the learning curve for other teams?**
-   - [ ] Low - easy to adopt
-   - [ ] Medium - requires some documentation
-   - [ ] High - requires training/support
+Added to accepted list for `/levelup.implement`
 ```
 
-#### Question Set 3: Coverage Check
+#### Action 2: Reject (No Questions)
+
+Reject with a reason picker:
 
 ```markdown
-### Coverage Questions
+### Decision: Reject
 
-5. **Does team-ai-directives already address this?**
-   - [ ] No, this is new
-   - [ ] Partially - this would enhance existing content
-   - [ ] Yes, but from a different angle
-   - [ ] Yes, this is a duplicate
+**Select Reason**:
+- [ ] Project-specific (not team-wide)
+- [ ] Deprecated/outdated pattern
+- [ ] Duplicate of existing directive
+- [ ] Out of scope for team-ai-directives
+- [ ] Other: {specify}
 
-6. **If enhancement, what existing content does it build on?**
-   - Reference: {existing directive path}
+**Status**: {status} → **Rejected**
 ```
 
-#### Question Set 4: Priority Assessment
+#### Action 3: Defer (No Questions)
+
+Skip this CDR, keep it pending:
 
 ```markdown
-### Priority Questions
+### Decision: Defer
 
-7. **What's the impact of adding this to team-ai-directives?**
-   - [ ] High - significantly improves team consistency
-   - [ ] Medium - useful addition
-   - [ ] Low - nice to have
+CDR kept as {status}, will appear in next clarify session.
 
-8. **What's the urgency?**
-   - [ ] High - needed for upcoming projects
-   - [ ] Medium - beneficial soon
-   - [ ] Low - can wait
+**Reason** (optional):
+- [ ] Need more context
+- [ ] Waiting on team decision
+- [ ] Low priority
+- [ ] Other: {specify}
 ```
 
-#### Question Set 5: Content Review
+#### Action 4: Investigate (Follow-up Questions)
+
+**Only ask targeted questions** based on context type:
+
+**For Rule CDRs** (conflict check):
 
 ```markdown
-### Content Review
+### Investigate: Rule CDR
 
-Current proposed content:
+1. **Does this rule conflict with existing rules or constitution?**
+   - [ ] No conflicts detected → Skip to question 3
+   - [ ] Need to check → Offer `/levelup.validate`
 
-\`\`\`markdown
-{proposed_content}
-\`\`\`
+2. **If conflict found, what's the severity?**
+   - [ ] CRITICAL - Direct contradiction (must vs never)
+   - [ ] ERROR - Logical impossibility
+   - [ ] WARNING - Exception conflict
+   - [ ] INFO - Scope overlap
 
-9. **Is this content accurate and complete?**
-   - [ ] Yes, ready to use
-   - [ ] Needs minor edits
-   - [ ] Needs significant revision
-   - [ ] Needs complete rewrite
-
-10. **What changes are needed?**
-    - {user input for changes}
+3. **What needs clarification?**
+   - [ ] Scope (team-wide vs project-specific)
+   - [ ] Priority (high vs low impact)
+   - [ ] Content (accuracy/completeness)
+   - [ ] All of the above
 ```
 
-### Phase 4: Process Answers
+**For Skill CDRs** (skill type check):
 
-**Objective**: Update CDRs based on clarification answers
+```markdown
+### Investigate: Skill CDR
+
+1. **What's the Skill Type?** (see taxonomy)
+   - [ ] Library & API Reference
+   - [ ] Product Verification
+   - [ ] Data Fetching & Analysis
+   - [ ] Business Process Automation
+   - [ ] Code Scaffolding & Templates
+   - [ ] Code Quality & Review
+   - [ ] CI/CD & Deployment
+   - [ ] Runbooks
+   - [ ] Infrastructure Operations
+
+2. **What needs clarification?**
+   - [ ] Trigger keywords
+   - [ ] Priority
+   - [ ] All of the above
+```
+
+**For Other CDRs** (generic):
+
+```markdown
+### Investigate: {Type} CDR
+
+1. **What needs clarification?**
+   - [ ] Scope (team-wide vs project-specific)
+   - [ ] Priority (high vs low impact)
+   - [ ] Coverage (new vs enhancement)
+   - [ ] Content (accuracy/completeness)
+   - [ ] All of the above
+
+2. **Describe what needs work**:
+   _{free text response}_
+```
+
+#### Action 5: Split (Follow-up Questions)
+
+```markdown
+### Split: Multiple Concerns
+
+This CDR covers multiple concerns. How to split?
+
+1. **Split Option**:
+   - [ ] Split into separate CDRs (create new ones)
+   - [ ] Keep one, reject others (focus on primary)
+   - [ ] Merge with existing CDR (if duplicate)
+
+2. **Identify concerns**:
+   _{list each concern}_
+```
+
+### Phase 5: Process Answers & Update Status
+
+**Objective**: Map actions to statuses and update CDRs
 
 #### Status Determination Logic
 
-Based on answers, determine new status:
+| Action | New Status | Notes |
+|--------|------------|-------|
+| Accept | **Accepted** | Ready for `/levelup.implement` |
+| Reject | **Rejected** | Reason documented |
+| Defer | Keep as-is | Remains "Discovered" or "Proposed" |
+| Investigate → No issues found | **Accepted** | After clarification |
+| Investigate → Issues found | **Proposed** | Content updated, needs re-review |
+| Split → Accepted parts | **Accepted** | Split content |
+| Split → Rejected parts | **Rejected** | Split content |
 
-| Condition | New Status |
-|-----------|------------|
-| Valid + Team-wide + High/Medium priority + Content OK | **Accepted** |
-| Valid + Team-wide + Needs content revision | **Proposed** (update content) |
-| Valid but project-specific | **Rejected** (reason: project-specific) |
-| Deprecated/outdated | **Rejected** (reason: outdated) |
-| Duplicate of existing | **Rejected** (reason: duplicate) |
-| Needs more investigation | **Proposed** (flag for follow-up) |
+### Phase 6: Update CDR File
 
-#### Content Updates
+**Objective**: Write all updates to `.specify/drafts/cdr.md`
 
-If content needs revision:
-
-1. Incorporate user feedback
-2. Update proposed content in CDR
-3. Keep status as "Proposed" for another review cycle
-
-### Phase 5: Update Modules
-
-**Objective**: Write updated CDRs to `.specify/drafts/cdr.md`
-
-#### Step 1: Update CDR File
-
-Update `{REPO_ROOT}/.specify/drafts/cdr.md` for each clarified CDR:
-
-1. Update status in the CDR index table
-2. Add or update content if revised
-3. Add clarification metadata in the CDR section:
+1. Update status in CDR index table
+2. Add clarification metadata to each CDR section
+3. For "Investigate" actions, capture the clarification answers
 
 ```markdown
 ### CDR-{ID}: {Title}
@@ -267,13 +283,13 @@ Update `{REPO_ROOT}/.specify/drafts/cdr.md` for each clarified CDR:
 ### Clarification
 
 - **Date**: {YYYY-MM-DD}
-- **Validation**: {validity answer}
-- **Scope**: {scope answer}
-- **Priority**: {priority answer}
-- **Changes**: {list of changes}
+- **Action**: {Accept|Reject|Defer|Investigate|Split}
+- **Clarification Answers** (if applicable):
+  - {answer 1}
+  - {answer 2}
 ```
 
-### Phase 6: Summary
+### Phase 7: Summary
 
 **Objective**: Present clarification results
 
@@ -281,42 +297,70 @@ Update `{REPO_ROOT}/.specify/drafts/cdr.md` for each clarified CDR:
 ## LevelUp Clarify Summary
 
 **Date**: {date}
-**CDRs Reviewed**: {N}
+**Total CDRs Reviewed**: {N}
 
-### Status Changes
+### Results
 
-| CDR | Previous | New | Reason |
-|-----|----------|-----|--------|
-| CDR-001 | Discovered | Accepted | Valid, team-wide, high priority |
-| CDR-002 | Discovered | Rejected | Project-specific |
-| CDR-003 | Proposed | Proposed | Content revised, needs re-review |
+| Action | Count |
+|--------|-------|
+| Accepted | {n} |
+| Rejected | {n} |
+| Deferred | {n} |
+| Needs Re-review | {n} |
 
-### Accepted CDRs (Ready for Implementation)
+### Accepted (Ready for Implementation)
 
 | CDR | Target Module | Type |
 |-----|---------------|------|
 | CDR-001 | rules/python/error-handling | Rule |
+| CDR-002 | skills/validation | Skill |
 
-### Rejected CDRs
+### Rejected
 
 | CDR | Reason |
 |-----|--------|
-| CDR-002 | Project-specific, not team-wide |
+| CDR-003 | Project-specific |
 
-### Pending CDRs (Need More Work)
+### Pending (Need Another Pass)
 
-| CDR | Issue |
-|-----|-------|
-| CDR-003 | Content revised, needs re-review |
+| CDR | Action Needed |
+|-----|--------------|
+| CDR-004 | Re-review after content update |
 
 ### Next Steps
 
-1. **Accepted CDRs**: Run `/levelup.implement` to create PR
-2. **Pending CDRs**: Run `/levelup.clarify` again after revisions
-3. **Build Skills**: Run `/levelup.skills {topic}` for skill-type CDRs
+1. **Accepted**: Run `/levelup.implement` to create PR
+2. **Needs Re-review**: Edit content, then run `/levelup.clarify` again
+3. **Investigate**: After updates, clarify loop: Run `/levelup.clarify` again
+
+### Clarifying Loop
+
+To re-review any CDR:
+```bash
+/levelup.clarify CDR-{ID}
 ```
 
-### Phase 7: Handoff Options
+This allows another pass after content updates or additional investigation.
+```
+
+### Phase 8: Offer /levelup.validate (Rule CDRs)
+
+**Objective**: Offer conflict validation when investigating rule CDRs
+
+After question 1 in "Investigate" for rule types:
+
+```markdown
+### Conflict Check Offer
+
+Would you like to run `/levelup.validate` to check for rule conflicts?
+
+- [ ] Yes, check now → Run `/levelup.validate` first, then continue
+- [ ] No, skip → Continue with manual check
+
+Note: `/levelup.validate` scans all rules for conflicts with constitution and each other.
+```
+
+### Phase 9: Handoff Options
 
 Present manual handoff options:
 
@@ -338,6 +382,8 @@ Run `/levelup.implement` to:
 - Submit to team-ai-directives
 ```
 
+---
+
 ## Output Files
 
 | File | Description |
@@ -346,15 +392,17 @@ Run `/levelup.implement` to:
 
 ## Notes
 
-- Only CDRs with status "Discovered" or "Proposed" are clarified
-- Accepted CDRs (status "Accepted") are ready for `/levelup.implement`
-- Rejected CDRs can be removed or kept with status "Deprecated"
-- Content can be revised multiple times before acceptance
+- **Batch first**: Always show overview table before individual decisions
+- **Quick decisions**: 5 actions replace 13 questions
+- **Conditional questions**: Only ask when user chooses "Investigate" or "Split"
+- **Clarifying loop**: Run `/levelup.clarify` again after content updates to re-review
+- **Conflict check**: Offer `/levelup.validate` for rule CDRs
 - No automatic handoff - user decides next step
 
 ## Related Commands
 
 - `/levelup.init` - Discover CDRs from codebase
+- `/levelup.validate` - Check for rule conflicts (offered during clarify)
 - `/levelup.specify` - Refine CDRs from feature context
 - `/levelup.skills` - Build skills from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives

@@ -32,6 +32,22 @@ YYYY-MM-DD
 
 Rule | Persona | Example | Constitution Amendment | Skill
 
+### Skill Type
+
+**Required if Context Type = Skill** (based on Anthropic's Skill Types Taxonomy from "Lessons from Building Claude Code: How We Use Skills")
+
+| Type | Purpose | Example Triggers |
+|------|---------|------------------|
+| **Library & API Reference** | Documentation and API usage guidance | "how do I use X library", "API for Y service" |
+| **Product Verification** | Testing and validation of product behavior | "verify product", "check behavior", "validate output" |
+| **Data Fetching & Analysis** | Data retrieval and processing | "fetch data", "analyze logs", "query database" |
+| **Business Process Automation** | Workflow and business process automation | "automate process", "workflow", "orchestrate" |
+| **Code Scaffolding & Templates** | Project and code generation | "create project", "scaffold", "generate boilerplate" |
+| **Code Quality & Review** | Code review and quality improvement | "review code", "quality check", "refactor" |
+| **CI/CD & Deployment** | Build, test, and deployment pipelines | "deploy", "CI/CD pipeline", "build artifact" |
+| **Runbooks** | Operational procedures and troubleshooting | "troubleshoot", "runbook", "incident response" |
+| **Infrastructure Operations** | Infrastructure as Code and provisioning | "provision", "infrastructure", "terraform", "kubernetes" |
+
 ### Instruction Type
 
 **Required if Context Type = Skill** (based on "Encoding Team Standards" article)
@@ -218,6 +234,7 @@ Links to code, commits, or discussions that support this CDR:
 - Self-contained capabilities with trigger keywords
 - Include SKILL.md with clear activation criteria
 - Provide references and supporting content
+- **Skill Type**: Classify using 9-category taxonomy (see Skill Type section above)
 
 ---
 
