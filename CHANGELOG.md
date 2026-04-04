@@ -5,6 +5,17 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.5] - 2026-04-04
+
+### Changed
+
+- **Full tikalk theming restored**: Converted all `[cyan]` color markup to use `ACCENT_COLOR` (#f47721 tikalk orange) for consistent branding across:
+  - Selection menus (table columns, key highlighting, panel borders)
+  - Init messages (git, JSON merge, permissions, constitution)
+  - Setup and Next Steps panels (titles, borders, all commands)
+  - Integration/preset/extension commands (install, list, info hints)
+  - Error recovery suggestions and security notices
+
 ## [0.3.4] - 2026-04-04
 
 ### Fixed
