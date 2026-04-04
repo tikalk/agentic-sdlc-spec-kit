@@ -5,6 +5,13 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.4] - 2026-04-04
+
+### Fixed
+
+- **Extension command patterns**: Allow `adlc.` prefix in addition to `speckit.` for extension command names
+- **Extension alias patterns**: Allow shorter `{extension}.{command}` format for aliases (e.g., `architect.init`)
+
 ## [0.3.3] - 2026-04-04
 
 ### Fixed
