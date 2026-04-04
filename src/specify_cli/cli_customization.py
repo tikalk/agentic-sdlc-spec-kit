@@ -18,6 +18,14 @@ All customization logic lives here and doesn't conflict with upstream.
 
 from __future__ import annotations
 
+import json
+import os
+import shutil
+from pathlib import Path
+from typing import Any
+
+from rich.console import Console
+
 # ============================================================================
 # THEMING
 # ============================================================================
@@ -128,14 +136,6 @@ TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 # ============================================================================
 # INIT HOOKS - Tikalk-specific pre/post init callbacks
 # ============================================================================
-
-import json
-import os
-import shutil
-from pathlib import Path
-from typing import Any
-
-from rich.console import Console
 
 console = Console()
 
@@ -279,8 +279,7 @@ def _install_bundled_extensions(
     tracker: Any = None,
 ) -> None:
     """Install bundled extensions with scaffolding support."""
-    from .extensions import ExtensionError, ExtensionManager
-    from . import get_speckit_version
+    from .extensions import ExtensionManager
 
     project_extensions_dir = project_path / ".specify" / "extensions"
 
@@ -364,7 +363,6 @@ def _install_bundled_extensions(
 
     if bundled_extensions:
         manager = ExtensionManager(project_path)
-        speckit_version = get_speckit_version()
         registry = manager.registry
 
     installed = []
@@ -422,8 +420,7 @@ def _install_bundled_presets(
     tracker: Any = None,
 ) -> None:
     """Install bundled presets with scaffolding support."""
-    from .presets import PresetError, PresetManager
-    from . import get_speckit_version
+    from .presets import PresetManager
 
     project_presets_dir = project_path / ".specify" / "presets"
 
