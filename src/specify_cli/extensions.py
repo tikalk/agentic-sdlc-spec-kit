@@ -38,7 +38,11 @@ _FALLBACK_CORE_COMMAND_NAMES = frozenset(
         "taskstoissues",
     }
 )
-EXTENSION_COMMAND_NAME_PATTERN = re.compile(r"^speckit\.([a-z0-9-]+)\.([a-z0-9-]+)$")
+EXTENSION_COMMAND_NAME_PATTERN = re.compile(
+    r"^(?:speckit|adlc)\.([a-z0-9-]+)\.([a-z0-9-]+)$"
+)
+# Aliases can use shorter form: {extension}.{command} (without speckit/adlc prefix)
+EXTENSION_ALIAS_NAME_PATTERN = re.compile(r"^([a-z0-9-]+)\.([a-z0-9-]+)$")
 
 
 def _load_core_command_names() -> frozenset[str]:
@@ -535,14 +539,25 @@ class ExtensionManager:
                         f"{kind.capitalize()} for command '{primary_name}' must be a string"
                     )
 
-                match = EXTENSION_COMMAND_NAME_PATTERN.match(name)
-                if match is None:
-                    raise ValidationError(
-                        f"Invalid {kind} '{name}': "
-                        "must follow pattern 'speckit.{extension}.{command}'"
-                    )
+                # Use different pattern for commands vs aliases
+                if kind == "command":
+                    match = EXTENSION_COMMAND_NAME_PATTERN.match(name)
+                    if match is None:
+                        raise ValidationError(
+                            f"Invalid {kind} '{name}': "
+                            "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                        )
+                    namespace = match.group(1)
+                else:
+                    # Aliases can use shorter form: {extension}.{command}
+                    match = EXTENSION_ALIAS_NAME_PATTERN.match(name)
+                    if match is None:
+                        raise ValidationError(
+                            f"Invalid {kind} '{name}': "
+                            "must follow pattern '{extension}.{command}'"
+                        )
+                    namespace = match.group(1)
 
-                namespace = match.group(1)
                 if namespace != manifest.id:
                     raise ValidationError(
                         f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
