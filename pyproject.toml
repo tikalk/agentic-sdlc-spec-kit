@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.3.9"
+version = "0.3.10"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
@@ -32,6 +32,7 @@ packages = ["src/specify_cli"]
 "extensions/architect" = "specify_cli/bundled_extensions/architect"
 "extensions/quick" = "specify_cli/bundled_extensions/quick"
 "extensions/product" = "specify_cli/bundled_extensions/product"
+"extensions/tdd" = "specify_cli/bundled_extensions/tdd"
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
 # Core pack assets for offline/air-gapped scaffolding
 "templates/agent-file-template.md" = "specify_cli/core_pack/templates/agent-file-template.md"
@@ -52,6 +53,7 @@ include = [
     "extensions/architect/",
     "extensions/quick/",
     "extensions/product/",
+    "extensions/tdd/",
     "presets/agentic-sdlc/",
 ]
 

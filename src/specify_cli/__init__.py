@@ -1101,6 +1101,11 @@ def init(
         "--integration-options",
         help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
     ),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        help="Path or URL to team-ai-directives repository (local path or git URL)",
+    ),
 ):
     """
     Initialize a new Specify project.
@@ -1398,6 +1403,7 @@ def init(
 
     tracker.add("integration", "Install integration")
     tracker.add("shared-infra", "Install shared infrastructure")
+    tracker.add("team-directives", "Sync team AI directives")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
@@ -1558,6 +1564,32 @@ def init(
             else:
                 tracker.skip("extensions", "skipped (SPECKIT_SKIP_BUNDLED)")
                 tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
+
+            # Sync team AI directives if --team-ai-directives was provided
+            tracker.start("team-directives")
+            if team_ai_directives:
+                try:
+                    status, directives_path = sync_team_ai_directives(
+                        team_ai_directives, project_path
+                    )
+                    if status == "cloned":
+                        tracker.complete(
+                            "team-directives", f"cloned to {directives_path}"
+                        )
+                    elif status == "updated":
+                        tracker.complete(
+                            "team-directives", f"updated at {directives_path}"
+                        )
+                    elif status == "local":
+                        tracker.complete("team-directives", f"local: {directives_path}")
+                    os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
+                except Exception as e:
+                    tracker.error("team-directives", str(e))
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {e}"
+                    )
+            else:
+                tracker.skip("team-directives", "not specified")
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
