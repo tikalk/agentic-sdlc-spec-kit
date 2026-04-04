@@ -4,6 +4,7 @@
 [CmdletBinding()]
 param(
     [switch]$Json,
+    [switch]$DryRun,
     [switch]$AllowExistingBranch,
     [string]$ShortName,
     [Parameter()]
@@ -51,10 +52,11 @@ function Get-GlobalConfigPath {
 
 # Show help if requested
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
+    Write-Host "  -DryRun             Compute branch name and paths without creating branches, directories, or files"
     Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
@@ -278,46 +280,50 @@ if ($branchName.Length -gt $maxBranchLength) {
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
 
-if ($hasGit) {
-    $branchCreated = $false
-    try {
-        git checkout -q -b $branchName 2>$null | Out-Null
-        if ($LASTEXITCODE -eq 0) {
-            $branchCreated = $true
+if (-not $DryRun) {
+    if ($hasGit) {
+        $branchCreated = $false
+        try {
+            git checkout -q -b $branchName 2>$null | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                $branchCreated = $true
+            }
+        } catch {
+            # Exception during git command
         }
-    } catch {
-        # Exception during git command
-    }
 
-    if (-not $branchCreated) {
-        # Check if branch already exists
-        $existingBranch = git branch --list $branchName 2>$null
-        if ($existingBranch) {
-            if ($AllowExistingBranch) {
-                # Switch to the existing branch instead of failing
-                git checkout -q $branchName 2>$null | Out-Null
-                if ($LASTEXITCODE -ne 0) {
-                    Write-Error "Error: Branch '$branchName' exists but could not be checked out. Resolve any uncommitted changes or conflicts and try again."
+        if (-not $branchCreated) {
+            # Check if branch already exists
+            $existingBranch = git branch --list $branchName 2>$null
+            if ($existingBranch) {
+                if ($AllowExistingBranch) {
+                    # Switch to the existing branch instead of failing
+                    git checkout -q $branchName 2>$null | Out-Null
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Error "Error: Branch '$branchName' exists but could not be checked out. Resolve any uncommitted changes or conflicts and try again."
+                        exit 1
+                    }
+                } elseif ($Timestamp) {
+                    Write-Error "Error: Branch '$branchName' already exists. Rerun to get a new timestamp or use a different -ShortName."
+                    exit 1
+                } else {
+                    Write-Error "Error: Branch '$branchName' already exists. Please use a different feature name or specify a different number with -Number."
                     exit 1
                 }
-            } elseif ($Timestamp) {
-                Write-Error "Error: Branch '$branchName' already exists. Rerun to get a new timestamp or use a different -ShortName."
-                exit 1
             } else {
-                Write-Error "Error: Branch '$branchName' already exists. Please use a different feature name or specify a different number with -Number."
+                Write-Error "Error: Failed to create git branch '$branchName'. Please check your git configuration and try again."
                 exit 1
             }
-        } else {
-            Write-Error "Error: Failed to create git branch '$branchName'. Please check your git configuration and try again."
-            exit 1
         }
+    } else {
+        Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
     }
-} else {
-    Write-Warning "[specify] Warning: Git repository not detected; skipped branch creation for $branchName"
 }
 
 $featureDir = Join-Path $specsDir $branchName
-New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
+}
  
  # Function to replace [DATE] placeholders with current date in ISO format (YYYY-MM-DD)
 function Replace-DatePlaceholders {
@@ -334,26 +340,28 @@ function Replace-DatePlaceholders {
 # Use default template (tikalk customization with framework options)
 $template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
 $specFile = Join-Path $featureDir 'spec.md'
-if (-not (Test-Path -PathType Leaf $specFile)) {
-    if ($template -and (Test-Path $template)) {
-        Copy-Item $template $specFile -Force
-    } else {
-        New-Item -ItemType File -Path $specFile | Out-Null
+if (-not $DryRun) {
+    if (-not (Test-Path -PathType Leaf $specFile)) {
+        if ($template -and (Test-Path $template)) {
+            Copy-Item $template $specFile -Force
+        } else {
+            New-Item -ItemType File -Path $specFile | Out-Null
+        }
     }
-}
 
-# Replace [DATE] placeholders with current date
-Replace-DatePlaceholders -FilePath $specFile
+    # Replace [DATE] placeholders with current date
+    Replace-DatePlaceholders -FilePath $specFile
 
-# Replace metadata placeholders with actual values (tikalk customization)
-if (Test-Path $specFile) {
-    $content = Get-Content -Path $specFile -Raw
-    
-    # Replace framework options metadata
-    $frameworkOptions = "  contracts=$($ContractsVal.ToString().ToLower()),`n  data_models=$($DataModelsVal.ToString().ToLower())"
-    $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**:`n$frameworkOptions"
-    
-    Set-Content -Path $specFile -Value $content -NoNewline
+    # Replace metadata placeholders with actual values (tikalk customization)
+    if (Test-Path $specFile) {
+        $content = Get-Content -Path $specFile -Raw
+        
+        # Replace framework options metadata
+        $frameworkOptions = "  contracts=$($ContractsVal.ToString().ToLower()),`n  data_models=$($DataModelsVal.ToString().ToLower())"
+        $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**:`n$frameworkOptions"
+        
+        Set-Content -Path $specFile -Value $content -NoNewline
+    }
 }
 
 # Function to populate context.md with defaults (tikalk customization)
@@ -417,14 +425,16 @@ function Populate-ContextFile {
 # Populate context.md with defaults (tikalk customization)
 $contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
 $contextFile = Join-Path $featureDir 'context.md'
-if (Test-Path $contextTemplate) {
-    Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
-} else {
-    New-Item -ItemType File -Path $contextFile | Out-Null
-}
+if (-not $DryRun) {
+    if (Test-Path $contextTemplate) {
+        Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
+    } else {
+        New-Item -ItemType File -Path $contextFile | Out-Null
+    }
 
-# Set the SPECIFY_FEATURE environment variable for the current session
-$env:SPECIFY_FEATURE = $branchName
+    # Set the SPECIFY_FEATURE environment variable for the current session
+    $env:SPECIFY_FEATURE = $branchName
+}
 
 # AI Discovery - Run discovery before JSON output
 if ($env:SPECIFY_TEAM_DIRECTIVES) {
@@ -444,11 +454,16 @@ if ($Json) {
         DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
         DISCOVERED_SKILLS = $DISCOVERED_SKILLS
     }
+    if ($DryRun) {
+        $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
+    }
     $obj | ConvertTo-Json -Compress
 } else {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "SPEC_FILE: $specFile"
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
-    Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
+    if (-not $DryRun) {
+        Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
+    }
 }
