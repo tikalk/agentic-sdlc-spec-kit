@@ -38,11 +38,22 @@ _FALLBACK_CORE_COMMAND_NAMES = frozenset(
         "taskstoissues",
     }
 )
+# Get namespaces from customization module (supports speckit and adlc)
+try:
+    from .cli_customization import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+except ImportError:
+    EXTENSION_NAMESPACES = ["speckit"]
+    EXTENSION_ALIAS_PATTERN_ENABLED = False
+
 EXTENSION_COMMAND_NAME_PATTERN = re.compile(
-    r"^(?:speckit|adlc)\.([a-z0-9-]+)\.([a-z0-9-]+)$"
+    rf"^(?:{'|'.join(EXTENSION_NAMESPACES)})\.([a-z0-9-]+)\.([a-z0-9-]+)$"
 )
+
 # Aliases can use shorter form: {extension}.{command} (without speckit/adlc prefix)
-EXTENSION_ALIAS_NAME_PATTERN = re.compile(r"^([a-z0-9-]+)\.([a-z0-9-]+)$")
+if EXTENSION_ALIAS_PATTERN_ENABLED:
+    EXTENSION_ALIAS_NAME_PATTERN = re.compile(r"^([a-z0-9-]+)\.([a-z0-9-]+)$")
+else:
+    EXTENSION_ALIAS_NAME_PATTERN = None
 
 
 def _load_core_command_names() -> frozenset[str]:

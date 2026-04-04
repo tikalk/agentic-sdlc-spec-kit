@@ -5,6 +5,25 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.11] - 2026-04-04
+
+### Added
+
+- **cli_customization.py**: Isolated all fork customizations into a single module to minimize merge conflicts with upstream
+- **accent() helper**: New function for consistent theming without hardcoding color values
+- **accent_style() helper**: New function for Rich style= parameters
+- **FORK.md**: Documentation for maintaining the fork and merging upstream
+
+### Changed
+
+- **Extension namespace configuration**: Now reads from cli_customization.py for configurable command namespaces
+- **Package name detection**: Uses PKG_NAMES from cli_customization.py (fork package checked first)
+- **Import pattern**: Uses try/except to import customizations with upstream defaults as fallback
+
+### Fixed
+
+- **Extension patterns**: EXTENSION_COMMAND_NAME_PATTERN and EXTENSION_ALIAS_NAME_PATTERN now dynamically built from configuration
+
 ## [0.3.10] - 2026-04-04
 
 ### Added

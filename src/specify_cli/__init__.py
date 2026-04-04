@@ -98,12 +98,36 @@ def _build_ai_assistant_help() -> str:
 
 AI_ASSISTANT_HELP = _build_ai_assistant_help()
 
-# Tikalk theme colors
-ACCENT_COLOR = "#f47721"
-BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]
+# Tikalk fork customizations - import with fallback to upstream defaults
+try:
+    from .cli_customization import (
+        ACCENT_COLOR,
+        BANNER_COLORS,
+        accent,
+        accent_style,
+        TEAM_DIRECTIVES_DIRNAME,
+        PKG_NAMES,
+    )
+except ImportError:
+    # Fallback to upstream defaults if cli_customization.py doesn't exist
+    ACCENT_COLOR = "cyan"
+    BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
 
-# Team directives directory name
-TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+    def accent(
+        text: str, bold: bool = False, italic: bool = False, dim: bool = False
+    ) -> str:
+        style = ACCENT_COLOR
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
+        return f"[{style}]{text}[/]"
+
+    def accent_style() -> str:
+        return ACCENT_COLOR
+
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
@@ -1885,15 +1909,12 @@ preset_catalog_app = typer.Typer(
 preset_app.add_typer(preset_catalog_app, name="catalog")
 
 
-_PKG_NAMES = ("agentic-sdlc-specify-cli", "specify-cli")
-
-
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
     import importlib.metadata
 
-    # Try each package name (tikalk fork uses agentic-sdlc-specify-cli)
-    for pkg_name in _PKG_NAMES:
+    # Try each package name (from cli_customization.py, tikalk fork uses agentic-sdlc-specify-cli)
+    for pkg_name in PKG_NAMES:
         try:
             return importlib.metadata.version(pkg_name)
         except Exception:
