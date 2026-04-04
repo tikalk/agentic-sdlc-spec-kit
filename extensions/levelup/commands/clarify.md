@@ -35,7 +35,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Resolve ambiguities in discovered or proposed CDRs through **quick decisions and targeted clarification**. This is the hybrid approach: batch overview, action picker, and conditional questions only when needed.
+Resolve ambiguities in discovered or proposed CDRs through **system-discovered assessments, recommended actions, and targeted clarification**. This is a hybrid approach: batch overview with auto-assessed gaps, recommended actions, and conditional one-question-at-a-time clarification only when needed.
 
 **Input**: CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` with status "Discovered" or "Proposed"
 
@@ -45,14 +45,42 @@ Resolve ambiguities in discovered or proposed CDRs through **quick decisions and
 
 You are acting as a **Context Validator** reviewing discovered patterns. Your role involves:
 
-- **Presenting** a clear overview of all pending CDRs
+- **Auto-assessing** each CDR for validity, scope, coverage, and priority from code evidence
+- **Presenting** a batch overview with system-recommended actions
 - **Guiding** users to quick decisions (Accept/Reject/Defer/Investigate/Split)
-- **Clarifying** only when needed (Investigate triggers follow-up questions)
+- **Clarifying** one question at a time only when Investigation is needed, with recommended answers
 - **Validating** rule CDRs against existing rules when appropriate
 
 ---
 
 ## Execution Steps
+
+### Phase 0: Pre-Validation
+
+**Objective**: Validate CDR completeness before proceeding
+
+For each pending CDR, check:
+
+1. **Content completeness**: Does the CDR have Context, Decision, and Evidence sections?
+2. **Target module validity**: Is the target module path well-formed?
+3. **Evidence presence**: Does the CDR reference specific code files or snippets?
+
+If any CDR fails pre-validation:
+
+```markdown
+## CDR Pre-Validation Issues
+
+The following CDRs need more information before clarification:
+
+| CDR | Issue | Required |
+|-----|-------|----------|
+| CDR-XXX | Missing Evidence section | Add code references |
+| CDR-YYY | Empty proposed content | Add proposed directive content |
+
+These CDRs will be skipped. Run `/levelup.specify` to add missing context.
+```
+
+Skip invalid CDRs from the clarification session. Proceed with valid CDRs only.
 
 ### Phase 1: Environment Setup
 
@@ -80,47 +108,88 @@ Read `{REPO_ROOT}/.specify/drafts/cdr.md` and filter:
 
 If user specified specific module IDs, filter to those.
 
-### Phase 3: CDR Batch Overview
+### Phase 3: System Auto-Assessment
 
-**Objective**: Present all pending CDRs in a summary table
+**Objective**: Automatically assess each CDR before presenting to user
 
-Show a clear table with key info:
+For each pending CDR, perform automated analysis:
+
+#### Validity Assessment
+Scan the codebase for evidence the pattern is still actively used:
+
+- **Active**: Pattern found in recent code (file modifications, imports, usage)
+- **Partially Active**: Pattern found but limited usage or legacy areas
+- **Unknown**: Cannot determine from code scan alone
+- **Deprecated**: Pattern found in comments only or marked deprecated
+
+Method: Search for key identifiers from the CDR's proposed content (class names, function names, import paths) in the codebase.
+
+#### Scope Assessment
+Determine if the pattern is team-wide or project-specific:
+
+- **Team-wide**: Pattern uses standard frameworks/libraries, applicable across projects
+- **Tech-stack-specific**: Pattern applies to projects using the same technology
+- **Project-specific**: Pattern relies on project-specific business logic or infrastructure
+
+Method: Analyze the CDR's target module path and proposed content for technology-specific vs. generic patterns.
+
+#### Coverage Check (if TEAM_DIRECTIVES exists)
+Check against existing team directives:
+
+- **New**: No overlap with existing directives
+- **Enhancement**: Partially overlaps with existing directive (adds new angle)
+- **Duplicate**: >80% overlap with existing directive
+
+Method: Compare CDR title, target module, and key terms against existing directive filenames and content.
+
+#### Priority Assessment
+Determine impact level:
+
+- **High**: Pattern used across many files/modules, critical to architecture
+- **Medium**: Pattern used in specific areas, useful but not critical
+- **Low**: Pattern is niche or nice-to-have
+
+Method: Count file references in CDR evidence, assess architectural significance.
+
+#### Recommended Action
+Based on the four assessments above, determine a recommended action:
+
+| Validity | Scope | Coverage | Recommended Action |
+|----------|-------|----------|-------------------|
+| Active | Team-wide | New | **Accept** |
+| Active | Team-wide | Enhancement | **Accept** |
+| Active | Tech-stack-specific | New | **Accept** |
+| Active | Project-specific | New | **Reject** (project-specific) |
+| Active | Any | Duplicate | **Reject** (duplicate) |
+| Partially Active | Any | Any | **Investigate** |
+| Unknown | Any | Any | **Investigate** |
+| Deprecated | Any | Any | **Reject** (outdated) |
+
+### Phase 4: Batch Overview with Recommendations
+
+**Objective**: Present all pending CDRs with auto-assessed gaps and recommended actions
+
+Show a clear overview table:
 
 ```markdown
 ## Pending CDRs for Clarification
 
-**Total**: {N} CDRs to review
+**Total**: {N} CDRs to review | **Session limit**: 5 CDRs, 10 questions max
 
-| # | CDR | Type | Target Module | Source |
-|---|-----|------|---------------|--------|
-| 1 | CDR-001 | Rule | rules/python/error-handling | Discovered |
-| 2 | CDR-002 | Skill | skills/validation | Proposed |
-| 3 | CDR-003 | Example | examples/api/clients | Discovered |
+| # | CDR | Type | Target Module | Validity | Scope | Priority | Recommended |
+|---|-----|------|---------------|----------|-------|----------|-------------|
+| 1 | CDR-011 | Rule | rules/python/celery-task-architecture | Active | Team-wide | High | Accept |
+| 2 | CDR-012 | Rule | rules/python/multi-tenant-schema | Active | Tech-stack | High | Accept |
+| 3 | CDR-013 | Example | examples/django/async-viewset-websocket | Active | Team-wide | Medium | Accept |
 ```
 
-### Phase 3.5: Gap Analysis
+### Gap Summary
 
-**Objective**: Identify what needs clarification before asking questions
-
-For each pending CDR, assess:
-
-| Question | Assessment |
-|----------|-------------|
-| **Validity** | Is pattern still actively used? |
-| **Scope** | Team-wide vs project-specific clear? |
-| **Coverage** | Duplicate of existing directive? (if TEAM_DIRECTIVES exists) |
-| **Priority** | High/medium/low impact? |
-
-Generate a gap report:
-
-```markdown
-## CDR Gap Analysis
-
-| CDR | Title | Validity | Scope | Priority | Questions Needed |
-|-----|-------|----------|-------|----------|------------------|
-| CDR-001 | Pydantic Validation | Active | Unclear | High | Scope |
-| CDR-002 | structlog Logging | Active | Team-wide | High | None |
-```
+| CDR | Title | Validity | Scope | Coverage | Priority | Recommended Action |
+|-----|-------|----------|-------|----------|----------|-------------------|
+| CDR-011 | Celery Task Architecture | Active | Team-wide | New | High | **Accept** |
+| CDR-012 | Multi-Tenant Schema | Active | Tech-stack | New | High | **Accept** |
+| CDR-013 | Async ViewSet + WebSocket | Active | Team-wide | New | Medium | **Accept** |
 
 #### Gap Prioritization
 
@@ -129,9 +198,19 @@ Generate a gap report:
 - **MEDIUM**: Content needs minor edits
 - **LOW**: Minor phrasing improvements
 
-### Phase 4: Sequential Clarification
+---
 
-**Objective**: Process ONE CDR at a time with action picker
+**How would you like to proceed?**
+
+- Reply with CDR numbers to process in order (e.g., "1, 2, 3")
+- Reply with "all" to process all CDRs (up to 5 per session)
+- Reply with specific CDR IDs (e.g., "CDR-011 CDR-013")
+
+---
+
+### Phase 5: Sequential Clarification
+
+**Objective**: Process ONE CDR at a time with action picker and recommended defaults
 
 ---
 
@@ -141,6 +220,7 @@ This phase REQUIRES user input at each step. DO NOT:
 - Present multiple CDRs together in a single response
 - Auto-select answers or assume user preference
 - Proceed to next CDR without receiving explicit input
+- Ask more than one question at a time during investigation
 
 If running non-interactively, use bulk actions (see below).
 
@@ -149,8 +229,9 @@ If running non-interactively, use bulk actions (see below).
 #### Session Limits
 
 - Maximum **5 CDRs** per session
-- Maximum **10 questions** total (if investigating)
-- Show remaining count when limit reached
+- Maximum **3 questions per CDR** (during investigation)
+- Maximum **10 questions total** across all CDRs in session
+- Show remaining count when approaching limits
 - Suggest running again for remaining CDRs
 
 #### Early Exit
@@ -175,23 +256,29 @@ Capture any answers already given, update those CDRs, skip remaining.
 **Target Module**: {target}
 **Current Status**: {status}
 
-### Gap Summary
+### Auto-Assessment
 
-- **Validity**: {Active/Deprecated/Unknown}
-- **Scope**: {Team-wide/Project-specific/Unclear}
+- **Validity**: {Active/Partially Active/Unknown/Deprecated} - {brief evidence}
+- **Scope**: {Team-wide/Tech-stack-specific/Project-specific}
+- **Coverage**: {New/Enhancement/Duplicate}
 - **Priority**: {High/Medium/Low}
+
+### Recommended Action
+
+**Recommended: {Action}** - {1-2 sentence reasoning based on auto-assessment}
 
 ### Choose Action
 
-| # | Action | Description | Follow-up? |
-|---|--------|-------------|------------|
-| 1 | **Accept** | Approve for implementation | No |
-| 2 | **Reject** | Decline with reason | No |
-| 3 | **Defer** | Skip for now, keep pending | No |
-| 4 | **Investigate** | Need clarification | YES |
-| 5 | **Split** | Multiple concerns | YES |
+| Option | Action | Description | Follow-up? |
+|--------|--------|-------------|------------|
+| A | **Accept** | Approve for implementation | No |
+| B | **Reject** | Decline with reason | No |
+| C | **Defer** | Skip for now, keep pending | No |
+| D | **Investigate** | Need clarification | YES (max 3 questions) |
+| E | **Split** | Multiple concerns | YES |
+| Short | Provide a different action | | |
 
-**Your choice** (1-5): _
+You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own answer.
 
 ---
 [WAIT FOR USER INPUT - DO NOT PROCEED WITHOUT ANSWER]
@@ -200,59 +287,69 @@ Capture any answers already given, update those CDRs, skip remaining.
 
 After receiving user input, process the action, then proceed to next CDR.
 
-#### Action 1: Accept (No Questions)
+#### Action A: Accept (No Questions)
 
 Directly update status to **Accepted**:
 
 ```markdown
 ### Decision: Accept
 
-**Status**: Discovered → **Accepted**
+**Status**: {status} → **Accepted**
 
 Added to accepted list for `/levelup.implement`
 ```
 
+Update the CDR file immediately after this decision.
+
 ---
 [WAIT FOR USER INPUT - PROCEED TO NEXT CDR]
 ---
 
 
-#### Action 2: Reject (No Questions)
+#### Action B: Reject (With Reason)
 
-Reject with a reason picker:
+Present reason picker with recommended default:
 
 ```markdown
 ### Decision: Reject
 
-**Select Reason**:
-- [ ] Project-specific (not team-wide)
-- [ ] Deprecated/outdated pattern
-- [ ] Duplicate of existing directive
-- [ ] Out of scope for team-ai-directives
-- [ ] Other: {specify}
+**Recommended: Project-specific** - {reasoning based on scope assessment}
+
+| Option | Reason |
+|--------|--------|
+| A | Project-specific (not team-wide) |
+| B | Deprecated/outdated pattern |
+| C | Duplicate of existing directive |
+| D | Out of scope for team-ai-directives |
+| Short | Provide a different reason |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own reason.
 
 **Status**: {status} → **Rejected**
 ```
+
+Update the CDR file immediately after this decision.
 
 ---
 [WAIT FOR USER INPUT - PROCEED TO NEXT CDR]
 ---
 
 
-#### Action 3: Defer (No Questions)
-
-Skip this CDR, keep it pending:
+#### Action C: Defer (No Questions)
 
 ```markdown
 ### Decision: Defer
 
 CDR kept as {status}, will appear in next clarify session.
 
-**Reason** (optional):
-- [ ] Need more context
-- [ ] Waiting on team decision
-- [ ] Low priority
-- [ ] Other: {specify}
+| Option | Reason |
+|--------|--------|
+| A | Need more context |
+| B | Waiting on team decision |
+| C | Low priority |
+| Short | Provide a different reason |
+
+You can reply with the option letter or provide your own reason.
 ```
 
 ---
@@ -260,115 +357,180 @@ CDR kept as {status}, will appear in next clarify session.
 ---
 
 
-#### Action 4: Investigate (Follow-up Questions)
+#### Action D: Investigate (One Question at a Time)
 
-**Only ask targeted questions** based on context type:
+**Only ask targeted questions** based on context type. Present ONE question at a time with recommended answers.
+
+**Question Limit**: Maximum 3 questions per CDR, 10 total per session.
 
 **For Rule CDRs** (conflict check):
 
+Present questions sequentially, one at a time:
+
+**Question 1** (if scope assessment was "Unknown" or "Partially Active"):
+
 ```markdown
-### Investigate: Rule CDR
+### Investigate: Rule CDR - Question 1 of 3
 
-1. **Does this rule conflict with existing rules or constitution?**
-   - [ ] No conflicts detected → Skip to question 3
-   - [ ] Need to check → Offer `/levelup.validate`
+**Recommended: Option A** - {reasoning based on code evidence}
 
-2. **If conflict found, what's the severity?**
-   - [ ] CRITICAL - Direct contradiction (must vs never)
-   - [ ] ERROR - Logical impossibility
-   - [ ] WARNING - Exception conflict
-   - [ ] INFO - Scope overlap
+| Option | Description |
+|--------|-------------|
+| A | No conflicts with existing rules |
+| B | Need to check against existing rules |
+| C | Known conflict exists |
+| Short | Provide a different answer |
 
-3. **What needs clarification?**
-   - [ ] Scope (team-wide vs project-specific)
-   - [ ] Priority (high vs low impact)
-   - [ ] Content (accuracy/completeness)
-   - [ ] All of the above
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT]
+---
+```
+
+If response is B, offer `/levelup.validate` before continuing.
+
+**Question 2** (if scope was unclear):
+
+```markdown
+### Investigate: Rule CDR - Question 2 of 3
+
+**Recommended: Option A** - {reasoning based on pattern analysis}
+
+| Option | Description |
+|--------|-------------|
+| A | Team-wide - all projects should use this |
+| B | Tech-stack-specific - for projects with same technology |
+| C | Project-specific - only for this codebase |
+| Short | Provide a different answer |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT]
+---
+```
+
+**Question 3** (content accuracy):
+
+```markdown
+### Investigate: Rule CDR - Question 3 of 3
+
+**Recommended: Option A** - {reasoning based on evidence quality}
+
+| Option | Description |
+|--------|-------------|
+| A | Content is accurate and complete |
+| B | Needs minor edits |
+| C | Needs significant revision |
+| Short | Provide a different answer |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR AFTER INVESTIGATION COMPLETE]
+---
 ```
 
 **For Skill CDRs** (skill type check):
 
-```markdown
-### Investigate: Skill CDR
+Present questions sequentially:
 
-1. **What's the Skill Type?** (see taxonomy)
-   - [ ] Library & API Reference
-   - [ ] Product Verification
-   - [ ] Data Fetching & Analysis
-   - [ ] Business Process Automation
-   - [ ] Code Scaffolding & Templates
-   - [ ] Code Quality & Review
-   - [ ] CI/CD & Deployment
-   - [ ] Runbooks
-   - [ ] Infrastructure Operations
-
-2. **What needs clarification?**
-   - [ ] Trigger keywords
-   - [ ] Priority
-   - [ ] All of the above
-```
-
-**For Other CDRs** (generic):
+**Question 1** (skill type):
 
 ```markdown
-### Investigate: {Type} CDR
+### Investigate: Skill CDR - Question 1 of 3
 
-1. **What needs clarification?**
-   - [ ] Scope (team-wide vs project-specific)
-   - [ ] Priority (high vs low impact)
-   - [ ] Coverage (new vs enhancement)
-   - [ ] Content (accuracy/completeness)
-   - [ ] All of the above
+**Recommended: Option A** - {reasoning based on CDR content}
 
-2. **Describe what needs work**:
-    _{free text response}_
+| Option | Description |
+|--------|-------------|
+| A | Library & API Reference |
+| B | Code Quality & Review |
+| C | CI/CD & Deployment |
+| D | Code Scaffolding & Templates |
+| E | Other (specify) |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT]
+---
 ```
+
+**For Other CDRs** (Examples, Personas, Constitution):
+
+Present questions sequentially:
+
+**Question 1** (scope/validity - only if auto-assessment flagged uncertainty):
+
+```markdown
+### Investigate: {Type} CDR - Question 1 of 3
+
+**Recommended: Option A** - {reasoning based on auto-assessment}
+
+| Option | Description |
+|--------|-------------|
+| A | {recommended option based on assessment} |
+| B | {alternative option} |
+| C | {another alternative} |
+| Short | Provide a different answer |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT]
+---
+```
+
+**IMPORTANT**: Only ask questions that the auto-assessment flagged as uncertain. If all assessments are clear, skip directly to acceptance recommendation.
 
 ---
 [WAIT FOR USER INPUT - PROCEED TO NEXT CDR AFTER INVESTIGATION COMPLETE]
 ---
 
-#### Action 5: Split (Follow-up Questions)
+#### Action E: Split (Follow-up Questions)
 
 ```markdown
 ### Split: Multiple Concerns
 
 This CDR covers multiple concerns. How to split?
 
-1. **Split Option**:
-   - [ ] Split into separate CDRs (create new ones)
-   - [ ] Keep one, reject others (focus on primary)
-   - [ ] Merge with existing CDR (if duplicate)
+**Recommended: Option A** - {reasoning based on CDR content analysis}
 
-2. **Identify concerns**:
-    _{list each concern}_
+| Option | Description |
+|--------|-------------|
+| A | Split into separate CDRs (create new ones) |
+| B | Keep primary concern, reject others |
+| C | Merge with existing CDR (if overlap) |
+| Short | Provide a different approach |
+
+You can reply with the option letter, accept the recommendation by saying "yes" or "recommended", or provide your own answer.
+
+---
+[WAIT FOR USER INPUT]
+---
 ```
+
+After user chooses split approach:
+
+```markdown
+### Identify Concerns to Split
+
+Please describe each concern that should become a separate CDR:
+
+_{list each concern with brief description}_
 
 ---
 [WAIT FOR USER INPUT - PROCEED TO NEXT CDR AFTER SPLIT COMPLETE]
 ---
+```
 
-### Phase 5: Process Answers & Update Status
+### Phase 6: Update CDR File (After Each Interaction)
 
-**Objective**: Map actions to statuses and update CDRs after EACH CDR interaction
+**Objective**: Write updates to `.specify/drafts/cdr.md` after EACH CDR interaction
 
-**Note**: Answers are processed after EACH CDR interaction, not in batch at end.
-
-#### Status Determination Logic
-
-| Action | New Status | Notes |
-|--------|------------|-------|
-| Accept | **Accepted** | Ready for `/levelup.implement` |
-| Reject | **Rejected** | Reason documented |
-| Defer | Keep as-is | Remains "Discovered" or "Proposed" |
-| Investigate → No issues found | **Accepted** | After clarification |
-| Investigate → Issues found | **Proposed** | Content updated, needs re-review |
-| Split → Accepted parts | **Accepted** | Split content |
-| Split → Rejected parts | **Rejected** | Split content |
-
-### Phase 6: Update CDR File
-
-**Objective**: Write all updates to `.specify/drafts/cdr.md`
+Update immediately after each CDR decision (not in batch at end):
 
 1. Update status in CDR index table
 2. Add clarification metadata to each CDR section
@@ -385,6 +547,9 @@ This CDR covers multiple concerns. How to split?
 
 - **Date**: {YYYY-MM-DD}
 - **Action**: {Accept|Reject|Defer|Investigate|Split}
+- **Auto-Assessment**: Validity={validity}, Scope={scope}, Coverage={coverage}, Priority={priority}
+- **Recommended Action**: {recommended_action}
+- **User Decision**: {user_decision}
 - **Clarification Answers** (if applicable):
   - {answer 1}
   - {answer 2}
@@ -399,6 +564,7 @@ This CDR covers multiple concerns. How to split?
 
 **Date**: {date}
 **Total CDRs Reviewed**: {N}
+**Questions Asked**: {M} / 10
 
 ### Results
 
@@ -428,11 +594,19 @@ This CDR covers multiple concerns. How to split?
 |-----|--------------|
 | CDR-004 | Re-review after content update |
 
+### Remaining CDRs (Not Processed This Session)
+
+| CDR | Title | Recommended |
+|-----|-------|-------------|
+| CDR-005 | ... | Accept |
+
+Run `/levelup.clarify` again to process remaining CDRs.
+
 ### Next Steps
 
 1. **Accepted**: Run `/levelup.implement` to create PR
 2. **Needs Re-review**: Edit content, then run `/levelup.clarify` again
-3. **Investigate**: After updates, clarify loop: Run `/levelup.clarify` again
+3. **Remaining**: Run `/levelup.clarify` to continue
 
 ### Clarifying Loop
 
@@ -448,15 +622,19 @@ This allows another pass after content updates or additional investigation.
 
 **Objective**: Offer conflict validation when investigating rule CDRs
 
-After question 1 in "Investigate" for rule types:
+When a Rule CDR investigation reveals potential conflicts:
 
 ```markdown
 ### Conflict Check Offer
 
 Would you like to run `/levelup.validate` to check for rule conflicts?
 
-- [ ] Yes, check now → Run `/levelup.validate` first, then continue
-- [ ] No, skip → Continue with manual check
+| Option | Description |
+|--------|-------------|
+| A | Yes, check now → Run `/levelup.validate` first, then continue |
+| B | No, skip → Continue with manual check |
+
+You can reply with the option letter or your preference.
 
 Note: `/levelup.validate` scans all rules for conflicts with constitution and each other.
 ```
@@ -493,13 +671,17 @@ Run `/levelup.implement` to:
 
 ## Notes
 
-- **Gap first**: Always analyze before asking questions
-- **One-at-a-time**: Present exactly ONE CDR per interaction
+- **Auto-assess first**: Always analyze CDRs before presenting to user
+- **Recommended actions**: Provide system-recommended action for each CDR
+- **Recommended answers**: Provide recommended answers for all investigation questions
+- **One-at-a-time**: Present exactly ONE CDR per interaction, ONE question at a time
 - **Wait for input**: Never auto-proceed without user response
-- **Session limits**: Maximum 5 CDRs per session
+- **Session limits**: Maximum 5 CDRs per session, 3 questions per CDR, 10 total questions
 - **Early exit**: User can say "done" to end early
+- **Immediate writes**: Update CDR file after each CDR interaction (not batch)
 - **Clarifying loop**: Run `/levelup.clarify` again after content updates
 - **Conflict check**: Offer `/levelup.validate` for rule CDRs
+- **Skip uncertain**: Only ask questions where auto-assessment found uncertainty
 - No automatic handoff - user decides next step
 
 ## Related Commands
