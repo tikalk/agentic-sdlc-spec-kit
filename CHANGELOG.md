@@ -5,6 +5,30 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.0] - 2026-04-04
+
+### Added
+
+- **Upstream merge (v0.5.0)**: Integrated upstream spec-kit changes including:
+  - New integration plugin architecture with 30+ AI agent integrations
+  - Forge agent support
+  - Claude skills mode (`--ai-skills` for Claude)
+  - `--dry-run` flag for `create-new-feature.sh` to preview branch names without side effects
+  - DEVELOPMENT.md documentation
+  - Stage 5/6 skills migration support
+
+### Changed
+
+- **Integration architecture**: Agents now use modular `src/specify_cli/integrations/` structure
+- **Tikalk theme**: Preserved tikalk orange accent colors (`#f47721`) and banner styling
+- **Package name priority**: `agentic-sdlc-specify-cli` is now checked before `specify-cli` for version detection
+- **Team directives**: Added `sync_team_ai_directives()` function for repository-based directive syncing
+
+### Fixed
+
+- **Dry-run mode**: Fixed specs directory creation during dry-run (now properly skipped)
+- **Test fixtures**: Updated file inventory tests to include tikalk-specific scripts
+
 ## [0.2.4] - 2026-04-01
 
 ### Changed
@@ -451,6 +475,58 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.5.0] - 2026-04-02
+
+### Changed
+
+- Introduces DEVELOPMENT.md (#2069)
+- Update cc-sdd reference to cc-spex in Community Friends (#2007)
+- chore: release 0.4.5, begin 0.4.6.dev0 development (#2064)
+
+## [0.4.5] - 2026-04-02
+
+### Changed
+
+- Stage 6: Complete migration — remove legacy scaffold path (#1924) (#2063)
+- Install Claude Code as native skills and align preset/integration flows (#2051)
+- Add repoindex 0402 (#2062)
+- Stage 5: Skills, Generic & Option-Driven Integrations (#1924) (#2052)
+- feat(scripts): add --dry-run flag to create-new-feature (#1998)
+- fix: support feature branch numbers with 4+ digits (#2040)
+- Add community content disclaimers (#2058)
+- docs: add community extensions website link to README and extensions docs (#2014)
+- docs: remove dead Cognitive Squad and Understanding extension links and from extensions/catalog.community.json (#2057)
+- Add fix-findings extension to community catalog (#2039)
+- Stage 4: TOML integrations — gemini and tabnine migrated to plugin architecture (#2050)
+- feat: add 5 lifecycle extensions to community catalog (#2049)
+- Stage 3: Standard markdown integrations — 19 agents migrated to plugin architecture (#2038)
+- chore: release 0.4.4, begin 0.4.5.dev0 development (#2048)
+
+## [0.4.4] - 2026-04-01
+
+### Changed
+
+- Stage 2: Copilot integration — proof of concept with shared template primitives (#2035)
+- docs: sync AGENTS.md with AGENT_CONFIG for missing agents (#2025)
+- docs: ensure manual tests use local specify (#2020)
+- Stage 1: Integration foundation — base classes, manifest system, and registry (#1925)
+- fix: harden GitHub Actions workflows (#2021)
+- chore: use PEP 440 .dev0 versions on main after releases (#2032)
+- feat: add superpowers bridge extension to community catalog (#2023)
+- feat: add product-forge extension to community catalog (#2012)
+- feat(scripts): add --allow-existing-branch flag to create-new-feature (#1999)
+- fix(scripts): add correct path for copilot-instructions.md (#1997)
+- Update README.md (#1995)
+- fix: prevent extension command shadowing (#1994)
+- Fix Claude Code CLI detection for npm-local installs (#1978)
+- fix(scripts): honor PowerShell agent and script filters (#1969)
+- feat: add MAQA extension suite (7 extensions) to community catalog (#1981)
+- feat: add spec-kit-onboard extension to community catalog (#1991)
+- Add plan-review-gate to community catalog (#1993)
+- chore(deps): bump actions/deploy-pages from 4 to 5 (#1990)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action from 19 to 23 (#1989)
+- chore: bump version to 0.4.3 (#1986)
 
 ## [0.4.3] - 2026-03-26
 
