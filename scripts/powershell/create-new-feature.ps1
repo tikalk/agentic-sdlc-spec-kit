@@ -1,5 +1,5 @@
 #!/usr/bin/env pwsh
-. "scripts/powershell/discovery-functions.ps1"`
+. "scripts/powershell/discovery-functions.ps1"
 # Create a new feature
 [CmdletBinding()]
 param(
