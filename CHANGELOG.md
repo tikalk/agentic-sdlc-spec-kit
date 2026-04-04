@@ -5,6 +5,12 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.2] - 2026-04-04
+
+### Fixed
+
+- **PowerShell script syntax**: Moved dot-source of `discovery-functions.ps1` after the `param()` block in `create-new-feature.ps1` (PowerShell requires param to be the first executable statement)
+
 ## [0.3.1] - 2026-04-04
 
 ### Added
