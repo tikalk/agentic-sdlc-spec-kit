@@ -362,8 +362,14 @@ def _install_bundled_extensions(
         ]
 
     if bundled_extensions:
+        from .extensions import ExtensionManager
+
         manager = ExtensionManager(project_path)
         registry = manager.registry
+
+        from .extensions import CommandRegistrar
+
+        registrar = CommandRegistrar()
 
     installed = []
     skipped = []
@@ -384,6 +390,12 @@ def _install_bundled_extensions(
             manifest_path = ext_dir / "extension.yml"
             manifest = ExtensionManifest(manifest_path)
 
+            registered_commands = registrar.register_commands_for_all_agents(
+                manifest, ext_dir, project_path
+            )
+
+            registered_skills = manager._register_extension_skills(manifest, ext_dir)
+
             registry.add(
                 ext_name,
                 {
@@ -392,8 +404,8 @@ def _install_bundled_extensions(
                     "manifest_hash": manifest.get_hash(),
                     "enabled": True,
                     "priority": 10,
-                    "registered_commands": {},
-                    "registered_skills": {},
+                    "registered_commands": registered_commands,
+                    "registered_skills": registered_skills,
                 },
             )
             installed.append(ext_name)
