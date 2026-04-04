@@ -19,7 +19,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # Source discovery functions (must be after param block)
-. "scripts/powershell/discovery-functions.ps1"
+. "$PSScriptRoot/discovery-functions.ps1"
 
 # Set default mode
 $Mode = "spec"
