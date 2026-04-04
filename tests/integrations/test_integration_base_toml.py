@@ -81,7 +81,9 @@ class TomlIntegrationTests:
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
         expected_dir = i.commands_dest(tmp_path)
-        assert expected_dir.exists(), f"Expected directory {expected_dir} was not created"
+        assert expected_dir.exists(), (
+            f"Expected directory {expected_dir} was not created"
+        )
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0, "No command files were created"
         for f in cmd_files:
@@ -204,7 +206,14 @@ class TomlIntegrationTests:
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        sh = tmp_path / ".specify" / "integrations" / self.KEY / "scripts" / "update-context.sh"
+        sh = (
+            tmp_path
+            / ".specify"
+            / "integrations"
+            / self.KEY
+            / "scripts"
+            / "update-context.sh"
+        )
         assert os.access(sh, os.X_OK)
 
     # -- CLI auto-promote -------------------------------------------------
@@ -219,10 +228,20 @@ class TomlIntegrationTests:
         try:
             os.chdir(project)
             runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--ai", self.KEY, "--script", "sh", "--no-git",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--ai",
+                    self.KEY,
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init --ai {self.KEY} failed: {result.output}"
@@ -240,13 +259,25 @@ class TomlIntegrationTests:
         try:
             os.chdir(project)
             runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "sh", "--no-git",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    self.KEY,
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
-        assert result.exit_code == 0, f"init --integration {self.KEY} failed: {result.output}"
+        assert result.exit_code == 0, (
+            f"init --integration {self.KEY} failed: {result.output}"
+        )
         i = get_integration(self.KEY)
         cmd_dir = i.commands_dest(project)
         assert cmd_dir.is_dir(), f"Commands directory {cmd_dir} not created"
@@ -256,8 +287,15 @@ class TomlIntegrationTests:
     # -- Complete file inventory ------------------------------------------
 
     COMMAND_STEMS = [
-        "analyze", "checklist", "clarify", "constitution",
-        "implement", "plan", "specify", "tasks", "taskstoissues",
+        "analyze",
+        "checklist",
+        "clarify",
+        "constitution",
+        "implement",
+        "plan",
+        "specify",
+        "tasks",
+        "taskstoissues",
     ]
 
     def _expected_files(self, script_variant: str) -> list[str]:
@@ -280,18 +318,46 @@ class TomlIntegrationTests:
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
         files.append(f".specify/integrations/speckit.manifest.json")
 
+        # Tikalk fork includes additional scripts
         if script_variant == "sh":
-            for name in ["check-prerequisites.sh", "common.sh", "create-new-feature.sh",
-                         "setup-plan.sh", "update-agent-context.sh"]:
+            for name in [
+                "check-prerequisites.sh",
+                "common.sh",
+                "create-new-feature.sh",
+                "generate-risk-tests.sh",
+                "implement.sh",
+                "scan-project-artifacts.sh",
+                "setup-constitution.sh",
+                "setup-plan.sh",
+                "tasks-meta-utils.sh",
+                "update-agent-context.sh",
+                "validate-constitution.sh",
+            ]:
                 files.append(f".specify/scripts/bash/{name}")
         else:
-            for name in ["check-prerequisites.ps1", "common.ps1", "create-new-feature.ps1",
-                         "setup-plan.ps1", "update-agent-context.ps1"]:
+            for name in [
+                "check-prerequisites.ps1",
+                "common.ps1",
+                "create-new-feature.ps1",
+                "Detect-WorkflowConfig.ps1",
+                "discovery-functions.ps1",
+                "implement.ps1",
+                "scan-project-artifacts.ps1",
+                "setup-constitution.ps1",
+                "setup-plan.ps1",
+                "update-agent-context.ps1",
+                "validate-constitution.ps1",
+            ]:
                 files.append(f".specify/scripts/powershell/{name}")
 
-        for name in ["agent-file-template.md", "checklist-template.md",
-                     "constitution-template.md", "plan-template.md",
-                     "spec-template.md", "tasks-template.md"]:
+        for name in [
+            "agent-file-template.md",
+            "checklist-template.md",
+            "constitution-template.md",
+            "plan-template.md",
+            "spec-template.md",
+            "tasks-template.md",
+        ]:
             files.append(f".specify/templates/{name}")
 
         files.append(".specify/memory/constitution.md")
@@ -307,15 +373,26 @@ class TomlIntegrationTests:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "sh",
-                "--no-git", "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = CliRunner().invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    self.KEY,
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(p.relative_to(project).as_posix()
-                        for p in project.rglob("*") if p.is_file())
+        actual = sorted(
+            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+        )
         expected = self._expected_files("sh")
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
@@ -332,15 +409,26 @@ class TomlIntegrationTests:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", self.KEY, "--script", "ps",
-                "--no-git", "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = CliRunner().invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    self.KEY,
+                    "--script",
+                    "ps",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(p.relative_to(project).as_posix()
-                        for p in project.rglob("*") if p.is_file())
+        actual = sorted(
+            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+        )
         expected = self._expected_files("ps")
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"

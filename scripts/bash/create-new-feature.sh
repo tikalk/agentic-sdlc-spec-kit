@@ -239,7 +239,9 @@ get_config_path() {
 }
 
 SPECS_DIR="$REPO_ROOT/specs"
-mkdir -p "$SPECS_DIR"
+if [ "$DRY_RUN" != true ]; then
+    mkdir -p "$SPECS_DIR"
+fi
 
 # Function to generate branch name with stop word filtering and length filtering
 generate_branch_name() {
