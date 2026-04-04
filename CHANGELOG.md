@@ -5,6 +5,30 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.0] - 2026-04-04
+
+### Added
+
+- **Upstream merge (v0.5.0)**: Integrated upstream spec-kit changes including:
+  - New integration plugin architecture with 30+ AI agent integrations
+  - Forge agent support
+  - Claude skills mode (`--ai-skills` for Claude)
+  - `--dry-run` flag for `create-new-feature.sh` to preview branch names without side effects
+  - DEVELOPMENT.md documentation
+  - Stage 5/6 skills migration support
+
+### Changed
+
+- **Integration architecture**: Agents now use modular `src/specify_cli/integrations/` structure
+- **Tikalk theme**: Preserved tikalk orange accent colors (`#f47721`) and banner styling
+- **Package name priority**: `agentic-sdlc-specify-cli` is now checked before `specify-cli` for version detection
+- **Team directives**: Added `sync_team_ai_directives()` function for repository-based directive syncing
+
+### Fixed
+
+- **Dry-run mode**: Fixed specs directory creation during dry-run (now properly skipped)
+- **Test fixtures**: Updated file inventory tests to include tikalk-specific scripts
+
 ## [0.2.4] - 2026-04-01
 
 ### Changed
