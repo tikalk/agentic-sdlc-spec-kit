@@ -127,7 +127,7 @@ function Discover-Skills {
             name = $skillName
             source = "manifest"
             base_relevance = 1.0
-        }]
+        }
     }
     
     $candidates = $candidates[0..([Math]::Min($candidates.Count, $MaxSkills) - 1)]

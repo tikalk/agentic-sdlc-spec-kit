@@ -5,6 +5,17 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.8] - 2026-04-04
+
+### Fixed
+
+- **PowerShell discovery-functions syntax**: Removed stray `]` character causing `Unexpected token ']'` parser error in `discovery-functions.ps1`
+
+### Changed
+
+- **Package description**: Updated pyproject.toml description to reflect tikalk fork branding
+- **Repository description**: Updated GitHub About to "🐙 Agentic SDLC toolkit for Spec-Driven Development with bundled extensions and AI agent support"
+
 ## [0.3.7] - 2026-04-04
 
 ### Fixed
