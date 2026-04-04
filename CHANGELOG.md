@@ -24,6 +24,18 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 - **Extension patterns**: EXTENSION_COMMAND_NAME_PATTERN and EXTENSION_ALIAS_NAME_PATTERN now dynamically built from configuration
 
+## [0.3.12] - 2026-04-04
+
+### Fixed
+
+- **Bundled extensions installation**: Fixed bug where scaffolded extensions were deleted during install (TDD and other extensions now properly install during `specify init`)
+- **Bundled presets installation**: Fixed PresetManifest instantiation (was incorrectly using `.load()` class method)
+
+### Changed
+
+- **pre_init/post_init hooks**: Moved bundled extensions and presets installation to `cli_customization.py` hooks
+- **Direct registry registration**: Extensions/presets are now registered directly after scaffolding instead of using `install_from_directory()` which caused destructive delete
+
 ## [0.3.10] - 2026-04-04
 
 ### Added

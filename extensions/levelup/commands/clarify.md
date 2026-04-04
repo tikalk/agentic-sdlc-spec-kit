@@ -98,11 +98,75 @@ Show a clear table with key info:
 | 3 | CDR-003 | Example | examples/api/clients | Discovered |
 ```
 
-### Phase 4: Quick Decision Loop
+### Phase 3.5: Gap Analysis
 
-**Objective**: Process each CDR with action picker
+**Objective**: Identify what needs clarification before asking questions
 
-For each pending CDR, present the **5 Action Options**:
+For each pending CDR, assess:
+
+| Question | Assessment |
+|----------|-------------|
+| **Validity** | Is pattern still actively used? |
+| **Scope** | Team-wide vs project-specific clear? |
+| **Coverage** | Duplicate of existing directive? (if TEAM_DIRECTIVES exists) |
+| **Priority** | High/medium/low impact? |
+
+Generate a gap report:
+
+```markdown
+## CDR Gap Analysis
+
+| CDR | Title | Validity | Scope | Priority | Questions Needed |
+|-----|-------|----------|-------|----------|------------------|
+| CDR-001 | Pydantic Validation | Active | Unclear | High | Scope |
+| CDR-002 | structlog Logging | Active | Team-wide | High | None |
+```
+
+#### Gap Prioritization
+
+- **CRITICAL**: Duplicate of existing directive, constitution violation
+- **HIGH**: Scope unclear, high priority pattern
+- **MEDIUM**: Content needs minor edits
+- **LOW**: Minor phrasing improvements
+
+### Phase 4: Sequential Clarification
+
+**Objective**: Process ONE CDR at a time with action picker
+
+---
+
+#### CRITICAL: Interactive Mode Enforcement
+
+This phase REQUIRES user input at each step. DO NOT:
+- Present multiple CDRs together in a single response
+- Auto-select answers or assume user preference
+- Proceed to next CDR without receiving explicit input
+
+If running non-interactively, use bulk actions (see below).
+
+---
+
+#### Session Limits
+
+- Maximum **5 CDRs** per session
+- Maximum **10 questions** total (if investigating)
+- Show remaining count when limit reached
+- Suggest running again for remaining CDRs
+
+#### Early Exit
+
+User can end session early by saying:
+- "stop"
+- "done"
+- "skip remaining"
+
+Capture any answers already given, update those CDRs, skip remaining.
+
+---
+
+#### For Each CDR (Sequential):
+
+**IMPORTANT**: Present exactly ONE CDR per interaction. Complete all actions for that CDR before moving to the next.
 
 ```markdown
 ## CDR-{ID}: {Title}
@@ -110,6 +174,12 @@ For each pending CDR, present the **5 Action Options**:
 **Context Type**: {type}
 **Target Module**: {target}
 **Current Status**: {status}
+
+### Gap Summary
+
+- **Validity**: {Active/Deprecated/Unknown}
+- **Scope**: {Team-wide/Project-specific/Unclear}
+- **Priority**: {High/Medium/Low}
 
 ### Choose Action
 
@@ -122,7 +192,13 @@ For each pending CDR, present the **5 Action Options**:
 | 5 | **Split** | Multiple concerns | YES |
 
 **Your choice** (1-5): _
+
+---
+[WAIT FOR USER INPUT - DO NOT PROCEED WITHOUT ANSWER]
+---
 ```
+
+After receiving user input, process the action, then proceed to next CDR.
 
 #### Action 1: Accept (No Questions)
 
@@ -135,6 +211,11 @@ Directly update status to **Accepted**:
 
 Added to accepted list for `/levelup.implement`
 ```
+
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR]
+---
+
 
 #### Action 2: Reject (No Questions)
 
@@ -153,6 +234,11 @@ Reject with a reason picker:
 **Status**: {status} → **Rejected**
 ```
 
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR]
+---
+
+
 #### Action 3: Defer (No Questions)
 
 Skip this CDR, keep it pending:
@@ -168,6 +254,11 @@ CDR kept as {status}, will appear in next clarify session.
 - [ ] Low priority
 - [ ] Other: {specify}
 ```
+
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR]
+---
+
 
 #### Action 4: Investigate (Follow-up Questions)
 
@@ -230,8 +321,12 @@ CDR kept as {status}, will appear in next clarify session.
    - [ ] All of the above
 
 2. **Describe what needs work**:
-   _{free text response}_
+    _{free text response}_
 ```
+
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR AFTER INVESTIGATION COMPLETE]
+---
 
 #### Action 5: Split (Follow-up Questions)
 
@@ -246,12 +341,18 @@ This CDR covers multiple concerns. How to split?
    - [ ] Merge with existing CDR (if duplicate)
 
 2. **Identify concerns**:
-   _{list each concern}_
+    _{list each concern}_
 ```
+
+---
+[WAIT FOR USER INPUT - PROCEED TO NEXT CDR AFTER SPLIT COMPLETE]
+---
 
 ### Phase 5: Process Answers & Update Status
 
-**Objective**: Map actions to statuses and update CDRs
+**Objective**: Map actions to statuses and update CDRs after EACH CDR interaction
+
+**Note**: Answers are processed after EACH CDR interaction, not in batch at end.
 
 #### Status Determination Logic
 
@@ -392,10 +493,12 @@ Run `/levelup.implement` to:
 
 ## Notes
 
-- **Batch first**: Always show overview table before individual decisions
-- **Quick decisions**: 5 actions replace 13 questions
-- **Conditional questions**: Only ask when user chooses "Investigate" or "Split"
-- **Clarifying loop**: Run `/levelup.clarify` again after content updates to re-review
+- **Gap first**: Always analyze before asking questions
+- **One-at-a-time**: Present exactly ONE CDR per interaction
+- **Wait for input**: Never auto-proceed without user response
+- **Session limits**: Maximum 5 CDRs per session
+- **Early exit**: User can say "done" to end early
+- **Clarifying loop**: Run `/levelup.clarify` again after content updates
 - **Conflict check**: Offer `/levelup.validate` for rule CDRs
 - No automatic handoff - user decides next step
 
