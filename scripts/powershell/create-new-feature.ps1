@@ -6,7 +6,6 @@ param(
     [switch]$DryRun,
     [switch]$AllowExistingBranch,
     [string]$ShortName,
-    [Parameter()]
     [long]$Number = 0,
     [switch]$Timestamp,
     [switch]$Help,
@@ -14,7 +13,7 @@ param(
     [switch]$NoContracts,
     [switch]$DataModels,
     [switch]$NoDataModels,
-    [Parameter(ValueFromRemainingArguments = $true)]
+    [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
 $ErrorActionPreference = 'Stop'
