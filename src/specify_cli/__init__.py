@@ -1820,9 +1820,17 @@ def version():
     # Get CLI version from package metadata
     cli_version = "unknown"
     try:
-        cli_version = importlib.metadata.version("specify-cli")
+        for pkg_name in PKG_NAMES:
+            try:
+                cli_version = importlib.metadata.version(pkg_name)
+                break
+            except Exception:
+                continue
     except Exception:
-        # Fallback: try reading from pyproject.toml if running from source
+        pass
+
+    # Fallback: try reading from pyproject.toml if running from source
+    if cli_version == "unknown":
         try:
             import tomllib
 

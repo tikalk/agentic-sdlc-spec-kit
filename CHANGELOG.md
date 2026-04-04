@@ -30,6 +30,12 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 - **Extension command registration**: Fixed bundled extensions not registering commands to agent command directories (e.g., `.opencode/command/`)
 
+## [0.3.14] - 2026-04-04
+
+### Fixed
+
+- **Preset command registration**: Fixed bundled presets not registering command overrides to agent command directories
+
 ## [0.3.12] - 2026-04-04
 
 ### Fixed

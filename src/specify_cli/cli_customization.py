@@ -504,6 +504,9 @@ def _install_bundled_presets(
 
             manifest = PresetManifest(preset_dir / "preset.yml")
 
+            registered_commands = manager._register_commands(manifest, preset_dir)
+            registered_skills = manager._register_skills(manifest, preset_dir)
+
             registry.add(
                 preset_name,
                 {
@@ -512,6 +515,8 @@ def _install_bundled_presets(
                     "manifest_hash": manifest.get_hash(),
                     "enabled": True,
                     "priority": 10,
+                    "registered_commands": registered_commands,
+                    "registered_skills": registered_skills,
                 },
             )
             installed.append(preset_name)
