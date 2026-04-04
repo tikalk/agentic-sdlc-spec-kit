@@ -177,7 +177,9 @@ $hasGit = Test-HasGit
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
-New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
+}
 
 # Function to generate branch name with stop word filtering and length filtering
 function Get-BranchName {
@@ -427,7 +429,7 @@ function Populate-ContextFile {
 $contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
 $contextFile = Join-Path $featureDir 'context.md'
 if (-not $DryRun) {
-    if (Test-Path $contextTemplate) {
+    if ($contextTemplate -and (Test-Path $contextTemplate)) {
         Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
     } else {
         New-Item -ItemType File -Path $contextFile | Out-Null
