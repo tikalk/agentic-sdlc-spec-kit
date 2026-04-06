@@ -304,3 +304,71 @@ Or delete multiple at once:
 ```bash
 git push origin --delete v0.0.1 v0.1.0 v0.2.0 v0.5.0
 ```
+
+## CI Troubleshooting
+
+This section documents common CI failures and how to debug them.
+
+### Common Issues
+
+#### 1. Unresolved Merge Conflict Markers
+
+**Symptom**: ruff fails with `invalid-syntax: Expected ,, found <<`
+
+**Example error**:
+```
+invalid-syntax: Expected `,`, found `<<`
+    --> src/specify_cli/__init__.py:1064:1
+     |
+1064 | <<<<<<< HEAD
+     | ^^
+```
+
+**Cause**: Merge conflict not fully resolved - `<<<<<<< HEAD` markers remain in code
+
+**Fix**:
+```bash
+# Find remaining conflict markers
+grep -rn "<<<<<< HEAD" src/
+
+# Fix in editor (remove the marker line)
+# Verify fix
+uvx ruff check src/
+
+# Commit and push
+git add -A
+git commit -m "fix: remove unresolved merge conflict marker"
+git push origin main
+```
+
+**Prevention**: Always run `uvx ruff check src/` locally before pushing
+
+#### 2. Test Failures After Merge
+
+**Symptom**: pytest fails after upstream merge
+
+**Fix**:
+```bash
+# Run tests locally
+uv run pytest
+
+# If tests fail, investigate and fix
+# Then commit and push
+```
+
+#### 3. Python Version Compatibility
+
+**Symptom**: Tests fail on specific Python versions in CI matrix
+
+**Fix**: Ensure code is compatible with Python 3.11, 3.12, and 3.13
+
+### Debugging CI Failures
+
+1. **Check the workflow run**: Look at the GitHub Actions logs for the specific error
+2. **Reproduce locally**: Run the same commands locally:
+   ```bash
+   uvx ruff check src/
+   uv run pytest
+   ```
+3. **Check for conflicts**: `grep -rn "<<<<<<" src/`
+4. **Review recent changes**: `git log --oneline -10`
