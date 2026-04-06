@@ -117,6 +117,14 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 
 
 # ============================================================================
+# CLI IDENTITY
+# ============================================================================
+
+# CLI tagline shown in the intro banner
+TAGLINE = "Agentic SDLC toolkit for Spec-Driven Development with bundled extensions and AI agent support"
+
+
+# ============================================================================
 # PACKAGE IDENTITY
 # ============================================================================
 

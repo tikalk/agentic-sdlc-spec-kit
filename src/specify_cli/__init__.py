@@ -103,6 +103,7 @@ try:
     from .cli_customization import (
         ACCENT_COLOR,
         BANNER_COLORS,
+        TAGLINE,
         accent,
         accent_style,
         TEAM_DIRECTIVES_DIRNAME,
@@ -114,6 +115,7 @@ except ImportError:
     # Fallback to upstream defaults if cli_customization.py doesn't exist
     ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
+    TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -153,8 +155,6 @@ BANNER = """
 ███████║██║     ███████╗╚██████╗██║██║        ██║
 ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
-
-TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
 
 
 class StepTracker:

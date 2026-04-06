@@ -60,6 +60,11 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
   - fix: accept 4+ digit spec numbers in tests and docs
   - fix(scripts): improve git branch creation error handling
 
+### Changed
+
+- **CLI branding**: Updated intro banner tagline to reflect fork identity
+- **TAGLINE moved**: Now imported from cli_customization.py for consistency
+
 ### Preserved
 
 - All tikalk-specific features maintained:
