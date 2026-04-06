@@ -46,6 +46,28 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
   - Phase 4: Batch overview with recommended actions table
   - Phase 5: One-CDR-at-a-time with recommended answer format matching /spec.clarify UX
 
+## [0.3.16] - 2026-04-06
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (8 commits)
+  - Add Confluence extension
+  - Add optimize extension to community catalog
+  - Add VS Code Ask Questions preset
+  - Add security-review v1.1.1 to community extensions catalog
+  - fix: serialize multiline descriptions in legacy TOML renderer
+  - fix: strip YAML frontmatter from TOML integration prompts
+  - fix: accept 4+ digit spec numbers in tests and docs
+  - fix(scripts): improve git branch creation error handling
+
+### Preserved
+
+- All tikalk-specific features maintained:
+  - Orange branding theme (#f47721)
+  - --team-ai-directives CLI parameter
+  - Bundled extensions (levelup, architect, quick, product, tdd)
+  - Bundled presets (agentic-sdlc)
+
 ## [0.3.12] - 2026-04-04
 
 ### Fixed
