@@ -36,6 +36,16 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 - **Preset command registration**: Fixed bundled presets not registering command overrides to agent command directories
 
+## [0.3.15] - 2026-04-05
+
+### Added
+
+- **LevelUp clarify enhancements**: Added system-discovered assessments and recommended actions
+  - Phase 0: Pre-Validation for CDR completeness checks
+  - Phase 3: System Auto-Assessment (Validity, Scope, Coverage, Priority)
+  - Phase 4: Batch overview with recommended actions table
+  - Phase 5: One-CDR-at-a-time with recommended answer format matching /spec.clarify UX
+
 ## [0.3.12] - 2026-04-04
 
 ### Fixed

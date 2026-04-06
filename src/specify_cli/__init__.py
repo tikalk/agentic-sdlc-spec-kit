@@ -1061,6 +1061,7 @@ def init(
         help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
     ),
     ai_assistant: str = typer.Option(None, "--ai", help=AI_ASSISTANT_HELP),
+<<<<<<< HEAD
     ai_commands_dir: str = typer.Option(
         None,
         "--ai-commands-dir",

@@ -88,14 +88,38 @@ else:
 
 ## Merging Upstream
 
-### Step 1: Fetch and merge
+This section documents the complete workflow for merging upstream changes from `github/spec-kit`.
+
+### Pre-Merge: Check for New Upstream Commits
+
+```bash
+# Fetch latest upstream changes
+git fetch upstream
+
+# Check what commits are new in upstream (not in origin)
+git log origin/main --not upstream/main
+git log upstream/main --not origin/main
+```
+
+### Complete Merge Workflow
+
+#### Step 1: Create Backup Branch
+
+```bash
+git checkout main
+git branch backup-before-upstream-merge-$(date +%Y%m%d)
+```
+
+#### Step 2: Fetch and Merge
 
 ```bash
 git fetch upstream
 git merge upstream/main
 ```
 
-### Step 2: Resolve conflicts
+#### Step 3: Resolve Conflicts
+
+**Strategy**: Keep origin (fork) changes as base, adapt upstream changes to work with them.
 
 If there are conflicts in `__init__.py`, resolve the import block to use our pattern:
 
@@ -131,11 +155,71 @@ except ImportError:
         return ACCENT_COLOR
 ```
 
-### Step 3: Verify
+#### Step 4: Verify
 
 ```bash
 python3 -m pytest tests/ -v
 ```
+
+#### Step 5: Bump Version
+
+Update `pyproject.toml`:
+```toml
+version = "0.3.X"  # Increment from current version
+```
+
+#### Step 6: Update CHANGELOG
+
+Add new entry at top of changelog (after ## [Unreleased] or before latest release):
+
+```markdown
+## [0.3.X] - YYYY-MM-DD
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit
+  - [List upstream commits merged]
+```
+
+#### Step 7: Commit and Push
+
+```bash
+git add -A
+git commit -m "chore: merge upstream and bump to v0.3.X"
+git push origin main
+```
+
+#### Step 8: Create Tag
+
+```bash
+git tag -a agentic-sdlc-v0.3.X -m "Release agentic-sdlc-v0.3.X"
+git push origin agentic-sdlc-v0.3.X
+```
+
+### Conflict Resolution Strategy
+
+When conflicts occur during merge:
+
+1. **Keep origin changes as base** - Our customizations in `cli_customization.py` and fork-specific features must be preserved
+2. **Adapt upstream changes** - Integrate upstream improvements to work with our customizations
+3. **Test after resolving** - Always run tests before committing
+
+### Common Conflict Points
+
+| File | Why It Conflicts | Resolution |
+|------|-----------------|------------|
+| `__init__.py` | Import block at top | Use our try/except import pattern with fallback |
+| `pyproject.toml` | Version number | Increment version after merge |
+| `CHANGELOG.md` | New entries | Add fork-specific entries, preserve upstream section |
+
+### What NOT to Change During Merge
+
+These fork customizations should NEVER be modified unless intentionally updating them:
+
+- `cli_customization.py` - All theming and customization constants
+- `extensions.py` - Extension namespace configuration
+- Bundled extensions in `pyproject.toml` - levelup, architect, quick, product, tdd
+- Bundled presets in `pyproject.toml` - agentic-sdlc
 
 ## What Stays in cli_customization.py
 
