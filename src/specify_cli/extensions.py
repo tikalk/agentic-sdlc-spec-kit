@@ -183,11 +183,40 @@ class ExtensionManifest:
 
         # Validate provides section
         provides = self.data["provides"]
-        if "commands" not in provides or not provides["commands"]:
-            raise ValidationError("Extension must provide at least one command")
+        commands = provides.get("commands", [])
+        hooks = self.data.get("hooks")
 
-        # Validate commands
-        for cmd in provides["commands"]:
+        if "commands" in provides and not isinstance(commands, list):
+            raise ValidationError(
+                "Invalid provides.commands: expected a list"
+            )
+        if "hooks" in self.data and not isinstance(hooks, dict):
+            raise ValidationError(
+                "Invalid hooks: expected a mapping"
+            )
+
+        has_commands = bool(commands)
+        has_hooks = bool(hooks)
+
+        if not has_commands and not has_hooks:
+            raise ValidationError(
+                "Extension must provide at least one command or hook"
+            )
+
+        # Validate hook values (if present)
+        if hooks:
+            for hook_name, hook_config in hooks.items():
+                if not isinstance(hook_config, dict):
+                    raise ValidationError(
+                        f"Invalid hook '{hook_name}': expected a mapping"
+                    )
+                if not hook_config.get("command"):
+                    raise ValidationError(
+                        f"Hook '{hook_name}' missing required 'command' field"
+                    )
+
+        # Validate commands (if present)
+        for cmd in commands:
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
@@ -226,7 +255,7 @@ class ExtensionManifest:
     @property
     def commands(self) -> List[Dict[str, Any]]:
         """Get list of provided commands."""
-        return self.data["provides"]["commands"]
+        return self.data.get("provides", {}).get("commands", [])
 
     @property
     def hooks(self) -> Dict[str, Any]:
