@@ -574,7 +574,6 @@ class ExtensionManager:
                         f"{kind.capitalize()} for command '{primary_name}' must be a string"
                     )
 
-                # Use different pattern for commands vs aliases
                 # Enforce canonical pattern only for primary command names;
                 # aliases are free-form to preserve community extension compat.
                 if kind == "command":
@@ -585,25 +584,14 @@ class ExtensionManager:
                             "must follow pattern '(speckit|adlc).{extension}.{command}'"
                         )
                     namespace = match.group(1)
-                else:
-                    # Aliases can use shorter form: {extension}.{command}
-                    match = EXTENSION_ALIAS_NAME_PATTERN.match(name)
-                    if match is None:
+                    if namespace != manifest.id:
                         raise ValidationError(
-                            f"Invalid {kind} '{name}': "
-                            "must follow pattern '{extension}.{command}'"
+                            f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
                         )
-                    namespace = match.group(1)
-
-                if namespace != manifest.id:
-                    raise ValidationError(
-                        f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
-                    )
-
-                if namespace in CORE_COMMAND_NAMES:
-                    raise ValidationError(
-                        f"{kind.capitalize()} '{name}' conflicts with core command namespace '{namespace}'"
-                    )
+                    if namespace in CORE_COMMAND_NAMES:
+                        raise ValidationError(
+                            f"{kind.capitalize()} '{name}' conflicts with core command namespace '{namespace}'"
+                        )
 
                 if name in declared_names:
                     raise ValidationError(
