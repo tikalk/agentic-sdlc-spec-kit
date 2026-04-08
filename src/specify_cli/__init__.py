@@ -156,8 +156,6 @@ BANNER = """
 ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
 
-TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
-
 
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
@@ -1567,7 +1565,7 @@ def init(
                     )
 
             # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
-            pre_init(project_path, selected_ai, team_ai_directives, tracker)
+            pre_init(project_path, selected_ai, None, tracker)
             post_init(project_path, selected_ai, tracker)
 
             tracker.complete("final", "project ready")
