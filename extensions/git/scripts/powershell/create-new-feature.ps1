@@ -23,12 +23,16 @@ if ($Help) {
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json               Output in JSON format"
-    Write-Host "  -DryRun             Compute branch name and paths without creating branches, directories, or files"
+    Write-Host "  -DryRun             Compute branch name without creating the branch"
     Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
     Write-Host "  -Help               Show this help message"
+    Write-Host ""
+    Write-Host "Environment variables:"
+    Write-Host "  GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation"
+    Write-Host ""
     exit 0
 }
 
@@ -203,7 +207,9 @@ if (Get-Command Get-RepoRoot -ErrorAction SilentlyContinue) {
 
 # Check if git is available
 if (Get-Command Test-HasGit -ErrorAction SilentlyContinue) {
-    $hasGit = Test-HasGit -RepoRoot $repoRoot
+    # Call without parameters for compatibility with core common.ps1 (no -RepoRoot param)
+    # and git-common.ps1 (has -RepoRoot param with default).
+    $hasGit = Test-HasGit
 } else {
     try {
         git -C $repoRoot rev-parse --is-inside-work-tree 2>$null | Out-Null
@@ -216,9 +222,6 @@ if (Get-Command Test-HasGit -ErrorAction SilentlyContinue) {
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
-if (-not $DryRun) {
-    New-Item -ItemType Directory -Path $specsDir -Force | Out-Null
-}
 
 function Get-BranchName {
     param([string]$Description)
@@ -255,35 +258,54 @@ function Get-BranchName {
     }
 }
 
-if ($ShortName) {
-    $branchSuffix = ConvertTo-CleanBranchName -Name $ShortName
+# Check for GIT_BRANCH_NAME env var override (exact branch name, no prefix/suffix)
+if ($env:GIT_BRANCH_NAME) {
+    $branchName = $env:GIT_BRANCH_NAME
+    # Check 244-byte limit (UTF-8) for override names
+    $branchNameUtf8ByteCount = [System.Text.Encoding]::UTF8.GetByteCount($branchName)
+    if ($branchNameUtf8ByteCount -gt 244) {
+        throw "GIT_BRANCH_NAME must be 244 bytes or fewer in UTF-8. Provided value is $branchNameUtf8ByteCount bytes; please supply a shorter override branch name."
+    }
+    # Extract FEATURE_NUM from the branch name if it starts with a numeric prefix
+    # Check timestamp pattern first (YYYYMMDD-HHMMSS-) since it also matches the simpler ^\d+ pattern
+    if ($branchName -match '^(\d{8}-\d{6})-') {
+        $featureNum = $matches[1]
+    } elseif ($branchName -match '^(\d+)-') {
+        $featureNum = $matches[1]
+    } else {
+        $featureNum = $branchName
+    }
 } else {
-    $branchSuffix = Get-BranchName -Description $featureDesc
-}
-
-if ($Timestamp -and $Number -ne 0) {
-    Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
-    $Number = 0
-}
-
-if ($Timestamp) {
-    $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
-    $branchName = "$featureNum-$branchSuffix"
-} else {
-    if ($Number -eq 0) {
-        if ($DryRun -and $hasGit) {
-            $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
-        } elseif ($DryRun) {
-            $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
-        } elseif ($hasGit) {
-            $Number = Get-NextBranchNumber -SpecsDir $specsDir
-        } else {
-            $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
-        }
+    if ($ShortName) {
+        $branchSuffix = ConvertTo-CleanBranchName -Name $ShortName
+    } else {
+        $branchSuffix = Get-BranchName -Description $featureDesc
     }
 
-    $featureNum = ('{0:000}' -f $Number)
-    $branchName = "$featureNum-$branchSuffix"
+    if ($Timestamp -and $Number -ne 0) {
+        Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
+        $Number = 0
+    }
+
+    if ($Timestamp) {
+        $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $branchName = "$featureNum-$branchSuffix"
+    } else {
+        if ($Number -eq 0) {
+            if ($DryRun -and $hasGit) {
+                $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
+            } elseif ($DryRun) {
+                $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+            } elseif ($hasGit) {
+                $Number = Get-NextBranchNumber -SpecsDir $specsDir
+            } else {
+                $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+            }
+        }
+
+        $featureNum = ('{0:000}' -f $Number)
+        $branchName = "$featureNum-$branchSuffix"
+    }
 }
 
 $maxBranchLength = 244
@@ -301,9 +323,6 @@ if ($branchName.Length -gt $maxBranchLength) {
     Write-Warning "[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)"
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
-
-$featureDir = Join-Path $specsDir $branchName
-$specFile = Join-Path $featureDir 'spec.md'
 
 if (-not $DryRun) {
     if ($hasGit) {
@@ -361,28 +380,12 @@ if (-not $DryRun) {
         }
     }
 
-    New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
-
-    if (-not (Test-Path -PathType Leaf $specFile)) {
-        if (Get-Command Resolve-Template -ErrorAction SilentlyContinue) {
-            $template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
-        } else {
-            $template = $null
-        }
-        if ($template -and (Test-Path $template)) {
-            Copy-Item $template $specFile -Force
-        } else {
-            New-Item -ItemType File -Path $specFile -Force | Out-Null
-        }
-    }
-
     $env:SPECIFY_FEATURE = $branchName
 }
 
 if ($Json) {
     $obj = [PSCustomObject]@{
         BRANCH_NAME = $branchName
-        SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
         HAS_GIT = $hasGit
     }
@@ -392,7 +395,6 @@ if ($Json) {
     $obj | ConvertTo-Json -Compress
 } else {
     Write-Output "BRANCH_NAME: $branchName"
-    Write-Output "SPEC_FILE: $specFile"
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
     if (-not $DryRun) {

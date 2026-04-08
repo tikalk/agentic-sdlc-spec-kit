@@ -160,7 +160,36 @@ function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
     $hasGit = Test-HasGit
-    $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+
+    # Resolve feature directory.  Priority:
+    #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
+    #   2. .specify/feature.json "feature_directory" key (persisted by /speckit.specify)
+    #   3. Exact branch-to-directory mapping via Get-FeatureDir (legacy fallback)
+    $featureJson = Join-Path $repoRoot '.specify/feature.json'
+    if ($env:SPECIFY_FEATURE_DIRECTORY) {
+        $featureDir = $env:SPECIFY_FEATURE_DIRECTORY
+        # Normalize relative paths to absolute under repo root
+        if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
+            $featureDir = Join-Path $repoRoot $featureDir
+        }
+    } elseif (Test-Path $featureJson) {
+        try {
+            $featureConfig = Get-Content $featureJson -Raw | ConvertFrom-Json
+            if ($featureConfig.feature_directory) {
+                $featureDir = $featureConfig.feature_directory
+                # Normalize relative paths to absolute under repo root
+                if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
+                    $featureDir = Join-Path $repoRoot $featureDir
+                }
+            } else {
+                $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+            }
+        } catch {
+            $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+        }
+    } else {
+        $featureDir = Get-FeatureDir -RepoRoot $repoRoot -Branch $currentBranch
+    }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
