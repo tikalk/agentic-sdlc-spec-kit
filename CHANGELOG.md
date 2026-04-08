@@ -5,6 +5,22 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.4.0] - 2026-04-09
+
+### Changed
+
+- **Upstream merge**: Merged upstream changes from github/spec-kit while preserving fork customizations
+- **preinstall filtering**: Bundled extensions now only scaffold/install extensions with `preinstall: true` in catalog.json (was installing all extensions as fallback)
+
+### Fixed
+
+- **Path bug**: Fixed `_install_bundled_extensions()` path bug where `ext_path / d` should be `ext_path / d.name`
+- **Duplicate TAGLINE**: Removed duplicate TAGLINE line from merge conflict resolution
+
+### Added
+
+- **Hook integration**: Added pre_init and post_init hook calls to init() function for fork-specific functionality
+
 ## [0.3.11] - 2026-04-04
 
 ### Added

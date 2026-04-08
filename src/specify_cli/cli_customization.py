@@ -152,7 +152,11 @@ def _scaffold_extensions_to_project(
     source_dir: Path,
     project_dir: Path,
 ) -> list[str]:
-    """Scaffold extension folders from source to project if missing or empty."""
+    """Scaffold extension folders from source to project if missing or empty.
+    Only scaffolds extensions with preinstall: true in the catalog.
+    """
+    import json
+
     scaffolded = []
 
     if not source_dir.exists():
@@ -160,8 +164,26 @@ def _scaffold_extensions_to_project(
 
     project_dir.mkdir(parents=True, exist_ok=True)
 
+    preinstall_extensions = set()
+    catalog_path = source_dir / "catalog.json"
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            extensions = catalog_data.get("extensions", {})
+            preinstall_extensions = {
+                ext_id
+                for ext_id, ext_data in extensions.items()
+                if ext_data.get("preinstall", False)
+            }
+        except (json.JSONDecodeError, IOError):
+            pass
+
     for ext_dir in source_dir.iterdir():
         if not ext_dir.is_dir() or ext_dir.name.startswith("."):
+            continue
+
+        if preinstall_extensions and ext_dir.name not in preinstall_extensions:
             continue
 
         proj_ext = project_dir / ext_dir.name
@@ -309,7 +331,7 @@ def _install_bundled_extensions(
     for ext_path, cat_path in search_paths:
         if ext_path.exists():
             has_extensions = any(
-                (ext_path / d / "extension.yml").exists()
+                (ext_path / d.name / "extension.yml").exists()
                 for d in ext_path.iterdir()
                 if d.is_dir() and not d.name.startswith(".")
             )
