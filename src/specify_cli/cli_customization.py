@@ -609,10 +609,6 @@ SKILL_DESCRIPTIONS = {
 }
 
 
-# Console for skill commands
-_skill_console = Console()
-
-
 def _load_config(project_path: Path) -> dict:
     """Load project configuration."""
     config_path = project_path / ".specify" / "config.json"
@@ -655,9 +651,7 @@ skill_app = typer.Typer(
 def skill_callback(ctx: typer.Context):
     """Show skills help when no subcommand is provided."""
     if ctx.invoked_subcommand is None:
-        _skill_console.print(
-            "[dim]Use specify skill --help for available commands[/dim]"
-        )
+        console.print("[dim]Use specify skill --help for available commands[/dim]")
 
 
 @skill_app.command("search")
@@ -676,7 +670,7 @@ def skill_search(
 ):
     """Search for skills in the skills.sh registry."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     registry = SkillsRegistryClient()
@@ -692,7 +686,7 @@ def skill_search(
 
     # Filter by score if specified
     if min_score:
-        _skill_console.print(
+        console.print(
             f"[yellow]Note:[/yellow] Score filtering not available in registry search"
         )
 
@@ -711,32 +705,28 @@ def skill_search(
             }
             for r in results
         ]
-        _skill_console.print(json_module.dumps(output, indent=2))
+        console.print(json_module.dumps(output, indent=2))
     else:
         if not results:
-            _skill_console.print(f"[yellow]No skills found matching '{query}'[/yellow]")
+            console.print(f"[yellow]No skills found matching '{query}'[/yellow]")
             return
 
-        _skill_console.print(
+        console.print(
             f"\n[bold]Found {len(results)} skills matching '{query}':[/bold]\n"
         )
 
         for r in results:
-            _skill_console.print(
-                f"[{ACCENT_COLOR}]{r.name}[/{ACCENT_COLOR}] ({r.owner}/{r.repo})"
-            )
+            console.print(accent(r.name))
             if r.description:
-                _skill_console.print(f"  {r.description}")
+                console.print(f"  {r.description}")
             if r.installs:
-                _skill_console.print(f"  [dim]Installs: {r.installs:,}[/dim]")
+                console.print(f"  [dim]Installs: {r.installs:,}[/dim]")
             if r.categories:
-                _skill_console.print(
-                    f"  [dim]Categories: {', '.join(r.categories)}[/dim]"
-                )
-            _skill_console.print(
+                console.print(f"  [dim]Categories: {', '.join(r.categories)}[/dim]")
+            console.print(
                 f"  [cyan]Install: specify skill install {r.skill_ref}[/cyan]"
             )
-            _skill_console.print()
+            console.print()
 
 
 @skill_app.command("install")
@@ -763,7 +753,7 @@ def skill_install(
 ):
     """Install a skill from various sources."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
@@ -789,7 +779,7 @@ def skill_install(
                     blocked = team_manifest.get_blocked_skills()
                     for blocked_skill in blocked:
                         if blocked_skill in skill_ref or skill_ref in blocked_skill:
-                            _skill_console.print(
+                            console.print(
                                 f"[red]✗ Skill blocked by team policy:[/red] {skill_ref}\n"
                                 f"  Blocked pattern: {blocked_skill}\n"
                                 f"  Use --skip-blocked-check to override (not recommended)"
@@ -798,33 +788,29 @@ def skill_install(
 
     installer = SkillInstaller(manifest, team_manifest)
 
-    _skill_console.print(
-        f"[{ACCENT_COLOR}]Installing skill:[/{ACCENT_COLOR}] {skill_ref}"
-    )
+    console.print(f"{accent('Installing skill:')} {skill_ref}")
 
     success, message = installer.install(
         skill_ref, version=version, save=not no_save, force=force
     )
 
     if success:
-        _skill_console.print(f"[green]✓[/green] {message}")
+        console.print(f"[green]✓[/green] {message}")
 
         if evaluate:
-            _skill_console.print(
-                f"\n[{ACCENT_COLOR}]Running evaluation...[/{ACCENT_COLOR}]"
-            )
+            console.print(f"\n{accent('Running evaluation...')}")
             skills_dir = manifest.skills_dir
             if skills_dir.exists():
                 for skill_dir in skills_dir.iterdir():
                     if skill_dir.is_dir():
                         evaluator = SkillEvaluator()
                         result = evaluator.evaluate_review(skill_dir)
-                        _skill_console.print(
+                        console.print(
                             f"\nReview Score: {result.total_score}/{result.max_score} ({result.rating})"
                         )
                         break
     else:
-        _skill_console.print(f"[red]✗[/red] {message}")
+        console.print(f"[red]✗[/red] {message}")
         raise typer.Exit(1)
 
 
@@ -842,7 +828,7 @@ def skill_update(
 ):
     """Update installed skills to latest versions."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
@@ -850,9 +836,7 @@ def skill_update(
     installer = SkillInstaller(manifest)
 
     if not manifest.exists():
-        _skill_console.print(
-            "[yellow]No skills.json found. No skills installed.[/yellow]"
-        )
+        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
         return
 
     if skill_name:
@@ -860,18 +844,18 @@ def skill_update(
     elif all_skills:
         success, message, updates = installer.update(None, dry_run=dry_run)
     else:
-        _skill_console.print(
+        console.print(
             "[yellow]Specify a skill name or use --all to update all skills[/yellow]"
         )
         return
 
     if success:
-        _skill_console.print(f"[green]✓[/green] {message}")
+        console.print(f"[green]✓[/green] {message}")
         if updates:
             for skill_id, status in updates.items():
-                _skill_console.print(f"  - {skill_id}: {status}")
+                console.print(f"  - {skill_id}: {status}")
     else:
-        _skill_console.print(f"[red]✗[/red] {message}")
+        console.print(f"[red]✗[/red] {message}")
 
 
 @skill_app.command("remove")
@@ -883,16 +867,14 @@ def skill_remove(
 ):
     """Remove an installed skill."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
     manifest = SkillsManifest(project_path)
 
     if not manifest.exists():
-        _skill_console.print(
-            "[yellow]No skills.json found. No skills installed.[/yellow]"
-        )
+        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
         return
 
     skills = manifest.list_skills()
@@ -904,22 +886,22 @@ def skill_remove(
             break
 
     if not skill_id:
-        _skill_console.print(f"[red]Skill not found:[/red] {skill_name}")
+        console.print(f"[red]Skill not found:[/red] {skill_name}")
         raise typer.Exit(1)
 
     if not force:
         confirm = typer.confirm(f"Remove {skill_id}?")
         if not confirm:
-            _skill_console.print("Cancelled")
+            console.print("Cancelled")
             return
 
     installer = SkillInstaller(manifest)
     success, message = installer.uninstall(skill_id)
 
     if success:
-        _skill_console.print(f"[green]✓[/green] {message}")
+        console.print(f"[green]✓[/green] {message}")
     else:
-        _skill_console.print(f"[red]✗[/red] {message}")
+        console.print(f"[red]✗[/red] {message}")
 
 
 @skill_app.command("list")
@@ -933,17 +915,15 @@ def skill_list(
 ):
     """List installed skills."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
     manifest = SkillsManifest(project_path)
 
     if not manifest.exists():
-        _skill_console.print(
-            "[yellow]No skills.json found. No skills installed.[/yellow]"
-        )
-        _skill_console.print(
+        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
+        console.print(
             f"[dim]Run 'specify skill install <skill>' to install skills[/dim]"
         )
         return
@@ -951,10 +931,8 @@ def skill_list(
     skills = manifest.list_skills()
 
     if not skills:
-        _skill_console.print("[yellow]No skills installed.[/yellow]")
-        _skill_console.print(
-            f"[dim]Run 'specify skill search <query>' to find skills[/dim]"
-        )
+        console.print("[yellow]No skills installed.[/yellow]")
+        console.print(f"[dim]Run 'specify skill search <query>' to find skills[/dim]")
         return
 
     if json_output:
@@ -976,9 +954,9 @@ def skill_list(
             }
             for skill_id, m in skills.items()
         }
-        _skill_console.print(json_module.dumps(output, indent=2))
+        console.print(json_module.dumps(output, indent=2))
     else:
-        _skill_console.print(f"\n[bold]Installed Skills ({len(skills)}):[/bold]\n")
+        console.print(f"\n[bold]Installed Skills ({len(skills)}):[/bold]\n")
 
         for skill_id, metadata in skills.items():
             eval_info = ""
@@ -993,14 +971,10 @@ def skill_list(
                         scores.append(f"Task: {task}")
                     eval_info = f" ({', '.join(scores)})"
 
-            _skill_console.print(
-                f"[{ACCENT_COLOR}]{skill_id}[/{ACCENT_COLOR}]@{metadata.version}"
-            )
-            _skill_console.print(f"  Source: {metadata.source}")
-            _skill_console.print(
-                f"  Installed: {metadata.installed_at[:10]}{eval_info}"
-            )
-            _skill_console.print()
+            console.print(f"{accent(skill_id)}@{metadata.version}")
+            console.print(f"  Source: {metadata.source}")
+            console.print(f"  Installed: {metadata.installed_at[:10]}{eval_info}")
+            console.print()
 
 
 @skill_app.command("eval")
@@ -1021,7 +995,7 @@ def skill_eval(
 ):
     """Evaluate skill quality."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
@@ -1040,44 +1014,42 @@ def skill_eval(
                         break
 
     if not skill_path_obj.exists():
-        _skill_console.print(f"[red]Skill not found:[/red] {skill_path}")
+        console.print(f"[red]Skill not found:[/red] {skill_path}")
         raise typer.Exit(1)
 
-    _skill_console.print(
-        f"\n[{ACCENT_COLOR}]Evaluating skill:[/{ACCENT_COLOR}] {skill_path_obj.name}\n"
-    )
+    console.print(f"\n{accent('Evaluating skill:')} {skill_path_obj.name}\n")
 
     # Run review evaluation (default if no flags)
     if review or full or (not review and not task):
         result = evaluator.evaluate_review(skill_path_obj)
 
-        _skill_console.print(
+        console.print(
             f"[bold]Review Score:[/bold] {result.total_score}/{result.max_score} ({result.rating})"
         )
-        _skill_console.print()
+        console.print()
 
-        _skill_console.print("[bold]Breakdown:[/bold]")
+        console.print("[bold]Breakdown:[/bold]")
         for category, score in result.breakdown.items():
-            _skill_console.print(f"  {category}: {score} points")
+            console.print(f"  {category}: {score} points")
 
         if report:
-            _skill_console.print()
-            _skill_console.print("[bold]Detailed Checks:[/bold]")
+            console.print()
+            console.print("[bold]Detailed Checks:[/bold]")
             for check in result.checks:
                 if check.passed:
-                    _skill_console.print(
+                    console.print(
                         f"  [green]✓[/green] {check.name} ({check.points}/{check.max_points})"
                     )
                 else:
-                    _skill_console.print(
+                    console.print(
                         f"  [red]✗[/red] {check.name} ({check.points}/{check.max_points})"
                     )
                     if check.message:
-                        _skill_console.print(f"    [dim]{check.message}[/dim]")
+                        console.print(f"    [dim]{check.message}[/dim]")
 
     if task or full:
-        _skill_console.print()
-        _skill_console.print(
+        console.print()
+        console.print(
             "[yellow]Note:[/yellow] Task evaluation requires test scenarios (not yet available)"
         )
 
@@ -1093,7 +1065,7 @@ def skill_sync_team(
 ):
     """Sync with team skills manifest (install required, suggest recommended)."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
@@ -1108,7 +1080,7 @@ def skill_sync_team(
             team_directives_path = str(default_path)
 
     if not team_directives_path:
-        _skill_console.print(
+        console.print(
             "[yellow]No team directives configured.[/yellow]\n"
             "Run 'specify init --team-ai-directives <path-or-url>' to configure."
         )
@@ -1116,12 +1088,12 @@ def skill_sync_team(
 
     team_directives = Path(team_directives_path)
     if not team_directives.exists():
-        _skill_console.print(f"[red]Team directives not found:[/red] {team_directives}")
+        console.print(f"[red]Team directives not found:[/red] {team_directives}")
         return
 
     team_manifest = TeamSkillsManifest(team_directives)
     if not team_manifest.exists():
-        _skill_console.print(
+        console.print(
             f"[yellow]No .skills.json found in team directives.[/yellow]\n"
             f"Expected at: {team_directives / '.skills.json'}"
         )
@@ -1134,106 +1106,98 @@ def skill_sync_team(
     recommended = team_manifest.get_recommended_skills()
     blocked = team_manifest.get_blocked_skills()
 
-    _skill_console.print(f"\n[{ACCENT_COLOR}]Team Skills Manifest:[/{ACCENT_COLOR}]")
-    _skill_console.print(f"  Required: {len(required)}")
-    _skill_console.print(f"  Recommended: {len(recommended)}")
-    _skill_console.print(f"  Blocked: {len(blocked)}")
-    _skill_console.print()
+    console.print(f"\n{accent('Team Skills Manifest:')}")
+    console.print(f"  Required: {len(required)}")
+    console.print(f"  Recommended: {len(recommended)}")
+    console.print(f"  Blocked: {len(blocked)}")
+    console.print()
 
     if required:
-        _skill_console.print("[bold]Required Skills:[/bold]")
+        console.print("[bold]Required Skills:[/bold]")
         for skill_ref, version_spec in required.items():
             current = manifest.get_skill(skill_ref)
             if current and not force:
-                _skill_console.print(
+                console.print(
                     f"  [green]✓[/green] {skill_ref}@{current.version} (already installed)"
                 )
             else:
                 if dry_run:
-                    _skill_console.print(f"  [cyan]→[/cyan] Would install: {skill_ref}")
+                    console.print(f"  [cyan]→[/cyan] Would install: {skill_ref}")
                 else:
                     version = version_spec.lstrip("^~") if version_spec != "*" else None
                     success, message = installer.install(
                         skill_ref, version=version, force=force
                     )
                     if success:
-                        _skill_console.print(f"  [green]✓[/green] {message}")
+                        console.print(f"  [green]✓[/green] {message}")
                     else:
-                        _skill_console.print(f"  [red]✗[/red] {message}")
+                        console.print(f"  [red]✗[/red] {message}")
 
     if recommended:
-        _skill_console.print()
-        _skill_console.print("[bold]Recommended Skills (not auto-installed):[/bold]")
+        console.print()
+        console.print("[bold]Recommended Skills (not auto-installed):[/bold]")
         for skill_ref, version_spec in recommended.items():
             current = manifest.get_skill(skill_ref)
             if current:
-                _skill_console.print(
+                console.print(
                     f"  [green]✓[/green] {skill_ref}@{current.version} (installed)"
                 )
             else:
-                _skill_console.print(f"  [dim]○[/dim] {skill_ref}")
-                _skill_console.print(
+                console.print(f"  [dim]○[/dim] {skill_ref}")
+                console.print(
                     f"    [cyan]Install: specify skill install {skill_ref}[/cyan]"
                 )
 
     if blocked:
-        _skill_console.print()
-        _skill_console.print(
-            "[bold]Blocked Skills (will be rejected on install):[/bold]"
-        )
+        console.print()
+        console.print("[bold]Blocked Skills (will be rejected on install):[/bold]")
         for skill_id in blocked:
-            _skill_console.print(f"  [red]✗[/red] {skill_id}")
+            console.print(f"  [red]✗[/red] {skill_id}")
 
 
 @skill_app.command("check-updates")
 def skill_check_updates():
     """Check for available skill updates."""
     if not SKILLS_AVAILABLE:
-        _skill_console.print("[red]Skills module not available[/red]")
+        console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
 
     project_path = Path.cwd()
     manifest = SkillsManifest(project_path)
 
     if not manifest.exists():
-        _skill_console.print(
-            "[yellow]No skills.json found. No skills installed.[/yellow]"
-        )
+        console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
         return
 
     skills = manifest.list_skills()
     if not skills:
-        _skill_console.print("[yellow]No skills installed.[/yellow]")
+        console.print("[yellow]No skills installed.[/yellow]")
         return
 
-    _skill_console.print(
-        f"\n[{ACCENT_COLOR}]Checking for updates...[/{ACCENT_COLOR}]\n"
-    )
+    console.print(f"\n{accent('Checking for updates...')}\n")
 
     has_updates = False
     for skill_id, metadata in skills.items():
         if metadata.source == "local":
-            _skill_console.print(f"  [dim]○[/dim] {skill_id} (local - no update check)")
+            console.print(f"  [dim]○[/dim] {skill_id} (local - no update check)")
         else:
             if metadata.version in ("main", "master", "*"):
-                _skill_console.print(
+                console.print(
                     f"  [yellow]?[/yellow] {skill_id}@{metadata.version} "
                     f"(tracking branch - run 'specify skill update {skill_id}' to refresh)"
                 )
                 has_updates = True
             else:
-                _skill_console.print(
-                    f"  [green]✓[/green] {skill_id}@{metadata.version}"
-                )
+                console.print(f"  [green]✓[/green] {skill_id}@{metadata.version}")
 
     if has_updates:
-        _skill_console.print()
-        _skill_console.print(
+        console.print()
+        console.print(
             "[dim]Tip: Run 'specify skill update --all' to update all skills[/dim]"
         )
     else:
-        _skill_console.print()
-        _skill_console.print("[green]All skills are up to date.[/green]")
+        console.print()
+        console.print("[green]All skills are up to date.[/green]")
 
 
 @skill_app.command("config")
@@ -1245,21 +1209,19 @@ def skill_config(
     skills_config = _get_skills_config()
 
     if key is None:
-        _skill_console.print(
-            f"\n[{ACCENT_COLOR}]Skills Configuration:[/{ACCENT_COLOR}]\n"
-        )
+        console.print(f"\n{accent('Skills Configuration:')}\n")
         for k, v in skills_config.items():
-            _skill_console.print(f"  {k}: {v}")
-        _skill_console.print()
-        _skill_console.print("[dim]Set with: specify skill config <key> <value>[/dim]")
+            console.print(f"  {k}: {v}")
+        console.print()
+        console.print("[dim]Set with: specify skill config <key> <value>[/dim]")
         return
 
     if value is None:
         if key in skills_config:
-            _skill_console.print(f"{key}: {skills_config[key]}")
+            console.print(f"{key}: {skills_config[key]}")
         else:
-            _skill_console.print(f"[red]Unknown config key:[/red] {key}")
-            _skill_console.print(
+            console.print(f"[red]Unknown config key:[/red] {key}")
+            console.print(
                 f"[dim]Available keys: {', '.join(skills_config.keys())}[/dim]"
             )
         return
@@ -1273,16 +1235,14 @@ def skill_config(
     }
 
     if key not in valid_keys:
-        _skill_console.print(f"[red]Unknown config key:[/red] {key}")
-        _skill_console.print(
-            f"[dim]Available keys: {', '.join(valid_keys.keys())}[/dim]"
-        )
+        console.print(f"[red]Unknown config key:[/red] {key}")
+        console.print(f"[dim]Available keys: {', '.join(valid_keys.keys())}[/dim]")
         return
 
     try:
         converter = valid_keys[key]
         converted_value = converter(value)
         _set_skills_config(key, converted_value)
-        _skill_console.print(f"[green]✓[/green] Set {key} = {converted_value}")
+        console.print(f"[green]✓[/green] Set {key} = {converted_value}")
     except (ValueError, TypeError) as e:
-        _skill_console.print(f"[red]Invalid value:[/red] {e}")
+        console.print(f"[red]Invalid value:[/red] {e}")
