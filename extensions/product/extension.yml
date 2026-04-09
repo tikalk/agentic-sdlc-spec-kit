@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.0.1"
+  version: "1.0.2"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -108,10 +108,6 @@ handoffs:
       agent: "product.analyze"
       prompt: "Validate PDR-PRD consistency and completeness"
       send: true
-    - label: "Create Architecture"
-      agent: "architect.specify"
-      prompt: "Create architecture from product requirements"
-      send: false
 
   product.roadmap:
     - label: "Regenerate PRD"

@@ -2,6 +2,20 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.0.2] - 2026-04-09
+
+### Changed
+
+- **Removed hardcoded architect handoff**: External extension integration now via hooks only
+  - Removed handoff from `product.implement` to `architect.specify` in extension.yml
+  - Architect integration now configured in project-level `.specify/extensions.yml`
+  - Ensures extensions are fully decoupled - architect only referenced if installed
+
+### Migration
+
+- Existing projects: Architect integration now requires explicit configuration in `.specify/extensions.yml`
+- See README.md for hook configuration examples
+
 ## [1.0.1] - 2026-03-20
 
 ### Changed

@@ -5,6 +5,20 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.20] - 2026-04-09
+
+### Changed
+
+- **product extension v1.0.2**: Removed hardcoded architect handoff, now uses hooks-only integration
+  - Extensions are fully decoupled - external references only via project-level hooks
+  - If architect is not installed, no reference to it exists in product workflow
+
+### Fixed
+
+- **Extension coupling**: Product extension no longer has hardcoded references to other extensions
+  - Cross-extension integration now exclusively through `.specify/extensions.yml` hooks configuration
+  - Follows best practice for extension architecture
+
 ## [0.3.19] - 2026-04-09
 
 ### Added
