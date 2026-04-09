@@ -128,6 +128,21 @@ $ARGUMENTS
    - Validate all required paths exist and are accessible
    - Handle argument escaping for special characters
 
+### CRITICAL - Path Validation
+
+**DO NOT write to project root directory**
+- Parse `IMPL_PLAN` from script JSON output
+- Write ONLY to `IMPL_PLAN` path - never to `./plan.md`
+- The correct path is: `./specs/<BRANCH>/plan.md` (e.g., `./specs/001-user-auth/plan.md`)
+- Common mistake: Writing to `./plan.md` instead of `./specs/001-user-auth/plan.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set (from `/adlc.spec.specify`)
+- Run: `export SPECIFY_FEATURE=001-user-auth` (or your feature branch name) before this command
+- Without this, the script may fail to find the correct feature directory
+
 2. **Context Acquisition**
    - **Specification Loading:** Read FEATURE_SPEC for requirements and constraints
    - **Constitutional Loading:** Read `/memory/constitution.md` for governance rules

@@ -41,6 +41,19 @@ You **MUST** consider the user input before proceeding (if not empty).
     - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
     - Auto-detect framework options by parsing the `**Framework Options**` line from spec.md header
 
+### CRITICAL - Path Validation
+
+**DO NOT write to project root or wrong feature directory**
+- Parse `FEATURE_DIR` from script output
+- Write checklist files ONLY to `./specs/<BRANCH>/checklists/` NOT root
+- Common mistake: Writing to `./checklists/` instead of `./specs/<BRANCH>/checklists/`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
    - Only ask about information that materially changes checklist content

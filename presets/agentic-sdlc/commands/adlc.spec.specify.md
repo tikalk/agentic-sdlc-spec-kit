@@ -219,6 +219,23 @@ Given the approved Mission Brief, do this:
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 
+### CRITICAL - Path Validation
+
+**DO NOT write to project root directory**
+- Parse `BRANCH_NAME` and `SPEC_FILE` from script JSON output
+- Write ONLY to `SPEC_FILE` path - never to `./spec.md`
+- The correct path is: `./specs/<BRANCH_NAME>/spec.md` (e.g., `./specs/001-user-auth/spec.md`)
+- Common mistake: Writing to `./spec.md` instead of `./specs/001-user-auth/spec.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- The script outputs `SPECIFY_FEATURE` hint to stderr: `# To persist: export SPECIFY_FEATURE=001-user-auth`
+- After running the script, you MUST set this environment variable before using follow-up commands:
+  - Bash: `export SPECIFY_FEATURE=<BRANCH_NAME>`
+  - PowerShell: `$env:SPECIFY_FEATURE="<BRANCH_NAME>"`
+- This must be set in the AI agent's context before running `/adlc.spec.plan` or `/adlc.spec.tasks`
+
 6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/requirements.md` using the checklist template structure with these validation items:

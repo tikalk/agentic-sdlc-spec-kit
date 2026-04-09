@@ -53,6 +53,22 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory or write to project root**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- All required files (tasks.md, plan.md, spec.md) should be in `./specs/<BRANCH>/` NOT root
+- Common mistakes:
+  - Reading from `./tasks.md` instead of `./specs/<BRANCH>/tasks.md`
+  - Writing implementation files to root instead of feature directory
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+- Without this, FEATURE_DIR will resolve to the wrong location
+
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
    - For each checklist, count:

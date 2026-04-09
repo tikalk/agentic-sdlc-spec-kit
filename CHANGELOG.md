@@ -5,6 +5,27 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.18] - 2026-04-09
+
+### Added
+
+- **ADLC preset path validation**: Added explicit path validation and non-git repository 
+  support to all ADLC preset commands to prevent AI agents from writing files to project 
+  root instead of the correct `specs/<branch>/` directory
+  - adlc.spec.specify.md
+  - adlc.spec.plan.md  
+  - adlc.spec.tasks.md
+  - adlc.spec.implement.md
+  - adlc.spec.checklist.md
+  - adlc.spec.analyze.md
+  - adlc.spec.clarify.md
+  - adlc.spec.constitution.md
+
+### Non-Git Repository Support
+
+- All ADLC commands now include guidance for setting `SPECIFY_FEATURE` environment 
+  variable when working without git
+
 ## [0.3.11] - 2026-04-04
 
 ### Added

@@ -74,6 +74,19 @@ You are updating the project constitution at `.specify/memory/constitution.md`. 
    - Extract core principles using pattern: numbered list with `**Principle Name**`
    - Validate team constitution structure and completeness
 
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- Read spec.md from `./specs/<BRANCH>/spec.md` NOT root `./spec.md`
+- Common mistake: Reading from root instead of feature directory
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+
 2. **Analyze Project Context**
    - Determine project name from repository or branch context
    - Identify project-specific requirements or constraints

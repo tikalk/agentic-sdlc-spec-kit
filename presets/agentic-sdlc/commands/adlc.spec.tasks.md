@@ -62,6 +62,23 @@ Auto-detect framework options by parsing the `**Framework Options**` line from s
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
+### CRITICAL - Path Validation
+
+**DO NOT write to project root or wrong feature directory**
+- Parse `TASKS` path from script JSON output (should be `./specs/<BRANCH>/tasks.md`)
+- Write tasks.md ONLY to the `FEATURE_DIR` - never to `./tasks.md`
+- Common mistakes:
+  - Writing to `./tasks.md` (root) instead of `./specs/<BRANCH>/tasks.md`
+  - Writing to `./specs/master/tasks.md` (wrong branch) instead of `./specs/<BRANCH>/tasks.md`
+- The correct TASKS path includes your feature branch (e.g., `001-user-auth`)
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+- Without this, tasks.md will be written to the wrong location
+
 2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
 3. **Load design documents**: Read from FEATURE_DIR:

@@ -51,6 +51,21 @@ This command adapts its behavior based on project state.
 
 Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
 
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- All required files (spec.md, plan.md, tasks.md) should be in `./specs/<BRANCH>/` NOT root
+- Common mistakes:
+  - Reading from `./spec.md` instead of `./specs/<BRANCH>/spec.md`
+  - Reading from `./plan.md` instead of `./specs/<BRANCH>/plan.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+
 - SPEC = FEATURE_DIR/spec.md
 - PLAN = FEATURE_DIR/plan.md
 - TASKS = FEATURE_DIR/tasks.md
