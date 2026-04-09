@@ -1122,7 +1122,15 @@ def skill_sync_team(
                 if dry_run:
                     console.print(f"  [cyan]→[/cyan] Would install: {skill_ref}")
                 else:
-                    version = version_spec.lstrip("^~") if version_spec != "*" else None
+                    if isinstance(version_spec, dict):
+                        version_str = version_spec.get("version", "*")
+                        version = (
+                            version_str.lstrip("^~") if version_str != "*" else None
+                        )
+                    else:
+                        version = (
+                            version_spec.lstrip("^~") if version_spec != "*" else None
+                        )
                     success, message = installer.install(
                         skill_ref, version=version, force=force
                     )
@@ -1141,7 +1149,12 @@ def skill_sync_team(
                     f"  [green]✓[/green] {skill_ref}@{current.version} (installed)"
                 )
             else:
+                skill_desc = ""
+                if isinstance(version_spec, dict):
+                    skill_desc = version_spec.get("description", "")[:50]
                 console.print(f"  [dim]○[/dim] {skill_ref}")
+                if skill_desc:
+                    console.print(f"    [dim]{skill_desc}[/dim]")
                 console.print(
                     f"    [cyan]Install: specify skill install {skill_ref}[/cyan]"
                 )
