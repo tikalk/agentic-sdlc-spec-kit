@@ -5,6 +5,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.23] - 2026-04-09
+
+### Changed
+
+- **preset commands**: Updated next steps suggestions to use command aliases
+  - Replaced full command names (`/adlc.spec.*`) with shorter aliases (`/spec.*`)
+  - Updated in `adlc.spec.plan.md` and `adlc.spec.specify.md`
+  - Improves user experience with shorter, more intuitive command suggestions
+
 ## [0.3.22] - 2026-04-09
 
 ### Changed
