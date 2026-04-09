@@ -20,6 +20,13 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
   - `specify skill sync-team` - Sync with team manifest
   - `specify skill check-updates` - Check for available updates
   - `specify skill config [key] [value]` - View/modify configuration
+- **specify skill theming**: Commands now use Tikalk orange accent color
+- **specify skill tests**: Added test suite for skill CLI commands
+
+### Fixed
+
+- **httpx dependency**: Added missing httpx dependency required by skills module
+  (was causing "Skills module not available" error)
 - Implementation follows fork pattern: CLI commands in `cli_customization.py`,
   core logic reuses existing `skills/` module
 

@@ -638,7 +638,7 @@ def _set_skills_config(key: str, value) -> None:
 # Build skill_app Typer instance
 skill_app = typer.Typer(
     name="skill",
-    help="Manage agent skills - search, install, update, and evaluate skills",
+    help=accent("Manage agent skills - search, install, update, and evaluate skills"),
     add_completion=False,
     invoke_without_command=True,
 )
@@ -648,6 +648,7 @@ skill_app = typer.Typer(
 def skill_callback(ctx: typer.Context):
     """Show skills help when no subcommand is provided."""
     if ctx.invoked_subcommand is None:
+        console.print(f"\n{accent('Agentic SDLC Skills')}\n")
         console.print("[dim]Use specify skill --help for available commands[/dim]")
 
 
