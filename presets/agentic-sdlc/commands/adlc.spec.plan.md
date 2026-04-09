@@ -133,7 +133,7 @@ $ARGUMENTS
 ### Non-Git Repository Support
 
 If working in a non-git repository:
-- Ensure `SPECIFY_FEATURE` environment variable is set (from `/adlc.spec.specify`)
+- Ensure `SPECIFY_FEATURE` environment variable is set (from `/spec.specify`)
 - Run: `export SPECIFY_FEATURE=001-user-auth` (or your feature branch name) before this command
 - Without this, the script may fail to find the correct feature directory
 

@@ -155,7 +155,7 @@ Which Feature PDR does this feature belong to?
 
 ## Outline
 
-The text the user typed after `/spec.specify` (or `/adlc.spec.specify`) in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
+The text the user typed after `/spec.specify` in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
 
 Given the approved Mission Brief, do this:
 
@@ -234,7 +234,7 @@ If working in a non-git repository:
 - After running the script, you MUST set this environment variable before using follow-up commands:
   - Bash: `export SPECIFY_FEATURE=<BRANCH_NAME>`
   - PowerShell: `$env:SPECIFY_FEATURE="<BRANCH_NAME>"`
-- This must be set in the AI agent's context before running `/adlc.spec.plan` or `/adlc.spec.tasks`
+- This must be set in the AI agent's context before running `/spec.plan` or `/spec.tasks`
 
 6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
@@ -274,7 +274,7 @@ If working in a non-git repository:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan` (or `/adlc.spec.clarify`, `/adlc.spec.plan`)
+      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -328,7 +328,7 @@ If working in a non-git repository:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`, or `/adlc.spec.clarify`, `/adlc.spec.plan`).
+7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`).
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 
