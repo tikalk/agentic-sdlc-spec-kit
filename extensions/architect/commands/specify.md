@@ -499,7 +499,7 @@ Recommended next steps:
 
 - **Brownfield projects**: Use `/architect.init` instead to reverse-engineer from code
 - **Minor updates**: Use `/architect.clarify` for ADR refinements
-- **Feature-level**: Feature architecture is handled via `/spec.plan --architecture`
+- **Feature-level**: Feature architecture via `before_plan` hook (when architect extension is installed and system ADRs exist)
 
 ## Context
 

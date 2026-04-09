@@ -604,7 +604,7 @@ After clarification completes:
 
 - **Greenfield projects**: Use `/architect.specify` for new projects
 - **Architecture exists**: If `AD.md` exists, use `/architect.clarify` to refine
-- **Feature-level**: Feature architecture via `/spec.plan --architecture`
+- **Feature-level**: Feature architecture via `before_plan` hook (configured in `.specify/extensions.yml`)
 
 ## Context
 

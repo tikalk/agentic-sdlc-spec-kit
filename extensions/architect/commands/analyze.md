@@ -368,7 +368,7 @@ Based on findings, recommended actions:
 
 **If feature alignment issues:**
 - **Align**: Resolve feature-system boundary violations
-- Command: `/spec.plan --architecture` to update feature architecture
+- Command: Run `/spec.plan` (architect extension `before_plan` hook will update feature architecture if enabled)
 ```
 
 ### Phase 6: Offer Remediation
@@ -411,7 +411,7 @@ Based on findings, recommended next steps:
 | ADR quality issues | `/architect.clarify` |
 | ADR->AD drift | `/architect.implement --update` |
 | AD->ADR drift (missing ADRs) | `/architect.specify` or `/architect.init` |
-| Feature alignment issues | `/spec.plan --architecture` |
+| Feature alignment issues | `/spec.plan` (triggers `before_plan` hook) |
 | Spec alignment issues | `/spec.analyze` |
 
 ### When to Use This Command

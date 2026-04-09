@@ -2,6 +2,15 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [1.0.1] - 2026-04-09
+
+### Fixed
+
+- **Documentation accuracy**: Removed references to non-existent `--architecture` flag
+  - Updated command documentation to correctly describe hook-based integration
+  - Feature architecture now correctly documented as `before_plan` hook in `.specify/extensions.yml`
+  - Clarified that architect extension must be installed for feature architecture generation
+
 ## [1.0.0] - 2026-03-04
 
 ### Added

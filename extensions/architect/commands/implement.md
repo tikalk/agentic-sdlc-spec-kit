@@ -599,7 +599,7 @@ Recommended next steps:
 ### When NOT to Use This Command
 
 - **No ADRs exist**: Use `/architect.specify` or `/architect.init` first
-- **Feature-level**: Feature AD generated via `/spec.plan --architecture`
+- **Feature-level**: Feature AD generated via `before_plan` hook (configured in `.specify/extensions.yml`)
 - **Minor updates**: Use direct editing for small changes
 
 ## Context
