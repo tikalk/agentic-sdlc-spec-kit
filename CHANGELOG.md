@@ -5,6 +5,24 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.19] - 2026-04-09
+
+### Added
+
+- **specify skill commands**: Restored skill package manager CLI commands that were removed
+  during upstream merge. Available commands:
+  - `specify skill search <query>` - Search skills registry
+  - `specify skill install <ref>` - Install from GitHub/GitLab/local
+  - `specify skill update [name|--all]` - Update installed skills
+  - `specify skill remove <name>` - Uninstall a skill
+  - `specify skill list` - Show installed skills
+  - `specify skill eval <path>` - Evaluate skill quality
+  - `specify skill sync-team` - Sync with team manifest
+  - `specify skill check-updates` - Check for available updates
+  - `specify skill config [key] [value]` - View/modify configuration
+- Implementation follows fork pattern: CLI commands in `cli_customization.py`,
+  core logic reuses existing `skills/` module
+
 ## [0.3.18] - 2026-04-09
 
 ### Added
