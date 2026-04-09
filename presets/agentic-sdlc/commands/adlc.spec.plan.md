@@ -28,12 +28,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Parse the following parameters from `$ARGUMENTS`:
 
-## Framework Options Detection
-
-1. **Auto-Detect from Spec**: Parse the spec.md header to extract framework options from the `**Framework Options**` metadata line (e.g., contracts, data-models). This determines which optional artifacts to generate.
-
-2. **Framework Options**: Respect detected framework options (contracts, data-models) when planning implementation approach and deliverables.
-
 ## Pre-Execution Hooks
 
 **Check for extension hooks (before planning)**:
@@ -200,19 +194,12 @@ If working in a non-git repository:
 
 **Prerequisites:** `research.md` complete
 
-**Framework Options Check:**
-
-- Detect framework options by parsing the `**Framework Options**` line from spec.md header
-- Respect framework configuration for contracts and data models
-
-1. **Extract entities from feature spec** → `data-model.md` (if data models enabled):
-    - Only generate if data models are enabled in current settings
+1. **Extract entities from feature spec** → `data-model.md`:
     - Entity name, fields, relationships
     - Validation rules from requirements
     - State transitions if applicable
 
-2. **Generate API contracts** from functional requirements (if contracts enabled):
-    - Only generate if API contracts are enabled in current settings
+2. **Generate API contracts** from functional requirements:
     - For each user action → endpoint
     - Use standard REST/GraphQL patterns
     - Output OpenAPI/GraphQL schema to `/contracts/`
@@ -224,10 +211,10 @@ If working in a non-git repository:
     - Add only new technology from current plan
     - Preserve manual additions between markers
 
-**Output**: Conditionally generated artifacts based on framework option settings:
+**Output**: Generated artifacts:
 
-- data-model.md (if data models enabled)
-- /contracts/* (if contracts enabled)
+- data-model.md
+- /contracts/*
 - quickstart.md, agent-specific file (always generated)
 
 ### Phase 2: Feature Architecture (via architect extension)

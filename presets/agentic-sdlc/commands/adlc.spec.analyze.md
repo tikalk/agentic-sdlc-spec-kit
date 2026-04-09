@@ -288,22 +288,18 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
    - **Spec-level traces**: Every major feature/user story should have at least one issue reference
    - **Task-level traces**: Implementation tasks should reference parent spec issues
    - **Cross-artifact consistency**: Same issue IDs used across spec.md, plan.md, tasks.md
-4. **Check MCP configuration**: Verify `.mcp.json` exists and issue tracker is properly configured
 
 **Traceability Gaps to Detect**:
 
 - **Missing spec traces**: User stories or major features without `@issue-tracker` references
 - **Orphaned tasks**: Implementation tasks not linked to spec-level issues
 - **Inconsistent issue references**: Same feature referenced with different issue IDs across artifacts
-- **Invalid issue formats**: Malformed issue references that won't integrate with MCP
-- **MCP misconfiguration**: Issue tracker not configured in `.mcp.json`
 
 **Validation Rules**:
 
 - **Minimum coverage**: ≥80% of user stories/requirements should have traceable issue links
 - **Format validation**: Issue references must match configured tracker patterns (GitHub/Jira/Linear/GitLab)
 - **Consistency check**: Issue IDs should be consistent across spec.md → plan.md → tasks.md
-- **MCP readiness**: `.mcp.json` must exist and contain valid issue tracker configuration
 
 ### 5. Severity Assignment
 
@@ -356,7 +352,6 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 **Traceability Validation:**
 
 - **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
-- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
 - **Format Validation**: All issue references use valid formats
 - **Consistency Check**: Issue IDs consistent across artifacts
 
@@ -398,7 +393,6 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 **Traceability Validation:**
 
 - **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
-- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
 - **Format Validation**: All issue references use valid formats
 - **Consistency Check**: Issue IDs consistent across artifacts
 

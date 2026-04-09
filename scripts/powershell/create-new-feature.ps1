@@ -9,10 +9,6 @@ param(
     [long]$Number = 0,
     [switch]$Timestamp,
     [switch]$Help,
-    [switch]$Contracts,
-    [switch]$NoContracts,
-    [switch]$DataModels,
-    [switch]$NoDataModels,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
@@ -21,23 +17,7 @@ $ErrorActionPreference = 'Stop'
 # Source discovery functions (must be after param block)
 . "$PSScriptRoot/discovery-functions.ps1"
 
-# Set default mode
-$Mode = "spec"
-$ContractsVal = $true
-$DataModelsVal = $true
 
-# Handle switch parameters for contracts and data models
-if ($NoContracts) {
-    $ContractsVal = $false
-} elseif ($Contracts) {
-    $ContractsVal = $true
-}
-
-if ($NoDataModels) {
-    $DataModelsVal = $false
-} elseif ($DataModels) {
-    $DataModelsVal = $true
-}
 
 # Get the global config path using XDG Base Directory spec
 function Get-GlobalConfigPath {
@@ -62,23 +42,18 @@ if ($Help) {
     Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-    Write-Host "  -Contracts          Enable service contracts (requires framework)"
-    Write-Host "  -NoContracts        Disable service contracts"
-    Write-Host "  -DataModels         Generate data model documentation"
-    Write-Host "  -NoDataModels      Skip data model generation"
     Write-Host "  -Help               Show this help message"
     Write-Host ""
     Write-Host "Examples:"
     Write-Host "  ./create-new-feature.ps1 'Add user authentication system' -ShortName 'user-auth'"
     Write-Host "  ./create-new-feature.ps1 -Number 5 'Feature with specific number'"
     Write-Host "  ./create-new-feature.ps1 -Timestamp -ShortName 'user-auth' 'Add user authentication'"
-    Write-Host "  ./create-new-feature.ps1 -Contracts -NoDataModels 'My feature' -ShortName 'my-feature'"
     exit 0
 }
 
 # Check if feature description provided
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Contracts] [-NoContracts] [-DataModels] [-NoDataModels] <feature description>"
+    Write-Error "Usage: ./create-new-feature.ps1 [-Json] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
     exit 1
 }
 
@@ -366,17 +341,6 @@ if (-not $DryRun) {
 
     # Replace [DATE] placeholders with current date
     Replace-DatePlaceholders -FilePath $specFile
-
-    # Replace metadata placeholders with actual values (tikalk customization)
-    if (Test-Path $specFile) {
-        $content = Get-Content -Path $specFile -Raw
-        
-        # Replace framework options metadata
-        $frameworkOptions = "  contracts=$($ContractsVal.ToString().ToLower()),`n  data_models=$($DataModelsVal.ToString().ToLower())"
-        $content = $content -replace '\*\*Framework Options\*\*: tdd=true, contracts=true, data_models=true, risk_tests=true', "**Framework Options**:`n$frameworkOptions"
-        
-        Set-Content -Path $specFile -Value $content -NoNewline
-    }
 }
 
 # Function to populate context.md with defaults (tikalk customization)

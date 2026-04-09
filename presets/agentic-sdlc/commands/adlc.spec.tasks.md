@@ -22,8 +22,6 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Auto-detect framework options by parsing the `**Framework Options**` line from spec.md header. Enable risk-based test generation if `risk_tests=true` is detected.
-
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks generation)**:
@@ -138,18 +136,11 @@ If working in a non-git repository:
     - Parallel execution examples per story
     - Implementation strategy section (MVP first, incremental delivery)
 
-6. **Apply Issue Tracker Labels**: If issue tracker MCP is configured and ASYNC tasks exist:
-    - Apply `async-ready` and `agent-delegatable` labels to the associated issue
-    - Update tasks_meta.json with labeling information
-    - Enable automatic async agent triggering for qualifying tasks
-
-7. **Report**: Output path to generated tasks.md and summary:
+6. **Report**: Output path to generated tasks.md and summary:
     - Total task count
     - Task count per user story
     - Parallel opportunities identified
     - Independent test criteria for each story
-    - **If risk tests enabled**: Number of risk mitigation tasks generated
-    - **If issue labeling applied**: Issue ID and labels applied
     - Suggested MVP scope (typically just User Story 1)
     - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
