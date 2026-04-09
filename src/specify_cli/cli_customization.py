@@ -21,8 +21,9 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import typer
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from rich.console import Console
 
@@ -581,10 +582,6 @@ def get_preinstalled_extensions(project_path: Path) -> list[dict]:
 # SKILL COMMANDS - Tikalk fork skill package manager CLI
 # ============================================================================
 
-import typer
-from typing import Optional
-from pathlib import Path
-
 # Import core skills modules (already exist in upstream skills/ package)
 try:
     from .skills import (
@@ -687,7 +684,7 @@ def skill_search(
     # Filter by score if specified
     if min_score:
         console.print(
-            f"[yellow]Note:[/yellow] Score filtering not available in registry search"
+            "[yellow]Note:[/yellow] Score filtering not available in registry search"
         )
 
     if json_output:
@@ -924,7 +921,7 @@ def skill_list(
     if not manifest.exists():
         console.print("[yellow]No skills.json found. No skills installed.[/yellow]")
         console.print(
-            f"[dim]Run 'specify skill install <skill>' to install skills[/dim]"
+            "[dim]Run 'specify skill install <skill>' to install skills[/dim]"
         )
         return
 
@@ -932,7 +929,7 @@ def skill_list(
 
     if not skills:
         console.print("[yellow]No skills installed.[/yellow]")
-        console.print(f"[dim]Run 'specify skill search <query>' to find skills[/dim]")
+        console.print("[dim]Run 'specify skill search <query>' to find skills[/dim]")
         return
 
     if json_output:
