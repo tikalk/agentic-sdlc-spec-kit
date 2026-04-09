@@ -5,6 +5,19 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.22] - 2026-04-09
+
+### Changed
+
+- **levelup.clarify**: Simplified UX to align with architect.clarify and product.clarify patterns
+  - Removed auto-assessment phase (no pre-computed validity/scope/coverage)
+  - Replaced batch overview with simple gap identification table
+  - Simplified action picker: Accept/Reject/Defer (removed Investigate/Split)
+  - Aligned session limits: 5 clarifications total (like architect/product)
+  - Inline questions when gaps detected (no separate Investigate action)
+  - Updated documentation: added CDR Quality Checklist
+  - 31% line reduction: 694 → 478 lines
+
 ## [0.3.21] - 2026-04-09
 
 ### Fixed
