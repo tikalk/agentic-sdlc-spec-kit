@@ -390,15 +390,51 @@ def _install_bundled_extensions(
             continue
 
         try:
-            if registry.is_installed(ext_name):
-                skipped.append(f"{ext_name} (existing)")
-                continue
-
             from .extensions import ExtensionManifest
 
             manifest_path = ext_dir / "extension.yml"
             manifest = ExtensionManifest(manifest_path)
 
+            # Check if already installed - compare versions for update
+            if registry.is_installed(ext_name):
+                from packaging.version import Version
+
+                existing = registry.get(ext_name)
+                existing_version = existing.get("version", "0") if existing else "0"
+
+                try:
+                    if Version(manifest.version) > Version(existing_version):
+                        # Update to newer version - re-register commands/skills
+                        registered_commands = (
+                            registrar.register_commands_for_all_agents(
+                                manifest, ext_dir, project_path
+                            )
+                        )
+                        registered_skills = manager._register_extension_skills(
+                            manifest, ext_dir
+                        )
+
+                        registry.update(
+                            ext_name,
+                            {
+                                "version": manifest.version,
+                                "manifest_hash": manifest.get_hash(),
+                                "registered_commands": registered_commands,
+                                "registered_skills": registered_skills,
+                            },
+                        )
+                        installed.append(ext_name)
+                    else:
+                        skipped.append(f"{ext_name} (existing)")
+                        continue
+                except Exception:
+                    # Invalid version format - skip
+                    skipped.append(f"{ext_name} (existing)")
+                    continue
+
+                continue
+
+            # New installation
             registered_commands = registrar.register_commands_for_all_agents(
                 manifest, ext_dir, project_path
             )

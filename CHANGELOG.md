@@ -5,6 +5,16 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.3.30] - 2026-04-10
+
+### Fixed
+
+- **bundled extensions**: Version comparison during init/re-init
+  - Compare installed vs bundled version when scaffolding extensions
+  - Update to newer version if bundled is higher
+  - Previously skipped all existing extensions preventing updates
+  - Fixes v1.1.4 extensions not installing over v1.1.3
+
 ## [0.3.28] - 2026-04-10
 
 ### Fixed
