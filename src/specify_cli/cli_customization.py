@@ -167,16 +167,13 @@ def _scaffold_extensions_to_project(
 
         proj_ext = project_dir / ext_dir.name
 
-        if (proj_ext / "extension.yml").exists():
-            continue
-
+        # Always scaffold - copy all files, overwriting existing
         if proj_ext.exists():
             for src in ext_dir.rglob("*"):
                 if src.is_file():
                     dst = proj_ext / src.relative_to(ext_dir)
-                    if not dst.exists():
-                        dst.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(src, dst)
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(src, dst)
         else:
             shutil.copytree(ext_dir, proj_ext)
 
