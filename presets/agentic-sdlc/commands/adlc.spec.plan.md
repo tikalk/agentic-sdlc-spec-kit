@@ -190,7 +190,7 @@ If working in a non-git repository:
 
 **Output**: research.md with all NEEDS CLARIFICATION resolved
 
-### Phase 1: Design & Contracts (Configurable)
+### Phase 1: Design & Contracts
 
 **Prerequisites:** `research.md` complete
 
@@ -199,10 +199,11 @@ If working in a non-git repository:
     - Validation rules from requirements
     - State transitions if applicable
 
-2. **Generate API contracts** from functional requirements:
-    - For each user action → endpoint
-    - Use standard REST/GraphQL patterns
-    - Output OpenAPI/GraphQL schema to `/contracts/`
+2. **Define interface contracts** (if project has external interfaces) → `/contracts/`:
+    - Identify what interfaces the project exposes to users or other systems
+    - Document the contract format appropriate for the project type
+    - Examples: public APIs for libraries, command schemas for CLI tools, endpoints for web services, grammars for parsers, UI contracts for applications
+    - Skip if project is purely internal (build scripts, one-off tools, etc.)
 
 3. **Agent context update**:
     - Run `{AGENT_SCRIPT}`
@@ -211,11 +212,7 @@ If working in a non-git repository:
     - Add only new technology from current plan
     - Preserve manual additions between markers
 
-**Output**: Generated artifacts:
-
-- data-model.md
-- /contracts/*
-- quickstart.md, agent-specific file (always generated)
+**Output**: data-model.md, /contracts/* (if external interfaces), quickstart.md, agent-specific file
 
 ### Phase 2: Feature Architecture (via architect extension)
 
