@@ -1331,8 +1331,8 @@
       "id": "review",
       "description": "Post-implementation comprehensive code review with specialized agents for code quality, comments, tests, error handling, type design, and simplification.",
       "author": "ismaelJimenez",
-      "version": "1.0.0",
-      "download_url": "https://github.com/ismaelJimenez/spec-kit-review/archive/refs/tags/v1.0.0.zip",
+      "version": "1.0.1",
+      "download_url": "https://github.com/ismaelJimenez/spec-kit-review/archive/refs/tags/v1.0.1.zip",
       "repository": "https://github.com/ismaelJimenez/spec-kit-review",
       "homepage": "https://github.com/ismaelJimenez/spec-kit-review",
       "documentation": "https://github.com/ismaelJimenez/spec-kit-review/blob/main/README.md",
@@ -1358,7 +1358,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-06T00:00:00Z",
-      "updated_at": "2026-03-06T00:00:00Z"
+      "updated_at": "2026-04-09T00:00:00Z"
     },
     "security-review": {
       "name": "Security Review",
@@ -1658,8 +1658,8 @@
       "id": "verify",
       "description": "Post-implementation quality gate that validates implemented code against specification artifacts.",
       "author": "ismaelJimenez",
-      "version": "1.0.0",
-      "download_url": "https://github.com/ismaelJimenez/spec-kit-verify/archive/refs/tags/v1.0.0.zip",
+      "version": "1.0.3",
+      "download_url": "https://github.com/ismaelJimenez/spec-kit-verify/archive/refs/tags/v1.0.3.zip",
       "repository": "https://github.com/ismaelJimenez/spec-kit-verify",
       "homepage": "https://github.com/ismaelJimenez/spec-kit-verify",
       "documentation": "https://github.com/ismaelJimenez/spec-kit-verify/blob/main/README.md",
@@ -1683,7 +1683,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-03T00:00:00Z",
-      "updated_at": "2026-03-03T00:00:00Z"
+      "updated_at": "2026-04-09T00:00:00Z"
     },
     "verify-tasks": {
       "name": "Verify Tasks Extension",
