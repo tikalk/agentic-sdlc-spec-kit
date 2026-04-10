@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.1.2"
+  version: "1.1.3"
   description: "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

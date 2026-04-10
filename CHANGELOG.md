@@ -9,9 +9,10 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 ### Fixed
 
-- **init workflow**: Remove auto-trigger to clarify, make it manual
+- **init workflow**: Remove all auto-trigger references to clarify
   - Clarify is now a manual step you run after init
   - Prevents hidden sub-agent calls during brownfield analysis
+  - Updated Description and Output sections to reflect manual flow
 
 ### Changed
 

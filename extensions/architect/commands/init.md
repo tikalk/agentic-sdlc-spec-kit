@@ -25,12 +25,12 @@ When users provide context, use it to focus the reverse-engineering effort.
 
 ## Goal
 
-Reverse-engineer architecture from an **existing codebase** (brownfield) to create ADRs documenting discovered decisions, then **auto-trigger clarification** to validate findings.
+Reverse-engineer architecture from an **existing codebase** (brownfield) to create ADRs documenting discovered decisions, then **validate the findings** by running clarify manually.
 
 **Output**:
 
 1. **ADRs** documenting inferred architectural decisions in `.specify/drafts/adr.md`
-2. **Auto-handoff** to `/architect.clarify` to validate discovered decisions
+2. **Validate Findings**: Run `/architect.clarify` to validate discovered decisions
 
 **Key Difference from `/architect.specify`**:
 
