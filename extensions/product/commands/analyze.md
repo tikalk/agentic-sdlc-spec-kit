@@ -136,6 +136,7 @@ Focus on high-signal findings. Limit to **50 findings total**; aggregate remaind
 **PDR Quality Checklist**:
 
 For each PDR, verify:
+
 - [ ] Clear context explaining the problem/opportunity
 - [ ] Explicit, actionable decision statement
 - [ ] Positive AND negative consequences documented
@@ -187,6 +188,7 @@ For each PDR, verify:
 **Detection Logic**:
 
 For each PDR:
+
 1. Identify the PDR's primary section impact (use mapping table above)
 2. Search PRD for reflection of that decision
 3. Flag if decision is absent or contradicted

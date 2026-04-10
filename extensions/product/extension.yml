@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.0.2"
+  version: "1.1.0"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -144,6 +144,12 @@ defaults:
     team_pr: true
   sections: "all"
   decompose: true
+  dag:
+    enabled: true
+    base_location: ".specify/product/"                # Project base for DAG outputs
+    state_location: ".specify/product/state.json"     # DAG execution state
+    sections_location: ".specify/product/sections/"   # Generated section files per feature-area
+    section_templates: "templates/sections/"          # Extension templates (relative to extension dir)
 
 # PDR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)

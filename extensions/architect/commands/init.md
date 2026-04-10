@@ -159,6 +159,7 @@ Based on user response:
 | Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
 
 **Threshold Logic**:
+
 - **≤3 sub-systems**: Auto-approve, show summary
 - **4-6 sub-systems**: Show summary, ask to confirm
 - **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
@@ -180,6 +181,7 @@ After confirmation, output structured sub-system data:
 ```
 
 **If decomposition disabled**:
+
 ```json
 {
   "decomposition": "disabled",
@@ -574,7 +576,7 @@ After clarification completes:
 
 ### Complete Brownfield Flow
 
-```
+```text
 /architect.init "Node.js API, team of 2"
     ↓
 [Scan codebase] → Detect technologies, patterns

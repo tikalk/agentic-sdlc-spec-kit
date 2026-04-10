@@ -140,6 +140,7 @@ Focus on high-signal findings. Limit to **50 findings total**; aggregate remaind
 **ADR Quality Checklist**:
 
 For each ADR, verify:
+
 - [ ] Clear context explaining the problem/opportunity
 - [ ] Explicit, actionable decision statement
 - [ ] Positive AND negative consequences documented
@@ -190,6 +191,7 @@ For each ADR, verify:
 **Detection Logic**:
 
 For each ADR:
+
 1. Identify the ADR's primary view impact (use mapping table above)
 2. Search AD.md for reflection of that decision
 3. Flag if decision is absent or contradicted

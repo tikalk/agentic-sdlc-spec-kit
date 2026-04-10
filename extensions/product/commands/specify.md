@@ -150,6 +150,7 @@ Based on user response:
 | Empty/Default | Auto-proceed if ≤3 areas, ask if >3 |
 
 **Threshold Logic**:
+
 - **≤3 areas**: Auto-approve, show summary
 - **4-6 areas**: Show summary, ask to confirm
 - **>6 areas**: Show summary, suggest grouping, ask to confirm
@@ -171,6 +172,7 @@ After confirmation, output structured feature area data:
 ```
 
 **If decomposition disabled**:
+
 ```json
 {
   "decomposition": "disabled",

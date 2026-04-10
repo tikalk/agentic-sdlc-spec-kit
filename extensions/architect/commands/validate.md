@@ -8,7 +8,7 @@ Validate that the plan aligns with the architecture and identify any blocking is
 
 ## Usage
 
-```
+```text
 /architect.validate --for-plan
 /architect.validate --json
 /architect.validate --system-only
@@ -31,6 +31,7 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 ### When Architecture Exists
 
 If ADRs exist in any location (check all three):
+
 1. Load ADRs from all locations (priority order):
    - `.specify/memory/adr.md` (canonical - Accepted ADRs)
    - `team-ai-directives/context_modules/adr.md` (team canonical - if configured)
@@ -54,11 +55,13 @@ If ADRs exist in any location (check all three):
 ### When Architecture Doesn't Exist
 
 If no ADRs exist in any location:
+
 - Skip validation gracefully
 - Return `{"status":"skipped","reason":"architecture_not_found"}` if `--json` flag used
 
 Example output:
-```
+
+```text
 ⏭️  Architecture not found (no ADRs in drafts/memory/team)
      Skipping validation gracefully
 ```
@@ -67,7 +70,7 @@ Example output:
 
 ### Console Output (default)
 
-```
+```text
 🔍 Architecture Validation Mode (READ-ONLY)
 
 📋 ADR files found: N
@@ -148,6 +151,7 @@ Warnings: 5
 ## Integration
 
 This command is automatically called by the `after_plan` hook:
+
 - Validates plan alignment with architecture
 - The command itself checks for architecture existence and skips gracefully
 - Returns `{"status":"skipped","reason":"architecture_not_found"}` if no architecture exists

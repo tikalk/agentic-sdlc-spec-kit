@@ -1,5 +1,5 @@
 ---
-description: Generate full Product Requirements Document (PRD) from PDRs
+description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration
 scripts:
   sh: scripts/bash/setup-product.sh "implement {ARGS}"
   ps: scripts/powershell/setup-product.ps1 "implement {ARGS}"
@@ -25,401 +25,521 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Flags
 
 - `--sections SECTIONS`: PRD sections to generate
-  - `): All 9 sections
-  -all` (default Custom: comma-separated (e.g., `problem,scope,requirements`)
+  - `all` (default): All 11 sections
+  - Custom: comma-separated (e.g., `problem,scope,requirements`)
 
 ## Goal
 
-Transform Product Decision Records (PDRs) into a comprehensive Product Requirements Document (PRD) with all required sections.
+Transform Product Decision Records (PDRs) into a comprehensive Product Requirements Document (PRD) using a **multi-agent DAG orchestration** approach:
+
+1. **Plan Agent**: Analyze PDRs, detect feature-areas, generate customized DAG, get user approval
+2. **Execute Agent**: Generate sections per feature-area following the DAG, with dependency context
+3. **Summarize Agent**: Aggregate all sections, resolve conflicts, generate unified PRD.md
 
 **Key Insight**: PDRs capture **why** decisions were made; the PRD captures **what** the product will deliver as a result of those decisions.
 
 ## Role & Context
 
-You are acting as a **Product Writer** synthesizing PDRs into comprehensive product documentation. Your role involves:
+You are acting as a **Product Orchestrator** managing a multi-phase documentation generation workflow. Your role involves:
 
-- **Translating** individual PDRs into cohesive product sections
-- **Synthesizing** decisions into actionable requirements
-- **Ensuring** consistency between PDRs and generated PRD
-- **Producing** stakeholder-appropriate documentation
+- **Planning** the generation DAG based on feature-area analysis
+- **Executing** section generation with proper dependency ordering
+- **Summarizing** sections into a unified Product Requirements Document
+- **Persisting** state for resumability across AI agent sessions
 
 ### Product Document Hierarchy
 
 | Document | Purpose | Location |
 |----------|---------|----------|
 | `.specify/drafts/pdr.md` | Product decisions with rationale | Input |
-| `PRD.md` (root) | Full Product Requirements Document | Output (when TD not configured) |
-| `{TEAM_DIRECTIVES}/PRD.md` | Full Product Requirements Document | Output via PR (when TD configured) |
+| `.specify/product/state.json` | DAG execution state | State |
+| `.specify/product/sections/{feature-area}/{section}.md` | Per-section outputs | Intermediate |
+| `PRD.md` (root or team-directives) | Full Product Requirements Document | Output |
 | `.specify/memory/constitution.md` | Product vision/strategy | Constraint |
 
-## Outline
+### Section Templates
 
-1. **Load PDRs**: Parse all PDRs from `.specify/drafts/pdr.md`
-2. **Determine Sections**: Parse `--sections` flag to determine which sections to generate
-3. **Generate Sections**: Create all requested PRD sections
-4. **Output**: Write `PRD.md` to team-ai-directives via PR (if configured) or project root
+Located in the extension's `templates/sections/` directory:
 
-## Execution Steps
+| Template | Purpose |
+|----------|---------|
+| `templates/sections/overview.md` | Overview section template |
+| `templates/sections/problem.md` | Problem section template |
+| `templates/sections/goals.md` | Goals/Objectives section template |
+| `templates/sections/metrics.md` | Success Metrics section template |
+| `templates/sections/personas.md` | Personas section template |
+| `templates/sections/requirements.md` | Functional Requirements section template |
+| `templates/sections/nfrs.md` | Non-Functional Requirements section template |
+| `templates/sections/out-of-scope.md` | Out of Scope section template |
+| `templates/sections/risks.md` | Risks & Mitigation section template |
+| `templates/sections/roadmap.md` | Roadmap & Milestones section template |
+| `templates/sections/pdr-summary.md` | PDR Summary section template |
 
-### Phase 1: PDR Loading
+## Three-Phase DAG Workflow
 
-**Objective**: Load and analyze existing PDRs
-
-1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to prepare product files
-   - Creates `PRD.md` from template if it doesn't exist
-
-2. **Load PDRs**:
-   - Read `.specify/drafts/pdr.md`
-   - Parse each PDR: ID, title, category, context, decision, consequences
-   - Build decision index
-
-3. **Load Constitution**:
-   - Read `.specify/memory/constitution.md` for constraint validation
-   - Extract principles that affect product documentation
-
-4. **PDR-to-Section Mapping**:
-
-   | PDR Category | Primary PRD Section | Secondary Sections |
-   |--------------|---------------------|--------------------|
-   | Problem | 2. The Problem | 1. Overview |
-   | Persona | 5. Personas | 1. Overview |
-   | Scope | 6. Functional Requirements | 8. Out of Scope |
-   | Metric | 4. Success Metrics | 3. Goals/Objectives |
-   | Prioritization | 6. Functional Requirements | 8. Out of Scope |
-   | Business Model | 1. Overview | 4. Success Metrics |
-   | Feature | 6. Functional Requirements | - |
-   | NFR | 7. Non-Functional Requirements | - |
-
-### Phase 2: Section Generation
-
-**Objective**: Generate each PRD section from PDR content
-
-**Section Selection Based on `--sections` Flag**:
-
-| Flag Value | Sections to Generate |
-|------------|----------------------|
-| `all` | All 11 sections |
-| `overview,problem,goals` | Sections 1, 2, 3 only |
-| Custom | Specified sections |
-
-**Generate sections in this order**:
-
-#### Section 1: Overview
-
-**Purpose**: High-level product description
-
-**PDRs to Reference**: Problem, Business Model, Scope
-
-**Generate**:
-- Product name and description (from Problem PDRs)
-- Purpose statement (from Business Model)
-- In Scope / Out of Scope summary (from Scope PDRs)
-
-#### Section 2: The Problem
-
-**Purpose**: Articulate the problem being solved
-
-**PDRs to Reference**: Problem category PDRs
-
-**Generate**:
-- Problem statement (from Problem PDR context)
-- Current state description
-- Pain points experienced
-- Impact of not solving
-
-#### Section 3: Goals/Objectives
-
-**Purpose**: Define what success looks like
-
-**PDRs to Reference**: Problem, Metric PDRs
-
-**Generate**:
-- Primary Goal
-- Technical Goal
-- Business Goal
-- Goals traced to PDRs table
-
-#### Section 4: Success Metrics
-
-**Purpose**: Define measurable outcomes
-
-**PDRs to Reference**: Metric category PDRs
-
-**Generate**:
-- Key metrics with targets
-- Measurement methods
-- Metrics traced to PDRs table
-
-#### Section 5: Personas
-
-**Purpose**: Define target users
-
-**PDRs to Reference**: Persona category PDRs
-
-**Generate**:
-- Primary Persona with role, needs, success quote
-- Secondary Personas
-- Persona traced to PDRs
-
-#### Section 6: Functional Requirements
-
-**Purpose**: Define what the product must do
-
-**PDRs to Reference**: Scope, Feature, Prioritization PDRs
-
-**Generate**:
-- User Stories table
-- Feature requirements with acceptance criteria
-- Requirements traced to PDRs
-
-#### Section 7: Non-Functional Requirements (NFRs)
-
-**Purpose**: Define quality attributes
-
-**PDRs to Reference**: NFR category PDRs
-
-**Generate**:
-- Performance requirements
-- Security requirements
-- Reliability requirements
-- Usability requirements
-- Scalability requirements
-- NFRs traced to PDRs
-
-#### Section 8: Out of Scope
-
-**Purpose**: Define explicit exclusions
-
-**PDRs to Reference**: Scope PDRs (negative decisions)
-
-**Generate**:
-- Features excluded
-- Technical exclusions
-- Market exclusions
-- Scope decisions traced to PDRs
-
-#### Section 9: Risks & Mitigation
-
-**Purpose**: Document product risks
-
-**PDRs to Reference**: All PDRs (consequence sections)
-
-**Generate**:
-- Risk table with likelihood, impact, mitigation
-- Technical risks
-- Market risks
-- Operational risks
-- Risks traced to PDR consequence sections
-
-#### Section 10: Roadmap & Milestones (NEW)
-
-**Purpose**: Define product release milestones with feature groupings
-
-**PDRs to Reference**: Milestone category PDRs
-
-**Generate**:
-- Milestone name and target date
-- Demo sentence for each milestone
-- Features included in each milestone (with priority)
-- Feature dependencies (from Boundary Maps in specs)
-- Success criteria per milestone
-- Features deferred to future milestones
-- Milestone-to-PDR traceability table
-
-**Milestone Generation Logic**:
-1. Filter PDRs for `Category = Milestone`
-2. For each milestone PDR:
-   - Extract release goal, target date, demo sentence
-   - List features with priority (Must/Should/Could)
-   - Map dependencies from Boundary Map
-   - Extract success metrics
-3. Build dependency graph to detect ordering
-4. Identify features deferred (not in any milestone)
-
-**Example Output**:
-```markdown
-### Milestone 1: Internal Alpha - Q1 2026
-
-**Demo Sentence:** "After this milestone, developers can provision Postgres via the CNE Agent"
-
-| Feature | Priority | Demo Sentence | Dependencies |
-|---------|----------|---------------|--------------|
-| SSO Auth | Must | "User can log in via Tikal SSO" | None |
-| Postgres Provision | Must | "User can request a Postgres DB" | SSO Auth |
-
-**Success Criteria:**
-| Metric | Target |
-|--------|--------|
- | ≥| Internal users2 |
-| Time-to-provision | <15 min |
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 1: PLAN                                      │
+│  ┌─────────────┐    ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │ Load PDRs   │───▶│ Detect Feature- │───▶│ Generate DAG per Feature-  │ │
+│  │             │    │ Areas           │    │ Area (apply customization) │ │
+│  └─────────────┘    └─────────────────┘    └──────────────┬──────────────┘ │
+│                                                           │                 │
+│                                            ┌──────────────▼──────────────┐ │
+│                                            │ Present Plan for Approval   │ │
+│                                            │ (user confirms or modifies) │ │
+│                                            └──────────────┬──────────────┘ │
+│                                                           │                 │
+│                                            ┌──────────────▼──────────────┐ │
+│                                            │ Write state.json            │ │
+│                                            └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 2: EXECUTE                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  For each feature-area, execute DAG in topological order:           │   │
+│  │                                                                      │   │
+│  │  ┌──────────┐    ┌─────────┐    ┌───────┐    ┌─────────┐            │   │
+│  │  │ Overview │───▶│ Problem │───▶│ Goals │───▶│ Metrics │            │   │
+│  │  └──────────┘    └─────────┘    └───────┘    └─────────┘            │   │
+│  │        │              │                            │                 │   │
+│  │        ▼              ▼                            │                 │   │
+│  │  ┌──────────┐   ┌─────────────┐                   │                 │   │
+│  │  │ Personas │──▶│Requirements │◀──────────────────┘                 │   │
+│  │  └──────────┘   └─────────────┘                                     │   │
+│  │                       │                                              │   │
+│  │        ┌──────────────┼──────────────┐                              │   │
+│  │        ▼              ▼              ▼                              │   │
+│  │  ┌─────────┐   ┌────────────┐  ┌─────────┐                         │   │
+│  │  │  NFRs   │   │Out of Scope│  │  Risks  │                         │   │
+│  │  └─────────┘   └────────────┘  └─────────┘                         │   │
+│  │        │              │              │                              │   │
+│  │        └──────────────┼──────────────┘                              │   │
+│  │                       ▼                                              │   │
+│  │                 ┌──────────┐    ┌─────────────┐                     │   │
+│  │                 │ Roadmap  │───▶│ PDR Summary │                     │   │
+│  │                 └──────────┘    └─────────────┘                     │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  Each section: Read dependencies → Generate content → Write to sections dir │
+│                → Update state.json with progress                            │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 3: SUMMARIZE                                 │
+│  ┌──────────────────┐    ┌─────────────────────┐    ┌──────────────────┐   │
+│  │ Read all section │───▶│ Detect cross-       │───▶│ Resolve conflicts│   │
+│  │ files            │    │ feature conflicts   │    │ using PDRs       │   │
+│  └──────────────────┘    └─────────────────────┘    └────────┬─────────┘   │
+│                                                               │             │
+│  ┌──────────────────┐                               ┌────────▼─────────┐   │
+│  │ Move Accepted    │◀──────────────────────────────│ Aggregate into   │   │
+│  │ PDRs to memory   │                               │ unified PRD.md   │   │
+│  └──────────────────┘                               └──────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
 ---
 
-### Milestone 2: Production - Q2 2026
+## PHASE 1: PLAN (Plan Agent)
 
-**Features Deferred from M1:**
-- Web UI (deferred to M2)
+**Objective**: Analyze PDRs, detect feature-areas, generate customized DAG, get user approval
+
+**Script Action**: Run `{SCRIPT}` which calls `plan-dag` internally
+
+### Step 1.1: Load and Analyze PDRs
+
+1. **Read PDR File**: Load `.specify/drafts/pdr.md`
+2. **Parse PDR Index**: Extract feature-areas from the PDR index table
+3. **Group PDRs by Feature-Area**: Create mapping of feature-area → PDRs
+
+**PDR Index Table Format**:
+
+```markdown
+| ID | Category | Feature-Area | Decision | Status | Date | Owner |
+|----|----------|--------------|----------|--------|------|-------|
+| PDR-001 | Problem | Core | Target enterprise users | Accepted | 2024-01-15 | @product |
+| PDR-002 | Persona | Auth | Developer persona | Accepted | 2024-01-16 | @ux |
+| PDR-003 | Feature | Data | Real-time sync | Accepted | 2024-01-17 | @product |
 ```
 
-### Phase 3: PDR Summary
+### Step 1.2: Detect Feature-Areas and Characteristics
 
-**Objective**: Create traceable summary of all decisions
+For each feature-area, analyze PDRs to detect:
 
-1. **Build Summary Table**:
-   - All PDRs with ID, Category, Decision, Status, Impact
-   - Links back to `.specify/drafts/pdr.md`
+| Characteristic | Detection Pattern | DAG Customization |
+|---------------|-------------------|-------------------|
+| B2B Focus | Enterprise, B2B, organization | Expand Personas, add NFRs early |
+| B2C Focus | Consumer, individual, user | Prioritize UX in Requirements |
+| Platform | API, SDK, integration | Technical Requirements first |
+| Data-heavy | Analytics, ML, data | Information section priority |
+| Marketplace | Multi-sided, vendors, buyers | Multiple Persona paths |
 
-2. **Cross-Reference Check**:
-   - Verify all PDR categories are represented
-   - Flag any gaps in coverage
+### Step 1.3: Generate Customized DAG per Feature-Area
 
-### Phase 4: Output Generation
+**Default DAG (All Sections)**:
 
-**Objective**: Write complete Product Requirements Document
+```text
+Overview → Problem → Goals → Metrics
+                ↓         ↓
+           Personas → Requirements
+                          ↓
+           ┌──────────────┼──────────────┐
+           ↓              ↓              ↓
+         NFRs      Out of Scope       Risks
+           └──────────────┼──────────────┘
+                          ↓
+                       Roadmap → PDR Summary
+```
 
-1. **Structure Check**:
-   - Ensure all **requested** sections are present (all 11 by default)
-   - Ensure each section has content
-   - Verify PDR traceability
+**DAG Customization Rules**:
 
-2. **Determine Output Location**:
-   - Check if team-ai-directives is configured (via `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives`)
-   - If configured: Output to `{TEAM_DIRECTIVES}/PRD.md` via PR workflow
-   - If NOT configured: Output to `{REPO_ROOT}/PRD.md` (project root)
+| Pattern Detected | DAG Modification |
+|-----------------|------------------|
+| B2B Focus | Personas expanded, NFRs earlier |
+| Platform Product | Requirements before Personas |
+| Data Product | Metrics has higher priority |
+| Marketplace | Multiple Persona branches |
+| MVP Focus | Skip Roadmap details |
 
-3. **Write PRD.md**:
-   - Use `templates/prd-template.md` as base
-   - Replace placeholders with generated content
-   - Write to determined output location
+### Step 1.4: Present Plan for User Approval
 
-4. **Write Accepted PDRs to context_modules/** (when TD configured):
-   - Filter PDRs with status "Accepted" from `.specify/drafts/pdr.md`
-   - Write to `{TEAM_DIRECTIVES}/context_modules/pdr.md`
+Present the execution plan to the user:
 
-5. **If team-ai-directives configured - Execute PR Workflow**:
+```markdown
+## DAG Execution Plan
 
-   a. **Check Working Tree**:
-   ```bash
-   cd "{TEAM_DIRECTIVES}"
-   git status --porcelain
-   ```
+**Feature-areas detected**: 3
+**Total sections to generate**: 33 (11 sections × 3 feature-areas)
 
-   b. **Create Branch**:
-   ```bash
-   BRANCH_NAME="context/{project-name}"
-   git checkout -b "$BRANCH_NAME" main
-   ```
+### Feature-Area: Core
+**PDRs**: PDR-001, PDR-005, PDR-008
+**Characteristics**: B2B Focus, Platform
+**DAG**: Overview → Problem → Goals → Metrics → Personas → Requirements → NFRs → Out of Scope → Risks → Roadmap → PDR Summary
 
-   c. **Write files**:
-   ```bash
-   cp PRD.md "$TEAM_DIRECTIVES/PRD.md"
-   cp .specify/drafts/pdr.md "$TEAM_DIRECTIVES/context_modules/pdr.md"
-   ```
+### Feature-Area: Auth
+**PDRs**: PDR-002, PDR-006
+**Characteristics**: Technical, Security-focused
+**DAG**: Overview → Problem → Goals → Requirements → NFRs → Personas → Metrics → Out of Scope → Risks → Roadmap → PDR Summary
 
-   d. **Commit and Push**:
-   ```bash
-   git add PRD.md context_modules/pdr.md
-   git commit -m "Add product from {project-name}"
-   git push -u origin "$BRANCH_NAME"
-   ```
+### Feature-Area: Data
+**PDRs**: PDR-003, PDR-004, PDR-007
+**Characteristics**: Data-heavy
+**DAG**: Overview → Problem → Metrics → Goals → Personas → Requirements → NFRs → Out of Scope → Risks → Roadmap → PDR Summary
 
-   e. **Create PR via MCP**:
-   ```
-   Tool: create_pull_request (GitHub) or create_merge_request (GitLab)
-   Parameters:
-     - title: "Add Product Requirements from {project-name}"
-     - body: "Product Requirements Document and PDRs from {project-name}"
-     - source_branch: "{BRANCH_NAME}"
-     - target_branch: "main"
-   ```
+---
 
-### Phase 6: PDR Lifecycle Management
+**Approve this plan?** [Yes/Modify/Cancel]
+```
 
-**Objective**: Move accepted PDRs to canonical location and clean up drafts
+### Step 1.5: Write state.json
 
-After generating PRD, manage the PDR lifecycle:
+After user approval, write the execution plan to `.specify/product/state.json`:
 
-1. **Determine Canonical PDR Location**:
-   - Check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
-   - If team-ai-directives configured → Canonical: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
-   - Otherwise → Canonical: `.specify/memory/pdr.md`
+```json
+{
+  "version": "1.1.0",
+  "created_at": "2024-01-20T10:30:00Z",
+  "updated_at": "2024-01-20T10:30:00Z",
+  "phase": "plan_approved",
+  "sections_mode": "all",
+  "feature_areas": [
+    {
+      "id": "core",
+      "name": "Core",
+      "pdrs": ["PDR-001", "PDR-005", "PDR-008"],
+      "characteristics": ["b2b", "platform"],
+      "dag": ["overview", "problem", "goals", "metrics", "personas", "requirements", "nfrs", "out-of-scope", "risks", "roadmap", "pdr-summary"],
+      "progress": {
+        "overview": "pending",
+        "problem": "pending",
+        "goals": "pending",
+        "metrics": "pending",
+        "personas": "pending",
+        "requirements": "pending",
+        "nfrs": "pending",
+        "out-of-scope": "pending",
+        "risks": "pending",
+        "roadmap": "pending",
+        "pdr-summary": "pending"
+      }
+    }
+  ],
+  "output_file": "PRD.md"
+}
+```
 
-2. **Read Working Draft PDRs**:
-   - Read `.specify/drafts/pdr.md`
-   - Parse each PDR and identify status
+---
 
-3. **Filter PDRs by Status**:
+## PHASE 2: EXECUTE (Execute Agent)
 
-   | Status | Action |
-   |--------|--------|
-   | **Accepted** | Copy to canonical location |
-   | Proposed | Keep in drafts |
-   | Discovered | Keep in drafts |
-   | Deprecated | Remove from canonical (if exists), keep reference |
-   | Superseded | Remove from canonical (if exists), update reference |
+**Objective**: Generate sections per feature-area following the DAG, with dependency context passing
 
-4. **Write Accepted PDRs to Canonical Location**:
-   ```
-   a. Create/overwrite canonical PDR file with:
-      - All Accepted PDRs from drafts
-      - Preserve full PDR content (context, decision, consequences)
-   
-   b. Example canonical file structure:
-      # Product Decision Records - Canonical
-      
-      ## PDR Index
-      | ID | Category | Decision | Status | Date | Owner |
-      |----|----------|----------|--------|------|-------|
-      | PDR-001 | Problem | [Decision] | Accepted | YYYY-MM-DD | [Owner] |
-   ```
+**Script Action**: The agent reads `state.json` and executes sections in DAG order
 
-5. **Update Drafts**:
-   - If all PDRs are Accepted → Remove `.specify/drafts/pdr.md`
-   - Otherwise → Keep only non-Accepted PDRs in drafts
+### Step 2.1: Read Execution State
 
-6. **Generate PDR Lifecycle Report**:
+1. Load `.specify/product/state.json`
+2. Identify next section(s) to generate (sections with all dependencies completed)
+3. Load relevant PDRs for the current feature-area
 
-   ```markdown
-   ## PDR Lifecycle Report
-   
-   **Canonical Location**: [.specify/memory/pdr.md|team-ai-directives/context_modules/pdr.md]
-   
-   **PDRs Promoted to Canonical**: N
-   - [PDR-001] Accepted
-   - [PDR-003] Accepted
-   
-   **PDRs Remaining in Drafts**: M
-   - [PDR-002] Proposed (pending clarification)
-   - [PDR-004] Discovered (pending validation)
-   
-   **Drafts Cleaned**: [yes|no]
-   ```
+### Step 2.2: Generate Sections in DAG Order
 
-7. **Update References**:
-   - Ensure `.specify/drafts/pdr.md` link is correct
-   - Update version and timestamp
+For each section in the DAG:
 
-6. **Generate Report**:
+1. **Check Dependencies**: Ensure all dependency sections are completed
+2. **Load Dependency Context**: Read completed section files for context
+3. **Load Section Template**: Read from `templates/sections/{section}.md`
+4. **Generate Section Content**: Fill template with PDR-derived content
+5. **Write Section File**: Save to `.specify/product/sections/{feature-area}/{section}.md`
+6. **Update State**: Mark section as "completed" in state.json
+
+### Step 2.3: Section Generation Details
+
+#### 1. Overview
+
+**Purpose**: High-level product description
+**Dependencies**: None (first in DAG)
+**Template**: `templates/sections/overview.md`
+**PDRs to Reference**: Problem, Business Model, Scope
+
+#### 2. Problem
+
+**Purpose**: Articulate the problem being solved
+**Dependencies**: Overview
+**Template**: `templates/sections/problem.md`
+**PDRs to Reference**: Problem category PDRs
+
+#### 3. Goals/Objectives
+
+**Purpose**: Define what success looks like
+**Dependencies**: Overview, Problem
+**Template**: `templates/sections/goals.md`
+**PDRs to Reference**: Problem, Metric PDRs
+
+#### 4. Success Metrics
+
+**Purpose**: Define measurable outcomes
+**Dependencies**: Goals
+**Template**: `templates/sections/metrics.md`
+**PDRs to Reference**: Metric category PDRs
+
+#### 5. Personas
+
+**Purpose**: Define target users
+**Dependencies**: Problem
+**Template**: `templates/sections/personas.md`
+**PDRs to Reference**: Persona category PDRs
+
+#### 6. Functional Requirements
+
+**Purpose**: Define what the product must do
+**Dependencies**: Personas, Goals, Metrics
+**Template**: `templates/sections/requirements.md`
+**PDRs to Reference**: Scope, Feature, Prioritization PDRs
+
+#### 7. Non-Functional Requirements
+
+**Purpose**: Define quality attributes
+**Dependencies**: Requirements
+**Template**: `templates/sections/nfrs.md`
+**PDRs to Reference**: NFR category PDRs
+
+#### 8. Out of Scope
+
+**Purpose**: Define explicit exclusions
+**Dependencies**: Requirements
+**Template**: `templates/sections/out-of-scope.md`
+**PDRs to Reference**: Scope PDRs (negative decisions)
+
+#### 9. Risks & Mitigation
+
+**Purpose**: Document product risks
+**Dependencies**: Requirements
+**Template**: `templates/sections/risks.md`
+**PDRs to Reference**: All PDRs (consequence sections)
+
+#### 10. Roadmap & Milestones
+
+**Purpose**: Define release milestones
+**Dependencies**: Requirements, NFRs, Out of Scope, Risks
+**Template**: `templates/sections/roadmap.md`
+**PDRs to Reference**: Milestone category PDRs
+
+#### 11. PDR Summary
+
+**Purpose**: Traceable summary of all decisions
+**Dependencies**: All sections
+**Template**: `templates/sections/pdr-summary.md`
+**PDRs to Reference**: All PDRs
+
+### Step 2.4: Update Progress in state.json
+
+After each section is generated:
+
+```json
+{
+  "progress": {
+    "overview": "completed",
+    "problem": "completed",
+    "goals": "in_progress",
+    "metrics": "pending",
+    "personas": "pending",
+    "requirements": "pending",
+    "nfrs": "pending",
+    "out-of-scope": "pending",
+    "risks": "pending",
+    "roadmap": "pending",
+    "pdr-summary": "pending"
+  },
+  "updated_at": "2024-01-20T11:15:00Z"
+}
+```
+
+### Step 2.5: Resumability
+
+If the agent session is interrupted:
+
+1. Next session loads `state.json`
+2. Identifies sections with `"pending"` or `"in_progress"` status
+3. Continues from where it left off
+4. Skips already `"completed"` sections
+
+---
+
+## PHASE 3: SUMMARIZE (Summarize Agent)
+
+**Objective**: Aggregate all sections, resolve conflicts, generate unified PRD.md
+
+**Script Action**: Run `summarize` action
+
+### Step 3.1: Read All Section Files
+
+1. Scan `.specify/product/sections/` directory
+2. Load all section files for all feature-areas
+3. Organize by section type across feature-areas
+
+**Directory Structure**:
+
+```text
+.specify/product/sections/
+├── core/
+│   ├── overview.md
+│   ├── problem.md
+│   ├── goals.md
+│   ├── metrics.md
+│   ├── personas.md
+│   ├── requirements.md
+│   ├── nfrs.md
+│   ├── out-of-scope.md
+│   ├── risks.md
+│   ├── roadmap.md
+│   └── pdr-summary.md
+├── auth/
+│   └── ... (same structure)
+└── data/
+    └── ... (same structure)
+```
+
+### Step 3.2: Detect Cross-Feature-Area Conflicts
+
+Compare sections across feature-areas for:
+
+| Conflict Type | Detection | Resolution |
+|--------------|-----------|------------|
+| Priority conflicts | Same feature, different priorities | Defer to PDR with higher impact |
+| Persona overlap | Same persona, different needs | Merge and reference both PDRs |
+| Metric conflicts | Same metric, different targets | Use most conservative target |
+| Scope conflicts | Feature in-scope vs out-of-scope | Defer to explicit PDR decision |
+
+### Step 3.3: Resolve Conflicts Using PDRs
+
+**PDRs are the Source of Truth**. When conflicts are detected:
+
+1. Find the relevant PDR(s) that govern the conflicting area
+2. Apply the PDR decision to resolve the conflict
+3. Document the resolution in the unified section
+
+### Step 3.4: Aggregate into Unified PRD.md
+
+**Structure of Unified PRD.md**:
+
+```markdown
+# Product Requirements Document: [Product Name]
+
+## 1. Overview
+[Unified from all feature-area overviews]
+
+## 2. The Problem
+[Merged problem statements]
+
+## 3. Goals/Objectives
+[Consolidated goals]
+
+## 4. Success Metrics
+[Unified metrics with targets]
+
+## 5. Personas
+[Merged personas from all feature-areas]
+
+## 6. Functional Requirements
+[Consolidated user stories and features]
+
+## 7. Non-Functional Requirements
+[Merged NFRs]
+
+## 8. Out of Scope
+[Unified exclusions]
+
+## 9. Risks & Mitigation
+[Consolidated risk register]
+
+## 10. Roadmap & Milestones
+[Unified timeline]
+
+## 11. PDR Summary
+[Master index of all PDRs]
+
+## Appendix
+[Glossary, References, Change History]
+```
+
+### Step 3.5: PDR Lifecycle Management
+
+After generating PRD:
+
+1. **Identify Accepted PDRs**: Filter PDRs with "Accepted" status
+2. **Determine Canonical Location**:
+   - If `SPECIFY_TEAM_DIRECTIVES` configured → `{TEAM_DIRECTIVES}/context_modules/pdr.md`
+   - Otherwise → `.specify/memory/pdr.md`
+3. **Copy Accepted PDRs** to canonical location
+4. **Update Drafts**: Remove accepted PDRs from `.specify/drafts/pdr.md` (or delete if empty)
+
+### Step 3.6: Generate Final Report
 
 ```markdown
 ## Product Requirements Document Generated
 
-**Output**: [PRD.md (project root)|{TEAM_DIRECTIVES}/PRD.md via PR]
-**Sections**: [all|custom]
+**Output**: PRD.md (project root or team-directives)
+**Sections Mode**: [all|custom]
+**Feature-Areas Processed**: N
 
 **Sections Generated**:
-- [x] 1. Overview (based on PDR-001, PDR-003)
-- [x] 2. The Problem (based on PDR-001)
-- [x] 3. Goals/Objectives (based on PDR-001, PDR-004)
-- [x] 4. Success Metrics (based on PDR-004)
-- [x] 5. Personas (based on PDR-002)
-- [x] 6. Functional Requirements (based on PDR-003, PDR-005)
-- [x] 7. Non-Functional Requirements (based on PDR-006)
-- [x] 8. Out of Scope (based on PDR-003)
-- [x] 9. Risks & Mitigation (based on all PDRs)
+| Feature-Area | Sections | Status |
+|--------------|----------|--------|
+| Core | All 11 | ✓ |
+| Auth | All 11 | ✓ |
+| Data | All 11 | ✓ |
 
+**Conflicts Resolved**: M
 **PDR Coverage**: X/Y PDRs incorporated
+
+**PDR Lifecycle**:
+- Promoted to canonical: N PDRs
+- Remaining in drafts: M PDRs
 
 **Recommended Next Steps**:
 1. Review generated PRD for accuracy
@@ -428,25 +548,59 @@ After generating PRD, manage the PDR lifecycle:
 4. Begin feature development with `/spec.specify`
 ```
 
+---
+
+## State File Schema
+
+**Location**: `.specify/product/state.json`
+
+```json
+{
+  "version": "1.1.0",
+  "created_at": "ISO8601 timestamp",
+  "updated_at": "ISO8601 timestamp",
+  "phase": "planning | plan_approved | executing | summarizing | completed",
+  "sections_mode": "all | custom",
+  "feature_areas": [
+    {
+      "id": "lowercase-kebab-case",
+      "name": "Display Name",
+      "pdrs": ["PDR-001", "PDR-002"],
+      "characteristics": ["b2b", "platform"],
+      "dag": ["overview", "problem", "goals", "metrics", "personas", "requirements", "nfrs", "out-of-scope", "risks", "roadmap", "pdr-summary"],
+      "progress": {
+        "overview": "pending | in_progress | completed | skipped",
+        "problem": "pending | in_progress | completed | skipped"
+      }
+    }
+  ],
+  "conflicts_detected": [],
+  "conflicts_resolved": [],
+  "output_file": "PRD.md"
+}
+```
+
+---
+
 ## Key Rules
 
 ### PDR Traceability
 
-- **Every section** should reference source PDRs
-- **No content** without PDR backing (except templates)
-- **Flag gaps** where PDRs are missing
+- **Every section** must reference source PDRs
+- **No content** without PDR backing
+- **PDRs are source of truth** for conflict resolution
 
-### Consistency
+### State Persistence
 
-- **Terminology** must match across sections
-- **Category labels** must be consistent
-- **Metric definitions** exactly as stated in PDRs
+- **Always update** state.json after each operation
+- **Resume gracefully** from any interruption
+- **Track progress** at section granularity
 
-### Completeness
+### Multi-Agent Compatibility
 
-- **All requested sections** must be generated (all 9 by default)
-- **All sections** must have content (not just placeholders)
-- **PDR coverage** should be maximized
+- State file works with any AI agent (Claude, Copilot, Cursor, etc.)
+- No agent-specific dependencies
+- Human-readable state for debugging
 
 ### Quality Standards
 
@@ -454,11 +608,11 @@ After generating PRD, manage the PDR lifecycle:
 - **Ensure** acceptance criteria are testable
 - **Check** metric definitions are measurable
 
+---
+
 ## Workflow Guidance & Transitions
 
 ### After `/product.implement`
-
-Recommended next steps:
 
 1. **Review PRD**: Verify product documentation is accurate
 2. **Run `/product.analyze`**: Validate consistency and completeness
@@ -477,6 +631,8 @@ Recommended next steps:
 - **No PDRs exist**: Use `/product.specify` or `/product.init` first
 - **Feature-level**: Feature PRD generated via `/spec.plan --product`
 - **Minor updates**: Use direct editing for small changes
+
+---
 
 ## Context
 

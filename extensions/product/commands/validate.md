@@ -24,6 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Perform **read-only** validation to ensure feature specifications align with the Product Requirements Document (PRD). This ensures technical implementations stay true to product requirements.
 
 **This command validates**:
+
 1. Feature scope aligns with PRD scope
 2. User personas match PRD definitions
 3. Success metrics are consistent with PRD metrics
@@ -33,6 +34,7 @@ Perform **read-only** validation to ensure feature specifications align with the
 7. Boundary maps are consistent across specs
 
 **This command does NOT validate**:
+
 - Technical architecture (use `/architect.validate`)
 - Code quality or implementation details
 - Test coverage

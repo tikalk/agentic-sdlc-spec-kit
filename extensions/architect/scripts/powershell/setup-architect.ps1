@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Position=0)]
-    [ValidateSet('init', 'map', 'update', 'review', 'specify', 'clarify', 'implement', 'analyze', 'validate', '')]
+    [ValidateSet('init', 'map', 'update', 'review', 'specify', 'clarify', 'implement', 'analyze', 'validate', 'plan-dag', 'execute-dag', 'summarize', '')]
     [string]$Action = '',
     [Parameter(Position=1, ValueFromRemainingArguments=$true)]
     [string[]]$Context,
@@ -21,15 +21,20 @@ if ($Help) {
     Write-Output "Usage: ./setup-architect.ps1 [action] [context] [-Views VIEWS] [-AdrHeuristic HEURISTIC] [-Json] [-Help]"
     Write-Output ""
     Write-Output "Actions:"
-    Write-Output "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
-    Write-Output "  clarify  Refine and resolve ambiguities in existing ADRs"
-    Write-Output "  init     Reverse-engineer architecture from existing codebase (brownfield)"
-    Write-Output "  implement Generate full Architecture Description (AD.md) from ADRs"
-    Write-Output "  analyze  Validate architecture for consistency and quality issues"
-    Write-Output "  validate Validate plan alignment with architecture (READ-ONLY)"
-    Write-Output "  map      (alias for init) Reverse-engineer architecture from existing codebase"
-    Write-Output "  update   Update architecture based on code/spec changes"
-    Write-Output "  review   Validate architecture against constitution"
+    Write-Output "  specify    Interactive PRD exploration to create system ADRs (greenfield)"
+    Write-Output "  clarify    Refine and resolve ambiguities in existing ADRs"
+    Write-Output "  init       Reverse-engineer architecture from existing codebase (brownfield)"
+    Write-Output "  implement  Generate full Architecture Description (AD.md) from ADRs"
+    Write-Output "  analyze    Validate architecture for consistency and quality issues"
+    Write-Output "  validate   Validate plan alignment with architecture (READ-ONLY)"
+    Write-Output "  map        (alias for init) Reverse-engineer architecture from existing codebase"
+    Write-Output "  update     Update architecture based on code/spec changes"
+    Write-Output "  review     Validate architecture against constitution"
+    Write-Output ""
+    Write-Output "DAG Workflow Actions (used internally by implement):"
+    Write-Output "  plan-dag   Phase 1: Generate DAG execution plan for user approval"
+    Write-Output "  execute-dag Phase 2: Execute DAG to generate views per sub-system"
+    Write-Output "  summarize  Phase 3: Aggregate views into unified AD.md"
     Write-Output ""
     Write-Output "Options:"
     Write-Output "  -Views VIEWS         Architecture views to generate: core (default), all, or comma-separated"
@@ -44,8 +49,6 @@ if ($Help) {
     Write-Output "  ./setup-architect.ps1 init -Views concurrency,operational `"Microservices architecture`""
     Write-Output "  ./setup-architect.ps1 clarify -AdrHeuristic all `"Document all decisions`""
     Write-Output "  ./setup-architect.ps1 implement `"Generate full AD.md from ADRs`""
-    Write-Output "  ./setup-architect.ps1 update `"Added microservices and event sourcing`""
-    Write-Output "  ./setup-architect.ps1 review `"Focus on security and performance`""
     Write-Output ""
     Write-Output "Pro Tip: Add context/description after the action for better results."
     Write-Output "The AI will use your input to understand system scope and constraints."
@@ -1037,6 +1040,193 @@ function Invoke-Validate {
     }
 }
 
+# Plan DAG action (Phase 1 of implement - generate execution plan)
+function Invoke-PlanDag {
+    param($repoRoot, $contextArgs)
+    
+    $adrFile = Join-Path $repoRoot ".specify\drafts\adr.md"
+    $stateFile = Join-Path $repoRoot ".specify\architect\state.json"
+    $viewsDir = Join-Path $repoRoot ".specify\architect\views"
+    
+    Write-Host "📐 DAG Planning Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if ADR file exists
+    if (-not (Test-Path $adrFile)) {
+        Write-Error "ADR drafts file does not exist: $adrFile`nRun '/architect.specify' or '/architect.init' first"
+        exit 1
+    }
+    
+    # Ensure directories exist
+    $architectDir = Join-Path $repoRoot ".specify\architect"
+    if (-not (Test-Path $architectDir)) {
+        New-Item -ItemType Directory -Path $architectDir -Force | Out-Null
+    }
+    if (-not (Test-Path $viewsDir)) {
+        New-Item -ItemType Directory -Path $viewsDir -Force | Out-Null
+    }
+    
+    # Count ADRs and extract sub-systems
+    $content = Get-Content $adrFile -Raw
+    $adrCount = ([regex]::Matches($content, "^### ADR-|^## ADR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    
+    # Extract unique sub-systems from ADR index table
+    $subsystems = @()
+    $lines = $content -split "`n"
+    foreach ($line in $lines) {
+        # Parse ADR index table rows: | ADR-XXX | SubSystem | ...
+        if ($line -match '^\|\s*ADR-\d+\s*\|\s*([^|]+)\s*\|') {
+            $subsystem = $Matches[1].Trim()
+            if ($subsystem -and $subsystem -ne "Sub-System" -and $subsystems -notcontains $subsystem) {
+                $subsystems += $subsystem
+            }
+        }
+    }
+    
+    # Default to "System" if no sub-systems found
+    if ($subsystems.Count -eq 0) {
+        $subsystems = @("System")
+    }
+    
+    Write-Host "📋 ADR file found: $adrFile" -ForegroundColor Green
+    Write-Host "   Found $adrCount ADR(s)" -ForegroundColor Cyan
+    Write-Host "   Sub-systems detected: $($subsystems -join ', ')" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Ready for DAG planning."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Analyze ADRs by sub-system"
+    Write-Host "  2. Generate customized DAG per sub-system"
+    Write-Host "  3. Present execution plan for user approval"
+    Write-Host "  4. Save approved plan to state.json"
+    
+    if ($Json) {
+        $subsystemsJson = $subsystems | ForEach-Object {
+            @{
+                id = ($_ -replace '\s+', '-').ToLower()
+                name = $_
+            }
+        }
+        @{
+            status = "success"
+            action = "plan-dag"
+            adr_file = $adrFile
+            state_file = $stateFile
+            views_dir = $viewsDir
+            adr_count = $adrCount
+            subsystems = $subsystemsJson
+            context = ($contextArgs -join " ")
+        } | ConvertTo-Json -Depth 3
+    }
+}
+
+# Execute DAG action (Phase 2 of implement - generate views based on state)
+function Invoke-ExecuteDag {
+    param($repoRoot, $contextArgs)
+    
+    $stateFile = Join-Path $repoRoot ".specify\architect\state.json"
+    $viewsDir = Join-Path $repoRoot ".specify\architect\views"
+    
+    Write-Host "🔧 DAG Execution Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if state file exists
+    if (-not (Test-Path $stateFile)) {
+        Write-Error "No execution plan found: $stateFile`nRun '/architect.implement' first to generate and approve a DAG plan"
+        exit 1
+    }
+    
+    # Ensure views directory exists
+    if (-not (Test-Path $viewsDir)) {
+        New-Item -ItemType Directory -Path $viewsDir -Force | Out-Null
+    }
+    
+    Write-Host "📄 State file found: $stateFile" -ForegroundColor Green
+    Write-Host "📁 Views directory: $viewsDir" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Ready for DAG execution."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Read execution plan from state.json"
+    Write-Host "  2. Identify next view(s) to generate"
+    Write-Host "  3. Generate view with dependency context"
+    Write-Host "  4. Write to .specify/architect/views/{subsystem}/{view}.md"
+    Write-Host "  5. Update progress in state.json"
+    
+    if ($Json) {
+        $stateContent = Get-Content $stateFile -Raw | ConvertFrom-Json
+        @{
+            status = "success"
+            action = "execute-dag"
+            state_file = $stateFile
+            views_dir = $viewsDir
+            state = $stateContent
+        } | ConvertTo-Json -Depth 10
+    }
+}
+
+# Summarize action (Phase 3 of implement - aggregate views into AD.md)
+function Invoke-Summarize {
+    param($repoRoot, $contextArgs)
+    
+    $stateFile = Join-Path $repoRoot ".specify\architect\state.json"
+    $viewsDir = Join-Path $repoRoot ".specify\architect\views"
+    $adFile = Join-Path $repoRoot "AD.md"
+    $adrFile = Join-Path $repoRoot ".specify\drafts\adr.md"
+    
+    Write-Host "📝 Summarization Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if views directory exists and has content
+    if (-not (Test-Path $viewsDir)) {
+        Write-Error "Views directory not found: $viewsDir`nRun '/architect.implement' to generate views first"
+        exit 1
+    }
+    
+    # Count view files
+    $viewFiles = Get-ChildItem -Path $viewsDir -Filter "*.md" -Recurse -File
+    $viewCount = $viewFiles.Count
+    
+    if ($viewCount -eq 0) {
+        Write-Error "No view files found in $viewsDir`nRun '/architect.implement' to generate views first"
+        exit 1
+    }
+    
+    Write-Host "📁 Views directory: $viewsDir" -ForegroundColor Cyan
+    Write-Host "   Found $viewCount view file(s):" -ForegroundColor Cyan
+    foreach ($file in $viewFiles) {
+        $relativePath = $file.FullName.Substring($viewsDir.Length + 1)
+        Write-Host "   - $relativePath" -ForegroundColor Gray
+    }
+    Write-Host ""
+    
+    Write-Host "Ready for summarization."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Read all view files from .specify/architect/views/"
+    Write-Host "  2. Detect cross-subsystem conflicts"
+    Write-Host "  3. Resolve conflicts using ADRs as source of truth"
+    Write-Host "  4. Aggregate into unified AD.md"
+    Write-Host "  5. Apply Security and Performance perspectives"
+    Write-Host "  6. Move Accepted ADRs to canonical location"
+    
+    if ($Json) {
+        $viewsJson = $viewFiles | ForEach-Object {
+            @{
+                path = $_.FullName
+                relative = $_.FullName.Substring($viewsDir.Length + 1)
+            }
+        }
+        @{
+            status = "success"
+            action = "summarize"
+            state_file = $stateFile
+            views_dir = $viewsDir
+            ad_file = $adFile
+            adr_file = $adrFile
+            view_count = $viewCount
+            views = $viewsJson
+        } | ConvertTo-Json -Depth 3
+    }
+}
+
 # Main execution
 try {
     $repoRoot = Get-RepositoryRoot
@@ -1088,6 +1278,15 @@ try {
         }
         'validate' {
             Invoke-Validate -repoRoot $repoRoot -contextArgs $Context
+        }
+        'plan-dag' {
+            Invoke-PlanDag -repoRoot $repoRoot -contextArgs $Context
+        }
+        'execute-dag' {
+            Invoke-ExecuteDag -repoRoot $repoRoot -contextArgs $Context
+        }
+        'summarize' {
+            Invoke-Summarize -repoRoot $repoRoot -contextArgs $Context
         }
         'update' {
             Invoke-Update -repoRoot $repoRoot -architectureFile $adFile

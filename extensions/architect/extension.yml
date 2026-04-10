@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "architect"
   name: "Architect - ADR & Architecture Description"
-  version: "1.0.1"
+  version: "1.1.0"
   description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -144,6 +144,13 @@ defaults:
     location: "AD.md"
   views: "core"  # core | all | comma-separated
   decompose: true
+  dag:
+    enabled: true
+    base_location: ".specify/architect/"              # Project base for DAG outputs
+    state_location: ".specify/architect/state.json"   # DAG execution state
+    views_location: ".specify/architect/views/"       # Generated view files per sub-system
+    view_templates: "templates/views/"                # Extension templates (relative to extension dir)
+    perspective_templates: "templates/perspectives/"  # Extension templates (relative to extension dir)
 
 # ADR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)

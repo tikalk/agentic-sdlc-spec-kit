@@ -80,6 +80,7 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
    - If either field is empty or missing: skip (no PDR linkage)
 
 3. **Build spec inventory**:
+
    ```markdown
    | Spec Path | Milestone | Feature PDR |
    |-----------|-----------|--------------|
@@ -100,6 +101,7 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
    - Determine if complete: (all tasks have [X])
 
 2. **Task completion result**:
+
    ```markdown
    | Spec | Feature PDR | Tasks | Complete |
    |------|--------------|-------|----------|
@@ -115,7 +117,8 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
    - Count completed specs
 
 2. **Calculate milestone completion**:
-   ```
+
+   ```text
    Milestone M01: Q2 User Auth - 3/5 features (60%)
    - PDR-003: OAuth2 Login - Complete
    - PDR-004: SSO Integration - Complete  
@@ -135,7 +138,8 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
    - Change status from current to "Completed"
 
 2. **Handle PDR Status**:
-   ```
+
+   ```text
    | Current Status | New Status | Action |
    |----------------|------------|--------|
    | Proposed | Completed | Update to Completed |

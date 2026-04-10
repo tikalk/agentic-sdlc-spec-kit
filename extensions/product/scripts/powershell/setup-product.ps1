@@ -343,6 +343,188 @@ if ($teamDirectives) {
     $prdTeamMode = $false
 }
 
+# DAG Action Functions
+
+function Invoke-PlanDag {
+    $pdrFile = Join-Path $REPO_ROOT ".specify\drafts\pdr.md"
+    $stateFile = Join-Path $REPO_ROOT ".specify\product\state.json"
+    $sectionsDir = Join-Path $REPO_ROOT ".specify\product\sections"
+    
+    Write-Host "📐 DAG Planning Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if PDR file exists
+    if (-not (Test-Path $pdrFile)) {
+        Write-Host "❌ PDR drafts file does not exist: $pdrFile" -ForegroundColor Red
+        Write-Host "Run '/product.specify' or '/product.init' first" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # Ensure directories exist
+    $productDir = Join-Path $REPO_ROOT ".specify\product"
+    if (-not (Test-Path $productDir)) {
+        New-Item -ItemType Directory -Path $productDir -Force | Out-Null
+    }
+    if (-not (Test-Path $sectionsDir)) {
+        New-Item -ItemType Directory -Path $sectionsDir -Force | Out-Null
+    }
+    
+    # Count PDRs and extract feature-areas
+    $content = Get-Content $pdrFile -Raw
+    $pdrCount = ([regex]::Matches($content, "^### PDR-|^## PDR-", [System.Text.RegularExpressions.RegexOptions]::Multiline)).Count
+    
+    # Extract unique feature-areas from PDR index table
+    $featureAreas = @()
+    $lines = $content -split "`n"
+    foreach ($line in $lines) {
+        # Parse PDR index table rows
+        if ($line -match '^\|\s*PDR-\d+\s*\|\s*[^|]+\s*\|\s*([^|]+)\s*\|') {
+            $featureArea = $Matches[1].Trim()
+            if ($featureArea -and $featureArea -ne "Feature-Area" -and $featureArea -ne "Sub-System" -and $featureAreas -notcontains $featureArea) {
+                $featureAreas += $featureArea
+            }
+        }
+    }
+    
+    # Default to "Product" if no feature-areas found
+    if ($featureAreas.Count -eq 0) {
+        $featureAreas = @("Product")
+    }
+    
+    Write-Host "📋 PDR file found: $pdrFile" -ForegroundColor Green
+    Write-Host "   Found $pdrCount PDR(s)" -ForegroundColor Cyan
+    Write-Host "   Feature-areas detected: $($featureAreas -join ', ')" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Ready for DAG planning."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Analyze PDRs by feature-area"
+    Write-Host "  2. Generate customized DAG per feature-area"
+    Write-Host "  3. Present execution plan for user approval"
+    Write-Host "  4. Save approved plan to state.json"
+    
+    if ($Json) {
+        $featureAreasJson = $featureAreas | ForEach-Object {
+            @{
+                id = ($_ -replace '\s+', '-').ToLower()
+                name = $_
+            }
+        }
+        @{
+            status = "success"
+            action = "plan-dag"
+            pdr_file = $pdrFile
+            state_file = $stateFile
+            sections_dir = $sectionsDir
+            pdr_count = $pdrCount
+            feature_areas = $featureAreasJson
+        } | ConvertTo-Json -Depth 3
+    }
+}
+
+function Invoke-ExecuteDag {
+    $stateFile = Join-Path $REPO_ROOT ".specify\product\state.json"
+    $sectionsDir = Join-Path $REPO_ROOT ".specify\product\sections"
+    
+    Write-Host "🔧 DAG Execution Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if state file exists
+    if (-not (Test-Path $stateFile)) {
+        Write-Host "❌ No execution plan found: $stateFile" -ForegroundColor Red
+        Write-Host "Run '/product.implement' first to generate and approve a DAG plan" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # Ensure sections directory exists
+    if (-not (Test-Path $sectionsDir)) {
+        New-Item -ItemType Directory -Path $sectionsDir -Force | Out-Null
+    }
+    
+    Write-Host "📄 State file found: $stateFile" -ForegroundColor Green
+    Write-Host "📁 Sections directory: $sectionsDir" -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "Ready for DAG execution."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Read execution plan from state.json"
+    Write-Host "  2. Identify next section(s) to generate"
+    Write-Host "  3. Generate section with dependency context"
+    Write-Host "  4. Write to .specify/product/sections/{feature-area}/{section}.md"
+    Write-Host "  5. Update progress in state.json"
+    
+    if ($Json) {
+        $stateContent = Get-Content $stateFile -Raw | ConvertFrom-Json
+        @{
+            status = "success"
+            action = "execute-dag"
+            state_file = $stateFile
+            sections_dir = $sectionsDir
+            state = $stateContent
+        } | ConvertTo-Json -Depth 10
+    }
+}
+
+function Invoke-Summarize {
+    $stateFile = Join-Path $REPO_ROOT ".specify\product\state.json"
+    $sectionsDir = Join-Path $REPO_ROOT ".specify\product\sections"
+    $prdFile = $PRD_LOCATION
+    $pdrFile = Join-Path $REPO_ROOT ".specify\drafts\pdr.md"
+    
+    Write-Host "📝 Summarization Phase" -ForegroundColor Cyan
+    Write-Host ""
+    
+    # Check if sections directory exists and has content
+    if (-not (Test-Path $sectionsDir)) {
+        Write-Host "❌ Sections directory not found: $sectionsDir" -ForegroundColor Red
+        Write-Host "Run '/product.implement' to generate sections first" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    # Count section files
+    $sectionFiles = Get-ChildItem -Path $sectionsDir -Filter "*.md" -Recurse -File
+    $sectionCount = $sectionFiles.Count
+    
+    if ($sectionCount -eq 0) {
+        Write-Host "❌ No section files found in $sectionsDir" -ForegroundColor Red
+        Write-Host "Run '/product.implement' to generate sections first" -ForegroundColor Yellow
+        exit 1
+    }
+    
+    Write-Host "📁 Sections directory: $sectionsDir" -ForegroundColor Cyan
+    Write-Host "   Found $sectionCount section file(s):" -ForegroundColor Cyan
+    foreach ($file in $sectionFiles) {
+        $relativePath = $file.FullName.Substring($sectionsDir.Length + 1)
+        Write-Host "   - $relativePath" -ForegroundColor Gray
+    }
+    Write-Host ""
+    
+    Write-Host "Ready for summarization."
+    Write-Host "The AI agent will:"
+    Write-Host "  1. Read all section files from .specify/product/sections/"
+    Write-Host "  2. Detect cross-feature-area conflicts"
+    Write-Host "  3. Resolve conflicts using PDRs as source of truth"
+    Write-Host "  4. Aggregate into unified PRD.md"
+    Write-Host "  5. Move Accepted PDRs to canonical location"
+    
+    if ($Json) {
+        $sectionsJson = $sectionFiles | ForEach-Object {
+            @{
+                path = $_.FullName
+                relative = $_.FullName.Substring($sectionsDir.Length + 1)
+            }
+        }
+        @{
+            status = "success"
+            action = "summarize"
+            state_file = $stateFile
+            sections_dir = $sectionsDir
+            prd_file = $prdFile
+            pdr_file = $pdrFile
+            section_count = $sectionCount
+            sections = $sectionsJson
+        } | ConvertTo-Json -Depth 3
+    }
+}
+
 switch ($Command.ToLower()) {
     "specify" {
         if ($Json) {
@@ -458,6 +640,15 @@ switch ($Command.ToLower()) {
             Write-LogInfo "Ready for validation"
         }
     }
+    "plan-dag" {
+        Invoke-PlanDag
+    }
+    "execute-dag" {
+        Invoke-ExecuteDag
+    }
+    "summarize" {
+        Invoke-Summarize
+    }
     default {
         Write-Host "Product Extension Setup Script" -ForegroundColor Cyan
         Write-Host ""
@@ -470,6 +661,11 @@ switch ($Command.ToLower()) {
         Write-Host "  clarify    Setup for PDR refinement"
         Write-Host "  analyze    Setup for consistency analysis"
         Write-Host "  validate   Setup for plan validation"
+        Write-Host ""
+        Write-Host "DAG Workflow Commands:" -ForegroundColor White
+        Write-Host "  plan-dag     Phase 1: Generate DAG execution plan"
+        Write-Host "  execute-dag  Phase 2: Execute DAG to generate sections"
+        Write-Host "  summarize    Phase 3: Aggregate sections into PRD.md"
         Write-Host ""
         Write-Host "Options:" -ForegroundColor White
         Write-Host "  -Json          Output results in JSON format"
