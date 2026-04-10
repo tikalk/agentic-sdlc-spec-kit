@@ -316,6 +316,95 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Atomic write to `.specify/drafts/pdr.md`
    - Preserve any PDRs that weren't modified
 
+### Phase 5.5: PDR Approval ⭐
+
+**Objective**: Get user confirmation to approve PDRs before product requirements generation
+
+This step is **critical** because `implement` only processes PDRs with "Accepted" status. PDRs with "Discovered" or "Proposed" status will be skipped.
+
+#### Approval Request
+
+```markdown
+## PDR Approval ⭐
+
+**Total PDRs**: [N]
+**Status Distribution**:
+- Accepted: [N]
+- Proposed: [N]
+- Discovered: [N]
+
+**⚠️ Important**: Only "Accepted" PDRs will be processed by `/product.implement`
+
+### Options
+
+| Option | Action |
+|--------|--------|
+| A | Accept All - Change Proposed/Discovered → Accepted |
+| B | Review Specific - Select individual PDRs to accept |
+| C | Defer - Keep current status, decide later |
+
+**Note**: You can also run `/product.clarify` again later to approve additional PDRs.
+
+Reply with A, B, or C (or "done" to skip).
+```
+
+#### Bulk Approval (Option A)
+
+If user chooses Option A:
+
+```markdown
+## Confirm Bulk Approval
+
+Change [N] PDRs from Proposed/Discovered → Accepted?
+
+| PDR | Current Status | New Status |
+|-----|----------------|-------------|
+| PDR-001 | Proposed | Accepted |
+| PDR-002 | Discovered | Accepted |
+
+Reply with "yes" to confirm or "no" to cancel.
+```
+
+#### Selective Approval (Option B)
+
+If user chooses Option B, present PDRs one-by-one:
+
+```markdown
+## PDR Approval: PDR-XXX
+
+**Title**: [Title]
+**Current Status**: [Proposed/Discovered]
+**Context**: [Brief summary]
+
+**Options**:
+| Option | Action |
+|--------|--------|
+| A | Accept - Change to "Accepted" |
+| B | Keep - Keep current status |
+| C | Skip - Move to next PDR |
+
+Reply with A, B, or C for PDR-XXX.
+```
+
+#### Post-Approval
+
+After approval (or if user chooses C to defer):
+
+```markdown
+## PDRs Approved
+
+**Status Changes Applied**:
+- PDR-001: Proposed → Accepted
+- PDR-002: Discovered → Accepted
+- PDR-007: Kept as Proposed
+
+**Ready for Implementation**:
+- Accepted PDRs: [N]
+- Pending Approval: [N]
+
+Run `/product.implement` to generate PRD.md from accepted PDRs.
+```
+
 ## Key Rules
 
 ### Non-Destructive Refinement
@@ -383,11 +472,21 @@ After clarification ends (all gaps addressed or user signals "done"):
 
 ### After `/product.clarify`
 
+**⚠️ Required**: You MUST run `/product.clarify` before `/product.implement` to approve PDRs.
+
+**Status Workflow**:
+
+- init → "Discovered" (brownfield)
+- specify → "Proposed" (greenfield)
+- **clarify → ask to approve → "Accepted"** ⭐
+- implement → only reads "Accepted", skips Discovered/Proposed
+
 Recommended next steps:
 
 1. **Review Changes**: Verify PDR updates are accurate
-2. **Run `/product.implement`**: Generate full PRD from refined PDRs
-3. **Start Features**: Use `/spec.specify` to create feature specs
+2. **Approve PDRs**: Use Phase 5.5 to change status to "Accepted"
+3. **Run `/product.implement`**: Generate full PRD from Accepted PDRs ⭐
+4. **Start Features**: Use `/spec.specify` to create feature specs
 
 ### When to Use This Command
 

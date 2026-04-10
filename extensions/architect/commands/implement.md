@@ -574,7 +574,9 @@ Load perspective templates and apply across all views:
 
 After generating AD.md:
 
-1. **Identify Accepted ADRs**: Filter ADRs with "Accepted" status
+1. **Filter for Accepted Only**: Only process ADRs with "Accepted" status
+   - **Skip Discovered/Proposed ADRs** - these need approval via `/architect.clarify` first
+   - If no Accepted ADRs exist, warn: "No Accepted ADRs found. Run `/architect.clarify` to approve ADRs before generating AD.md"
 2. **Determine Canonical Location**:
    - If `SPECIFY_TEAM_DIRECTIVES` configured → `{TEAM_DIRECTIVES}/context_modules/adr.md`
    - Otherwise → `.specify/memory/adr.md`

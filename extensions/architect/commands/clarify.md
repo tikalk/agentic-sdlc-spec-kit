@@ -309,6 +309,95 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Atomic write to `.specify/drafts/adr.md`
    - Preserve any ADRs that weren't modified
 
+### Phase 5.5: ADR Approval ⭐
+
+**Objective**: Get user confirmation to approve ADRs before architecture generation
+
+This step is **critical** because `implement` only processes ADRs with "Accepted" status. ADRs with "Discovered" or "Proposed" status will be skipped.
+
+#### Approval Request
+
+```markdown
+## ADR Approval ⭐
+
+**Total ADRs**: [N]
+**Status Distribution**:
+- Accepted: [N]
+- Proposed: [N]
+- Discovered: [N]
+
+**⚠️ Important**: Only "Accepted" ADRs will be processed by `/architect.implement`
+
+### Options
+
+| Option | Action |
+|--------|--------|
+| A | Accept All - Change Proposed/Discovered → Accepted |
+| B | Review Specific - Select individual ADRs to accept |
+| C | Defer - Keep current status, decide later |
+
+**Note**: You can also run `/architect.clarify` again later to approve additional ADRs.
+
+Reply with A, B, or C (or "done" to skip).
+```
+
+#### Bulk Approval (Option A)
+
+If user chooses Option A:
+
+```markdown
+## Confirm Bulk Approval
+
+Change [N] ADRs from Proposed/Discovered → Accepted?
+
+| ADR | Current Status | New Status |
+|-----|----------------|-------------|
+| ADR-001 | Proposed | Accepted |
+| ADR-002 | Discovered | Accepted |
+
+Reply with "yes" to confirm or "no" to cancel.
+```
+
+#### Selective Approval (Option B)
+
+If user chooses Option B, present ADRs one-by-one:
+
+```markdown
+## ADR Approval: ADR-XXX
+
+**Title**: [Title]
+**Current Status**: [Proposed/Discovered]
+**Context**: [Brief summary]
+
+**Options**:
+| Option | Action |
+|--------|--------|
+| A | Accept - Change to "Accepted" |
+| B | Keep - Keep current status |
+| C | Skip - Move to next ADR |
+
+Reply with A, B, or C for ADR-XXX.
+```
+
+#### Post-Approval
+
+After approval (or if user chooses C to defer):
+
+```markdown
+## ADRs Approved
+
+**Status Changes Applied**:
+- ADR-001: Proposed → Accepted
+- ADR-002: Discovered → Accepted
+- ADR-007: Kept as Proposed
+
+**Ready for Implementation**:
+- Accepted ADRs: [N]
+- Pending Approval: [N]
+
+Run `/architect.implement` to generate AD.md from accepted ADRs.
+```
+
 ## Key Rules
 
 ### Non-Destructive Refinement
@@ -377,11 +466,21 @@ After clarification ends (all gaps addressed or user signals "done"):
 
 ### After `/architect.clarify`
 
+**⚠️ Required**: You MUST run `/architect.clarify` before `/architect.implement` to approve ADRs.
+
+**Status Workflow**:
+
+- init → "Discovered" (brownfield)
+- specify → "Proposed" (greenfield)
+- **clarify → ask to approve → "Accepted"** ⭐
+- implement → only reads "Accepted", skips Discovered/Proposed
+
 Recommended next steps:
 
 1. **Review Changes**: Verify ADR updates are accurate
-2. **Run `/architect.implement`**: Generate full AD.md from refined ADRs
-3. **Start Features**: Use `/spec.specify` to create feature specs
+2. **Approve ADRs**: Use Phase 5.5 to change status to "Accepted"
+3. **Run `/architect.implement`**: Generate full AD.md from Accepted ADRs ⭐
+4. **Start Features**: Use `/spec.specify` to create feature specs
 
 ### When to Use This Command
 
