@@ -2,6 +2,22 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.6.1] - 2026-04-10
+
+### Changed
+
+- feat: add bundled lean preset with minimal workflow commands (#2161)
+- Add Brownfield Bootstrap extension to community catalog (#2145)
+- Add CI Guard extension to community catalog (#2157)
+- Add SpecTest extension to community catalog (#2159)
+- fix: bundled extensions should not have download URLs (#2155)
+- Add PR Bridge extension to community catalog (#2148)
+- feat(cursor-agent): migrate from .cursor/commands to .cursor/skills (#2156)
+- Add TinySpec extension to community catalog (#2147)
+- chore: bump spec-kit-verify to 1.0.3 and spec-kit-review to 1.0.1 (#2146)
+- Add Status Report extension to community catalog (#2123)
+- chore: release 0.6.0, begin 0.6.1.dev0 development (#2144)
+
 ## [0.6.0] - 2026-04-09
 
 ### Changed
