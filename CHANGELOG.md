@@ -5,7 +5,7 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.3.27] - 2026-04-10
+## [0.3.28] - 2026-04-10
 
 ### Fixed
 
@@ -18,6 +18,14 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
 
 - **clarify workflow**: Add ADR/PDR approval step before implement
   - Added Phase 5.5 to ask users to approve ADRs/PDRs
+
+## [0.3.29] - 2026-04-10
+
+### Changed
+
+- **spec.plan Phase 1**: Clarify interface contracts scope
+  - More general: libraries, CLI, web services, parsers, UI
+  - Skip internal-only projects
   - Only "Accepted" status records processed by implement
   - Fixes workflow where implement skipped all ADRs due to wrong status
 
