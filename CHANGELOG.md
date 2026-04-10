@@ -5,9 +5,15 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.3.26] - 2026-04-10
+## [0.3.27] - 2026-04-10
 
 ### Fixed
+
+- **init workflow**: Remove auto-trigger to clarify, make it manual
+  - Clarify is now a manual step you run after init
+  - Prevents hidden sub-agent calls during brownfield analysis
+
+### Changed
 
 - **clarify workflow**: Add ADR/PDR approval step before implement
   - Added Phase 5.5 to ask users to approve ADRs/PDRs
