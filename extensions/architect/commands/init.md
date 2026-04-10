@@ -73,7 +73,7 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 5. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered"), organized by sub-system
 6. **Gap Analysis**: Identify areas where decisions are unclear
 7. **Output**: Write ADRs to `.specify/drafts/adr.md` (NO AD.md creation)
-8. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
+8. **Validate Findings**: Run `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
 
@@ -485,11 +485,11 @@ After scanning, report:
    - Gaps identified
    - Assumptions made (to be validated in clarify phase)
 
-### Phase 7: Auto-Handoff to Clarify
+### Phase 7: Validate with Clarify
 
 **Objective**: Validate brownfield findings with user
 
-After generating ADRs, **automatically trigger `/architect.clarify`** with brownfield context:
+After generating ADRs, **run `/architect.clarify`** with brownfield context to validate:
 
 **Questions Clarify Should Ask** (Brownfield-Specific):
 
@@ -514,7 +514,7 @@ After generating ADRs, **automatically trigger `/architect.clarify`** with brown
 }
 ```
 
-The clarify phase will refine ADRs based on your input, then you can run `/architect.implement` to generate the full AD.md.
+Run `/architect.clarify` to refine ADRs based on your input, then run `/architect.implement` to generate the full AD.md.
 
 ## Key Rules
 
@@ -566,13 +566,13 @@ The clarify phase will refine ADRs based on your input, then you can run `/archi
 
 ### After `/architect.init`
 
-**Auto-triggered**: `/architect.clarify` runs immediately to validate findings.
+**Required**: Run `/architect.clarify` to validate brownfield findings.
 
 After clarification completes:
 
 1. **Review Validated ADRs**: Check `.specify/drafts/adr.md` for accuracy
-2. **Run `/architect.implement`**: Generate full AD.md from validated ADRs
-3. **Update As Needed**: Refine documentation as you learn more
+2. **Approve ADRs**: Run `/architect.clarify` Phase 5.5 to change status to "Accepted"
+3. **Run `/architect.implement`**: Generate full AD.md from Accepted ADRs
 
 ### Complete Brownfield Flow
 
@@ -583,14 +583,14 @@ After clarification completes:
     ↓
 [Generate ADRs] → Write to .specify/drafts/adr.md (marked "Discovered")
     ↓
-[Auto-trigger /architect.clarify]
+[Run /architect.clarify] → Ask to validate decisions
     ↓
 [Clarify asks] → "Is microservices decision still valid?"
                  "Custom auth detected - considering OAuth?"
     ↓
-[Update ADRs] → Refined with your validation
+[Approve ADRs] → Phase 5.5 to change status to "Accepted"
     ↓
-[User runs /architect.implement]
+[Run /architect.implement] → Generate AD.md from Accepted ADRs
     ↓
 [Generate AD.md] → Full architecture description
 ```
