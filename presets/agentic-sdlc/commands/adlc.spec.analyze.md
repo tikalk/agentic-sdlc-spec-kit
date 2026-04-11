@@ -24,7 +24,7 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (spec.md, plan.md, tasks.md required). This command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
 
-**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `.specify/drafts/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
+**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `{REPO_ROOT}/.specify/drafts/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -137,7 +137,7 @@ Load documentation artifacts plus analyze actual codebase:
 **From architecture (if exists):**
 
 - Load `AD.md` (root) for system-level architecture context
-- Load `.specify/drafts/adr.md` for system-level ADRs
+- Load `{REPO_ROOT}/.specify/drafts/adr.md` for system-level ADRs
 - Load `specs/{feature}/AD.md` for feature-level architecture (if `--architecture` was enabled)
 - Load `specs/{feature}/adr.md` for feature-level ADRs (if `--architecture` was enabled)
 
@@ -226,7 +226,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 **Purpose**: Ensure feature spec/plan alignment with system and feature-level architecture.
 
-**System-Level Validation** (if `AD.md` and `.specify/drafts/adr.md` exist):
+**System-Level Validation** (if `AD.md` and `{REPO_ROOT}/.specify/drafts/adr.md` exist):
 
 1. **Context View Alignment**:
    - Does spec respect system boundaries defined in AD.md?

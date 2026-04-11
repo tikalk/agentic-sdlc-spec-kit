@@ -95,7 +95,7 @@ If working in a non-git repository:
      - spec.md: Feature requirements and scope
      - plan.md (if exists): Technical details, dependencies
      - tasks.md (if exists): Implementation tasks
-     - .specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
+     - {REPO_ROOT}/.specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
 
     **Context Loading Strategy**:
      - Load only necessary portions relevant to active focus areas (avoid full-file dumping)

@@ -16,7 +16,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_implement` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter to only hooks where `enabled: true`
@@ -45,7 +45,7 @@ You **MUST** consider the user input before proceeding (if not empty).
     
     Wait for the result of the hook command before proceeding to the Outline.
     ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
@@ -199,7 +199,7 @@ If working in a non-git repository:
        - Confirm the implementation follows the technical plan
        - Report final status with comprehensive summary of completed work
 
- 9. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
+  9. **Check for extension hooks**: After completion validation, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_implement` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter to only hooks where `enabled: true`
@@ -226,7 +226,7 @@ If working in a non-git repository:
         Executing: `/{command}`
         EXECUTE_COMMAND: {command}
         ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
 

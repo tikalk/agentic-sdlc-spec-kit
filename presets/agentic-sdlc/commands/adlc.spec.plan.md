@@ -31,7 +31,7 @@ Parse the following parameters from `$ARGUMENTS`:
 ## Pre-Execution Hooks
 
 **Check for extension hooks (before planning)**:
-- Check if `.specify/extensions.yml` exists in the project root
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root
 - If it exists, read it and look for entries under the `hooks.before_plan` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter to only hooks where `enabled: true`
@@ -63,7 +63,7 @@ Parse the following parameters from `$ARGUMENTS`:
   ```
   The hook MUST complete before proceeding to the next step.
 
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 **Note on Architecture Integration**:
 - If architect extension registered and adr.md exists, before_plan hook may create feature ADRs
@@ -381,7 +381,7 @@ Feature architecture inherits and extends system architecture, ensuring consiste
 ## Post-Execution Hooks
 
 **Check for extension hooks (after planning)**:
-- After plan is generated, check if `.specify/extensions.yml` exists in the project root
+- After plan is generated, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root
 - If it exists, read it and look for entries under the `hooks.after_plan` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter to only hooks where `enabled: true`
@@ -410,7 +410,7 @@ Feature architecture inherits and extends system architecture, ensuring consiste
   ```
 
 - Wait for hook command completion
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 **Note on Architecture Validation**:
 - If architect extension registered and adr.md exists, after_plan hook may validate architecture:

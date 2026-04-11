@@ -40,9 +40,9 @@ $ARGUMENTS
 - Validation requests or compliance checks
 
 **Execution Strategy:**
-You are updating the project constitution at `.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.
+You are updating the project constitution at `{REPO_ROOT}/.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely.
 
-**Note**: If `.specify/memory/constitution.md` does not exist yet, it should have been initialized from `.specify/templates/constitution-template.md` during project setup. If it's missing, copy the template first.
+**Note**: If `{REPO_ROOT}/.specify/memory/constitution.md` does not exist yet, it should have been initialized from `{REPO_ROOT}/.specify/templates/constitution-template.md` during project setup. If it's missing, copy the template first.
 
 **Chain of Thought Approach:**
 
@@ -52,7 +52,7 @@ You are updating the project constitution at `.specify/memory/constitution.md`. 
 4. **Validate Integrity** → Ensure compliance and consistency
 5. **Generate Outputs** → Create validated constitution artifacts
 6. **Propagate Changes** → Update dependent templates with constitutional changes
-7. **Finalize** → Write validated constitution to `.specify/memory/constitution.md`
+7. **Finalize** → Write validated constitution to `{REPO_ROOT}/.specify/memory/constitution.md`
 
 ## Detailed Workflow
 
@@ -60,13 +60,15 @@ You are updating the project constitution at `.specify/memory/constitution.md`. 
 
 **Objective:** Establish constitutional foundation through team inheritance
 
-**Consistency propagation checklist:**
+**Consistency validation checklist (READ-ONLY - do not modify preset templates):**
 
-- Read `.specify/templates/plan-template.md` and ensure any "Constitution Check" or rules align with updated principles.
-- Read `.specify/templates/spec-template.md` for scope/requirements alignment—update if constitution adds/removes mandatory sections or constraints.
-- Read `.specify/templates/tasks-template.md` and ensure task categorization reflects new or removed principle-driven task types (e.g., observability, versioning, testing discipline).
-- Read each command file in `.specify/templates/commands/*.md` (including this one) to verify no outdated references (agent-specific names like CLAUDE only) remain when generic guidance is required.
-- Read any runtime guidance docs (e.g., `README.md`, `docs/quickstart.md`, or agent-specific guidance files if present). Update references to principles changed.
+- Review preset templates to identify potential misalignments with new constitutional principles:
+  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/plan-template.md` - check "Constitution Check" section alignment
+  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/spec-template.md` - check requirements alignment
+  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/tasks-template.md` - check task categorization
+- Flag any runtime guidance docs that may reference changed principles (README.md, AGENTS.md, etc.)
+- Report all findings in the Sync Impact Report under "Templates requiring manual review"
+- Do NOT modify preset templates—only report discrepancies for human review
 
 1. **Load Team Constitution**
    - Execute: `{SCRIPT}` to access team directives
@@ -102,7 +104,7 @@ If working in a non-git repository:
 **Objective:** Construct validated constitution document
 
 1. **Template Processing**
-   - Load constitution template from `/memory/constitution.md`
+   - Load constitution template from `{REPO_ROOT}/.specify/memory/constitution.md`
    - Identify and categorize placeholder tokens:
      - `[PROJECT_NAME]`: Repository-derived identifier
      - `[PRINCIPLE_X_*]`: Team principle mappings
@@ -124,15 +126,15 @@ If working in a non-git repository:
 **Objective:** Ensure constitutional integrity and system alignment
 
 1. **Automated Validation**
-   - Execute: `{VALIDATION_SCRIPT} --compliance --strict /memory/constitution.md`
+   - Execute: `{VALIDATION_SCRIPT} --compliance --strict {REPO_ROOT}/.specify/memory/constitution.md`
    - Parse validation results for critical failures and warnings
    - **Critical Failures:** Block constitution acceptance
    - **Warnings:** Allow override with explicit justification
 
-2. **Template Synchronization**
+2. **Template Validation (READ-ONLY)**
    - **Dependency Scan:** Identify templates referencing constitutional elements
    - **Consistency Checks:** Validate alignment with updated principles
-   - **Update Propagation:** Modify dependent templates as needed
+   - **Report Only:** Flag misalignments for human review—do NOT modify preset templates
 
 3. **Impact Assessment**
    - Generate Sync Impact Report with version changes and affected components
@@ -144,7 +146,7 @@ If working in a non-git repository:
 **Objective:** Complete constitution establishment with proper tracking
 
 1. **Artifact Generation**
-   - Write validated constitution to `/memory/constitution.md`
+   - Write validated constitution to `{REPO_ROOT}/.specify/memory/constitution.md`
    - Update version metadata and amendment timestamps
    - Generate amendment history entry
 
@@ -194,4 +196,4 @@ If working in a non-git repository:
 - Human-readable summaries with actionable guidance
 - Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)
 
-Do not create a new template; always operate on the existing `.specify/memory/constitution.md` file.
+Do not create a new template; always operate on the existing `{REPO_ROOT}/.specify/memory/constitution.md` file.

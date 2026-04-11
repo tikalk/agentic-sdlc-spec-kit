@@ -116,9 +116,9 @@ After this feature, the user can: {observable, demo-able capability}
 This phase links the feature to Product Decision Records for traceability. Skip if no PDR exists.
 
 **Check for PDR file**:
-1. First check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
+1. First check if `SPECIFY_TEAM_DIRECTIVES` env var or `{REPO_ROOT}/.specify/team-ai-directives` exists
 2. If yes, try to read: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
-3. If file doesn't exist or TD not configured, try: `.specify/memory/pdr.md`
+3. If file doesn't exist or TD not configured, try: `{REPO_ROOT}/.specify/memory/pdr.md`
 4. If neither exists, skip this phase (no PDR configured)
 
 **If PDR file exists**:
