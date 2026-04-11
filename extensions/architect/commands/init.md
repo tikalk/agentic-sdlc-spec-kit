@@ -34,8 +34,15 @@ Reverse-engineer architecture from an **existing codebase** (brownfield) to crea
 
 **Output**:
 
-1. **ADRs** documenting inferred architectural decisions in `.specify/drafts/adr.md`
+1. **ADRs** documenting inferred architectural decisions in `{REPO_ROOT}/.specify/drafts/adr.md`
 2. **Validate Findings**: Run `/architect.clarify` to validate discovered decisions
+
+**IMPORTANT - Path Resolution**:
+
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 **Key Difference from `/architect.specify`**:
 
@@ -73,11 +80,11 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 
 1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
 2. **Codebase Scan**: Analyze project structure and detect technologies (per sub-system if decomposed)
-3. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, team-ai-directives/AGENTS.md if configured, etc.) to avoid repeating
+3. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, {TEAM_DIRECTIVES}/AGENTS.md if configured, etc.) to avoid repeating
 4. **Pattern Detection**: Identify architectural patterns in use
 5. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered"), organized by sub-system
 6. **Gap Analysis**: Identify areas where decisions are unclear
-7. **Output**: Write ADRs to `.specify/drafts/adr.md` (NO AD.md creation)
+7. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr.md` (NO AD.md creation)
 8. **Validate Findings**: Run `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
@@ -283,7 +290,7 @@ After confirmation, output structured sub-system data:
 **Scan for**:
 
 - `AGENTS.md` - Project context, overview
-- `team-ai-directives/AGENTS.md` - Team-wide agent usage instructions (if configured)
+- `{TEAM_DIRECTIVES}/AGENTS.md` - Team-wide agent usage instructions (if configured)
 - `README.md` - Tech stack, project description
 - `CONTRIBUTING.md` - Development guidelines
 - `AD.md` or `docs/architecture.md` - Existing architecture
@@ -474,7 +481,7 @@ After scanning, report:
 **Objective**: Write discovered ADRs to file (NO AD.md creation)
 
 1. **Write ADRs**:
-   - Create or update `.specify/drafts/adr.md` with discovered ADRs
+   - Create or update `{REPO_ROOT}/.specify/drafts/adr.md` with discovered ADRs
    - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
    - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
@@ -575,7 +582,7 @@ Run `/architect.clarify` to refine ADRs based on your input, then run `/architec
 
 After clarification completes:
 
-1. **Review Validated ADRs**: Check `.specify/drafts/adr.md` for accuracy
+1. **Review Validated ADRs**: Check `{REPO_ROOT}/.specify/drafts/adr.md` for accuracy
 2. **Approve ADRs**: Run `/architect.clarify` Phase 5.5 to change status to "Accepted"
 3. **Run `/architect.implement`**: Generate full AD.md from Accepted ADRs
 
@@ -586,7 +593,7 @@ After clarification completes:
     ↓
 [Scan codebase] → Detect technologies, patterns
     ↓
-[Generate ADRs] → Write to .specify/drafts/adr.md (marked "Discovered")
+[Generate ADRs] → Write to {REPO_ROOT}/.specify/drafts/adr.md (marked "Discovered")
     ↓
 [Run /architect.clarify] → Ask to validate decisions
     ↓

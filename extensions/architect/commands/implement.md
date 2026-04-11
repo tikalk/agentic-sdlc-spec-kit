@@ -54,11 +54,17 @@ You are acting as an **Architecture Orchestrator** managing a multi-phase docume
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
-| `.specify/architect/state.json` | DAG execution state | State |
-| `.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Intermediate |
-| `AD.md` (root) | Full Architecture Description | Output |
-| `.specify/memory/constitution.md` | Governance principles | Constraint |
+| `{REPO_ROOT}/.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
+| `{REPO_ROOT}/.specify/architect/state.json` | DAG execution state | State |
+| `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Intermediate |
+| `{REPO_ROOT}/AD.md` | Full Architecture Description | Output |
+| `{REPO_ROOT}/.specify/memory/constitution.md` | Governance principles | Constraint |
+
+**IMPORTANT - Path Resolution**:
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 ### View Templates
 
@@ -147,7 +153,7 @@ Located in the extension's `templates/` directory:
 
 ### Step 1.1: Load and Analyze ADRs
 
-1. **Read ADR File**: Load `.specify/drafts/adr.md`
+1. **Read ADR File**: Load `{REPO_ROOT}/.specify/drafts/adr.md`
 2. **Parse ADR Index**: Extract sub-systems from the ADR index table
 3. **Group ADRs by Sub-system**: Create mapping of sub-system → ADRs
 
@@ -230,7 +236,7 @@ Present the execution plan to the user:
 
 ### Step 1.5: Write state.json
 
-After user approval, write the execution plan to `.specify/architect/state.json`:
+After user approval, write the execution plan to `{REPO_ROOT}/.specify/architect/state.json`:
 
 ```json
 {
@@ -285,7 +291,7 @@ After user approval, write the execution plan to `.specify/architect/state.json`
 
 ### Step 2.1: Read Execution State
 
-1. Load `.specify/architect/state.json`
+1. Load `{REPO_ROOT}/.specify/architect/state.json`
 2. Identify next view(s) to generate (views with all dependencies completed)
 3. Load relevant ADRs for the current sub-system
 
@@ -297,7 +303,7 @@ For each view in the DAG:
 2. **Load Dependency Context**: Read completed view files for context
 3. **Load View Template**: Read from `templates/views/{view}.md`
 4. **Generate View Content**: Fill template with ADR-derived content
-5. **Write View File**: Save to `.specify/architect/views/{subsystem}/{view}.md`
+5. **Write View File**: Save to `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
 6. **Update State**: Mark view as "completed" in state.json
 
 **View Generation with Dependency Context**:
@@ -306,7 +312,7 @@ For each view in the DAG:
 ## Generating: Functional View for "Core" sub-system
 
 **Dependencies loaded**:
-- Context View: .specify/architect/views/core/context.md (completed)
+- Context View: {REPO_ROOT}/.specify/architect/views/core/context.md (completed)
 
 **ADRs for this view**: ADR-001 (Microservices), ADR-005 (API Gateway)
 
@@ -443,14 +449,14 @@ If the agent session is interrupted:
 
 ### Step 3.1: Read All View Files
 
-1. Scan `.specify/architect/views/` directory
+1. Scan `{REPO_ROOT}/.specify/architect/views/` directory
 2. Load all view files for all sub-systems
 3. Organize by view type across sub-systems
 
 **Directory Structure**:
 
 ```text
-.specify/architect/views/
+{REPO_ROOT}/.specify/architect/views/
 ├── core/
 │   ├── context.md
 │   ├── functional.md
@@ -548,7 +554,7 @@ Compare views across sub-systems for:
 [Apply performance template across all views]
 
 ## 5. Architecture Decision Records Summary
-[Index linking to .specify/memory/adr.md]
+[Index linking to {REPO_ROOT}/.specify/memory/adr.md]
 
 ## 6. Tech Stack Summary
 [Consolidated from all ADRs]
@@ -579,9 +585,9 @@ After generating AD.md:
    - If no Accepted ADRs exist, warn: "No Accepted ADRs found. Run `/architect.clarify` to approve ADRs before generating AD.md"
 2. **Determine Canonical Location**:
    - If `SPECIFY_TEAM_DIRECTIVES` configured → `{TEAM_DIRECTIVES}/context_modules/adr.md`
-   - Otherwise → `.specify/memory/adr.md`
+   - Otherwise → `{REPO_ROOT}/.specify/memory/adr.md`
 3. **Copy Accepted ADRs** to canonical location
-4. **Update Drafts**: Remove accepted ADRs from `.specify/drafts/adr.md` (or delete if empty)
+4. **Update Drafts**: Remove accepted ADRs from `{REPO_ROOT}/.specify/drafts/adr.md` (or delete if empty)
 
 ### Step 3.7: Generate Final Report
 
@@ -621,7 +627,7 @@ After generating AD.md:
 
 ## State File Schema
 
-**Location**: `.specify/architect/state.json`
+**Location**: `{REPO_ROOT}/.specify/architect/state.json`
 
 ```json
 {

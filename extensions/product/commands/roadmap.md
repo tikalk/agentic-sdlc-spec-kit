@@ -45,7 +45,7 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
 | Priority | Location | Condition |
 |----------|----------|-----------|
 | 1st | `{TEAM_DIRECTIVES}/context_modules/pdr.md` | If TD is configured |
-| 2nd | `.specify/memory/pdr.md` | Fallback |
+| 2nd | `{REPO_ROOT}/.specify/memory/pdr.md` | Fallback |
 
 ## Outline
 
@@ -53,12 +53,12 @@ You are acting as a **Product Roadmap Analyst** tracking feature development pro
 
 1. **Check for team-ai-directives**:
    - Check if `SPECIFY_TEAM_DIRECTIVES` env var exists
-   - Or check if `.specify/team-ai-directives` file exists
+   - Or check if `{REPO_ROOT}/.specify/team-ai-directives` file exists
    - If either exists, extract the path
 
 2. **Determine PDR file location**:
    - If TD configured: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
-   - Otherwise: `.specify/memory/pdr.md`
+   - Otherwise: `{REPO_ROOT}/.specify/memory/pdr.md`
 
 3. **Verify file exists**:
    - If neither exists: Output "No PDR file found. Run product.implement first."

@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "architect"
   name: "Architect - ADR & Architecture Description"
-  version: "1.1.4"
+  version: "1.1.5"
   description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

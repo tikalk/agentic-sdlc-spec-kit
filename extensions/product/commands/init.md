@@ -34,7 +34,7 @@ Reverse-engineer product decisions from an **existing product** (brownfield) to 
 
 **Output**:
 
-1. **PDRs** documenting inferred product decisions in `.specify/drafts/pdr.md`
+1. **PDRs** documenting inferred product decisions in `{REPO_ROOT}/.specify/drafts/pdr.md`
 2. **Auto-handoff** to `/product.clarify` to validate brownfield findings
 
 **Key Difference from `/product.specify`**:
@@ -77,7 +77,7 @@ You are acting as a **Product Archaeologist** uncovering implicit product decisi
 4. **Signal Detection**: Identify product patterns and decisions in use
 5. **PDR Generation**: Create PDRs for discovered decisions (marked "Discovered"), organized by area
 6. **Gap Analysis**: Identify areas where decisions are unclear
-7. **Output**: Write PDRs to `.specify/drafts/pdr.md` (NO PRD.md creation)
+7. **Output**: Write PDRs to `{REPO_ROOT}/.specify/drafts/pdr.md` (NO PRD.md creation)
 8. **Auto-Handoff**: Trigger `/product.clarify` to validate brownfield findings
 
 ## Execution Steps
@@ -454,7 +454,7 @@ After scanning, report:
 **Objective**: Write discovered PDRs to file (NO PRD.md creation)
 
 1. **Write PDRs**:
-   - Create or update `.specify/drafts/pdr.md` with discovered PDRs
+   - Create or update `{REPO_ROOT}/.specify/drafts/pdr.md` with discovered PDRs
    - Mark PDRs as "Discovered (Inferred)" status ← USE THIS STATUS
    - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
@@ -554,7 +554,7 @@ The clarify phase will refine PDRs based on your input, then you can run `/produ
 
 After clarification completes:
 
-1. **Review Validated PDRs**: Check `.specify/drafts/pdr.md` for accuracy
+1. **Review Validated PDRs**: Check `{REPO_ROOT}/.specify/drafts/pdr.md` for accuracy
 2. **Run `/product.implement`**: Generate full PRD from validated PDRs
 3. **Update As Needed**: Refine documentation as you learn more
 
@@ -565,7 +565,7 @@ After clarification completes:
     ↓
 [Scan codebase + docs] → Detect signals, patterns
     ↓
-[Generate PDRs] → Write to .specify/drafts/pdr.md (marked "Discovered")
+[Generate PDRs] → Write to {REPO_ROOT}/.specify/drafts/pdr.md (marked "Discovered")
     ↓
 [Auto-trigger /product.clarify]
     ↓

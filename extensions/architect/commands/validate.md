@@ -33,11 +33,11 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 If ADRs exist in any location (check all three):
 
 1. Load ADRs from all locations (priority order):
-   - `.specify/memory/adr.md` (canonical - Accepted ADRs)
-   - `team-ai-directives/context_modules/adr.md` (team canonical - if configured)
-   - `.specify/drafts/adr.md` (working copy - Proposed/Discovered)
+   - `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
+   - `{TEAM_DIRECTIVES}/context_modules/adr.md` (team canonical - if configured)
+   - `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
 2. Load architecture description from `AD.md` (if present)
-3. Load the generated plan from `.specify/memory/plan.md`
+3. Load the generated plan from `{REPO_ROOT}/.specify/memory/plan.md`
 4. Execute 7 PILLAR 3 checks:
    - **PILLAR_1**: Component-level ADR alignment with plan
    - **PILLAR_2**: Interface contracts match between plan and ADRs
@@ -100,9 +100,9 @@ Warnings: 5
   "status": "success",
   "action": "validate",
   "adr_locations": {
-    "memory": ".specify/memory/adr.md",
-    "team": "team-ai-directives/context_modules/adr.md",
-    "drafts": ".specify/drafts/adr.md"
+    "memory": "{REPO_ROOT}/.specify/memory/adr.md",
+    "team": "{TEAM_DIRECTIVES}/context_modules/adr.md",
+    "drafts": "{REPO_ROOT}/.specify/drafts/adr.md"
   },
   "adr_count": 12,
   "findings": {

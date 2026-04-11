@@ -52,7 +52,7 @@ Each PDR should have:
 
 ## Outline
 
-1. **Load Current State**: Parse `.specify/drafts/pdr.md` and `.specify/memory/constitution.md`
+1. **Load Current State**: Parse `{REPO_ROOT}/.specify/drafts/pdr.md` and `{REPO_ROOT}/.specify/memory/constitution.md`
 2. **Analyze PDRs**: Check each PDR against quality checklist
 3. **Identify Gaps**: List areas needing clarification
 4. **Interactive Refinement**: Ask targeted questions to fill gaps
@@ -70,12 +70,10 @@ Each PDR should have:
    - Handle errors gracefully if files don't exist
 
 2. **Load PDR File**:
-   - Read `.specify/drafts/pdr.md`
-   - Parse PDR index and individual PDR sections
-   - Count total PDRs and identify status distribution
+   - Read `{REPO_ROOT}/.specify/drafts/pdr.md`
 
 3. **Load Constitution**:
-   - Read `.specify/memory/constitution.md` if it exists
+   - Read `{REPO_ROOT}/.specify/memory/constitution.md` if it exists
    - Extract product vision and strategy principles
    - Note governance constraints
 
@@ -313,7 +311,7 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Update status if applicable
 
 4. **Write File**:
-   - Atomic write to `.specify/drafts/pdr.md`
+   - Atomic write to `{REPO_ROOT}/.specify/drafts/pdr.md`
    - Preserve any PDRs that weren't modified
 
 ### Phase 5.5: PDR Approval ⭐
@@ -463,7 +461,7 @@ After clarification ends (all gaps addressed or user signals "done"):
 - References added: [N]
 
 **Recommended Next Steps**:
-1. Review updated PDRs in `.specify/drafts/pdr.md`
+1. Review updated PDRs in `{REPO_ROOT}/.specify/drafts/pdr.md`
 2. Run `/product.implement` to generate PRD
 3. Or run `/spec.specify` to start feature development
 ```

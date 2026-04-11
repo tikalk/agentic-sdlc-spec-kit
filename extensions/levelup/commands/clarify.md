@@ -39,7 +39,7 @@ Identify underspecified areas in discovered or proposed CDRs and refine them thr
 
 **Input**: CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` with status "Discovered" or "Proposed"
 
-**Output**: Updated CDRs with refined content and new statuses in `.specify/drafts/cdr.md`
+**Output**: Updated CDRs with refined content and new statuses in `{REPO_ROOT}/.specify/drafts/cdr.md`
 
 ## Role & Context
 
@@ -64,7 +64,7 @@ Each CDR should have:
 
 ## Outline
 
-1. **Load Current State**: Parse `.specify/drafts/cdr.md` and team-ai-directives
+1. **Load Current State**: Parse `{REPO_ROOT}/.specify/drafts/cdr.md` and team-ai-directives
 2. **Analyze CDRs**: Check each CDR against quality checklist
 3. **Identify Gaps**: List areas needing clarification
 4. **Interactive Refinement**: Ask targeted questions to fill gaps
@@ -126,11 +126,11 @@ Read `{REPO_ROOT}/.specify/drafts/cdr.md` and filter:
 If user specified specific module IDs, filter to those.
 
 If TEAM_DIRECTIVES exists, load existing directives for overlap checking:
-- `context_modules/constitution.md`
-- `context_modules/rules/**/*.md`
-- `context_modules/personas/*.md`
-- `context_modules/examples/**/*.md`
-- `skills/**/*`
+- `{TEAM_DIRECTIVES}/context_modules/constitution.md`
+- `{TEAM_DIRECTIVES}/context_modules/rules/**/*.md`
+- `{TEAM_DIRECTIVES}/context_modules/personas/*.md`
+- `{TEAM_DIRECTIVES}/context_modules/examples/**/*.md`
+- `{TEAM_DIRECTIVES}/skills/**/*`
 
 ### Phase 3: Gap Identification
 
@@ -346,7 +346,7 @@ After answering, either:
 
 ### Phase 5: Update CDR File
 
-**Objective**: Write updates to `.specify/drafts/cdr.md` after EACH CDR interaction
+**Objective**: Write updates to `{REPO_ROOT}/.specify/drafts/cdr.md` after EACH CDR interaction
 
 Update immediately after each CDR decision (not in batch at end):
 

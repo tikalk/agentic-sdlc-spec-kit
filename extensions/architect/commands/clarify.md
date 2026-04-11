@@ -51,7 +51,15 @@ Each ADR should have:
 
 ## Outline
 
-1. **Load Current State**: Parse `.specify/drafts/adr.md` and `.specify/memory/constitution.md`
+1. **Load Current State**: Parse `{REPO_ROOT}/.specify/drafts/adr.md` and `{REPO_ROOT}/.specify/memory/constitution.md`
+
+**IMPORTANT - Path Resolution**:
+
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
+
 2. **Analyze ADRs**: Check each ADR against quality checklist
 3. **Identify Gaps**: List areas needing clarification
 4. **Interactive Refinement**: Ask targeted questions to fill gaps
@@ -69,12 +77,12 @@ Each ADR should have:
    - Handle errors gracefully if files don't exist
 
 2. **Load ADR File**:
-   - Read `.specify/drafts/adr.md`
+   - Read `{REPO_ROOT}/.specify/drafts/adr.md`
    - Parse ADR index and individual ADR sections
    - Count total ADRs and identify status distribution
 
 3. **Load Constitution**:
-   - Read `.specify/memory/constitution.md` if it exists
+   - Read `{REPO_ROOT}/.specify/memory/constitution.md` if it exists
    - Extract principles for alignment checking
    - Note governance constraints
 
@@ -306,7 +314,7 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Update status if applicable
 
 4. **Write File**:
-   - Atomic write to `.specify/drafts/adr.md`
+   - Atomic write to `{REPO_ROOT}/.specify/drafts/adr.md`
    - Preserve any ADRs that weren't modified
 
 ### Phase 5.5: ADR Approval ⭐
@@ -457,7 +465,7 @@ After clarification ends (all gaps addressed or user signals "done"):
 - References added: [N]
 
 **Recommended Next Steps**:
-1. Review updated ADRs in `.specify/drafts/adr.md`
+1. Review updated ADRs in `{REPO_ROOT}/.specify/drafts/adr.md`
 2. Run `/architect.implement` to generate AD.md
 3. Or run `/spec.specify` to start feature development
 ```

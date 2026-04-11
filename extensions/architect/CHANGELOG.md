@@ -2,6 +2,14 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [1.1.5] - 2026-04-11
+
+### Fixed
+
+- **Template path resolution**: Updated all command templates to use `{REPO_ROOT}` prefix for `.specify/` paths
+- **Team directives placeholder**: Changed hardcoded `team-ai-directives/` paths to use `{TEAM_DIRECTIVES}` placeholder
+- **Monorepo support**: Templates now correctly resolve paths when running from subdirectories
+
 ## [1.1.1] - 2026-04-11
 
 ### Fixed

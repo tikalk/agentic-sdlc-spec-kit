@@ -51,11 +51,11 @@ You are acting as a **Product Orchestrator** managing a multi-phase documentatio
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/drafts/pdr.md` | Product decisions with rationale | Input |
-| `.specify/product/state.json` | DAG execution state | State |
-| `.specify/product/sections/{feature-area}/{section}.md` | Per-section outputs | Intermediate |
+| `{REPO_ROOT}/.specify/drafts/pdr.md` | Product decisions with rationale | Input |
+| `{REPO_ROOT}/.specify/product/state.json` | DAG execution state | State |
+| `{REPO_ROOT}/.specify/product/sections/{feature-area}/{section}.md` | Per-section outputs | Intermediate |
 | `PRD.md` (root or team-directives) | Full Product Requirements Document | Output |
-| `.specify/memory/constitution.md` | Product vision/strategy | Constraint |
+| `{REPO_ROOT}/.specify/memory/constitution.md` | Product vision/strategy | Constraint |
 
 ### Section Templates
 
@@ -152,7 +152,7 @@ Located in the extension's `templates/sections/` directory:
 
 ### Step 1.1: Load and Analyze PDRs
 
-1. **Read PDR File**: Load `.specify/drafts/pdr.md`
+1. **Read PDR File**: Load `{REPO_ROOT}/.specify/drafts/pdr.md`
 2. **Parse PDR Index**: Extract feature-areas from the PDR index table
 3. **Group PDRs by Feature-Area**: Create mapping of feature-area → PDRs
 
@@ -237,7 +237,7 @@ Present the execution plan to the user:
 
 ### Step 1.5: Write state.json
 
-After user approval, write the execution plan to `.specify/product/state.json`:
+After user approval, write the execution plan to `{REPO_ROOT}/.specify/product/state.json`:
 
 ```json
 {
@@ -282,7 +282,7 @@ After user approval, write the execution plan to `.specify/product/state.json`:
 
 ### Step 2.1: Read Execution State
 
-1. Load `.specify/product/state.json`
+1. Load `{REPO_ROOT}/.specify/product/state.json`
 2. Identify next section(s) to generate (sections with all dependencies completed)
 3. Load relevant PDRs for the current feature-area
 
@@ -294,7 +294,7 @@ For each section in the DAG:
 2. **Load Dependency Context**: Read completed section files for context
 3. **Load Section Template**: Read from `templates/sections/{section}.md`
 4. **Generate Section Content**: Fill template with PDR-derived content
-5. **Write Section File**: Save to `.specify/product/sections/{feature-area}/{section}.md`
+5. **Write Section File**: Save to `{REPO_ROOT}/.specify/product/sections/{feature-area}/{section}.md`
 6. **Update State**: Mark section as "completed" in state.json
 
 ### Step 2.3: Section Generation Details
@@ -418,14 +418,12 @@ If the agent session is interrupted:
 
 ### Step 3.1: Read All Section Files
 
-1. Scan `.specify/product/sections/` directory
-2. Load all section files for all feature-areas
-3. Organize by section type across feature-areas
+1. Scan `{REPO_ROOT}/.specify/product/sections/` directory
 
 **Directory Structure**:
 
 ```text
-.specify/product/sections/
+{REPO_ROOT}/.specify/product/sections/
 ├── core/
 │   ├── overview.md
 │   ├── problem.md
@@ -514,9 +512,9 @@ After generating PRD:
 1. **Identify Accepted PDRs**: Filter PDRs with "Accepted" status
 2. **Determine Canonical Location**:
    - If `SPECIFY_TEAM_DIRECTIVES` configured → `{TEAM_DIRECTIVES}/context_modules/pdr.md`
-   - Otherwise → `.specify/memory/pdr.md`
+   - Otherwise → `{REPO_ROOT}/.specify/memory/pdr.md`
 3. **Copy Accepted PDRs** to canonical location
-4. **Update Drafts**: Remove accepted PDRs from `.specify/drafts/pdr.md` (or delete if empty)
+4. **Update Drafts**: Remove accepted PDRs from `{REPO_ROOT}/.specify/drafts/pdr.md` (or delete if empty)
 
 ### Step 3.6: Generate Final Report
 
@@ -552,7 +550,7 @@ After generating PRD:
 
 ## State File Schema
 
-**Location**: `.specify/product/state.json`
+**Location**: `{REPO_ROOT}/.specify/product/state.json`
 
 ```json
 {
