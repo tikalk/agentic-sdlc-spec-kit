@@ -2,6 +2,12 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.1] - 2026-04-11
+
+### Fixed
+
+- **.specify directory detection**: Scripts now properly search upward for `.specify` directory instead of using git root directly
+
 ## [1.1.0] - 2026-04-10
 
 ### Added

@@ -2,6 +2,13 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [1.1.1] - 2026-04-11
+
+### Fixed
+
+- **.specify directory detection**: Scripts now search upward for `.specify` directory before falling back to git root, fixing file creation in monorepo/sub-project setups
+- **REPO_ROOT initialization order**: Moved common.sh sourcing before first REPO_ROOT usage to prevent undefined variable errors
+
 ## [1.1.0] - 2026-04-10
 
 ### Added

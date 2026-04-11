@@ -3,14 +3,22 @@ description: Session-based ad-hoc task execution with task-level commits (LOW-FR
 mode: quick
 scripts:
   sh: |
-    REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    # Try to source common.sh from typical locations
+    for path in "$(pwd)/.specify/scripts/bash/common.sh" "$(dirname "$(pwd)")/scripts/bash/common.sh"; do
+        if [[ -f "$path" ]]; then
+            source "$path" 2>/dev/null && break
+        fi
+    done
+    REPO_ROOT=$(get_repo_root 2>/dev/null || git rev-parse --show-toplevel 2>/dev/null || pwd)
     CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
     echo "REPO_ROOT='$REPO_ROOT'"
     echo "CURRENT_BRANCH='$CURRENT_BRANCH'"
   ps: |
-    $repoRoot = git rev-parse --show-toplevel 2>$null | Select-Object -First 1
-    if (-not $repoRoot) { $repoRoot = Get-Location }
-    $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null | Select-Object -First 1
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $commonPath = Join-Path $scriptDir "..\..\..\scripts\powershell\common.ps1"
+    if (Test-Path $commonPath) { . $commonPath }
+    $repoRoot = Get-RepoRoot
+    $currentBranch = git rev-parse --abbrev-ref HEAD 2>$null
     if (-not $currentBranch) { $currentBranch = "main" }
     "REPO_ROOT='$repoRoot'"
     "CURRENT_BRANCH='$currentBranch'"

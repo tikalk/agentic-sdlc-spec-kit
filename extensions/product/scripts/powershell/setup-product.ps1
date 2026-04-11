@@ -9,9 +9,21 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Get script directory for common.ps1 sourcing
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Load common functions
+$commonPath = "$scriptDir\..\..\..\..\scripts\powershell\common.ps1"
+if (Test-Path $commonPath) {
+    . $commonPath
+}
+
 # Default locations
 $PDR_LOCATION = ".specify/drafts/pdr.md"
 $PRD_LOCATION = "PRD.md"
+
+# Get repository root using common.ps1 function (searches upward for .specify first)
+$repoRoot = Get-RepoRoot
 
 function Write-LogInfo {
     param([string]$Message)
@@ -26,14 +38,6 @@ function Write-LogWarn {
 function Write-LogError {
     param([string]$Message)
     Write-Host "[ERROR] $Message" -ForegroundColor Red
-}
-
-function Get-RepoRoot {
-    try {
-        $gitDir = git rev-parse --show-toplevel 2>$null
-        if ($gitDir) { return $gitDir }
-    } catch {}
-    return Get-Location
 }
 
 function Detect-Subsystems {

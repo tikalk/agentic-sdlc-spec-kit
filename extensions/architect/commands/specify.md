@@ -1,5 +1,10 @@
 ---
 description: Interactive PRD exploration and system-level ADR creation (greenfield)
+handoffs:
+  - label: Validate ADRs
+    agent: architect.clarify
+    prompt: Validate architecture decisions - confirm selections for system architecture, database, API style, and deployment
+    send: false
 scripts:
   sh: scripts/bash/setup-architect.sh "specify {ARGS}"
   ps: scripts/powershell/setup-architect.ps1 "specify {ARGS}"

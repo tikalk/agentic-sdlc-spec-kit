@@ -1,5 +1,10 @@
 ---
 description: Interactive PRD exploration and Product Decision Record creation (greenfield)
+handoffs:
+  - label: Validate PDRs
+    agent: product.clarify
+    prompt: Validate product requirements and decisions - confirm priorities, scope, and assumptions
+    send: false
 scripts:
   sh: scripts/bash/setup-product.sh "specify {ARGS}"
   ps: scripts/powershell/setup-product.ps1 "specify {ARGS}"

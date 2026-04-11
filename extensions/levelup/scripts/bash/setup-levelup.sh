@@ -9,6 +9,19 @@ JSON_MODE=false
 DECOMPOSE=true
 ARGS=()
 
+# Get script directory for common.sh sourcing
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
+    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
+fi
+
+# Get repository root using common.sh function (searches upward for .specify first)
+REPO_ROOT=$(get_repo_root 2>/dev/null || git rev-parse --show-toplevel 2>/dev/null || pwd)
+
 for arg in "$@"; do
     case "$arg" in
         --json)

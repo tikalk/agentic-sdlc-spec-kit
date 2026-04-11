@@ -1,5 +1,10 @@
 ---
 description: Reverse-engineer PDRs from existing codebase and documentation (brownfield)
+handoffs:
+  - label: Validate PDRs
+    agent: product.clarify
+    prompt: Validate product requirements discovered from brownfield analysis - confirm feature priorities and scope
+    send: false
 scripts:
   sh: scripts/bash/setup-product.sh "init {ARGS}"
   ps: scripts/powershell/setup-product.ps1 "init {ARGS}"

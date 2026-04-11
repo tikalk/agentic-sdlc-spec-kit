@@ -1,5 +1,10 @@
 ---
 description: Reverse-engineer architecture from existing codebase (brownfield) to create ADRs, then validate with clarifying questions
+handoffs:
+  - label: Validate Architecture Findings
+    agent: architect.clarify
+    prompt: Validate brownfield architecture findings - confirm detected technologies, patterns, and decisions
+    send: false
 scripts:
   sh: scripts/bash/setup-architect.sh "init {ARGS}"
   ps: scripts/powershell/setup-architect.ps1 "init {ARGS}"

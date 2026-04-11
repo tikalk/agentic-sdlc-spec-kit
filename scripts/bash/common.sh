@@ -315,9 +315,9 @@ get_feature_paths() {
     fi
 
     # Project-level governance documents
-    local memory_dir="$repo_root/memory"
+    local memory_dir="$repo_root/.specify/memory"
     local constitution_file="$memory_dir/constitution.md"
-    # New architecture structure: AD.md at root, ADRs in memory/
+    # New architecture structure: AD.md at root, ADRs in .specify/memory/
     local ad_file="$repo_root/AD.md"
     local adr_file="$memory_dir/adr.md"
 

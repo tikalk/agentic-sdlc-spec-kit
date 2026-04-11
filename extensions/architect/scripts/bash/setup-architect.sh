@@ -9,7 +9,33 @@ VIEWS="core"
 ADR_HEURISTIC="surprising"
 DECOMPOSE=true
 
-# Parse arguments
+# Get script directory FIRST (needed for common.sh sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions from the main scripts directory
+# Extension scripts are in .specify/extensions/architect/scripts/bash/
+# Common.sh is in .specify/scripts/bash/
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
+    # Extension path: .specify/extensions/architect/scripts/bash/ -> .specify/scripts/bash/
+    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
+else
+    # Fallback: search for common.sh relative to git root
+    # This handles both extension and non-extension scenarios
+    fallback_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    if [[ -f "$fallback_root/.specify/scripts/bash/common.sh" ]]; then
+        source "$fallback_root/.specify/scripts/bash/common.sh"
+    else
+        echo "Error: Could not find common.sh" >&2
+        exit 1
+    fi
+fi
+
+# Get all paths and variables from common functions
+eval "$(get_feature_paths)"
+
+# Parse arguments (run after common.sh to have REPO_ROOT defined)
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --json)
@@ -98,32 +124,6 @@ if [[ -z "$ACTION" ]]; then
         ACTION="init"
     fi
 fi
-
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Load common functions from the main scripts directory
-# Extension scripts are in .specify/extensions/architect/scripts/bash/
-# Common.sh is in .specify/scripts/bash/
-if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
-    source "$SCRIPT_DIR/common.sh"
-elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
-    # Extension path: .specify/extensions/architect/scripts/bash/ -> .specify/scripts/bash/
-    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
-else
-    # Fallback: search for common.sh relative to REPO_ROOT
-    # This handles both extension and non-extension scenarios
-    REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-    if [[ -f "$REPO_ROOT/.specify/scripts/bash/common.sh" ]]; then
-        source "$REPO_ROOT/.specify/scripts/bash/common.sh"
-    else
-        echo "Error: Could not find common.sh" >&2
-        exit 1
-    fi
-fi
-
-# Get all paths and variables from common functions
-eval "$(get_feature_paths)"
 
 # Ensure directories exist
 mkdir -p "$REPO_ROOT/.specify/memory"
