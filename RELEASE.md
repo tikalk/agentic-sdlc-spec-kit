@@ -246,4 +246,28 @@ echo "Released agentic-sdlc-v$VERSION"
 **Fix**: Re-tagged at correct commit after updating version file
 
 **Prevention**: Always update `pyproject.toml` BEFORE creating tag
+
+### Session 2026-04-12: Check Remote Before Local Version
+
+**Problem**: Local files showed version `0.3.36` but remote/origin was at `0.3.35`. Attempted to bump to `0.3.37` based on stale local state.
+
+**Impact**: Confusion about which version to release; wasted time correcting version numbers.
+
+**Fix**: Checked `git show origin/main:pyproject.toml` to verify actual remote version.
+
+**Prevention**: Before any release, always verify remote state:
+
+```bash
+# Check what's actually pushed (not local state)
+git fetch origin
+git show origin/main:pyproject.toml | grep "^version"
+
+# Compare with local
+cat pyproject.toml | grep "^version"
+
+# Check for uncommitted changes
+git status
+```
+
+**Key insight**: Local uncommitted changes can make `pyproject.toml` show a different version than what's actually released. Always verify against origin before deciding the next version number.
 ```
