@@ -25,6 +25,17 @@
 - [ ] `pyproject.toml` version bumped
 - [ ] Documentation updated (if API changed)
 
+### Path Consistency Validation
+
+Before releasing, verify path consistency across:
+
+- [ ] `scripts/bash/common.sh` - `memory_dir` uses `.specify/memory/` (not `memory/`)
+- [ ] All template paths use `{REPO_ROOT}` placeholder (not hardcoded `.specify/`)
+- [ ] Extension templates reference correct paths
+- [ ] Validation scripts point to correct constitution path
+
+**Common bug**: `common.sh` line 318 uses `$repo_root/memory` but should use `$repo_root/.specify/memory`
+
 ## Version Bump Logic
 
 ### Step 1: Check Current State
@@ -93,6 +104,35 @@ which specify
 specify --version
 ```
 
+### Critical: Version File Must Be Updated BEFORE Tagging
+
+The tag must point to a commit where `pyproject.toml` has the correct version.
+
+**Verification sequence:**
+```bash
+# 1. Update version
+sed -i 's/version = "0.3.33"/version = "0.3.34"/' pyproject.toml
+
+# 2. Stage and commit
+git add pyproject.toml  # Stage version file with other changes
+git commit -m "fix: description"
+
+# 3. Verify commit has correct version
+git show HEAD:pyproject.toml | grep "^version"
+
+# 4. Only then create tag
+git tag agentic-sdlc-v0.3.34
+```
+
+**If you tagged before updating version:**
+```bash
+# Move tag to correct commit
+git tag -d agentic-sdlc-vX.Y.Z
+git push origin :refs/tags/agentic-sdlc-vX.Y.Z
+git tag agentic-sdlc-vX.Y.Z
+git push origin agentic-sdlc-vX.Y.Z
+```
+
 ## Extension Version Management
 
 When extensions change, update their individual versions:
@@ -114,6 +154,23 @@ extension:
 3. Commit with extension-specific message:
 ```bash
 git commit -m "fix(architect): resolve template path resolution"
+```
+
+## Change Scope Detection
+
+Before versioning, check for changes in:
+
+| Location | Files to Check | Version Impact |
+|----------|---------------|----------------|
+| Main CLI | `pyproject.toml`, `src/` | Bump main version |
+| Extensions | `extensions/*/extension.yml`, `CHANGELOG.md` | Bump extension versions |
+| Presets | `presets/*/commands/*.md` | May need main version bump |
+| Core Scripts | `scripts/bash/common.sh` | Usually PATCH bump |
+
+**Command to check all changes:**
+```bash
+git status
+git diff --stat
 ```
 
 ## Common Mistakes
@@ -163,4 +220,30 @@ git push origin main
 git push origin "agentic-sdlc-v$VERSION"
 
 echo "Released agentic-sdlc-v$VERSION"
+```
+
+## Lessons Learned
+
+### Session 2026-04-11: Path Resolution Bug
+
+**Problem**: `common.sh` used `$repo_root/memory` but constitution stored in `.specify/memory/`
+
+**Impact**: Validation script failed silently, `get_feature_paths()` returned wrong path
+
+**Fix**: Changed line 318 to `$repo_root/.specify/memory`
+
+**Prevention**: Always verify path consistency between:
+- `common.sh` `memory_dir` variable
+- Where files are actually stored (`.specify/memory/`)
+- Template references
+
+### Session 2026-04-11: Tag Before Version Update
+
+**Problem**: Created tag `agentic-sdlc-v0.3.32` before updating `pyproject.toml`
+
+**Impact**: Tag pointed to commit with wrong version (0.3.31), installation showed old version
+
+**Fix**: Re-tagged at correct commit after updating version file
+
+**Prevention**: Always update `pyproject.toml` BEFORE creating tag
 ```
