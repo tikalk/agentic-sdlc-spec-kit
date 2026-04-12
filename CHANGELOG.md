@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.38] - 2026-04-13
+
+### Fixed
+
+- **adlc.spec.constitution**: Simplified command from 199 to 88 lines
+  - Removed `validation_scripts:` section (wasn't being path-rewritten by CLI)
+  - Replaced complex 4-phase "Constitution Architect" workflow with 9 clear steps
+  - Aligned structure with upstream `templates/commands/constitution.md`
+  - Preserved team constitution inheritance feature
+  - Root cause: Complex multi-phase instructions caused models to skip script execution and write to wrong file paths
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.spec/v2.0.0/).
 

@@ -1,31 +1,13 @@
 ---
 description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
 scripts:
-   sh: scripts/bash/setup-constitution.sh
-   ps: scripts/powershell/setup-constitution.ps1
-validation_scripts:
-   sh: scripts/bash/validate-constitution.sh
-   ps: scripts/powershell/validate-constitution.ps1
-handoffs:
+  sh: scripts/bash/setup-constitution.sh
+  ps: scripts/powershell/setup-constitution.ps1
+handoffs: 
   - label: Build Specification
     agent: adlc.spec.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
 ---
-
-## Role & Context
-
-You are a **Constitution Architect** responsible for establishing and maintaining the project's governance framework. Your role involves:
-
-- **Inheriting** foundational principles from team constitutions
-- **Adapting** principles to project-specific contexts
-- **Ensuring** constitutional compliance across all project activities
-- **Maintaining** version control and amendment history
-
-**Key Principles:**
-
-- Constitution supersedes all other practices
-- Changes require justification and validation
-- Principles must be testable and enforceable
 
 ## User Input
 
@@ -33,167 +15,75 @@ You are a **Constitution Architect** responsible for establishing and maintainin
 $ARGUMENTS
 ```
 
-**Input Processing:** Analyze the user input for:
+You **MUST** consider the user input before proceeding (if not empty).
 
-- Specific principle amendments or additions
-- Project context requiring constitutional guidance
-- Validation requests or compliance checks
+## Outline
 
-**Execution Strategy:**
-You are updating the project constitution at `{REPO_ROOT}/.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely.
+You are updating the project constitution at `{REPO_ROOT}/.specify/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.
 
 **Note**: If `{REPO_ROOT}/.specify/memory/constitution.md` does not exist yet, it should have been initialized from `{REPO_ROOT}/.specify/templates/constitution-template.md` during project setup. If it's missing, copy the template first.
 
-**Chain of Thought Approach:**
+Follow this execution flow:
 
-1. **Understand Context** → Analyze project needs and team inheritance
-2. **Load Foundations** → Access team constitution and project templates
-3. **Apply Inheritance** → Map team principles to project context
-4. **Validate Integrity** → Ensure compliance and consistency
-5. **Generate Outputs** → Create validated constitution artifacts
-6. **Propagate Changes** → Update dependent templates with constitutional changes
-7. **Finalize** → Write validated constitution to `{REPO_ROOT}/.specify/memory/constitution.md`
+1. **Run setup script** to load team directives and project context:
+   - Execute: `{SCRIPT}` from repository root
+   - Parse JSON output for `TEAM_DIRECTIVES` path (if available)
+   - If team constitution exists at `{TEAM_DIRECTIVES}/context_modules/constitution.md` or `{TEAM_DIRECTIVES}/constitution.md`, load it as the foundation for project principles
 
-## Detailed Workflow
+2. **Load the existing constitution** at `{REPO_ROOT}/.specify/memory/constitution.md`:
+   - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`
+   - **IMPORTANT**: The user might require fewer or more principles than the template. Respect any specified count.
 
-### Phase 1: Context Analysis & Inheritance
+3. **Collect/derive values for placeholders**:
+   - If user input supplies a value, use it
+   - If team constitution exists, inherit principles from it (numbered list with `**Principle Name**` pattern)
+   - Otherwise infer from existing repo context (README, docs, prior constitution versions)
+   - For governance dates: `RATIFICATION_DATE` is the original adoption date (if unknown, ask or mark TODO), `LAST_AMENDED_DATE` is today if changes are made
+   - `CONSTITUTION_VERSION` must increment according to semantic versioning:
+     - MAJOR: Backward incompatible governance/principle removals or redefinitions
+     - MINOR: New principle/section added or materially expanded guidance
+     - PATCH: Clarifications, wording, typo fixes, non-semantic refinements
 
-**Objective:** Establish constitutional foundation through team inheritance
+4. **Draft the updated constitution content**:
+   - Replace every placeholder with concrete text (no bracketed tokens left)
+   - Preserve heading hierarchy; remove comments once replaced
+   - Ensure each Principle section has: succinct name, rules (paragraph or bullets), rationale if not obvious
+   - Ensure Governance section lists amendment procedure, versioning policy, and compliance expectations
 
-**Consistency validation checklist (READ-ONLY - do not modify preset templates):**
+5. **Consistency propagation checklist** (READ-ONLY - report discrepancies, do NOT modify preset templates):
+   - Review `{REPO_ROOT}/.specify/templates/plan-template.md` - check "Constitution Check" alignment
+   - Review `{REPO_ROOT}/.specify/templates/spec-template.md` - check requirements alignment
+   - Review `{REPO_ROOT}/.specify/templates/tasks-template.md` - check task categorization
+   - Flag any runtime guidance docs (README.md, AGENTS.md) that may reference changed principles
+   - Report all findings in the Sync Impact Report
 
-- Review preset templates to identify potential misalignments with new constitutional principles:
-  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/plan-template.md` - check "Constitution Check" section alignment
-  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/spec-template.md` - check requirements alignment
-  - `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/tasks-template.md` - check task categorization
-- Flag any runtime guidance docs that may reference changed principles (README.md, AGENTS.md, etc.)
-- Report all findings in the Sync Impact Report under "Templates requiring manual review"
-- Do NOT modify preset templates—only report discrepancies for human review
+6. **Produce a Sync Impact Report** (prepend as HTML comment at top of constitution file):
+   - Version change: old → new
+   - Modified principles (old title → new title if renamed)
+   - Added/removed sections
+   - Templates requiring updates (✅ updated / ⚠ pending)
+   - Follow-up TODOs if any placeholders intentionally deferred
 
-1. **Load Team Constitution**
-   - Execute: `{SCRIPT}` to access team directives
-   - Parse JSON output for team constitution path
-   - Extract core principles using pattern: numbered list with `**Principle Name**`
-   - Validate team constitution structure and completeness
+7. **Validation before final output**:
+   - No remaining unexplained bracket tokens
+   - Version line matches report
+   - Dates in ISO format YYYY-MM-DD
+   - Principles are declarative and testable
 
-### CRITICAL - Path Validation
+8. **Write the completed constitution** to `{REPO_ROOT}/.specify/memory/constitution.md` (overwrite).
 
-**DO NOT read from wrong directory**
-- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
-- Read spec.md from `./specs/<BRANCH>/spec.md` NOT root `./spec.md`
-- Common mistake: Reading from root instead of feature directory
+9. **Output final summary** to the user:
+   - New version and bump rationale
+   - Files flagged for manual follow-up
+   - Suggested commit message (e.g., `docs: amend constitution to vX.Y.Z`)
 
-### Non-Git Repository Support
+## Formatting Requirements
 
-If working in a non-git repository:
-- Ensure `SPECIFY_FEATURE` environment variable is set
-- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+- Use Markdown headings exactly as in template (do not change levels)
+- Keep lines under 100 characters where practical
+- Single blank line between sections
+- No trailing whitespace
 
-2. **Analyze Project Context**
-   - Determine project name from repository or branch context
-   - Identify project-specific requirements or constraints
-   - Assess existing codebase patterns (optional: run artifact scanning)
-
-3. **Map Inheritance Rules**
-   - **Direct Mapping:** Team principles → Project principles (preserve core governance)
-   - **Contextual Adaptation:** Adjust descriptions for project-specific application
-   - **Extension Points:** Identify areas for project-specific additions
-
-### Phase 2: Constitution Assembly
-
-**Objective:** Construct validated constitution document
-
-1. **Template Processing**
-   - Load constitution template from `{REPO_ROOT}/.specify/memory/constitution.md`
-   - Identify and categorize placeholder tokens:
-     - `[PROJECT_NAME]`: Repository-derived identifier
-     - `[PRINCIPLE_X_*]`: Team principle mappings
-     - `[SECTION_*]`: Governance structure elements
-     - `[VERSION_*]`: Version control metadata
-
-2. **Content Generation**
-   - **Principle Synthesis:** Combine team inheritance with project context
-   - **Governance Framework:** Establish amendment procedures and compliance rules
-   - **Version Initialization:** Set semantic version (1.0.0) and ratification dates
-
-3. **Quality Assurance**
-   - **Clarity Check:** Ensure principles use declarative, testable language
-   - **Consistency Validation:** Verify alignment across all sections
-   - **Completeness Audit:** Confirm all required elements are present
-
-### Phase 3: Validation & Synchronization
-
-**Objective:** Ensure constitutional integrity and system alignment
-
-1. **Automated Validation**
-   - Execute: `{VALIDATION_SCRIPT} --compliance --strict {REPO_ROOT}/.specify/memory/constitution.md`
-   - Parse validation results for critical failures and warnings
-   - **Critical Failures:** Block constitution acceptance
-   - **Warnings:** Allow override with explicit justification
-
-2. **Template Validation (READ-ONLY)**
-   - **Dependency Scan:** Identify templates referencing constitutional elements
-   - **Consistency Checks:** Validate alignment with updated principles
-   - **Report Only:** Flag misalignments for human review—do NOT modify preset templates
-
-3. **Impact Assessment**
-   - Generate Sync Impact Report with version changes and affected components
-   - Document amendment rationale and expected outcomes
-   - Identify follow-up actions and monitoring requirements
-
-### Phase 4: Finalization & Documentation
-
-**Objective:** Complete constitution establishment with proper tracking
-
-1. **Artifact Generation**
-   - Write validated constitution to `{REPO_ROOT}/.specify/memory/constitution.md`
-   - Update version metadata and amendment timestamps
-   - Generate amendment history entry
-
-2. **User Communication**
-   - **Success Report:** Version, changes, and impact summary
-   - **Action Items:** Required follow-ups and manual interventions
-   - **Commit Guidance:** Suggested commit message with constitutional context
-
-## Error Handling & Edge Cases
-
-**Missing Team Constitution:**
-
-- Use default project constitution template
-- Flag for team constitution setup requirement
-- Allow manual principle specification
-
-**Validation Failures:**
-
-- Provide detailed error breakdown by category
-- Suggest remediation steps for each failure type
-- Support override mechanisms for justified exceptions
-
-**Template Synchronization Issues:**
-
-- Report affected templates with specific change requirements
-- Generate automated update scripts where possible
-- Maintain backward compatibility during transitions
-
-## Output Standards
-
-**Formatting Requirements:**
-
-- Markdown headers: Exact hierarchy preservation
-- Line length: <100 characters for readability
-- Spacing: Single blank lines between sections
-- Encoding: UTF-8 with no trailing whitespace
-
-**Version Control:**
-
-- Semantic versioning: MAJOR.MINOR.PATCH
-- ISO dates: YYYY-MM-DD format
-- Amendment tracking: Timestamped change history
-
-**Validation Reporting:**
-
-- Structured JSON output for automation integration
-- Human-readable summaries with actionable guidance
-- Color-coded status indicators (✅ PASS / ❌ FAIL / ⚠️ WARN)
+If critical info is missing (e.g., ratification date unknown), insert `TODO(<FIELD_NAME>): explanation` and include in the Sync Impact Report.
 
 Do not create a new template; always operate on the existing `{REPO_ROOT}/.specify/memory/constitution.md` file.
