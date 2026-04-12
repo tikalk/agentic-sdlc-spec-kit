@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.40] - 2026-04-13
+
+### Fixed
+
+- **spec.specify hooks**: Align hook event names with upstream template convention
+  - Changed product extension hooks from `before_spec`/`after_spec` to `before_specify`/`after_specify`
+  - Matches `templates/commands/specify.md` and `EXTENSION-API-REFERENCE.md` naming
+  - Fixes hooks not triggering due to naming mismatch
+
+- **adlc.spec.specify**: Remove inline Phase 2 PDR selection (now hook-only)
+  - Removed "Phase 2: PDR Reference Selection" from preset command
+  - PDR selection now exclusively handled by `before_specify` hook (`adlc.product.specify`)
+  - Added Pre-Execution Checks and Post-Execution Hooks sections
+  - Eliminates spurious "No PDR file found - skipping Phase 2" AI output
+  - Mission Brief workflow preserved (agentic-sdlc enhancement)
+
 ## [0.3.39] - 2026-04-13
 
 ### Fixed

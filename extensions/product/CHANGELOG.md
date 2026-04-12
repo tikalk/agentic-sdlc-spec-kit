@@ -2,6 +2,15 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.6] - 2026-04-13
+
+### Changed
+
+- **Hook event names**: Renamed hooks to align with upstream template convention
+  - `before_spec` → `before_specify`
+  - `after_spec` → `after_specify`
+  - Matches naming in `templates/commands/specify.md` and `EXTENSION-API-REFERENCE.md`
+
 ## [1.1.5] - 2026-04-11
 
 ### Fixed
