@@ -63,6 +63,40 @@ graph TD
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., external trust zones, entry points, authentication boundaries]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., external SLAs, integration latency expectations]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Location Considerations
+
+[Location concerns - e.g., multi-region dependencies, data residency]
+[See: templates/perspectives/location.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Regulation Considerations
+
+[Regulation concerns - e.g., compliance scope, cross-border restrictions]
+[See: templates/perspectives/regulation.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **Validation Checklist** (verify before finalizing):
 
 - [ ] System appears as exactly ONE node

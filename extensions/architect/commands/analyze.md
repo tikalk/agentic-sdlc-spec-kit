@@ -56,8 +56,6 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 | `AD.md` | Project root | Full Architecture Description (Rozanski & Woods) |
 | `adr.md` | `{REPO_ROOT}/.specify/memory/` | System-level Architecture Decision Records |
 | `constitution.md` | `{REPO_ROOT}/.specify/memory/` | Governance principles and constraints |
-| Feature `AD.md` | `specs/{feature}/` | Feature-level architecture (if exists) |
-| Feature `adr.md` | `specs/{feature}/` | Feature-level ADRs (if exists) |
 
 ## Outline
 
@@ -110,11 +108,10 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 
 | User Input | Scope | Artifacts Analyzed |
 |------------|-------|-------------------|
-| (empty) | Full | All system + all feature artifacts |
-| `"system"` | System only | AD.md, all system ADR locations |
-| `"feature {name}"` | Single feature | specs/{name}/AD.md, specs/{name}/adr.md |
-| `"adrs"` | ADR quality | All adr.md files (system + feature) |
-| `"views"` | AD completeness | All AD.md files (system + feature) |
+| (empty) | Full | All system artifacts |
+| `"system"` | System only | AD.md, system ADR locations |
+| `"adrs"` | ADR quality | All adr.md files |
+| `"views"` | AD completeness | AD.md |
 
 ### Phase 3: Execute Detection Passes
 

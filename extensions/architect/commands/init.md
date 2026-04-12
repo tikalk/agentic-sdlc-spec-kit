@@ -76,6 +76,35 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 | **Brownfield** (existing code) | `/architect.init` | Codebase scan | Inferred ADRs |
 | **Greenfield** (new project) | `/architect.specify` | PRD/requirements | Discussed ADRs |
 
+### Rozanski & Woods Alignment
+
+When discovering ADRs from brownfield code, map findings to R&W viewpoints:
+
+| Discovery Area | Primary Viewpoint | What to Look For |
+|---------------|-------------------|------------------|
+| Service structure | **Functional** | Component boundaries, responsibilities |
+| Database schemas | Information | Data entities, relationships |
+| Process/thread code | Concurrency | Runtime units, coordination |
+| Directory structure | Development | Module organization, dependencies |
+| Deployment configs | Deployment | Infrastructure, environments |
+| Monitoring/alerting | Operational | Operations support |
+
+**Functional-as-Cornerstone for Brownfield**:
+Even in brownfield discovery, the **Functional structure is foundational**:
+
+1. **Discover Functional first**: Identify components, services, modules
+2. **Map other discoveries**: Relate data, deployment, operations to functional elements
+3. **Document dependencies**: Note which ADRs affect the Functional view
+
+**Priority order for ADR discovery**:
+1. Architecture Style ADRs (monolith/microservices) → **Functional cornerstone**
+2. Component/Service ADRs → Functional view
+3. Database/Data ADRs → Information view
+4. Infrastructure ADRs → Deployment view
+5. Communication/Async ADRs → Concurrency view
+6. Development/CI ADRs → Development view
+7. Operations ADRs → Operational view
+
 ## Outline
 
 1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
@@ -384,6 +413,47 @@ Legacy/Inferred
    - **ADR-005**: Deployment Platform (serverless vs traditional)
    - **ADR-006**: CI/CD Approach (GitHub Actions vs Jenkins)
    - **Additional**: Any custom/in-house solutions, unusual patterns, risky choices
+
+### Phase 1.5: Quality Requirements Detection
+
+**Objective**: Detect which R&W perspectives apply from codebase evidence
+
+Scan codebase for quality requirement indicators:
+
+| Evidence | Detected Perspective |
+|----------|---------------------|
+| Health checks, circuit breakers, retry logic | Availability |
+| Plugin systems, feature flags, extension points | Evolution |
+| GDPR/HIPAA comments, audit logging, consent tracking | Regulation |
+| ARIA attributes, screen reader support | Accessibility |
+| i18n files, locale handling, translation keys | Internationalization |
+| Multi-region configs, geo-routing, CDN setup | Location |
+| Extensive UI tests, UX research artifacts | Usability |
+| Resource constraints in README, limited CI runners | Development Resource |
+
+**Present detected perspectives for confirmation**:
+```markdown
+## Quality Requirements Detected
+
+Based on codebase analysis, the following quality perspectives may apply:
+
+| Perspective | Evidence Found | Include? |
+|-------------|----------------|----------|
+| Security | Always recommended | ✓ (default) |
+| Performance | Always recommended | ✓ (default) |
+| Availability | Circuit breakers found | [Y/N] |
+| Evolution | Feature flags found | [Y/N] |
+| Regulation | GDPR comments found | [Y/N] |
+| Accessibility | Not detected | [Y/N] |
+| Internationalization | i18n files found | [Y/N] |
+| Location | Multi-region config | [Y/N] |
+| Usability | UI tests found | [Y/N] |
+| Development Resource | Not detected | [Y/N] |
+
+Please confirm which perspectives to document.
+```
+
+Store selected perspectives in state for `/architect.implement`.
 
 4. **Sub-System Organization** (if Phase 0 decomposition enabled):
 

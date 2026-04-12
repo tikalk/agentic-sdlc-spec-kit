@@ -53,6 +53,40 @@ graph TD
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns specific to this view - e.g., authentication model, authorization patterns, secure component interactions]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns specific to this view - e.g., critical paths, component latency budgets, caching opportunities]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Evolution Considerations
+
+[Evolution concerns - e.g., extension points, plugin architecture, versioning]
+[See: templates/perspectives/evolution.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Usability Considerations
+
+[Usability concerns for user-facing systems - e.g., user workflows, task completion]
+[See: templates/perspectives/usability.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Functional View |

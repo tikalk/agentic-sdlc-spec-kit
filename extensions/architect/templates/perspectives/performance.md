@@ -3,13 +3,41 @@
 **Sub-System**: [SUB_SYSTEM_NAME]
 **ADRs Referenced**: [ADR_IDS]
 **Generated**: [DATE]
-**Applies to**: Functional, Concurrency, Deployment views
+
+---
+
+## Applicability (Rozanski & Woods)
+
+> The ability of the system to predictably execute within its mandated performance profile and to handle increased processing volumes.
+
+**Include this perspective when:**
+- System has explicit performance requirements (SLAs, latency targets)
+- System is expected to handle significant throughput
+- System needs to scale to meet demand
+- Any system where performance is a concern (most systems)
+
+**Skip this perspective when:**
+- Systems with no performance requirements or constraints
+
+## View Applicability
+
+| View | Performance Concerns |
+|------|---------------------|
+| Context | External SLAs, integration latency expectations, traffic patterns |
+| Functional | Critical paths, component latency budgets, caching opportunities |
+| Information | Query patterns, data volume projections, indexing strategy |
+| Concurrency | Throughput requirements, parallel processing opportunities, bottlenecks |
+| Development | Build/test performance, development environment responsiveness |
+| Deployment | Scaling strategy, resource allocation, auto-scaling triggers |
+| Operational | Performance monitoring, alerting thresholds, capacity planning |
+
+## Integration
+
+When generating a view, add a **Performance Considerations** subsection addressing the relevant concerns from the table above.
 
 ---
 
 ## 4.2 Performance & Scalability Perspective
-
-**Applies to**: Functional, Concurrency, Deployment views
 
 ### 4.2.1 Performance Requirements
 

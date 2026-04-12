@@ -43,6 +43,40 @@
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., security monitoring, audit logging, incident response, patch management]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., performance monitoring, alerting thresholds, capacity planning]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Availability Considerations
+
+[Availability concerns - e.g., monitoring, alerting, incident response, recovery procedures]
+[See: templates/perspectives/availability.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Regulation Considerations
+
+[Regulation concerns - e.g., compliance monitoring, reporting, audit trails]
+[See: templates/perspectives/regulation.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Operational View |

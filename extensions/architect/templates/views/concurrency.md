@@ -49,6 +49,33 @@ sequenceDiagram
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., process isolation, secure IPC, thread safety for sensitive operations]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., throughput requirements, parallel processing, bottlenecks]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Availability Considerations
+
+[Availability concerns - e.g., failover mechanisms, redundancy]
+[See: templates/perspectives/availability.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Concurrency View |

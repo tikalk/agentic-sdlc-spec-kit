@@ -59,6 +59,50 @@ If no ADRs exist in any location:
 - Skip validation gracefully
 - Return `{"status":"skipped","reason":"architecture_not_found"}` if `--json` flag used
 
+### Escalation Detection
+
+This command also detects when architectural decisions in the plan **require new ADRs** that don't exist:
+
+1. Analyze plan for architectural keywords:
+   - "new database", "new service", "new API", "new infrastructure"
+   - "change authentication", "change storage", "change deployment"
+2. Compare against existing ADRs
+3. If new patterns detected without ADR backing → signal escalation
+
+**Escalation Output:**
+
+```text
+⚠️  Escalation Required
+   New architectural decisions detected without ADR backing:
+   - "Caching layer (Redis)" - No ADR covers caching decisions
+   - "Message queue (RabbitMQ)" - No ADR covers async communication
+
+   Run /architect.clarify to document these decisions before proceeding.
+```
+
+```json
+{
+  "escalation": {
+    "needed": true,
+    "reason": "new_architectural_decision",
+    "decisions": [
+      {
+        "topic": "Caching layer",
+        "evidence": "Plan references Redis but no ADR covers caching",
+        "suggested_action": "Run /architect.clarify to create ADR"
+      },
+      {
+        "topic": "Async communication", 
+        "evidence": "Plan references RabbitMQ but no ADR covers message queuing",
+        "suggested_action": "Run /architect.clarify to create ADR"
+      }
+    ]
+  }
+}
+```
+
+**This enables the `before_plan` hook to signal when new architectural decisions are needed.**
+
 Example output:
 
 ```text

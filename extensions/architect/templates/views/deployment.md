@@ -61,6 +61,40 @@ graph TB
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., network security, secrets management, container security, firewall]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., scaling strategy, resource allocation, auto-scaling triggers]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Availability Considerations
+
+[Availability concerns - e.g., high-availability configurations, failover]
+[See: templates/perspectives/availability.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Location Considerations
+
+[Location concerns - e.g., multi-region deployment, data residency requirements]
+[See: templates/perspectives/location.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Deployment View |

@@ -3,13 +3,41 @@
 **Sub-System**: [SUB_SYSTEM_NAME]
 **ADRs Referenced**: [ADR_IDS]
 **Generated**: [DATE]
-**Applies to**: All views
+
+---
+
+## Applicability (Rozanski & Woods)
+
+> The ability of the system to reliably control, monitor, and audit who can perform what actions on what resources and to detect and recover from failures in security mechanisms.
+
+**Include this perspective when:**
+- System processes sensitive data (PII, credentials, financial)
+- System is exposed to external users or networks
+- System has regulatory compliance requirements (GDPR, SOC2, HIPAA)
+- Any system where security is a concern (most systems)
+
+**Skip this perspective when:**
+- Truly isolated internal systems with no security requirements (rare)
+
+## View Applicability
+
+| View | Security Concerns |
+|------|-------------------|
+| Context | System boundaries, external trust zones, entry points |
+| Functional | Authentication model, authorization patterns, secure component interactions |
+| Information | Data classification, encryption requirements, access controls, PII handling |
+| Concurrency | Process isolation, secure IPC, thread safety for sensitive operations |
+| Development | SAST/DAST integration, secure coding standards, dependency scanning |
+| Deployment | Network security, secrets management, container security, firewall rules |
+| Operational | Security monitoring, audit logging, incident response, patch management |
+
+## Integration
+
+When generating a view, add a **Security Considerations** subsection addressing the relevant concerns from the table above.
 
 ---
 
 ## 4.1 Security Perspective
-
-**Applies to**: All views
 
 ### 4.1.1 Authentication & Authorization
 

@@ -62,6 +62,40 @@ graph LR
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., SAST/DAST integration, secure coding standards, dependency scanning]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., build/test performance, development environment responsiveness]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Evolution Considerations
+
+[Evolution concerns - e.g., modular design, build systems, maintainability]
+[See: templates/perspectives/evolution.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Development Resource Considerations
+
+[Development resource concerns - e.g., team skills, tooling, build process optimization]
+[See: templates/perspectives/development-resource.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Development View |

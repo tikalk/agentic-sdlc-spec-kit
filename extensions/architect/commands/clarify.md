@@ -501,7 +501,6 @@ Recommended next steps:
 
 - **No ADRs exist**: Use `/architect.specify` first to create ADRs
 - **Brownfield projects**: Use `/architect.init` to reverse-engineer ADRs from code
-- **Feature-level**: Feature ADRs are refined via `/spec.clarify`
 
 ## Context
 

@@ -59,6 +59,30 @@ You are acting as a **Solutions Architect** facilitating an architectural discov
 - **Proposing** options with clear consequences
 - **Documenting** decisions in MADR format once consensus is reached
 
+### Rozanski & Woods Alignment
+
+When creating ADRs, consider how they map to R&W viewpoints:
+
+| ADR Topic | Primary Viewpoint | Impact on Other Views |
+|-----------|-------------------|----------------------|
+| Architecture Style | **Functional** (cornerstone) | Shapes all other views |
+| Database Choice | Information | Affects Functional, Deployment |
+| API Style | Functional | Affects Information, Development |
+| Auth Mechanism | Functional | Affects all views (security perspective) |
+| Deployment Platform | Deployment | Affects Development, Operational |
+| Communication Pattern | Functional, Concurrency | Affects Information, Deployment |
+
+**Functional-as-Cornerstone Principle**:
+> "The Functional view is the cornerstone of most ADs... It usually drives the shape of other system structures." — Rozanski & Woods
+
+During exploration, prioritize decisions that affect the Functional view:
+1. System architecture style (monolith/microservices/serverless)
+2. Component responsibilities and boundaries
+3. Interface contracts between components
+4. Integration patterns
+
+These decisions drive all subsequent architectural views.
+
 ### Two-Level Architecture System
 
 | Level | Location | ADR File | Architecture Description |
@@ -319,6 +343,54 @@ After each decision is confirmed:
    - Document context, decision, consequences, and alternatives
    - Link to constitution principles if applicable
    - **Include Sub-System tag**: Mark each ADR with its parent sub-system
+
+### Phase 3.5: Quality Requirements Exploration (Optional)
+
+**Objective**: Identify which R&W perspectives apply to this system
+
+Before completing ADRs, discuss quality requirements to help `/architect.implement`:
+
+**Core (Always Recommended)**:
+- Security - Authentication, authorization, data protection
+- Performance - Response time, throughput, scalability
+
+**Situational (Select Based on Requirements)**:
+
+| Quality | Question | If Yes → Apply Perspective |
+|---------|----------|---------------------------|
+| Availability | Does the system need high uptime (>99%)? | Availability & Resilience |
+| Evolution | Will the system need to change significantly over time? | Evolution |
+| Regulation | Is the system subject to laws/regulations (GDPR, HIPAA)? | Regulation |
+| Accessibility | Will users with disabilities use this system? | Accessibility |
+| Internationalization | Will the system support multiple languages/regions? | Internationalization |
+| Location | Are there geographic distribution concerns? | Location |
+| Usability | Is ease of use a critical success factor? | Usability |
+| Resources | Are there significant constraints on people/budget/time? | Development Resource |
+
+**Present to user**:
+```markdown
+## Quality Requirements
+
+Based on your PRD, which quality properties are important for this system?
+
+### Core (Always Recommended)
+- [x] Security
+- [x] Performance
+
+### Situational
+- [ ] Availability (high uptime requirement)
+- [ ] Evolution (long-lived system)
+- [ ] Regulation (GDPR, HIPAA, etc.)
+- [ ] Other: ___________
+
+Please indicate which apply (e.g., "Availability, Regulation").
+```
+
+Store selected perspectives in ADR metadata for `/architect.implement`:
+```markdown
+<!-- Quality Requirements -->
+<!-- perspectives: security, performance, availability, regulation -->
+```
 
 2. **Sub-System Organization**:
 

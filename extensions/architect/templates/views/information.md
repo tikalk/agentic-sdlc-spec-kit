@@ -53,6 +53,40 @@ erDiagram
 
 ---
 
+## Perspective Considerations
+
+_The following perspectives are applied to this view based on system requirements._
+
+### Security Considerations
+
+[Security concerns - e.g., data classification, encryption, PII handling, access controls]
+[See: templates/perspectives/security.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Performance Considerations
+
+[Performance concerns - e.g., query patterns, data volume, indexing strategy]
+[See: templates/perspectives/performance.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Regulation Considerations
+
+[Regulation concerns - e.g., data governance, retention, privacy requirements]
+[See: templates/perspectives/regulation.md]
+
+_Source ADRs: [ADR-XXX]_
+
+### Evolution Considerations
+
+[Evolution concerns - e.g., schema evolution, data migration strategies]
+[See: templates/perspectives/evolution.md]
+
+_Source ADRs: [ADR-XXX]_
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Information View |

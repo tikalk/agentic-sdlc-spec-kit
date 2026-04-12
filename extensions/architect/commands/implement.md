@@ -29,7 +29,87 @@ You **MUST** consider the user input before proceeding (if not empty).
   - `all`: All 7 views including Concurrency and Operational
   - Custom: comma-separated (e.g., `concurrency,operational`) - always includes core views
 
+- `--sequential` (default): Execute views sequentially for maximum quality
+  - Recommended: Allows checkpoint after Functional view
+- `--parallel`: Allow parallel execution where dependency chains permit
+  - Warning: May reduce cross-view consistency - use only when time-constrained
+
+- `--no-checkpoint`: Skip Functional view checkpoint (not recommended)
+  - Warning: Functional view is the "cornerstone" that shapes all others
+
 **Important**: When `--views` is `core` (default), **skip** Concurrency View (3.4) and Operational View (3.7) entirely. Only generate them when explicitly requested via `--views all` or `--views concurrency,operational`.
+
+## Rozanski & Woods Methodology Alignment
+
+This command implements the **Viewpoints and Perspectives** framework from 
+*Software Systems Architecture* (2nd Edition) by Nick Rozanski and Eoin Woods.
+
+### Core Principles
+
+1. **Functional View is the Cornerstone**
+   > "The Functional view is the cornerstone of most ADs... It usually drives 
+   > the shape of other system structures such as the information structure, 
+   > concurrency structure, deployment structure, and so on."
+   > — Rozanski & Woods
+
+2. **Views are Interrelated, Not Independent**
+   > "The decisions taken in one view can have a considerable impact on the 
+   > others, and it is a big part of the architect's job to make sure that 
+   > these implications are understood."
+
+3. **Perspectives Apply to Views**
+   > "You never work with perspectives in isolation but instead use them with 
+   > each view to analyze and validate the qualities of your architecture."
+
+4. **Quality Over Speed**
+   Architecture mistakes are expensive to fix. Sequential execution with 
+   checkpoints is the default to ensure quality.
+
+### Viewpoint Dependency Graph
+
+```text
+                    ┌──────────┐
+                    │ Context  │  (System boundaries)
+                    └────┬─────┘
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │  FUNCTIONAL   │  ★ CORNERSTONE ★
+                 │  (Drives all  │  USER CHECKPOINT
+                 │   other views)│  REQUIRED HERE
+                 └───────┬───────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+   ┌───────────┐   ┌───────────┐   ┌───────────┐
+   │Information│   │Concurrency│   │Development│
+   │           │   │(optional) │   │           │
+   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+         │               │               │
+         └───────────────┼───────────────┘
+                         │
+                         ▼
+                  ┌────────────┐
+                  │ Deployment │
+                  └──────┬─────┘
+                         │
+                         ▼
+                  ┌────────────┐
+                  │ Operational│  (optional)
+                  └────────────┘
+```
+
+### Dynamic Viewpoint & Perspective Selection
+
+Viewpoints and perspectives are selected dynamically based on system characteristics:
+
+| Category | Always Included | Auto-Detected (Optional) |
+|----------|-----------------|--------------------------|
+| Viewpoints | Context, Functional | Information, Concurrency, Development, Deployment, Operational |
+| Perspectives | Security, Performance | Accessibility, Availability, Evolution, Internationalization, Location, Regulation, Usability, Development Resource |
+
+**Reference**: https://www.viewpoints-and-perspectives.info/
 
 ## Goal
 
@@ -79,8 +159,19 @@ Located in the extension's `templates/` directory:
 | `templates/views/development.md` | Development View template |
 | `templates/views/deployment.md` | Deployment View template |
 | `templates/views/operational.md` | Operational View template (optional) |
-| `templates/perspectives/security.md` | Security Perspective template |
-| `templates/perspectives/performance.md` | Performance Perspective template |
+
+| Perspective Templates (10 total) |
+|-----------------------------------|
+| `templates/perspectives/security.md` |
+| `templates/perspectives/performance.md` |
+| `templates/perspectives/accessibility.md` |
+| `templates/perspectives/availability.md` |
+| `templates/perspectives/evolution.md` |
+| `templates/perspectives/internationalization.md` |
+| `templates/perspectives/location.md` |
+| `templates/perspectives/regulation.md` |
+| `templates/perspectives/usability.md` |
+| `templates/perspectives/development-resource.md` |
 
 ## Three-Phase DAG Workflow
 
@@ -124,7 +215,7 @@ Located in the extension's `templates/` directory:
 │  │                                                   └─────────────┘  │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
 │                                                                             │
-│  Each view: Read dependencies → Generate content → Write to views dir       │
+│  Each view: Read dependencies → Generate content (with perspectives inline)
 │             → Update state.json with progress                               │
 └─────────────────────────────────────────────────────────────────────────────┘
                                       │
@@ -136,11 +227,15 @@ Located in the extension's `templates/` directory:
 │  │ files            │    │ subsystem conflicts │    │ using ADRs       │   │
 │  └──────────────────┘    └─────────────────────┘    └────────┬─────────┘   │
 │                                                               │             │
-│  ┌──────────────────┐    ┌─────────────────────┐    ┌────────▼─────────┐   │
-│  │ Move Accepted    │◀───│ Apply perspectives  │◀───│ Aggregate into   │   │
-│  │ ADRs to memory   │    │ (Security, Perf)    │    │ unified AD.md    │   │
-│  └──────────────────┘    └─────────────────────┘    └──────────────────┘   │
+│  ┌──────────────────┐                       ┌──────────────▼───────────┐ │
+│  │ Move Accepted    │◀─────────────────────────│ Aggregate into            │ │
+│  │ ADRs to memory   │                         │ unified AD.md (views include│ │
+│  └──────────────────┘                         │ perspective sections)     │ │
+│                                             └───────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────────────────┘
+```
+
+> **Note**: Perspectives (Security, Performance, etc.) are now applied **during** view generation in Phase 2, not as a separate step in Phase 3. This follows the R&W principle: "use them with each view to analyze and validate the qualities of your architecture."
 ```
 
 ---
@@ -345,7 +440,7 @@ Each view template contains placeholders to be filled:
 - Context diagram (system as single blackbox)
 - External dependencies table
 
-#### Functional View
+#### Functional View (★ CORNERSTONE - USER CHECKPOINT)
 
 **Purpose**: Internal components, responsibilities, interactions
 **Dependencies**: Context View
@@ -355,6 +450,19 @@ Each view template contains placeholders to be filled:
 - Functional elements table
 - Element interactions diagram
 - Functional boundaries
+
+> **IMPORTANT**: After generating the Functional view, execution **pauses** for user approval.
+> This is the "cornerstone" view that shapes all subsequent views.
+> 
+> **Rozanski & Woods**: "The Functional view is the cornerstone... It usually drives the shape of other system structures."
+> 
+> **Checkpoint Options**:
+> - **A**: Approve - Continue to remaining views
+> - **B**: Modify - Edit functional view, then continue
+> - **C**: Restart - Regenerate with feedback
+> - **D**: Cancel - Stop execution
+
+**If skipping checkpoint** (`--no-checkpoint` flag): Generate without pause but log warning.
 
 #### Information View
 
