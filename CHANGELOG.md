@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.41] - 2026-04-13
+
+### Fixed
+
+- **adlc.spec.plan**: Plan command now creates all required artifacts
+  - Added imperative Outline section with explicit "CREATE" instructions for each artifact
+  - Fixed bug where agent only wrote plan.md but didn't generate research.md, data-model.md, contracts/, or quickstart.md
+  - Removed ~150 lines of legacy feature architecture content (moved to architect extension hooks)
+  - Consolidated duplicate phase numbering (removed "Core Workflow" Phase 1-2, kept "Phases" Phase 0-1)
+  - Trimmed Triage Framework section from 70 lines to 20 essential criteria
+  - File size reduced from 421 lines to 296 lines (30% reduction)
+  - Root cause: Missing clear execution instructions; agent interpreted phases as documentation rather than actionable steps
+
 ## [0.3.40] - 2026-04-13
 
 ### Fixed
