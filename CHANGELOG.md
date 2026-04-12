@@ -3,7 +3,30 @@
 All notable changes to the Specify CLI and templates are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+and this project adheres to to [Semantic Versioning](https://semver.spec/v2.0.0/).
+
+## [0.3.36] - 2026-04-12
+
+### Fixed
+
+- **--team-ai-directives**: Persist to init-options.json (upstream standard) + read from all scripts
+  - pre_init() saves team_ai_directives to .specify/init-options.json (not config.json)
+  - bash scripts: load_team_directives_config() in common.sh reads from init-options.json
+  - PowerShell scripts: Load-TeamDirectivesConfig() in common.ps1 reads from init-options.json
+  - Extension scripts (both bash/PS) use centralized functions
+  - Falls back to memory location if not in init-options.json
+
+  Scripts fixed:
+  - src/specify_cli/cli_customization.py - save to init-options.json
+  - scripts/bash/common.sh - load_team_directives_config()
+  - scripts/bash/create-new-feature.sh
+  - scripts/bash/setup-plan.sh
+  - scripts/powershell/common.ps1 - Load-TeamDirectivesConfig()
+  - scripts/powershell/create-new-feature.ps1
+  - scripts/powershell/setup-plan.ps1
+  - scripts/powershell/setup-constitution.ps1
+  - extensions/*/scripts/bash/setup-*.sh
+  - extensions/*/scripts/powershell/setup-*.ps1
 
 ## [0.3.31] - 2026-04-10
 

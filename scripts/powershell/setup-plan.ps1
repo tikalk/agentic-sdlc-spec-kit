@@ -61,7 +61,16 @@ if (Test-Path $constitutionFile) {
 
 $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
 if (-not $teamDirectives) {
-    $teamDirectives = Join-Path $paths.REPO_ROOT '.specify/memory/team-ai-directives'
+    $projectConfig = Join-Path $paths.REPO_ROOT ".specify\config.json"
+    if (Test-Path $projectConfig) {
+        try {
+            $config = Get-Content $projectConfig -Raw | ConvertFrom-Json
+            $teamDirectives = $config.team_directives.path
+        } catch {}
+    }
+}
+if (-not $teamDirectives) {
+    $teamDirectives = Join-Path $paths.REPO_ROOT ".specify\memory\team-ai-directives"
 }
 $teamAgentsMd = ''
 if (Test-Path $teamDirectives) {

@@ -73,19 +73,15 @@ NC='\033[0m' # No Color
 PDR_LOCATION=".specify/drafts/pdr.md"
 
 # Resolve team-ai-directives path
-TEAM_DIRECTIVES=""
-if [[ -n "$SPECIFY_TEAM_DIRECTIVES" ]]; then
-    if [[ -d "$SPECIFY_TEAM_DIRECTIVES" ]]; then
-        TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
-    fi
+# Priority: 1. env var, 2. init-options.json, 3. config.json (legacy), 4. team-ai-directives file, 5. memory fallback
+# Resolve team directives using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
 fi
-
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-    elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
-    fi
+if [[ -z "$TEAM_DIRECTIVES" ]] || [[ ! -d "$TEAM_DIRECTIVES" ]]; then
+    TEAM_DIRECTIVES=""
 fi
 
 # PRD output location - use TD if configured, else project root

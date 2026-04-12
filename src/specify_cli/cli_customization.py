@@ -256,6 +256,13 @@ def pre_init(
         elif status == "local":
             tracker.complete("team-directives", f"local: {directives_path}")
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
+
+        # Persist to init-options.json (less upstream merge conflicts)
+        from . import load_init_options, save_init_options
+
+        init_opts = load_init_options(project_path)
+        init_opts["team_ai_directives"] = str(directives_path)
+        save_init_options(project_path, init_opts)
     except Exception as e:
         tracker.error("team-directives", str(e))
         console.print(
@@ -649,7 +656,19 @@ def _load_config(project_path: Path) -> dict:
             return json.loads(config_path.read_text())
         except Exception:
             return {}
-    return None
+    return {}
+
+
+def _save_config(project_path: Path, config: dict) -> None:
+    """Save project configuration."""
+    config_path = project_path / ".specify" / "config.json"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import json
+
+        config_path.write_text(json.dumps(config, indent=2))
+    except Exception:
+        pass
 
 
 def _get_skills_config() -> dict:

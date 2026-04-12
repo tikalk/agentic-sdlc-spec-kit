@@ -321,22 +321,8 @@ function Setup-PRD {
 
 $REPO_ROOT = Get-RepoRoot
 
-# Resolve team-ai-directives path
-$teamDirectives = $null
-if ($env:SPECIFY_TEAM_DIRECTIVES) {
-    if (Test-Path $env:SPECIFY_TEAM_DIRECTIVES) {
-        $teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
-    }
-}
-if (-not $teamDirectives) {
-    $tdPath1 = Join-Path $REPO_ROOT ".specify\team-ai-directives"
-    $tdPath2 = Join-Path $REPO_ROOT ".specify\memory\team-ai-directives"
-    if (Test-Path $tdPath1) {
-        $teamDirectives = $tdPath1
-    } elseif (Test-Path $tdPath2) {
-        $teamDirectives = $tdPath2
-    }
-}
+# Resolve team-ai-directives path using centralized function
+$teamDirectives = Load-TeamDirectivesConfig
 
 # PRD output location - use TD if configured
 if ($teamDirectives) {

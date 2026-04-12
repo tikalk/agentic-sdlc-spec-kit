@@ -667,11 +667,9 @@ if [ "$DRY_RUN" != true ]; then
     fi
 fi
 
-# Resolve team directives path
-TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
-    TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-fi
+# Resolve team directives path using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-"$REPO_ROOT/.specify/memory/team-ai-directives"}"
 
 # Sync team-ai-directives if URL provided (skip in dry-run mode)
 if [ "$DRY_RUN" != true ] && [[ "$TEAM_DIRECTIVES_DIR" =~ ^https?:// ]]; then

@@ -1551,6 +1551,7 @@ def init(
 
             if isinstance(resolved_integration, _SkillsPersist):
                 init_opts["ai_skills"] = True
+
             save_init_options(project_path, init_opts)
 
             # Install preset if specified

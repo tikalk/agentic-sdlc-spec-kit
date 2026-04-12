@@ -80,20 +80,12 @@ else
     CONSTITUTION_FILE=""
 fi
 
-TEAM_DIRECTIVES_DIR="${TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
-    TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
-fi
-if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
-    TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-fi
+# Resolve team directives path using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
 if [[ -d "$TEAM_DIRECTIVES_DIR" ]]; then
-    export SPECIFY_TEAM_DIRECTIVES="$TEAM_DIRECTIVES_DIR"
-    # Check for team-level AGENTS.md
     TEAM_AGENTS_MD="$TEAM_DIRECTIVES_DIR/AGENTS.md"
-    if [[ ! -f "$TEAM_AGENTS_MD" ]]; then
-        TEAM_AGENTS_MD=""
-    fi
+    [[ ! -f "$TEAM_AGENTS_MD" ]] && TEAM_AGENTS_MD=""
 else
     TEAM_DIRECTIVES_DIR=""
     TEAM_AGENTS_MD=""

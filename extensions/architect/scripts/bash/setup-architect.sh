@@ -137,8 +137,12 @@ ADR_FILE="$REPO_ROOT/.specify/drafts/adr.md"  # Default to drafts
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 
-# Team-ai-directives (if configured)
-TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")}"
+# Team-ai-directives (if configured) using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
+fi
 if [[ -n "$TEAM_DIRECTIVES" ]] && [[ -d "$TEAM_DIRECTIVES" ]]; then
     mkdir -p "$TEAM_DIRECTIVES/context_modules"
     ADR_TEAM_FILE="$TEAM_DIRECTIVES/context_modules/adr.md"

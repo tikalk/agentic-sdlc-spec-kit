@@ -416,12 +416,21 @@ if (-not $DryRun) {
 }
 
 # AI Discovery - Run discovery before JSON output
-if ($env:SPECIFY_TEAM_DIRECTIVES) {
-    $TEAM_DIRECTIVES_DIR = $env:SPECIFY_TEAM_DIRECTIVES
-} else {
-    $TEAM_DIRECTIVES_DIR = Join-Path $repoRoot '.specify/memory/team-ai-directives'
+# Priority: 1. env var, 2. project config.json, 3. memory fallback
+$teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
+if (-not $teamDirectives) {
+    $projectConfig = Join-Path $repoRoot ".specify\config.json"
+    if (Test-Path $projectConfig) {
+        try {
+            $config = Get-Content $projectConfig -Raw | ConvertFrom-Json
+            $teamDirectives = $config.team_directives.path
+        } catch {}
+    }
 }
-$DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR  
+if (-not $teamDirectives) {
+    $teamDirectives = Join-Path $repoRoot ".specify\memory\team-ai-directives"
+}
+$DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -TeamDirectivesPath $teamDirectives  
 $DISCOVERED_SKILLS = Discover-Skills -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR -SkillsCachePath (Join-Path $repoRoot '.specify/skills')
 
 if ($Json) {
