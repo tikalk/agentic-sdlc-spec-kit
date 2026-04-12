@@ -2,6 +2,15 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.39] - 2026-04-13
+
+### Fixed
+
+- **Preset commands for markdown agents**: Resolve `{SCRIPT}` placeholders correctly
+  - Preset commands registered for markdown-based agents (opencode, claude, windsurf, etc.) now properly replace `{SCRIPT}` with actual script paths
+  - Previously, `{SCRIPT}` was only resolved for skill-based agents (codex, kimi)
+  - Root cause: `register_commands()` in `agents.py` didn't call `resolve_skill_placeholders()` for non-skill agents
+
 ## [0.3.38] - 2026-04-13
 
 ### Fixed
