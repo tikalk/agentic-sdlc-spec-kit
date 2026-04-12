@@ -270,4 +270,34 @@ git status
 ```
 
 **Key insight**: Local uncommitted changes can make `pyproject.toml` show a different version than what's actually released. Always verify against origin before deciding the next version number.
+
+### Session 2026-04-13: Releasing from a Submodule
+
+**Problem**: When working in a parent repo with spec-kit as a submodule, `git commit` and `git tag` commands run in the wrong directory (parent repo instead of submodule).
+
+**Impact**: 
+- Tag `agentic-sdlc-v0.3.40` was initially created in the parent repo instead of the spec-kit submodule
+- Commands like `git diff --stat` showed changes but `git commit` failed with "no changes added"
+
+**Fix**: Always explicitly set the working directory when releasing from a submodule:
+```bash
+cd /path/to/agentic-sdlc-spec-kit
+git add -A && git commit -m "fix: description"
+git tag agentic-sdlc-vX.Y.Z
+git push origin main
+git push origin agentic-sdlc-vX.Y.Z
+```
+
+**Prevention**: Before any release commit/tag operation:
+```bash
+# Verify you're in the correct directory
+pwd  # Should show .../agentic-sdlc-spec-kit
+
+# Verify pyproject.toml exists in current directory
+ls pyproject.toml
+
+# Then proceed with release
+```
+
+**Key insight**: When spec-kit is used as a submodule, always navigate into the submodule directory before running any git operations for releases.
 ```
