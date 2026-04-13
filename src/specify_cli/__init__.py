@@ -128,15 +128,20 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
-        skill_app,
-        compute_skill_output_name,
     )
+
+    # skill_app is optional and may not be present in older cli_customization
+    try:
+        from .cli_customization import skill_app
+    except ImportError:
+        skill_app = None
 except ImportError:
     ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
     TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
     TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
     PKG_NAMES = ["specify-cli"]
+    skill_app = None
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -159,12 +164,6 @@ except ImportError:
 
     def post_init(project_path, selected_ai, tracker=None, no_git=False):
         pass
-
-    # No skill_app in upstream fallback
-    skill_app = None
-
-    # No fork-specific compute_skill_output_name in upstream fallback
-    compute_skill_output_name = None
 
 
 def _run_git_command(
