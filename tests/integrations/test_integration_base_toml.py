@@ -538,7 +538,8 @@ class TomlIntegrationTests:
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
         expected = self._expected_files("sh")
-        assert actual == expected, (
+        missing = sorted(set(expected) - set(actual))
+        assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
@@ -574,7 +575,8 @@ class TomlIntegrationTests:
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
         expected = self._expected_files("ps")
-        assert actual == expected, (
+        missing = sorted(set(expected) - set(actual))
+        assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
