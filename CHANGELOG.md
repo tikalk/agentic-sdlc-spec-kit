@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.45] - 2026-04-13
+
+### Fixed
+
+- **check-prerequisites.sh/ps1**: Fixed undefined `$ARCHITECTURE` variable bug
+  - `common.sh` was refactored to export `AD` (path to `AD.md`) but `check-prerequisites.sh` still referenced undefined `$ARCHITECTURE`
+  - Renamed JSON output fields: `ARCHITECTURE_*` → `AD_*` (`AD_EXISTS`, `AD_VIEWS`, `AD_DIAGRAMS`)
+  - Updated PowerShell `common.ps1` to remove legacy `ARCHITECTURE` export
+  - Updated `adlc.spec.clarify.md` command to parse new field names
+  - Architecture Alignment pillar in `/spec.clarify` now correctly detects `AD.md` when architect extension is activated
+
 ## [0.3.44] - 2026-04-13
 
 ### Changed

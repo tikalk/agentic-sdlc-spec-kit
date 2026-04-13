@@ -321,7 +321,6 @@ function Get-FeaturePathsEnv {
     # Project-level governance documents
     $memoryDir = Join-Path $repoRoot '.specify/memory'
     $constitutionFile = Join-Path $memoryDir 'constitution.md'
-    $architectureFile = Join-Path $memoryDir 'architecture.md'
     
     # New architecture document structure (AD.md at root or feature level, ADR in memory/)
     $systemAdFile = Join-Path $repoRoot 'AD.md'
@@ -344,7 +343,6 @@ function Get-FeaturePathsEnv {
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
         CONSTITUTION  = $constitutionFile
-        ARCHITECTURE  = $architectureFile
         AD            = $adFile
         SYSTEM_AD     = $systemAdFile
         FEATURE_AD    = $featureAdFile
