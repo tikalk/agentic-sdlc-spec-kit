@@ -118,6 +118,52 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 
 
 # ============================================================================
+# SKILL OUTPUT NAME COMPUTATION - Fork-specific naming for Claude Code slash commands
+# ============================================================================
+
+# Fork-specific command namespaces that should NOT have "speckit-" prefix
+FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
+
+
+def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
+    """
+    Compute the on-disk skill name for an agent with fork-specific handling.
+
+    This function handles the fork's command naming conventions where:
+    - Commands with "adlc." prefix should become /adlc-{command} (not /speckit-adlc-{command})
+    - Commands with "spec." alias prefix should become /spec-{command} (not /speckit-spec-{command})
+
+    Args:
+        cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution")
+        agent_config: Agent configuration dict
+
+    Returns:
+        The output name for the skill file (e.g., "adlc-spec-constitution" or "spec-constitution")
+    """
+    if agent_config.get("extension") != "/SKILL.md":
+        return cmd_name
+
+    short_name = cmd_name
+
+    # Check if command starts with a fork-specific namespace
+    for namespace in FORK_COMMAND_NAMESPACES:
+        prefix = f"{namespace}."
+        if short_name.startswith(prefix):
+            # Strip the namespace prefix and use the short form
+            short_name = short_name[len(prefix) :]
+            break
+    else:
+        # For non-fork commands (e.g., speckit.specify), strip "speckit." prefix
+        if short_name.startswith("speckit."):
+            short_name = short_name[len("speckit.") :]
+
+    # Replace dots with dashes
+    short_name = short_name.replace(".", "-")
+
+    return short_name
+
+
+# ============================================================================
 # CLI IDENTITY
 # ============================================================================
 

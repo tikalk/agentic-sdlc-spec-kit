@@ -369,7 +369,17 @@ class CommandRegistrar:
     def _compute_output_name(
         agent_name: str, cmd_name: str, agent_config: Dict[str, Any]
     ) -> str:
-        """Compute the on-disk command or skill name for an agent."""
+        """Compute the on-disk command or skill name for an agent.
+
+        Uses fork-specific naming when available, falling back to upstream behavior.
+        """
+        # Try to use fork-specific function first (if in fork)
+        from specify_cli import compute_skill_output_name
+
+        if compute_skill_output_name is not None:
+            return compute_skill_output_name(cmd_name, agent_config)
+
+        # Fallback to upstream behavior
         if agent_config["extension"] != "/SKILL.md":
             return cmd_name
 

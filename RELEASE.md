@@ -300,4 +300,23 @@ ls pyproject.toml
 ```
 
 **Key insight**: When spec-kit is used as a submodule, always navigate into the submodule directory before running any git operations for releases.
+
+### Session 2026-04-13: Tag Format Convention
+
+**Problem**: Used `v0.3.43` tag format instead of the project's `agentic-sdlc-vX.Y.Z` convention.
+
+**Impact**: Inconsistent tag naming, potential confusion with upstream spec-kit tags.
+
+**Correct format**: `agentic-sdlc-v0.3.43` (not `v0.3.43`)
+
+**Prevention**: Before tagging, verify the format:
+```bash
+# Check existing tag format
+git tag | grep "^agentic-sdlc-v" | sort -V | tail -3
+
+# Use consistent format
+git tag agentic-sdlc-vX.Y.Z
+```
+
+**Key insight**: This fork uses the `agentic-sdlc-v` prefix to distinguish from upstream `spec-kit` tags.
 ```

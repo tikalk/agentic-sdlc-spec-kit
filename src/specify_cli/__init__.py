@@ -111,6 +111,7 @@ try:
         pre_init,
         post_init,
         skill_app,
+        compute_skill_output_name,
     )
 except ImportError:
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
@@ -140,6 +141,9 @@ except ImportError:
 
     # No skill_app in upstream fallback
     skill_app = None
+
+    # No fork-specific compute_skill_output_name in upstream fallback
+    compute_skill_output_name = None
 
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}

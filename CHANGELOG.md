@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.43] - 2026-04-13
+
+### Fixed
+
+- **Claude Code slash commands**: Fixed preset and extension command naming for slash command invocation
+  - Added `compute_skill_output_name()` function in `cli_customization.py` with fork-specific namespace handling
+  - Preset commands with `adlc.spec.*` prefix now generate `/adlc-spec-*` instead of `/speckit-adlc-spec-*`
+  - Preset alias commands with `spec.*` prefix now generate `/spec-*` instead of `/speckit-spec-*`
+  - Extension commands (e.g., `adlc.architect.init`) similarly now generate `/adlc-architect-init` instead of `/speckit-adlc-architect-init`
+  - Root cause: `_compute_output_name()` in `agents.py` always prepended `speckit-` regardless of command namespace
+
 ## [0.3.42] - 2026-04-13
 
 ### Fixed
