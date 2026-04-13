@@ -1172,6 +1172,11 @@ def init(
         "--integration-options",
         help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
     ),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        help="Path or URL to team-ai-directives repository (local path or git URL)",
+    ),
 ):
     """
     Initialize a new Specify project.
@@ -1694,8 +1699,6 @@ def init(
                     )
 
             # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
-            # Note: team_ai_directives is a fork-specific feature, pass None for upstream compatibility
-            team_ai_directives = None
             pre_init(project_path, selected_ai, team_ai_directives, tracker)
             post_init(project_path, selected_ai, tracker, no_git=no_git)
 
