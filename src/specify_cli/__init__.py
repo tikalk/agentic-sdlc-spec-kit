@@ -167,6 +167,80 @@ except ImportError:
     compute_skill_output_name = None
 
 
+def _run_git_command(
+    args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess:
+    """Run a git command with optional working directory and environment overrides."""
+    cmd = ["git"]
+    if cwd is not None:
+        cmd.extend(["-C", str(cwd)])
+    cmd.extend(args)
+    return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
+
+
+def sync_team_ai_directives(
+    repo_url: str, project_root: Path, *, skip_tls: bool = False
+) -> tuple[str, Path]:
+    """Clone or update the team-ai-directives repository.
+
+    When repo_url points to a local directory, return it without cloning.
+    Returns a tuple of (status, resolved_path).
+    """
+    repo_url = (repo_url or "").strip()
+    if not repo_url:
+        raise ValueError("Team AI directives repository URL cannot be empty")
+
+    potential_path = Path(repo_url).expanduser()
+    if potential_path.exists() and potential_path.is_dir():
+        return ("local", potential_path.resolve())
+
+    memory_root = project_root / ".specify" / "memory"
+    memory_root.mkdir(parents=True, exist_ok=True)
+    destination = memory_root / TEAM_DIRECTIVES_DIRNAME
+
+    git_env = os.environ.copy()
+    if skip_tls:
+        git_env["GIT_SSL_NO_VERIFY"] = "1"
+
+    try:
+        if destination.exists() and any(destination.iterdir()):
+            _run_git_command(
+                ["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env
+            )
+            try:
+                existing_remote = _run_git_command(
+                    [
+                        "config",
+                        "--get",
+                        "remote.origin.url",
+                    ],
+                    cwd=destination,
+                    env=git_env,
+                ).stdout.strip()
+            except subprocess.CalledProcessError:
+                existing_remote = ""
+
+            if existing_remote and existing_remote != repo_url:
+                _run_git_command(
+                    ["remote", "set-url", "origin", repo_url],
+                    cwd=destination,
+                    env=git_env,
+                )
+
+            _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
+            return ("updated", destination)
+
+        if destination.exists() and not any(destination.iterdir()):
+            shutil.rmtree(destination)
+
+        memory_root.mkdir(parents=True, exist_ok=True)
+        _run_git_command(["clone", repo_url, str(destination)], env=git_env)
+        return ("cloned", destination)
+    except subprocess.CalledProcessError as exc:
+        message = exc.stderr.strip() if exc.stderr else str(exc)
+        raise RuntimeError(f"Git operation failed: {message}") from exc
+
+
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.
