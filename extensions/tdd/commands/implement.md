@@ -1,7 +1,7 @@
 ---
 description: "Execute RED→GREEN→REFACTOR cycle for each TDD increment"
 scripts:
-  sh: ../../scripts/bash/decompose-feature.sh
+  sh: .specify/extensions/tdd/scripts/bash/decompose-feature.sh
 tools:
   - bash
   - jq

@@ -1,8 +1,8 @@
 ---
 description: Track milestone progress by analyzing feature spec completion status and updating PDR records
 scripts:
-  sh: scripts/bash/setup-product.sh "roadmap {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "roadmap {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "roadmap {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "roadmap {ARGS}"
 ---
 
 ## User Input

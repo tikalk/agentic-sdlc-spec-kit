@@ -1,8 +1,8 @@
 ---
 description: Refine and validate system-level ADRs through targeted clarification questions
 scripts:
-  sh: scripts/bash/setup-architect.sh "clarify {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "clarify {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "clarify {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "clarify {ARGS}"
 ---
 
 ---

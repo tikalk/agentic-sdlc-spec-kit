@@ -2,6 +2,13 @@
 
 All notable changes to the TDD Extension will be documented in this file.
 
+## [1.0.1] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/` to `.specify/extensions/tdd/scripts/bash/`
+
 ## [1.0.0] - 2026-03-07
 
 ### Added

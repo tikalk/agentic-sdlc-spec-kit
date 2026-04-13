@@ -1,8 +1,8 @@
 ---
 description: Generate full Architecture Description (AD.md) from ADRs using multi-agent DAG orchestration
 scripts:
-  sh: scripts/bash/setup-architect.sh "implement {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "implement {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "implement {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "implement {ARGS}"
 ---
 
 ---

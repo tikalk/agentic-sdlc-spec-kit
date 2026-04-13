@@ -1,8 +1,8 @@
 ---
 description: Validate feature spec alignment with PRD (READ-ONLY)
 scripts:
-  sh: scripts/bash/setup-product.sh "validate {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "validate {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "validate {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "validate {ARGS}"
 ---
 
 ## User Input

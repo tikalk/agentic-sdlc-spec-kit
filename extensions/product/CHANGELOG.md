@@ -2,6 +2,13 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.8] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/setup-product.sh` to `.specify/extensions/product/scripts/bash/setup-product.sh`
+
 ## [1.1.7] - 2026-04-13
 
 ### Added

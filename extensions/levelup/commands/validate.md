@@ -10,8 +10,8 @@ handoffs:
     prompt: Compile conflict resolution CDRs to team-ai-directives PR
     send: false
 scripts:
-  sh: scripts/bash/validate-directives.sh --json
-  ps: scripts/powershell/validate-directives.ps1 -Json
+  sh: .specify/extensions/levelup/scripts/bash/validate-directives.sh --json
+  ps: .specify/extensions/levelup/scripts/powershell/validate-directives.ps1 -Json
 ---
 
 ## User Input

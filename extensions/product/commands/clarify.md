@@ -1,8 +1,8 @@
 ---
 description: Refine and validate Product Decision Records through targeted clarification questions
 scripts:
-  sh: scripts/bash/setup-product.sh "clarify {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "clarify {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "clarify {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "clarify {ARGS}"
 ---
 
 ---

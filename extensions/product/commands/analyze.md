@@ -1,8 +1,8 @@
 ---
 description: Analyze product for consistency between PDRs and PRD, completeness, and quality issues
 scripts:
-  sh: scripts/bash/setup-product.sh "analyze {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "analyze {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "analyze {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "analyze {ARGS}"
 ---
 
 ## User Input

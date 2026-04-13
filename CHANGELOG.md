@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.47] - 2026-04-13
+
+### Fixed
+
+- **Extension script path bug**: Fixed session execution failure caused by incorrect path rewriting
+  - Extension command files used relative paths like `scripts/bash/setup-architect.sh`
+  - The `rewrite_project_relative_paths()` function rewrites `scripts/` to `.specify/scripts/`
+  - But extension scripts are actually at `.specify/extensions/<ext>/scripts/`
+  - Changed 22 extension command files across 4 extensions to use fully-qualified paths
+  - Affected extensions: architect (5 files), product (7 files), levelup (7 files), tdd (3 files)
+  - Fix uses `.specify/extensions/<ext>/scripts/...` paths which bypass the rewriting bug
+
 ## [0.3.46] - 2026-04-13
 
 ### Changed

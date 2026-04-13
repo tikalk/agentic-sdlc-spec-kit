@@ -6,8 +6,8 @@ handoffs:
     prompt: Validate architecture decisions - confirm selections for system architecture, database, API style, and deployment
     send: false
 scripts:
-  sh: scripts/bash/setup-architect.sh "specify {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "specify {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "specify {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "specify {ARGS}"
 agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__

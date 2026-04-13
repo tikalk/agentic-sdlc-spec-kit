@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "tdd"
   name: "TDD - Test-Driven Development Workflow"
-  version: "1.0.0"
+  version: "1.0.1"
   description: "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

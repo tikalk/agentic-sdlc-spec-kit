@@ -6,8 +6,8 @@ handoffs:
     prompt: Validate product requirements discovered from brownfield analysis - confirm feature priorities and scope
     send: false
 scripts:
-  sh: scripts/bash/setup-product.sh "init {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "init {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "init {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "init {ARGS}"
 ---
 
 

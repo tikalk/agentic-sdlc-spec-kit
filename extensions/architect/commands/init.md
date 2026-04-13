@@ -6,8 +6,8 @@ handoffs:
     prompt: Validate brownfield architecture findings - confirm detected technologies, patterns, and decisions
     send: false
 scripts:
-  sh: scripts/bash/setup-architect.sh "init {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "init {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "init {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "init {ARGS}"
 ---
 
 

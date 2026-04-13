@@ -1,11 +1,11 @@
 ---
 description: Generate and validate AI session execution traces from implementation metadata.
 scripts:
-    sh: scripts/bash/generate-trace.sh --json
-    ps: scripts/powershell/generate-trace.ps1 -Json
+    sh: .specify/extensions/levelup/scripts/bash/generate-trace.sh --json
+    ps: .specify/extensions/levelup/scripts/powershell/generate-trace.ps1 -Json
 validation_script:
-    sh: scripts/bash/validate-trace.sh --json
-    ps: scripts/powershell/validate-trace.ps1 -Json
+    sh: .specify/extensions/levelup/scripts/bash/validate-trace.sh --json
+    ps: .specify/extensions/levelup/scripts/powershell/validate-trace.ps1 -Json
 ---
 
 ## Overview

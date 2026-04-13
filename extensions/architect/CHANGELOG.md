@@ -2,6 +2,14 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.1] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/setup-architect.sh` to `.specify/extensions/architect/scripts/bash/setup-architect.sh`
+  - This bypasses the path rewriting bug in the spec-kit CLI that incorrectly rewrites `scripts/` to `.specify/scripts/`
+
 ## [2.0.0] - 2026-04-12
 
 ### Breaking Changes
