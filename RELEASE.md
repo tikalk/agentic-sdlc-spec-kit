@@ -319,4 +319,24 @@ git tag agentic-sdlc-vX.Y.Z
 ```
 
 **Key insight**: This fork uses the `agentic-sdlc-v` prefix to distinguish from upstream `spec-kit` tags.
+
+### Session 2026-04-13: Draft Release Not Visible
+
+**Problem**: The `release.yml` workflow created a release as "Draft", which is not visible on the public releases page.
+
+**Impact**: Release `agentic-sdlc-v0.3.43` existed but showed as "Draft" - users couldn't see it at https://github.com/tikalk/agentic-sdlc-spec-kit/releases
+
+**Fix**: Publish the draft release using the GitHub CLI:
+```bash
+gh release edit agentic-sdlc-v0.3.43 --draft=false
+```
+
+**Prevention**: After tagging and pushing, verify the release is visible. If it shows as "Draft" in `gh release list`, publish it:
+```bash
+# Check release status
+gh release list
+
+# If draft, publish it
+gh release edit <tag> --draft=false
+```
 ```
