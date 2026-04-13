@@ -35,7 +35,7 @@ import json5
 import stat
 import yaml
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional
 
 import typer
 from rich.console import Console
@@ -114,8 +114,11 @@ try:
         compute_skill_output_name,
     )
 except ImportError:
+    ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
     TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
+    TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+    PKG_NAMES = ["specify-cli"]
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -136,7 +139,7 @@ except ImportError:
     def pre_init(project_path, selected_ai, team_ai_directives, tracker=None):
         pass
 
-    def post_init(project_path, selected_ai, tracker=None):
+    def post_init(project_path, selected_ai, tracker=None, no_git=False):
         pass
 
     # No skill_app in upstream fallback
@@ -224,7 +227,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(Text(self.title, style=ACCENT_COLOR), guide_style="grey50")
+        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -235,7 +238,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = f"[{ACCENT_COLOR}]○[/{ACCENT_COLOR}]"
+                symbol = "[cyan]○[/cyan]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -308,20 +311,14 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style=ACCENT_COLOR, justify="left", width=3)
+        table.add_column(style="cyan", justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row(
-                    "▶",
-                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
-                )
+                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
             else:
-                table.add_row(
-                    " ",
-                    f"[{ACCENT_COLOR}]{key}[/{ACCENT_COLOR}] [dim]({options[key]})[/dim]",
-                )
+                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
 
         table.add_row("", "")
         table.add_row(
@@ -331,7 +328,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style=ACCENT_COLOR,
+            border_style="cyan",
             padding=(1, 2),
         )
 
@@ -398,7 +395,7 @@ app = typer.Typer(
 def show_banner():
     """Display the ASCII art banner."""
     banner_lines = BANNER.strip().split("\n")
-    colors = BANNER_COLORS  # Use tikalk theme colors
+    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -406,7 +403,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style=f"italic {ACCENT_COLOR}")))
+    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
     console.print()
 
 
@@ -499,7 +496,6 @@ def is_git_repo(path: Path = None) -> bool:
         return False
 
     try:
-        # Use git command to check if inside a work tree
         subprocess.run(
             ["git", "rev-parse", "--is-inside-work-tree"],
             check=True,
@@ -553,11 +549,7 @@ def sync_team_ai_directives(
             )
             try:
                 existing_remote = _run_git_command(
-                    [
-                        "config",
-                        "--get",
-                        "remote.origin.url",
-                    ],
+                    ["config", "--get", "remote.origin.url"],
                     cwd=destination,
                     env=git_env,
                 ).stdout.strip()
@@ -587,23 +579,13 @@ def sync_team_ai_directives(
 
 def init_git_repo(
     project_path: Path, quiet: bool = False
-) -> Tuple[bool, Optional[str]]:
-    """Initialize a git repository in the specified path.
-
-    Args:
-        project_path: Path to initialize git repository in
-        quiet: if True suppress console output (tracker handles status)
-
-    Returns:
-        Tuple of (success: bool, error_message: Optional[str])
-    """
+) -> tuple[bool, Optional[str]]:
+    """Initialize a git repository in the specified path."""
     try:
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print(
-                f"[{ACCENT_COLOR}]Initializing git repository...[/{ACCENT_COLOR}]"
-            )
+            console.print("[cyan]Initializing git repository...[/cyan]")
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(
@@ -615,14 +597,12 @@ def init_git_repo(
         if not quiet:
             console.print("[green]✓[/green] Git repository initialized")
         return True, None
-
     except subprocess.CalledProcessError as e:
         error_msg = f"Command: {' '.join(e.cmd)}\nExit code: {e.returncode}"
         if e.stderr:
             error_msg += f"\nError: {e.stderr.strip()}"
         elif e.stdout:
             error_msg += f"\nOutput: {e.stdout.strip()}"
-
         if not quiet:
             console.print(f"[red]Error initializing git repository:[/red] {e}")
         return False, error_msg
@@ -794,9 +774,7 @@ def merge_json_files(
         return None
 
     if verbose:
-        console.print(
-            f"[{ACCENT_COLOR}]Merged JSON file:[/{ACCENT_COLOR}] {existing_path.name}"
-        )
+        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
 
     return merged
 
@@ -815,6 +793,58 @@ def _locate_core_pack() -> Path | None:
     candidate = Path(__file__).parent / "core_pack"
     if candidate.is_dir():
         return candidate
+    return None
+
+
+def _locate_bundled_extension(extension_id: str) -> Path | None:
+    """Return the path to a bundled extension, or None.
+
+    Checks the wheel's core_pack first, then falls back to the
+    source-checkout ``extensions/<id>/`` directory.
+    """
+    import re as _re
+
+    if not _re.match(r"^[a-z0-9-]+$", extension_id):
+        return None
+
+    core = _locate_core_pack()
+    if core is not None:
+        candidate = core / "extensions" / extension_id
+        if (candidate / "extension.yml").is_file():
+            return candidate
+
+    # Source-checkout / editable install: look relative to repo root
+    repo_root = Path(__file__).parent.parent.parent
+    candidate = repo_root / "extensions" / extension_id
+    if (candidate / "extension.yml").is_file():
+        return candidate
+
+    return None
+
+
+def _locate_bundled_preset(preset_id: str) -> Path | None:
+    """Return the path to a bundled preset, or None.
+
+    Checks the wheel's core_pack first, then falls back to the
+    source-checkout ``presets/<id>/`` directory.
+    """
+    import re as _re
+
+    if not _re.match(r"^[a-z0-9-]+$", preset_id):
+        return None
+
+    core = _locate_core_pack()
+    if core is not None:
+        candidate = core / "presets" / preset_id
+        if (candidate / "preset.yml").is_file():
+            return candidate
+
+    # Source-checkout / editable install: look relative to repo root
+    repo_root = Path(__file__).parent.parent.parent
+    candidate = repo_root / "presets" / preset_id
+    if (candidate / "preset.yml").is_file():
+        return candidate
+
     return None
 
 
@@ -906,41 +936,45 @@ def _install_shared_infra(
 def ensure_executable_scripts(
     project_path: Path, tracker: StepTracker | None = None
 ) -> None:
-    """Ensure POSIX .sh scripts under .specify/scripts (recursively) have execute bits (no-op on Windows)."""
+    """Ensure POSIX .sh scripts under .specify/scripts and .specify/extensions (recursively) have execute bits (no-op on Windows)."""
     if os.name == "nt":
         return  # Windows: skip silently
-    scripts_root = project_path / ".specify" / "scripts"
-    if not scripts_root.is_dir():
-        return
+    scan_roots = [
+        project_path / ".specify" / "scripts",
+        project_path / ".specify" / "extensions",
+    ]
     failures: list[str] = []
     updated = 0
-    for script in scripts_root.rglob("*.sh"):
-        try:
-            if script.is_symlink() or not script.is_file():
-                continue
+    for scripts_root in scan_roots:
+        if not scripts_root.is_dir():
+            continue
+        for script in scripts_root.rglob("*.sh"):
             try:
-                with script.open("rb") as f:
-                    if f.read(2) != b"#!":
-                        continue
-            except Exception:
-                continue
-            st = script.stat()
-            mode = st.st_mode
-            if mode & 0o111:
-                continue
-            new_mode = mode
-            if mode & 0o400:
-                new_mode |= 0o100
-            if mode & 0o040:
-                new_mode |= 0o010
-            if mode & 0o004:
-                new_mode |= 0o001
-            if not (new_mode & 0o100):
-                new_mode |= 0o100
-            os.chmod(script, new_mode)
-            updated += 1
-        except Exception as e:
-            failures.append(f"{script.relative_to(scripts_root)}: {e}")
+                if script.is_symlink() or not script.is_file():
+                    continue
+                try:
+                    with script.open("rb") as f:
+                        if f.read(2) != b"#!":
+                            continue
+                except Exception:
+                    continue
+                st = script.stat()
+                mode = st.st_mode
+                if mode & 0o111:
+                    continue
+                new_mode = mode
+                if mode & 0o400:
+                    new_mode |= 0o100
+                if mode & 0o040:
+                    new_mode |= 0o010
+                if mode & 0o004:
+                    new_mode |= 0o001
+                if not (new_mode & 0o100):
+                    new_mode |= 0o100
+                os.chmod(script, new_mode)
+                updated += 1
+            except Exception as e:
+                failures.append(f"{script.relative_to(project_path)}: {e}")
     if tracker:
         detail = f"{updated} updated" + (
             f", {len(failures)} failed" if failures else ""
@@ -950,7 +984,7 @@ def ensure_executable_scripts(
     else:
         if updated:
             console.print(
-                f"[{ACCENT_COLOR}]Updated execute permissions on {updated} script(s) recursively[/{ACCENT_COLOR}]"
+                f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]"
             )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
@@ -989,9 +1023,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print(
-                f"[{ACCENT_COLOR}]Initialized constitution from template[/{ACCENT_COLOR}]"
-            )
+            console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -1128,7 +1160,7 @@ def init(
     branch_numbering: str = typer.Option(
         None,
         "--branch-numbering",
-        help="Branch numbering strategy: 'sequential' (001, 002, ...) or 'timestamp' (YYYYMMDD-HHMMSS)",
+        help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)",
     ),
     integration: str = typer.Option(
         None,
@@ -1139,11 +1171,6 @@ def init(
         None,
         "--integration-options",
         help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
-    ),
-    team_ai_directives: str = typer.Option(
-        None,
-        "--team-ai-directives",
-        help="Path or URL to team-ai-directives repository (local path or git URL)",
     ),
 ):
     """
@@ -1292,9 +1319,11 @@ def init(
         )
         raise typer.Exit(1)
 
+    dir_existed_before = False
     if here:
         project_name = Path.cwd().name
         project_path = Path.cwd()
+        dir_existed_before = True
 
         existing_items = list(project_path.iterdir())
         if existing_items:
@@ -1306,7 +1335,7 @@ def init(
             )
             if force:
                 console.print(
-                    f"[{ACCENT_COLOR}]--force supplied: skipping confirmation and proceeding with merge[/{ACCENT_COLOR}]"
+                    "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                 )
             else:
                 response = typer.confirm("Do you want to continue?")
@@ -1315,17 +1344,37 @@ def init(
                     raise typer.Exit(0)
     else:
         project_path = Path(project_name).resolve()
+        dir_existed_before = project_path.exists()
         if project_path.exists():
-            error_panel = Panel(
-                f"Directory '[{ACCENT_COLOR}]{project_name}[/{ACCENT_COLOR}]' already exists\n"
-                "Please choose a different project name or remove the existing directory.",
-                title="[red]Directory Conflict[/red]",
-                border_style="red",
-                padding=(1, 2),
-            )
-            console.print()
-            console.print(error_panel)
-            raise typer.Exit(1)
+            if not project_path.is_dir():
+                console.print(
+                    f"[red]Error:[/red] '{project_name}' exists but is not a directory."
+                )
+                raise typer.Exit(1)
+            existing_items = list(project_path.iterdir())
+            if force:
+                if existing_items:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Directory '{project_name}' is not empty ({len(existing_items)} items)"
+                    )
+                    console.print(
+                        "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
+                    )
+                console.print(
+                    f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]"
+                )
+            else:
+                error_panel = Panel(
+                    f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
+                    "Please choose a different project name or remove the existing directory.\n"
+                    "Use [bold]--force[/bold] to merge into the existing directory.",
+                    title="[red]Directory Conflict[/red]",
+                    border_style="red",
+                    padding=(1, 2),
+                )
+                console.print()
+                console.print(error_panel)
+                raise typer.Exit(1)
 
     if ai_assistant:
         if ai_assistant not in AGENT_CONFIG:
@@ -1364,7 +1413,7 @@ def init(
     current_dir = Path.cwd()
 
     setup_lines = [
-        f"[{ACCENT_COLOR}]Specify Project Setup[/{ACCENT_COLOR}]",
+        "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -1373,9 +1422,7 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(
-        Panel("\n".join(setup_lines), border_style=ACCENT_COLOR, padding=(1, 2))
-    )
+    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
 
     should_init_git = False
     if not no_git:
@@ -1391,10 +1438,10 @@ def init(
             install_url = agent_config["install_url"]
             if not check_tool(selected_ai):
                 error_panel = Panel(
-                    f"[{ACCENT_COLOR}]{selected_ai}[/{ACCENT_COLOR}] not found\n"
-                    f"Install from: [{ACCENT_COLOR}]{install_url}[/{ACCENT_COLOR}]\n"
+                    f"[cyan]{selected_ai}[/cyan] not found\n"
+                    f"Install from: [cyan]{install_url}[/cyan]\n"
                     f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    f"Tip: Use [{ACCENT_COLOR}]--ignore-agent-tools[/{ACCENT_COLOR}] to skip this check",
+                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
                     padding=(1, 2),
@@ -1422,12 +1469,8 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(
-        f"[{ACCENT_COLOR}]Selected AI assistant:[/{ACCENT_COLOR}] {selected_ai}"
-    )
-    console.print(
-        f"[{ACCENT_COLOR}]Selected script type:[/{ACCENT_COLOR}] {selected_script}"
-    )
+    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
+    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -1442,20 +1485,14 @@ def init(
 
     tracker.add("integration", "Install integration")
     tracker.add("shared-infra", "Install shared infrastructure")
-    tracker.add("team-directives", "Sync team AI directives")
 
     for key, label in [
         ("chmod", "Ensure scripts executable"),
         ("constitution", "Constitution setup"),
-        ("git", "Initialize git repository"),
-        ("extensions", "Install bundled extensions"),
-        ("presets", "Install bundled presets"),
+        ("git", "Install git extension"),
         ("final", "Finalize"),
     ]:
         tracker.add(key, label)
-
-    # Track git error message outside Live context so it persists
-    git_error_message = None
 
     with Live(
         tracker.render(), console=console, refresh_per_second=8, transient=True
@@ -1517,25 +1554,62 @@ def init(
             _install_shared_infra(project_path, selected_script, tracker=tracker)
             tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
 
-            ensure_executable_scripts(project_path, tracker=tracker)
-
             ensure_constitution_from_template(project_path, tracker=tracker)
 
             if not no_git:
                 tracker.start("git")
+                git_messages = []
+                git_has_error = False
+                # Step 1: Initialize git repo if needed
                 if is_git_repo(project_path):
-                    tracker.complete("git", "existing repo detected")
+                    git_messages.append("existing repo detected")
                 elif should_init_git:
                     success, error_msg = init_git_repo(project_path, quiet=True)
                     if success:
-                        tracker.complete("git", "initialized")
+                        git_messages.append("initialized")
                     else:
-                        tracker.error("git", "init failed")
-                        git_error_message = error_msg
+                        git_has_error = True
+                        # Sanitize multi-line error_msg to single line for tracker
+                        if error_msg:
+                            sanitized = error_msg.replace("\n", " ").strip()
+                            git_messages.append(f"init failed: {sanitized[:120]}")
+                        else:
+                            git_messages.append("init failed")
                 else:
-                    tracker.skip("git", "git not available")
+                    git_messages.append("git not available")
+                # Step 2: Install bundled git extension
+                try:
+                    from .extensions import ExtensionManager
+
+                    bundled_path = _locate_bundled_extension("git")
+                    if bundled_path:
+                        manager = ExtensionManager(project_path)
+                        if manager.registry.is_installed("git"):
+                            git_messages.append("extension already installed")
+                        else:
+                            manager.install_from_directory(
+                                bundled_path, get_speckit_version()
+                            )
+                            git_messages.append("extension installed")
+                    else:
+                        git_has_error = True
+                        git_messages.append("bundled extension not found")
+                except Exception as ext_err:
+                    git_has_error = True
+                    sanitized_ext = str(ext_err).replace("\n", " ").strip()
+                    git_messages.append(
+                        f"extension install failed: {sanitized_ext[:120]}"
+                    )
+                summary = "; ".join(git_messages)
+                if git_has_error:
+                    tracker.error("git", summary)
+                else:
+                    tracker.complete("git", summary)
             else:
                 tracker.skip("git", "--no-git flag")
+
+            # Fix permissions after all installs (scripts + extensions)
+            ensure_executable_scripts(project_path, tracker=tracker)
 
             # Persist the CLI options so later operations (e.g. preset add)
             # can adapt their behaviour without re-scanning the filesystem.
@@ -1555,7 +1629,6 @@ def init(
 
             if isinstance(resolved_integration, _SkillsPersist):
                 init_opts["ai_skills"] = True
-
             save_init_options(project_path, init_opts)
 
             # Install preset if specified
@@ -1566,39 +1639,65 @@ def init(
                     preset_manager = PresetManager(project_path)
                     speckit_ver = get_speckit_version()
 
-                    # Try local directory first, then catalog
+                    # Try local directory first, then bundled, then catalog
                     local_path = Path(preset).resolve()
                     if local_path.is_dir() and (local_path / "preset.yml").exists():
                         preset_manager.install_from_directory(local_path, speckit_ver)
                     else:
-                        preset_catalog = PresetCatalog(project_path)
-                        pack_info = preset_catalog.get_pack_info(preset)
-                        if not pack_info:
-                            console.print(
-                                f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping."
+                        bundled_path = _locate_bundled_preset(preset)
+                        if bundled_path:
+                            preset_manager.install_from_directory(
+                                bundled_path, speckit_ver
                             )
                         else:
-                            try:
-                                zip_path = preset_catalog.download_pack(preset)
-                                preset_manager.install_from_zip(zip_path, speckit_ver)
-                                # Clean up downloaded ZIP to avoid cache accumulation
-                                try:
-                                    zip_path.unlink(missing_ok=True)
-                                except OSError:
-                                    # Best-effort cleanup; failure to delete is non-fatal
-                                    pass
-                            except PresetError as preset_err:
+                            preset_catalog = PresetCatalog(project_path)
+                            pack_info = preset_catalog.get_pack_info(preset)
+                            if not pack_info:
                                 console.print(
-                                    f"[yellow]Warning:[/yellow] Failed to install preset '{preset}': {preset_err}"
+                                    f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping."
                                 )
+                            elif pack_info.get("bundled") and not pack_info.get(
+                                "download_url"
+                            ):
+                                from .extensions import REINSTALL_COMMAND
+
+                                console.print(
+                                    f"[yellow]Warning:[/yellow] Preset '{preset}' is bundled with spec-kit "
+                                    f"but could not be found in the installed package."
+                                )
+                                console.print(
+                                    "This usually means the spec-kit installation is incomplete or corrupted."
+                                )
+                                console.print(f"Try reinstalling: {REINSTALL_COMMAND}")
+                            else:
+                                zip_path = None
+                                try:
+                                    zip_path = preset_catalog.download_pack(preset)
+                                    preset_manager.install_from_zip(
+                                        zip_path, speckit_ver
+                                    )
+                                except PresetError as preset_err:
+                                    console.print(
+                                        f"[yellow]Warning:[/yellow] Failed to install preset '{preset}': {preset_err}"
+                                    )
+                                finally:
+                                    if zip_path is not None:
+                                        # Clean up downloaded ZIP to avoid cache accumulation
+                                        try:
+                                            zip_path.unlink(missing_ok=True)
+                                        except OSError:
+                                            # Best-effort cleanup; failure to delete is non-fatal
+                                            pass
                 except Exception as preset_err:
                     console.print(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
 
             # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
+            # Note: team_ai_directives is a fork-specific feature, pass None for upstream compatibility
+            team_ai_directives = None
             pre_init(project_path, selected_ai, team_ai_directives, tracker)
-            post_init(project_path, selected_ai, tracker)
+            post_init(project_path, selected_ai, tracker, no_git=no_git)
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
@@ -1628,7 +1727,7 @@ def init(
                         border_style="magenta",
                     )
                 )
-            if not here and project_path.exists():
+            if not here and project_path.exists() and not dir_existed_before:
                 shutil.rmtree(project_path)
             raise typer.Exit(1)
         finally:
@@ -1636,23 +1735,6 @@ def init(
 
     console.print(tracker.render())
     console.print("\n[bold green]Project ready.[/bold green]")
-
-    # Show git error details if initialization failed
-    if git_error_message:
-        console.print()
-        git_error_panel = Panel(
-            f"[yellow]Warning:[/yellow] Git repository initialization failed\n\n"
-            f"{git_error_message}\n\n"
-            f"[dim]You can initialize git manually later with:[/dim]\n"
-            f"[{ACCENT_COLOR}]cd {project_path if not here else '.'}[/{ACCENT_COLOR}]\n"
-            f"[{ACCENT_COLOR}]git init[/{ACCENT_COLOR}]\n"
-            f"[{ACCENT_COLOR}]git add .[/{ACCENT_COLOR}]\n"
-            f'[{ACCENT_COLOR}]git commit -m "Initial commit"[/{ACCENT_COLOR}]',
-            title="[red]Git Initialization Failed[/red]",
-            border_style="red",
-            padding=(1, 2),
-        )
-        console.print(git_error_panel)
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)
@@ -1663,7 +1745,7 @@ def init(
         if agent_folder:
             security_notice = Panel(
                 f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-                f"Consider adding [{ACCENT_COLOR}]{agent_folder}[/{ACCENT_COLOR}] (or parts of it) to [{ACCENT_COLOR}].gitignore[/{ACCENT_COLOR}] to prevent accidental credential leakage.",
+                f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
                 title="[yellow]Agent Folder Security[/yellow]",
                 border_style="yellow",
                 padding=(1, 2),
@@ -1674,7 +1756,7 @@ def init(
     steps_lines = []
     if not here:
         steps_lines.append(
-            f"1. Go to the project folder: [{ACCENT_COLOR}]cd {project_name}[/{ACCENT_COLOR}]"
+            f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]"
         )
         step_num = 2
     else:
@@ -1682,7 +1764,7 @@ def init(
         step_num = 2
 
     # Determine skill display mode for the next-steps panel.
-    # Skills integrations (codex, kimi, agy) should show skill invocation syntax.
+    # Skills integrations (codex, kimi, agy, trae, cursor-agent) should show skill invocation syntax.
     from .integrations.base import SkillsIntegration as _SkillsInt
 
     _is_skills_integration = isinstance(resolved_integration, _SkillsInt)
@@ -1693,55 +1775,68 @@ def init(
     )
     kimi_skill_mode = selected_ai == "kimi"
     agy_skill_mode = selected_ai == "agy" and _is_skills_integration
+    trae_skill_mode = selected_ai == "trae"
+    cursor_agent_skill_mode = selected_ai == "cursor-agent" and (
+        ai_skills or _is_skills_integration
+    )
     native_skill_mode = (
-        codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode
+        codex_skill_mode
+        or claude_skill_mode
+        or kimi_skill_mode
+        or agy_skill_mode
+        or trae_skill_mode
+        or cursor_agent_skill_mode
     )
 
     if codex_skill_mode and not ai_skills:
         # Integration path installed skills; show the helpful notice
         steps_lines.append(
-            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [{ACCENT_COLOR}].agents/skills[/{ACCENT_COLOR}]"
+            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
         )
         step_num += 1
     if claude_skill_mode and not ai_skills:
         steps_lines.append(
-            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [{ACCENT_COLOR}].claude/skills[/{ACCENT_COLOR}]"
+            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]"
+        )
+        step_num += 1
+    if cursor_agent_skill_mode and not ai_skills:
+        steps_lines.append(
+            f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to [cyan].cursor/skills[/cyan]"
         )
         step_num += 1
     usage_label = "skills" if native_skill_mode else "slash commands"
 
     def _display_cmd(name: str) -> str:
-        if codex_skill_mode or agy_skill_mode:
+        if codex_skill_mode or agy_skill_mode or trae_skill_mode:
             return f"$speckit-{name}"
         if claude_skill_mode:
             return f"/speckit-{name}"
         if kimi_skill_mode:
             return f"/skill:speckit-{name}"
+        if cursor_agent_skill_mode:
+            return f"/speckit-{name}"
         return f"/speckit.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
     steps_lines.append(
-        f"   {step_num}.1 [{ACCENT_COLOR}]{_display_cmd('constitution')}[/{ACCENT_COLOR}] - Establish project principles"
+        f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles"
     )
     steps_lines.append(
-        f"   {step_num}.2 [{ACCENT_COLOR}]{_display_cmd('specify')}[/{ACCENT_COLOR}] - Create baseline specification"
+        f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
     )
     steps_lines.append(
-        f"   {step_num}.3 [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}] - Create implementation plan"
+        f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
     )
     steps_lines.append(
-        f"   {step_num}.4 [{ACCENT_COLOR}]{_display_cmd('tasks')}[/{ACCENT_COLOR}] - Generate actionable tasks"
+        f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   {step_num}.5 [{ACCENT_COLOR}]{_display_cmd('implement')}[/{ACCENT_COLOR}] - Execute implementation"
+        f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
     )
 
     steps_panel = Panel(
-        "\n".join(steps_lines),
-        title="Next Steps",
-        border_style=ACCENT_COLOR,
-        padding=(1, 2),
+        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
     )
     console.print()
     console.print(steps_panel)
@@ -1754,9 +1849,9 @@ def init(
     enhancement_lines = [
         enhancement_intro,
         "",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('clarify')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}] if used)",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('analyze')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [{ACCENT_COLOR}]{_display_cmd('tasks')}[/{ACCENT_COLOR}], before [{ACCENT_COLOR}]{_display_cmd('implement')}[/{ACCENT_COLOR}])",
-        f"○ [{ACCENT_COLOR}]{_display_cmd('checklist')}[/{ACCENT_COLOR}] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [{ACCENT_COLOR}]{_display_cmd('plan')}[/{ACCENT_COLOR}])",
+        f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
+        f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
+        f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
     ]
     enhancements_title = (
         "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
@@ -1764,7 +1859,7 @@ def init(
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title=enhancements_title,
-        border_style=ACCENT_COLOR,
+        border_style="cyan",
         padding=(1, 2),
     )
     console.print()
@@ -1901,10 +1996,6 @@ preset_catalog_app = typer.Typer(
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
 
-# Skill commands (Tikalk fork - may be None in upstream)
-if skill_app is not None:
-    app.add_typer(skill_app, name="skill")
-
 
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
@@ -1940,6 +2031,10 @@ integration_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(integration_app, name="integration")
+
+# Tikalk skill subcommand (if available from cli_customization)
+if skill_app is not None:
+    app.add_typer(skill_app, name="skill")
 
 
 INTEGRATION_JSON = ".specify/integration.json"
@@ -2069,13 +2164,11 @@ def integration_list():
     console.print(table)
 
     if installed_key:
-        console.print(
-            f"\n[dim]Current integration:[/dim] [{ACCENT_COLOR}]{installed_key}[/{ACCENT_COLOR}]"
-        )
+        console.print(f"\n[dim]Current integration:[/dim] [cyan]{installed_key}[/cyan]")
     else:
         console.print("\n[yellow]No integration currently installed.[/yellow]")
         console.print(
-            f"Install one with: [{ACCENT_COLOR}]specify integration install <key>[/{ACCENT_COLOR}]"
+            "Install one with: [cyan]specify integration install <key>[/cyan]"
         )
 
 
@@ -2120,7 +2213,7 @@ def integration_install(
     if installed_key and installed_key == key:
         console.print(f"[yellow]Integration '{key}' is already installed.[/yellow]")
         console.print(
-            f"Run [{ACCENT_COLOR}]specify integration uninstall[/{ACCENT_COLOR}] first, then reinstall."
+            "Run [cyan]specify integration uninstall[/cyan] first, then reinstall."
         )
         raise typer.Exit(0)
 
@@ -2129,7 +2222,7 @@ def integration_install(
             f"[red]Error:[/red] Integration '{installed_key}' is already installed."
         )
         console.print(
-            f"Run [{ACCENT_COLOR}]specify integration uninstall[/{ACCENT_COLOR}] first, or use [{ACCENT_COLOR}]specify integration switch {key}[/{ACCENT_COLOR}]."
+            f"Run [cyan]specify integration uninstall[/cyan] first, or use [cyan]specify integration switch {key}[/cyan]."
         )
         raise typer.Exit(1)
 
@@ -2319,8 +2412,8 @@ def integration_uninstall(
         console.print(f"Manifest: {manifest_path}")
         console.print(
             f"To recover, delete the unreadable manifest, run "
-            f"[{ACCENT_COLOR}]specify integration uninstall {key}[/{ACCENT_COLOR}] to clear stale metadata, "
-            f"then run [{ACCENT_COLOR}]specify integration install {key}[/{ACCENT_COLOR}] to regenerate."
+            f"[cyan]specify integration uninstall {key}[/cyan] to clear stale metadata, "
+            f"then run [cyan]specify integration install {key}[/cyan] to regenerate."
         )
         console.print(f"[dim]Details:[/dim] {exc}")
         raise typer.Exit(1)
@@ -2409,7 +2502,7 @@ def integration_switch(
 
         if current_integration and manifest_path.exists():
             console.print(
-                f"Uninstalling current integration: [{ACCENT_COLOR}]{installed_key}[/{ACCENT_COLOR}]"
+                f"Uninstalling current integration: [cyan]{installed_key}[/cyan]"
             )
             try:
                 old_manifest = IntegrationManifest.load(installed_key, project_root)
@@ -2420,7 +2513,7 @@ def integration_switch(
                 console.print(f"[dim]{exc}[/dim]")
                 console.print(
                     f"To recover, delete the unreadable manifest at {manifest_path}, "
-                    f"run [{ACCENT_COLOR}]specify integration uninstall {installed_key}[/{ACCENT_COLOR}], then retry."
+                    f"run [cyan]specify integration uninstall {installed_key}[/cyan], then retry."
                 )
                 raise typer.Exit(1)
             removed, skipped = old_manifest.uninstall(project_root, force=force)
@@ -2453,8 +2546,8 @@ def integration_switch(
                 f"[red]Error:[/red] Integration '{installed_key}' is installed but has no manifest."
             )
             console.print(
-                f"Run [{ACCENT_COLOR}]specify integration uninstall {installed_key}[/{ACCENT_COLOR}] to clear metadata, "
-                f"then retry [{ACCENT_COLOR}]specify integration switch {target}[/{ACCENT_COLOR}]."
+                f"Run [cyan]specify integration uninstall {installed_key}[/cyan] to clear metadata, "
+                f"then retry [cyan]specify integration switch {target}[/cyan]."
             )
             raise typer.Exit(1)
 
@@ -2473,7 +2566,7 @@ def integration_switch(
         ensure_executable_scripts(project_root)
 
     # Phase 2: Install target integration
-    console.print(f"Installing integration: [{ACCENT_COLOR}]{target}[/{ACCENT_COLOR}]")
+    console.print(f"Installing integration: [cyan]{target}[/cyan]")
     manifest = IntegrationManifest(
         target_integration.key, project_root, version=get_speckit_version()
     )
@@ -2541,12 +2634,10 @@ def preset_list():
     if not installed:
         console.print("[yellow]No presets installed.[/yellow]")
         console.print("\nInstall a preset with:")
-        console.print(
-            f"  [{ACCENT_COLOR}]specify preset add <pack-name>[/{ACCENT_COLOR}]"
-        )
+        console.print("  [cyan]specify preset add <pack-name>[/cyan]")
         return
 
-    console.print(f"\n[bold {ACCENT_COLOR}]Installed Presets:[/bold {ACCENT_COLOR}]\n")
+    console.print("\n[bold cyan]Installed Presets:[/bold cyan]\n")
     for pack in installed:
         status = (
             "[green]enabled[/green]"
@@ -2614,9 +2705,7 @@ def preset_add(
                 console.print(f"[red]Error:[/red] Directory not found: {dev}")
                 raise typer.Exit(1)
 
-            console.print(
-                f"Installing preset from [{ACCENT_COLOR}]{dev_path}[/{ACCENT_COLOR}]..."
-            )
+            console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
             manifest = manager.install_from_directory(
                 dev_path, speckit_version, priority
             )
@@ -2638,9 +2727,7 @@ def preset_add(
                 )
                 raise typer.Exit(1)
 
-            console.print(
-                f"Installing preset from [{ACCENT_COLOR}]{from_url}[/{ACCENT_COLOR}]..."
-            )
+            console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
             import urllib.request
             import urllib.error
             import tempfile
@@ -2661,38 +2748,67 @@ def preset_add(
             )
 
         elif pack_id:
-            catalog = PresetCatalog(project_root)
-            pack_info = catalog.get_pack_info(pack_id)
-
-            if not pack_info:
-                console.print(
-                    f"[red]Error:[/red] Preset '{pack_id}' not found in catalog"
+            # Try bundled preset first, then catalog
+            bundled_path = _locate_bundled_preset(pack_id)
+            if bundled_path:
+                console.print(f"Installing bundled preset [cyan]{pack_id}[/cyan]...")
+                manifest = manager.install_from_directory(
+                    bundled_path, speckit_version, priority
                 )
-                raise typer.Exit(1)
-
-            if not pack_info.get("_install_allowed", True):
-                catalog_name = pack_info.get("_catalog_name", "unknown")
-                console.print(
-                    f"[red]Error:[/red] Preset '{pack_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed)."
-                )
-                console.print(
-                    "Add the catalog with --install-allowed or install from the preset's repository directly with --from."
-                )
-                raise typer.Exit(1)
-
-            console.print(
-                f"Installing preset [{ACCENT_COLOR}]{pack_info.get('name', pack_id)}[/{ACCENT_COLOR}]..."
-            )
-
-            try:
-                zip_path = catalog.download_pack(pack_id)
-                manifest = manager.install_from_zip(zip_path, speckit_version, priority)
                 console.print(
                     f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
                 )
-            finally:
-                if "zip_path" in locals() and zip_path.exists():
-                    zip_path.unlink(missing_ok=True)
+            else:
+                catalog = PresetCatalog(project_root)
+                pack_info = catalog.get_pack_info(pack_id)
+
+                if not pack_info:
+                    console.print(
+                        f"[red]Error:[/red] Preset '{pack_id}' not found in catalog"
+                    )
+                    raise typer.Exit(1)
+
+                # Bundled presets should have been caught above; if we reach
+                # here the bundled files are missing from the installation.
+                if pack_info.get("bundled") and not pack_info.get("download_url"):
+                    from .extensions import REINSTALL_COMMAND
+
+                    console.print(
+                        f"[red]Error:[/red] Preset '{pack_id}' is bundled with spec-kit "
+                        f"but could not be found in the installed package."
+                    )
+                    console.print(
+                        "\nThis usually means the spec-kit installation is incomplete or corrupted."
+                    )
+                    console.print("Try reinstalling spec-kit:")
+                    console.print(f"  {REINSTALL_COMMAND}")
+                    raise typer.Exit(1)
+
+                if not pack_info.get("_install_allowed", True):
+                    catalog_name = pack_info.get("_catalog_name", "unknown")
+                    console.print(
+                        f"[red]Error:[/red] Preset '{pack_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed)."
+                    )
+                    console.print(
+                        "Add the catalog with --install-allowed or install from the preset's repository directly with --from."
+                    )
+                    raise typer.Exit(1)
+
+                console.print(
+                    f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]..."
+                )
+
+                try:
+                    zip_path = catalog.download_pack(pack_id)
+                    manifest = manager.install_from_zip(
+                        zip_path, speckit_version, priority
+                    )
+                    console.print(
+                        f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
+                    )
+                finally:
+                    if "zip_path" in locals() and zip_path.exists():
+                        zip_path.unlink(missing_ok=True)
         else:
             console.print(
                 "[red]Error:[/red] Specify a preset ID, --from URL, or --dev path"
@@ -2895,9 +3011,7 @@ def preset_info(
     if pack_info.get("license"):
         console.print(f"  License:     {pack_info['license']}")
     console.print("\n  [yellow]Status: not installed[/yellow]")
-    console.print(
-        f"  Install with: [{ACCENT_COLOR}]specify preset add {pack_id}[/{ACCENT_COLOR}]"
-    )
+    console.print(f"  Install with: [cyan]specify preset add {pack_id}[/cyan]")
     console.print()
 
 
@@ -3466,9 +3580,7 @@ def extension_list(
 
     if available or all_extensions:
         console.print("\nInstall an extension:")
-        console.print(
-            f"  [{ACCENT_COLOR}]specify extension add <name>[/{ACCENT_COLOR}]"
-        )
+        console.print("  [cyan]specify extension add <name>[/cyan]")
 
 
 @catalog_app.command("list")
@@ -3709,6 +3821,7 @@ def extension_add(
         ExtensionError,
         ValidationError,
         CompatibilityError,
+        REINSTALL_COMMAND,
     )
 
     project_root = Path.cwd()
@@ -3733,9 +3846,7 @@ def extension_add(
     speckit_version = get_speckit_version()
 
     try:
-        with console.status(
-            f"[{ACCENT_COLOR}]Installing extension: {extension}[/{ACCENT_COLOR}]"
-        ):
+        with console.status(f"[cyan]Installing extension: {extension}[/cyan]"):
             if dev:
                 # Install from local directory
                 source_path = Path(extension).expanduser().resolve()
@@ -3804,55 +3915,85 @@ def extension_add(
                         zip_path.unlink()
 
             else:
-                # Install from catalog
-                catalog = ExtensionCatalog(project_root)
+                # Try bundled extensions first (shipped with spec-kit)
+                bundled_path = _locate_bundled_extension(extension)
+                if bundled_path is not None:
+                    manifest = manager.install_from_directory(
+                        bundled_path, speckit_version, priority=priority
+                    )
+                else:
+                    # Install from catalog (also resolves display names to IDs)
+                    catalog = ExtensionCatalog(project_root)
 
-                # Check if extension exists in catalog (supports both ID and display name)
-                ext_info, catalog_error = _resolve_catalog_extension(
-                    extension, catalog, "add"
-                )
-                if catalog_error:
-                    console.print(
-                        f"[red]Error:[/red] Could not query extension catalog: {catalog_error}"
+                    # Check if extension exists in catalog (supports both ID and display name)
+                    ext_info, catalog_error = _resolve_catalog_extension(
+                        extension, catalog, "add"
                     )
-                    raise typer.Exit(1)
-                if not ext_info:
-                    console.print(
-                        f"[red]Error:[/red] Extension '{extension}' not found in catalog"
-                    )
-                    console.print("\nSearch available extensions:")
-                    console.print("  specify extension search")
-                    raise typer.Exit(1)
+                    if catalog_error:
+                        console.print(
+                            f"[red]Error:[/red] Could not query extension catalog: {catalog_error}"
+                        )
+                        raise typer.Exit(1)
+                    if not ext_info:
+                        console.print(
+                            f"[red]Error:[/red] Extension '{extension}' not found in catalog"
+                        )
+                        console.print("\nSearch available extensions:")
+                        console.print("  specify extension search")
+                        raise typer.Exit(1)
 
-                # Enforce install_allowed policy
-                if not ext_info.get("_install_allowed", True):
-                    catalog_name = ext_info.get("_catalog_name", "community")
-                    console.print(
-                        f"[red]Error:[/red] '{extension}' is available in the "
-                        f"'{catalog_name}' catalog but installation is not allowed from that catalog."
-                    )
-                    console.print(
-                        f"\nTo enable installation, add '{extension}' to an approved catalog "
-                        f"(install_allowed: true) in .specify/extension-catalogs.yml."
-                    )
-                    raise typer.Exit(1)
+                    # If catalog resolved a display name to an ID, check bundled again
+                    resolved_id = ext_info["id"]
+                    if resolved_id != extension:
+                        bundled_path = _locate_bundled_extension(resolved_id)
+                        if bundled_path is not None:
+                            manifest = manager.install_from_directory(
+                                bundled_path, speckit_version, priority=priority
+                            )
 
-                # Download extension ZIP (use resolved ID, not original argument which may be display name)
-                extension_id = ext_info["id"]
-                console.print(
-                    f"Downloading {ext_info['name']} v{ext_info.get('version', 'unknown')}..."
-                )
-                zip_path = catalog.download_extension(extension_id)
+                    if bundled_path is None:
+                        # Bundled extensions without a download URL must come from the local package
+                        if ext_info.get("bundled") and not ext_info.get("download_url"):
+                            console.print(
+                                f"[red]Error:[/red] Extension '{ext_info['id']}' is bundled with spec-kit "
+                                f"but could not be found in the installed package."
+                            )
+                            console.print(
+                                "\nThis usually means the spec-kit installation is incomplete or corrupted."
+                            )
+                            console.print("Try reinstalling spec-kit:")
+                            console.print(f"  {REINSTALL_COMMAND}")
+                            raise typer.Exit(1)
 
-                try:
-                    # Install from downloaded ZIP
-                    manifest = manager.install_from_zip(
-                        zip_path, speckit_version, priority=priority
-                    )
-                finally:
-                    # Clean up downloaded ZIP
-                    if zip_path.exists():
-                        zip_path.unlink()
+                        # Enforce install_allowed policy
+                        if not ext_info.get("_install_allowed", True):
+                            catalog_name = ext_info.get("_catalog_name", "community")
+                            console.print(
+                                f"[red]Error:[/red] '{extension}' is available in the "
+                                f"'{catalog_name}' catalog but installation is not allowed from that catalog."
+                            )
+                            console.print(
+                                f"\nTo enable installation, add '{extension}' to an approved catalog "
+                                f"(install_allowed: true) in .specify/extension-catalogs.yml."
+                            )
+                            raise typer.Exit(1)
+
+                        # Download extension ZIP (use resolved ID, not original argument which may be display name)
+                        extension_id = ext_info["id"]
+                        console.print(
+                            f"Downloading {ext_info['name']} v{ext_info.get('version', 'unknown')}..."
+                        )
+                        zip_path = catalog.download_extension(extension_id)
+
+                        try:
+                            # Install from downloaded ZIP
+                            manifest = manager.install_from_zip(
+                                zip_path, speckit_version, priority=priority
+                            )
+                        finally:
+                            # Clean up downloaded ZIP
+                            if zip_path.exists():
+                                zip_path.unlink()
 
         console.print("\n[green]✓[/green] Extension installed successfully!")
         console.print(f"\n[bold]{manifest.name}[/bold] (v{manifest.version})")
@@ -4043,7 +4184,7 @@ def extension_search(
             # Install command (show warning if not installable)
             if install_allowed:
                 console.print(
-                    f"\n  [{ACCENT_COLOR}]Install:[/{ACCENT_COLOR}] specify extension add {ext['id']}"
+                    f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}"
                 )
             else:
                 console.print(
@@ -4260,9 +4401,7 @@ def _print_extension_info(ext_info: dict, manager):
         console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
-        console.print(
-            f"\n[{ACCENT_COLOR}]Install:[/{ACCENT_COLOR}] specify extension add {ext_info['id']}"
-        )
+        console.print(f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}")
     else:
         catalog_name = ext_info.get("_catalog_name", "community")
         console.print("[yellow]Not installed[/yellow]")

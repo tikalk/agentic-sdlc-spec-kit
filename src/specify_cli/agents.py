@@ -224,6 +224,41 @@ class CommandRegistrar:
         )
         return f'"{escaped}"'
 
+    def render_yaml_command(
+        self,
+        frontmatter: dict,
+        body: str,
+        source_id: str,
+        cmd_name: str = "",
+    ) -> str:
+        """Render command in YAML recipe format for Goose.
+
+        Args:
+            frontmatter: Command frontmatter
+            body: Command body content
+            source_id: Source identifier (extension or preset ID)
+            cmd_name: Command name used as title fallback
+
+        Returns:
+            Formatted YAML recipe file content
+        """
+        from specify_cli.integrations.base import YamlIntegration
+
+        title = frontmatter.get("title", "") or frontmatter.get("name", "")
+        if not isinstance(title, str):
+            title = str(title) if title is not None else ""
+        if not title and cmd_name:
+            title = YamlIntegration._human_title(cmd_name)
+        if not title and source_id:
+            title = YamlIntegration._human_title(Path(str(source_id)).stem)
+        if not title:
+            title = "Command"
+
+        description = frontmatter.get("description", "")
+        if not isinstance(description, str):
+            description = str(description) if description is not None else ""
+        return YamlIntegration._render_yaml(title, description, body, source_id)
+
     def render_skill_command(
         self,
         agent_name: str,
@@ -369,17 +404,7 @@ class CommandRegistrar:
     def _compute_output_name(
         agent_name: str, cmd_name: str, agent_config: Dict[str, Any]
     ) -> str:
-        """Compute the on-disk command or skill name for an agent.
-
-        Uses fork-specific naming when available, falling back to upstream behavior.
-        """
-        # Try to use fork-specific function first (if in fork)
-        from specify_cli import compute_skill_output_name
-
-        if compute_skill_output_name is not None:
-            return compute_skill_output_name(cmd_name, agent_config)
-
-        # Fallback to upstream behavior
+        """Compute the on-disk command or skill name for an agent."""
         if agent_config["extension"] != "/SKILL.md":
             return cmd_name
 
@@ -442,7 +467,9 @@ class CommandRegistrar:
                 frontmatter.pop(key, None)
 
             if agent_config.get("inject_name") and not frontmatter.get("name"):
-                frontmatter["name"] = cmd_name
+                # Use custom name formatter if provided (e.g., Forge's hyphenated format)
+                format_name = agent_config.get("format_name")
+                frontmatter["name"] = format_name(cmd_name) if format_name else cmd_name
 
             # Resolve {SCRIPT} and {AGENT_SCRIPT} placeholders for all agents
             body = self.resolve_skill_placeholders(
@@ -471,6 +498,10 @@ class CommandRegistrar:
                 )
             elif agent_config["format"] == "toml":
                 output = self.render_toml_command(frontmatter, body, source_id)
+            elif agent_config["format"] == "yaml":
+                output = self.render_yaml_command(
+                    frontmatter, body, source_id, cmd_name
+                )
             else:
                 raise ValueError(f"Unsupported format: {agent_config['format']}")
 
@@ -491,7 +522,11 @@ class CommandRegistrar:
                 # For agents with inject_name, render with alias-specific frontmatter
                 if agent_config.get("inject_name"):
                     alias_frontmatter = deepcopy(frontmatter)
-                    alias_frontmatter["name"] = alias
+                    # Use custom name formatter if provided (e.g., Forge's hyphenated format)
+                    format_name = agent_config.get("format_name")
+                    alias_frontmatter["name"] = (
+                        format_name(alias) if format_name else alias
+                    )
 
                     if agent_config["extension"] == "/SKILL.md":
                         alias_output = self.render_skill_command(
@@ -510,6 +545,10 @@ class CommandRegistrar:
                     elif agent_config["format"] == "toml":
                         alias_output = self.render_toml_command(
                             alias_frontmatter, body, source_id
+                        )
+                    elif agent_config["format"] == "yaml":
+                        alias_output = self.render_yaml_command(
+                            alias_frontmatter, body, source_id, alias
                         )
                     else:
                         raise ValueError(
@@ -532,6 +571,12 @@ class CommandRegistrar:
                 alias_file = (
                     commands_dir / f"{alias_output_name}{agent_config['extension']}"
                 )
+                try:
+                    alias_file.resolve().relative_to(commands_dir.resolve())
+                except ValueError:
+                    raise ValueError(
+                        f"Alias output path escapes commands directory: {alias_file!r}"
+                    )
                 alias_file.parent.mkdir(parents=True, exist_ok=True)
                 alias_file.write_text(alias_output, encoding="utf-8")
                 if agent_name == "copilot":

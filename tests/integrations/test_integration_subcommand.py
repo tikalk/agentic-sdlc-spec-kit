@@ -18,13 +18,20 @@ def _init_project(tmp_path, integration="copilot"):
     old_cwd = os.getcwd()
     try:
         os.chdir(project)
-        result = runner.invoke(app, [
-            "init", "--here",
-            "--integration", integration,
-            "--script", "sh",
-            "--no-git",
-            "--ignore-agent-tools",
-        ], catch_exceptions=False)
+        result = runner.invoke(
+            app,
+            [
+                "init",
+                "--here",
+                "--integration",
+                integration,
+                "--script",
+                "sh",
+                "--no-git",
+                "--ignore-agent-tools",
+            ],
+            catch_exceptions=False,
+        )
     finally:
         os.chdir(old_cwd)
     assert result.exit_code == 0, f"init failed: {result.output}"
@@ -128,17 +135,26 @@ class TestIntegrationInstall:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "install", "claude",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "install",
+                    "claude",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
         assert "installed successfully" in result.output
 
         # integration.json written
-        data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
+        data = json.loads(
+            (project / ".specify" / "integration.json").read_text(encoding="utf-8")
+        )
         assert data["integration"] == "claude"
 
         # Manifest created
@@ -155,10 +171,17 @@ class TestIntegrationInstall:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "install", "claude",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "install",
+                    "claude",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
@@ -195,7 +218,9 @@ class TestIntegrationUninstall:
         assert result.exit_code == 0
         assert "No integration" in result.output
 
-    def test_uninstall_removes_files(self, tmp_path):
+    def test_uninstall_removes_files(self, tmp_path, monkeypatch):
+        # Skip bundled extensions/presets to avoid file modifications that prevent removal
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
         project = _init_project(tmp_path, "claude")
         # Claude uses skills directory
         assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
@@ -204,17 +229,23 @@ class TestIntegrationUninstall:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, ["integration", "uninstall"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "uninstall"], catch_exceptions=False
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert "uninstalled" in result.output
 
         # Command files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (
+            project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
 
         # Manifest removed
-        assert not (project / ".specify" / "integrations" / "claude.manifest.json").exists()
+        assert not (
+            project / ".specify" / "integrations" / "claude.manifest.json"
+        ).exists()
 
         # integration.json removed
         assert not (project / ".specify" / "integration.json").exists()
@@ -231,7 +262,9 @@ class TestIntegrationUninstall:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, ["integration", "uninstall"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "uninstall"], catch_exceptions=False
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
@@ -261,7 +294,9 @@ class TestIntegrationUninstall:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, ["integration", "uninstall"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "uninstall"], catch_exceptions=False
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
@@ -307,7 +342,9 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0
         assert "already installed" in result.output
 
-    def test_switch_between_integrations(self, tmp_path):
+    def test_switch_between_integrations(self, tmp_path, monkeypatch):
+        # Skip bundled extensions/presets to avoid file modifications that prevent removal
+        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
         project = _init_project(tmp_path, "claude")
         # Verify claude files exist (claude uses skills)
         assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
@@ -315,23 +352,34 @@ class TestIntegrationSwitch:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "switch", "copilot",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "switch",
+                    "copilot",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
         assert "Switched to" in result.output
 
         # Old claude files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (
+            project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
 
         # New copilot files created
         assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
 
         # integration.json updated
-        data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
+        data = json.loads(
+            (project / ".specify" / "integration.json").read_text(encoding="utf-8")
+        )
         assert data["integration"] == "copilot"
 
     def test_switch_preserves_shared_infra(self, tmp_path):
@@ -344,10 +392,17 @@ class TestIntegrationSwitch:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "switch", "copilot",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "switch",
+                    "copilot",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
@@ -364,16 +419,25 @@ class TestIntegrationSwitch:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "switch", "claude",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "switch",
+                    "claude",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert "Switched to" in result.output
 
-        data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
+        data = json.loads(
+            (project / ".specify" / "integration.json").read_text(encoding="utf-8")
+        )
         assert data["integration"] == "claude"
 
 
@@ -392,10 +456,17 @@ class TestIntegrationLifecycle:
             os.chdir(project)
 
             # Install
-            result = runner.invoke(app, [
-                "integration", "install", "claude",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "install",
+                    "claude",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
             assert result.exit_code == 0
             assert "installed successfully" in result.output
 
@@ -407,7 +478,9 @@ class TestIntegrationLifecycle:
             plan_file.write_text("# user customization\n", encoding="utf-8")
 
             # Uninstall
-            result = runner.invoke(app, ["integration", "uninstall"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "uninstall"], catch_exceptions=False
+            )
             assert result.exit_code == 0
             assert "preserved" in result.output
 
@@ -430,10 +503,16 @@ class TestScriptTypeValidation:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "install", "claude",
-                "--script", "bash",
-            ])
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "install",
+                    "claude",
+                    "--script",
+                    "bash",
+                ],
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code != 0
@@ -447,10 +526,17 @@ class TestScriptTypeValidation:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "integration", "install", "claude",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "install",
+                    "claude",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
@@ -466,7 +552,9 @@ class TestParseIntegrationOptionsEqualsForm:
         assert integration is not None
 
         result_space = _parse_integration_options(integration, "--commands-dir ./mydir")
-        result_equals = _parse_integration_options(integration, "--commands-dir=./mydir")
+        result_equals = _parse_integration_options(
+            integration, "--commands-dir=./mydir"
+        )
         assert result_space is not None
         assert result_equals is not None
         assert result_space["commands_dir"] == "./mydir"
@@ -485,12 +573,17 @@ class TestUninstallNoManifestClearsInitOptions:
         int_json.write_text(json.dumps({"integration": "claude"}), encoding="utf-8")
 
         opts_json = project / ".specify" / "init-options.json"
-        opts_json.write_text(json.dumps({
-            "integration": "claude",
-            "ai": "claude",
-            "ai_skills": True,
-            "script": "sh",
-        }), encoding="utf-8")
+        opts_json.write_text(
+            json.dumps(
+                {
+                    "integration": "claude",
+                    "ai": "claude",
+                    "ai_skills": True,
+                    "script": "sh",
+                }
+            ),
+            encoding="utf-8",
+        )
 
         old_cwd = os.getcwd()
         try:
@@ -516,16 +609,25 @@ class TestSwitchClearsMetadataAfterTeardown:
 
         # Verify initial state
         int_json = project / ".specify" / "integration.json"
-        assert json.loads(int_json.read_text(encoding="utf-8"))["integration"] == "claude"
+        assert (
+            json.loads(int_json.read_text(encoding="utf-8"))["integration"] == "claude"
+        )
 
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
             # Switch to copilot — should succeed and update metadata
-            result = runner.invoke(app, [
-                "integration", "switch", "copilot",
-                "--script", "sh",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "integration",
+                    "switch",
+                    "copilot",
+                    "--script",
+                    "sh",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0

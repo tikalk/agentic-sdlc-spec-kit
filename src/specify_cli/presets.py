@@ -717,7 +717,7 @@ class PresetManager:
         ai_skills_enabled = bool(init_opts.get("ai_skills"))
         registrar = CommandRegistrar()
         agent_config = registrar.AGENT_CONFIGS.get(selected_ai, {})
-        # Native skill agents (e.g. codex/kimi/agy) materialize brand-new
+        # Native skill agents (e.g. codex/kimi/agy/trae) materialize brand-new
         # preset skills in _register_commands() because their detected agent
         # directory is already the skills directory. This flag is only for
         # command-backed agents that also mirror commands into skills.
@@ -1585,6 +1585,16 @@ class PresetCatalog:
         if not pack_info:
             raise PresetError(
                 f"Preset '{pack_id}' not found in catalog"
+            )
+
+        # Bundled presets without a download URL must be installed locally
+        if pack_info.get("bundled") and not pack_info.get("download_url"):
+            from .extensions import REINSTALL_COMMAND
+            raise PresetError(
+                f"Preset '{pack_id}' is bundled with spec-kit and has no download URL. "
+                f"It should be installed from the local package. "
+                f"Use 'specify preset add {pack_id}' to install from the bundled package, "
+                f"or reinstall spec-kit if the bundled files are missing: {REINSTALL_COMMAND}"
             )
 
         if not pack_info.get("_install_allowed", True):
