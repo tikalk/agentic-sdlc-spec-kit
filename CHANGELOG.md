@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.42] - 2026-04-13
+
+### Added
+
+- **Evals Extension**: Complete EDD (Eval-Driven Development) implementation with PromptFoo integration
+  - **Complete EDD Methodology**: All 10 EDD principles implemented and validated
+  - **Goldset Lifecycle**: Full ADR/CDR pattern with `init` → `specify` → `clarify` → `analyze` → `implement` workflow
+  - **Evaluation Pyramid**: Tier 1 fast checks (<30s) + Tier 2 semantic evaluation (<5min) + production sampling
+  - **Statistical Validation**: TPR/TNR analysis with 95% confidence intervals and holdout dataset validation
+  - **PromptFoo Integration**: Automatic config generation, executable grader creation, and seamless results processing
+  - **Cross-Functional Intelligence**: `levelup` command generates stakeholder-specific insights and team PRs
+  - **Smart Task Matching**: `tasks` command provides intelligent eval-task alignment with coverage analysis
+  - **Production-Ready**: Complete validation pipeline, error handling, and production loop closure
+  - **8 Commands**: `init`, `specify`, `clarify`, `analyze`, `implement`, `validate`, `levelup`, `tasks`
+  - **Comprehensive Documentation**: 190+ section README with architecture guide, examples, and troubleshooting
+
 ## [0.3.41] - 2026-04-13
 
 ### Fixed
@@ -217,22 +233,6 @@ and this project adheres to to [Semantic Versioning](https://semver.spec/v2.0.0/
 
 - All ADLC commands now include guidance for setting `SPECIFY_FEATURE` environment 
   variable when working without git
-
-## [0.3.12] - 2026-04-12
-
-### Added
-
-- **Evals Extension**: Complete EDD (Eval-Driven Development) implementation with PromptFoo integration
-  - **Complete EDD Methodology**: All 10 EDD principles implemented and validated
-  - **Goldset Lifecycle**: Full ADR/CDR pattern with `init` → `specify` → `clarify` → `analyze` → `implement` workflow
-  - **Evaluation Pyramid**: Tier 1 fast checks (<30s) + Tier 2 semantic evaluation (<5min) + production sampling
-  - **Statistical Validation**: TPR/TNR analysis with 95% confidence intervals and holdout dataset validation
-  - **PromptFoo Integration**: Automatic config generation, executable grader creation, and seamless results processing
-  - **Cross-Functional Intelligence**: `levelup` command generates stakeholder-specific insights and team PRs
-  - **Smart Task Matching**: `tasks` command provides intelligent eval-task alignment with coverage analysis
-  - **Production-Ready**: Complete validation pipeline, error handling, and production loop closure
-  - **8 Commands**: `init`, `specify`, `clarify`, `analyze`, `implement`, `validate`, `levelup`, `tasks`
-  - **Comprehensive Documentation**: 190+ section README with architecture guide, examples, and troubleshooting
 
 ## [0.3.11] - 2026-04-04
 
