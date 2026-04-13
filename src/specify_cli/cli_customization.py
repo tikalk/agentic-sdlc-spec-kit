@@ -382,14 +382,15 @@ def _install_bundled_extensions(
 
     project_extensions_dir = project_path / ".specify" / "extensions"
 
+    # Search paths for bundled extensions (now unified in core_pack/extensions/)
     search_paths = [
+        (
+            Path(__file__).parent / "core_pack" / "extensions",
+            Path(__file__).parent / "core_pack" / "extensions" / "catalog.json",
+        ),
         (
             Path(__file__).parent.parent.parent / "extensions",
             Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
-        ),
-        (
-            Path(__file__).parent / "bundled_extensions",
-            Path(__file__).parent / "bundled_extensions" / "catalog.json",
         ),
         (project_extensions_dir, project_extensions_dir / "catalog.json"),
     ]

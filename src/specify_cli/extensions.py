@@ -1011,6 +1011,10 @@ class ExtensionManager:
         Raises:
             CompatibilityError: If extension is incompatible
         """
+        # Skip check for unknown versions (bundled extensions are guaranteed compatible)
+        if speckit_version == "unknown":
+            return True
+
         required = manifest.requires_speckit_version
         current = pkg_version.Version(speckit_version)
 
@@ -2259,7 +2263,9 @@ class HookExecutor:
             init_options.get("ai_skills")
         )
         kimi_skill_mode = selected_ai == "kimi"
-        cursor_skill_mode = selected_ai == "cursor-agent" and bool(init_options.get("ai_skills"))
+        cursor_skill_mode = selected_ai == "cursor-agent" and bool(
+            init_options.get("ai_skills")
+        )
 
         skill_name = self._skill_name_from_command(command_id)
         if codex_skill_mode and skill_name:
