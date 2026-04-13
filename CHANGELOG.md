@@ -2,6 +2,26 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.6] - 2026-04-14
+
+### Changed
+
+- **Merge recovery**: Merged backup-main-20260413 to recover lost commits
+  - Architect v2.0.0 - R&W methodology alignment
+  - TDD extension hooks (before_implement)
+  - Extension script path rewriting bug fix
+  - Team-ai-directives persistence to init-options.json
+- **Extension bundling unification**: Fork extensions now use `core_pack/extensions/` like git extension
+  - Updated pyproject.toml force-include paths
+  - Extensions: levelup, architect, product, quick, tdd
+- **Catalog.json updated**: Added `bundled: true` and `preinstall: true` to fork extensions
+
+### Fixed
+
+- **Version detection bug**: Fixed "Invalid version: 'unknown'" error when installing bundled extensions
+  - Added early return in `check_compatibility()` for unknown versions
+  - Bundled extensions are now guaranteed compatible
+
 ## [0.3.48] - 2026-04-13
 
 ### Added
