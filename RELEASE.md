@@ -328,8 +328,27 @@ git tag agentic-sdlc-vX.Y.Z
 
 **Fix**: Publish the draft release using the GitHub CLI:
 ```bash
-gh release edit agentic-sdlc-v0.3.43 --draft=false
+gh release edit <tag> --draft=false
 ```
+
+---
+
+### Session 2026-04-13: Hook Commands Should Be Lightweight
+
+**Problem**: The `before_specify` hook pointed to `adlc.product.specify`, a full interactive product exploration command (~535 lines). When no PDRs existed, it still ran and generated noisy AI output like "No PDR file found - skipping Phase 2".
+
+**Impact**: Every `/spec.specify` invocation triggered noisy output even for users not using the product extension workflow.
+
+**Fix**: Created lightweight `adlc.product.link` command that:
+- Checks for PDRs in team-directives, memory, and drafts locations
+- **Silent exit** if no PDRs exist (no output at all)
+- Full selection flow only if PDRs exist
+
+**Prevention**: When creating hooks for commands:
+- Design hook-specific commands to be lightweight
+- Use silent exit patterns when data doesn't exist
+- Don't use full interactive commands as hooks (too much noise)
+- Consider the "no data" case as the default, not an error
 
 **Prevention**: After tagging and pushing, verify the release is visible. If it shows as "Draft" in `gh release list`, publish it:
 ```bash
