@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.44] - 2026-04-13
+
+### Changed
+
+- **Product extension before_specify hook**: Replaced noisy `adlc.product.specify` with lightweight `adlc.product.link`
+  - New command silently exits if no PDRs exist (eliminates "No PDR file found" AI output)
+  - If PDRs exist, presents selection table to link feature to Feature PDR
+  - Reduces spurious output for users not using product extension workflow
+
+### Added
+
+- **New command `adlc.product.link`**: Lightweight PDR linking command designed for hook use
+  - Checks team-directives, memory, and drafts locations for PDRs
+  - Silent exit if no PDRs found
+  - Full selection flow if PDRs exist
+
 ## [0.3.43] - 2026-04-13
 
 ### Fixed
