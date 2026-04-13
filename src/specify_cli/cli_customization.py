@@ -375,14 +375,12 @@ def _install_bundled_extensions(
         ]
 
     if bundled_extensions:
-        from .extensions import ExtensionManager
+        from .extensions import ExtensionManager, CommandRegistrar, HookExecutor
 
         manager = ExtensionManager(project_path)
         registry = manager.registry
-
-        from .extensions import CommandRegistrar
-
         registrar = CommandRegistrar()
+        hook_executor = HookExecutor(project_path)
 
     installed = []
     skipped = []
@@ -408,7 +406,7 @@ def _install_bundled_extensions(
 
                 try:
                     if Version(manifest.version) > Version(existing_version):
-                        # Update to newer version - re-register commands/skills
+                        # Update to newer version - re-register commands/skills/hooks
                         registered_commands = (
                             registrar.register_commands_for_all_agents(
                                 manifest, ext_dir, project_path
@@ -417,6 +415,9 @@ def _install_bundled_extensions(
                         registered_skills = manager._register_extension_skills(
                             manifest, ext_dir
                         )
+
+                        # Register hooks (creates/updates .specify/extensions.yml)
+                        hook_executor.register_hooks(manifest)
 
                         registry.update(
                             ext_name,
@@ -444,6 +445,9 @@ def _install_bundled_extensions(
             )
 
             registered_skills = manager._register_extension_skills(manifest, ext_dir)
+
+            # Register hooks (creates/updates .specify/extensions.yml)
+            hook_executor.register_hooks(manifest)
 
             registry.add(
                 ext_name,

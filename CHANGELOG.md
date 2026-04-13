@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.42] - 2026-04-13
+
+### Fixed
+
+- **Bundled extension hooks**: Register hooks during `specify init`
+  - Added `hook_executor.register_hooks(manifest)` in `_install_bundled_extensions()`
+  - Creates `.specify/extensions.yml` when bundled extensions (architect, product, tdd) have hooks
+  - Aligns fork behavior with upstream `install_from_directory()` method
+  - Root cause: Custom bundled extension installation path was missing hook registration step
+
 ## [0.3.41] - 2026-04-13
 
 ### Fixed
