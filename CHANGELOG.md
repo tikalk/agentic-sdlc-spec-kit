@@ -12,6 +12,11 @@ All notable changes to the Specify CLI and templates are documented here.
 - **Cursor Agent skills**: Migrated from `.cursor/commands` to `.cursor/skills` directory
 - **Git extension**: Stages 1 & 2 - auto-commit, feature branches, repository initialization
 - **Community catalog updates**: Multiple new extensions and presets in community catalogs
+- **Extension hooks in preset commands**: Added before/after hooks to all ADLC preset commands:
+  - `adlc.spec.analyze` (before_analyze, after_analyze)
+  - `adlc.spec.checklist` (before_checklist, after_checklist)
+  - `adlc.spec.clarify` (before_clarify, after_clarify)
+  - `adlc.spec.constitution` (before_constitution, after_constitution)
 
 ### Changed
 
@@ -21,6 +26,7 @@ All notable changes to the Specify CLI and templates are documented here.
 - **Bundled extension handling**: `--no-git` flag now properly skips git extension installation
 - **Script placeholder resolution**: Restored `{SCRIPT}` placeholder resolution for all agents (fixed upstream regression)
 - **Inventory tests**: Updated to accept fork's extra files (superset check instead of exact match)
+- **Hook enabled logic**: Fixed hook filtering in preset commands (implement, plan, tasks) to default hooks as enabled when `enabled` field is not specified
 
 ### Technical
 
