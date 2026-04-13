@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.46] - 2026-04-13
+
+### Changed
+
+- **Removed issue tracker integration**: Cleaned up `@issue-tracker` references and traceability features
+  - Removed Smart Trace Validation section from `/spec.analyze` command
+  - Removed issue tracker references from docs/quickstart.md examples
+  - Removed issue tracker integration from levelup trace scripts and templates
+  - Removed issue tracker integration from implement command
+
+### Fixed
+
+- **RELEASE.md**: Trimmed to release instructions only (removed Lessons Learned historical debug notes)
+
 ## [0.3.45] - 2026-04-13
 
 ### Fixed
