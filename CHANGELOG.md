@@ -2,6 +2,32 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.0] - 2026-04-13
+
+### Added
+
+- **Upstream merge**: Merged 47 commits from upstream spec-kit (v0.6.2)
+- **Goose AI integration**: New YAML recipe format agent support via YamlIntegration base class
+- **Lean preset**: Minimal workflow preset with constitution, specify, plan, tasks, implement commands
+- **Cursor Agent skills**: Migrated from `.cursor/commands` to `.cursor/skills` directory
+- **Git extension**: Stages 1 & 2 - auto-commit, feature branches, repository initialization
+- **Community catalog updates**: Multiple new extensions and presets in community catalogs
+
+### Changed
+
+- **Template commands**: Reset to upstream versions, users can now choose between:
+  - Vanilla `speckit.*` commands from templates (upstream)
+  - Forked `adlc.spec.*` commands from agentic-sdlc preset
+- **Bundled extension handling**: `--no-git` flag now properly skips git extension installation
+- **Script placeholder resolution**: Restored `{SCRIPT}` placeholder resolution for all agents (fixed upstream regression)
+- **Inventory tests**: Updated to accept fork's extra files (superset check instead of exact match)
+
+### Technical
+
+- **Version bump**: 0.3.48 → 0.4.0 (minor version bump for significant upstream merge)
+- **Fork customizations preserved**: cli_customization.py, bundled extensions (levelup, architect, product, tdd, quick), bundled preset (agentic-sdlc), fork scripts
+- **New test fixtures**: Added `SPECKIT_SKIP_BUNDLED` env var support in integration tests
+
 ## [0.3.48] - 2026-04-13
 
 ### Added
