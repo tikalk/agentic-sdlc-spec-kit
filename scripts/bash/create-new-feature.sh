@@ -7,8 +7,6 @@ DRY_RUN=false
 ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
-CONTRACTS="true"
-DATA_MODELS="true"
 USE_TIMESTAMP=false
 ARGS=()
 i=1
@@ -51,23 +49,11 @@ while [ $i -le $# ]; do
             fi
             BRANCH_NUMBER="$next_arg"
             ;;
-        --contracts)
-            CONTRACTS="true"
-            ;;
-        --no-contracts)
-            CONTRACTS="false"
-            ;;
-        --data-models)
-            DATA_MODELS="true"
-            ;;
-        --no-data-models)
-            DATA_MODELS="false"
-            ;;
         --timestamp)
             USE_TIMESTAMP=true
             ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>"
+            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json                  Output in JSON format"
@@ -76,17 +62,12 @@ while [ $i -le $# ]; do
             echo "  --short-name <name>     Provide a custom short name (2-4 words) for the branch"
             echo "  --number N              Specify branch number manually (overrides auto-detection)"
             echo "  --timestamp             Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-            echo "  --contracts             Enable service contracts (requires framework)"
-            echo "  --no-contracts          Disable service contracts"
-            echo "  --data-models           Generate data model documentation"
-            echo "  --no-data-models        Skip data model generation"
             echo "  --help, -h              Show this help message"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
             echo "  $0 --number 5 'Feature with specific number'"
             echo "  $0 --timestamp --short-name 'user-auth' 'Add user authentication'"
-            echo "  $0 --contracts --no-data-models 'My feature' --short-name 'my-feature'"
             exit 0
             ;;
         *)
@@ -98,7 +79,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--contracts] [--no-contracts] [--data-models] [--no-data-models] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>" >&2
     exit 1
 fi
 
@@ -423,18 +404,6 @@ if [ "$DRY_RUN" != true ]; then
         fi
     fi
 
-    # Replace options metadata in spec.md (tikalk customization)
-    if [ -f "$SPEC_FILE" ]; then
-        # Use awk to replace placeholders - simpler than complex sed
-        awk -v contracts_val="$CONTRACTS" -v datamodels_val="$DATA_MODELS" '
-            BEGIN { in_fw = 0 }
-            /\*\*Framework Options\*\*:/ { in_fw = 1; next }
-            in_fw && /^  contracts=/ { sub(/contracts=\{*\}/, "contracts=" contracts_val); }
-            in_fw && /^  data_models=/ { sub(/data_models=\{*\}/, "data_models=" datamodels_val); }
-            { print }
-        ' "$SPEC_FILE" > "${SPEC_FILE}.tmp" && mv "${SPEC_FILE}.tmp" "$SPEC_FILE"
-    fi
-
     # Replace [DATE] placeholders with current date
     replace_date_placeholders "$SPEC_FILE"
 fi
@@ -698,11 +667,9 @@ if [ "$DRY_RUN" != true ]; then
     fi
 fi
 
-# Resolve team directives path
-TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES_DIR" ]]; then
-    TEAM_DIRECTIVES_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-fi
+# Resolve team directives path using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-"$REPO_ROOT/.specify/memory/team-ai-directives"}"
 
 # Sync team-ai-directives if URL provided (skip in dry-run mode)
 if [ "$DRY_RUN" != true ] && [[ "$TEAM_DIRECTIVES_DIR" =~ ^https?:// ]]; then

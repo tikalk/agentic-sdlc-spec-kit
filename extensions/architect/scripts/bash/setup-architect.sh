@@ -9,7 +9,33 @@ VIEWS="core"
 ADR_HEURISTIC="surprising"
 DECOMPOSE=true
 
-# Parse arguments
+# Get script directory FIRST (needed for common.sh sourcing)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions from the main scripts directory
+# Extension scripts are in .specify/extensions/architect/scripts/bash/
+# Common.sh is in .specify/scripts/bash/
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
+    # Extension path: .specify/extensions/architect/scripts/bash/ -> .specify/scripts/bash/
+    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
+else
+    # Fallback: search for common.sh relative to git root
+    # This handles both extension and non-extension scenarios
+    fallback_root=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
+    if [[ -f "$fallback_root/.specify/scripts/bash/common.sh" ]]; then
+        source "$fallback_root/.specify/scripts/bash/common.sh"
+    else
+        echo "Error: Could not find common.sh" >&2
+        exit 1
+    fi
+fi
+
+# Get all paths and variables from common functions
+eval "$(get_feature_paths)"
+
+# Parse arguments (run after common.sh to have REPO_ROOT defined)
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --json)
@@ -42,7 +68,7 @@ while [[ $# -gt 0 ]]; do
             DECOMPOSE=false
             shift
             ;;
-        init|map|update|review|specify|implement|clarify|analyze|validate)
+        init|map|update|review|specify|implement|clarify|analyze|validate|plan-dag|execute-dag|summarize)
             ACTION="$1"
             shift
             ;;
@@ -50,15 +76,20 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: $0 [action] [context] [--json] [--views VIEWS] [--adr-heuristic HEURISTIC]"
             echo ""
             echo "Actions:"
-            echo "  specify  Interactive PRD exploration to create system ADRs (greenfield)"
-            echo "  clarify  Refine and resolve ambiguities in existing ADRs"
-            echo "  init     Reverse-engineer architecture from existing codebase (brownfield)"
-            echo "  implement Generate full Architecture Description (AD.md) from ADRs"
-            echo "  analyze  Validate architecture for consistency and quality issues"
-            echo "  validate Validate plan alignment with architecture (READ-ONLY)"
-            echo "  map      (alias for init) Reverse-engineer architecture from existing codebase"
-            echo "  update   Update architecture based on code/spec changes"
-            echo "  review   Validate architecture against constitution"
+            echo "  specify    Interactive PRD exploration to create system ADRs (greenfield)"
+            echo "  clarify    Refine and resolve ambiguities in existing ADRs"
+            echo "  init       Reverse-engineer architecture from existing codebase (brownfield)"
+            echo "  implement  Generate full Architecture Description (AD.md) from ADRs"
+            echo "  analyze    Validate architecture for consistency and quality issues"
+            echo "  validate   Validate plan alignment with architecture (READ-ONLY)"
+            echo "  map        (alias for init) Reverse-engineer architecture from existing codebase"
+            echo "  update     Update architecture based on code/spec changes"
+            echo "  review     Validate architecture against constitution"
+            echo ""
+            echo "DAG Workflow Actions (used internally by implement):"
+            echo "  plan-dag   Phase 1: Generate DAG execution plan for user approval"
+            echo "  execute-dag Phase 2: Execute DAG to generate views per sub-system"
+            echo "  summarize  Phase 3: Aggregate views into unified AD.md"
             echo ""
             echo "Options:"
             echo "  --json             Output results in JSON format"
@@ -94,32 +125,6 @@ if [[ -z "$ACTION" ]]; then
     fi
 fi
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Load common functions from the main scripts directory
-# Extension scripts are in .specify/extensions/architect/scripts/bash/
-# Common.sh is in .specify/scripts/bash/
-if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
-    source "$SCRIPT_DIR/common.sh"
-elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
-    # Extension path: .specify/extensions/architect/scripts/bash/ -> .specify/scripts/bash/
-    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
-else
-    # Fallback: search for common.sh relative to REPO_ROOT
-    # This handles both extension and non-extension scenarios
-    REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-    if [[ -f "$REPO_ROOT/.specify/scripts/bash/common.sh" ]]; then
-        source "$REPO_ROOT/.specify/scripts/bash/common.sh"
-    else
-        echo "Error: Could not find common.sh" >&2
-        exit 1
-    fi
-fi
-
-# Get all paths and variables from common functions
-eval "$(get_feature_paths)"
-
 # Ensure directories exist
 mkdir -p "$REPO_ROOT/.specify/memory"
 mkdir -p "$REPO_ROOT/.specify/drafts"
@@ -132,8 +137,12 @@ ADR_FILE="$REPO_ROOT/.specify/drafts/adr.md"  # Default to drafts
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 
-# Team-ai-directives (if configured)
-TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")}"
+# Team-ai-directives (if configured) using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
+fi
 if [[ -n "$TEAM_DIRECTIVES" ]] && [[ -d "$TEAM_DIRECTIVES" ]]; then
     mkdir -p "$TEAM_DIRECTIVES/context_modules"
     ADR_TEAM_FILE="$TEAM_DIRECTIVES/context_modules/adr.md"
@@ -1132,6 +1141,191 @@ action_analyze() {
     fi
 }
 
+# Action: Plan DAG (Phase 1 of implement - generate execution plan)
+action_plan_dag() {
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    local state_file="$REPO_ROOT/.specify/architect/state.json"
+    local views_dir="$REPO_ROOT/.specify/architect/views"
+    
+    echo "📐 DAG Planning Phase" >&2
+    echo "" >&2
+    
+    # Check if ADR file exists
+    if [[ ! -f "$adr_file" ]]; then
+        echo "❌ ADR drafts file does not exist: $adr_file" >&2
+        echo "Run '/architect.specify' or '/architect.init' first" >&2
+        exit 1
+    fi
+    
+    # Ensure directories exist
+    mkdir -p "$REPO_ROOT/.specify/architect"
+    mkdir -p "$views_dir"
+    
+    # Count ADRs and extract sub-systems
+    local adr_count
+    adr_count=$(grep -c "^### ADR-" "$adr_file" 2>/dev/null || grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
+    
+    # Extract unique sub-systems from ADR index table
+    local subsystems=()
+    while IFS= read -r line; do
+        # Parse ADR index table rows: | ADR-XXX | SubSystem | ...
+        if [[ "$line" =~ ^\|[[:space:]]*ADR-[0-9]+[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\| ]]; then
+            local subsystem="${BASH_REMATCH[1]}"
+            subsystem=$(echo "$subsystem" | xargs)  # Trim whitespace
+            if [[ -n "$subsystem" && "$subsystem" != "Sub-System" ]]; then
+                # Add to array if not already present
+                local found=false
+                for s in "${subsystems[@]}"; do
+                    if [[ "$s" == "$subsystem" ]]; then
+                        found=true
+                        break
+                    fi
+                done
+                if [[ "$found" == "false" ]]; then
+                    subsystems+=("$subsystem")
+                fi
+            fi
+        fi
+    done < "$adr_file"
+    
+    # Default to "System" if no sub-systems found
+    if [[ ${#subsystems[@]} -eq 0 ]]; then
+        subsystems=("System")
+    fi
+    
+    echo "📋 ADR file found: $adr_file" >&2
+    echo "   Found $adr_count ADR(s)" >&2
+    echo "   Sub-systems detected: ${subsystems[*]}" >&2
+    echo "" >&2
+    echo "Ready for DAG planning." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Analyze ADRs by sub-system" >&2
+    echo "  2. Generate customized DAG per sub-system" >&2
+    echo "  3. Present execution plan for user approval" >&2
+    echo "  4. Save approved plan to state.json" >&2
+    
+    if $JSON_MODE; then
+        # Build subsystems JSON array
+        local subsystems_json="["
+        local first=true
+        for s in "${subsystems[@]}"; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                subsystems_json+=","
+            fi
+            subsystems_json+="{\"id\":\"$(echo "$s" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\",\"name\":\"$s\"}"
+        done
+        subsystems_json+="]"
+        
+        echo "{\"status\":\"success\",\"action\":\"plan-dag\",\"adr_file\":\"$adr_file\",\"state_file\":\"$state_file\",\"views_dir\":\"$views_dir\",\"adr_count\":$adr_count,\"subsystems\":$subsystems_json,\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
+# Action: Execute DAG (Phase 2 of implement - generate views based on state)
+action_execute_dag() {
+    local state_file="$REPO_ROOT/.specify/architect/state.json"
+    local views_dir="$REPO_ROOT/.specify/architect/views"
+    
+    echo "🔧 DAG Execution Phase" >&2
+    echo "" >&2
+    
+    # Check if state file exists
+    if [[ ! -f "$state_file" ]]; then
+        echo "❌ No execution plan found: $state_file" >&2
+        echo "Run '/architect.implement' first to generate and approve a DAG plan" >&2
+        exit 1
+    fi
+    
+    # Ensure views directory exists
+    mkdir -p "$views_dir"
+    
+    echo "📄 State file found: $state_file" >&2
+    echo "📁 Views directory: $views_dir" >&2
+    echo "" >&2
+    echo "Ready for DAG execution." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Read execution plan from state.json" >&2
+    echo "  2. Identify next view(s) to generate" >&2
+    echo "  3. Generate view with dependency context" >&2
+    echo "  4. Write to .specify/architect/views/{subsystem}/{view}.md" >&2
+    echo "  5. Update progress in state.json" >&2
+    
+    if $JSON_MODE; then
+        # Output the state file content for the AI agent
+        if [[ -f "$state_file" ]]; then
+            local state_content
+            state_content=$(cat "$state_file")
+            echo "{\"status\":\"success\",\"action\":\"execute-dag\",\"state_file\":\"$state_file\",\"views_dir\":\"$views_dir\",\"state\":$state_content}"
+        else
+            echo "{\"status\":\"error\",\"action\":\"execute-dag\",\"error\":\"state_file_not_found\"}"
+        fi
+    fi
+}
+
+# Action: Summarize (Phase 3 of implement - aggregate views into AD.md)
+action_summarize() {
+    local state_file="$REPO_ROOT/.specify/architect/state.json"
+    local views_dir="$REPO_ROOT/.specify/architect/views"
+    local ad_file="$REPO_ROOT/AD.md"
+    local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    
+    echo "📝 Summarization Phase" >&2
+    echo "" >&2
+    
+    # Check if views directory exists and has content
+    if [[ ! -d "$views_dir" ]]; then
+        echo "❌ Views directory not found: $views_dir" >&2
+        echo "Run '/architect.implement' to generate views first" >&2
+        exit 1
+    fi
+    
+    # Count view files
+    local view_count
+    view_count=$(find "$views_dir" -name "*.md" -type f 2>/dev/null | wc -l)
+    
+    if [[ "$view_count" -eq 0 ]]; then
+        echo "❌ No view files found in $views_dir" >&2
+        echo "Run '/architect.implement' to generate views first" >&2
+        exit 1
+    fi
+    
+    # List all view files
+    echo "📁 Views directory: $views_dir" >&2
+    echo "   Found $view_count view file(s):" >&2
+    find "$views_dir" -name "*.md" -type f | while read -r f; do
+        echo "   - ${f#$views_dir/}" >&2
+    done
+    echo "" >&2
+    
+    echo "Ready for summarization." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Read all view files from .specify/architect/views/" >&2
+    echo "  2. Detect cross-subsystem conflicts" >&2
+    echo "  3. Resolve conflicts using ADRs as source of truth" >&2
+    echo "  4. Aggregate into unified AD.md" >&2
+    echo "  5. Apply Security and Performance perspectives" >&2
+    echo "  6. Move Accepted ADRs to canonical location" >&2
+    
+    if $JSON_MODE; then
+        # Build list of view files
+        local views_json="["
+        local first=true
+        while IFS= read -r f; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                views_json+=","
+            fi
+            local rel_path="${f#$views_dir/}"
+            views_json+="{\"path\":\"$f\",\"relative\":\"$rel_path\"}"
+        done < <(find "$views_dir" -name "*.md" -type f 2>/dev/null)
+        views_json+="]"
+        
+        echo "{\"status\":\"success\",\"action\":\"summarize\",\"state_file\":\"$state_file\",\"views_dir\":\"$views_dir\",\"ad_file\":\"$ad_file\",\"adr_file\":\"$adr_file\",\"view_count\":$view_count,\"views\":$views_json}"
+    fi
+}
+
 # Action: Validate (READ-ONLY architecture validation for plan alignment)
 action_validate() {
     local adr_file="$REPO_ROOT/.specify/memory/adr.md"
@@ -1180,6 +1374,15 @@ case "$ACTION" in
         ;;
     implement)
         action_implement
+        ;;
+    plan-dag)
+        action_plan_dag
+        ;;
+    execute-dag)
+        action_execute_dag
+        ;;
+    summarize)
+        action_summarize
         ;;
     analyze)
         action_analyze

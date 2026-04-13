@@ -15,19 +15,17 @@ if ($Help) {
     exit 0
 }
 
-# Get repository root
-$repoRoot = git rev-parse --show-toplevel 2>$null
-if (-not $repoRoot) {
-    $repoRoot = Get-Location
+# Get script directory for common.ps1 sourcing
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+
+# Load common functions
+$commonPath = "$scriptDir\..\..\..\..\scripts\powershell\common.ps1"
+if (Test-Path $commonPath) {
+    . $commonPath
 }
 
-function Get-RepoRoot {
-    try {
-        $gitDir = git rev-parse --show-toplevel 2>$null
-        if ($gitDir) { return $gitDir }
-    } catch {}
-    return Get-Location
-}
+# Get repository root using common.ps1 function (searches upward for .specify first)
+$repoRoot = Get-RepoRoot
 
 function Detect-Subsystems {
     $repoRoot = Get-RepoRoot
@@ -134,47 +132,12 @@ function Detect-Subsystems {
     return $dirs
 }
 
-# Resolve team-ai-directives path
-# Priority:
-# 1. SPECIFY_TEAM_DIRECTIVES environment variable
-# 2. .specify/config.json team_directives.path (from specify init)
-# 3. .specify/team-ai-directives (submodule - recommended)
-# 4. .specify/memory/team-ai-directives (clone - legacy)
-
-$teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
-
-if (-not $teamDirectives) {
-    # Try reading from config.json (written by specify init)
-    $configFile = Join-Path $repoRoot ".specify/config.json"
-    if (Test-Path $configFile) {
-        try {
-            $config = Get-Content $configFile -Raw | ConvertFrom-Json
-            if ($config.team_directives -and $config.team_directives.path) {
-                $configPath = $config.team_directives.path
-                if (Test-Path $configPath) {
-                    $teamDirectives = $configPath
-                }
-            }
-        } catch {
-            # Ignore JSON parsing errors, fall through to other methods
-        }
-    }
-}
-
-if (-not $teamDirectives) {
-    $submodulePath = Join-Path $repoRoot ".specify/team-ai-directives"
-    $clonePath = Join-Path $repoRoot ".specify/memory/team-ai-directives"
-    
-    if (Test-Path $submodulePath) {
-        $teamDirectives = $submodulePath
-    } elseif (Test-Path $clonePath) {
-        $teamDirectives = $clonePath
-    }
-}
+# Resolve team-ai-directives path using centralized function
+$teamDirectives = Load-TeamDirectivesConfig
 
 # Skills drafts location
-$skillsDrafts = Join-Path $repoRoot ".specify/drafts/skills"
-$cdrFile = Join-Path $repoRoot ".specify/drafts/cdr.md"
+$skillsDrafts = Join-Path $repoRoot ".specify\drafts\skills"
+$cdrFile = Join-Path $repoRoot ".specify\drafts\cdr.md"
 
 if (-not (Test-Path $skillsDrafts)) {
     New-Item -ItemType Directory -Path $skillsDrafts -Force | Out-Null

@@ -568,6 +568,49 @@ See the [Extension Publishing Guide](EXTENSION-PUBLISHING-GUIDE.md) for detailed
 - **Test with multiple versions**: Ensure compatibility
 - **Graceful degradation**: Handle missing features
 
+### Cross-Extension Integration
+
+When integrating with other extensions, follow the hook-based pattern:
+
+**DO:**
+- Use **hooks** for cross-extension integration (configured in project's `.specify/extensions.yml`)
+- This ensures extensions work independently and only integrate if both are installed
+- Declare hooks in your `extension.yml` under the `hooks:` section
+
+**DON'T:**
+- Add hardcoded references to other extensions in `handoffs:` section
+- This creates coupling and breaks if the referenced extension is not installed
+- Handoffs should only reference internal commands or core spec commands
+
+**Example of correct integration:**
+
+```yaml
+# In your extension.yml - declare hooks
+hooks:
+  before_plan:
+    command: "adlc.your_ext.specify"
+    description: "Your integration point"
+```
+
+```yaml
+# In project's .specify/extensions.yml - enable if both installed
+installed:
+  - your_ext
+  - other_ext  # Only if present
+
+hooks:
+  before_plan:
+    - extension: other_ext
+      command: adlc.other_ext.do_something
+      enabled: true
+```
+
+This pattern ensures:
+- Your extension works standalone
+- Integration only happens when both extensions are installed
+- No hardcoded dependencies on external extensions
+- Clean separation of concerns
+
 ---
 
 ## Example Extensions

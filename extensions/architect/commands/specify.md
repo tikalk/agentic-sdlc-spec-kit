@@ -1,5 +1,10 @@
 ---
 description: Interactive PRD exploration and system-level ADR creation (greenfield)
+handoffs:
+  - label: Validate ADRs
+    agent: architect.clarify
+    prompt: Validate architecture decisions - confirm selections for system architecture, database, API style, and deployment
+    send: false
 scripts:
   sh: scripts/bash/setup-architect.sh "specify {ARGS}"
   ps: scripts/powershell/setup-architect.ps1 "specify {ARGS}"
@@ -54,14 +59,44 @@ You are acting as a **Solutions Architect** facilitating an architectural discov
 - **Proposing** options with clear consequences
 - **Documenting** decisions in MADR format once consensus is reached
 
+### Rozanski & Woods Alignment
+
+When creating ADRs, consider how they map to R&W viewpoints:
+
+| ADR Topic | Primary Viewpoint | Impact on Other Views |
+|-----------|-------------------|----------------------|
+| Architecture Style | **Functional** (cornerstone) | Shapes all other views |
+| Database Choice | Information | Affects Functional, Deployment |
+| API Style | Functional | Affects Information, Development |
+| Auth Mechanism | Functional | Affects all views (security perspective) |
+| Deployment Platform | Deployment | Affects Development, Operational |
+| Communication Pattern | Functional, Concurrency | Affects Information, Deployment |
+
+**Functional-as-Cornerstone Principle**:
+> "The Functional view is the cornerstone of most ADs... It usually drives the shape of other system structures." — Rozanski & Woods
+
+During exploration, prioritize decisions that affect the Functional view:
+1. System architecture style (monolith/microservices/serverless)
+2. Component responsibilities and boundaries
+3. Interface contracts between components
+4. Integration patterns
+
+These decisions drive all subsequent architectural views.
+
 ### Two-Level Architecture System
 
 | Level | Location | ADR File | Architecture Description |
 |-------|----------|----------|--------------------------|
-| **System** | Main branch | `.specify/drafts/adr.md` | `AD.md` (root) |
-| **Feature** | Feature branch | `specs/{feature}/adr.md` | `specs/{feature}/AD.md` |
+| **System** | Main branch | `{REPO_ROOT}/.specify/drafts/adr.md` | `{REPO_ROOT}/AD.md` |
 
-This command operates at the **System level**, creating ADRs in `.specify/drafts/adr.md`.
+This command operates at the **System level**, creating ADRs in `{REPO_ROOT}/.specify/drafts/adr.md`.
+
+**IMPORTANT - Path Resolution**:
+
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 ## Outline
 
@@ -69,10 +104,10 @@ Given the PRD input, execute this workflow:
 
 1. **Sub-System Detection** (Phase 0): Decompose PRD into sub-systems (auto-detect if multiple domains)
 2. **Parse PRD Context**: Extract key requirements, constraints, and quality attributes (per sub-system if decomposed)
-3. **Load Governance**: Check `.specify/memory/constitution.md` for architectural constraints
+3. **Load Governance**: Check `{REPO_ROOT}/.specify/memory/constitution.md` for architectural constraints
 4. **Exploration Phase**: Interactive discussion to surface trade-offs and options (per sub-system)
 5. **Decision Phase**: Document decisions as ADRs with full rationale (organized by sub-system)
-6. **Output**: Write ADRs to `.specify/drafts/adr.md` with sub-system organization
+6. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr.md` with sub-system organization
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing ADRs.
 
@@ -151,6 +186,7 @@ Based on user response:
 | Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
 
 **Threshold Logic**:
+
 - **≤3 sub-systems**: Auto-approve, show summary
 - **4-6 sub-systems**: Show summary, ask to confirm
 - **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
@@ -172,6 +208,7 @@ After confirmation, output structured sub-system data:
 ```
 
 **If decomposition disabled**:
+
 ```json
 {
   "decomposition": "disabled",
@@ -208,7 +245,7 @@ After confirmation, output structured sub-system data:
    - Regulatory or compliance requirements
 
 4. **Load Constitution**:
-   - Read `.specify/memory/constitution.md` if it exists
+   - Read `{REPO_ROOT}/.specify/memory/constitution.md` if it exists
    - Extract architectural principles that must be honored
    - Note any constraints that limit architectural choices
 
@@ -307,6 +344,54 @@ After each decision is confirmed:
    - Link to constitution principles if applicable
    - **Include Sub-System tag**: Mark each ADR with its parent sub-system
 
+### Phase 3.5: Quality Requirements Exploration (Optional)
+
+**Objective**: Identify which R&W perspectives apply to this system
+
+Before completing ADRs, discuss quality requirements to help `/architect.implement`:
+
+**Core (Always Recommended)**:
+- Security - Authentication, authorization, data protection
+- Performance - Response time, throughput, scalability
+
+**Situational (Select Based on Requirements)**:
+
+| Quality | Question | If Yes → Apply Perspective |
+|---------|----------|---------------------------|
+| Availability | Does the system need high uptime (>99%)? | Availability & Resilience |
+| Evolution | Will the system need to change significantly over time? | Evolution |
+| Regulation | Is the system subject to laws/regulations (GDPR, HIPAA)? | Regulation |
+| Accessibility | Will users with disabilities use this system? | Accessibility |
+| Internationalization | Will the system support multiple languages/regions? | Internationalization |
+| Location | Are there geographic distribution concerns? | Location |
+| Usability | Is ease of use a critical success factor? | Usability |
+| Resources | Are there significant constraints on people/budget/time? | Development Resource |
+
+**Present to user**:
+```markdown
+## Quality Requirements
+
+Based on your PRD, which quality properties are important for this system?
+
+### Core (Always Recommended)
+- [x] Security
+- [x] Performance
+
+### Situational
+- [ ] Availability (high uptime requirement)
+- [ ] Evolution (long-lived system)
+- [ ] Regulation (GDPR, HIPAA, etc.)
+- [ ] Other: ___________
+
+Please indicate which apply (e.g., "Availability, Regulation").
+```
+
+Store selected perspectives in ADR metadata for `/architect.implement`:
+```markdown
+<!-- Quality Requirements -->
+<!-- perspectives: security, performance, availability, regulation -->
+```
+
 2. **Sub-System Organization**:
 
 If decomposed, structure the ADR file as:
@@ -400,12 +485,12 @@ Proposed
 **Objective**: Write finalized ADRs to file
 
 1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to ensure `.specify/drafts/adr.md` exists
+   - Execute `{SCRIPT}` to ensure `{REPO_ROOT}/.specify/drafts/adr.md` exists
    - Script creates from template if file doesn't exist
    - Pass `--no-decompose` if decomposition was disabled
 
 2. **Write ADRs**:
-   - Append new ADRs to `.specify/drafts/adr.md`
+   - Append new ADRs to `{REPO_ROOT}/.specify/drafts/adr.md`
    - Update ADR index table at top of file (include Sub-System column)
    - Preserve any existing ADRs (don't overwrite)
    - **If decomposed**: Add section headers for each sub-system
@@ -499,7 +584,7 @@ Recommended next steps:
 
 - **Brownfield projects**: Use `/architect.init` instead to reverse-engineer from code
 - **Minor updates**: Use `/architect.clarify` for ADR refinements
-- **Feature-level**: Feature architecture is handled via `/spec.plan --architecture`
+- **Feature-level**: Feature architecture via `before_plan` hook (when architect extension is installed and system ADRs exist)
 
 ## Context
 

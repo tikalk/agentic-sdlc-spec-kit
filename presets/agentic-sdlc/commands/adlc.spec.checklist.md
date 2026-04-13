@@ -39,7 +39,19 @@ You **MUST** consider the user input before proceeding (if not empty).
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS.
     - All file paths must be absolute.
     - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
-    - Auto-detect framework options by parsing the `**Framework Options**` line from spec.md header
+
+### CRITICAL - Path Validation
+
+**DO NOT write to project root or wrong feature directory**
+- Parse `FEATURE_DIR` from script output
+- Write checklist files ONLY to `./specs/<BRANCH>/checklists/` NOT root
+- Common mistake: Writing to `./checklists/` instead of `./specs/<BRANCH>/checklists/`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
@@ -83,45 +95,15 @@ You **MUST** consider the user input before proceeding (if not empty).
      - spec.md: Feature requirements and scope
      - plan.md (if exists): Technical details, dependencies
      - tasks.md (if exists): Implementation tasks
-     - .mcp.json (if exists): MCP server configurations
-     - .specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
+     - {REPO_ROOT}/.specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
 
     **Context Loading Strategy**:
      - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
      - Prefer summarizing long sections into concise scenario/requirement bullets
      - Use progressive disclosure: add follow-on retrieval only if gaps detected
      - If source docs are large, generate interim summary items instead of embedding raw text
-     - For MCP validation: Check .mcp.json structure and server configurations
 
-5. **Apply Framework-Aware Checklist Generation**: Use detected framework options to adapt checklist content:
-
-      **Parse Workflow Config JSON**:
-      - `tdd`: true/false - include TDD requirement checks
-      - `contracts`: true/false - include API contract checks
-      - `data_models`: true/false - include data model checks
-      - `risk_tests`: true/false - include risk-based testing checks
-
-     **TDD Option (if tdd=true)**:
-     - Include items checking if test requirements are specified in the spec
-     - Validate that acceptance criteria are testable
-     - Check for test scenario coverage in requirements
-
-     **API Contracts Option (if contracts=true)**:
-     - Include items validating OpenAPI/GraphQL contract requirements
-     - Check for API specification completeness and clarity
-     - Validate contract versioning and compatibility requirements
-
-     **Data Models Option (if data_models=true)**:
-     - Include items checking entity and relationship specifications
-     - Validate data model completeness and consistency
-     - Check for data validation and constraint requirements
-
-     **Risk-Based Testing Option (if risk_tests=true)**:
-     - Include items validating risk assessment coverage
-     - Check for mitigation strategy specifications
-     - Validate edge case and failure scenario requirements
-
-6. **Generate checklist** - Create "Unit Tests for Requirements":
+5. **Generate checklist** - Create "Unit Tests for Requirements":
    - Create `FEATURE_DIR/checklists/` directory if it doesn't exist
    - Generate unique checklist filename:
      - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`)
@@ -129,10 +111,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - File handling behavior:
      - If file does NOT exist: Create new file and number items starting from CHK001
      - If file exists: Append new items to existing file, continuing from the last CHK ID (e.g., if last item is CHK015, start new items at CHK016)
-   - Never delete or replace existing checklist content - always preserve and append
-   - For MCP validation: Include infrastructure quality checks when relevant to the checklist focus
+    - Never delete or replace existing checklist content - always preserve and append
 
-   **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
+    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
    Every checklist item MUST evaluate the REQUIREMENTS THEMSELVES for:
    - **Completeness**: Are all necessary requirements present?
    - **Clarity**: Are requirements unambiguous and specific?
@@ -212,32 +193,11 @@ You **MUST** consider the user input before proceeding (if not empty).
     - "Are visual hierarchy requirements measurable/testable? [Acceptance Criteria, Spec §FR-1]"
     - "Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"
 
-     Infrastructure (MCP Configuration):
-     - "Is .mcp.json file present and contains valid JSON? [Completeness, Infrastructure]"
-     - "Are MCP server URLs properly formatted and accessible? [Clarity, Infrastructure]"
-     - "Is issue tracker MCP server configured for project tracking? [Coverage, Infrastructure]"
-     - "Are async agent MCP servers configured for task delegation? [Completeness, Infrastructure]"
-     - "Do MCP server configurations include required type and url fields? [Consistency, Infrastructure]"
-
-     Framework Options:
-     - "Are test requirements specified for all acceptance criteria? [Completeness, TDD]" (when TDD enabled)
-     - "Are API contract specifications complete and versioned? [Completeness, Contracts]" (when contracts enabled)
-     - "Are entity relationships and data models fully specified? [Completeness, Data Models]" (when data models enabled)
-     - "Are risk mitigation strategies documented for critical paths? [Coverage, Risk Testing]" (when risk tests enabled)
-
     **Scenario Classification & Coverage** (Requirements Quality Focus):
     - Check if requirements exist for: Primary, Alternate, Exception/Error, Recovery, Non-Functional scenarios
     - For each scenario class, ask: "Are [scenario type] requirements complete, clear, and consistent?"
     - If scenario class missing: "Are [scenario type] requirements intentionally excluded or missing? [Gap]"
     - Include resilience/rollback when state mutation occurs: "Are rollback requirements defined for migration failures? [Gap]"
-
-    **MCP Configuration Validation** (Infrastructure Quality Focus):
-    - Check if `.mcp.json` file exists and is properly configured
-    - Validate MCP server configurations for issue trackers and async agents
-    - Ensure required fields (type, url) are present for each server
-    - Verify URL formats and server types are valid
-    - Check for proper integration with issue tracking systems (GitHub, Jira, etc.)
-    - Validate async agent configurations for delegation support
 
    **Traceability Requirements**:
    - MINIMUM: ≥80% of items MUST include at least one traceability reference
@@ -252,26 +212,10 @@ You **MUST** consider the user input before proceeding (if not empty).
     - Dependencies: "Are external podcast API requirements documented? [Dependency, Gap]"
     - Missing definitions: "Is 'visual hierarchy' defined with measurable criteria? [Gap]"
 
-    **MCP Configuration Issues** (Infrastructure Quality Problems):
-    Ask questions about MCP setup quality:
-    - Missing config: "Is .mcp.json file present in the project root? [Gap, Infrastructure]"
-    - Invalid servers: "Do MCP server configurations have valid URLs and types? [Consistency, Infrastructure]"
-    - Missing integrations: "Is issue tracker MCP configured for the project's tracking system? [Coverage, Infrastructure]"
-    - Async delegation: "Are async agent MCP servers configured for task delegation? [Completeness, Infrastructure]"
-
-    **MCP Configuration Validation Logic**:
-    - When checklist focus includes infrastructure or deployment aspects, include MCP validation items
-    - Check .mcp.json file existence and validity
-    - Validate each MCP server configuration for required fields and proper formatting
-    - Ensure issue tracker integration is configured for the project's tracking system
-    - Verify async agent configurations are present for delegation support
-    - Flag any MCP configuration issues that could impact development workflow
-
     **Content Consolidation**:
     - Soft cap: If raw candidate items > 40, prioritize by risk/impact
     - Merge near-duplicates checking the same requirement aspect
     - If >5 low-impact edge cases, create one item: "Are edge cases X, Y, Z addressed in requirements? [Coverage]"
-    - For MCP items: Consolidate server validation checks into logical groupings
 
    **🚫 ABSOLUTELY PROHIBITED** - These make it an implementation test, not a requirements test:
    - ❌ Any item starting with "Verify", "Test", "Confirm", "Check" + implementation behavior
@@ -349,27 +293,6 @@ Sample items:
 - "Is the threat model documented and requirements aligned to it? [Traceability]"
 - "Are security requirements consistent with compliance obligations? [Consistency]"
 - "Are security failure/breach response requirements defined? [Gap, Exception Flow]"
-
-**MCP Configuration Quality:** `mcp.md`
-
-Sample items:
-
-- "Is .mcp.json file present and properly configured? [Completeness, Infrastructure]"
-- "Are MCP server URLs valid and accessible? [Clarity, Infrastructure]"
-- "Is issue tracker MCP server configured for the project's tracking system? [Coverage, Infrastructure]"
-- "Are async agent MCP servers properly configured for delegation? [Completeness, Infrastructure]"
-- "Do MCP server configurations include required type and url fields? [Consistency, Infrastructure]"
-- "Are MCP server types valid (http, websocket, stdio)? [Measurability, Infrastructure]"
-
-**Framework Options Quality:** `options.md` (when mode options are enabled)
-
-Sample items (varies based on enabled options):
-
-- "Are test scenarios specified for all acceptance criteria? [Completeness, TDD]" (TDD enabled)
-- "Are API contract specifications complete with versioning? [Completeness, Contracts]" (contracts enabled)
-- "Are entity relationships and constraints fully documented? [Completeness, Data Models]" (data models enabled)
-- "Are risk assessment and mitigation strategies specified? [Coverage, Risk Testing]" (risk tests enabled)
-- "Are framework option requirements consistent with project complexity level? [Consistency, Options]"
 
 ## Anti-Examples: What NOT To Do
 

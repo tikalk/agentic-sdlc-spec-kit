@@ -9,6 +9,19 @@ JSON_MODE=false
 DECOMPOSE=true
 ARGS=()
 
+# Get script directory for common.sh sourcing
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
+    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
+fi
+
+# Get repository root using common.sh function (searches upward for .specify first)
+REPO_ROOT=$(get_repo_root 2>/dev/null || git rev-parse --show-toplevel 2>/dev/null || pwd)
+
 for arg in "$@"; do
     case "$arg" in
         --json)
@@ -185,30 +198,16 @@ detect_subsystems() {
 # Resolve team-ai-directives path
 # Priority:
 # 1. SPECIFY_TEAM_DIRECTIVES environment variable
-# 2. .specify/config.json team_directives.path (from specify init)
-# 3. .specify/team-ai-directives (submodule - recommended)
-# 4. .specify/memory/team-ai-directives (clone - legacy)
+# 2. .specify/init-options.json team_ai_directives (from specify init)
+# 3. .specify/config.json team_directives.path (legacy)
+# 4. .specify/team-ai-directives (submodule - recommended)
+# 5. .specify/memory/team-ai-directives (clone - legacy)
 
+# Resolve team directives using centralized function
+load_team_directives_config "$REPO_ROOT"
 TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
-
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    # Try reading from config.json (written by specify init)
-    CONFIG_FILE="$REPO_ROOT/.specify/config.json"
-    if [[ -f "$CONFIG_FILE" ]]; then
-        # Extract team_directives.path using grep/sed (no jq dependency)
-        CONFIG_PATH=$(grep -o '"path"[[:space:]]*:[[:space:]]*"[^"]*"' "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/.*"\([^"]*\)"$/\1/')
-        if [[ -n "$CONFIG_PATH" && -d "$CONFIG_PATH" ]]; then
-            TEAM_DIRECTIVES="$CONFIG_PATH"
-        fi
-    fi
-fi
-
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-    elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
-    fi
+if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+    TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
 fi
 
 # Skills drafts location

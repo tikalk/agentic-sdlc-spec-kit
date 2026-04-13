@@ -184,7 +184,7 @@ Append evidence to CDR:
 
 ### Phase 4: Update CDRs
 
-**Objective**: Write enriched CDRs to `.specify/drafts/cdr.md`
+**Objective**: Write enriched CDRs to `{REPO_ROOT}/.specify/drafts/cdr.md`
 
 Update `{REPO_ROOT}/.specify/drafts/cdr.md`:
 - Add evidence metadata to CDR entries

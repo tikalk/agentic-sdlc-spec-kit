@@ -2,6 +2,101 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.6] - 2026-04-13
+
+### Changed
+
+- **Hook event names**: Renamed hooks to align with upstream template convention
+  - `before_spec` → `before_specify`
+  - `after_spec` → `after_specify`
+  - Matches naming in `templates/commands/specify.md` and `EXTENSION-API-REFERENCE.md`
+
+## [1.1.5] - 2026-04-11
+
+### Fixed
+
+- **Template path resolution**: Updated all command templates to use `{REPO_ROOT}` prefix for `.specify/` paths
+- **Monorepo support**: Templates now correctly resolve paths when running from subdirectories
+
+## [1.1.1] - 2026-04-11
+
+### Fixed
+
+- **.specify directory detection**: Scripts now properly search upward for `.specify` directory instead of using git root directly
+
+## [1.1.0] - 2026-04-10
+
+### Added
+
+- **Multi-agent DAG orchestration** for `/product.implement` command
+  - Three-phase workflow: Plan → Execute → Summarize
+  - State persistence in `.specify/product/state.json` for resumability
+  - Per-section outputs in `.specify/product/sections/{feature-area}/{section}.md`
+  - Works with any AI agent (Claude, Copilot, Cursor, etc.)
+
+- **Section templates** extracted from prd-template.md:
+  - `templates/sections/overview.md` - Overview section template
+  - `templates/sections/problem.md` - Problem section template
+  - `templates/sections/goals.md` - Goals/Objectives section template
+  - `templates/sections/metrics.md` - Success Metrics section template
+  - `templates/sections/personas.md` - Personas section template
+  - `templates/sections/requirements.md` - Functional Requirements section template
+  - `templates/sections/nfrs.md` - Non-Functional Requirements section template
+  - `templates/sections/out-of-scope.md` - Out of Scope section template
+  - `templates/sections/risks.md` - Risks & Mitigation section template
+  - `templates/sections/roadmap.md` - Roadmap & Milestones section template
+  - `templates/sections/pdr-summary.md` - PDR Summary section template
+
+- **New script actions** for DAG workflow:
+  - `plan-dag` - Phase 1: Generate DAG execution plan for user approval
+  - `execute-dag` - Phase 2: Execute DAG to generate sections per feature-area
+  - `summarize` - Phase 3: Aggregate sections into unified PRD.md
+
+- **DAG customization rules** based on feature-area characteristics:
+  - B2B Focus → Expand Personas, NFRs earlier
+  - B2C Focus → Prioritize UX in Requirements
+  - Platform → Technical Requirements first
+  - Data-heavy → Metrics section priority
+  - Marketplace → Multiple Persona branches
+
+### Changed
+
+- **`/product.implement`** completely rewritten with DAG orchestration
+  - Feature-area detection from PDR index table
+  - Dependency context passing between sections
+  - Cross-feature-area conflict resolution using PDRs as source of truth
+  - Unified PRD.md generation from per-section outputs
+
+- **extension.yml** updated with DAG configuration:
+
+  ```yaml
+  dag:
+    enabled: true
+    base_location: ".specify/product/"
+    state_location: ".specify/product/state.json"
+    sections_location: ".specify/product/sections/"
+    section_templates: "templates/sections/"
+  ```
+
+### Migration
+
+- Existing projects: No action needed (DAG workflow is opt-in via `/product.implement`)
+- Previous single-context generation still works if state.json doesn't exist
+
+## [1.0.2] - 2026-04-09
+
+### Changed
+
+- **Removed hardcoded architect handoff**: External extension integration now via hooks only
+  - Removed handoff from `product.implement` to `architect.specify` in extension.yml
+  - Architect integration now configured in project-level `.specify/extensions.yml`
+  - Ensures extensions are fully decoupled - architect only referenced if installed
+
+### Migration
+
+- Existing projects: Architect integration now requires explicit configuration in `.specify/extensions.yml`
+- See README.md for hook configuration examples
+
 ## [1.0.1] - 2026-03-20
 
 ### Changed

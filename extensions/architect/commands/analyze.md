@@ -54,10 +54,8 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 | Document | Location | Purpose |
 |----------|----------|---------|
 | `AD.md` | Project root | Full Architecture Description (Rozanski & Woods) |
-| `adr.md` | `.specify/memory/` | System-level Architecture Decision Records |
-| `constitution.md` | `.specify/memory/` | Governance principles and constraints |
-| Feature `AD.md` | `specs/{feature}/` | Feature-level architecture (if exists) |
-| Feature `adr.md` | `specs/{feature}/` | Feature-level ADRs (if exists) |
+| `adr.md` | `{REPO_ROOT}/.specify/memory/` | System-level Architecture Decision Records |
+| `constitution.md` | `{REPO_ROOT}/.specify/memory/` | Governance principles and constraints |
 
 ## Outline
 
@@ -81,10 +79,10 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 2. **Load System-Level Artifacts**:
    - Read `AD.md` (project root) if exists
    - Read ADRs from all locations (priority order):
-     1. `.specify/memory/adr.md` (canonical - Accepted ADRs)
-     2. `team-ai-directives/context_modules/adr.md` (team canonical - if configured)
-     3. `.specify/drafts/adr.md` (working copy - Proposed/Discovered)
-   - Read `.specify/memory/constitution.md` if exists
+     1. `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
+     2. `{TEAM_DIRECTIVES}/context_modules/adr.md` (team canonical - if configured)
+     3. `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
+   - Read `{REPO_ROOT}/.specify/memory/constitution.md` if exists
 
 3. **Load Feature-Level Artifacts** (if analyzing features):
    - Scan `specs/*/AD.md` for feature architectures
@@ -95,10 +93,10 @@ You are acting as an **Architecture Analyst** validating architecture documentat
    | Artifact | Path | Status |
    |----------|------|--------|
    | System AD | `AD.md` | Found/Missing |
-   | System ADRs (canonical) | `.specify/memory/adr.md` | Found/Missing |
-   | System ADRs (team) | `team-ai-directives/context_modules/adr.md` | Found/Missing |
-   | System ADRs (drafts) | `.specify/drafts/adr.md` | Found/Missing |
-   | Constitution | `.specify/memory/constitution.md` | Found/Missing |
+   | System ADRs (canonical) | `{REPO_ROOT}/.specify/memory/adr.md` | Found/Missing |
+   | System ADRs (team) | `{TEAM_DIRECTIVES}/context_modules/adr.md` | Found/Missing |
+   | System ADRs (drafts) | `{REPO_ROOT}/.specify/drafts/adr.md` | Found/Missing |
+   | Constitution | `{REPO_ROOT}/.specify/memory/constitution.md` | Found/Missing |
    | Feature ADs | `specs/*/AD.md` | Count: N |
    | Feature ADRs | `specs/*/adr.md` | Count: N |
 
@@ -110,11 +108,10 @@ You are acting as an **Architecture Analyst** validating architecture documentat
 
 | User Input | Scope | Artifacts Analyzed |
 |------------|-------|-------------------|
-| (empty) | Full | All system + all feature artifacts |
-| `"system"` | System only | AD.md, all system ADR locations |
-| `"feature {name}"` | Single feature | specs/{name}/AD.md, specs/{name}/adr.md |
-| `"adrs"` | ADR quality | All adr.md files (system + feature) |
-| `"views"` | AD completeness | All AD.md files (system + feature) |
+| (empty) | Full | All system artifacts |
+| `"system"` | System only | AD.md, system ADR locations |
+| `"adrs"` | ADR quality | All adr.md files |
+| `"views"` | AD completeness | AD.md |
 
 ### Phase 3: Execute Detection Passes
 
@@ -140,6 +137,7 @@ Focus on high-signal findings. Limit to **50 findings total**; aggregate remaind
 **ADR Quality Checklist**:
 
 For each ADR, verify:
+
 - [ ] Clear context explaining the problem/opportunity
 - [ ] Explicit, actionable decision statement
 - [ ] Positive AND negative consequences documented
@@ -190,6 +188,7 @@ For each ADR, verify:
 **Detection Logic**:
 
 For each ADR:
+
 1. Identify the ADR's primary view impact (use mapping table above)
 2. Search AD.md for reflection of that decision
 3. Flag if decision is absent or contradicted
@@ -368,7 +367,7 @@ Based on findings, recommended actions:
 
 **If feature alignment issues:**
 - **Align**: Resolve feature-system boundary violations
-- Command: `/spec.plan --architecture` to update feature architecture
+- Command: Run `/spec.plan` (architect extension `before_plan` hook will update feature architecture if enabled)
 ```
 
 ### Phase 6: Offer Remediation
@@ -411,7 +410,7 @@ Based on findings, recommended next steps:
 | ADR quality issues | `/architect.clarify` |
 | ADR->AD drift | `/architect.implement --update` |
 | AD->ADR drift (missing ADRs) | `/architect.specify` or `/architect.init` |
-| Feature alignment issues | `/spec.plan --architecture` |
+| Feature alignment issues | `/spec.plan` (triggers `before_plan` hook) |
 | Spec alignment issues | `/spec.analyze` |
 
 ### When to Use This Command

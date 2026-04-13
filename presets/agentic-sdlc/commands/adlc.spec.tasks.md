@@ -22,12 +22,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-Auto-detect framework options by parsing the `**Framework Options**` line from spec.md header. Enable risk-based test generation if `risk_tests=true` is detected.
-
 ## Pre-Execution Checks
 
 **Check for extension hooks (before tasks generation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_tasks` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter to only hooks where `enabled: true`
@@ -56,11 +54,28 @@ Auto-detect framework options by parsing the `**Framework Options**` line from s
     
     Wait for the result of the hook command before proceeding to the Outline.
     ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+### CRITICAL - Path Validation
+
+**DO NOT write to project root or wrong feature directory**
+- Parse `TASKS` path from script JSON output (should be `./specs/<BRANCH>/tasks.md`)
+- Write tasks.md ONLY to the `FEATURE_DIR` - never to `./tasks.md`
+- Common mistakes:
+  - Writing to `./tasks.md` (root) instead of `./specs/<BRANCH>/tasks.md`
+  - Writing to `./specs/master/tasks.md` (wrong branch) instead of `./specs/<BRANCH>/tasks.md`
+- The correct TASKS path includes your feature branch (e.g., `001-user-auth`)
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+- Without this, tasks.md will be written to the wrong location
 
 2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
@@ -103,7 +118,7 @@ Auto-detect framework options by parsing the `**Framework Options**` line from s
     - Create parallel execution examples per user story
     - Validate task completeness (each user story has all needed tasks, independently testable)
 
-5. **Generate tasks.md**: Use `.specify/templates/tasks-template.md` as structure, fill with:
+5. **Generate tasks.md**: Use `{REPO_ROOT}/.specify/presets/agentic-sdlc/templates/tasks-template.md` as structure, fill with:
     - Correct feature name from plan.md
     - Phase 1: Setup tasks (project initialization)
     - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
@@ -121,22 +136,15 @@ Auto-detect framework options by parsing the `**Framework Options**` line from s
     - Parallel execution examples per story
     - Implementation strategy section (MVP first, incremental delivery)
 
-6. **Apply Issue Tracker Labels**: If issue tracker MCP is configured and ASYNC tasks exist:
-    - Apply `async-ready` and `agent-delegatable` labels to the associated issue
-    - Update tasks_meta.json with labeling information
-    - Enable automatic async agent triggering for qualifying tasks
-
-7. **Report**: Output path to generated tasks.md and summary:
+6. **Report**: Output path to generated tasks.md and summary:
     - Total task count
     - Task count per user story
     - Parallel opportunities identified
     - Independent test criteria for each story
-    - **If risk tests enabled**: Number of risk mitigation tasks generated
-    - **If issue labeling applied**: Issue ID and labels applied
     - Suggested MVP scope (typically just User Story 1)
     - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
-8. **Check for extension hooks**: After tasks.md is generated, check if `.specify/extensions.yml` exists in the project root.
+8. **Check for extension hooks**: After tasks.md is generated, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
    - If it exists, read it and look for entries under the `hooks.after_tasks` key
    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
    - Filter to only hooks where `enabled: true`
@@ -163,7 +171,7 @@ Auto-detect framework options by parsing the `**Framework Options**` line from s
        Executing: `/{command}`
        EXECUTE_COMMAND: {command}
        ```
-   - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+       - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 Context for task generation: {ARGS}
 

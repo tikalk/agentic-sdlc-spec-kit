@@ -117,6 +117,19 @@ Execution steps:
    - If JSON parsing fails, abort and instruct user to re-run `/spec.specify` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- Read spec.md from `./specs/<BRANCH>/spec.md` NOT root `./spec.md`
+- Common mistake: Reading from `./spec.md` instead of `./specs/<BRANCH>/spec.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+
 2. Load governance and architecture documents (if available):
 
    **Constitution Loading** (if `CONSTITUTION_EXISTS: true`):

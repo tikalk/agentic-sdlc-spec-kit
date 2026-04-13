@@ -42,11 +42,27 @@ if ($Help) {
     throw "Could not determine repository root"
 }
 
-# Get team directives path (from global config)
+# Get team directives path
+# Priority: 1. project config.json, 2. global config, 3. memory fallback
 function Get-TeamDirectivesPath {
     $repoRoot = Get-RepositoryRoot
+    
+    # 1. Check project config first
+    $projectConfig = Join-Path $repoRoot ".specify\config.json"
+    if (Test-Path $projectConfig) {
+        try {
+            $config = Get-Content $projectConfig -Raw | ConvertFrom-Json
+            $path = $config.team_directives.path
+            if ($path -and (Test-Path $path.Trim())) {
+                return $path.Trim()
+            }
+        } catch {
+            # Ignore config parsing errors
+        }
+    }
+    
+    # 2. Fall back to global config
     $configFile = Get-GlobalConfigPath
-
     if (Test-Path $configFile) {
         try {
             $config = Get-Content $configFile -Raw | ConvertFrom-Json
@@ -59,7 +75,7 @@ function Get-TeamDirectivesPath {
         }
     }
 
-    # Fallback to default location
+    # 3. Fallback to default location
     $defaultDir = Join-Path $repoRoot ".specify\memory\team-ai-directives"
     if (Test-Path $defaultDir) {
         return $defaultDir

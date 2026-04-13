@@ -90,21 +90,20 @@ validate_mermaid_syntax() {
 }
 
 load_team_directives_config() {
-    local repo_root="$1"
+    local repo_root="${1:-$(get_repo_root)}"
 
-    local config_file
-    config_file=$(get_global_config_path)
-    if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
+    # Read team_ai_directives from init-options.json (set by specify init --team-ai-directives)
+    local init_opts_file="$repo_root/.specify/init-options.json"
+    if [[ -f "$init_opts_file" ]]; then
         local path
-        path=$(jq -r '.team_directives.path // empty' "$config_file" 2>/dev/null)
-        if [[ -n "$path" && "$path" != "null" && -d "$path" ]]; then
+        path=$(python3 -c "import json; print(json.load(open('$init_opts_file')).get('team_ai_directives', ''))" 2>/dev/null || echo "")
+        if [[ -n "$path" && -d "$path" ]]; then
             export SPECIFY_TEAM_DIRECTIVES="$path"
             return
-        elif [[ -n "$path" && "$path" != "null" ]]; then
-            echo "[specify] Warning: team directives path '$path' from $config_file is unavailable." >&2
         fi
     fi
 
+    # Fall back to memory location if not in init-options.json
     local default_dir="$repo_root/.specify/memory/$TEAM_DIRECTIVES_DIRNAME"
     if [[ -d "$default_dir" ]]; then
         export SPECIFY_TEAM_DIRECTIVES="$default_dir"
@@ -315,9 +314,9 @@ get_feature_paths() {
     fi
 
     # Project-level governance documents
-    local memory_dir="$repo_root/memory"
+    local memory_dir="$repo_root/.specify/memory"
     local constitution_file="$memory_dir/constitution.md"
-    # New architecture structure: AD.md at root, ADRs in memory/
+    # New architecture structure: AD.md at root, ADRs in .specify/memory/
     local ad_file="$repo_root/AD.md"
     local adr_file="$memory_dir/adr.md"
 

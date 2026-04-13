@@ -9,6 +9,19 @@ JSON_MODE=false
 DECOMPOSE=true
 ARGS=()
 
+# Get script directory for common.sh sourcing
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Load common functions
+if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
+    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
+fi
+
+# Get repository root using common.sh function (searches upward for .specify first)
+REPO_ROOT=$(get_repo_root 2>/dev/null || git rev-parse --show-toplevel 2>/dev/null || pwd)
+
 # Parse arguments
 for arg in "$@"; do
     case "$arg" in
@@ -28,6 +41,11 @@ for arg in "$@"; do
             echo "  clarify    Setup for PDR refinement"
             echo "  analyze    Setup for consistency analysis"
             echo "  validate   Setup for plan validation"
+            echo ""
+            echo "DAG Workflow Commands (used internally by implement):"
+            echo "  plan-dag     Phase 1: Generate DAG execution plan for user approval"
+            echo "  execute-dag  Phase 2: Execute DAG to generate sections per feature-area"
+            echo "  summarize    Phase 3: Aggregate sections into unified PRD.md"
             echo ""
             echo "Options:"
             echo "  --json           Output results in JSON format"
@@ -55,19 +73,15 @@ NC='\033[0m' # No Color
 PDR_LOCATION=".specify/drafts/pdr.md"
 
 # Resolve team-ai-directives path
-TEAM_DIRECTIVES=""
-if [[ -n "$SPECIFY_TEAM_DIRECTIVES" ]]; then
-    if [[ -d "$SPECIFY_TEAM_DIRECTIVES" ]]; then
-        TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
-    fi
+# Priority: 1. env var, 2. init-options.json, 3. config.json (legacy), 4. team-ai-directives file, 5. memory fallback
+# Resolve team directives using centralized function
+load_team_directives_config "$REPO_ROOT"
+TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
 fi
-
-if [[ -z "$TEAM_DIRECTIVES" ]]; then
-    if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-    elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
-    fi
+if [[ -z "$TEAM_DIRECTIVES" ]] || [[ ! -d "$TEAM_DIRECTIVES" ]]; then
+    TEAM_DIRECTIVES=""
 fi
 
 # PRD output location - use TD if configured, else project root
@@ -90,9 +104,6 @@ log_warn() {
 log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
-
-# Get repository root
-REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # Function to detect sub-systems from codebase structure
 detect_subsystems() {
@@ -411,6 +422,190 @@ EOF
     echo "$prd_file"
 }
 
+# Action: Plan DAG (Phase 1 of implement - generate execution plan)
+action_plan_dag() {
+    local pdr_file="$REPO_ROOT/.specify/drafts/pdr.md"
+    local state_file="$REPO_ROOT/.specify/product/state.json"
+    local sections_dir="$REPO_ROOT/.specify/product/sections"
+    
+    echo "📐 DAG Planning Phase" >&2
+    echo "" >&2
+    
+    # Check if PDR file exists
+    if [[ ! -f "$pdr_file" ]]; then
+        echo "❌ PDR drafts file does not exist: $pdr_file" >&2
+        echo "Run '/product.specify' or '/product.init' first" >&2
+        exit 1
+    fi
+    
+    # Ensure directories exist
+    mkdir -p "$REPO_ROOT/.specify/product"
+    mkdir -p "$sections_dir"
+    
+    # Count PDRs and extract feature-areas
+    local pdr_count
+    pdr_count=$(grep -c "^### PDR-" "$pdr_file" 2>/dev/null || grep -c "^## PDR-" "$pdr_file" 2>/dev/null || echo "0")
+    
+    # Extract unique feature-areas from PDR index table
+    local feature_areas=()
+    while IFS= read -r line; do
+        # Parse PDR index table rows: | PDR-XXX | Category | Feature-Area | ...
+        if [[ "$line" =~ ^\|[[:space:]]*PDR-[0-9]+[[:space:]]*\|[[:space:]]*[^|]+[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\| ]]; then
+            local feature_area="${BASH_REMATCH[1]}"
+            feature_area=$(echo "$feature_area" | xargs)  # Trim whitespace
+            if [[ -n "$feature_area" && "$feature_area" != "Feature-Area" && "$feature_area" != "Sub-System" ]]; then
+                # Add to array if not already present
+                local found=false
+                for f in "${feature_areas[@]}"; do
+                    if [[ "$f" == "$feature_area" ]]; then
+                        found=true
+                        break
+                    fi
+                done
+                if [[ "$found" == "false" ]]; then
+                    feature_areas+=("$feature_area")
+                fi
+            fi
+        fi
+    done < "$pdr_file"
+    
+    # Default to "Product" if no feature-areas found
+    if [[ ${#feature_areas[@]} -eq 0 ]]; then
+        feature_areas=("Product")
+    fi
+    
+    echo "📋 PDR file found: $pdr_file" >&2
+    echo "   Found $pdr_count PDR(s)" >&2
+    echo "   Feature-areas detected: ${feature_areas[*]}" >&2
+    echo "" >&2
+    echo "Ready for DAG planning." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Analyze PDRs by feature-area" >&2
+    echo "  2. Generate customized DAG per feature-area" >&2
+    echo "  3. Present execution plan for user approval" >&2
+    echo "  4. Save approved plan to state.json" >&2
+    
+    if $JSON_MODE; then
+        # Build feature_areas JSON array
+        local feature_areas_json="["
+        local first=true
+        for f in "${feature_areas[@]}"; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                feature_areas_json+=","
+            fi
+            feature_areas_json+="{\"id\":\"$(echo "$f" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\",\"name\":\"$f\"}"
+        done
+        feature_areas_json+="]"
+        
+        echo "{\"status\":\"success\",\"action\":\"plan-dag\",\"pdr_file\":\"$pdr_file\",\"state_file\":\"$state_file\",\"sections_dir\":\"$sections_dir\",\"pdr_count\":$pdr_count,\"feature_areas\":$feature_areas_json,\"context\":\"${ARGS[*]}\"}"
+    fi
+}
+
+# Action: Execute DAG (Phase 2 of implement - generate sections based on state)
+action_execute_dag() {
+    local state_file="$REPO_ROOT/.specify/product/state.json"
+    local sections_dir="$REPO_ROOT/.specify/product/sections"
+    
+    echo "🔧 DAG Execution Phase" >&2
+    echo "" >&2
+    
+    # Check if state file exists
+    if [[ ! -f "$state_file" ]]; then
+        echo "❌ No execution plan found: $state_file" >&2
+        echo "Run '/product.implement' first to generate and approve a DAG plan" >&2
+        exit 1
+    fi
+    
+    # Ensure sections directory exists
+    mkdir -p "$sections_dir"
+    
+    echo "📄 State file found: $state_file" >&2
+    echo "📁 Sections directory: $sections_dir" >&2
+    echo "" >&2
+    echo "Ready for DAG execution." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Read execution plan from state.json" >&2
+    echo "  2. Identify next section(s) to generate" >&2
+    echo "  3. Generate section with dependency context" >&2
+    echo "  4. Write to .specify/product/sections/{feature-area}/{section}.md" >&2
+    echo "  5. Update progress in state.json" >&2
+    
+    if $JSON_MODE; then
+        # Output the state file content for the AI agent
+        if [[ -f "$state_file" ]]; then
+            local state_content
+            state_content=$(cat "$state_file")
+            echo "{\"status\":\"success\",\"action\":\"execute-dag\",\"state_file\":\"$state_file\",\"sections_dir\":\"$sections_dir\",\"state\":$state_content}"
+        else
+            echo "{\"status\":\"error\",\"action\":\"execute-dag\",\"error\":\"state_file_not_found\"}"
+        fi
+    fi
+}
+
+# Action: Summarize (Phase 3 of implement - aggregate sections into PRD.md)
+action_summarize() {
+    local state_file="$REPO_ROOT/.specify/product/state.json"
+    local sections_dir="$REPO_ROOT/.specify/product/sections"
+    local prd_file="$PRD_LOCATION"
+    local pdr_file="$REPO_ROOT/.specify/drafts/pdr.md"
+    
+    echo "📝 Summarization Phase" >&2
+    echo "" >&2
+    
+    # Check if sections directory exists and has content
+    if [[ ! -d "$sections_dir" ]]; then
+        echo "❌ Sections directory not found: $sections_dir" >&2
+        echo "Run '/product.implement' to generate sections first" >&2
+        exit 1
+    fi
+    
+    # Count section files
+    local section_count
+    section_count=$(find "$sections_dir" -name "*.md" -type f 2>/dev/null | wc -l)
+    
+    if [[ "$section_count" -eq 0 ]]; then
+        echo "❌ No section files found in $sections_dir" >&2
+        echo "Run '/product.implement' to generate sections first" >&2
+        exit 1
+    fi
+    
+    # List all section files
+    echo "📁 Sections directory: $sections_dir" >&2
+    echo "   Found $section_count section file(s):" >&2
+    find "$sections_dir" -name "*.md" -type f | while read -r f; do
+        echo "   - ${f#$sections_dir/}" >&2
+    done
+    echo "" >&2
+    
+    echo "Ready for summarization." >&2
+    echo "The AI agent will:" >&2
+    echo "  1. Read all section files from .specify/product/sections/" >&2
+    echo "  2. Detect cross-feature-area conflicts" >&2
+    echo "  3. Resolve conflicts using PDRs as source of truth" >&2
+    echo "  4. Aggregate into unified PRD.md" >&2
+    echo "  5. Move Accepted PDRs to canonical location" >&2
+    
+    if $JSON_MODE; then
+        # Build list of section files
+        local sections_json="["
+        local first=true
+        while IFS= read -r f; do
+            if [[ "$first" == "true" ]]; then
+                first=false
+            else
+                sections_json+=","
+            fi
+            local rel_path="${f#$sections_dir/}"
+            sections_json+="{\"path\":\"$f\",\"relative\":\"$rel_path\"}"
+        done < <(find "$sections_dir" -name "*.md" -type f 2>/dev/null)
+        sections_json+="]"
+        
+        echo "{\"status\":\"success\",\"action\":\"summarize\",\"state_file\":\"$state_file\",\"sections_dir\":\"$sections_dir\",\"prd_file\":\"$prd_file\",\"pdr_file\":\"$pdr_file\",\"section_count\":$section_count,\"sections\":$sections_json}"
+    fi
+}
+
 case "$COMMAND" in
     "specify")
         if $JSON_MODE; then
@@ -452,6 +647,15 @@ case "$COMMAND" in
             log_info "Ready for $COMMAND"
         fi
         ;;
+    "plan-dag")
+        action_plan_dag
+        ;;
+    "execute-dag")
+        action_execute_dag
+        ;;
+    "summarize")
+        action_summarize
+        ;;
     "help"|*)
         echo "Product Extension Setup Script"
         echo ""
@@ -464,6 +668,12 @@ case "$COMMAND" in
         echo "  clarify    Setup for PDR refinement"
         echo "  analyze    Setup for consistency analysis"
         echo "  validate   Setup for plan validation"
+        echo ""
+        echo "DAG Workflow Commands:"
+        echo "  plan-dag     Phase 1: Generate DAG execution plan"
+        echo "  execute-dag  Phase 2: Execute DAG to generate sections"
+        echo "  summarize    Phase 3: Aggregate sections into PRD.md"
+        echo ""
         echo "  help       Show this help message"
         ;;
 esac

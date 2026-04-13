@@ -34,6 +34,40 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Pre-Execution Checks
+
+**Check for extension hooks (before specification)**:
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_specify` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to Mission Brief.
+    ```
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+
 ---
 
 ## ⚠️ ENFORCEMENT CHECKPOINT 1: Mission Brief
@@ -107,55 +141,13 @@ After this feature, the user can: {observable, demo-able capability}
 **⚠️ STOP**: Wait for explicit response.
 
 - If **"no"** or **"adjust"**: Ask what needs to change. Re-display Mission Brief with adjustments. Ask again.
-- If **"yes"**: Proceed to Phase 2 (or Outline if no PDR)
-
----
-
-### Phase 2: PDR Reference Selection (Optional)
-
-This phase links the feature to Product Decision Records for traceability. Skip if no PDR exists.
-
-**Check for PDR file**:
-1. First check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
-2. If yes, try to read: `{TEAM_DIRECTIVES}/context_modules/pdr.md`
-3. If file doesn't exist or TD not configured, try: `.specify/memory/pdr.md`
-4. If neither exists, skip this phase (no PDR configured)
-
-**If PDR file exists**:
-1. Parse all PDRs with `Category: Feature`
-2. For each Feature PDR, check if it references a Milestone PDR (look in "Related PDRs" or "Belongs to Milestone" field)
-3. Build a list of Feature PDRs with their Milestone reference
-
-**Present to user**:
-
-```markdown
-## PDR Reference Selection
-
-Which Feature PDR does this feature belong to?
-
-| Option | Feature PDR | Milestone |
-|--------|--------------|-----------|
-| 1 | PDR-003: OAuth2 Login | M01: Q2 User Auth |
-| 2 | PDR-004: SSO Integration | M01: Q2 User Auth |
-| 3 | PDR-005: Password Reset | M02: Q3 Enhancements |
-| 4 | Skip - No PDR linkage |
-
-**Your choice**: _[Wait for user response]_
-```
-
-**If user selects an option**:
-- Store for embedding in spec header:
-  - **Milestone Reference**: [e.g., "M01: Q2 User Auth"]
-  - **Feature PDR Reference**: [e.g., "PDR-003"]
-
-**If user skips or no PDR exists**:
-- Leave fields empty in spec header (optional fields)
+- If **"yes"**: Proceed to Outline (branch creation and spec writing).
 
 ---
 
 ## Outline
 
-The text the user typed after `/spec.specify` (or `/adlc.spec.specify`) in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
+The text the user typed after `/spec.specify` in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
 
 Given the approved Mission Brief, do this:
 
@@ -186,15 +178,13 @@ Given the approved Mission Brief, do this:
 
 3. Load `templates/spec-template.md` to understand required sections.
 
-4. Follow this execution flow (Mission Brief approved, Phase 2 may have PDR references):
+4. Follow this execution flow (Mission Brief already approved):
 
-     1. Use the approved Mission Brief as foundation AND include PDR references from Phase 2:
-        - **Goal** → spec header's Goal field
-        - **Success Criteria** → spec's Success Criteria section (expand with details)
-        - **Constraints** → spec header's Constraints field
-        - **Demo Sentence** → spec's Demo Sentence section
-        - **Milestone Reference** (from Phase 2) → spec header's Milestone Reference field
-        - **Feature PDR Reference** (from Phase 2) → spec header's Feature PDR Reference field
+    1. Use the approved Mission Brief as the foundation:
+       - **Goal** → spec header's Goal field
+       - **Success Criteria** → spec's Success Criteria section (expand with details)
+       - **Constraints** → spec header's Constraints field
+       - **Demo Sentence** → spec's Demo Sentence section
     2. Extract additional key concepts from original description
        Identify: actors, actions, data, edge cases
     3. For unclear aspects:
@@ -218,6 +208,23 @@ Given the approved Mission Brief, do this:
     8. Return: SUCCESS (spec ready for planning)
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+
+### CRITICAL - Path Validation
+
+**DO NOT write to project root directory**
+- Parse `BRANCH_NAME` and `SPEC_FILE` from script JSON output
+- Write ONLY to `SPEC_FILE` path - never to `./spec.md`
+- The correct path is: `./specs/<BRANCH_NAME>/spec.md` (e.g., `./specs/001-user-auth/spec.md`)
+- Common mistake: Writing to `./spec.md` instead of `./specs/001-user-auth/spec.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- The script outputs `SPECIFY_FEATURE` hint to stderr: `# To persist: export SPECIFY_FEATURE=001-user-auth`
+- After running the script, you MUST set this environment variable before using follow-up commands:
+  - Bash: `export SPECIFY_FEATURE=<BRANCH_NAME>`
+  - PowerShell: `$env:SPECIFY_FEATURE="<BRANCH_NAME>"`
+- This must be set in the AI agent's context before running `/spec.plan` or `/spec.tasks`
 
 6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
@@ -257,7 +264,7 @@ Given the approved Mission Brief, do this:
       
       ## Notes
       
-      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan` (or `/adlc.spec.clarify`, `/adlc.spec.plan`)
+      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -311,7 +318,36 @@ Given the approved Mission Brief, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`, or `/adlc.spec.clarify`, `/adlc.spec.plan`).
+7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`).
+
+8. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+    - If it exists, read it and look for entries under the `hooks.after_specify` key
+    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+    - For each executable hook, output the following based on its `optional` flag:
+      - **Optional hook** (`optional: true`):
+        ```
+        ## Extension Hooks
+
+        **Optional Hook**: {extension}
+        Command: `/{command}`
+        Description: {description}
+
+        Prompt: {prompt}
+        To execute: `/{command}`
+        ```
+      - **Mandatory hook** (`optional: false`):
+        ```
+        ## Extension Hooks
+
+        **Automatic Hook**: {extension}
+        Executing: `/{command}`
+        EXECUTE_COMMAND: {command}
+        ```
+    - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 **NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
 

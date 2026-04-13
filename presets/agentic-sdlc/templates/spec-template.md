@@ -1,9 +1,6 @@
 # Feature Specification: [FEATURE NAME]
 
 **Feature Branch**: `[###-feature-name]`
-**Framework Options**:
-  contracts={contracts}
-  data_models={data_models}
 **Created**: [DATE]
 **Status**: Draft
 **Input**: User description: "$ARGUMENTS"

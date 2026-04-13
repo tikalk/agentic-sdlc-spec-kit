@@ -1,5 +1,10 @@
 ---
 description: Reverse-engineer architecture from existing codebase (brownfield) to create ADRs, then validate with clarifying questions
+handoffs:
+  - label: Validate Architecture Findings
+    agent: architect.clarify
+    prompt: Validate brownfield architecture findings - confirm detected technologies, patterns, and decisions
+    send: false
 scripts:
   sh: scripts/bash/setup-architect.sh "init {ARGS}"
   ps: scripts/powershell/setup-architect.ps1 "init {ARGS}"
@@ -25,12 +30,19 @@ When users provide context, use it to focus the reverse-engineering effort.
 
 ## Goal
 
-Reverse-engineer architecture from an **existing codebase** (brownfield) to create ADRs documenting discovered decisions, then **auto-trigger clarification** to validate findings.
+Reverse-engineer architecture from an **existing codebase** (brownfield) to create ADRs documenting discovered decisions, then **validate the findings** by running clarify manually.
 
 **Output**:
 
-1. **ADRs** documenting inferred architectural decisions in `.specify/drafts/adr.md`
-2. **Auto-handoff** to `/architect.clarify` to validate discovered decisions
+1. **ADRs** documenting inferred architectural decisions in `{REPO_ROOT}/.specify/drafts/adr.md`
+2. **Validate Findings**: Run `/architect.clarify` to validate discovered decisions
+
+**IMPORTANT - Path Resolution**:
+
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 **Key Difference from `/architect.specify`**:
 
@@ -64,16 +76,45 @@ You are acting as an **Architecture Archaeologist** uncovering implicit architec
 | **Brownfield** (existing code) | `/architect.init` | Codebase scan | Inferred ADRs |
 | **Greenfield** (new project) | `/architect.specify` | PRD/requirements | Discussed ADRs |
 
+### Rozanski & Woods Alignment
+
+When discovering ADRs from brownfield code, map findings to R&W viewpoints:
+
+| Discovery Area | Primary Viewpoint | What to Look For |
+|---------------|-------------------|------------------|
+| Service structure | **Functional** | Component boundaries, responsibilities |
+| Database schemas | Information | Data entities, relationships |
+| Process/thread code | Concurrency | Runtime units, coordination |
+| Directory structure | Development | Module organization, dependencies |
+| Deployment configs | Deployment | Infrastructure, environments |
+| Monitoring/alerting | Operational | Operations support |
+
+**Functional-as-Cornerstone for Brownfield**:
+Even in brownfield discovery, the **Functional structure is foundational**:
+
+1. **Discover Functional first**: Identify components, services, modules
+2. **Map other discoveries**: Relate data, deployment, operations to functional elements
+3. **Document dependencies**: Note which ADRs affect the Functional view
+
+**Priority order for ADR discovery**:
+1. Architecture Style ADRs (monolith/microservices) → **Functional cornerstone**
+2. Component/Service ADRs → Functional view
+3. Database/Data ADRs → Information view
+4. Infrastructure ADRs → Deployment view
+5. Communication/Async ADRs → Concurrency view
+6. Development/CI ADRs → Development view
+7. Operations ADRs → Operational view
+
 ## Outline
 
 1. **Sub-System Detection** (Phase 0): Identify sub-systems from code structure (auto-detect)
 2. **Codebase Scan**: Analyze project structure and detect technologies (per sub-system if decomposed)
-3. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, team-ai-directives/AGENTS.md if configured, etc.) to avoid repeating
+3. **Documentation Deduplication**: Scan existing docs (README, AGENTS.md, {TEAM_DIRECTIVES}/AGENTS.md if configured, etc.) to avoid repeating
 4. **Pattern Detection**: Identify architectural patterns in use
 5. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered"), organized by sub-system
 6. **Gap Analysis**: Identify areas where decisions are unclear
-7. **Output**: Write ADRs to `.specify/drafts/adr.md` (NO AD.md creation)
-8. **Auto-Handoff**: Trigger `/architect.clarify` to validate brownfield findings
+7. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr.md` (NO AD.md creation)
+8. **Validate Findings**: Run `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
 
@@ -159,6 +200,7 @@ Based on user response:
 | Empty/Default | Auto-proceed if ≤3 sub-systems, ask if >3 |
 
 **Threshold Logic**:
+
 - **≤3 sub-systems**: Auto-approve, show summary
 - **4-6 sub-systems**: Show summary, ask to confirm
 - **>6 sub-systems**: Show summary, suggest grouping, ask to confirm
@@ -180,6 +222,7 @@ After confirmation, output structured sub-system data:
 ```
 
 **If decomposition disabled**:
+
 ```json
 {
   "decomposition": "disabled",
@@ -276,7 +319,7 @@ After confirmation, output structured sub-system data:
 **Scan for**:
 
 - `AGENTS.md` - Project context, overview
-- `team-ai-directives/AGENTS.md` - Team-wide agent usage instructions (if configured)
+- `{TEAM_DIRECTIVES}/AGENTS.md` - Team-wide agent usage instructions (if configured)
 - `README.md` - Tech stack, project description
 - `CONTRIBUTING.md` - Development guidelines
 - `AD.md` or `docs/architecture.md` - Existing architecture
@@ -370,6 +413,47 @@ Legacy/Inferred
    - **ADR-005**: Deployment Platform (serverless vs traditional)
    - **ADR-006**: CI/CD Approach (GitHub Actions vs Jenkins)
    - **Additional**: Any custom/in-house solutions, unusual patterns, risky choices
+
+### Phase 1.5: Quality Requirements Detection
+
+**Objective**: Detect which R&W perspectives apply from codebase evidence
+
+Scan codebase for quality requirement indicators:
+
+| Evidence | Detected Perspective |
+|----------|---------------------|
+| Health checks, circuit breakers, retry logic | Availability |
+| Plugin systems, feature flags, extension points | Evolution |
+| GDPR/HIPAA comments, audit logging, consent tracking | Regulation |
+| ARIA attributes, screen reader support | Accessibility |
+| i18n files, locale handling, translation keys | Internationalization |
+| Multi-region configs, geo-routing, CDN setup | Location |
+| Extensive UI tests, UX research artifacts | Usability |
+| Resource constraints in README, limited CI runners | Development Resource |
+
+**Present detected perspectives for confirmation**:
+```markdown
+## Quality Requirements Detected
+
+Based on codebase analysis, the following quality perspectives may apply:
+
+| Perspective | Evidence Found | Include? |
+|-------------|----------------|----------|
+| Security | Always recommended | ✓ (default) |
+| Performance | Always recommended | ✓ (default) |
+| Availability | Circuit breakers found | [Y/N] |
+| Evolution | Feature flags found | [Y/N] |
+| Regulation | GDPR comments found | [Y/N] |
+| Accessibility | Not detected | [Y/N] |
+| Internationalization | i18n files found | [Y/N] |
+| Location | Multi-region config | [Y/N] |
+| Usability | UI tests found | [Y/N] |
+| Development Resource | Not detected | [Y/N] |
+
+Please confirm which perspectives to document.
+```
+
+Store selected perspectives in state for `/architect.implement`.
 
 4. **Sub-System Organization** (if Phase 0 decomposition enabled):
 
@@ -467,7 +551,7 @@ After scanning, report:
 **Objective**: Write discovered ADRs to file (NO AD.md creation)
 
 1. **Write ADRs**:
-   - Create or update `.specify/drafts/adr.md` with discovered ADRs
+   - Create or update `{REPO_ROOT}/.specify/drafts/adr.md` with discovered ADRs
    - Mark ADRs as "Discovered (Inferred)" status ← USE THIS STATUS
    - Use "Common Alternatives" section with neutral trade-offs (no "Rejected because")
    - Note confidence level for each
@@ -483,11 +567,11 @@ After scanning, report:
    - Gaps identified
    - Assumptions made (to be validated in clarify phase)
 
-### Phase 7: Auto-Handoff to Clarify
+### Phase 7: Validate with Clarify
 
 **Objective**: Validate brownfield findings with user
 
-After generating ADRs, **automatically trigger `/architect.clarify`** with brownfield context:
+After generating ADRs, **run `/architect.clarify`** with brownfield context to validate:
 
 **Questions Clarify Should Ask** (Brownfield-Specific):
 
@@ -512,7 +596,7 @@ After generating ADRs, **automatically trigger `/architect.clarify`** with brown
 }
 ```
 
-The clarify phase will refine ADRs based on your input, then you can run `/architect.implement` to generate the full AD.md.
+Run `/architect.clarify` to refine ADRs based on your input, then run `/architect.implement` to generate the full AD.md.
 
 ## Key Rules
 
@@ -564,31 +648,31 @@ The clarify phase will refine ADRs based on your input, then you can run `/archi
 
 ### After `/architect.init`
 
-**Auto-triggered**: `/architect.clarify` runs immediately to validate findings.
+**Required**: Run `/architect.clarify` to validate brownfield findings.
 
 After clarification completes:
 
-1. **Review Validated ADRs**: Check `.specify/drafts/adr.md` for accuracy
-2. **Run `/architect.implement`**: Generate full AD.md from validated ADRs
-3. **Update As Needed**: Refine documentation as you learn more
+1. **Review Validated ADRs**: Check `{REPO_ROOT}/.specify/drafts/adr.md` for accuracy
+2. **Approve ADRs**: Run `/architect.clarify` Phase 5.5 to change status to "Accepted"
+3. **Run `/architect.implement`**: Generate full AD.md from Accepted ADRs
 
 ### Complete Brownfield Flow
 
-```
+```text
 /architect.init "Node.js API, team of 2"
     ↓
 [Scan codebase] → Detect technologies, patterns
     ↓
-[Generate ADRs] → Write to .specify/drafts/adr.md (marked "Discovered")
+[Generate ADRs] → Write to {REPO_ROOT}/.specify/drafts/adr.md (marked "Discovered")
     ↓
-[Auto-trigger /architect.clarify]
+[Run /architect.clarify] → Ask to validate decisions
     ↓
 [Clarify asks] → "Is microservices decision still valid?"
                  "Custom auth detected - considering OAuth?"
     ↓
-[Update ADRs] → Refined with your validation
+[Approve ADRs] → Phase 5.5 to change status to "Accepted"
     ↓
-[User runs /architect.implement]
+[Run /architect.implement] → Generate AD.md from Accepted ADRs
     ↓
 [Generate AD.md] → Full architecture description
 ```
@@ -604,7 +688,7 @@ After clarification completes:
 
 - **Greenfield projects**: Use `/architect.specify` for new projects
 - **Architecture exists**: If `AD.md` exists, use `/architect.clarify` to refine
-- **Feature-level**: Feature architecture via `/spec.plan --architecture`
+- **Feature-level**: Feature architecture via `before_plan` hook (configured in `.specify/extensions.yml`)
 
 ## Context
 

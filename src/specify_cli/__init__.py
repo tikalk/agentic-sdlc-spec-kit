@@ -110,10 +110,9 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
+        skill_app,
     )
 except ImportError:
-    # Fallback to upstream defaults if cli_customization.py doesn't exist
-    ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
     TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
 
@@ -138,6 +137,9 @@ except ImportError:
 
     def post_init(project_path, selected_ai, tracker=None):
         pass
+
+    # No skill_app in upstream fallback
+    skill_app = None
 
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -1549,6 +1551,7 @@ def init(
 
             if isinstance(resolved_integration, _SkillsPersist):
                 init_opts["ai_skills"] = True
+
             save_init_options(project_path, init_opts)
 
             # Install preset if specified
@@ -1893,6 +1896,10 @@ preset_catalog_app = typer.Typer(
     add_completion=False,
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
+
+# Skill commands (Tikalk fork - may be None in upstream)
+if skill_app is not None:
+    app.add_typer(skill_app, name="skill")
 
 
 def get_speckit_version() -> str:

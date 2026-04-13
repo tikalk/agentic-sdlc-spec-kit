@@ -16,7 +16,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_implement` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter to only hooks where `enabled: true`
@@ -45,13 +45,29 @@ You **MUST** consider the user input before proceeding (if not empty).
     
     Wait for the result of the hook command before proceeding to the Outline.
     ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
 **Focus:** Comprehensive implementation with full validation
 
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory or write to project root**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- All required files (tasks.md, plan.md, spec.md) should be in `./specs/<BRANCH>/` NOT root
+- Common mistakes:
+  - Reading from `./tasks.md` instead of `./specs/<BRANCH>/tasks.md`
+  - Writing implementation files to root instead of feature directory
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+- Without this, FEATURE_DIR will resolve to the wrong location
 
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
@@ -183,7 +199,7 @@ You **MUST** consider the user input before proceeding (if not empty).
        - Confirm the implementation follows the technical plan
        - Report final status with comprehensive summary of completed work
 
- 9. **Check for extension hooks**: After completion validation, check if `.specify/extensions.yml` exists in the project root.
+  9. **Check for extension hooks**: After completion validation, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_implement` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter to only hooks where `enabled: true`
@@ -210,7 +226,7 @@ You **MUST** consider the user input before proceeding (if not empty).
         Executing: `/{command}`
         EXECUTE_COMMAND: {command}
         ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
 

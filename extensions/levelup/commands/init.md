@@ -230,19 +230,19 @@ After confirmation, output structured sub-system data:
 
 Run `{SCRIPT}` to set up the infrastructure:
 
-- Creates skills drafts directory at `.specify/drafts/skills/`
+- Creates skills drafts directory at `{REPO_ROOT}/.specify/drafts/skills/`
 - Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-The `.specify/drafts/cdr.md` file will be created in the project directory.
+The `{REPO_ROOT}/.specify/drafts/cdr.md` file will be created in the project directory.
 
 #### Step 2: Setup Directories
 
 Run `{SCRIPT}` to set up the infrastructure:
 
-- Creates skills drafts directory at `.specify/drafts/skills/`
+- Creates skills drafts directory at `{REPO_ROOT}/.specify/drafts/skills/`
 - Returns JSON with `TEAM_DIRECTIVES`, `REPO_ROOT`
 
-The `.specify/drafts/cdr.md` file will be created in the project directory.
+The `{REPO_ROOT}/.specify/drafts/cdr.md` file will be created in the project directory.
 
 ### Phase 4: Load Existing Directives
 
@@ -464,7 +464,7 @@ Document gaps for `/levelup.clarify`:
 
 Add proposed CDRs to `{REPO_ROOT}/.specify/drafts/cdr.md`:
 
-- Create `.specify/memory/` directory if it doesn't exist
+- Create `{REPO_ROOT}/.specify/memory/` directory if it doesn't exist
 - Use the CDR template format (markdown with CDR index table)
 - Add new CDRs with unique IDs (CDR-001, CDR-002, etc.)
 - Do not overwrite existing accepted/active CDRs
