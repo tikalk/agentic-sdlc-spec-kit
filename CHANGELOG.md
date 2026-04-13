@@ -5,6 +5,23 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
+## [0.4.2] - 2026-04-13
+
+### Changed
+
+- **Upstream merge**: Merged 29 upstream commits from github/spec-kit (v0.6.2 release + v0.6.3.dev0)
+- **Theme**: Fixed banner to use orange BANNER_COLORS instead of hardcoded blue/cyan
+- **New agents**: Added Goose AI agent support and cursor-agent skill mode
+- **Lean preset**: New minimal workflow preset with constitution, specify, plan, tasks, implement commands
+- **Git extension**: Improved auto-commit and feature branch workflow
+- **Catalog updates**: Added Worktrees, What-if Analysis, GitHub Issues Integration to community catalog
+
+### Fixed
+
+- **CLI hooks**: Restored --team-ai-directives parameter and pre_init/post_init hook calls
+- **Missing functions**: Added sync_team_ai_directives and _run_git_command functions
+- **Theme consistency**: Banner now uses BANNER_COLORS from cli_customization.py
+
 ## [0.4.0] - 2026-04-09
 
 ### Changed
