@@ -77,6 +77,34 @@ This field indicates what type of product decision this PDR represents.
 |--------|--------|-------------------|
 | [Metric name] | [Target value] | [How to measure] |
 
+### Eval Criteria
+
+> **NOTE:** This section enables the eval-as-spec paradigm. Eval criteria transform PDRs into actionable specifications for AI agents. See [PDR-065](./pdr.md#pdr-065-eval-criteria-section-in-pdr-template) for context.
+
+**Pass Condition:**
+[Precise spec constraint that defines success - must be measurable and automated]
+
+**Fail Condition:**
+[Precise spec violation that defines failure - binary, not scale]
+
+**Failure Type:**
+- `specification_failure`: → fix directive (issue is in spec, not implementation)
+- `generalization_failure`: → build evaluator (issue is model/agent capability)
+
+**Evaluation Method:**
+- `algorithmic`: (string matching, format validation, regex, SQL syntax)
+- `llm-judge`: (semantic quality assessment with golden examples)
+- `human`: (manual review required - only for deeply subjective cases)
+
+**Eval Dimensions** *(optional)*:
+
+| Dimension | What It Measures | Target |
+|-----------|------------------|--------|
+| correctness | Does output meet requirements? | >90% |
+| efficiency | Time/tokens to completion | <budget |
+| style | Code quality, conventions | >80% |
+| safety | Security, no harmful outputs | 100% |
+
 ### Alternatives Considered
 
 #### Option A: [Alternative Name]

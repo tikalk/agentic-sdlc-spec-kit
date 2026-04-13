@@ -3,12 +3,6 @@ description: Interactive PRD exploration and system-level ADR creation (greenfie
 scripts:
   sh: scripts/bash/setup-architect.sh "specify {ARGS}"
   ps: scripts/powershell/setup-architect.ps1 "specify {ARGS}"
----
-
-    send: false
-scripts:
-  sh: scripts/bash/setup-architecture.sh "specify {ARGS}"
-  ps: scripts/powershell/setup-architecture.ps1 "specify {ARGS}"
 agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__

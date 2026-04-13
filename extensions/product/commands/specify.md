@@ -3,12 +3,6 @@ description: Interactive PRD exploration and Product Decision Record creation (g
 scripts:
   sh: scripts/bash/setup-product.sh "specify {ARGS}"
   ps: scripts/powershell/setup-product.ps1 "specify {ARGS}"
----
-
-    send: false
-scripts:
-  sh: scripts/bash/setup-product.sh "specify {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "specify {ARGS}"
 agent_scripts:
   sh: scripts/bash/update-agent-context.sh __AGENT__
   ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__

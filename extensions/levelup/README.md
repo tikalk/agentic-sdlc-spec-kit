@@ -16,6 +16,7 @@ The LevelUp extension helps brownfield projects analyze their codebase and contr
 | `/levelup.skills` | Build a single skill from accepted CDRs |
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
 | `/levelup.trace` | Generate and validate AI session execution traces |
+| `/levelup.validate` | Scan team-ai-directives for rule conflicts |
 
 ## Quick Start
 
@@ -91,6 +92,34 @@ CDRs define:
 | **Accepted** | Approved for implementation |
 | **Rejected** | Not approved (reason documented in CDR) |
 
+## Skill Types Taxonomy
+
+When discovering skills, classify them using Anthropic's 9-category taxonomy from "Lessons from Building Claude Code: How We Use Skills". This helps teams build better skills by guiding CDR classification during discovery.
+
+| Type | Purpose | Example Triggers |
+|------|---------|------------------|
+| **Library & API Reference** | Documentation and API usage guidance | "how do I use X library", "API for Y service" |
+| **Product Verification** | Testing and validation of product behavior | "verify product", "check behavior", "validate output" |
+| **Data Fetching & Analysis** | Data retrieval and processing | "fetch data", "analyze logs", "query database" |
+| **Business Process Automation** | Workflow and business process automation | "automate process", "workflow", "orchestrate" |
+| **Code Scaffolding & Templates** | Project and code generation | "create project", "scaffold", "generate boilerplate" |
+| **Code Quality & Review** | Code review and quality improvement | "review code", "quality check", "refactor" |
+| **CI/CD & Deployment** | Build, test, and deployment pipelines | "deploy", "CI/CD pipeline", "build artifact" |
+| **Runbooks** | Operational procedures and troubleshooting | "troubleshoot", "runbook", "incident response" |
+| **Infrastructure Operations** | Infrastructure as Code and provisioning | "provision", "infrastructure", "terraform", "kubernetes" |
+
+### When to Use Each Type
+
+- **Library & API Reference**: When the skill provides documentation or guidance for using a specific library or API
+- **Product Verification**: When the skill checks or validates product behavior against expected outputs
+- **Data Fetching & Analysis**: When the skill retrieves, processes, or analyzes data from external sources
+- **Business Process Automation**: When the skill orchestrates multi-step workflows or business processes
+- **Code Scaffolding & Templates**: When the skill generates project structure or code templates
+- **Code Quality & Review**: When the skill reviews code quality or suggests improvements
+- **CI/CD & Deployment**: When the skill handles building, testing, or deploying applications
+- **Runbooks**: When the skill provides troubleshooting or operational guidance
+- **Infrastructure Operations**: When the skill manages infrastructure provisioning or configuration
+
 ## Configuration
 
 ### Team AI Directives Path
@@ -132,31 +161,34 @@ pull_request:
 ```
 levelup.init          levelup.clarify        levelup.skills        levelup.implement
 (Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶ (Create PR)
-     │                      │                      │                      │
-     │    [handoff]         │    [handoff]         │                      │
-     └──▶ levelup.specify ◀────┘                      │                      │
-           (Refine from                             │                      │
-            feature context)                        │                      │
-                                                     │                      │
-                    ┌───────────────────────────────┘                      │
-                    │                                                      │
-                    ▼                                                      │
-             levelup.trace ◀───────────────────────────────────────────────┘
-             (Generate Trace)
-                    │
-                    │ [handoff]
-                    ▼
-             levelup.specify
-             (Extract CDRs with
-              trace enrichment)
-```
-levelup.init          levelup.clarify        levelup.skills        levelup.implement
-(Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶  (Create PR)
-     │                      │                      │                      │
-     │    [handoff]         │    [handoff]         │                      │
-     └──▶ levelup.specify ◀────┘                      │                      │
-          (Refine from                             │                      │
-           feature context)                        │                      │
+      │                      │                      │                      │
+      │    [handoff]         │    [handoff]         │                      │
+      └──▶ levelup.specify ◀────┘                      │                      │
+            (Refine from                             │                      │
+             feature context)                        │                      │
+                                                      │                      │
+                     ┌───────────────────────────────┘                      │
+                     │                                                      │
+                     ▼                                                      │
+              levelup.trace ◀───────────────────────────────────────────────┘
+              (Generate Trace)
+                     │
+                     │ [handoff]
+                     ▼
+              levelup.specify
+              (Extract CDRs with
+               trace enrichment)
+
+      ┌──────────────────────────────────────────────────────┐
+      │                                                      │
+      ▼                                                      │
+levelup.validate ◀────────────────────────────────────────────┘
+(Scan for Conflicts)
+      │
+      │ [creates CDRs]
+      ▼
+levelup.clarify
+(Resolve conflicts)
 ```
 
 ## Related Issues

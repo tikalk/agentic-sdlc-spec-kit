@@ -5,7 +5,7 @@ All notable changes to the Specify CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
 
-## [0.3.0] - 2026-03-30
+## [0.3.12] - 2026-04-12
 
 ### Added
 
@@ -20,6 +20,216 @@ and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.
   - **Production-Ready**: Complete validation pipeline, error handling, and production loop closure
   - **8 Commands**: `init`, `specify`, `clarify`, `analyze`, `implement`, `validate`, `levelup`, `tasks`
   - **Comprehensive Documentation**: 190+ section README with architecture guide, examples, and troubleshooting
+
+## [0.3.11] - 2026-04-04
+
+### Added
+
+- **cli_customization.py**: Isolated all fork customizations into a single module to minimize merge conflicts with upstream
+- **accent() helper**: New function for consistent theming without hardcoding color values
+- **accent_style() helper**: New function for Rich style= parameters
+- **FORK.md**: Documentation for maintaining the fork and merging upstream
+
+### Changed
+
+- **Extension namespace configuration**: Now reads from cli_customization.py for configurable command namespaces
+- **Package name detection**: Uses PKG_NAMES from cli_customization.py (fork package checked first)
+- **Import pattern**: Uses try/except to import customizations with upstream defaults as fallback
+
+### Fixed
+
+- **Extension patterns**: EXTENSION_COMMAND_NAME_PATTERN and EXTENSION_ALIAS_NAME_PATTERN now dynamically built from configuration
+
+## [0.3.13] - 2026-04-04
+
+### Fixed
+
+- **Extension command registration**: Fixed bundled extensions not registering commands to agent command directories (e.g., `.opencode/command/`)
+
+## [0.3.14] - 2026-04-04
+
+### Fixed
+
+- **Preset command registration**: Fixed bundled presets not registering command overrides to agent command directories
+
+## [0.3.15] - 2026-04-05
+
+### Added
+
+- **LevelUp clarify enhancements**: Added system-discovered assessments and recommended actions
+  - Phase 0: Pre-Validation for CDR completeness checks
+  - Phase 3: System Auto-Assessment (Validity, Scope, Coverage, Priority)
+  - Phase 4: Batch overview with recommended actions table
+  - Phase 5: One-CDR-at-a-time with recommended answer format matching /spec.clarify UX
+
+## [0.3.16] - 2026-04-06
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (8 commits)
+  - Add Confluence extension
+  - Add optimize extension to community catalog
+  - Add VS Code Ask Questions preset
+  - Add security-review v1.1.1 to community extensions catalog
+  - fix: serialize multiline descriptions in legacy TOML renderer
+  - fix: strip YAML frontmatter from TOML integration prompts
+  - fix: accept 4+ digit spec numbers in tests and docs
+  - fix(scripts): improve git branch creation error handling
+
+### Changed
+
+- **CLI branding**: Updated intro banner tagline to reflect fork identity
+- **TAGLINE moved**: Now imported from cli_customization.py for consistency
+
+### Preserved
+
+- All tikalk-specific features maintained:
+  - Orange branding theme (#f47721)
+  - --team-ai-directives CLI parameter
+  - Bundled extensions (levelup, architect, quick, product, tdd)
+  - Bundled presets (agentic-sdlc)
+
+## [0.3.12] - 2026-04-04
+
+### Fixed
+
+- **Bundled extensions installation**: Fixed bug where scaffolded extensions were deleted during install (TDD and other extensions now properly install during `specify init`)
+- **Bundled presets installation**: Fixed PresetManifest instantiation (was incorrectly using `.load()` class method)
+
+### Changed
+
+- **pre_init/post_init hooks**: Moved bundled extensions and presets installation to `cli_customization.py` hooks
+- **Direct registry registration**: Extensions/presets are now registered directly after scaffolding instead of using `install_from_directory()` which caused destructive delete
+
+## [0.3.10] - 2026-04-04
+
+### Added
+
+- **tdd extension to wheel**: Added tdd extension to wheel and sdist includes (was missing from bundled extensions)
+- **--team-ai-directives flag**: New CLI option to specify path or URL for team-ai-directives repository
+
+### Fixed
+
+- **Team AI directives sync**: Now properly syncs during init when --team-ai-directives is provided
+
+## [0.3.9] - 2026-04-04
+
+### Fixed
+
+- **PowerShell dry-run specs dir**: Only create specs/ directory when NOT in dry-run mode
+- **PowerShell null template path**: Handle null template path in context-template resolution to prevent `Test-Path` errors
+
+## [0.3.8] - 2026-04-04
+
+### Fixed
+
+- **PowerShell discovery-functions syntax**: Removed stray `]` character causing `Unexpected token ']'` parser error in `discovery-functions.ps1`
+
+### Changed
+
+- **Package description**: Updated pyproject.toml description to reflect tikalk fork branding
+- **Repository description**: Updated GitHub About to "🐙 Agentic SDLC toolkit for Spec-Driven Development with bundled extensions and AI agent support"
+
+## [0.3.7] - 2026-04-04
+
+### Fixed
+
+- **PowerShell test fixture**: Added missing `discovery-functions.ps1` to test fixture so PowerShell dry-run tests pass in CI
+- **Extension install reporting**: Now shows both installed AND skipped extensions (previously skipped extensions were silently hidden when others succeeded)
+
+### Changed
+
+- Extension install output now sorted alphabetically for consistency
+
+## [0.3.6] - 2026-04-04
+
+### Fixed
+
+- **PowerShell discovery-functions path**: Fixed dot-source of `discovery-functions.ps1` to use `$PSScriptRoot` instead of relative path, enabling the script to run correctly when invoked from any directory or when copied to temp directories in CI
+
+## [0.3.5] - 2026-04-04
+
+### Changed
+
+- **Full tikalk theming restored**: Converted all `[cyan]` color markup to use `ACCENT_COLOR` (#f47721 tikalk orange) for consistent branding across:
+  - Selection menus (table columns, key highlighting, panel borders)
+  - Init messages (git, JSON merge, permissions, constitution)
+  - Setup and Next Steps panels (titles, borders, all commands)
+  - Integration/preset/extension commands (install, list, info hints)
+  - Error recovery suggestions and security notices
+
+## [0.3.4] - 2026-04-04
+
+### Fixed
+
+- **Extension command patterns**: Allow `adlc.` prefix in addition to `speckit.` for extension command names
+- **Extension alias patterns**: Allow shorter `{extension}.{command}` format for aliases (e.g., `architect.init`)
+
+## [0.3.3] - 2026-04-04
+
+### Fixed
+
+- **PowerShell positional args**: Added `Position=0` to `FeatureDescription` parameter and removed `[Parameter()]` from `Number` to ensure positional arguments bind correctly
+
+## [0.3.2] - 2026-04-04
+
+### Fixed
+
+- **PowerShell script syntax**: Moved dot-source of `discovery-functions.ps1` after the `param()` block in `create-new-feature.ps1` (PowerShell requires param to be the first executable statement)
+
+## [0.3.1] - 2026-04-04
+
+### Added
+
+- **Bundled extensions auto-install**: `install_bundled_extensions()` function now automatically installs bundled extensions (levelup, architect, quick, product) during `specify init`
+- **Bundled presets auto-install**: `install_bundled_presets()` function now automatically installs the agentic-sdlc preset during `specify init`
+- **SPECKIT_SKIP_BUNDLED env var**: Set to skip bundled extension/preset installation (used by tests)
+
+### Changed
+
+- **StepTracker theming**: Restored tikalk orange (`ACCENT_COLOR`) theming for tree title and running step indicator
+- **Init tracker steps**: Added "extensions" and "presets" progress steps to init workflow
+
+### Fixed
+
+- **Test determinism**: File inventory tests now use `SPECKIT_SKIP_BUNDLED=1` to prevent bundled assets from affecting expected file lists
+
+## [0.3.0] - 2026-04-04
+
+### Added
+
+- **Upstream merge (v0.5.0)**: Integrated upstream spec-kit changes including:
+  - New integration plugin architecture with 30+ AI agent integrations
+  - Forge agent support
+  - Claude skills mode (`--ai-skills` for Claude)
+  - `--dry-run` flag for `create-new-feature.sh` to preview branch names without side effects
+  - DEVELOPMENT.md documentation
+  - Stage 5/6 skills migration support
+
+### Changed
+
+- **Integration architecture**: Agents now use modular `src/specify_cli/integrations/` structure
+- **Tikalk theme**: Preserved tikalk orange accent colors (`#f47721`) and banner styling
+- **Package name priority**: `agentic-sdlc-specify-cli` is now checked before `specify-cli` for version detection
+- **Team directives**: Added `sync_team_ai_directives()` function for repository-based directive syncing
+
+### Fixed
+
+- **Dry-run mode**: Fixed specs directory creation during dry-run (now properly skipped)
+- **Test fixtures**: Updated file inventory tests to include tikalk-specific scripts
+
+## [0.2.4] - 2026-04-01
+
+### Changed
+
+- **LevelUp clarify DX improvements**:
+  - Cap at 5 CDRs per session (mirrors SPEC KIT pattern)
+  - Sequential one-CDR-at-a-time (replaces batch questioning)
+  - Bulk actions FIRST (Accept All / Reject All / Individual)
+  - Auto-skip coverage questions if no TEAM_DIRECTIVES
+  - Early exit support ("stop", "done", "skip remaining")
+  - Dynamic question limit (10 if TEAM_DIRECTIVES exists, 5 if not)
+- **LevelUp extension**: Version bumped to 1.1.0
 
 ## [0.2.1] - 2026-03-28
 
@@ -454,6 +664,58 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.5.0] - 2026-04-02
+
+### Changed
+
+- Introduces DEVELOPMENT.md (#2069)
+- Update cc-sdd reference to cc-spex in Community Friends (#2007)
+- chore: release 0.4.5, begin 0.4.6.dev0 development (#2064)
+
+## [0.4.5] - 2026-04-02
+
+### Changed
+
+- Stage 6: Complete migration — remove legacy scaffold path (#1924) (#2063)
+- Install Claude Code as native skills and align preset/integration flows (#2051)
+- Add repoindex 0402 (#2062)
+- Stage 5: Skills, Generic & Option-Driven Integrations (#1924) (#2052)
+- feat(scripts): add --dry-run flag to create-new-feature (#1998)
+- fix: support feature branch numbers with 4+ digits (#2040)
+- Add community content disclaimers (#2058)
+- docs: add community extensions website link to README and extensions docs (#2014)
+- docs: remove dead Cognitive Squad and Understanding extension links and from extensions/catalog.community.json (#2057)
+- Add fix-findings extension to community catalog (#2039)
+- Stage 4: TOML integrations — gemini and tabnine migrated to plugin architecture (#2050)
+- feat: add 5 lifecycle extensions to community catalog (#2049)
+- Stage 3: Standard markdown integrations — 19 agents migrated to plugin architecture (#2038)
+- chore: release 0.4.4, begin 0.4.5.dev0 development (#2048)
+
+## [0.4.4] - 2026-04-01
+
+### Changed
+
+- Stage 2: Copilot integration — proof of concept with shared template primitives (#2035)
+- docs: sync AGENTS.md with AGENT_CONFIG for missing agents (#2025)
+- docs: ensure manual tests use local specify (#2020)
+- Stage 1: Integration foundation — base classes, manifest system, and registry (#1925)
+- fix: harden GitHub Actions workflows (#2021)
+- chore: use PEP 440 .dev0 versions on main after releases (#2032)
+- feat: add superpowers bridge extension to community catalog (#2023)
+- feat: add product-forge extension to community catalog (#2012)
+- feat(scripts): add --allow-existing-branch flag to create-new-feature (#1999)
+- fix(scripts): add correct path for copilot-instructions.md (#1997)
+- Update README.md (#1995)
+- fix: prevent extension command shadowing (#1994)
+- Fix Claude Code CLI detection for npm-local installs (#1978)
+- fix(scripts): honor PowerShell agent and script filters (#1969)
+- feat: add MAQA extension suite (7 extensions) to community catalog (#1981)
+- feat: add spec-kit-onboard extension to community catalog (#1991)
+- Add plan-review-gate to community catalog (#1993)
+- chore(deps): bump actions/deploy-pages from 4 to 5 (#1990)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action from 19 to 23 (#1989)
+- chore: bump version to 0.4.3 (#1986)
 
 ## [0.4.3] - 2026-03-26
 

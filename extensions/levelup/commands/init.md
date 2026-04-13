@@ -339,6 +339,29 @@ For each discovered pattern, classify:
 | Fundamental principle, governance | **Constitution** |
 | Self-contained capability, workflow | **Skill** |
 
+#### Skill Type Classification
+
+For skill-type CDRs, classify using Anthropic's 9-category taxonomy:
+
+| Type | Purpose | Example Triggers |
+|------|---------|------------------|
+| **Library & API Reference** | Documentation and API usage | "how do I use X", "API for Y" |
+| **Product Verification** | Testing and validation | "verify product", "check behavior" |
+| **Data Fetching & Analysis** | Data retrieval and processing | "fetch data", "analyze logs" |
+| **Business Process Automation** | Workflow automation | "automate process", "workflow" |
+| **Code Scaffolding & Templates** | Project generation | "create project", "scaffold" |
+| **Code Quality & Review** | Review and quality checks | "review code", "quality check" |
+| **CI/CD & Deployment** | Build and deployment | "deploy", "CI/CD pipeline" |
+| **Runbooks** | Operational procedures | "troubleshoot", "runbook" |
+| **Infrastructure Operations** | IaC and infrastructure | "provision", "infrastructure" |
+
+**Classification Process**:
+
+1. Analyze the skill's primary purpose
+2. Match to the most appropriate taxonomy category
+3. Present recommendation to user for confirmation
+4. Include the selected type in the CDR
+
 #### Heuristic Application
 
 Apply the `--cdr-heuristic` setting:
@@ -391,6 +414,9 @@ Brownfield codebase scan via /levelup.init
 
 ### Context Type
 {Rule|Persona|Example|Constitution Amendment|Skill}
+
+### Skill Type
+{Required if Context Type = Skill: Library & API Reference | Product Verification | Data Fetching & Analysis | Business Process Automation | Code Scaffolding & Templates | Code Quality & Review | CI/CD & Deployment | Runbooks | Infrastructure Operations}
 
 ### Context
 {Description of the pattern and why it was discovered}
