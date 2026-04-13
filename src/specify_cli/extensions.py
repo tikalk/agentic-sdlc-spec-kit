@@ -55,6 +55,8 @@ if EXTENSION_ALIAS_PATTERN_ENABLED:
 else:
     EXTENSION_ALIAS_NAME_PATTERN = None
 
+REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"
+
 
 def _load_core_command_names() -> frozenset[str]:
     """Discover bundled core command names from the packaged templates.
@@ -1936,6 +1938,14 @@ class ExtensionCatalog:
         if not ext_info:
             raise ExtensionError(f"Extension '{extension_id}' not found in catalog")
 
+        # Bundled extensions without a download URL must be installed locally
+        if ext_info.get("bundled") and not ext_info.get("download_url"):
+            raise ExtensionError(
+                f"Extension '{extension_id}' is bundled with spec-kit and has no download URL. "
+                f"It should be installed from the local package. "
+                f"Try reinstalling: {REINSTALL_COMMAND}"
+            )
+
         download_url = ext_info.get("download_url")
         if not download_url:
             raise ExtensionError(f"Extension '{extension_id}' has no download URL")
@@ -2249,6 +2259,7 @@ class HookExecutor:
             init_options.get("ai_skills")
         )
         kimi_skill_mode = selected_ai == "kimi"
+        cursor_skill_mode = selected_ai == "cursor-agent" and bool(init_options.get("ai_skills"))
 
         skill_name = self._skill_name_from_command(command_id)
         if codex_skill_mode and skill_name:
@@ -2257,6 +2268,8 @@ class HookExecutor:
             return f"/{skill_name}"
         if kimi_skill_mode and skill_name:
             return f"/skill:{skill_name}"
+        if cursor_skill_mode and skill_name:
+            return f"/{skill_name}"
 
         return f"/{command_id}"
 

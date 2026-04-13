@@ -1,11 +1,11 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.4.0"
+version = "0.4.2"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
-    "typer",
-    "click>=8.1",
+    "typer>=0.24.0",
+    "click>=8.2.1",
     "rich",
     "platformdirs",
     "readchar",
@@ -47,6 +47,8 @@ packages = ["src/specify_cli"]
 "scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
 # Bundled extensions (installable via `specify extension add <name>`)
 "extensions/git" = "specify_cli/core_pack/extensions/git"
+# Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
+"presets/lean" = "specify_cli/core_pack/presets/lean"
 
 [tool.hatch.build.targets.sdist]
 include = [
