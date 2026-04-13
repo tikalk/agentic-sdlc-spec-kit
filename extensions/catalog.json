@@ -20,7 +20,7 @@
     "tdd": {
       "id": "tdd",
       "name": "TDD - Test-Driven Development Workflow",
-      "version": "1.0.0",
+      "version": "1.0.2",
       "preinstall": true,
       "description": "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation.",
       "author": "Agentic SDLC Team",

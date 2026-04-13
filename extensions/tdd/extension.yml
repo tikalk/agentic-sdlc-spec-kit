@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "tdd"
   name: "TDD - Test-Driven Development Workflow"
-  version: "1.0.1"
+  version: "1.0.2"
   description: "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -60,15 +60,25 @@ handoffs:
 
 # Extension hooks for automatic execution
 hooks:
+  after_plan:
+    command: "adlc.tdd.plan"
+    optional: true
+    description: "TDD planning phase - answer 5 questions about interface, behaviors, and testability"
+    
   after_tasks:
     command: "adlc.tdd.tasks"
     optional: false
     description: "Generate hybrid TDD tests after tasks.md created"
     
-  after_implement:
+  before_implement:
     command: "adlc.tdd.implement"
     optional: false
-    description: "Execute TDD workflow after implementation completes"
+    description: "Execute RED→GREEN→REFACTOR TDD cycle before implementation"
+    
+  after_implement:
+    command: "adlc.tdd.validate"
+    optional: true
+    description: "Validate test quality: coverage, isolation, anti-patterns"
 
 tags:
   - "tdd"

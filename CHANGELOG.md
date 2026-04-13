@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.48] - 2026-04-13
+
+### Added
+
+- **TDD extension hooks**: Added `after_plan` hook for `tdd.plan` command (optional)
+- **TDD extension hooks**: Added `after_implement` hook for `tdd.validate` command (optional)
+
+### Changed
+
+- **TDD extension hooks**: `tdd.implement` now triggers on `before_implement` instead of `after_implement` - ensures TDD cycle runs BEFORE implementation (RED→GREEN→REFACTOR)
+- **Hook re-registration fix**: Fixed bug where hooks weren't updated when extension.yml was modified
+  - Now compares both version AND manifest hash to trigger re-registration
+  - This ensures hooks get updated when extension.yml changes, even if version wasn't bumped
+
 ## [0.3.47] - 2026-04-13
 
 ### Fixed

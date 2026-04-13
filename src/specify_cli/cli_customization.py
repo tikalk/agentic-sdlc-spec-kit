@@ -448,10 +448,17 @@ def _install_bundled_extensions(
 
                 existing = registry.get(ext_name)
                 existing_version = existing.get("version", "0") if existing else "0"
+                existing_hash = existing.get("manifest_hash", "") if existing else ""
 
                 try:
-                    if Version(manifest.version) > Version(existing_version):
-                        # Update to newer version - re-register commands/skills/hooks
+                    new_hash = manifest.get_hash()
+                    version_changed = Version(manifest.version) > Version(
+                        existing_version
+                    )
+                    hash_changed = new_hash != existing_hash
+
+                    if version_changed or hash_changed:
+                        # Update to newer version or manifest changed - re-register commands/skills/hooks
                         registered_commands = (
                             registrar.register_commands_for_all_agents(
                                 manifest, ext_dir, project_path
@@ -468,7 +475,7 @@ def _install_bundled_extensions(
                             ext_name,
                             {
                                 "version": manifest.version,
-                                "manifest_hash": manifest.get_hash(),
+                                "manifest_hash": new_hash,
                                 "registered_commands": registered_commands,
                                 "registered_skills": registered_skills,
                             },
