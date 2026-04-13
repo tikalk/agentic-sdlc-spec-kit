@@ -132,35 +132,34 @@ def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
     This function handles the fork's command naming conventions where:
     - Commands with "adlc." prefix should become /adlc-{command} (not /speckit-adlc-{command})
     - Commands with "spec." alias prefix should become /spec-{command} (not /speckit-spec-{command})
+    - Extension commands like "speckit.test-ext.hello" still get the "speckit-" prefix
 
     Args:
-        cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution")
+        cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution", "speckit.test-ext.hello")
         agent_config: Agent configuration dict
 
     Returns:
-        The output name for the skill file (e.g., "adlc-spec-constitution" or "spec-constitution")
+        The output name for the skill file (e.g., "adlc-spec-constitution", "spec-constitution", or "speckit-test-ext-hello")
     """
     if agent_config.get("extension") != "/SKILL.md":
         return cmd_name
 
-    short_name = cmd_name
-
     # Check if command starts with a fork-specific namespace
+    # These should NOT get the "speckit-" prefix
     for namespace in FORK_COMMAND_NAMESPACES:
         prefix = f"{namespace}."
-        if short_name.startswith(prefix):
-            # Strip the namespace prefix and use the short form
-            short_name = short_name[len(prefix) :]
-            break
-    else:
-        # For non-fork commands (e.g., speckit.specify), strip "speckit." prefix
-        if short_name.startswith("speckit."):
-            short_name = short_name[len("speckit.") :]
+        if cmd_name.startswith(prefix):
+            # Replace dots with dashes directly (e.g., "adlc.spec.constitution" -> "adlc-spec-constitution")
+            return cmd_name.replace(".", "-")
 
-    # Replace dots with dashes
-    short_name = short_name.replace(".", "-")
+    # For non-fork commands (e.g., speckit.test-ext.hello), use upstream behavior
+    # Strip "speckit." prefix and add "speckit-" back
+    if cmd_name.startswith("speckit."):
+        short_name = cmd_name[len("speckit.") :]
+        return f"speckit-{short_name.replace('.', '-')}"
 
-    return short_name
+    # Fallback for any other commands (shouldn't normally hit this)
+    return cmd_name.replace(".", "-")
 
 
 # ============================================================================
