@@ -125,6 +125,5 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 **Integration with Architecture:**
 
 - System-level ADRs go in `.specify/memory/adr.md`
-- Feature-level ADRs go in `specs/{feature}/adr.md`
-- Feature ADRs should reference relevant system ADRs: "Aligns with ADR-XXX"
-- Conflicts with system ADRs should be flagged as VIOLATION
+- System-level ADRs should reference the Architecture Description (AD.md)
+- This template is for system-level architectural decisions only

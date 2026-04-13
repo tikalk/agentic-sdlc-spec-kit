@@ -27,7 +27,7 @@ The Architect extension provides a complete workflow for documenting and maintai
 ```bash
 /architect.init        # Discover ADRs from code
 /architect.clarify     # Validate discovered ADRs
-/architect.implement   # Generate AD.md
+/architect.implement   # Generate AD.md (uses DAG orchestration)
 /architect.analyze     # Verify consistency
 ```
 
@@ -36,13 +36,64 @@ The Architect extension provides a complete workflow for documenting and maintai
 ```bash
 /architect.specify     # Create ADRs from PRD
 /architect.clarify     # Refine ADRs
-/architect.implement   # Generate AD.md
+/architect.implement   # Generate AD.md (uses DAG orchestration)
 /architect.analyze     # Verify consistency
 ```
 
+## Multi-Agent DAG Orchestration (v1.1.0)
+
+The `/architect.implement` command uses a three-phase DAG orchestration approach:
+
+### Phase 1: Plan
+
+- Analyzes ADRs and detects sub-systems from the ADR index table
+- Generates customized DAG per sub-system based on characteristics
+- Presents execution plan for user approval
+- Saves approved plan to `.specify/architect/state.json`
+
+### Phase 2: Execute
+
+- Generates views per sub-system following the DAG order
+- Passes dependency context between views (e.g., Context → Functional → Information)
+- Writes per-view outputs to `.specify/architect/views/{subsystem}/{view}.md`
+- Updates progress in state.json for resumability
+
+### Phase 3: Summarize
+
+- Reads all view files from all sub-systems
+- Detects and resolves cross-subsystem conflicts using ADRs as source of truth
+- Aggregates into unified AD.md
+- Applies Security and Performance perspectives
+- Moves Accepted ADRs to canonical location
+
+### DAG Customization Rules
+
+| Sub-system Pattern | DAG Modification |
+|-------------------|------------------|
+| Serverless | Deployment view first |
+| Event-driven | Include Concurrency view |
+| Data-intensive | Information view priority |
+| Microservices | Expanded Functional view |
+| Monolith | Simplified Functional, skip Concurrency |
+
+### State Persistence
+
+The DAG workflow persists state to `.specify/architect/state.json`, enabling:
+
+- **Resumability**: Continue from any interruption
+- **Multi-agent compatibility**: Works with Claude, Copilot, Cursor, etc.
+- **Progress tracking**: View-level granularity
+
+### View Templates
+
+Located in `templates/views/` and `templates/perspectives/`:
+
+- 7 view templates (context, functional, information, concurrency, development, deployment, operational)
+- 2 perspective templates (security, performance)
+
 ## Command Flow
 
-```
+```text
 Brownfield:   /architect.init --> /architect.clarify --> /architect.implement --> /architect.analyze
                                          ^                        |                        |
                                          +------------------------+------------------------+
@@ -232,7 +283,7 @@ The Architecture Description follows Rozanski & Woods with 7 viewpoints:
 
 Architecture works with specification commands via extension hooks:
 
-```
+```text
 /architect.specify --> /architect.clarify --> /architect.implement
                                                       |
                                                       v

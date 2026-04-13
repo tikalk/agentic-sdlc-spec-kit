@@ -404,7 +404,17 @@ class CommandRegistrar:
     def _compute_output_name(
         agent_name: str, cmd_name: str, agent_config: Dict[str, Any]
     ) -> str:
-        """Compute the on-disk command or skill name for an agent."""
+        """Compute the on-disk command or skill name for an agent.
+
+        Uses fork-specific naming when available, falling back to upstream behavior.
+        """
+        # Try to use fork-specific function first (if in fork)
+        from specify_cli import compute_skill_output_name
+
+        if compute_skill_output_name is not None:
+            return compute_skill_output_name(cmd_name, agent_config)
+
+        # Fallback to upstream behavior
         if agent_config["extension"] != "/SKILL.md":
             return cmd_name
 
@@ -470,6 +480,11 @@ class CommandRegistrar:
                 # Use custom name formatter if provided (e.g., Forge's hyphenated format)
                 format_name = agent_config.get("format_name")
                 frontmatter["name"] = format_name(cmd_name) if format_name else cmd_name
+
+            # Resolve {SCRIPT} and {AGENT_SCRIPT} placeholders for all agents
+            body = self.resolve_skill_placeholders(
+                agent_name, frontmatter, body, project_root
+            )
 
             body = self._convert_argument_placeholder(
                 body, "$ARGUMENTS", agent_config["args"]

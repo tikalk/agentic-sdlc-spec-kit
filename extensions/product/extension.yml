@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.0.1"
+  version: "1.1.8"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -53,6 +53,11 @@ provides:
       file: "commands/roadmap.md"
       description: "Track milestone progress from feature spec task completion and update PDR status"
       aliases: ["product.roadmap"]
+
+    - name: "adlc.product.link"
+      file: "commands/link.md"
+      description: "Link feature to existing PDR (silent if no PDRs exist)"
+      aliases: ["product.link"]
 
   config:
     - name: "product-config.yml"
@@ -108,10 +113,6 @@ handoffs:
       agent: "product.analyze"
       prompt: "Validate PDR-PRD consistency and completeness"
       send: true
-    - label: "Create Architecture"
-      agent: "architect.specify"
-      prompt: "Create architecture from product requirements"
-      send: false
 
   product.roadmap:
     - label: "Regenerate PRD"
@@ -120,10 +121,11 @@ handoffs:
       send: false
 
 hooks:
-  before_spec:
-    command: "adlc.product.specify"
-    description: "Create/verify product requirements before feature specification"
-  after_spec:
+  before_specify:
+    command: "adlc.product.link"
+    description: "Link feature to existing PDR (silent if no PDRs exist)"
+    optional: true
+  after_specify:
     command: "adlc.product.validate"
     description: "Validate feature spec alignment with PRD (READ-ONLY)"
 
@@ -148,6 +150,12 @@ defaults:
     team_pr: true
   sections: "all"
   decompose: true
+  dag:
+    enabled: true
+    base_location: ".specify/product/"                # Project base for DAG outputs
+    state_location: ".specify/product/state.json"     # DAG execution state
+    sections_location: ".specify/product/sections/"   # Generated section files per feature-area
+    section_templates: "templates/sections/"          # Extension templates (relative to extension dir)
 
 # PDR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)

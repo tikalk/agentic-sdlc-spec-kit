@@ -128,6 +128,8 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
+        skill_app,
+        compute_skill_output_name,
     )
 
     # skill_app is optional and may not be present in older cli_customization
@@ -164,6 +166,12 @@ except ImportError:
 
     def post_init(project_path, selected_ai, tracker=None, no_git=False):
         pass
+
+    # No skill_app in upstream fallback
+    skill_app = None
+
+    # No fork-specific compute_skill_output_name in upstream fallback
+    compute_skill_output_name = None
 
 
 def _run_git_command(
@@ -1638,6 +1646,7 @@ def init(
 
             if isinstance(resolved_integration, _SkillsPersist):
                 init_opts["ai_skills"] = True
+
             save_init_options(project_path, init_opts)
 
             # Install preset if specified
@@ -1994,6 +2003,10 @@ preset_catalog_app = typer.Typer(
     add_completion=False,
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
+
+# Skill commands (Tikalk fork - may be None in upstream)
+if skill_app is not None:
+    app.add_typer(skill_app, name="skill")
 
 
 def get_speckit_version() -> str:

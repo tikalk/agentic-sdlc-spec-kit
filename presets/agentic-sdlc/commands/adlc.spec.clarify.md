@@ -82,9 +82,9 @@ This command validates the spec across three pillars:
 
 **Load Order**:
 
-- Parse JSON from `{SCRIPT}` to get paths including `CONSTITUTION`, `ARCHITECTURE`, and existence flags
+- Parse JSON from `{SCRIPT}` to get paths including `CONSTITUTION`, `AD`, and existence flags
 - If `CONSTITUTION_EXISTS: true`, load constitution rules and validate spec against them
-- If `ARCHITECTURE_EXISTS: true`, load architecture views/diagrams and validate spec alignment
+- If `AD_EXISTS: true`, load architecture views/diagrams and validate spec alignment
 - If both missing, fall back to spec-only validation (current behavior)
 
 **Priority Order** (highest impact first):
@@ -117,6 +117,19 @@ Execution steps:
    - If JSON parsing fails, abort and instruct user to re-run `/spec.specify` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- Read spec.md from `./specs/<BRANCH>/spec.md` NOT root `./spec.md`
+- Common mistake: Reading from `./spec.md` instead of `./specs/<BRANCH>/spec.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
+
 2. Load governance and architecture documents (if available):
 
    **Constitution Loading** (if `CONSTITUTION_EXISTS: true`):
@@ -124,10 +137,10 @@ Execution steps:
    - Extract principles, constraints, and patterns using `CONSTITUTION_RULES`
    - Prepare for cross-validation with spec
 
-   **Architecture Loading** (if `ARCHITECTURE_EXISTS: true`):
-   - Load architecture.md from path provided in JSON
-   - Extract 7 viewpoints using `ARCHITECTURE_VIEWS`
-   - Extract diagrams using `ARCHITECTURE_DIAGRAMS`
+   **Architecture Loading** (if `AD_EXISTS: true`):
+   - Load AD.md from path provided in JSON
+   - Extract 7 viewpoints using `AD_VIEWS`
+   - Extract diagrams using `AD_DIAGRAMS`
    - Identify components, entities, and integration points
    - Prepare for alignment validation
 

@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: "architect"
   name: "Architect - ADR & Architecture Description"
-  version: "1.0.0"
-  description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology"
+  version: "2.0.1"
+  description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods Viewpoints and Perspectives methodology"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -128,8 +128,8 @@ tags:
 # Hooks triggered at workflow stage boundaries
 hooks:
   before_plan:
-    command: "adlc.architect.specify"
-    description: "Create feature-level ADRs and verify architecture exists"
+    command: "adlc.architect.validate"
+    description: "Validate feature aligns with architecture; escalate if new architectural decisions detected"
   after_plan:
     command: "adlc.architect.validate"
     description: "Validate plan alignment with architecture (READ-ONLY)"
@@ -144,6 +144,40 @@ defaults:
     location: "AD.md"
   views: "core"  # core | all | comma-separated
   decompose: true
+  execution:
+    mode: "sequential"  # sequential | parallel
+    functional_checkpoint: true  # Pause after Functional view for approval
+    perspectives_inline: true  # Apply perspectives during view generation
+  viewpoints:
+    core:
+      - "context"
+      - "functional"
+    optional:
+      - "information"
+      - "concurrency"
+      - "development"
+      - "deployment"
+      - "operational"
+  perspectives:
+    core:
+      - "security"
+      - "performance"
+    optional:
+      - "accessibility"
+      - "availability"
+      - "evolution"
+      - "internationalization"
+      - "location"
+      - "regulation"
+      - "usability"
+      - "development-resource"
+  dag:
+    enabled: true
+    base_location: ".specify/architect/"              # Project base for DAG outputs
+    state_location: ".specify/architect/state.json"   # DAG execution state
+    views_location: ".specify/architect/views/"       # Generated view files per sub-system
+    view_templates: "templates/views/"                # Extension templates (relative to extension dir)
+    perspective_templates: "templates/perspectives/"  # Extension templates (relative to extension dir)
 
 # ADR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)

@@ -53,19 +53,16 @@ while [[ $# -gt 0 ]]; do
 done
 
 validate_environment() {
-    if [[ -z "$TEAM_DIRECTIVES" ]]; then
-        if [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-            TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-        elif [[ -d "$REPO_ROOT/.specify/memory/team-ai-directives" ]]; then
-            TEAM_DIRECTIVES="$REPO_ROOT/.specify/memory/team-ai-directives"
-        else
-            echo "Error: team-ai-directives not found" >&2
-            exit 1
-        fi
+    # Use centralized function to load team directives
+    load_team_directives_config "$REPO_ROOT"
+    TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
+    
+    if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
     fi
     
-    if [[ ! -d "$TEAM_DIRECTIVES" ]]; then
-        echo "Error: TEAM_DIRECTIVES directory not found: $TEAM_DIRECTIVES" >&2
+    if [[ -z "$TEAM_DIRECTIVES" ]] || [[ ! -d "$TEAM_DIRECTIVES" ]]; then
+        echo "Error: team-ai-directives not found. Run 'specify init --team-ai-directives <path>' to configure." >&2
         exit 1
     fi
 }

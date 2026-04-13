@@ -1,8 +1,8 @@
 ---
 description: Analyze product for consistency between PDRs and PRD, completeness, and quality issues
 scripts:
-  sh: scripts/bash/setup-product.sh "analyze {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "analyze {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "analyze {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "analyze {ARGS}"
 ---
 
 ## User Input
@@ -54,8 +54,8 @@ You are acting as a **Product Analyst** validating product documentation quality
 | Document | Location | Purpose |
 |----------|----------|---------|
 | `PRD.md` | Project root | Full Product Requirements Document |
-| `pdr.md` | `.specify/memory/` | Product Decision Records |
-| `constitution.md` | `.specify/memory/` | Product vision/strategy |
+| `pdr.md` | `{REPO_ROOT}/.specify/memory/` | Product Decision Records |
+| `constitution.md` | `{REPO_ROOT}/.specify/memory/` | Product vision/strategy |
 | Feature `PRD.md` | `specs/{feature}/` | Feature-level product (if exists) |
 | Feature `pdr.md` | `specs/{feature}/` | Feature-level PDRs (if exists) |
 
@@ -80,20 +80,18 @@ You are acting as a **Product Analyst** validating product documentation quality
 
 2. **Load System-Level Artifacts**:
    - Read `PRD.md` (project root) if exists
-   - Read `.specify/drafts/pdr.md` if exists
-   - Read `.specify/memory/constitution.md` if exists
+   - Read `{REPO_ROOT}/.specify/drafts/pdr.md` if exists
+   - Read `{REPO_ROOT}/.specify/memory/constitution.md` if exists
 
 3. **Load Feature-Level Artifacts** (if analyzing features):
-   - Scan `specs/*/PRD.md` for feature products
-   - Scan `specs/*/pdr.md` for feature PDRs
 
 4. **Build Artifact Inventory**:
 
    | Artifact | Path | Status |
    |----------|------|--------|
    | Product PRD | `PRD.md` | Found/Missing |
-   | Product PDRs | `.specify/drafts/pdr.md` | Found/Missing |
-   | Constitution | `.specify/memory/constitution.md` | Found/Missing |
+   | Product PDRs | `{REPO_ROOT}/.specify/drafts/pdr.md` | Found/Missing |
+   | Constitution | `{REPO_ROOT}/.specify/memory/constitution.md` | Found/Missing |
    | Feature PRDs | `specs/*/PRD.md` | Count: N |
    | Feature PDRs | `specs/*/pdr.md` | Count: N |
 
@@ -106,7 +104,7 @@ You are acting as a **Product Analyst** validating product documentation quality
 | User Input | Scope | Artifacts Analyzed |
 |------------|-------|-------------------|
 | (empty) | Full | All system + all feature artifacts |
-| `"product"` | Product only | PRD.md, .specify/drafts/pdr.md |
+| `"product"` | Product only | PRD.md, {REPO_ROOT}/.specify/drafts/pdr.md |
 | `"feature {name}"` | Single feature | specs/{name}/PRD.md, specs/{name}/pdr.md |
 | `"pdrs"` | PDR quality | All pdr.md files (system + feature) |
 | `"sections"` | PRD completeness | All PRD.md files (system + feature) |
@@ -136,6 +134,7 @@ Focus on high-signal findings. Limit to **50 findings total**; aggregate remaind
 **PDR Quality Checklist**:
 
 For each PDR, verify:
+
 - [ ] Clear context explaining the problem/opportunity
 - [ ] Explicit, actionable decision statement
 - [ ] Positive AND negative consequences documented
@@ -187,6 +186,7 @@ For each PDR, verify:
 **Detection Logic**:
 
 For each PDR:
+
 1. Identify the PDR's primary section impact (use mapping table above)
 2. Search PRD for reflection of that decision
 3. Flag if decision is absent or contradicted

@@ -160,13 +160,6 @@ extract_key_decisions() {
         fi
     fi
     
-    # 6. Issue tracking (if used)
-    local issue_refs=$(grep -oh '@issue-tracker' "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" 2>/dev/null | wc -l)
-    if [[ $issue_refs -gt 0 ]]; then
-        decisions+=("Integrated issue tracking with $issue_refs @issue-tracker references for traceability")
-        decision_count=$((decision_count + 1))
-    fi
-    
     # Format as numbered list (dynamic count based on what we found)
     local output=""
     for i in "${!decisions[@]}"; do
@@ -219,14 +212,6 @@ extract_final_solution() {
         if [[ -n "$commit_sha" ]]; then
             solution+=" Documented in commit $commit_sha"
         fi
-    fi
-    
-    # Add issue tracker count
-    local issue_count=$(grep -oh '@issue-tracker' "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" 2>/dev/null | wc -l)
-    if [[ $issue_count -gt 0 ]]; then
-        solution+=" with $issue_count supporting issue tracker references."
-    else
-        solution+="."
     fi
     
     echo "$solution"
@@ -381,16 +366,6 @@ extract_evidence_links() {
             evidence+="**Implementation Commit**: $latest_commit\n"
             evidence+="- Message: $commit_message\n\n"
         fi
-    fi
-    
-    # Extract issue references from spec/plan/tasks
-    local issue_refs=$(grep -oh '@issue-tracker [A-Z0-9\-#]\+' "$FEATURE_SPEC" "$IMPL_PLAN" "$TASKS" 2>/dev/null | sort -u | sed 's/@issue-tracker //' || echo "")
-    if [[ -n "$issue_refs" ]]; then
-        evidence+="**Issue References**:\n"
-        while IFS= read -r issue; do
-            evidence+="- $issue\n"
-        done <<< "$issue_refs"
-        evidence+="\n"
     fi
     
     # List modified files from tasks_meta.json

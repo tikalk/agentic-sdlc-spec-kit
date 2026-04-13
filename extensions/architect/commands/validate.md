@@ -8,7 +8,7 @@ Validate that the plan aligns with the architecture and identify any blocking is
 
 ## Usage
 
-```
+```text
 /architect.validate --for-plan
 /architect.validate --json
 /architect.validate --system-only
@@ -31,12 +31,13 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 ### When Architecture Exists
 
 If ADRs exist in any location (check all three):
+
 1. Load ADRs from all locations (priority order):
-   - `.specify/memory/adr.md` (canonical - Accepted ADRs)
-   - `team-ai-directives/context_modules/adr.md` (team canonical - if configured)
-   - `.specify/drafts/adr.md` (working copy - Proposed/Discovered)
+   - `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
+   - `{TEAM_DIRECTIVES}/context_modules/adr.md` (team canonical - if configured)
+   - `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
 2. Load architecture description from `AD.md` (if present)
-3. Load the generated plan from `.specify/memory/plan.md`
+3. Load the generated plan from `{REPO_ROOT}/.specify/memory/plan.md`
 4. Execute 7 PILLAR 3 checks:
    - **PILLAR_1**: Component-level ADR alignment with plan
    - **PILLAR_2**: Interface contracts match between plan and ADRs
@@ -54,11 +55,57 @@ If ADRs exist in any location (check all three):
 ### When Architecture Doesn't Exist
 
 If no ADRs exist in any location:
+
 - Skip validation gracefully
 - Return `{"status":"skipped","reason":"architecture_not_found"}` if `--json` flag used
 
-Example output:
+### Escalation Detection
+
+This command also detects when architectural decisions in the plan **require new ADRs** that don't exist:
+
+1. Analyze plan for architectural keywords:
+   - "new database", "new service", "new API", "new infrastructure"
+   - "change authentication", "change storage", "change deployment"
+2. Compare against existing ADRs
+3. If new patterns detected without ADR backing → signal escalation
+
+**Escalation Output:**
+
+```text
+⚠️  Escalation Required
+   New architectural decisions detected without ADR backing:
+   - "Caching layer (Redis)" - No ADR covers caching decisions
+   - "Message queue (RabbitMQ)" - No ADR covers async communication
+
+   Run /architect.clarify to document these decisions before proceeding.
 ```
+
+```json
+{
+  "escalation": {
+    "needed": true,
+    "reason": "new_architectural_decision",
+    "decisions": [
+      {
+        "topic": "Caching layer",
+        "evidence": "Plan references Redis but no ADR covers caching",
+        "suggested_action": "Run /architect.clarify to create ADR"
+      },
+      {
+        "topic": "Async communication", 
+        "evidence": "Plan references RabbitMQ but no ADR covers message queuing",
+        "suggested_action": "Run /architect.clarify to create ADR"
+      }
+    ]
+  }
+}
+```
+
+**This enables the `before_plan` hook to signal when new architectural decisions are needed.**
+
+Example output:
+
+```text
 ⏭️  Architecture not found (no ADRs in drafts/memory/team)
      Skipping validation gracefully
 ```
@@ -67,7 +114,7 @@ Example output:
 
 ### Console Output (default)
 
-```
+```text
 🔍 Architecture Validation Mode (READ-ONLY)
 
 📋 ADR files found: N
@@ -97,9 +144,9 @@ Warnings: 5
   "status": "success",
   "action": "validate",
   "adr_locations": {
-    "memory": ".specify/memory/adr.md",
-    "team": "team-ai-directives/context_modules/adr.md",
-    "drafts": ".specify/drafts/adr.md"
+    "memory": "{REPO_ROOT}/.specify/memory/adr.md",
+    "team": "{TEAM_DIRECTIVES}/context_modules/adr.md",
+    "drafts": "{REPO_ROOT}/.specify/drafts/adr.md"
   },
   "adr_count": 12,
   "findings": {
@@ -148,6 +195,7 @@ Warnings: 5
 ## Integration
 
 This command is automatically called by the `after_plan` hook:
+
 - Validates plan alignment with architecture
 - The command itself checks for architecture existence and skips gracefully
 - Returns `{"status":"skipped","reason":"architecture_not_found"}` if no architecture exists

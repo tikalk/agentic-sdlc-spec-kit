@@ -24,7 +24,7 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (spec.md, plan.md, tasks.md required). This command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
 
-**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `.specify/drafts/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
+**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `{REPO_ROOT}/.specify/drafts/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -50,6 +50,21 @@ This command adapts its behavior based on project state.
 ### 1. Initialize Analysis Context
 
 Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Derive absolute paths:
+
+### CRITICAL - Path Validation
+
+**DO NOT read from wrong directory**
+- Parse `FEATURE_DIR` from script output - this is the correct path to your feature
+- All required files (spec.md, plan.md, tasks.md) should be in `./specs/<BRANCH>/` NOT root
+- Common mistakes:
+  - Reading from `./spec.md` instead of `./specs/<BRANCH>/spec.md`
+  - Reading from `./plan.md` instead of `./specs/<BRANCH>/plan.md`
+
+### Non-Git Repository Support
+
+If working in a non-git repository:
+- Ensure `SPECIFY_FEATURE` environment variable is set
+- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
 
 - SPEC = FEATURE_DIR/spec.md
 - PLAN = FEATURE_DIR/plan.md
@@ -122,7 +137,7 @@ Load documentation artifacts plus analyze actual codebase:
 **From architecture (if exists):**
 
 - Load `AD.md` (root) for system-level architecture context
-- Load `.specify/drafts/adr.md` for system-level ADRs
+- Load `{REPO_ROOT}/.specify/drafts/adr.md` for system-level ADRs
 - Load `specs/{feature}/AD.md` for feature-level architecture (if `--architecture` was enabled)
 - Load `specs/{feature}/adr.md` for feature-level ADRs (if `--architecture` was enabled)
 
@@ -211,7 +226,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 **Purpose**: Ensure feature spec/plan alignment with system and feature-level architecture.
 
-**System-Level Validation** (if `AD.md` and `.specify/drafts/adr.md` exist):
+**System-Level Validation** (if `AD.md` and `{REPO_ROOT}/.specify/drafts/adr.md` exist):
 
 1. **Context View Alignment**:
    - Does spec respect system boundaries defined in AD.md?
@@ -261,35 +276,6 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - **MEDIUM**: Missing feature ADRs, stale architecture
 - **LOW**: Documentation gaps, minor inconsistencies
 
-#### L. Smart Trace Validation (Both Modes)
-
-**Purpose**: Ensure spec-to-issue traceability is maintained throughout the SDD workflow using `@issue-tracker ISSUE-123` syntax.
-
-**Detection Logic**:
-
-1. **Scan all artifacts** for existing `@issue-tracker` references
-2. **Extract issue IDs** from patterns like `@issue-tracker PROJ-123`, `@issue-tracker #456`, `@issue-tracker GITHUB-789`
-3. **Validate coverage**:
-   - **Spec-level traces**: Every major feature/user story should have at least one issue reference
-   - **Task-level traces**: Implementation tasks should reference parent spec issues
-   - **Cross-artifact consistency**: Same issue IDs used across spec.md, plan.md, tasks.md
-4. **Check MCP configuration**: Verify `.mcp.json` exists and issue tracker is properly configured
-
-**Traceability Gaps to Detect**:
-
-- **Missing spec traces**: User stories or major features without `@issue-tracker` references
-- **Orphaned tasks**: Implementation tasks not linked to spec-level issues
-- **Inconsistent issue references**: Same feature referenced with different issue IDs across artifacts
-- **Invalid issue formats**: Malformed issue references that won't integrate with MCP
-- **MCP misconfiguration**: Issue tracker not configured in `.mcp.json`
-
-**Validation Rules**:
-
-- **Minimum coverage**: ≥80% of user stories/requirements should have traceable issue links
-- **Format validation**: Issue references must match configured tracker patterns (GitHub/Jira/Linear/GitLab)
-- **Consistency check**: Issue IDs should be consistent across spec.md → plan.md → tasks.md
-- **MCP readiness**: `.mcp.json` must exist and contain valid issue tracker configuration
-
 ### 5. Severity Assignment
 
 Use this heuristic to prioritize findings:
@@ -338,13 +324,6 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - Duplication Count
 - Critical Issues Count
 
-**Traceability Validation:**
-
-- **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
-- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
-- **Format Validation**: All issue references use valid formats
-- **Consistency Check**: Issue IDs consistent across artifacts
-
 **Architecture Alignment:**
 
 - **System AD**: ✅ Compliant / ⚠️ Issues Found / Not Available
@@ -380,13 +359,6 @@ Output a Markdown report (no file writes) with auto-detected mode-appropriate st
 - Testing enhancements
 - Documentation updates needed
 
-**Traceability Validation:**
-
-- **Issue Coverage**: X/Y user stories have @issue-tracker references (Z%)
-- **MCP Status**: ✅ Configured (GitHub) / ❌ Missing .mcp.json
-- **Format Validation**: All issue references use valid formats
-- **Consistency Check**: Issue IDs consistent across artifacts
-
 **Architecture Alignment:**
 
 - **System AD**: ✅ Compliant / ⚠️ Issues Found / Not Available
@@ -402,7 +374,6 @@ At end of report, output a concise Next Actions block based on detected mode and
 - If CRITICAL issues exist: Recommend resolving before `/spec.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /spec.specify with refinement", "Run /spec.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
-- **Traceability**: If <80% coverage: "Add @issue-tracker ISSUE-123 references to major user stories in spec.md"
 - **Architecture**: If violations found: "Resolve ADR violations before proceeding" or "Run /architect.clarify to update system ADRs"
 - **Feature Architecture**: If gaps found: "Run /spec.plan --architecture to generate feature-level architecture"
 
@@ -410,7 +381,6 @@ At end of report, output a concise Next Actions block based on detected mode and
 
 - If CRITICAL issues exist: Recommend immediate fixes for security/stability
 - If HIGH issues exist: Suggest prioritization for next iteration
-- **Traceability**: If gaps found: "Update issue status in tracker and ensure all implemented features are linked via @issue-tracker references"
 - Provide refinement suggestions: e.g., "Consider performance optimization", "Update documentation for new features", "Add missing test coverage"
 - Suggest follow-up commands: e.g., "Run /plan to update architecture docs", "Run /specify to document new requirements"
 

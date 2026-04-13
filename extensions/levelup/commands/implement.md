@@ -1,8 +1,8 @@
 ---
 description: Compile accepted CDRs into a draft PR to team-ai-directives repository
 scripts:
-  sh: scripts/bash/setup-levelup.sh --json
-  ps: scripts/powershell/setup-levelup.ps1 -Json
+  sh: .specify/extensions/levelup/scripts/bash/setup-levelup.sh --json
+  ps: .specify/extensions/levelup/scripts/powershell/setup-levelup.ps1 -Json
 ---
 
 ## User Input
@@ -16,7 +16,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Examples of User Input**:
 
 - `"--ready"` - Create ready PR instead of draft
-- `"--skip-skills"` - Don't include skills from `.specify/drafts/skills/`
+- `"--skip-skills"` - Don't include skills from `{REPO_ROOT}/.specify/drafts/skills/`
 - `"CDR-001 CDR-003"` - Only implement specific CDRs
 - Empty input: Implement all accepted CDRs as draft PR
 
@@ -26,7 +26,7 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 
 **Input**:
 - Accepted CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` (with status "Accepted")
-- Draft skills from `.specify/drafts/skills/`
+- Draft skills from `{REPO_ROOT}/.specify/drafts/skills/`
 - Team-ai-directives repository
 
 **Output** (ALL of these MUST be created):
@@ -486,7 +486,7 @@ MCP tools not available. Create PR manually:
 3. **Merge** when approved
 4. **Clean up** local drafts after merge:
    ```bash
-   rm -rf .specify/drafts/skills/{skill-name}
+   rm -rf {REPO_ROOT}/.specify/drafts/skills/{skill-name}
    ```
 ```
 
@@ -497,13 +497,13 @@ MCP tools not available. Create PR manually:
 **Objective**: Archive accepted CDRs and clean up drafts
 
 1. **Copy Accepted CDRs**:
-   - Filter CDRs with status "Accepted" from `.specify/drafts/cdr.md`
-   - Copy to `.specify/memory/cdr.md`
+   - Filter CDRs with status "Accepted" from `{REPO_ROOT}/.specify/drafts/cdr.md`
+   - Copy to `{REPO_ROOT}/.specify/memory/cdr.md`
 
 2. **Cleanup Drafts**:
-   - Check if `.specify/drafts/cdr.md` has any remaining non-accepted CDRs
-   - Check if `.specify/drafts/skills/` has any draft skills
-   - If no remaining drafts → remove `.specify/drafts/` directory
+   - Check if `{REPO_ROOT}/.specify/drafts/cdr.md` has any remaining non-accepted CDRs
+   - Check if `{REPO_ROOT}/.specify/drafts/skills/` has any draft skills
+   - If no remaining drafts → remove `{REPO_ROOT}/.specify/drafts/` directory
 
 ## Output Files
 
@@ -524,10 +524,10 @@ MCP tools not available. Create PR manually:
 ## Notes
 
 - Creates draft PR by default for review before merge
-- Only implements CDRs with status "Accepted" from `.specify/drafts/cdr.md`
+- Only implements CDRs with status "Accepted" from `{REPO_ROOT}/.specify/drafts/cdr.md`
 - When TD configured: Copies only accepted CDRs to `{TEAM_DIRECTIVES}/context_modules/CDR.md`
-- When NOT configured: Copies accepted CDRs to `.specify/memory/cdr.md` and cleans up drafts
-- Skills from `.specify/drafts/skills/` are included unless `--skip-skills`
+- When NOT configured: Copies accepted CDRs to `{REPO_ROOT}/.specify/memory/cdr.md` and cleans up drafts
+- Skills from `{REPO_ROOT}/.specify/drafts/skills/` are included unless `--skip-skills`
 - If MCP unavailable, provides manual instructions
 - Working tree must be clean before running
 

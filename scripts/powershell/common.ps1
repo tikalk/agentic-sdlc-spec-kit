@@ -350,7 +350,6 @@ function Get-FeaturePathsEnv {
     # Project-level governance documents
     $memoryDir = Join-Path $repoRoot '.specify/memory'
     $constitutionFile = Join-Path $memoryDir 'constitution.md'
-    $architectureFile = Join-Path $memoryDir 'architecture.md'
     
     # New architecture document structure (AD.md at root or feature level, ADR in memory/)
     $systemAdFile = Join-Path $repoRoot 'AD.md'
@@ -373,7 +372,6 @@ function Get-FeaturePathsEnv {
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
         CONSTITUTION  = $constitutionFile
-        ARCHITECTURE  = $architectureFile
         AD            = $adFile
         SYSTEM_AD     = $systemAdFile
         FEATURE_AD    = $featureAdFile
@@ -536,6 +534,38 @@ function Get-ArchitectureDiagrams {
     }
 }
 
+
+# Load team directives configuration from init-options.json
+# Reads team_ai_directives path set by 'specify init --team-ai-directives'
+function Load-TeamDirectivesConfig {
+    param(
+        [string]$RepoRoot = (Get-RepoRoot)
+    )
+
+    $initOptsFile = Join-Path $RepoRoot ".specify/init-options.json"
+
+    if (Test-Path $initOptsFile) {
+        try {
+            $initOpts = Get-Content $initOptsFile -Raw | ConvertFrom-Json
+            $path = $initOpts.team_ai_directives
+            if ($path -and (Test-Path $path -PathType Container)) {
+                $env:SPECIFY_TEAM_DIRECTIVES = $path
+                return $path
+            }
+        } catch {
+            # Ignore errors, fall back to memory
+        }
+    }
+
+    # Fall back to memory location
+    $defaultDir = Join-Path $RepoRoot ".specify/memory/team-ai-directives"
+    if (Test-Path $defaultDir -PathType Container) {
+        $env:SPECIFY_TEAM_DIRECTIVES = $defaultDir
+        return $defaultDir
+    }
+
+    return $null
+}
 
 function Resolve-Template {
     param(

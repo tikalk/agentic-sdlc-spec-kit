@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "quick"
   name: "Quick - Session-Based Ad-Hoc Task Execution"
-  version: "1.0.0"
+  version: "1.0.2"
   description: "One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology: Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

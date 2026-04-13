@@ -21,7 +21,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before specification)**:
-- Check if `.specify/extensions.yml` exists in the project root.
+- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_specify` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -50,7 +50,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
     Wait for the result of the hook command before proceeding to the Outline.
     ```
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
@@ -72,7 +72,13 @@ Given that feature description, do this:
 
 2. **Branch creation** (optional, via hook):
 
+<<<<<<< HEAD
    If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+=======
+   **Branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value.
+   - If `"timestamp"`, add `--timestamp` (Bash) or `-Timestamp` (PowerShell) to the script invocation
+   - If `"sequential"` or absent, do not add any extra flag (default behavior)
+>>>>>>> backup-main-20260413
 
    If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
@@ -234,34 +240,34 @@ Given that feature description, do this:
    - Checklist results summary
    - Readiness for the next phase (`/speckit.clarify` or `/speckit.plan`)
 
-9. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
-   - If it exists, read it and look for entries under the `hooks.after_specify` key
-   - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-   - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-   - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-     - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-     - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-   - For each executable hook, output the following based on its `optional` flag:
-     - **Optional hook** (`optional: true`):
-       ```
-       ## Extension Hooks
+8. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+    - If it exists, read it and look for entries under the `hooks.after_specify` key
+    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+    - For each executable hook, output the following based on its `optional` flag:
+      - **Optional hook** (`optional: true`):
+        ```
+        ## Extension Hooks
 
-       **Optional Hook**: {extension}
-       Command: `/{command}`
-       Description: {description}
+        **Optional Hook**: {extension}
+        Command: `/{command}`
+        Description: {description}
 
-       Prompt: {prompt}
-       To execute: `/{command}`
-       ```
-     - **Mandatory hook** (`optional: false`):
-       ```
-       ## Extension Hooks
+        Prompt: {prompt}
+        To execute: `/{command}`
+        ```
+      - **Mandatory hook** (`optional: false`):
+        ```
+        ## Extension Hooks
 
-       **Automatic Hook**: {extension}
-       Executing: `/{command}`
-       EXECUTE_COMMAND: {command}
-       ```
-   - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+        **Automatic Hook**: {extension}
+        Executing: `/{command}`
+        EXECUTE_COMMAND: {command}
+        ```
+    - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 

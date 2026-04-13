@@ -1,8 +1,8 @@
 ---
 description: Validate feature spec alignment with PRD (READ-ONLY)
 scripts:
-  sh: scripts/bash/setup-product.sh "validate {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "validate {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "validate {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "validate {ARGS}"
 ---
 
 ## User Input
@@ -24,6 +24,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Perform **read-only** validation to ensure feature specifications align with the Product Requirements Document (PRD). This ensures technical implementations stay true to product requirements.
 
 **This command validates**:
+
 1. Feature scope aligns with PRD scope
 2. User personas match PRD definitions
 3. Success metrics are consistent with PRD metrics
@@ -33,6 +34,7 @@ Perform **read-only** validation to ensure feature specifications align with the
 7. Boundary maps are consistent across specs
 
 **This command does NOT validate**:
+
 - Technical architecture (use `/architect.validate`)
 - Code quality or implementation details
 - Test coverage
@@ -56,7 +58,7 @@ You are acting as a **Product Validator** ensuring feature specs align with prod
 |----------|---------|------|
 | `PRD.md` (root) | Product Requirements | Baseline |
 | Feature `SPEC.md` | Feature Specification | Validation Target |
-| `.specify/drafts/pdr.md` | Product Decisions | Traceability Source |
+| `{REPO_ROOT}/.specify/drafts/pdr.md` | Product Decisions | Traceability Source |
 
 ## Outline
 
@@ -78,7 +80,7 @@ You are acting as a **Product Validator** ensuring feature specs align with prod
    - Extract Milestone Roadmap
 
 2. **Load PDRs**:
-   - Read `.specify/drafts/pdr.md`
+   - Read `{REPO_ROOT}/.specify/drafts/pdr.md`
    - Build decision index
 
 3. **Build Baseline**:

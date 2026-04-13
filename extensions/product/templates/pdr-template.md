@@ -34,12 +34,14 @@ This field indicates what type of product decision this PDR represents.
 [Clear description of what needs to be decided - the product challenge or opportunity]
 
 **Market Forces:**
+
 - [Market factor 1 - competitive pressure, trends]
 - [Customer feedback or demand]
 - [Industry regulation or standard]
 - [Internal business priority]
 
 **Product Vision Alignment:**
+
 - [How this decision relates to product vision]
 - [Relevant constitutional principles from vision/strategy]
 
@@ -88,10 +90,12 @@ This field indicates what type of product decision this PDR represents.
 [Precise spec violation that defines failure - binary, not scale]
 
 **Failure Type:**
+
 - `specification_failure`: → fix directive (issue is in spec, not implementation)
 - `generalization_failure`: → build evaluator (issue is model/agent capability)
 
 **Evaluation Method:**
+
 - `algorithmic`: (string matching, format validation, regex, SQL syntax)
 - `llm-judge`: (semantic quality assessment with golden examples)
 - `human`: (manual review required - only for deeply subjective cases)
@@ -219,6 +223,7 @@ This field indicates what type of product decision this PDR represents.
 - Conflicts with product vision should be flagged as VIOLATION
 
 **PDR Lifecycle:**
+
 1. init/specify → drafts (Proposed/Discovered status)
 2. clarify → drafts (refines in place)
 3. implement → Accepted PDRs to memory or team-ai-directives

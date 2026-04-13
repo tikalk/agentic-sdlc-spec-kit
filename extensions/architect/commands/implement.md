@@ -1,8 +1,8 @@
 ---
-description: Generate full Architecture Description (AD.md) from ADRs using Rozanski & Woods methodology
+description: Generate full Architecture Description (AD.md) from ADRs using multi-agent DAG orchestration
 scripts:
-  sh: scripts/bash/setup-architect.sh "implement {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "implement {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "implement {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "implement {ARGS}"
 ---
 
 ---
@@ -29,565 +29,779 @@ You **MUST** consider the user input before proceeding (if not empty).
   - `all`: All 7 views including Concurrency and Operational
   - Custom: comma-separated (e.g., `concurrency,operational`) - always includes core views
 
+- `--sequential` (default): Execute views sequentially for maximum quality
+  - Recommended: Allows checkpoint after Functional view
+- `--parallel`: Allow parallel execution where dependency chains permit
+  - Warning: May reduce cross-view consistency - use only when time-constrained
+
+- `--no-checkpoint`: Skip Functional view checkpoint (not recommended)
+  - Warning: Functional view is the "cornerstone" that shapes all others
+
 **Important**: When `--views` is `core` (default), **skip** Concurrency View (3.4) and Operational View (3.7) entirely. Only generate them when explicitly requested via `--views all` or `--views concurrency,operational`.
+
+## Rozanski & Woods Methodology Alignment
+
+This command implements the **Viewpoints and Perspectives** framework from 
+*Software Systems Architecture* (2nd Edition) by Nick Rozanski and Eoin Woods.
+
+### Core Principles
+
+1. **Functional View is the Cornerstone**
+   > "The Functional view is the cornerstone of most ADs... It usually drives 
+   > the shape of other system structures such as the information structure, 
+   > concurrency structure, deployment structure, and so on."
+   > — Rozanski & Woods
+
+2. **Views are Interrelated, Not Independent**
+   > "The decisions taken in one view can have a considerable impact on the 
+   > others, and it is a big part of the architect's job to make sure that 
+   > these implications are understood."
+
+3. **Perspectives Apply to Views**
+   > "You never work with perspectives in isolation but instead use them with 
+   > each view to analyze and validate the qualities of your architecture."
+
+4. **Quality Over Speed**
+   Architecture mistakes are expensive to fix. Sequential execution with 
+   checkpoints is the default to ensure quality.
+
+### Viewpoint Dependency Graph
+
+```text
+                    ┌──────────┐
+                    │ Context  │  (System boundaries)
+                    └────┬─────┘
+                         │
+                         ▼
+                 ┌───────────────┐
+                 │  FUNCTIONAL   │  ★ CORNERSTONE ★
+                 │  (Drives all  │  USER CHECKPOINT
+                 │   other views)│  REQUIRED HERE
+                 └───────┬───────┘
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+         ▼               ▼               ▼
+   ┌───────────┐   ┌───────────┐   ┌───────────┐
+   │Information│   │Concurrency│   │Development│
+   │           │   │(optional) │   │           │
+   └─────┬─────┘   └─────┬─────┘   └─────┬─────┘
+         │               │               │
+         └───────────────┼───────────────┘
+                         │
+                         ▼
+                  ┌────────────┐
+                  │ Deployment │
+                  └──────┬─────┘
+                         │
+                         ▼
+                  ┌────────────┐
+                  │ Operational│  (optional)
+                  └────────────┘
+```
+
+### Dynamic Viewpoint & Perspective Selection
+
+Viewpoints and perspectives are selected dynamically based on system characteristics:
+
+| Category | Always Included | Auto-Detected (Optional) |
+|----------|-----------------|--------------------------|
+| Viewpoints | Context, Functional | Information, Concurrency, Development, Deployment, Operational |
+| Perspectives | Security, Performance | Accessibility, Availability, Evolution, Internationalization, Location, Regulation, Usability, Development Resource |
+
+**Reference**: https://www.viewpoints-and-perspectives.info/
 
 ## Goal
 
-Transform Architecture Decision Records (ADRs) into a comprehensive Architecture Description (AD.md) following the Rozanski & Woods methodology with 7 viewpoints and 2 perspectives.
+Transform Architecture Decision Records (ADRs) into a comprehensive Architecture Description (AD.md) using a **multi-agent DAG orchestration** approach:
+
+1. **Plan Agent**: Analyze ADRs, detect sub-systems, generate customized DAG, get user approval
+2. **Execute Agent**: Generate views per sub-system following the DAG, with dependency context
+3. **Summarize Agent**: Aggregate all views, resolve conflicts, generate unified AD.md
 
 **Key Insight**: ADRs capture **why** decisions were made; the Architecture Description captures **what** the system looks like as a result of those decisions.
 
 ## Role & Context
 
-You are acting as a **Technical Writer** synthesizing ADRs into comprehensive architecture documentation. Your role involves:
+You are acting as an **Architecture Orchestrator** managing a multi-phase documentation generation workflow. Your role involves:
 
-- **Translating** individual ADRs into cohesive viewpoints
-- **Generating** diagrams for each architectural view
-- **Ensuring** consistency between ADRs and generated views
-- **Producing** stakeholder-appropriate documentation
+- **Planning** the generation DAG based on sub-system analysis
+- **Executing** view generation with proper dependency ordering
+- **Summarizing** views into a unified Architecture Description
+- **Persisting** state for resumability across AI agent sessions
 
 ### Architecture Document Hierarchy
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
-| `AD.md` (root) | Full Architecture Description | Output |
-| `.specify/memory/constitution.md` | Governance principles | Constraint |
+| `{REPO_ROOT}/.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
+| `{REPO_ROOT}/.specify/architect/state.json` | DAG execution state | State |
+| `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Intermediate |
+| `{REPO_ROOT}/AD.md` | Full Architecture Description | Output |
+| `{REPO_ROOT}/.specify/memory/constitution.md` | Governance principles | Constraint |
 
-## Outline
+**IMPORTANT - Path Resolution**:
+- The setup script outputs `REPO_ROOT` - use this to determine the correct paths
+- REPO_ROOT is found by searching upward from current directory for `.specify` directory
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
-1. **Load ADRs**: Parse all ADRs from `.specify/drafts/adr.md`
-2. **Determine Views**: Parse `--views` flag to determine which views to generate
-3. **Generate Views**: Create requested viewpoints (core 5 by default, optionally +2)
-4. **Apply Perspectives**: Add Security and Performance perspectives
-5. **Output**: Write complete `AD.md` to project root
+### View Templates
 
-## Execution Steps
+Located in the extension's `templates/` directory:
 
-### Phase 1: ADR Loading
+| Template | Purpose |
+|----------|---------|
+| `templates/views/context.md` | Context View template |
+| `templates/views/functional.md` | Functional View template |
+| `templates/views/information.md` | Information View template |
+| `templates/views/concurrency.md` | Concurrency View template (optional) |
+| `templates/views/development.md` | Development View template |
+| `templates/views/deployment.md` | Deployment View template |
+| `templates/views/operational.md` | Operational View template (optional) |
 
-**Objective**: Load and analyze existing ADRs
+| Perspective Templates (10 total) |
+|-----------------------------------|
+| `templates/perspectives/security.md` |
+| `templates/perspectives/performance.md` |
+| `templates/perspectives/accessibility.md` |
+| `templates/perspectives/availability.md` |
+| `templates/perspectives/evolution.md` |
+| `templates/perspectives/internationalization.md` |
+| `templates/perspectives/location.md` |
+| `templates/perspectives/regulation.md` |
+| `templates/perspectives/usability.md` |
+| `templates/perspectives/development-resource.md` |
 
-1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to prepare architecture files
-   - Creates `AD.md` from template if it doesn't exist
+## Three-Phase DAG Workflow
 
-2. **Load ADRs**:
-   - Read `.specify/drafts/adr.md`
-   - Parse each ADR: ID, title, context, decision, consequences
-   - Build decision index
-
-3. **Load Constitution**:
-   - Read `.specify/memory/constitution.md` for constraint validation
-   - Extract principles that affect architecture documentation
-
-4. **ADR-to-View Mapping**:
-
-   | ADR Topic | Primary View | Secondary Views |
-   |-----------|--------------|-----------------|
-   | System Architecture Style | Functional | Context, Deployment |
-   | Database Choice | Information | Deployment, Operational |
-   | API Style | Functional | Context, Development |
-   | Authentication | Security Perspective | Functional |
-   | Deployment Platform | Deployment | Operational |
-   | CI/CD Approach | Development | Operational |
-   | Scaling Strategy | Performance Perspective | Concurrency, Deployment |
-   | Caching Strategy | Performance Perspective | Information, Concurrency |
-
-### Phase 2: View Generation
-
-**Objective**: Generate each Rozanski & Woods viewpoint from ADR content
-
-**View Selection Based on `--views` Flag**:
-
-| Flag Value | Views to Generate |
-|------------|-------------------|
-| `core` (default) | Context, Functional, Information, Development, Deployment |
-| `all` | All 7 views (core + Concurrency + Operational) |
-| `concurrency` | Core 5 + Concurrency |
-| `operational` | Core 5 + Operational |
-| `concurrency,operational` | All 7 views |
-
-**Conditional Generation Rules**:
-
-- **Always generate**: Context (3.1), Functional (3.2), Information (3.3), Development (3.5), Deployment (3.6)
-- **Only if requested**: Concurrency (3.4), Operational (3.7)
-- **Skip entirely** (not just mark as placeholder): Optional views not included in `--views`
-
-Generate views in this order (earlier views inform later ones):
-
-#### 3.1 Context View
-
-**Purpose**: System scope and external interactions
-
-**ADRs to Reference**: System style, integration patterns, external dependencies
-
-> **CRITICAL: Blackbox Requirement**
->
-> The Context View MUST show the system as a **single blackbox node**. This view answers: "What does the system connect to?" NOT "What's inside the system?"
->
-> **DO include**:
->
-> - The system as ONE unified node (no internal components)
-> - Stakeholders/Users (human actors)
-> - External systems (third-party services outside your control)
-> - Data flows crossing the system boundary
->
-> **DO NOT include**:
->
-> - Internal databases (those go in Deployment View)
-> - Internal services/microservices (those go in Functional View)
-> - Internal caches, queues, or storage (those go in Deployment View)
-> - Implementation details of any kind
-
-**Generate**:
-
-- System scope description (from system style ADR)
-- External entities table - ONLY stakeholders and external systems
-- Context diagram showing system as single blackbox
-- External dependencies table (from dependency ADRs)
-
-**Diagram Template**:
-
-```mermaid
-graph TD
-    %% Stakeholders (human actors interacting with the system)
-    Users["Users/Clients"]
-    Admins["Administrators"]
-    
-    %% THE SYSTEM - Single blackbox (NO internal components)
-    System["[System Name]<br/>(This System)"]
-    
-    %% External Systems (third-party, outside your control)
-    ExtPayment["Payment Provider<br/>(External)"]
-    ExtAuth["Identity Provider<br/>(External)"]
-    ExtAPI["Partner API<br/>(External)"]
-    
-    %% Stakeholder interactions
-    Users -->|"Uses"| System
-    Admins -->|"Manages"| System
-    
-    %% External system integrations
-    System -->|"Processes payments"| ExtPayment
-    System -->|"Authenticates"| ExtAuth
-    System -->|"Exchanges data"| ExtAPI
-    
-    %% Styling
-    classDef systemNode fill:#f47721,stroke:#333,stroke-width:3px,color:#fff
-    classDef stakeholderNode fill:#4a9eff,stroke:#333,stroke-width:1px,color:#fff
-    classDef externalNode fill:#e0e0e0,stroke:#333,stroke-width:1px
-    
-    class System systemNode
-    class Users,Admins stakeholderNode
-    class ExtPayment,ExtAuth,ExtAPI externalNode
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 1: PLAN                                      │
+│  ┌─────────────┐    ┌─────────────────┐    ┌─────────────────────────────┐ │
+│  │ Load ADRs   │───▶│ Detect Sub-     │───▶│ Generate DAG per Sub-system │ │
+│  │             │    │ systems         │    │ (apply customization rules) │ │
+│  └─────────────┘    └─────────────────┘    └──────────────┬──────────────┘ │
+│                                                           │                 │
+│                                            ┌──────────────▼──────────────┐ │
+│                                            │ Present Plan for Approval   │ │
+│                                            │ (user confirms or modifies) │ │
+│                                            └──────────────┬──────────────┘ │
+│                                                           │                 │
+│                                            ┌──────────────▼──────────────┐ │
+│                                            │ Write state.json            │ │
+│                                            └─────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 2: EXECUTE                                   │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │  For each sub-system, execute DAG in topological order:             │   │
+│  │                                                                      │   │
+│  │  ┌─────────┐    ┌────────────┐    ┌─────────────┐    ┌───────────┐ │   │
+│  │  │ Context │───▶│ Functional │───▶│ Information │───▶│Development│ │   │
+│  │  └─────────┘    └────────────┘    └─────────────┘    └───────────┘ │   │
+│  │                        │                                    │       │   │
+│  │                        ▼                                    ▼       │   │
+│  │               ┌─────────────┐                      ┌────────────┐  │   │
+│  │               │ Concurrency │                      │ Deployment │  │   │
+│  │               │ (optional)  │                      └────────────┘  │   │
+│  │               └─────────────┘                             │        │   │
+│  │                                                           ▼        │   │
+│  │                                                   ┌─────────────┐  │   │
+│  │                                                   │ Operational │  │   │
+│  │                                                   │ (optional)  │  │   │
+│  │                                                   └─────────────┘  │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+│  Each view: Read dependencies → Generate content (with perspectives inline)
+│             → Update state.json with progress                               │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                      │
+                                      ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          PHASE 3: SUMMARIZE                                 │
+│  ┌──────────────────┐    ┌─────────────────────┐    ┌──────────────────┐   │
+│  │ Read all view    │───▶│ Detect cross-       │───▶│ Resolve conflicts│   │
+│  │ files            │    │ subsystem conflicts │    │ using ADRs       │   │
+│  └──────────────────┘    └─────────────────────┘    └────────┬─────────┘   │
+│                                                               │             │
+│  ┌──────────────────┐                       ┌──────────────▼───────────┐ │
+│  │ Move Accepted    │◀─────────────────────────│ Aggregate into            │ │
+│  │ ADRs to memory   │                         │ unified AD.md (views include│ │
+│  └──────────────────┘                         │ perspective sections)     │ │
+│                                             └───────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Validation Checklist** (verify before finalizing Context View):
+> **Note**: Perspectives (Security, Performance, etc.) are now applied **during** view generation in Phase 2, not as a separate step in Phase 3. This follows the R&W principle: "use them with each view to analyze and validate the qualities of your architecture."
+```
 
-- [ ] System appears as exactly ONE node
-- [ ] No internal databases shown (e.g., PostgreSQL, Redis)
-- [ ] No internal services shown (e.g., AuthService, UserService)
-- [ ] All entities are either stakeholders OR external systems
-- [ ] All connections cross the system boundary
+---
 
-#### 3.2 Functional View
+## PHASE 1: PLAN (Plan Agent)
+
+**Objective**: Analyze ADRs, detect sub-systems, generate customized DAG, get user approval
+
+**Script Action**: Run `{SCRIPT}` which calls `plan-dag` internally
+
+### Step 1.1: Load and Analyze ADRs
+
+1. **Read ADR File**: Load `{REPO_ROOT}/.specify/drafts/adr.md`
+2. **Parse ADR Index**: Extract sub-systems from the ADR index table
+3. **Group ADRs by Sub-system**: Create mapping of sub-system → ADRs
+
+**ADR Index Table Format**:
+
+```markdown
+| ID | Sub-System | Decision | Status | Date | Owner |
+|----|------------|----------|--------|------|-------|
+| ADR-001 | Core | Microservices architecture | Accepted | 2024-01-15 | @architect |
+| ADR-002 | Auth | OAuth2 with PKCE | Accepted | 2024-01-16 | @security |
+| ADR-003 | Data | PostgreSQL primary store | Accepted | 2024-01-17 | @data |
+```
+
+### Step 1.2: Detect Sub-systems and Characteristics
+
+For each sub-system, analyze ADRs to detect:
+
+| Characteristic | Detection Pattern | DAG Customization |
+|---------------|-------------------|-------------------|
+| Serverless | Lambda, Functions, serverless | Deployment view first |
+| Event-driven | Events, messaging, async, Kafka, RabbitMQ | Include Concurrency view |
+| Data-intensive | Analytics, ETL, data pipeline | Information view priority |
+| API-first | REST, GraphQL, OpenAPI | Functional view priority |
+| Multi-region | Global, multi-region, geo | Deployment + Operational |
+
+### Step 1.3: Generate Customized DAG per Sub-system
+
+**Default DAG (Core Views)**:
+
+```text
+Context → Functional → Information → Development → Deployment
+```
+
+**Extended DAG (All Views)**:
+
+```text
+Context → Functional → Information ──┬─→ Development → Deployment → Operational
+                                     └─→ Concurrency ─────────────────┘
+```
+
+**DAG Customization Rules**:
+
+| Pattern Detected | DAG Modification |
+|-----------------|------------------|
+| Serverless | Deployment before Development |
+| Event-driven | Add Concurrency after Information |
+| Data-intensive | Information has highest priority after Context |
+| Microservices | Add Concurrency, expand Functional |
+| Monolith | Simplify Functional, skip Concurrency |
+
+### Step 1.4: Present Plan for User Approval
+
+Present the execution plan to the user:
+
+```markdown
+## DAG Execution Plan
+
+**Sub-systems detected**: 3
+**Total views to generate**: 15 (5 views × 3 sub-systems)
+
+### Sub-system: Core
+**ADRs**: ADR-001, ADR-005, ADR-008
+**Characteristics**: Microservices, Event-driven
+**DAG**: Context → Functional → Information → Concurrency → Development → Deployment
+
+### Sub-system: Auth
+**ADRs**: ADR-002, ADR-006
+**Characteristics**: API-first
+**DAG**: Context → Functional → Information → Development → Deployment
+
+### Sub-system: Data
+**ADRs**: ADR-003, ADR-004, ADR-007
+**Characteristics**: Data-intensive
+**DAG**: Context → Information → Functional → Development → Deployment
+
+---
+
+**Approve this plan?** [Yes/Modify/Cancel]
+```
+
+### Step 1.5: Write state.json
+
+After user approval, write the execution plan to `{REPO_ROOT}/.specify/architect/state.json`:
+
+```json
+{
+  "version": "1.1.0",
+  "created_at": "2024-01-20T10:30:00Z",
+  "updated_at": "2024-01-20T10:30:00Z",
+  "phase": "plan_approved",
+  "views_mode": "core",
+  "subsystems": [
+    {
+      "id": "core",
+      "name": "Core",
+      "adrs": ["ADR-001", "ADR-005", "ADR-008"],
+      "characteristics": ["microservices", "event-driven"],
+      "dag": ["context", "functional", "information", "concurrency", "development", "deployment"],
+      "progress": {
+        "context": "pending",
+        "functional": "pending",
+        "information": "pending",
+        "concurrency": "pending",
+        "development": "pending",
+        "deployment": "pending"
+      }
+    },
+    {
+      "id": "auth",
+      "name": "Auth",
+      "adrs": ["ADR-002", "ADR-006"],
+      "characteristics": ["api-first"],
+      "dag": ["context", "functional", "information", "development", "deployment"],
+      "progress": {
+        "context": "pending",
+        "functional": "pending",
+        "information": "pending",
+        "development": "pending",
+        "deployment": "pending"
+      }
+    }
+  ],
+  "perspectives": ["security", "performance"],
+  "output_file": "AD.md"
+}
+```
+
+---
+
+## PHASE 2: EXECUTE (Execute Agent)
+
+**Objective**: Generate views per sub-system following the DAG, with dependency context passing
+
+**Script Action**: The agent reads `state.json` and executes views in DAG order
+
+### Step 2.1: Read Execution State
+
+1. Load `{REPO_ROOT}/.specify/architect/state.json`
+2. Identify next view(s) to generate (views with all dependencies completed)
+3. Load relevant ADRs for the current sub-system
+
+### Step 2.2: Generate Views in DAG Order
+
+For each view in the DAG:
+
+1. **Check Dependencies**: Ensure all dependency views are completed
+2. **Load Dependency Context**: Read completed view files for context
+3. **Load View Template**: Read from `templates/views/{view}.md`
+4. **Generate View Content**: Fill template with ADR-derived content
+5. **Write View File**: Save to `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
+6. **Update State**: Mark view as "completed" in state.json
+
+**View Generation with Dependency Context**:
+
+```markdown
+## Generating: Functional View for "Core" sub-system
+
+**Dependencies loaded**:
+- Context View: {REPO_ROOT}/.specify/architect/views/core/context.md (completed)
+
+**ADRs for this view**: ADR-001 (Microservices), ADR-005 (API Gateway)
+
+**Generating content...**
+```
+
+### Step 2.3: View Templates and Placeholders
+
+Each view template contains placeholders to be filled:
+
+| Placeholder | Replacement |
+|-------------|-------------|
+| `[SUB_SYSTEM_NAME]` | Sub-system name from state.json |
+| `[ADR_IDS]` | Comma-separated ADR IDs |
+| `[DATE]` | Current date (YYYY-MM-DD) |
+| `[ENTITY_N]` | Extracted from ADRs |
+| `[COMPONENT_N]` | Extracted from ADRs |
+
+### Step 2.4: View Generation Details
+
+#### Context View
+
+**Purpose**: System scope and external interactions (blackbox view)
+**Dependencies**: None (first in DAG)
+**Template**: `templates/views/context.md`
+**Key Content**:
+
+- System scope description
+- External entities table (stakeholders + external systems only)
+- Context diagram (system as single blackbox)
+- External dependencies table
+
+#### Functional View (★ CORNERSTONE - USER CHECKPOINT)
 
 **Purpose**: Internal components, responsibilities, interactions
+**Dependencies**: Context View
+**Template**: `templates/views/functional.md`
+**Key Content**:
 
-**ADRs to Reference**: System style, API style, component organization
-
-**Generate**:
-
-- Functional elements table (from architecture style ADR)
+- Functional elements table
 - Element interactions diagram
-- Functional boundaries (from scope decisions)
+- Functional boundaries
 
-**Diagram Template**:
+> **IMPORTANT**: After generating the Functional view, execution **pauses** for user approval.
+> This is the "cornerstone" view that shapes all subsequent views.
+> 
+> **Rozanski & Woods**: "The Functional view is the cornerstone... It usually drives the shape of other system structures."
+> 
+> **Checkpoint Options**:
+> - **A**: Approve - Continue to remaining views
+> - **B**: Modify - Edit functional view, then continue
+> - **C**: Restart - Regenerate with feedback
+> - **D**: Cancel - Stop execution
 
-```mermaid
-graph TD
-    subgraph "Application Layer"
-        API["API Gateway"]
-        Auth["Auth Service"]
-    end
-    
-    subgraph "Business Layer"
-        BL["Business Logic"]
-    end
-    
-    subgraph "Data Layer"
-        DA["Data Access"]
-    end
-    
-    API --> Auth
-    API --> BL
-    BL --> DA
-```
+**If skipping checkpoint** (`--no-checkpoint` flag): Generate without pause but log warning.
 
-#### 3.3 Information View
+#### Information View
 
 **Purpose**: Data storage, management, and flow
+**Dependencies**: Context View, Functional View
+**Template**: `templates/views/information.md`
+**Key Content**:
 
-**ADRs to Reference**: Database choice, data patterns, caching
-
-**Generate**:
-
-- Data entities table (from database ADRs)
+- Data entities table
+- ER diagram
 - Data flow description
-- Data quality/integrity requirements
 
-**Diagram Template**:
-
-```mermaid
-erDiagram
-    ENTITY1 ||--o{ ENTITY2 : "relationship"
-    ENTITY2 }|--|| ENTITY3 : "relationship"
-```
-
-#### 3.4 Concurrency View (OPTIONAL - only if `--views all` or `--views concurrency`)
-
-> **Skip this section entirely if `--views` is `core` (default)**
+#### Concurrency View (Optional)
 
 **Purpose**: Runtime processes, threads, coordination
-
-**ADRs to Reference**: Scaling, async patterns, messaging
-
-**Generate**:
+**Dependencies**: Functional View, Information View
+**Template**: `templates/views/concurrency.md`
+**Condition**: Only if `--views all` or `--views concurrency`
+**Key Content**:
 
 - Process structure table
-- Thread/async model description
+- Sequence diagram
 - Coordination mechanisms
 
-**Diagram Template**:
-
-```mermaid
-sequenceDiagram
-    participant P1 as Process 1
-    participant Q as Message Queue
-    participant P2 as Process 2
-    
-    P1->>Q: Publish event
-    Q-->>P2: Deliver event
-    P2->>P2: Process
-```
-
-#### 3.5 Development View
+#### Development View
 
 **Purpose**: Code organization, dependencies, CI/CD
+**Dependencies**: Functional View
+**Template**: `templates/views/development.md`
+**Key Content**:
 
-**ADRs to Reference**: CI/CD, development standards, framework choices
+- Code organization structure
+- Module dependencies
+- Build & CI/CD description
 
-**Generate**:
-
-- Code organization structure (directory tree)
-- Module dependencies description
-- Build & CI/CD pipeline description
-- Development standards summary
-
-#### 3.6 Deployment View
+#### Deployment View
 
 **Purpose**: Physical environment, nodes, networks
-
-**ADRs to Reference**: Deployment platform, infrastructure, scaling
-
-**Generate**:
+**Dependencies**: Development View
+**Template**: `templates/views/deployment.md`
+**Key Content**:
 
 - Runtime environments table
 - Network topology diagram
-- Hardware requirements table
-- Third-party services table
+- Hardware requirements
 
-**Diagram Template**:
-
-```mermaid
-graph TB
-    subgraph "Production Environment"
-        LB["Load Balancer"]
-        subgraph "App Tier"
-            App1["App 1"]
-            App2["App 2"]
-        end
-        subgraph "Data Tier"
-            DB["Database"]
-            Cache["Cache"]
-        end
-    end
-    
-    Internet --> LB
-    LB --> App1
-    LB --> App2
-    App1 --> DB
-    App2 --> DB
-    App1 --> Cache
-    App2 --> Cache
-```
-
-#### 3.7 Operational View (OPTIONAL - only if `--views all` or `--views operational`)
-
-> **Skip this section entirely if `--views` is `core` (default)**
+#### Operational View (Optional)
 
 **Purpose**: Operations, support, maintenance
+**Dependencies**: Deployment View
+**Template**: `templates/views/operational.md`
+**Condition**: Only if `--views all` or `--views operational`
+**Key Content**:
 
-**ADRs to Reference**: Monitoring, observability, support model
+- Operational responsibilities
+- Monitoring & alerting
+- Disaster recovery
 
-**Generate**:
+### Step 2.5: Update Progress in state.json
 
-- Operational responsibilities table
-- Monitoring & alerting description
-- Disaster recovery parameters
-- Support model tiers
+After each view is generated:
 
-### Phase 3: Perspective Application
+```json
+{
+  "progress": {
+    "context": "completed",
+    "functional": "completed",
+    "information": "in_progress",
+    "development": "pending",
+    "deployment": "pending"
+  },
+  "updated_at": "2024-01-20T11:15:00Z"
+}
+```
 
-**Objective**: Add cross-cutting concerns
+### Step 2.6: Resumability
 
-#### 4.1 Security Perspective
+If the agent session is interrupted:
 
-**ADRs to Reference**: Authentication, authorization, encryption, compliance
+1. Next session loads `state.json`
+2. Identifies views with `"pending"` or `"in_progress"` status
+3. Continues from where it left off
+4. Skips already `"completed"` views
 
-**Generate**:
+---
+
+## PHASE 3: SUMMARIZE (Summarize Agent)
+
+**Objective**: Aggregate all views, resolve conflicts, generate unified AD.md
+
+**Script Action**: Run `summarize` action
+
+### Step 3.1: Read All View Files
+
+1. Scan `{REPO_ROOT}/.specify/architect/views/` directory
+2. Load all view files for all sub-systems
+3. Organize by view type across sub-systems
+
+**Directory Structure**:
+
+```text
+{REPO_ROOT}/.specify/architect/views/
+├── core/
+│   ├── context.md
+│   ├── functional.md
+│   ├── information.md
+│   ├── concurrency.md
+│   ├── development.md
+│   └── deployment.md
+├── auth/
+│   ├── context.md
+│   ├── functional.md
+│   ├── information.md
+│   ├── development.md
+│   └── deployment.md
+└── data/
+    ├── context.md
+    ├── functional.md
+    ├── information.md
+    ├── development.md
+    └── deployment.md
+```
+
+### Step 3.2: Detect Cross-Subsystem Conflicts
+
+Compare views across sub-systems for:
+
+| Conflict Type | Detection | Resolution |
+|--------------|-----------|------------|
+| Naming inconsistency | Same component, different names | Standardize to ADR terminology |
+| Technology mismatch | Different tech for same purpose | Defer to relevant ADR |
+| Boundary overlap | Components claimed by multiple sub-systems | Use ADR scope definitions |
+| Diagram inconsistency | Same entity, different representations | Unify styling |
+
+### Step 3.3: Resolve Conflicts Using ADRs
+
+**ADRs are the Source of Truth**. When conflicts are detected:
+
+1. Find the relevant ADR(s) that govern the conflicting area
+2. Apply the ADR decision to resolve the conflict
+3. Document the resolution in the unified view
+
+```markdown
+## Conflict Resolution Log
+
+| Conflict | ADR Reference | Resolution |
+|----------|---------------|------------|
+| Auth component naming | ADR-002 | Standardized to "AuthService" per ADR-002 |
+| Database technology | ADR-003 | PostgreSQL confirmed as primary per ADR-003 |
+```
+
+### Step 3.4: Aggregate into Unified AD.md
+
+**Structure of Unified AD.md**:
+
+```markdown
+# Architecture Description: [Project Name]
+
+## 1. Document Information
+[Version, date, authors, status]
+
+## 2. Architectural Goals & Constraints
+[From constitution and constraint ADRs]
+
+## 3. Architectural Views
+
+### 3.1 Context View
+[Unified from all sub-system context views]
+[Single system-level context diagram]
+
+### 3.2 Functional View
+[Merged functional elements from all sub-systems]
+[Unified component diagram]
+
+### 3.3 Information View
+[Consolidated data model]
+[Unified ER diagram]
+
+### 3.4 Concurrency View (if applicable)
+[Merged from sub-systems with concurrency]
+
+### 3.5 Development View
+[Unified code organization]
+
+### 3.6 Deployment View
+[Consolidated deployment topology]
+
+### 3.7 Operational View (if applicable)
+[Merged operational concerns]
+
+## 4. Architectural Perspectives
+
+### 4.1 Security Perspective
+[Apply security template across all views]
+
+### 4.2 Performance & Scalability Perspective
+[Apply performance template across all views]
+
+## 5. Architecture Decision Records Summary
+[Index linking to {REPO_ROOT}/.specify/memory/adr.md]
+
+## 6. Tech Stack Summary
+[Consolidated from all ADRs]
+```
+
+### Step 3.5: Apply Perspectives
+
+Load perspective templates and apply across all views:
+
+#### Security Perspective (`templates/perspectives/security.md`)
 
 - Authentication & authorization approach
 - Data protection measures
-- Threat model table (threats, mitigations)
+- Threat model table
 
-#### 4.2 Performance & Scalability Perspective
-
-**ADRs to Reference**: Scaling, caching, performance targets
-
-**Generate**:
+#### Performance Perspective (`templates/perspectives/performance.md`)
 
 - Performance requirements table
-- Scalability model description
-- Capacity planning notes
+- Scalability model
+- Capacity planning
 
-### Phase 4: Global Sections
+### Step 3.6: ADR Lifecycle Management
 
-**Objective**: Complete cross-cutting sections
+After generating AD.md:
 
-1. **Global Constraints & Principles**:
-   - Extract from constitution and constraint ADRs
-   - Document technical constraints
-   - Document architectural principles
+1. **Filter for Accepted Only**: Only process ADRs with "Accepted" status
+   - **Skip Discovered/Proposed ADRs** - these need approval via `/architect.clarify` first
+   - If no Accepted ADRs exist, warn: "No Accepted ADRs found. Run `/architect.clarify` to approve ADRs before generating AD.md"
+2. **Determine Canonical Location**:
+   - If `SPECIFY_TEAM_DIRECTIVES` configured → `{TEAM_DIRECTIVES}/context_modules/adr.md`
+   - Otherwise → `{REPO_ROOT}/.specify/memory/adr.md`
+3. **Copy Accepted ADRs** to canonical location
+4. **Update Drafts**: Remove accepted ADRs from `{REPO_ROOT}/.specify/drafts/adr.md` (or delete if empty)
 
-2. **ADR Summary**:
-   - Create summary table linking to `.specify/drafts/adr.md`
-   - List key decisions with impact levels
-
-3. **Tech Stack Summary**:
-   - Synthesize from all technology ADRs
-   - Languages, frameworks, databases, infrastructure
-
-### Phase 5: Output Generation
-
-**Objective**: Write complete Architecture Description
-
-1. **Structure Check**:
-   - Ensure all **requested** viewpoints are present (5 core, or 7 if `--views all`)
-   - Ensure both perspectives are present
-   - Validate diagram syntax
-
-2. **Write AD.md**:
-   - Use `templates/AD-template.md` as base
-   - Replace placeholders with generated content
-   - Write to project root as `AD.md`
-
-3. **Update References**:
-   - Ensure `.specify/drafts/adr.md` link is correct
-   - Update version and timestamp
-
-4. **Generate Report**:
+### Step 3.7: Generate Final Report
 
 ```markdown
 ## Architecture Description Generated
 
 **Output**: AD.md (project root)
 **Views Mode**: [core|all|custom]
+**Sub-systems Processed**: N
 
-**Views Generated** (based on --views flag):
-- [x] Context View (based on ADR-001, ADR-003)
-- [x] Functional View (based on ADR-001, ADR-002)
-- [x] Information View (based on ADR-002)
-- [x] Concurrency View (based on ADR-004) ← Only if --views includes concurrency
-- [x] Development View (based on ADR-005)
-- [x] Deployment View (based on ADR-006)
-- [x] Operational View (based on ADR-007) ← Only if --views includes operational
+**Views Generated**:
+| Sub-system | Views | Status |
+|------------|-------|--------|
+| Core | Context, Functional, Information, Concurrency, Development, Deployment | ✓ |
+| Auth | Context, Functional, Information, Development, Deployment | ✓ |
+| Data | Context, Functional, Information, Development, Deployment | ✓ |
 
 **Perspectives Applied**:
-- [x] Security (based on ADR-008)
-- [x] Performance & Scalability (based on ADR-004, ADR-006)
+- [x] Security
+- [x] Performance & Scalability
 
-**Diagrams Generated**: [5|6|7] (Mermaid format)
-
+**Conflicts Resolved**: M
 **ADR Coverage**: X/Y ADRs incorporated
+
+**ADR Lifecycle**:
+- Promoted to canonical: N ADRs
+- Remaining in drafts: M ADRs
 
 **Recommended Next Steps**:
 1. Review generated AD.md for accuracy
-2. Run `/spec.analyze` for consistency validation
+2. Run `/architect.analyze` for consistency validation
 3. Share with stakeholders for review
-4. Begin feature development with `/spec.specify`
+4. Begin feature development with `/product.specify`
 ```
 
-**Example Report for `--views core` (default)**:
+---
 
-```markdown
-## Architecture Description Generated
+## State File Schema
 
-**Output**: AD.md (project root)
-**Views Mode**: core (default)
-
-**Views Generated**:
-- [x] Context View
-- [x] Functional View
-- [x] Information View
-- [x] Development View
-- [x] Deployment View
-- [ ] Concurrency View (skipped - use --views all to include)
-- [ ] Operational View (skipped - use --views all to include)
-```
-
-### Phase 6: ADR Lifecycle Management
-
-**Objective**: Move accepted ADRs to canonical location and clean up drafts
-
-After generating AD.md, manage the ADR lifecycle:
-
-1. **Determine Canonical ADR Location**:
-   - Check if `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` exists
-   - If team-ai-directives configured → Canonical: `{TEAM_DIRECTIVES}/context_modules/adr.md`
-   - Otherwise → Canonical: `.specify/memory/adr.md`
-
-2. **Read Working Draft ADRs**:
-   - Read `.specify/drafts/adr.md`
-   - Parse each ADR and identify status
-
-3. **Filter ADRs by Status**:
-
-   | Status | Action |
-   |--------|--------|
-   | **Accepted** | Copy to canonical location |
-   | Proposed | Keep in drafts |
-   | Discovered | Keep in drafts |
-   | Deprecated | Remove from canonical (if exists), keep reference |
-   | Superseded | Remove from canonical (if exists), update reference |
-
-4. **Write Accepted ADRs to Canonical Location**:
-   ```
-   a. Create/overwrite canonical ADR file with:
-      - All Accepted ADRs from drafts
-      - Preserve full ADR content (context, decision, consequences)
-   
-   b. Example canonical file structure:
-      # Architecture Decision Records - Canonical
-      
-      ## ADR Index
-      | ID | Sub-System | Decision | Status | Date | Owner |
-      |----|------------|----------|--------|------|-------|
-      | ADR-001 | System | [Decision] | Accepted | YYYY-MM-DD | [Owner] |
-   ```
-
-5. **Update Drafts**:
-   - If all ADRs are Accepted → Remove `.specify/drafts/adr.md`
-   - Otherwise → Keep only non-Accepted ADRs in drafts
-
-6. **Generate ADR Lifecycle Report**:
-
-   ```markdown
-   ## ADR Lifecycle Report
-   
-   **Canonical Location**: [.specify/memory/adr.md|team-ai-directives/context_modules/adr.md]
-   
-   **ADRs Promoted to Canonical**: N
-   - [ADR-001] Accepted
-   - [ADR-003] Accepted
-   
-   **ADRs Remaining in Drafts**: M
-   - [ADR-002] Proposed (pending clarification)
-   - [ADR-004] Discovered (pending validation)
-   
-   **Drafts Cleaned**: [yes|no]
-   ```
-
-## Diagram Generation
-
-### Diagram Format
-
-Diagrams are generated based on global configuration:
+**Location**: `{REPO_ROOT}/.specify/architect/state.json`
 
 ```json
 {
-  "architecture": {
-    "diagram_format": "mermaid"  // or "ascii"
-  }
+  "version": "1.1.0",
+  "created_at": "ISO8601 timestamp",
+  "updated_at": "ISO8601 timestamp",
+  "phase": "planning | plan_approved | executing | summarizing | completed",
+  "views_mode": "core | all | custom",
+  "subsystems": [
+    {
+      "id": "lowercase-kebab-case",
+      "name": "Display Name",
+      "adrs": ["ADR-001", "ADR-002"],
+      "characteristics": ["microservices", "event-driven"],
+      "dag": ["context", "functional", "information", "development", "deployment"],
+      "progress": {
+        "context": "pending | in_progress | completed | skipped",
+        "functional": "pending | in_progress | completed | skipped"
+      }
+    }
+  ],
+  "perspectives": ["security", "performance"],
+  "conflicts_detected": [],
+  "conflicts_resolved": [],
+  "output_file": "AD.md"
 }
 ```
 
-Configuration location: `~/.config/specify/config.json`
-
-### Diagram Types Per View
-
-| View | Diagram Type | Mermaid Syntax |
-|------|--------------|----------------|
-| Context | System boundary | `graph TD` |
-| Functional | Component diagram | `graph TD` |
-| Information | ER diagram | `erDiagram` |
-| Concurrency | Sequence diagram | `sequenceDiagram` |
-| Development | Dependency graph | `graph LR` |
-| Deployment | Infrastructure | `graph TB` |
-| Operational | Flowchart | `flowchart TD` |
-
-### ASCII Fallback
-
-If Mermaid validation fails, fall back to ASCII diagrams:
-
-```text
-┌──────────────┐
-│   Component  │
-└──────┬───────┘
-       │
-       ▼
-┌──────────────┐
-│   Component  │
-└──────────────┘
-```
+---
 
 ## Key Rules
 
 ### ADR Traceability
 
-- **Every view section** should reference source ADRs
-- **No content** without ADR backing (except templates)
-- **Flag gaps** where ADRs are missing
+- **Every view section** must reference source ADRs
+- **No content** without ADR backing
+- **ADRs are source of truth** for conflict resolution
 
-### Consistency
+### State Persistence
 
-- **Terminology** must match across views
-- **Components** named consistently in all diagrams
-- **Technology names** exactly as stated in ADRs
+- **Always update** state.json after each operation
+- **Resume gracefully** from any interruption
+- **Track progress** at view granularity
 
-### Completeness
+### Multi-Agent Compatibility
 
-- **All requested viewpoints** must be generated (5 core by default, 7 if `--views all`)
-- **Both perspectives** must be applied
-- **All sections** must have content (not just placeholders)
-- **Optional views** (Concurrency, Operational) are **skipped entirely** when not requested - do not include empty placeholders
+- State file works with any AI agent (Claude, Copilot, Cursor, etc.)
+- No agent-specific dependencies
+- Human-readable state for debugging
 
 ### Diagram Quality
 
 - **Validate** Mermaid syntax before writing
-- **Fall back** to ASCII if Mermaid fails
-- **Keep diagrams** simple and readable
+- **Consistent styling** across sub-systems
+- **Unified diagrams** in final AD.md
+
+---
 
 ## Workflow Guidance & Transitions
 
 ### After `/architect.implement`
 
-Recommended next steps:
-
 1. **Review AD.md**: Verify architecture documentation is accurate
-2. **Run `/spec.analyze`**: Validate consistency and completeness
+2. **Run `/architect.analyze`**: Validate consistency and completeness
 3. **Share for Review**: Get stakeholder feedback
-4. **Start Features**: Use `/spec.specify` to create feature specs
+4. **Start Features**: Use `/product.specify` to create feature specs
 
 ### When to Use This Command
 
@@ -599,8 +813,10 @@ Recommended next steps:
 ### When NOT to Use This Command
 
 - **No ADRs exist**: Use `/architect.specify` or `/architect.init` first
-- **Feature-level**: Feature AD generated via `/spec.plan --architecture`
+- **Feature-level**: Feature AD generated via `before_plan` hook
 - **Minor updates**: Use direct editing for small changes
+
+---
 
 ## Context
 

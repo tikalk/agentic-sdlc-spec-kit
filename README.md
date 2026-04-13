@@ -25,8 +25,8 @@ Together, they form a complete methodology that transforms how organizations app
 The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
 
 - **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
-- **Adding enterprise-grade features** like team AI directives and MCP server integration
-- **Enhancing tooling** with advanced CLI options, async agent support, comprehensive issue tracker integration
+- **Adding enterprise-grade features** like team AI directives integration
+- **Enhancing tooling** with dual execution loop support (SYNC/ASYNC task classification)
 - **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
 - **Providing team templates** and best practices for scaling AI-assisted development across teams
 
@@ -279,52 +279,6 @@ team-ai-directives/
 ### Architecture Support
 
 The toolkit includes architecture documentation support via the **Architect extension** (creates ADRs and Architecture Descriptions). Bundled and auto-installed during `specify init`. See the [Extensions section](#-extensions) for details.
-
-### Framework Options
-
-The spec-kit supports the following framework options, configurable during feature creation:
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| `--contracts` | Enable service contracts (API schemas, test assertions) | Enabled |
-| `--no-contracts` | Disable service contracts | - |
-| `--data-models` | Generate data model documentation | Enabled |
-| `--no-data-models` | Skip data model generation | - |
-
-**Example**:
-```bash
-./create-new-feature.sh --contracts --no-data-models "User authentication"
-```
-
-**Usage Pattern**:
-
-Set flags during feature creation. The flags are stored in each `spec.md` file and auto-detected by all `/spec.*` commands.
-
-**Example in spec.md**:
-```markdown
-## Framework Options
-
-contracts=true
-data_models=false
-```
-
-**Workflow Integration**:
-
-| Feature | Architecture Location | Activation |
-|---------|----------------------|-------------|
-| Feature ADRs (pre-plan) | before_plan hook (architect extension) | Generates feature-level ADRs if adr.md exists |
-| Architecture validation (post-plan) | after_plan hook (architect extension) | architect.validate validates plan alignment |
-| Plan generation | plan.md core command | Executes data model + UX validation (inline) |
-
-**Advanced Features** (extension-based):
-
-| Feature | Extension | Activation |
-|---------|-----------|-------------|
-| Test-Driven Development (TDD) | tdd extension | Hooks activate after /spec.tasks, /spec.implement |
-| Architecture integration | architect extension | before_plan (create ADRs), after_plan (validate) |
-| Risk-based testing | tdd extension | Part of TDD workflow |
-
-These are extension-based, requiring explicit installation for opt-in behavior.
 
 ### 2. Establish project principles
 

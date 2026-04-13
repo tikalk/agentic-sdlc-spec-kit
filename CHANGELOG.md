@@ -2,8 +2,309 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.3.48] - 2026-04-13
+
+### Added
+
+- **TDD extension hooks**: Added `after_plan` hook for `tdd.plan` command (optional)
+- **TDD extension hooks**: Added `after_implement` hook for `tdd.validate` command (optional)
+
+### Changed
+
+- **TDD extension hooks**: `tdd.implement` now triggers on `before_implement` instead of `after_implement` - ensures TDD cycle runs BEFORE implementation (RED→GREEN→REFACTOR)
+- **Hook re-registration fix**: Fixed bug where hooks weren't updated when extension.yml was modified
+  - Now compares both version AND manifest hash to trigger re-registration
+  - This ensures hooks get updated when extension.yml changes, even if version wasn't bumped
+
+## [0.3.47] - 2026-04-13
+
+### Fixed
+
+- **Extension script path bug**: Fixed session execution failure caused by incorrect path rewriting
+  - Extension command files used relative paths like `scripts/bash/setup-architect.sh`
+  - The `rewrite_project_relative_paths()` function rewrites `scripts/` to `.specify/scripts/`
+  - But extension scripts are actually at `.specify/extensions/<ext>/scripts/`
+  - Changed 22 extension command files across 4 extensions to use fully-qualified paths
+  - Affected extensions: architect (5 files), product (7 files), levelup (7 files), tdd (3 files)
+  - Fix uses `.specify/extensions/<ext>/scripts/...` paths which bypass the rewriting bug
+
+## [0.3.46] - 2026-04-13
+
+### Changed
+
+- **Removed issue tracker integration**: Cleaned up `@issue-tracker` references and traceability features
+  - Removed Smart Trace Validation section from `/spec.analyze` command
+  - Removed issue tracker references from docs/quickstart.md examples
+  - Removed issue tracker integration from levelup trace scripts and templates
+  - Removed issue tracker integration from implement command
+
+### Fixed
+
+- **RELEASE.md**: Trimmed to release instructions only (removed Lessons Learned historical debug notes)
+
+## [0.3.45] - 2026-04-13
+
+### Fixed
+
+- **check-prerequisites.sh/ps1**: Fixed undefined `$ARCHITECTURE` variable bug
+  - `common.sh` was refactored to export `AD` (path to `AD.md`) but `check-prerequisites.sh` still referenced undefined `$ARCHITECTURE`
+  - Renamed JSON output fields: `ARCHITECTURE_*` → `AD_*` (`AD_EXISTS`, `AD_VIEWS`, `AD_DIAGRAMS`)
+  - Updated PowerShell `common.ps1` to remove legacy `ARCHITECTURE` export
+  - Updated `adlc.spec.clarify.md` command to parse new field names
+  - Architecture Alignment pillar in `/spec.clarify` now correctly detects `AD.md` when architect extension is activated
+
+## [0.3.44] - 2026-04-13
+
+### Changed
+
+- **Product extension before_specify hook**: Replaced noisy `adlc.product.specify` with lightweight `adlc.product.link`
+  - New command silently exits if no PDRs exist (eliminates "No PDR file found" AI output)
+  - If PDRs exist, presents selection table to link feature to Feature PDR
+  - Reduces spurious output for users not using product extension workflow
+
+### Added
+
+- **New command `adlc.product.link`**: Lightweight PDR linking command designed for hook use
+  - Checks team-directives, memory, and drafts locations for PDRs
+  - Silent exit if no PDRs found
+  - Full selection flow if PDRs exist
+
+## [0.3.43] - 2026-04-13
+
+### Fixed
+
+- **Claude Code slash commands**: Fixed preset and extension command naming for slash command invocation
+  - Added `compute_skill_output_name()` function in `cli_customization.py` with fork-specific namespace handling
+  - Preset commands with `adlc.spec.*` prefix now generate `/adlc-spec-*` instead of `/speckit-adlc-spec-*`
+  - Preset alias commands with `spec.*` prefix now generate `/spec-*` instead of `/speckit-spec-*`
+  - Extension commands (e.g., `adlc.architect.init`) similarly now generate `/adlc-architect-init` instead of `/speckit-adlc-architect-init`
+  - Root cause: `_compute_output_name()` in `agents.py` always prepended `speckit-` regardless of command namespace
+
+## [0.3.42] - 2026-04-13
+
+### Fixed
+
+- **Bundled extension hooks**: Register hooks during `specify init`
+  - Added `hook_executor.register_hooks(manifest)` in `_install_bundled_extensions()`
+  - Creates `.specify/extensions.yml` when bundled extensions (architect, product, tdd) have hooks
+  - Aligns fork behavior with upstream `install_from_directory()` method
+  - Root cause: Custom bundled extension installation path was missing hook registration step
+
+## [0.3.41] - 2026-04-13
+
+### Fixed
+
+- **adlc.spec.plan**: Plan command now creates all required artifacts
+  - Added imperative Outline section with explicit "CREATE" instructions for each artifact
+  - Fixed bug where agent only wrote plan.md but didn't generate research.md, data-model.md, contracts/, or quickstart.md
+  - Removed ~150 lines of legacy feature architecture content (moved to architect extension hooks)
+  - Consolidated duplicate phase numbering (removed "Core Workflow" Phase 1-2, kept "Phases" Phase 0-1)
+  - Trimmed Triage Framework section from 70 lines to 20 essential criteria
+  - File size reduced from 421 lines to 296 lines (30% reduction)
+  - Root cause: Missing clear execution instructions; agent interpreted phases as documentation rather than actionable steps
+
+## [0.3.40] - 2026-04-13
+
+### Fixed
+
+- **spec.specify hooks**: Align hook event names with upstream template convention
+  - Changed product extension hooks from `before_spec`/`after_spec` to `before_specify`/`after_specify`
+  - Matches `templates/commands/specify.md` and `EXTENSION-API-REFERENCE.md` naming
+  - Fixes hooks not triggering due to naming mismatch
+
+- **adlc.spec.specify**: Remove inline Phase 2 PDR selection (now hook-only)
+  - Removed "Phase 2: PDR Reference Selection" from preset command
+  - PDR selection now exclusively handled by `before_specify` hook (`adlc.product.specify`)
+  - Added Pre-Execution Checks and Post-Execution Hooks sections
+  - Eliminates spurious "No PDR file found - skipping Phase 2" AI output
+  - Mission Brief workflow preserved (agentic-sdlc enhancement)
+
+## [0.3.39] - 2026-04-13
+
+### Fixed
+
+- **Preset commands for markdown agents**: Resolve `{SCRIPT}` placeholders correctly
+  - Preset commands registered for markdown-based agents (opencode, claude, windsurf, etc.) now properly replace `{SCRIPT}` with actual script paths
+  - Previously, `{SCRIPT}` was only resolved for skill-based agents (codex, kimi)
+  - Root cause: `register_commands()` in `agents.py` didn't call `resolve_skill_placeholders()` for non-skill agents
+
+## [0.3.38] - 2026-04-13
+
+### Fixed
+
+- **adlc.spec.constitution**: Simplified command from 199 to 88 lines
+  - Removed `validation_scripts:` section (wasn't being path-rewritten by CLI)
+  - Replaced complex 4-phase "Constitution Architect" workflow with 9 clear steps
+  - Aligned structure with upstream `templates/commands/constitution.md`
+  - Preserved team constitution inheritance feature
+  - Root cause: Complex multi-phase instructions caused models to skip script execution and write to wrong file paths
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to to [Semantic Versioning](https://semver.org/spec/v2.0.0/).
+and this project adheres to to [Semantic Versioning](https://semver.spec/v2.0.0/).
+
+## [0.3.36] - 2026-04-12
+
+### Fixed
+
+- **--team-ai-directives**: Persist to init-options.json (upstream standard) + read from all scripts
+  - pre_init() saves team_ai_directives to .specify/init-options.json (not config.json)
+  - bash scripts: load_team_directives_config() in common.sh reads from init-options.json
+  - PowerShell scripts: Load-TeamDirectivesConfig() in common.ps1 reads from init-options.json
+  - Extension scripts (both bash/PS) use centralized functions
+  - Falls back to memory location if not in init-options.json
+
+  Scripts fixed:
+  - src/specify_cli/cli_customization.py - save to init-options.json
+  - scripts/bash/common.sh - load_team_directives_config()
+  - scripts/bash/create-new-feature.sh
+  - scripts/bash/setup-plan.sh
+  - scripts/powershell/common.ps1 - Load-TeamDirectivesConfig()
+  - scripts/powershell/create-new-feature.ps1
+  - scripts/powershell/setup-plan.ps1
+  - scripts/powershell/setup-constitution.ps1
+  - extensions/*/scripts/bash/setup-*.sh
+  - extensions/*/scripts/powershell/setup-*.ps1
+
+## [0.3.31] - 2026-04-10
+
+### Fixed
+
+- **scaffold extensions**: Always overwrite existing files on re-init
+  - Previously skipped scaffold if extension.yml existed
+  - Now copies all files from source, overwriting existing
+  - Fixes v1.1.4 extensions not updating over v1.1.3
+
+## [0.3.30] - 2026-04-10
+
+### Fixed
+
+- **bundled extensions**: Version comparison during init/re-init
+  - Compare installed vs bundled version when scaffolding extensions
+  - Update to newer version if bundled is higher
+  - Previously skipped all existing extensions preventing updates
+  - Fixes workflow where implement skipped all ADRs due to wrong status
+
+## [0.3.28] - 2026-04-10
+
+### Fixed
+
+- **init workflow**: Remove all auto-trigger references to clarify
+  - Clarify is now a manual step you run after init
+  - Prevents hidden sub-agent calls during brownfield analysis
+  - Updated Description and Output sections to reflect manual flow
+
+### Changed
+
+- **clarify workflow**: Add ADR/PDR approval step before implement
+  - Added Phase 5.5 to ask users to approve ADRs/PDRs
+
+## [0.3.29] - 2026-04-10
+
+### Changed
+
+- **spec.plan Phase 1**: Clarify interface contracts scope
+  - More general: libraries, CLI, web services, parsers, UI
+  - Skip internal-only projects
+  - Only "Accepted" status records processed by implement
+  - Fixes workflow where implement skipped all ADRs due to wrong status
+
+## [0.3.24] - 2026-04-09
+
+### Changed
+
+- **preset commands**: Updated next steps suggestions to use command aliases
+  - Replaced full command names (`/adlc.spec.*`) with shorter aliases (`/spec.*`)
+  - Updated in `adlc.spec.plan.md` and `adlc.spec.specify.md`
+  - Improves user experience with shorter, more intuitive command suggestions
+
+## [0.3.23] - 2026-04-09
+
+### Changed
+
+- **levelup extension**: Fixed missing remote tag to trigger release
+
+## [0.3.22] - 2026-04-09
+
+### Changed
+
+- **levelup.clarify**: Simplified UX to align with architect.clarify and product.clarify patterns
+  - Removed auto-assessment phase (no pre-computed validity/scope/coverage)
+  - Replaced batch overview with simple gap identification table
+  - Simplified action picker: Accept/Reject/Defer (removed Investigate/Split)
+  - Aligned session limits: 5 clarifications total (like architect/product)
+  - Inline questions when gaps detected (no separate Investigate action)
+  - Updated documentation: added CDR Quality Checklist
+  - 31% line reduction: 694 → 478 lines
+
+## [0.3.21] - 2026-04-09
+
+### Fixed
+
+- **architect extension v1.0.1**: Fixed misleading documentation about `--architecture` flag
+  - Removed references to non-existent flag from command documentation
+  - Correctly documented hook-based feature architecture integration
+  - Updated all "When NOT to Use" sections with accurate guidance
+  - Feature architecture now correctly documented as `before_plan` hook in `.specify/extensions.yml`
+
+## [0.3.20] - 2026-04-09
+
+### Changed
+
+- **product extension v1.0.2**: Removed hardcoded architect handoff, now uses hooks-only integration
+  - Extensions are fully decoupled - external references only via project-level hooks
+  - If architect is not installed, no reference to it exists in product workflow
+
+### Fixed
+
+- **Extension coupling**: Product extension no longer has hardcoded references to other extensions
+  - Cross-extension integration now exclusively through `.specify/extensions.yml` hooks configuration
+  - Follows best practice for extension architecture
+
+## [0.3.19] - 2026-04-09
+
+### Added
+
+- **specify skill commands**: Restored skill package manager CLI commands that were removed
+  during upstream merge. Available commands:
+  - `specify skill search <query>` - Search skills registry
+  - `specify skill install <ref>` - Install from GitHub/GitLab/local
+  - `specify skill update [name|--all]` - Update installed skills
+  - `specify skill remove <name>` - Uninstall a skill
+  - `specify skill list` - Show installed skills
+  - `specify skill eval <path>` - Evaluate skill quality
+  - `specify skill sync-team` - Sync with team manifest
+  - `specify skill check-updates` - Check for available updates
+  - `specify skill config [key] [value]` - View/modify configuration
+- **specify skill theming**: Commands now use Tikalk orange accent color
+- **specify skill tests**: Added test suite for skill CLI commands
+
+### Fixed
+
+- **httpx dependency**: Added missing httpx dependency required by skills module
+  (was causing "Skills module not available" error)
+- Implementation follows fork pattern: CLI commands in `cli_customization.py`,
+  core logic reuses existing `skills/` module
+
+## [0.3.18] - 2026-04-09
+
+### Added
+
+- **ADLC preset path validation**: Added explicit path validation and non-git repository 
+  support to all ADLC preset commands to prevent AI agents from writing files to project 
+  root instead of the correct `specs/<branch>/` directory
+  - adlc.spec.specify.md
+  - adlc.spec.plan.md  
+  - adlc.spec.tasks.md
+  - adlc.spec.implement.md
+  - adlc.spec.checklist.md
+  - adlc.spec.analyze.md
+  - adlc.spec.clarify.md
+  - adlc.spec.constitution.md
+
+### Non-Git Repository Support
+
+- All ADLC commands now include guidance for setting `SPECIFY_FEATURE` environment 
+  variable when working without git
 
 ## [0.4.2] - 2026-04-13
 

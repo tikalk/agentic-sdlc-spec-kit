@@ -166,11 +166,11 @@ if $PATHS_ONLY; then
                 --arg impl_plan "$IMPL_PLAN" \
                 --arg tasks "$TASKS" \
                 --arg constitution "$CONSTITUTION" \
-                --arg architecture "$ARCHITECTURE" \
-                '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,TASKS:$tasks,CONSTITUTION:$constitution,ARCHITECTURE:$architecture}'
+                --arg ad "$AD" \
+                '{REPO_ROOT:$repo_root,BRANCH:$branch,FEATURE_DIR:$feature_dir,FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,TASKS:$tasks,CONSTITUTION:$constitution,AD:$ad}'
         else
-            printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s","CONSTITUTION":"%s","ARCHITECTURE":"%s"}\n' \
-                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$TASKS")" "$(json_escape "$CONSTITUTION")" "$(json_escape "$ARCHITECTURE")"
+            printf '{"REPO_ROOT":"%s","BRANCH":"%s","FEATURE_DIR":"%s","FEATURE_SPEC":"%s","IMPL_PLAN":"%s","TASKS":"%s","CONSTITUTION":"%s","AD":"%s"}\n' \
+                "$(json_escape "$REPO_ROOT")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$TASKS")" "$(json_escape "$CONSTITUTION")" "$(json_escape "$AD")"
         fi
     else
         echo "REPO_ROOT: $REPO_ROOT"
@@ -180,7 +180,7 @@ if $PATHS_ONLY; then
         echo "IMPL_PLAN: $IMPL_PLAN"
         echo "TASKS: $TASKS"
         echo "CONSTITUTION: $CONSTITUTION"
-        echo "ARCHITECTURE: $ARCHITECTURE"
+        echo "AD: $AD"
     fi
     exit 0
 fi
@@ -265,26 +265,26 @@ if $JSON_MODE; then
 
     # Check for constitution and architecture (optional governance documents)
     CONSTITUTION_EXISTS="false"
-    ARCHITECTURE_EXISTS="false"
+    AD_EXISTS="false"
     CONSTITUTION_RULES="[]"
-    ARCHITECTURE_VIEWS="{}"
-    ARCHITECTURE_DIAGRAMS="[]"
+    AD_VIEWS="{}"
+    AD_DIAGRAMS="[]"
 
     if [[ -f "$CONSTITUTION" ]]; then
         CONSTITUTION_EXISTS="true"
         CONSTITUTION_RULES=$(extract_constitution_rules "$CONSTITUTION")
     fi
 
-    if [[ -f "$ARCHITECTURE" ]]; then
-        ARCHITECTURE_EXISTS="true"
-        ARCHITECTURE_VIEWS=$(extract_architecture_views "$ARCHITECTURE")
-        ARCHITECTURE_DIAGRAMS=$(extract_architecture_diagrams "$ARCHITECTURE")
+    if [[ -f "$AD" ]]; then
+        AD_EXISTS="true"
+        AD_VIEWS=$(extract_architecture_views "$AD")
+        AD_DIAGRAMS=$(extract_architecture_diagrams "$AD")
     fi
 
-    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"CONSTITUTION":"%s","CONSTITUTION_EXISTS":%s,"CONSTITUTION_RULES":%s,"ARCHITECTURE":"%s","ARCHITECTURE_EXISTS":%s,"ARCHITECTURE_VIEWS":%s,"ARCHITECTURE_DIAGRAMS":%s}\n' \
+    printf '{"FEATURE_DIR":"%s","AVAILABLE_DOCS":%s,"SPEC_RISKS":%s,"PLAN_RISKS":%s,"CONSTITUTION":"%s","CONSTITUTION_EXISTS":%s,"CONSTITUTION_RULES":%s,"AD":"%s","AD_EXISTS":%s,"AD_VIEWS":%s,"AD_DIAGRAMS":%s}\n' \
         "$(json_escape "$FEATURE_DIR")" "$json_docs" "$SPEC_RISKS" "$PLAN_RISKS" \
         "$(json_escape "$CONSTITUTION")" "$CONSTITUTION_EXISTS" "$CONSTITUTION_RULES" \
-        "$(json_escape "$ARCHITECTURE")" "$ARCHITECTURE_EXISTS" "$ARCHITECTURE_VIEWS" "$ARCHITECTURE_DIAGRAMS"
+        "$(json_escape "$AD")" "$AD_EXISTS" "$AD_VIEWS" "$AD_DIAGRAMS"
 else
     # Text output
     echo "FEATURE_DIR:$FEATURE_DIR"
@@ -326,5 +326,5 @@ PY
     echo ""
     echo "GOVERNANCE DOCUMENTS:"
     check_file "$CONSTITUTION" "constitution.md (optional)"
-    check_file "$ARCHITECTURE" "architecture.md (optional)"
+    check_file "$AD" "AD.md (optional)"
 fi

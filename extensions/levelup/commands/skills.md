@@ -1,8 +1,8 @@
 ---
 description: Build a single skill from accepted CDRs based on user input
 scripts:
-  sh: scripts/bash/setup-levelup.sh --json
-  ps: scripts/powershell/setup-levelup.ps1 -Json
+  sh: .specify/extensions/levelup/scripts/bash/setup-levelup.sh --json
+  ps: .specify/extensions/levelup/scripts/powershell/setup-levelup.ps1 -Json
 ---
 
 ## User Input
@@ -31,8 +31,8 @@ Build a **single skill** from accepted modules based on user input. Skills are s
 - Accepted CDRs from `{REPO_ROOT}/.specify/drafts/cdr.md` (status "Accepted")
 
 **Output**:
-- Skill directory in `.specify/drafts/skills/{skill-name}/`
-- Entry added to `.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`
+- Skill directory in `{REPO_ROOT}/.specify/drafts/skills/{skill-name}/`
+- Entry added to `{REPO_ROOT}/.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`
 - Ready for `/levelup.implement` to activate
 
 ## Role & Context
@@ -448,7 +448,7 @@ Generate the entry for team-ai-directives `.skills.json`:
 
 **Note**: The `instruction_type` field encodes how the skill should be used by AI agents - this follows the "Encoding Team Standards" article's approach.
 
-Save to `.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`.
+Save to `{REPO_ROOT}/.specify/drafts/skills/{skill-name}/.skills-entry.json` for `/levelup.implement`.
 
 ### Phase 6: Validation
 
@@ -472,7 +472,7 @@ Check skill completeness:
 ## LevelUp Skills Summary
 
 **Skill Name**: {skill-name}
-**Location**: `.specify/drafts/skills/{skill-name}/`
+**Location**: `{REPO_ROOT}/.specify/drafts/skills/{skill-name}/`
 **Source CDRs**: {list}
 
 ### Generated Files
@@ -497,7 +497,7 @@ Check skill completeness:
 
 ### Next Steps
 
-1. **Review** the generated skill in `.specify/drafts/skills/{skill-name}/`
+1. **Review** the generated skill in `{REPO_ROOT}/.specify/drafts/skills/{skill-name}/`
 2. **Edit** SKILL.md if needed
 3. **Run** `/levelup.implement` to:
    - Move skill to team-ai-directives
