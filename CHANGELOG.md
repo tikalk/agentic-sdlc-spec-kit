@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.1] - 2026-04-13
+
+### Fixed
+
+- **Restored --team-ai-directives CLI parameter**: The parameter was accidentally removed during the upstream merge. Now properly accepts the value and passes it to pre_init() instead of hardcoding None.
+
 ## [0.4.0] - 2026-04-13
 
 ### Added
