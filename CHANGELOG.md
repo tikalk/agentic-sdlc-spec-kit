@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.8] - 2026-04-14
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit
+  - SFSpeckit: Salesforce SDD extension (18 commands)
+  - Gitflow: single-segment branch prefix support
+
 ## [0.4.7] - 2026-04-14
 
 ### Changed
