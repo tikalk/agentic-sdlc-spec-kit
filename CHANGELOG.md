@@ -2,7 +2,7 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
-## [0.3.42] - 2026-04-13
+## [0.4.9] - 2026-04-14
 
 ### Added
 
@@ -17,6 +17,133 @@ All notable changes to the Specify CLI and templates are documented here.
   - **Production-Ready**: Complete validation pipeline, error handling, and production loop closure
   - **8 Commands**: `init`, `specify`, `clarify`, `analyze`, `implement`, `validate`, `levelup`, `tasks`
   - **Comprehensive Documentation**: 190+ section README with architecture guide, examples, and troubleshooting
+
+## [0.4.8] - 2026-04-14
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit
+  - SFSpeckit: Salesforce SDD extension (18 commands)
+  - Gitflow: single-segment branch prefix support
+
+## [0.4.7] - 2026-04-14
+
+### Changed
+
+- **Full theming consistency**: Replaced all 47 `[cyan]` markup with `accent()` function calls
+  - TAGLINE now uses `accent_style()` instead of hardcoded bright_yellow
+  - StepTracker title uses accent()
+  - Status symbols use orange hex code (#f47721)
+  - select_with_arrows table uses accent_style() for borders
+  - All Panel borders use accent_style() throughout
+
+## [0.4.6] - 2026-04-14
+
+### Changed
+
+- **Merge recovery**: Merged backup-main-20260413 to recover lost commits
+  - Architect v2.0.0 - R&W methodology alignment
+  - TDD extension hooks (before_implement)
+  - Extension script path rewriting bug fix
+  - Team-ai-directives persistence to init-options.json
+- **Extension bundling unification**: Fork extensions now use `core_pack/extensions/` like git extension
+  - Updated pyproject.toml force-include paths
+  - Extensions: levelup, architect, product, quick, tdd
+- **Catalog.json updated**: Added `bundled: true` and `preinstall: true` to fork extensions
+
+### Fixed
+
+- **Version detection bug**: Fixed "Invalid version: 'unknown'" error when installing bundled extensions
+  - Added early return in `check_compatibility()` for unknown versions
+  - Bundled extensions are now guaranteed compatible
+
+## [0.3.48] - 2026-04-13
+
+### Added
+
+- **TDD extension hooks**: Added `after_plan` hook for `tdd.plan` command (optional)
+- **TDD extension hooks**: Added `after_implement` hook for `tdd.validate` command (optional)
+
+### Changed
+
+- **TDD extension hooks**: `tdd.implement` now triggers on `before_implement` instead of `after_implement` - ensures TDD cycle runs BEFORE implementation (RED→GREEN→REFACTOR)
+- **Hook re-registration fix**: Fixed bug where hooks weren't updated when extension.yml was modified
+  - Now compares both version AND manifest hash to trigger re-registration
+  - This ensures hooks get updated when extension.yml changes, even if version wasn't bumped
+
+## [0.3.47] - 2026-04-13
+
+### Fixed
+
+- **Extension script path bug**: Fixed session execution failure caused by incorrect path rewriting
+  - Extension command files used relative paths like `scripts/bash/setup-architect.sh`
+  - The `rewrite_project_relative_paths()` function rewrites `scripts/` to `.specify/scripts/`
+  - But extension scripts are actually at `.specify/extensions/<ext>/scripts/`
+  - Changed 22 extension command files across 4 extensions to use fully-qualified paths
+  - Affected extensions: architect (5 files), product (7 files), levelup (7 files), tdd (3 files)
+  - Fix uses `.specify/extensions/<ext>/scripts/...` paths which bypass the rewriting bug
+
+## [0.3.46] - 2026-04-13
+
+### Changed
+
+- **Removed issue tracker integration**: Cleaned up `@issue-tracker` references and traceability features
+  - Removed Smart Trace Validation section from `/spec.analyze` command
+  - Removed issue tracker references from docs/quickstart.md examples
+  - Removed issue tracker integration from levelup trace scripts and templates
+  - Removed issue tracker integration from implement command
+
+### Fixed
+
+- **RELEASE.md**: Trimmed to release instructions only (removed Lessons Learned historical debug notes)
+
+## [0.3.45] - 2026-04-13
+
+### Fixed
+
+- **check-prerequisites.sh/ps1**: Fixed undefined `$ARCHITECTURE` variable bug
+  - `common.sh` was refactored to export `AD` (path to `AD.md`) but `check-prerequisites.sh` still referenced undefined `$ARCHITECTURE`
+  - Renamed JSON output fields: `ARCHITECTURE_*` → `AD_*` (`AD_EXISTS`, `AD_VIEWS`, `AD_DIAGRAMS`)
+  - Updated PowerShell `common.ps1` to remove legacy `ARCHITECTURE` export
+  - Updated `adlc.spec.clarify.md` command to parse new field names
+  - Architecture Alignment pillar in `/spec.clarify` now correctly detects `AD.md` when architect extension is activated
+
+## [0.3.44] - 2026-04-13
+
+### Changed
+
+- **Product extension before_specify hook**: Replaced noisy `adlc.product.specify` with lightweight `adlc.product.link`
+  - New command silently exits if no PDRs exist (eliminates "No PDR file found" AI output)
+  - If PDRs exist, presents selection table to link feature to Feature PDR
+  - Reduces spurious output for users not using product extension workflow
+
+### Added
+
+- **New command `adlc.product.link`**: Lightweight PDR linking command designed for hook use
+  - Checks team-directives, memory, and drafts locations for PDRs
+  - Silent exit if no PDRs found
+  - Full selection flow if PDRs exist
+
+## [0.3.43] - 2026-04-13
+
+### Fixed
+
+- **Claude Code slash commands**: Fixed preset and extension command naming for slash command invocation
+  - Added `compute_skill_output_name()` function in `cli_customization.py` with fork-specific namespace handling
+  - Preset commands with `adlc.spec.*` prefix now generate `/adlc-spec-*` instead of `/speckit-adlc-spec-*`
+  - Preset alias commands with `spec.*` prefix now generate `/spec-*` instead of `/speckit-spec-*`
+  - Extension commands (e.g., `adlc.architect.init`) similarly now generate `/adlc-architect-init` instead of `/speckit-adlc-architect-init`
+  - Root cause: `_compute_output_name()` in `agents.py` always prepended `speckit-` regardless of command namespace
+
+## [0.3.42] - 2026-04-13
+
+### Fixed
+
+- **Bundled extension hooks**: Register hooks during `specify init`
+  - Added `hook_executor.register_hooks(manifest)` in `_install_bundled_extensions()`
+  - Creates `.specify/extensions.yml` when bundled extensions (architect, product, tdd) have hooks
+  - Aligns fork behavior with upstream `install_from_directory()` method
+  - Root cause: Custom bundled extension installation path was missing hook registration step
 
 ## [0.3.41] - 2026-04-13
 
@@ -233,6 +360,39 @@ and this project adheres to to [Semantic Versioning](https://semver.spec/v2.0.0/
 
 - All ADLC commands now include guidance for setting `SPECIFY_FEATURE` environment 
   variable when working without git
+
+## [0.4.2] - 2026-04-13
+
+### Changed
+
+- **Upstream merge**: Merged 29 upstream commits from github/spec-kit (v0.6.2 release + v0.6.3.dev0)
+- **Theme**: Fixed banner to use orange BANNER_COLORS instead of hardcoded blue/cyan
+- **New agents**: Added Goose AI agent support and cursor-agent skill mode
+- **Lean preset**: New minimal workflow preset with constitution, specify, plan, tasks, implement commands
+- **Git extension**: Improved auto-commit and feature branch workflow
+- **Catalog updates**: Added Worktrees, What-if Analysis, GitHub Issues Integration to community catalog
+
+### Fixed
+
+- **CLI hooks**: Restored --team-ai-directives parameter and pre_init/post_init hook calls
+- **Missing functions**: Added sync_team_ai_directives and _run_git_command functions
+- **Theme consistency**: Banner now uses BANNER_COLORS from cli_customization.py
+
+## [0.4.0] - 2026-04-09
+
+### Changed
+
+- **Upstream merge**: Merged upstream changes from github/spec-kit while preserving fork customizations
+- **preinstall filtering**: Bundled extensions now only scaffold/install extensions with `preinstall: true` in catalog.json (was installing all extensions as fallback)
+
+### Fixed
+
+- **Path bug**: Fixed `_install_bundled_extensions()` path bug where `ext_path / d` should be `ext_path / d.name`
+- **Duplicate TAGLINE**: Removed duplicate TAGLINE line from merge conflict resolution
+
+### Added
+
+- **Hook integration**: Added pre_init and post_init hook calls to init() function for fork-specific functionality
 
 ## [0.3.11] - 2026-04-04
 
@@ -877,6 +1037,90 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.6.2] - 2026-04-13
+
+### Changed
+
+- feat: Register "What-if Analysis" community extension (#2182)
+- feat: add GitHub Issues Integration to community catalog (#2188)
+- feat(agents): add Goose AI agent support (#2015)
+- Update ralph extension to v1.0.1 in community catalog (#2192)
+- fix: skip docs deployment workflow on forks (#2171)
+- chore: release 0.6.1, begin 0.6.2.dev0 development (#2162)
+
+## [0.6.1] - 2026-04-10
+
+### Changed
+
+- feat: add bundled lean preset with minimal workflow commands (#2161)
+- Add Brownfield Bootstrap extension to community catalog (#2145)
+- Add CI Guard extension to community catalog (#2157)
+- Add SpecTest extension to community catalog (#2159)
+- fix: bundled extensions should not have download URLs (#2155)
+- Add PR Bridge extension to community catalog (#2148)
+- feat(cursor-agent): migrate from .cursor/commands to .cursor/skills (#2156)
+- Add TinySpec extension to community catalog (#2147)
+- chore: bump spec-kit-verify to 1.0.3 and spec-kit-review to 1.0.1 (#2146)
+- Add Status Report extension to community catalog (#2123)
+- chore: release 0.6.0, begin 0.6.1.dev0 development (#2144)
+
+## [0.6.0] - 2026-04-09
+
+### Changed
+
+- Add Bugfix Workflow community extension to catalog and README (#2135)
+- Add Worktree Isolation extension to community catalog (#2143)
+- Add multi-repo-branching preset to community catalog (#2139)
+- Readme clarity (#2013)
+- Rewrite AGENTS.md for integration architecture (#2119)
+- docs: add SpecKit Companion to Community Friends section (#2140)
+- feat: add memorylint extension to community catalog (#2138)
+- chore: release 0.5.1, begin 0.5.2.dev0 development (#2137)
+
+## [0.5.1] - 2026-04-08
+
+### Changed
+
+- fix: pin typer>=0.24.0 and click>=8.2.1 to fix import crash (#2136)
+- feat: update fleet extension to v1.1.0 (#2029)
+- fix(forge): use hyphen notation in frontmatter name field (#2075)
+- fix(bash): sed replacement escaping, BSD portability, dead cleanup in update-agent-context.sh (#2090)
+- Add Spec Diagram community extension to catalog and README (#2129)
+- feat: Git extension stage 2 — GIT_BRANCH_NAME override, --force for existing dirs, auto-install tests (#1940) (#2117)
+- fix(git): surface checkout errors for existing branches (#2122)
+- Add Branch Convention community extension to catalog and README (#2128)
+- docs: lighten March 2026 newsletter for readability (#2127)
+- fix: restore alias compatibility for community extensions (#2110) (#2125)
+- Added March 2026 newsletter (#2124)
+- Add Spec Refine community extension to catalog and README (#2118)
+- Add explicit-task-dependencies community preset to catalog and README (#2091)
+- Add toc-navigation community preset to catalog and README (#2080)
+- fix: prevent ambiguous TOML closing quotes when body ends with `"` (#2113) (#2115)
+- fix speckit issue for trae (#2112)
+- feat: Git extension stage 1 — bundled `extensions/git` with hooks on all core commands (#1941)
+- Upgraded confluence extension to v.1.1.1 (#2109)
+- Update V-Model Extension Pack to v0.5.0 (#2108)
+- Add canon extension and canon-core preset. (#2022)
+- [stage2] fix: serialize multiline descriptions in legacy TOML renderer (#2097)
+- [stage1] fix: strip YAML frontmatter from TOML integration prompts (#2096)
+- Add Confluence extension (#2028)
+- fix: accept 4+ digit spec numbers in tests and docs (#2094)
+- fix(scripts): improve git branch creation error handling (#2089)
+- Add optimize extension to community catalog (#2088)
+- feat: add "VS Code Ask Questions" preset (#2086)
+- Add security-review v1.1.1 to community extensions catalog (#2073)
+- Add `specify integration` subcommand for post-init integration management (#2083)
+- Remove template version info from CLI, fix Claude user-invocable, cleanup dead code (#2081)
+- fix: add user-invocable: true to skill frontmatter (#2077)
+- fix: add actions:write permission to stale workflow (#2079)
+- feat: add argument-hint frontmatter to Claude Code commands (#1951) (#2059)
+- Update conduct extension to v1.0.1 (#2078)
+- chore(deps): bump astral-sh/setup-uv from 7.6.0 to 8.0.0 (#2072)
+- chore(deps): bump actions/configure-pages from 5 to 6 (#2071)
+- feat: add spec-kit-fixit extension to community catalog (#2024)
+- chore: release 0.5.0, begin 0.5.1.dev0 development (#2070)
+- feat: add Forgecode agent support (#2034)
 
 ## [0.5.0] - 2026-04-02
 

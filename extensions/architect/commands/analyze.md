@@ -1,8 +1,8 @@
 ---
 description: Analyze architecture for consistency between ADRs and AD, completeness, and quality issues
 scripts:
-  sh: scripts/bash/setup-architect.sh "analyze {ARGS}"
-  ps: scripts/powershell/setup-architect.ps1 "analyze {ARGS}"
+  sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "analyze {ARGS}"
+  ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "analyze {ARGS}"
 ---
 
 ## User Input

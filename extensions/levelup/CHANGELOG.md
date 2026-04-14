@@ -5,6 +5,13 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.6] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/setup-levelup.sh` to `.specify/extensions/levelup/scripts/bash/setup-levelup.sh`
+
 ## [1.1.5] - 2026-04-11
 
 ### Fixed

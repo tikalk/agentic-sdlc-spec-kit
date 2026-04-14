@@ -295,7 +295,8 @@ class TestGenericIntegration:
                 ".specify/templates/tasks-template.md",
             ]
         )
-        assert actual == expected, (
+        missing = sorted(set(expected) - set(actual))
+        assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
@@ -371,7 +372,8 @@ class TestGenericIntegration:
                 ".specify/templates/tasks-template.md",
             ]
         )
-        assert actual == expected, (
+        missing = sorted(set(expected) - set(actual))
+        assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )

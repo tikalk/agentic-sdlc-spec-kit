@@ -2,6 +2,22 @@
 
 All notable changes to the TDD Extension will be documented in this file.
 
+## [1.0.2] - 2026-04-13
+
+### Added
+- `after_plan` hook for `tdd.plan` command (optional) - TDD planning phase with 5 design questions
+
+### Changed
+- `tdd.implement` now triggers on `before_implement` instead of `after_implement` - ensures TDD cycle runs BEFORE implementation (RED→GREEN→REFACTOR)
+- `tdd.validate` now has its own `after_implement` hook (optional) - validates test quality after implementation
+
+## [1.0.1] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/` to `.specify/extensions/tdd/scripts/bash/`
+
 ## [1.0.0] - 2026-03-07
 
 ### Added

@@ -132,7 +132,7 @@ if ($PathsOnly) {
             IMPL_PLAN    = $paths.IMPL_PLAN
             TASKS        = $paths.TASKS
             CONSTITUTION = $paths.CONSTITUTION
-            ARCHITECTURE = $paths.ARCHITECTURE
+            AD = $paths.AD
         } | ConvertTo-Json -Compress
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
@@ -142,7 +142,7 @@ if ($PathsOnly) {
         Write-Output "IMPL_PLAN: $($paths.IMPL_PLAN)"
         Write-Output "TASKS: $($paths.TASKS)"
         Write-Output "CONSTITUTION: $($paths.CONSTITUTION)"
-        Write-Output "ARCHITECTURE: $($paths.ARCHITECTURE)"
+        Write-Output "AD: $($paths.AD)"
     }
     exit 0
 }
@@ -193,19 +193,19 @@ if ($IncludeTasks -and (Test-Path $paths.TASKS)) {
     
     # Check for constitution and architecture (optional governance documents)
     $constitutionExists = Test-Path $paths.CONSTITUTION -PathType Leaf
-    $architectureExists = Test-Path $paths.ARCHITECTURE -PathType Leaf
+    $adExists = Test-Path $paths.AD -PathType Leaf
     
     $constitutionRules = @()
-    $architectureViews = @{}
-    $architectureDiagrams = @()
+    $adViews = @{}
+    $adDiagrams = @()
     
     if ($constitutionExists) {
         $constitutionRules = Get-ConstitutionRules -ConstitutionFile $paths.CONSTITUTION
     }
     
-    if ($architectureExists) {
-        $architectureViews = Get-ArchitectureViews -ArchitectureFile $paths.ARCHITECTURE
-        $architectureDiagrams = Get-ArchitectureDiagrams -ArchitectureFile $paths.ARCHITECTURE
+    if ($adExists) {
+        $adViews = Get-ArchitectureViews -ArchitectureFile $paths.AD
+        $adDiagrams = Get-ArchitectureDiagrams -ArchitectureFile $paths.AD
     }
 
 if ($Json) {
@@ -218,10 +218,10 @@ if ($Json) {
         CONSTITUTION = $paths.CONSTITUTION
         CONSTITUTION_EXISTS = $constitutionExists
         CONSTITUTION_RULES = $constitutionRules
-        ARCHITECTURE = $paths.ARCHITECTURE
-        ARCHITECTURE_EXISTS = $architectureExists
-        ARCHITECTURE_VIEWS = $architectureViews
-        ARCHITECTURE_DIAGRAMS = $architectureDiagrams
+        AD = $paths.AD
+        AD_EXISTS = $adExists
+        AD_VIEWS = $adViews
+        AD_DIAGRAMS = $adDiagrams
     } | ConvertTo-Json -Compress
 } else {
     # Text output
@@ -245,5 +245,5 @@ if ($Json) {
     Write-Output ""
     Write-Output "GOVERNANCE DOCUMENTS:"
     Test-FileExists -Path $paths.CONSTITUTION -Description 'constitution.md (optional)' | Out-Null
-    Test-FileExists -Path $paths.ARCHITECTURE -Description 'architecture.md (optional)' | Out-Null
+    Test-FileExists -Path $paths.AD -Description 'AD.md (optional)' | Out-Null
 }

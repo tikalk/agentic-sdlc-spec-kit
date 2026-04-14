@@ -1,11 +1,11 @@
 ---
 description: Generate and validate AI session execution traces from implementation metadata.
 scripts:
-    sh: scripts/bash/generate-trace.sh --json
-    ps: scripts/powershell/generate-trace.ps1 -Json
+    sh: .specify/extensions/levelup/scripts/bash/generate-trace.sh --json
+    ps: .specify/extensions/levelup/scripts/powershell/generate-trace.ps1 -Json
 validation_script:
-    sh: scripts/bash/validate-trace.sh --json
-    ps: scripts/powershell/validate-trace.ps1 -Json
+    sh: .specify/extensions/levelup/scripts/bash/validate-trace.sh --json
+    ps: .specify/extensions/levelup/scripts/powershell/validate-trace.ps1 -Json
 ---
 
 ## Overview
@@ -84,7 +84,6 @@ Human-friendly 3-part narrative placed at the top:
 - Testing strategy (TDD, risk-based)
 - Process decisions (SYNC/ASYNC breakdown)
 - Integration choices (APIs, external services)
-- Issue tracking integration
 - Dynamic count based on feature complexity
 - Example: "1. Chose React with TypeScript 2. Implemented TDD approach 3. Applied dual execution loop..."
 
@@ -94,7 +93,6 @@ Human-friendly 3-part narrative placed at the top:
 - Quality gate pass rate
 - User story completion count
 - Commit reference
-- Issue tracker count
 - Example: "Delivered implementation with 8/8 quality gates passed (100%). All 4 user stories validated. Documented in commit a1b2c3d."
 
 ---
@@ -127,7 +125,6 @@ Human-friendly 3-part narrative placed at the top:
 #### Section 5: Evidence Links
 
 - Implementation commits and messages
-- Issue tracker references (@issue-tracker links)
 - Modified code paths
 - Feature artifact locations
 

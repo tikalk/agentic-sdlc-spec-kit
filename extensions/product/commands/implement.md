@@ -1,8 +1,8 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration
 scripts:
-  sh: scripts/bash/setup-product.sh "implement {ARGS}"
-  ps: scripts/powershell/setup-product.ps1 "implement {ARGS}"
+  sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
+  ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "implement {ARGS}"
 ---
 
 ---

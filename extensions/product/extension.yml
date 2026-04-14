@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.1.6"
+  version: "1.1.8"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -53,6 +53,11 @@ provides:
       file: "commands/roadmap.md"
       description: "Track milestone progress from feature spec task completion and update PDR status"
       aliases: ["product.roadmap"]
+
+    - name: "adlc.product.link"
+      file: "commands/link.md"
+      description: "Link feature to existing PDR (silent if no PDRs exist)"
+      aliases: ["product.link"]
 
   config:
     - name: "product-config.yml"
@@ -117,8 +122,9 @@ handoffs:
 
 hooks:
   before_specify:
-    command: "adlc.product.specify"
-    description: "Create/verify product requirements before feature specification"
+    command: "adlc.product.link"
+    description: "Link feature to existing PDR (silent if no PDRs exist)"
+    optional: true
   after_specify:
     command: "adlc.product.validate"
     description: "Validate feature spec alignment with PRD (READ-ONLY)"

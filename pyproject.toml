@@ -1,11 +1,11 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.3.41"
+version = "0.4.8"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
-    "typer",
-    "click>=8.1",
+    "typer>=0.24.0",
+    "click>=8.2.1",
     "rich",
     "platformdirs",
     "readchar",
@@ -28,12 +28,13 @@ packages = ["src/specify_cli"]
 
 # Include bundled extensions, presets, and core assets in the wheel
 [tool.hatch.build.targets.wheel.force-include]
-# Tikalk bundled extensions and presets
-"extensions/levelup" = "specify_cli/bundled_extensions/levelup"
-"extensions/architect" = "specify_cli/bundled_extensions/architect"
-"extensions/quick" = "specify_cli/bundled_extensions/quick"
-"extensions/product" = "specify_cli/bundled_extensions/product"
-"extensions/tdd" = "specify_cli/bundled_extensions/tdd"
+# Tikalk bundled extensions (unified with git extension approach)
+"extensions/levelup" = "specify_cli/core_pack/extensions/levelup"
+"extensions/architect" = "specify_cli/core_pack/extensions/architect"
+"extensions/quick" = "specify_cli/core_pack/extensions/quick"
+"extensions/product" = "specify_cli/core_pack/extensions/product"
+"extensions/tdd" = "specify_cli/core_pack/extensions/tdd"
+# Tikalk bundled presets
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
 # Core pack assets for offline/air-gapped scaffolding
 "templates/agent-file-template.md" = "specify_cli/core_pack/templates/agent-file-template.md"
@@ -46,6 +47,10 @@ packages = ["src/specify_cli"]
 "templates/commands" = "specify_cli/core_pack/commands"
 "scripts/bash" = "specify_cli/core_pack/scripts/bash"
 "scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
+# Bundled extensions (installable via `specify extension add <name>`)
+"extensions/git" = "specify_cli/core_pack/extensions/git"
+# Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
+"presets/lean" = "specify_cli/core_pack/presets/lean"
 
 [tool.hatch.build.targets.sdist]
 include = [

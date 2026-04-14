@@ -2,6 +2,29 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.8] - 2026-04-13
+
+### Fixed
+
+- **Script path resolution**: Fixed session execution failures by using fully-qualified paths in command files
+  - Changed from relative `scripts/bash/setup-product.sh` to `.specify/extensions/product/scripts/bash/setup-product.sh`
+
+## [1.1.7] - 2026-04-13
+
+### Added
+
+- **New command `adlc.product.link`**: Lightweight PDR linking for `before_specify` hook
+  - Checks for PDRs in team-directives, memory, and drafts locations
+  - **Silent exit** if no PDRs exist (eliminates noisy AI output)
+  - Presents selection table if PDRs exist
+  - Designed for hook use to eliminate "No PDR file found" noise
+
+### Changed
+
+- **`before_specify` hook**: Changed from `adlc.product.specify` to `adlc.product.link`
+  - Old command was full interactive exploration (~535 lines), too noisy for hook
+  - New command exits silently if no PDRs, reducing spurious AI output
+
 ## [1.1.6] - 2026-04-13
 
 ### Changed

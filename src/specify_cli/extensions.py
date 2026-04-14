@@ -55,6 +55,8 @@ if EXTENSION_ALIAS_PATTERN_ENABLED:
 else:
     EXTENSION_ALIAS_NAME_PATTERN = None
 
+REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"
+
 
 def _load_core_command_names() -> frozenset[str]:
     """Discover bundled core command names from the packaged templates.
@@ -204,11 +206,34 @@ class ExtensionManifest:
 
         # Validate provides section
         provides = self.data["provides"]
-        if "commands" not in provides or not provides["commands"]:
-            raise ValidationError("Extension must provide at least one command")
+        commands = provides.get("commands", [])
+        hooks = self.data.get("hooks")
 
-        # Validate commands
-        for cmd in provides["commands"]:
+        if "commands" in provides and not isinstance(commands, list):
+            raise ValidationError("Invalid provides.commands: expected a list")
+        if "hooks" in self.data and not isinstance(hooks, dict):
+            raise ValidationError("Invalid hooks: expected a mapping")
+
+        has_commands = bool(commands)
+        has_hooks = bool(hooks)
+
+        if not has_commands and not has_hooks:
+            raise ValidationError("Extension must provide at least one command or hook")
+
+        # Validate hook values (if present)
+        if hooks:
+            for hook_name, hook_config in hooks.items():
+                if not isinstance(hook_config, dict):
+                    raise ValidationError(
+                        f"Invalid hook '{hook_name}': expected a mapping"
+                    )
+                if not hook_config.get("command"):
+                    raise ValidationError(
+                        f"Hook '{hook_name}' missing required 'command' field"
+                    )
+
+        # Validate commands (if present)
+        for cmd in commands:
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
@@ -247,7 +272,7 @@ class ExtensionManifest:
     @property
     def commands(self) -> List[Dict[str, Any]]:
         """Get list of provided commands."""
-        return self.data["provides"]["commands"]
+        return self.data.get("provides", {}).get("commands", [])
 
     @property
     def hooks(self) -> Dict[str, Any]:
@@ -510,10 +535,11 @@ class ExtensionManager:
         """Collect command and alias names declared by a manifest.
 
         Performs install-time validation for extension-specific constraints:
-        - commands and aliases must use the canonical `speckit.{extension}.{command}` shape
-        - commands and aliases must use this extension's namespace
+        - primary commands must use the canonical `speckit.{extension}.{command}` shape
+        - primary commands must use this extension's namespace
         - command namespaces must not shadow core commands
         - duplicate command/alias names inside one manifest are rejected
+        - aliases are validated for type and uniqueness only (no pattern enforcement)
 
         Args:
             manifest: Parsed extension manifest
@@ -550,7 +576,8 @@ class ExtensionManager:
                         f"{kind.capitalize()} for command '{primary_name}' must be a string"
                     )
 
-                # Use different pattern for commands vs aliases
+                # Enforce canonical pattern only for primary command names;
+                # aliases are free-form to preserve community extension compat.
                 if kind == "command":
                     match = EXTENSION_COMMAND_NAME_PATTERN.match(name)
                     if match is None:
@@ -559,25 +586,14 @@ class ExtensionManager:
                             "must follow pattern '(speckit|adlc).{extension}.{command}'"
                         )
                     namespace = match.group(1)
-                else:
-                    # Aliases can use shorter form: {extension}.{command}
-                    match = EXTENSION_ALIAS_NAME_PATTERN.match(name)
-                    if match is None:
+                    if namespace != manifest.id:
                         raise ValidationError(
-                            f"Invalid {kind} '{name}': "
-                            "must follow pattern '{extension}.{command}'"
+                            f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
                         )
-                    namespace = match.group(1)
-
-                if namespace != manifest.id:
-                    raise ValidationError(
-                        f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
-                    )
-
-                if namespace in CORE_COMMAND_NAMES:
-                    raise ValidationError(
-                        f"{kind.capitalize()} '{name}' conflicts with core command namespace '{namespace}'"
-                    )
+                    if namespace in CORE_COMMAND_NAMES:
+                        raise ValidationError(
+                            f"{kind.capitalize()} '{name}' conflicts with core command namespace '{namespace}'"
+                        )
 
                 if name in declared_names:
                     raise ValidationError(
@@ -995,6 +1011,10 @@ class ExtensionManager:
         Raises:
             CompatibilityError: If extension is incompatible
         """
+        # Skip check for unknown versions (bundled extensions are guaranteed compatible)
+        if speckit_version == "unknown":
+            return True
+
         required = manifest.requires_speckit_version
         current = pkg_version.Version(speckit_version)
 
@@ -1922,6 +1942,14 @@ class ExtensionCatalog:
         if not ext_info:
             raise ExtensionError(f"Extension '{extension_id}' not found in catalog")
 
+        # Bundled extensions without a download URL must be installed locally
+        if ext_info.get("bundled") and not ext_info.get("download_url"):
+            raise ExtensionError(
+                f"Extension '{extension_id}' is bundled with spec-kit and has no download URL. "
+                f"It should be installed from the local package. "
+                f"Try reinstalling: {REINSTALL_COMMAND}"
+            )
+
         download_url = ext_info.get("download_url")
         if not download_url:
             raise ExtensionError(f"Extension '{extension_id}' has no download URL")
@@ -2235,6 +2263,9 @@ class HookExecutor:
             init_options.get("ai_skills")
         )
         kimi_skill_mode = selected_ai == "kimi"
+        cursor_skill_mode = selected_ai == "cursor-agent" and bool(
+            init_options.get("ai_skills")
+        )
 
         skill_name = self._skill_name_from_command(command_id)
         if codex_skill_mode and skill_name:
@@ -2243,6 +2274,8 @@ class HookExecutor:
             return f"/{skill_name}"
         if kimi_skill_mode and skill_name:
             return f"/skill:{skill_name}"
+        if cursor_skill_mode and skill_name:
+            return f"/{skill_name}"
 
         return f"/{command_id}"
 

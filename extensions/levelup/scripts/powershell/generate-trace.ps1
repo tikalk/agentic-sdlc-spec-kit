@@ -83,7 +83,7 @@ function Extract-ProblemStatement {
     
     # Get all user stories from spec
     $specContent = Get-Content $paths.FEATURE_SPEC -Raw
-    $userStoryMatches = [regex]::Matches($specContent, '(?i)(As a user|User story|As an|As a).*?(?=\n|@issue-tracker|$)')
+    $userStoryMatches = [regex]::Matches($specContent, '(?i)(As a user|User story|As an|As a).*?(?=\n|$)')
     $userStories = $userStoryMatches | ForEach-Object { $_.Value.Trim() } | Select-Object -First 5
     
     # Build problem statement
@@ -157,17 +157,6 @@ function Extract-KeyDecisions {
     }
     
     # 6. Issue tracking
-    $issueRefs = 0
-    foreach ($file in @($paths.FEATURE_SPEC, $paths.IMPL_PLAN, $paths.TASKS)) {
-        if (Test-Path $file) {
-            $content = Get-Content $file -Raw
-            $issueRefs += ([regex]::Matches($content, '@issue-tracker')).Count
-        }
-    }
-    if ($issueRefs -gt 0) {
-        $decisions += "Integrated issue tracking with $issueRefs @issue-tracker references for traceability"
-    }
-    
     # Format as numbered list
     $output = ""
     for ($i = 0; $i -lt $decisions.Count; $i++) {
@@ -227,20 +216,6 @@ function Extract-FinalSolution {
         } catch {
             # Git not available
         }
-    }
-    
-    # Add issue tracker count
-    $issueCount = 0
-    foreach ($file in @($paths.FEATURE_SPEC, $paths.IMPL_PLAN, $paths.TASKS)) {
-        if (Test-Path $file) {
-            $content = Get-Content $file -Raw
-            $issueCount += ([regex]::Matches($content, '@issue-tracker')).Count
-        }
-    }
-    if ($issueCount -gt 0) {
-        $solution += " with $issueCount supporting issue tracker references."
-    } else {
-        $solution += "."
     }
     
     return $solution
@@ -404,27 +379,6 @@ function Extract-EvidenceLinks {
         } catch {
             # Git not available, skip
         }
-    }
-    
-    # Extract issue references
-    $issueRefs = @()
-    foreach ($file in @($paths.FEATURE_SPEC, $paths.IMPL_PLAN, $paths.TASKS)) {
-        if (Test-Path $file) {
-            $content = Get-Content $file -Raw
-            $matches = [regex]::Matches($content, '@issue-tracker ([A-Z0-9\-#]+)')
-            foreach ($match in $matches) {
-                $issueRefs += $match.Groups[1].Value
-            }
-        }
-    }
-    $issueRefs = $issueRefs | Select-Object -Unique
-    
-    if ($issueRefs.Count -gt 0) {
-        $evidence += "**Issue References**:`n"
-        foreach ($issue in $issueRefs) {
-            $evidence += "- $issue`n"
-        }
-        $evidence += "`n"
     }
     
     # List modified files

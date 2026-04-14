@@ -1,8 +1,8 @@
 ---
 description: "Detect language/framework and generate hybrid TDD tests (increment-based + risk-based)"
 scripts:
-  sh: ../../scripts/bash/detect-language.sh
-  ps: ../../scripts/powershell/Detect-Language.ps1
+  sh: .specify/extensions/tdd/scripts/bash/detect-language.sh
+  ps: .specify/extensions/tdd/scripts/powershell/Detect-Language.ps1
 tools:
   - bash
   - jq

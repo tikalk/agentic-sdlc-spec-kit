@@ -17,8 +17,8 @@ handoffs:
     prompt: Refine CDRs using current feature spec context
     send: false
 scripts:
-  sh: scripts/bash/setup-levelup.sh --json
-  ps: scripts/powershell/setup-levelup.ps1 -Json
+  sh: .specify/extensions/levelup/scripts/bash/setup-levelup.sh --json
+  ps: .specify/extensions/levelup/scripts/powershell/setup-levelup.ps1 -Json
 ---
 
 ## User Input

@@ -33,11 +33,11 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Alignment with 12 Factors:** This stage focuses on [III. Mission Definition](https://tikalk.github.io/agentic-sdlc-12-factors/content/mission-definition.html), translating intent into formal, version-controlled specifications.
 
 1. **Craft the Directive (`/specify`)**  
-   **Action:** Author a single, comprehensive natural-language directive that blends the issue tracker mission, personas, constraints, and any clarifications.  
+   **Action:** Author a single, comprehensive natural-language directive that blends the mission, personas, constraints, and any clarifications.  
    **Purpose:** Front-load human judgment so the AI can draft an accurate `spec.md` aligned with the constitution.
 2. **Execute the Command**  
-   **Action:** Run `/specify` in the IDE; Agentic SDLC Spec Kit loads `memory/constitution.md`, resolves `@team/...` references against the directives repo, and captures any `@issue-tracker ISSUE-###` reference in the prompt so the resulting spec links back to the originating ticket.  
-   **Purpose:** Generates the structured specification artifact under `specs/<feature>/spec.md` with shared principles and traceability already in context.
+   **Action:** Run `/specify` in the IDE; Agentic SDLC Spec Kit loads `memory/constitution.md`, resolves `@team/...` references against the directives repo.  
+   **Purpose:** Generates the structured specification artifact under `specs/<feature>/spec.md` with shared principles already in context.
 3. **Review and Commit**  
    **Action:** Perform a macro-review of the generated `spec.md`, refine if needed, then commit it.  
    **Purpose:** Locks in the requirements that all later stages will honor.
@@ -45,7 +45,7 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Example Command:**
 
 ```text
-/specify "Generate the specification for the feature in @issue-tracker ISSUE-123. The target user is the @team/personas/data_analyst.md. The operation must be asynchronous to handle large dashboards. The PDF title must include the dashboard name and an export timestamp."
+/specify "Generate the specification for a feature. The target user is the @team/personas/data_analyst.md. The operation must be asynchronous to handle large dashboards. The PDF title must include the dashboard name and an export timestamp."
 ```
 
 **Outcome:** A committed `spec.md` ready to drive planning in Stage 2.

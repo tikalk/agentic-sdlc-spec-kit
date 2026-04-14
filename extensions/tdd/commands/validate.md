@@ -1,7 +1,7 @@
 ---
 description: "Validate test quality and provide recommendations with scoring"
 scripts:
-  sh: ../../scripts/bash/validate-test-quality.sh
+  sh: .specify/extensions/tdd/scripts/bash/validate-test-quality.sh
 tools:
   - bash
   - jq

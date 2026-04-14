@@ -1,26 +1,28 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-03-13T00:00:00Z",
+  "updated_at": "2026-04-10T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
-    "selftest": {
-      "name": "Spec Kit Self-Test Utility",
-      "id": "selftest",
+    "git": {
+      "name": "Git Branching Workflow",
+      "id": "git",
       "version": "1.0.0",
-      "description": "Verifies catalog extensions by programmatically walking through the discovery, installation, and registration lifecycle.",
+      "description": "Feature branch creation, numbering (sequential/timestamp), validation, and Git remote detection",
       "author": "spec-kit-core",
       "repository": "https://github.com/github/spec-kit",
-      "download_url": "https://github.com/github/spec-kit/releases/download/selftest-v1.0.0/selftest.zip",
+      "bundled": true,
       "tags": [
-        "testing",
-        "core",
-        "utility"
+        "git",
+        "branching",
+        "workflow",
+        "core"
       ]
     },
     "tdd": {
       "id": "tdd",
       "name": "TDD - Test-Driven Development Workflow",
-      "version": "1.0.0",
+      "version": "1.0.2",
+      "bundled": true,
       "preinstall": true,
       "description": "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation.",
       "author": "Agentic SDLC Team",
@@ -51,6 +53,7 @@
       "id": "levelup",
       "name": "LevelUp - Team AI Directives Contributor",
       "version": "1.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)",
       "author": "Agentic SDLC Team",
@@ -83,7 +86,8 @@
     "architect": {
       "id": "architect",
       "name": "Architect - ADR & Architecture Description",
-      "version": "1.0.0",
+      "version": "2.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods methodology",
       "author": "Agentic SDLC Team",
@@ -117,6 +121,7 @@
       "id": "quick",
       "name": "Quick - Session-Based Ad-Hoc Task Execution",
       "version": "1.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology: Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution",
       "author": "Agentic SDLC Team",
@@ -143,6 +148,7 @@
       "id": "product",
       "name": "Product - PRD & PDR Management",
       "version": "1.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development",
       "author": "Agentic SDLC Team",

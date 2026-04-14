@@ -15,9 +15,9 @@ The TDD extension provides comprehensive Test-Driven Development workflow:
 
 | Command | Purpose | Hook Trigger |
 |---------|---------|---------------|
-| `tdd.plan` | Planning phase - design before coding | Manual / Optional |
+| `tdd.plan` | Planning phase - design before coding | `after_plan` (optional) |
 | `tdd.tasks` | Detect language/framework + generate hybrid tests | `after_tasks` |
-| `tdd.implement` | Execute RED→GREEN→REFACTOR | `after_implement` |
+| `tdd.implement` | Execute RED→GREEN→REFACTOR | `before_implement` |
 | `tdd.validate` | Validate test quality | `after_implement` (optional) |
 
 ## Quick Start
@@ -122,6 +122,25 @@ Good test quality
 ## Detailed Workflow
 
 ```
+/spec.specify "Add feature"
+         ↓
+ /spec.plan         ← Run planning phase
+         ↓
+    [after_plan hook] → tdd.plan (optional)
+         ↓
+ /spec.tasks
+         ↓
+    [after_tasks hook] → tdd.tasks
+         ↓ Auto-detect language (Python/pytest, TS/vitest, Go/test)
+         ↓ Generate hybrid tests: [RISK] + [TDD] increment tests
+         ↓
+ /spec.implement
+         ├─ [before_implement hook] → tdd.implement
+         │    ↓ Execute RED→GREEN→REFACTOR for each test
+         │
+         └─ [after_implement hook] → tdd.validate (optional)
+              ↓ Quality validation + recommendations
+```
 /s specify "Add feature"
          ↓
  /spec.plan         ← Run planning phase
@@ -133,7 +152,7 @@ Good test quality
          ↓ Generate hybrid tests: [RISK] + [TDD] increment tests
          ↓
  /spec.implement
-         ├─ [after_implement hook] → tdd.implement
+         ├─ [before_implement hook] → tdd.implement
          │    ↓ Execute RED→GREEN→REFACTOR for each test
          │
          └─ [after_implement hook] → tdd.validate (optional)
@@ -148,16 +167,25 @@ Good test quality
 
 ```yaml
 hooks:
+  after_plan:
+    - extension: tdd
+      command: tdd.plan
+      enabled: true  # true (default) or false
+      optional: true
+      
   after_tasks:
     - extension: tdd
       command: tdd.tasks
       enabled: true  # true (default) or false
       optional: false
       
-  after_implement:
+  before_implement:
     - extension: tdd
       command: tdd.implement
       enabled: true  # true (default) or false
+      optional: false
+      
+  after_implement:
     - extension: tdd
       command: tdd.validate
       enabled: true  # true (default) or false

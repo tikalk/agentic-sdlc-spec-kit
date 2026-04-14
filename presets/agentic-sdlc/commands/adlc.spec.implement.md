@@ -187,12 +187,7 @@ If working in a non-git repository:
        - Suggest next steps if implementation cannot proceed
        - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-7. Issue Tracker Integration:
-       - If ASYNC tasks were dispatched, update issue tracker with progress
-       - Apply completion labels when ASYNC tasks finish
-       - Provide traceability links between tasks and issue tracker items
-
-8. Completion validation:
+7. Completion validation:
        - Verify all required tasks are completed
        - Check that implemented features match the original specification
        - Validate that tests pass and coverage meets requirements

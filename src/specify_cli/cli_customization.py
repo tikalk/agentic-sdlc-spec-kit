@@ -118,6 +118,51 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 
 
 # ============================================================================
+# SKILL OUTPUT NAME COMPUTATION - Fork-specific naming for Claude Code slash commands
+# ============================================================================
+
+# Fork-specific command namespaces that should NOT have "speckit-" prefix
+FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
+
+
+def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
+    """
+    Compute the on-disk skill name for an agent with fork-specific handling.
+
+    This function handles the fork's command naming conventions where:
+    - Commands with "adlc." prefix should become /adlc-{command} (not /speckit-adlc-{command})
+    - Commands with "spec." alias prefix should become /spec-{command} (not /speckit-spec-{command})
+    - Extension commands like "speckit.test-ext.hello" still get the "speckit-" prefix
+
+    Args:
+        cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution", "speckit.test-ext.hello")
+        agent_config: Agent configuration dict
+
+    Returns:
+        The output name for the skill file (e.g., "adlc-spec-constitution", "spec-constitution", or "speckit-test-ext-hello")
+    """
+    if agent_config.get("extension") != "/SKILL.md":
+        return cmd_name
+
+    # Check if command starts with a fork-specific namespace
+    # These should NOT get the "speckit-" prefix
+    for namespace in FORK_COMMAND_NAMESPACES:
+        prefix = f"{namespace}."
+        if cmd_name.startswith(prefix):
+            # Replace dots with dashes directly (e.g., "adlc.spec.constitution" -> "adlc-spec-constitution")
+            return cmd_name.replace(".", "-")
+
+    # For non-fork commands (e.g., speckit.test-ext.hello), use upstream behavior
+    # Strip "speckit." prefix and add "speckit-" back
+    if cmd_name.startswith("speckit."):
+        short_name = cmd_name[len("speckit.") :]
+        return f"speckit-{short_name.replace('.', '-')}"
+
+    # Fallback for any other commands (shouldn't normally hit this)
+    return cmd_name.replace(".", "-")
+
+
+# ============================================================================
 # CLI IDENTITY
 # ============================================================================
 
@@ -152,17 +197,48 @@ console = Console()
 def _scaffold_extensions_to_project(
     source_dir: Path,
     project_dir: Path,
+    skip_extensions: list[str] | None = None,
 ) -> list[str]:
-    """Scaffold extension folders from source to project if missing or empty."""
+    """Scaffold extension folders from source to project if missing or empty.
+    Only scaffolds extensions with preinstall: true in the catalog.
+
+    Args:
+        skip_extensions: List of extension names to skip during scaffolding.
+    """
+    import json
+
     scaffolded = []
+    skip_extensions = skip_extensions or []
 
     if not source_dir.exists():
         return scaffolded
 
     project_dir.mkdir(parents=True, exist_ok=True)
 
+    preinstall_extensions = set()
+    catalog_path = source_dir / "catalog.json"
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            extensions = catalog_data.get("extensions", {})
+            preinstall_extensions = {
+                ext_id
+                for ext_id, ext_data in extensions.items()
+                if ext_data.get("preinstall", False)
+            }
+        except (json.JSONDecodeError, IOError):
+            pass
+
     for ext_dir in source_dir.iterdir():
         if not ext_dir.is_dir() or ext_dir.name.startswith("."):
+            continue
+
+        # Skip extensions in the skip list
+        if ext_dir.name in skip_extensions:
+            continue
+
+        if preinstall_extensions and ext_dir.name not in preinstall_extensions:
             continue
 
         proj_ext = project_dir / ext_dir.name
@@ -274,15 +350,20 @@ def post_init(
     project_path: Path,
     selected_ai: str,
     tracker: Any = None,
+    no_git: bool = False,
 ) -> None:
-    """Post-init hook - bundled extensions and presets."""
+    """Post-init hook - bundled extensions and presets.
+
+    Args:
+        no_git: If True, skip installing the git extension (user passed --no-git).
+    """
     if os.environ.get("SPECKIT_SKIP_BUNDLED"):
         if tracker:
             tracker.skip("extensions", "skipped (SPECKIT_SKIP_BUNDLED)")
             tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
         return
 
-    _install_bundled_extensions(project_path, selected_ai, tracker)
+    _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git)
     _install_bundled_presets(project_path, selected_ai, tracker)
 
 
@@ -290,20 +371,26 @@ def _install_bundled_extensions(
     project_path: Path,
     selected_ai: str,
     tracker: Any = None,
+    skip_git: bool = False,
 ) -> None:
-    """Install bundled extensions with scaffolding support."""
+    """Install bundled extensions with scaffolding support.
+
+    Args:
+        skip_git: If True, skip installing the 'git' extension (used when --no-git is passed).
+    """
     from .extensions import ExtensionManager
 
     project_extensions_dir = project_path / ".specify" / "extensions"
 
+    # Search paths for bundled extensions (now unified in core_pack/extensions/)
     search_paths = [
+        (
+            Path(__file__).parent / "core_pack" / "extensions",
+            Path(__file__).parent / "core_pack" / "extensions" / "catalog.json",
+        ),
         (
             Path(__file__).parent.parent.parent / "extensions",
             Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
-        ),
-        (
-            Path(__file__).parent / "bundled_extensions",
-            Path(__file__).parent / "bundled_extensions" / "catalog.json",
         ),
         (project_extensions_dir, project_extensions_dir / "catalog.json"),
     ]
@@ -314,7 +401,7 @@ def _install_bundled_extensions(
     for ext_path, cat_path in search_paths:
         if ext_path.exists():
             has_extensions = any(
-                (ext_path / d / "extension.yml").exists()
+                (ext_path / d.name / "extension.yml").exists()
                 for d in ext_path.iterdir()
                 if d.is_dir() and not d.name.startswith(".")
             )
@@ -330,8 +417,10 @@ def _install_bundled_extensions(
         return
 
     if bundled_extensions_dir != project_extensions_dir:
+        # Build list of extensions to skip during scaffolding
+        skip_list = ["git"] if skip_git else []
         scaffolded = _scaffold_extensions_to_project(
-            bundled_extensions_dir, project_extensions_dir
+            bundled_extensions_dir, project_extensions_dir, skip_extensions=skip_list
         )
         if scaffolded:
             console.print(f"[dim]Scaffolded extensions: {', '.join(scaffolded)}[/dim]")
@@ -375,19 +464,22 @@ def _install_bundled_extensions(
         ]
 
     if bundled_extensions:
-        from .extensions import ExtensionManager
+        from .extensions import ExtensionManager, CommandRegistrar, HookExecutor
 
         manager = ExtensionManager(project_path)
         registry = manager.registry
-
-        from .extensions import CommandRegistrar
-
         registrar = CommandRegistrar()
+        hook_executor = HookExecutor(project_path)
 
     installed = []
     skipped = []
 
     for ext_name in bundled_extensions:
+        # Skip git extension if --no-git was passed
+        if skip_git and ext_name == "git":
+            skipped.append(f"{ext_name} (--no-git)")
+            continue
+
         ext_dir = bundled_extensions_dir / ext_name
         if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
             skipped.append(f"{ext_name} (not found)")
@@ -405,10 +497,17 @@ def _install_bundled_extensions(
 
                 existing = registry.get(ext_name)
                 existing_version = existing.get("version", "0") if existing else "0"
+                existing_hash = existing.get("manifest_hash", "") if existing else ""
 
                 try:
-                    if Version(manifest.version) > Version(existing_version):
-                        # Update to newer version - re-register commands/skills
+                    new_hash = manifest.get_hash()
+                    version_changed = Version(manifest.version) > Version(
+                        existing_version
+                    )
+                    hash_changed = new_hash != existing_hash
+
+                    if version_changed or hash_changed:
+                        # Update to newer version or manifest changed - re-register commands/skills/hooks
                         registered_commands = (
                             registrar.register_commands_for_all_agents(
                                 manifest, ext_dir, project_path
@@ -418,11 +517,14 @@ def _install_bundled_extensions(
                             manifest, ext_dir
                         )
 
+                        # Register hooks (creates/updates .specify/extensions.yml)
+                        hook_executor.register_hooks(manifest)
+
                         registry.update(
                             ext_name,
                             {
                                 "version": manifest.version,
-                                "manifest_hash": manifest.get_hash(),
+                                "manifest_hash": new_hash,
                                 "registered_commands": registered_commands,
                                 "registered_skills": registered_skills,
                             },
@@ -444,6 +546,9 @@ def _install_bundled_extensions(
             )
 
             registered_skills = manager._register_extension_skills(manifest, ext_dir)
+
+            # Register hooks (creates/updates .specify/extensions.yml)
+            hook_executor.register_hooks(manifest)
 
             registry.add(
                 ext_name,
