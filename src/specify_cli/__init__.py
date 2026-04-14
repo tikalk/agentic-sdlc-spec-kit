@@ -1835,7 +1835,7 @@ def init(
             return f"/skill:speckit-{name}"
         if cursor_agent_skill_mode:
             return f"/speckit-{name}"
-        return f"/speckit.{name}"
+        return f"/spec.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
@@ -1872,9 +1872,9 @@ def init(
     enhancement_lines = [
         enhancement_intro,
         "",
-        f"○ {_display_cmd('clarify')} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {_display_cmd('plan')} if used)",
-        f"○ {_display_cmd('analyze')} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {_display_cmd('tasks')}, before {_display_cmd('implement')})",
-        f"○ {_display_cmd('checklist')} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {_display_cmd('plan')})",
+        f"{accent('○')} {_display_cmd('clarify')} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {_display_cmd('plan')} if used)",
+        f"{accent('○')} {_display_cmd('analyze')} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {_display_cmd('tasks')}, before {_display_cmd('implement')})",
+        f"{accent('○')} {_display_cmd('checklist')} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {_display_cmd('plan')})",
     ]
     enhancements_title = (
         "Enhancement Skills" if native_skill_mode else "Enhancement Commands"

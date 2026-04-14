@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.9] - 2026-04-14
+
+### Changed
+
+- **Command prefix**: Changed display from `/speckit.{name}` to `/spec.{name}` to match fork's command namespace
+- **Theming**: Fixed ○ bullet symbols in Enhancement Commands to use accent() function for orange color
+
 ## [0.4.8] - 2026-04-14
 
 ### Changed
