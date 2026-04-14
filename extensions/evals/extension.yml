@@ -2,9 +2,9 @@ schema_version: "1.0"
 
 extension:
   id: "evals"
-  name: "Evals - EDD (Eval-Driven Development) with PromptFoo Integration"
-  version: "1.0.0"
-  description: "Build evaluation systems following EDD (Eval-Driven Development) principles, integrating with PromptFoo for eval execution and annotation"
+  name: "Evals - EDD (Eval-Driven Development) with PromptFoo & DeepEval Integration"
+  version: "1.1.0"
+  description: "Build evaluation systems following EDD (Eval-Driven Development) principles, with flexible integration for either PromptFoo or DeepEval execution and annotation"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -20,6 +20,10 @@ requires:
       required: false
       version: ">=0.60.0"
       description: "Required for PromptFoo integration"
+    - name: "deepeval"
+      required: false
+      version: ">=0.21.0"
+      description: "Required for DeepEval integration"
 
 provides:
   commands:
@@ -53,10 +57,10 @@ provides:
       description: "Match published evals to feature tasks → [EVAL] markers"
       aliases: ["evals.tasks"]
 
-    # Generate PromptFoo config + graders from goldset
+    # Generate eval config + graders from goldset (PromptFoo/DeepEval)
     - name: "adlc.evals.implement"
       file: "commands/implement.md"
-      description: "Generate PromptFoo config + graders from goldset"
+      description: "Generate eval config + graders from goldset (PromptFoo/DeepEval)"
       aliases: ["evals.implement"]
 
     # TPR/TNR + goldset quality + PromptFoo pass rate thresholds
@@ -100,7 +104,7 @@ handoffs:
   evals.analyze:
     - label: "Implement Evaluators"
       agent: "evals.implement"
-      prompt: "Generate PromptFoo config and graders from finalized goldset"
+      prompt: "Generate eval config and graders from finalized goldset"
       send: true
     - label: "Mark Feature Tasks"
       agent: "evals.tasks"
@@ -130,6 +134,7 @@ tags:
    - "edd"
    - "eval-driven-development"
    - "promptfoo"
+   - "deepeval"
    - "testing"
    - "quality"
    - "goldset"
@@ -143,10 +148,10 @@ hooks:
     description: "Match published evals to feature tasks → [EVAL] markers"
   after_implement:
     command: "adlc.evals.implement"
-    description: "Generate PromptFoo config + graders from goldset"
+    description: "Generate eval config + graders from goldset"
 
 defaults:
-  system: "promptfoo"  # promptfoo | custom | llm-judge
+  system: "promptfoo"  # promptfoo | deepeval | custom | llm-judge
 
   # File locations
   drafts_location: ".specify/drafts/"
@@ -176,11 +181,11 @@ defaults:
     binary_human_review: true
 
 # Goldset Lifecycle (ADR/CDR Pattern):
-# 1. init → initialize directory structure
+# 1. init → initialize directory structure (choose PromptFoo/DeepEval)
 # 2. specify → bottom-up error analysis (drafts)
 # 3. clarify → axial coding (goldset.md + goldset.json)
 # 4. analyze → quantify + saturation + adversarial + holdout
-# 5. implement → PromptFoo config + graders (after_implement hook)
+# 5. implement → eval config + graders (after_implement hook)
 # 6. tasks → [EVAL] markers (after_tasks hook)
 # 7. validate → TPR/TNR + quality thresholds
 # 8. levelup → results scan + annotation queue + PR

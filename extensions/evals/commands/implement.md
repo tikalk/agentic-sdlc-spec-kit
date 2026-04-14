@@ -1,5 +1,5 @@
 ---
-description: Generate PromptFoo config + graders from goldset following EDD Principle VIII (Close Production Loop)
+description: Generate eval config + graders from goldset following EDD Principle VIII (Close Production Loop)
 scripts:
   sh: scripts/bash/setup-evals.sh "implement {ARGS}"
   ps: scripts/powershell/setup-evals.ps1 "implement {ARGS}"
@@ -19,6 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 - `"Generate Python graders for all criteria"`
 - `"Use LLM-judge for semantic evaluation, code-based for deterministic checks"`
 - `"Create PromptFoo config with tier 1 and tier 2 separation"`
+- `"Generate DeepEval configuration with custom metrics"`
 - `"Add annotation routing for high-risk failures"`
 - Empty input: Generate complete evaluator suite from goldset
 
@@ -64,8 +65,12 @@ tests/
 
 **Output**:
 
-1. **PromptFoo Configuration** - Complete `config.js` with tier 1 + tier 2 evaluation structure
-2. **Grader Implementation** - Python graders for each goldset criterion with binary pass/fail
+1. **Evaluation Configuration** - Complete config with tier 1 + tier 2 evaluation structure
+   - PromptFoo: `config.js` with JavaScript configuration and Python graders
+   - DeepEval: `config.py` with Python configuration and custom metrics
+2. **Grader/Metric Implementation** - Python evaluators for each goldset criterion with binary pass/fail
+   - PromptFoo: Python grader functions with JSON output
+   - DeepEval: Custom metric classes inheriting from BaseMetric
 3. **Failure Type Routing** - Specification failures → fix directives, generalization failures → build evaluators
 4. **Annotation Integration** - High-risk trace routing to human review queues
 5. **Evaluation Pipeline** - Complete CI/CD integration ready for `/evals.validate`
@@ -104,18 +109,60 @@ You are acting as an **Evaluation Implementation Engineer** creating production-
 
 ## Outline
 
-1. **Goldset Analysis** (Phase 0): Parse finalized goldset and assess implementation requirements
-2. **Evaluator Type Mapping**: Determine optimal evaluator approach per criterion
-3. **Tier Assignment**: Classify criteria into evaluation pyramid tiers
-4. **Grader Generation**: Create executable Python graders with binary pass/fail
-5. **PromptFoo Configuration**: Generate complete config.js with tier structure
-6. **Failure Type Routing**: Implement specification vs generalization failure gates
-7. **Annotation Integration**: Set up high-risk trace routing for human review
-8. **Validation Setup**: Prepare for evaluation system validation
+1. **System Detection** (Phase 0): Detect evaluation system (PromptFoo/DeepEval) from configuration
+2. **Goldset Analysis**: Parse finalized goldset and assess implementation requirements
+3. **Evaluator Type Mapping**: Determine optimal evaluator approach per criterion
+4. **Tier Assignment**: Classify criteria into evaluation pyramid tiers
+5. **Implementation Generation**: Create executable evaluators with binary pass/fail
+   - PromptFoo: Python grader functions with JSON output
+   - DeepEval: Custom metric classes with DeepEval integration
+6. **Configuration Generation**: Generate complete evaluation configuration
+   - PromptFoo: config.js with tier structure
+   - DeepEval: config.py with custom metrics
+7. **Failure Type Routing**: Implement specification vs generalization failure gates
+8. **Annotation Integration**: Set up high-risk trace routing for human review
+9. **Test Generation**: Create comprehensive unit tests for all evaluators
+10. **Validation Setup**: Prepare for evaluation system validation
 
 ## Execution Steps
 
-### Phase 0: Goldset Analysis and Requirements Assessment
+### Phase 0: System Detection and Configuration Assessment
+
+**Objective**: Detect evaluation system and prepare appropriate implementation strategy
+
+#### Step 1: System Detection
+
+Detect the configured evaluation system from the evals configuration:
+
+```bash
+# Check system configuration
+cat evals/*/config.yml | grep "^system:" | head -n1
+```
+
+**Detection Logic**:
+```markdown
+## Evaluation System Detection
+
+**Detected System**: {promptfoo|deepeval|custom|llm-judge}
+**Configuration Source**: `evals/{system}/config.yml`
+**Templates Required**:
+- PromptFoo: `promptfoo-test.yaml`, `grader-template.py`
+- DeepEval: `deepeval-config.py`, `deepeval-metric-template.py`
+```
+
+#### Step 2: Template Validation
+
+Verify required templates exist for the detected system:
+
+| System | Required Templates | Status |
+|--------|-------------------|--------|
+| promptfoo | `templates/promptfoo-test.yaml` | ✓ |
+| promptfoo | `templates/grader-template.py` | ✓ |
+| deepeval | `templates/deepeval-config.py` | ✓ |
+| deepeval | `templates/deepeval-metric-template.py` | ✓ |
+| deepeval | `templates/deepeval-test-template.py` | ✓ |
+
+### Phase 1: Goldset Analysis and Requirements Assessment
 
 **Objective**: Parse goldset and determine implementation requirements
 
@@ -937,6 +984,226 @@ module.exports = {
     use_case: 'merge_gate_validation'
   }
 };
+```
+
+### Phase 2b: DeepEval Configuration Generation (Alternative to PromptFoo)
+
+**Objective**: Create complete DeepEval configuration with custom metrics for evaluation pyramid
+
+**Note**: This phase runs instead of Phase 2 when system is configured as "deepeval"
+
+#### Step 1: Main Configuration Generation
+
+Generate comprehensive `config.py` using `templates/deepeval-config.py` structure:
+
+```python
+#!/usr/bin/env python3
+"""
+Auto-generated DeepEval Configuration
+EDD-compliant evaluation suite with custom metrics
+Generated: {current_date}
+Goldset version: 1.0.0
+"""
+
+import os
+import sys
+from typing import List, Dict, Any
+from deepeval import evaluate
+from deepeval.test_case import TestCase
+from deepeval.dataset import EvaluationDataset
+
+# Import generated custom metrics
+from graders.pii_leakage_metric import PIILeakageMetric
+from graders.prompt_injection_metric import PromptInjectionMetric
+from graders.hallucination_metric import HallucinationMetric
+from graders.misinformation_metric import MisinformationMetric
+# Domain-specific metrics (generated from goldset)
+from graders.auth_bypass_metric import AuthBypassMetric
+from graders.regulatory_compliance_metric import RegulatoryComplianceMetric
+from graders.safety_boundaries_metric import SafetyBoundariesMetric
+
+def create_evaluation_metrics() -> List[Any]:
+    """Create all EDD-compliant metrics for evaluation."""
+
+    metrics = []
+
+    # ============================================
+    # TIER 1: Fast Deterministic Metrics (<30s)
+    # ============================================
+
+    # Security Baseline (Always Applied)
+    pii_metric = PIILeakageMetric(
+        threshold=0.5,
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    )
+    metrics.append(pii_metric)
+
+    injection_metric = PromptInjectionMetric(
+        threshold=0.5,
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    )
+    metrics.append(injection_metric)
+
+    hallucination_metric = HallucinationMetric(
+        threshold=0.5,
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    )
+    metrics.append(hallucination_metric)
+
+    misinformation_metric = MisinformationMetric(
+        threshold=0.5,
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    )
+    metrics.append(misinformation_metric)
+
+    # ============================================
+    # TIER 2: Semantic LLM Metrics (<300s)
+    # ============================================
+
+    # Domain-specific metrics (from goldset)
+    auth_metric = AuthBypassMetric(
+        threshold=0.5,
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="specification_failure"
+    )
+    metrics.append(auth_metric)
+
+    compliance_metric = RegulatoryComplianceMetric(
+        threshold=0.5,
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="specification_failure"
+    )
+    metrics.append(compliance_metric)
+
+    safety_metric = SafetyBoundariesMetric(
+        threshold=0.5,
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="generalization_failure"
+    )
+    metrics.append(safety_metric)
+
+    return metrics
+
+def create_test_cases() -> List[TestCase]:
+    """Create test cases from goldset examples."""
+
+    test_cases = []
+
+    # Load test cases from goldset.json
+    goldset_path = "goldset.json"
+    if os.path.exists(goldset_path):
+        import json
+        with open(goldset_path, 'r') as f:
+            goldset_data = json.load(f)
+
+        for example in goldset_data.get("examples", []):
+            test_case = TestCase(
+                input=example["input"],
+                expected_output=example["expected_output"],
+                context=example.get("context", []),
+                additional_metadata={
+                    "criterion_id": example.get("criterion_id"),
+                    "example_type": example.get("type"),
+                    "tier": example.get("tier", 1)
+                }
+            )
+            test_cases.append(test_case)
+
+    return test_cases
+
+def run_evaluation(model_function=None):
+    """Run complete EDD evaluation with DeepEval."""
+
+    # Create metrics and test cases
+    metrics = create_evaluation_metrics()
+    test_cases = create_test_cases()
+
+    # Set actual outputs for test cases
+    if model_function:
+        for test_case in test_cases:
+            test_case.actual_output = model_function(
+                test_case.input,
+                test_case.context
+            )
+    else:
+        # Use expected outputs for validation
+        for test_case in test_cases:
+            test_case.actual_output = test_case.expected_output
+
+    # Run evaluation
+    results = evaluate(
+        test_cases=test_cases,
+        metrics=metrics,
+        hyperparameters={
+            "edd_binary_only": True,
+            "tier1_timeout": 30,
+            "tier2_timeout": 300
+        }
+    )
+
+    return results
+
+if __name__ == "__main__":
+    results = run_evaluation()
+    print("DeepEval evaluation completed")
+```
+
+#### Step 2: Metric Generation
+
+Generate custom DeepEval metrics using `templates/deepeval-metric-template.py`:
+
+**Generated Metric Structure**:
+```python
+# Example: graders/auth_bypass_metric.py
+class AuthBypassMetric(BaseMetric):
+    def __init__(self, threshold=0.5, model="gpt-4", **kwargs):
+        # EDD-compliant initialization
+
+    async def a_measure(self, test_case: LLMTestCase) -> float:
+        # Binary evaluation logic
+        # Returns 1.0 (pass) or 0.0 (fail)
+
+    def is_successful(self) -> bool:
+        # EDD Principle II: Binary success check
+```
+
+#### Step 3: Test Generation
+
+Generate comprehensive tests using `templates/deepeval-test-template.py`:
+
+**Generated Test Structure**:
+```python
+# Example: tests/test_auth_bypass_metric.py
+class TestAuthBypassMetric:
+    def test_goldset_pass_examples(self):
+        # Verify goldset pass examples return 1.0
+
+    def test_goldset_fail_examples(self):
+        # Verify goldset fail examples return 0.0
+
+    def test_edd_compliance(self):
+        # Verify binary-only behavior
 ```
 
 ### Phase 3: Failure Type Routing Implementation

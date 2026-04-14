@@ -2,7 +2,7 @@
 # Copy to .specify/extensions/evals/evals-config.yml to customize
 
 # Evaluation System (EDD Principle I: Spec-Driven Contracts)
-system: "promptfoo"  # promptfoo | custom | llm-judge
+system: "promptfoo"  # promptfoo | deepeval | custom | llm-judge
 
 # File Locations
 paths:
@@ -15,8 +15,8 @@ paths:
   # Auto-generated for PromptFoo consumption
   goldset_json: "evals/{system}/goldset.json"
 
-  # Generated PromptFoo config
-  promptfoo_config: "evals/{system}/config.js"
+  # Generated evaluation config
+  eval_config: "evals/{system}/config.js"  # .js for promptfoo, .py for deepeval
 
   # System-specific config
   system_config: "evals/{system}/config.yml"
@@ -161,6 +161,48 @@ promptfoo:
     # TPR/TNR thresholds
     min_true_positive_rate: 0.9
     max_false_positive_rate: 0.1
+
+# DeepEval Integration Settings
+deepeval:
+  # DeepEval configuration generation
+  config_generation: true
+
+  # Grader template settings
+  grader_template: "python"  # python (deepeval uses python-based metrics)
+
+  # Security baseline metrics (always applied)
+  security_baseline:
+    pii_leakage: true
+    prompt_injection: true
+    hallucination_detection: true
+    misinformation_detection: true
+
+  # DeepEval specific settings
+  metrics:
+    # Built-in DeepEval metrics
+    answer_relevancy: true
+    faithfulness: true
+    contextual_precision: true
+    contextual_recall: true
+    bias: true
+    toxicity: true
+
+  # Custom metrics configuration
+  custom_metrics:
+    enabled: true
+    base_class: "BaseMetric"  # DeepEval's base metric class
+
+  # Quality thresholds
+  quality:
+    min_pass_rate: 0.8
+    max_failure_rate: 0.2
+
+    # TPR/TNR thresholds
+    min_true_positive_rate: 0.9
+    max_false_positive_rate: 0.1
+
+  # Test case format
+  test_case_format: "deepeval"  # Uses DeepEval's TestCase format
 
 # Validation Settings (evals.validate)
 validation:

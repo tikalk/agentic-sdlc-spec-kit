@@ -1,10 +1,10 @@
-# Evals Extension: EDD (Eval-Driven Development) with PromptFoo Integration
+# Evals Extension: EDD (Eval-Driven Development) with PromptFoo & DeepEval Integration
 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-1.1.0-blue.svg)](CHANGELOG.md)
 [![EDD Compliance](https://img.shields.io/badge/EDD-10%2F10%20principles-green.svg)](#the-10-edd-principles)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Build comprehensive evaluation systems following **EDD (Eval-Driven Development)** principles, with seamless integration to PromptFoo for evaluation execution and annotation workflows.
+Build comprehensive evaluation systems following **EDD (Eval-Driven Development)** principles, with flexible integration to either **PromptFoo** or **DeepEval** for evaluation execution and annotation workflows.
 
 ## Overview
 
@@ -16,15 +16,21 @@ The Evals Extension implements a complete evaluation lifecycle following EDD met
 - **🔄 Goldset Lifecycle**: Draft → Accept → Published with version control
 - **🏗️ Evaluation Pyramid**: Fast CI/CD checks + comprehensive goldset judges
 - **📊 Statistical Validation**: TPR/TNR analysis with confidence intervals
-- **🔗 PromptFoo Integration**: Seamless config generation and execution
+- **🔗 Dual Integration**: Choose between PromptFoo or DeepEval for evaluation execution
+  - **PromptFoo**: JavaScript configs with Python graders, extensive provider support
+  - **DeepEval**: Python-native metrics with built-in LLM evaluators
 - **👥 Cross-Functional**: Insights for PMs, domain experts, and AI engineers
 - **🚀 Production-Ready**: Complete observability and production loop closure
 
 ### Quick Start
 
 ```bash
-# Initialize evaluation system
+# Initialize evaluation system (choose PromptFoo or DeepEval)
 /evals.init
+
+# Or initialize with specific integration
+/evals.init --system promptfoo   # JavaScript configs + Python graders
+/evals.init --system deepeval    # Python-native metrics
 
 # Define evaluation criteria from error analysis
 /evals.specify "Analyze auth failures from last week's traces"
@@ -190,25 +196,100 @@ CI/CD Pipeline
 │   │   └── eval-*.md
 │   └── config.yml                 # evals.system configuration
 ├── evals/
-│   └── {system}/                  # promptfoo | custom | llm-judge
+│   └── {system}/                  # promptfoo | deepeval | custom | llm-judge
 │       ├── goldset.md             # Published evals (markdown + YAML)
-│       ├── goldset.json           # Auto-generated for PromptFoo
-│       ├── config.js              # Generated PromptFoo config
-│       ├── config-tier1.js        # Fast checks configuration
-│       ├── config-tier2.js        # Semantic evaluation configuration
+│       ├── goldset.json           # Auto-generated for system consumption
+│       ├── config.{ext}           # Generated config (.js for promptfoo, .py for deepeval)
+│       ├── config-tier1.{ext}     # Fast checks configuration (system-specific)
+│       ├── config-tier2.{ext}     # Semantic evaluation configuration (system-specific)
 │       ├── config.yml             # System-specific settings
-│       ├── graders/
-│       │   ├── check_pii_leakage.py           # Security baseline
-│       │   ├── check_prompt_injection.py      # Security baseline
-│       │   ├── check_hallucination.py         # Security baseline
-│       │   ├── check_misinformation.py        # Security baseline
-│       │   └── {domain-specific}.py           # Custom evaluators
+│       ├── graders/               # Evaluators (structure varies by system)
+│       │   # PromptFoo structure:
+│       │   ├── check_pii_leakage.py           # Python grader functions
+│       │   ├── check_prompt_injection.py      # Return JSON with pass/fail
+│       │   # DeepEval structure:
+│       │   ├── pii_leakage_metric.py          # Custom metric classes
+│       │   ├── prompt_injection_metric.py     # Inherit from BaseMetric
+│       │   └── {domain-specific}_metric.py    # EDD-compliant metrics
+│       ├── tests/                 # Unit tests for evaluators
+│       │   ├── test_*.py          # Pytest-based test suites
+│       │   └── conftest.py        # Shared fixtures
 │       └── holdout.md             # Protected holdout dataset
-├── evals/results/                 # Git-ignored PromptFoo outputs
+├── evals/results/                 # Git-ignored evaluation outputs
 └── specs/
     └── {feature}/
         └── tasks.md               # [EVAL] markers per task
 ```
+
+## Integration Options
+
+The Evals Extension supports two primary evaluation frameworks, each with distinct advantages:
+
+### PromptFoo Integration
+
+**Best for**: Mixed technology stacks, extensive provider support, JavaScript-familiar teams
+
+**Features**:
+- JavaScript configuration with Python graders
+- Built-in support for 50+ LLM providers
+- Rich visualization and reporting dashboard
+- Mature ecosystem with extensive plugins
+- Command-line tools for CI/CD integration
+
+**Example Structure**:
+```javascript
+// config.js - PromptFoo configuration
+module.exports = {
+  description: 'EDD Evaluation Suite',
+  tests: [
+    {
+      assert: [{
+        type: 'python',
+        value: './graders/check_pii_leakage.py'
+      }]
+    }
+  ]
+};
+```
+
+### DeepEval Integration
+
+**Best for**: Python-native projects, teams preferring unified Python ecosystem
+
+**Features**:
+- Pure Python configuration and metrics
+- Built-in LLM evaluation metrics (faithfulness, relevancy, bias)
+- Custom metric classes with inheritance
+- Native pytest integration for testing
+- Async/await support for performance
+
+**Example Structure**:
+```python
+# config.py - DeepEval configuration
+from deepeval import evaluate
+from graders.pii_leakage_metric import PIILeakageMetric
+
+def run_evaluation():
+    metrics = [PIILeakageMetric(threshold=0.5)]
+    return evaluate(test_cases, metrics)
+```
+
+### Choosing Your Integration
+
+| Factor | PromptFoo | DeepEval |
+|--------|-----------|----------|
+| **Tech Stack** | Mixed (JS/Python) | Python-native |
+| **LLM Providers** | 50+ providers | OpenAI, Anthropic, others |
+| **Configuration** | JavaScript | Python |
+| **Grader Format** | Python functions returning JSON | Python classes inheriting BaseMetric |
+| **Testing** | External test files | Integrated pytest support |
+| **CI/CD** | CLI-based | Python script-based |
+| **Learning Curve** | Moderate (two languages) | Low (Python only) |
+| **Ecosystem** | Mature, extensive | Growing, focused |
+
+**Recommendation**:
+- Choose **PromptFoo** if you have mixed technology stacks, need extensive provider support, or want a mature ecosystem
+- Choose **DeepEval** if you prefer Python-native development, want simpler configuration, or need built-in ML evaluation metrics
 
 ## Command Reference
 
@@ -324,11 +405,13 @@ Match published evals to feature tasks → [EVAL] markers.
 
 ## Integration & Usage Examples
 
-### Basic Workflow
+### Basic Workflow (Both Integrations)
 
 ```bash
-# 1. Initialize evaluation system
-/evals.init
+# 1. Initialize evaluation system (choose integration)
+/evals.init                      # Prompts for choice
+/evals.init --system promptfoo   # Force PromptFoo
+/evals.init --system deepeval    # Force DeepEval
 
 # 2. Define criteria from error analysis
 /evals.specify "Auth token failures in production traces"
@@ -339,8 +422,8 @@ Match published evals to feature tasks → [EVAL] markers.
 # 4. Finalize with adversarial examples
 /evals.analyze
 
-# 5. Generate evaluation pipeline
-/evals.implement
+# 5. Generate evaluation pipeline (system-specific)
+/evals.implement                 # Generates PromptFoo or DeepEval config
 
 # 6. Validate system quality
 /evals.validate
@@ -352,13 +435,46 @@ Match published evals to feature tasks → [EVAL] markers.
 /evals.levelup
 ```
 
+### Integration-Specific Workflows
+
+#### PromptFoo Workflow
+```bash
+# After /evals.implement, run evaluations:
+cd evals/promptfoo
+promptfoo eval --config config.js
+
+# Run tier-specific evaluations
+promptfoo eval --config config-tier1.js  # Fast checks
+promptfoo eval --config config-tier2.js  # Semantic evaluations
+
+# View results
+promptfoo view
+```
+
+#### DeepEval Workflow
+```bash
+# After /evals.implement, run evaluations:
+cd evals/deepeval
+python config.py
+
+# Run with custom model function
+python config.py --model-function my_model.generate
+
+# Run tests
+pytest tests/ -v
+
+# View results
+python -c "import json; print(json.load(open('../results/deepeval_results.json')))"
+```
+
 ### Continuous Integration Integration
 
 Add to your CI/CD pipeline:
 
+#### PromptFoo CI/CD
 ```yaml
-# .github/workflows/evals.yml
-name: Evaluation Pipeline
+# .github/workflows/evals-promptfoo.yml
+name: PromptFoo Evaluation Pipeline
 
 on:
   pull_request:
@@ -370,6 +486,9 @@ jobs:
   evaluate:
     runs-on: ubuntu-latest
     steps:
+      - name: Install PromptFoo
+        run: npm install -g promptfoo
+
       - name: Run Tier 1 Evaluations (Fast)
         run: promptfoo eval --config evals/promptfoo/config-tier1.js
         timeout-minutes: 1
@@ -382,7 +501,49 @@ jobs:
         run: /evals.validate --performance-only
 ```
 
-### PromptFoo Integration
+#### DeepEval CI/CD
+```yaml
+# .github/workflows/evals-deepeval.yml
+name: DeepEval Evaluation Pipeline
+
+on:
+  pull_request:
+    paths:
+      - 'specs/**'
+      - 'evals/**'
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install Dependencies
+        run: |
+          pip install deepeval pytest
+          pip install -r requirements.txt
+
+      - name: Run Tier 1 Evaluations (Fast)
+        run: python evals/deepeval/config-tier1.py
+        timeout-minutes: 1
+
+      - name: Run Tier 2 Evaluations (Semantic)
+        run: python evals/deepeval/config-tier2.py
+        timeout-minutes: 5
+
+      - name: Run Tests
+        run: pytest evals/deepeval/tests/ -v
+
+      - name: Validate Results
+        run: /evals.validate --performance-only
+```
+
+### Implementation Examples
+
+#### PromptFoo Integration
 
 The extension generates complete PromptFoo configurations:
 
@@ -401,9 +562,7 @@ export default {
 };
 ```
 
-### Custom Grader Example
-
-Generated graders follow a standard pattern:
+**PromptFoo Grader Example**:
 
 ```python
 # Generated: evals/promptfoo/graders/check_auth_token.py
@@ -423,9 +582,9 @@ def evaluate(output: str, context: Dict[str, Any]) -> Dict[str, Any]:
 
     # Check for token exposure patterns
     token_exposure_patterns = [
-        r'token["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]{20,}',  # Exposed tokens
-        r'bearer\s+[a-zA-Z0-9_\-\.]{20,}',              # Exposed bearer tokens
-        r'jwt["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]+\.',      # Exposed JWT tokens
+        r'token["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]{20,}',
+        r'bearer\s+[a-zA-Z0-9_\-\.]{20,}',
+        r'jwt["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]+\.',
     ]
 
     for pattern in token_exposure_patterns:
@@ -434,15 +593,14 @@ def evaluate(output: str, context: Dict[str, Any]) -> Dict[str, Any]:
                 'pass': False,
                 'score': 0.0,
                 'reason': f'Token exposure detected: {pattern}',
-                'binary': True,  # EDD Principle II compliance
+                'binary': True,
                 'grader_type': 'code-based'
             }
 
-    # Check for proper token handling patterns
+    # Check for proper token handling
     proper_handling_patterns = [
         r'token.*valid',
-        r'authentication.*successful',
-        r'authorized.*request'
+        r'authentication.*successful'
     ]
 
     for pattern in proper_handling_patterns:
@@ -450,25 +608,100 @@ def evaluate(output: str, context: Dict[str, Any]) -> Dict[str, Any]:
             return {
                 'pass': True,
                 'score': 1.0,
-                'reason': f'Proper token handling detected: {pattern}',
-                'binary': True,  # EDD Principle II compliance
+                'reason': f'Proper token handling detected',
+                'binary': True,
                 'grader_type': 'code-based'
             }
 
-    # Default: insufficient token handling
     return {
         'pass': False,
         'score': 0.0,
         'reason': 'No clear authentication token handling detected',
-        'binary': True,  # EDD Principle II compliance
+        'binary': True,
         'grader_type': 'code-based'
     }
+```
 
-if __name__ == '__main__':
-    # Test the evaluator
-    test_output = "Authentication successful with valid token"
-    result = evaluate(test_output, {})
-    print(json.dumps(result, indent=2))
+#### DeepEval Integration
+
+The extension generates DeepEval configurations and custom metrics:
+
+```python
+# Generated: evals/deepeval/config.py
+from deepeval import evaluate
+from graders.auth_token_metric import AuthTokenMetric
+
+def run_evaluation():
+    metrics = [
+        AuthTokenMetric(threshold=0.5, include_reason=True)
+    ]
+    test_cases = create_test_cases()
+    return evaluate(test_cases, metrics)
+```
+
+**DeepEval Metric Example**:
+
+```python
+# Generated: evals/deepeval/graders/auth_token_metric.py
+import re
+from typing import Dict, Any
+from deepeval.metrics import BaseMetric
+from deepeval.test_case import LLMTestCase
+
+class AuthTokenMetric(BaseMetric):
+    """
+    DeepEval metric for authentication token handling.
+    EDD Principle II: Returns binary pass/fail only (1.0 or 0.0)
+    """
+
+    def __init__(self, threshold: float = 0.5, include_reason: bool = True, **kwargs):
+        self.threshold = threshold
+        self.include_reason = include_reason
+
+    @property
+    def __name__(self):
+        return "Auth Token Handling"
+
+    def measure(self, test_case: LLMTestCase) -> float:
+        """Measure function returns binary score: 1.0 or 0.0"""
+
+        output = test_case.actual_output
+
+        # Check for token exposure patterns
+        token_exposure_patterns = [
+            r'token["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]{20,}',
+            r'bearer\s+[a-zA-Z0-9_\-\.]{20,}',
+            r'jwt["\s]*[=:]["\s]*[a-zA-Z0-9_\-\.]+\.',
+        ]
+
+        for pattern in token_exposure_patterns:
+            if re.search(pattern, output, re.IGNORECASE):
+                self.success = False
+                self.score = 0.0
+                self.reason = f"Token exposure detected: {pattern}"
+                return 0.0
+
+        # Check for proper token handling
+        proper_handling_patterns = [
+            r'token.*valid',
+            r'authentication.*successful'
+        ]
+
+        for pattern in proper_handling_patterns:
+            if re.search(pattern, output, re.IGNORECASE):
+                self.success = True
+                self.score = 1.0
+                self.reason = "Proper token handling detected"
+                return 1.0
+
+        # Default case
+        self.success = False
+        self.score = 0.0
+        self.reason = "No clear authentication token handling detected"
+        return 0.0
+
+    def is_successful(self) -> bool:
+        return hasattr(self, 'success') and self.success
 ```
 
 ## Configuration
@@ -512,7 +745,9 @@ annotation:
   risk_threshold: 0.8
 ```
 
-### PromptFoo Integration Settings
+### Integration-Specific Settings
+
+#### PromptFoo Settings
 
 ```yaml
 # PromptFoo-specific settings
@@ -531,6 +766,44 @@ promptfoo:
     min_pass_rate: 0.8
     min_true_positive_rate: 0.9
     max_false_positive_rate: 0.1
+```
+
+#### DeepEval Settings
+
+```yaml
+# DeepEval-specific settings
+deepeval:
+  grader_template: "python"  # DeepEval uses Python-based metrics
+
+  # Security baseline metrics (always applied)
+  security_baseline:
+    pii_leakage: true
+    prompt_injection: true
+    hallucination_detection: true
+    misinformation_detection: true
+
+  # Built-in DeepEval metrics
+  metrics:
+    answer_relevancy: true
+    faithfulness: true
+    contextual_precision: true
+    contextual_recall: true
+    bias: true
+    toxicity: true
+
+  # Custom metrics configuration
+  custom_metrics:
+    enabled: true
+    base_class: "BaseMetric"
+
+  # Quality thresholds
+  quality:
+    min_pass_rate: 0.8
+    min_true_positive_rate: 0.9
+    max_false_positive_rate: 0.1
+
+  # Test case format
+  test_case_format: "deepeval"
 ```
 
 ## Troubleshooting
@@ -562,6 +835,22 @@ promptfoo eval --config evals/promptfoo/config.js --dry-run
 /evals.implement --force-regenerate
 ```
 
+#### Issue: DeepEval Import/Metric Errors
+**Symptoms**: `python config.py` fails with import or metric errors
+**Cause**: Invalid metric classes or missing dependencies
+**Solution**:
+```bash
+# Validate metric imports
+cd evals/deepeval
+python -c "from graders.auth_token_metric import AuthTokenMetric; print('Import OK')"
+
+# Run tests to validate metrics
+pytest tests/ -v
+
+# Regenerate metrics
+/evals.implement --force-regenerate
+```
+
 #### Issue: Poor Evaluation Performance
 **Symptoms**: Evaluations exceed SLA timeouts
 **Cause**: Complex graders or inefficient implementation
@@ -589,6 +878,36 @@ promptfoo eval --config evals/promptfoo/config.js --dry-run
 /evals.clarify  # Review and refine criteria
 ```
 
+#### Issue: Choosing Wrong Integration
+**Symptoms**: Performance issues, complex setup, integration friction
+**Cause**: Mismatch between project needs and chosen integration
+**Solution**:
+```bash
+# Migrate from PromptFoo to DeepEval
+/evals.init --system deepeval --migrate-from promptfoo
+
+# Migrate from DeepEval to PromptFoo
+/evals.init --system promptfoo --migrate-from deepeval
+
+# Compare integrations for your use case
+/evals.init --compare-integrations
+```
+
+#### Issue: Integration Performance Problems
+**Symptoms**: Evaluations exceed SLA timeouts (>30s Tier 1, >300s Tier 2)
+**Cause**: Suboptimal integration choice or configuration
+**Solution**:
+```bash
+# Profile evaluation performance
+/evals.validate --performance-only
+
+# For PromptFoo: Optimize grader complexity
+# For DeepEval: Use async metrics, reduce LLM calls
+
+# Consider hybrid approach
+/evals.implement --evaluator-type hybrid
+```
+
 ### Debug Mode
 
 Enable detailed logging for troubleshooting:
@@ -600,6 +919,10 @@ export EVALS_DEBUG=1
 # Run commands with verbose output
 /evals.implement --json  # Structured output for debugging
 /evals.validate --json   # Detailed validation metrics
+
+# Integration-specific debugging
+export PROMPTFOO_DEBUG=1  # For PromptFoo issues
+export DEEPEVAL_DEBUG=1   # For DeepEval issues
 ```
 
 ### Performance Monitoring

@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 
 # Global variables
 OUTPUT_FORMAT="text"  # text | json
-SYSTEM="promptfoo"    # promptfoo | custom | llm-judge
+SYSTEM="promptfoo"    # promptfoo | deepeval | custom | llm-judge
 DRY_RUN=false
 VERBOSE=false
 
@@ -86,6 +86,11 @@ check_prerequisites() {
         log_warning "PromptFoo not found. Install with: npm install -g promptfoo"
     fi
 
+    # Check DeepEval (only if using deepeval system)
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval
+    fi
+
     # Check Python (for graders)
     if ! command -v python3 &> /dev/null && ! command -v python &> /dev/null; then
         missing_tools+=("python3")
@@ -99,9 +104,180 @@ check_prerequisites() {
     return 0
 }
 
+# Check and install DeepEval dependencies
+check_and_install_deepeval() {
+    local python_cmd="python3"
+
+    # Check if python3 is available, fallback to python
+    if ! command -v python3 &> /dev/null; then
+        if command -v python &> /dev/null; then
+            python_cmd="python"
+        else
+            log_error "Python is required for DeepEval but not found"
+            return 1
+        fi
+    fi
+
+    # Check if deepeval is already installed
+    if $python_cmd -c "import deepeval" &> /dev/null; then
+        log_info "DeepEval is already installed"
+        return 0
+    fi
+
+    log_warning "DeepEval not found. This is required for DeepEval integration."
+
+    # Ask user for permission to install (unless in non-interactive mode)
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        # Running in sourced mode or JSON output - install automatically
+        install_deepeval_deps "$python_cmd"
+    else
+        # Interactive mode - ask for permission
+        echo
+        echo "DeepEval and related dependencies are required for this integration."
+        echo "The following packages will be installed:"
+        echo "  - deepeval>=0.21.0"
+        echo "  - pytest>=7.0.0"
+        echo "  - pytest-asyncio>=0.21.0"
+        echo
+        read -p "Install DeepEval dependencies now? (y/N): " -r
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            install_deepeval_deps "$python_cmd"
+        else
+            log_warning "DeepEval not installed. You can install it later with:"
+            log_warning "  pip install deepeval pytest pytest-asyncio"
+            return 1
+        fi
+    fi
+}
+
+# Install DeepEval dependencies
+install_deepeval_deps() {
+    local python_cmd="$1"
+
+    log_info "Installing DeepEval dependencies..."
+
+    # List of required packages
+    local packages=(
+        "deepeval>=0.21.0"
+        "pytest>=7.0.0"
+        "pytest-asyncio>=0.21.0"
+        "openai>=1.0.0"
+        "anthropic>=0.25.0"
+    )
+
+    # Try to install using pip
+    local pip_cmd="${python_cmd} -m pip"
+
+    # Install packages
+    for package in "${packages[@]}"; do
+        log_info "Installing $package..."
+        if ! $pip_cmd install "$package"; then
+            log_error "Failed to install $package"
+            log_error "You may need to install it manually: $pip_cmd install $package"
+            return 1
+        fi
+    done
+
+    # Verify installation
+    if $python_cmd -c "import deepeval; print('DeepEval', deepeval.__version__)" &> /dev/null; then
+        log_success "DeepEval installed successfully"
+
+        # Show quick verification
+        local version=$($python_cmd -c "import deepeval; print(deepeval.__version__)" 2>/dev/null || echo "unknown")
+        log_info "DeepEval version: $version"
+
+        return 0
+    else
+        log_error "DeepEval installation verification failed"
+        return 1
+    fi
+}
+
+# Prompt user to choose evaluation integration
+prompt_system_selection() {
+    # Skip if system was explicitly provided
+    if [[ "$SYSTEM" != "promptfoo" ]] || [[ "$#" -gt 0 && "$*" =~ --system ]]; then
+        return 0
+    fi
+
+    # Skip in non-interactive modes
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]] || [[ ! -t 0 ]]; then
+        log_info "Using default system: promptfoo (non-interactive mode)"
+        return 0
+    fi
+
+    echo
+    echo "=== Choose Evaluation Integration ==="
+    echo
+    echo "Which evaluation framework would you like to use?"
+    echo
+    echo "1. DeepEval - Python-native framework with built-in LLM metrics"
+    echo "   • Perfect for Python-heavy projects"
+    echo "   • Built-in metrics: faithfulness, answer relevancy, bias detection"
+    echo "   • Integrated with popular ML libraries"
+    echo
+    echo "2. PromptFoo - Flexible framework with JavaScript config + Python graders"
+    echo "   • Great for mixed tech stacks"
+    echo "   • Extensive provider support (50+ LLM providers)"
+    echo "   • Rich visualization and reporting"
+    echo
+    echo "3. Custom - Build your own evaluation framework"
+    echo "   • Full control over evaluation logic"
+    echo "   • Specialized metrics for unique use cases"
+    echo
+    echo "4. LLM-Judge - Use LLM models as evaluators"
+    echo "   • GPT-4/Claude for semantic evaluation"
+    echo "   • Natural language criteria"
+    echo
+
+    while true; do
+        read -p "Enter choice [1-4] (default: 2): " -r choice
+
+        case "${choice:-2}" in
+            1)
+                SYSTEM="deepeval"
+                log_info "Selected: DeepEval (Python-native)"
+                break
+                ;;
+            2)
+                SYSTEM="promptfoo"
+                log_info "Selected: PromptFoo (JavaScript + Python)"
+                break
+                ;;
+            3)
+                SYSTEM="custom"
+                log_info "Selected: Custom evaluation framework"
+                break
+                ;;
+            4)
+                SYSTEM="llm-judge"
+                log_info "Selected: LLM-Judge evaluation"
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please enter 1-4."
+                ;;
+        esac
+    done
+
+    echo
+}
+
 # EDD Action 1: Initialize evals/{system}/ directory structure
 action_init() {
+    # Prompt for system selection if not explicitly set
+    prompt_system_selection "$@"
+
     log_info "Initializing evals directory structure for system: $SYSTEM"
+
+    # Check dependencies for selected system
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval || {
+            log_error "DeepEval setup failed. Initialization aborted."
+            return 1
+        }
+    fi
 
     local evals_dir="$ROOT_DIR/evals"
     local system_dir="$evals_dir/$SYSTEM"
@@ -651,7 +827,15 @@ action_tasks() {
 
 # EDD Action 6: Generate PromptFoo config + graders from goldset
 action_implement() {
-    log_info "Generating PromptFoo config and graders from goldset"
+    log_info "Generating evaluation config and graders from goldset for system: $SYSTEM"
+
+    # Check dependencies for selected system
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval || {
+            log_error "DeepEval setup failed. Implementation aborted."
+            return 1
+        }
+    fi
 
     local system_dir="$ROOT_DIR/evals/$SYSTEM"
     local goldset_md="$system_dir/goldset.md"
@@ -1526,7 +1710,7 @@ ACTIONS (EDD Lifecycle):
     levelup     Scan evals/results/ + annotation queue → PR to team-ai-directives
 
 OPTIONS:
-    --system SYSTEM     Evaluation system: promptfoo (default), custom, llm-judge
+    --system SYSTEM     Evaluation system: promptfoo (default), deepeval, custom, llm-judge
     --json             Output results in JSON format
     --dry-run          Show what would be done without making changes
     --verbose          Enable verbose logging
