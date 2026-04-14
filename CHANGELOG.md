@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.10] - 2026-04-14
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit
+  - Added claude-ask-questions to community preset catalog (#2191)
+
 ## [0.4.9] - 2026-04-14
 
 ### Changed
