@@ -309,7 +309,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(f"{accent(self.title)}", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -320,7 +320,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = "[cyan]○[/cyan]"
+                symbol = "[#f47721]○[/#f47721]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -393,14 +393,14 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style="cyan", justify="left", width=3)
+        table.add_column(style=accent_style(), justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row("▶", f"{accent(key)} [dim]({options[key]})[/dim]")
             else:
-                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row(" ", f"{accent(key)} [dim]({options[key]})[/dim]")
 
         table.add_row("", "")
         table.add_row(
@@ -410,7 +410,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=accent_style(),
             padding=(1, 2),
         )
 
@@ -485,7 +485,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
+    console.print(Align.center(Text(TAGLINE, style=f"italic {accent_style()}")))
     console.print()
 
 
@@ -597,7 +597,7 @@ def init_git_repo(
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
+            console.print(accent("Initializing git repository..."))
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(
@@ -786,7 +786,7 @@ def merge_json_files(
         return None
 
     if verbose:
-        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
+        console.print(f"{accent('Merged JSON file:')} {existing_path.name}")
 
     return merged
 
@@ -996,7 +996,7 @@ def ensure_executable_scripts(
     else:
         if updated:
             console.print(
-                f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]"
+                f"{accent(f'Updated execute permissions on {updated} script(s) recursively')}"
             )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
@@ -1035,7 +1035,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print("[cyan]Initialized constitution from template[/cyan]")
+            console.print(accent("Initialized constitution from template"))
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -1352,7 +1352,9 @@ def init(
             )
             if force:
                 console.print(
-                    "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
+                    accent(
+                        "--force supplied: skipping confirmation and proceeding with merge"
+                    )
                 )
             else:
                 response = typer.confirm("Do you want to continue?")
@@ -1378,11 +1380,11 @@ def init(
                         "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
                     )
                 console.print(
-                    f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]"
+                    f"{accent('--force supplied: merging into existing directory')} '{project_name}'"
                 )
             else:
                 error_panel = Panel(
-                    f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
+                    f"Directory '{project_name}' already exists\n"
                     "Please choose a different project name or remove the existing directory.\n"
                     "Use [bold]--force[/bold] to merge into the existing directory.",
                     title="[red]Directory Conflict[/red]",
@@ -1430,7 +1432,7 @@ def init(
     current_dir = Path.cwd()
 
     setup_lines = [
-        "[cyan]Specify Project Setup[/cyan]",
+        accent("Specify Project Setup"),
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -1439,7 +1441,9 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+    console.print(
+        Panel("\n".join(setup_lines), border_style=accent_style(), padding=(1, 2))
+    )
 
     should_init_git = False
     if not no_git:
@@ -1455,10 +1459,10 @@ def init(
             install_url = agent_config["install_url"]
             if not check_tool(selected_ai):
                 error_panel = Panel(
-                    f"[cyan]{selected_ai}[/cyan] not found\n"
-                    f"Install from: [cyan]{install_url}[/cyan]\n"
+                    f"{accent(selected_ai)} not found\n"
+                    f"Install from: {accent(install_url)}\n"
                     f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                    f"Tip: Use {accent('--ignore-agent-tools')} to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
                     padding=(1, 2),
@@ -1486,8 +1490,8 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
-    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"{accent('Selected AI assistant:')} {selected_ai}")
+    console.print(f"{accent('Selected script type:')} {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -1761,7 +1765,7 @@ def init(
         if agent_folder:
             security_notice = Panel(
                 f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-                f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
+                f"Consider adding {accent(agent_folder)} (or parts of it) to {accent('.gitignore')} to prevent accidental credential leakage.",
                 title="[yellow]Agent Folder Security[/yellow]",
                 border_style="yellow",
                 padding=(1, 2),
@@ -1772,7 +1776,7 @@ def init(
     steps_lines = []
     if not here:
         steps_lines.append(
-            f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]"
+            f"1. Go to the project folder: {accent(f'cd {project_name}')}"
         )
         step_num = 2
     else:
@@ -1807,17 +1811,17 @@ def init(
     if codex_skill_mode and not ai_skills:
         # Integration path installed skills; show the helpful notice
         steps_lines.append(
-            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
+            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to {accent('.agents/skills')}"
         )
         step_num += 1
     if claude_skill_mode and not ai_skills:
         steps_lines.append(
-            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]"
+            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to {accent('.claude/skills')}"
         )
         step_num += 1
     if cursor_agent_skill_mode and not ai_skills:
         steps_lines.append(
-            f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to [cyan].cursor/skills[/cyan]"
+            f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to {accent('.cursor/skills')}"
         )
         step_num += 1
     usage_label = "skills" if native_skill_mode else "slash commands"
@@ -1836,23 +1840,26 @@ def init(
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
     steps_lines.append(
-        f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles"
+        f"   {step_num}.1 {_display_cmd('constitution')} - Establish project principles"
     )
     steps_lines.append(
-        f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
+        f"   {step_num}.2 {_display_cmd('specify')} - Create baseline specification"
     )
     steps_lines.append(
-        f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
+        f"   {step_num}.3 {_display_cmd('plan')} - Create implementation plan"
     )
     steps_lines.append(
-        f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
+        f"   {step_num}.4 {_display_cmd('tasks')} - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
+        f"   {step_num}.5 {_display_cmd('implement')} - Execute implementation"
     )
 
     steps_panel = Panel(
-        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
+        "\n".join(steps_lines),
+        title="Next Steps",
+        border_style=accent_style(),
+        padding=(1, 2),
     )
     console.print()
     console.print(steps_panel)
@@ -1865,9 +1872,9 @@ def init(
     enhancement_lines = [
         enhancement_intro,
         "",
-        f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
-        f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
-        f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
+        f"○ {_display_cmd('clarify')} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {_display_cmd('plan')} if used)",
+        f"○ {_display_cmd('analyze')} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {_display_cmd('tasks')}, before {_display_cmd('implement')})",
+        f"○ {_display_cmd('checklist')} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {_display_cmd('plan')})",
     ]
     enhancements_title = (
         "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
@@ -1875,7 +1882,7 @@ def init(
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title=enhancements_title,
-        border_style="cyan",
+        border_style=accent_style(),
         padding=(1, 2),
     )
     console.print()
@@ -2173,7 +2180,7 @@ def integration_list():
     console.print(table)
 
     if installed_key:
-        console.print(f"\n[dim]Current integration:[/dim] [cyan]{installed_key}[/cyan]")
+        console.print(f"\n[dim]Current integration:[/dim] {accent({installed_key})}")
     else:
         console.print("\n[yellow]No integration currently installed.[/yellow]")
         console.print(
@@ -2222,7 +2229,7 @@ def integration_install(
     if installed_key and installed_key == key:
         console.print(f"[yellow]Integration '{key}' is already installed.[/yellow]")
         console.print(
-            "Run [cyan]specify integration uninstall[/cyan] first, then reinstall."
+            "Run {accent('specify integration uninstall')} first, then reinstall."
         )
         raise typer.Exit(0)
 
@@ -2231,7 +2238,7 @@ def integration_install(
             f"[red]Error:[/red] Integration '{installed_key}' is already installed."
         )
         console.print(
-            f"Run [cyan]specify integration uninstall[/cyan] first, or use [cyan]specify integration switch {key}[/cyan]."
+            f"Run {accent('specify integration uninstall')} first, or use [cyan]specify integration switch {key}[/cyan]."
         )
         raise typer.Exit(1)
 
@@ -2511,7 +2518,7 @@ def integration_switch(
 
         if current_integration and manifest_path.exists():
             console.print(
-                f"Uninstalling current integration: [cyan]{installed_key}[/cyan]"
+                f"Uninstalling current integration: {accent({installed_key})}"
             )
             try:
                 old_manifest = IntegrationManifest.load(installed_key, project_root)
@@ -2575,7 +2582,7 @@ def integration_switch(
         ensure_executable_scripts(project_root)
 
     # Phase 2: Install target integration
-    console.print(f"Installing integration: [cyan]{target}[/cyan]")
+    console.print(f"Installing integration: {accent({target})}")
     manifest = IntegrationManifest(
         target_integration.key, project_root, version=get_speckit_version()
     )
@@ -2714,7 +2721,7 @@ def preset_add(
                 console.print(f"[red]Error:[/red] Directory not found: {dev}")
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
+            console.print(f"Installing preset from {accent({dev_path})}...")
             manifest = manager.install_from_directory(
                 dev_path, speckit_version, priority
             )
@@ -2736,7 +2743,7 @@ def preset_add(
                 )
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
+            console.print(f"Installing preset from {accent({from_url})}...")
             import urllib.request
             import urllib.error
             import tempfile
@@ -2760,7 +2767,7 @@ def preset_add(
             # Try bundled preset first, then catalog
             bundled_path = _locate_bundled_preset(pack_id)
             if bundled_path:
-                console.print(f"Installing bundled preset [cyan]{pack_id}[/cyan]...")
+                console.print(f"Installing bundled preset {accent({pack_id})}...")
                 manifest = manager.install_from_directory(
                     bundled_path, speckit_version, priority
                 )
@@ -2804,7 +2811,7 @@ def preset_add(
                     raise typer.Exit(1)
 
                 console.print(
-                    f"Installing preset [cyan]{pack_info.get('name', pack_id)}[/cyan]..."
+                    f"Installing preset {accent({pack_info.get('name', pack_id)})}..."
                 )
 
                 try:
@@ -4193,7 +4200,7 @@ def extension_search(
             # Install command (show warning if not installable)
             if install_allowed:
                 console.print(
-                    f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}"
+                    f"\n  {accent('Install:')} specify extension add {ext['id']}"
                 )
             else:
                 console.print(
@@ -4410,7 +4417,7 @@ def _print_extension_info(ext_info: dict, manager):
         console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
-        console.print(f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}")
+        console.print(f"\n{accent('Install:')} specify extension add {ext_info['id']}")
     else:
         catalog_name = ext_info.get("_catalog_name", "community")
         console.print("[yellow]Not installed[/yellow]")
