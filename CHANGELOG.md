@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+## [0.4.7] - 2026-04-14
+
+### Changed
+
+- **Full theming consistency**: Replaced all 47 `[cyan]` markup with `accent()` function calls
+  - TAGLINE now uses `accent_style()` instead of hardcoded bright_yellow
+  - StepTracker title uses accent()
+  - Status symbols use orange hex code (#f47721)
+  - select_with_arrows table uses accent_style() for borders
+  - All Panel borders use accent_style() throughout
+
 ## [0.4.6] - 2026-04-14
 
 ### Changed
