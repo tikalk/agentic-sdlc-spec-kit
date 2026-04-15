@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import requires_bash
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 EXT_DIR = PROJECT_ROOT / "extensions" / "git"
 EXT_BASH = EXT_DIR / "scripts" / "bash"
@@ -211,6 +213,7 @@ class TestGitExtensionInstall:
 # ── initialize-repo.sh Tests ─────────────────────────────────────────────────
 
 
+@requires_bash
 class TestInitializeRepoBash:
     def test_initializes_git_repo(self, tmp_path: Path):
         """initialize-repo.sh creates a git repo with initial commit."""
@@ -269,6 +272,7 @@ class TestInitializeRepoPowerShell:
 # ── create-new-feature.sh Tests ──────────────────────────────────────────────
 
 
+@requires_bash
 class TestCreateFeatureBash:
     def test_creates_branch_sequential(self, tmp_path: Path):
         """Extension create-new-feature.sh creates sequential branch."""
@@ -376,6 +380,7 @@ class TestCreateFeaturePowerShell:
 # ── auto-commit.sh Tests ─────────────────────────────────────────────────────
 
 
+@requires_bash
 class TestAutoCommitBash:
     def test_disabled_by_default(self, tmp_path: Path):
         """auto-commit.sh exits silently when config is all false."""
@@ -583,6 +588,7 @@ class TestAutoCommitPowerShell:
 # ── git-common.sh Tests ──────────────────────────────────────────────────────
 
 
+@requires_bash
 class TestGitCommonBash:
     def test_has_git_true(self, tmp_path: Path):
         """has_git returns 0 in a git repo."""
