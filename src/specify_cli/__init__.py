@@ -1575,13 +1575,13 @@ def init(
         ("constitution", "Constitution setup"),
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
-        ("final", "Finalize"),
     ]:
         tracker.add(key, label)
 
     with Live("", console=console, refresh_per_second=8, transient=True) as live:
+        initial_render = tracker.render()
         tracker.attach_refresh(lambda: live.update(tracker.render()))
-        live.update(tracker.render())
+        live.update(initial_render)
         try:
             # Integration-based scaffolding
             from .integrations.manifest import IntegrationManifest
@@ -1820,6 +1820,8 @@ def init(
             pre_init(project_path, selected_ai, team_ai_directives, tracker)
             post_init(project_path, selected_ai, tracker, no_git=no_git)
 
+            # Add "Finalize" step at the end after all hooks complete
+            tracker.add("final", "Finalize")
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
             raise
