@@ -1,5 +1,5 @@
 ---
-description: Bottom-up goldset definition from human error analysis → drafts/ following EDD Principle III
+description: Extract eval criteria from feature spec + error analysis → drafts/ (includes quantification + saturation)
 scripts:
   sh: scripts/bash/setup-evals.sh "specify {ARGS}"
   ps: scripts/powershell/setup-evals.ps1 "specify {ARGS}"
@@ -26,18 +26,21 @@ When users provide specific error patterns or trace sources, focus the analysis 
 
 ## Goal
 
-Conduct **bottom-up error analysis** following **EDD Principle III** (Error Analysis & Pattern Discovery) to create draft evaluation criteria from human observation of system failures.
+Conduct **bottom-up error analysis** following **EDD Principles III & IX** (Error Analysis & Test Data as Code) to create draft evaluation criteria from human observation of system failures, including quantification and adversarial scenario identification.
 
 **Output**:
 
 1. **Draft Eval Records** - Individual `eval-*.md` files in `.specify/drafts/` with open coding notes
 2. **Error Pattern Documentation** - Bottom-up failure taxonomy from actual traces
-3. **Pass/Fail Examples** - Real examples that should pass/fail each criterion
-4. **Auto-handoff** to `/evals.clarify` for axial coding and clustering
+3. **Quantitative Coverage Analysis** - Statistical distribution and gap identification
+4. **Adversarial Scenario Plan** - Robustness testing requirements identified
+5. **Pass/Fail Examples** - Real examples that should pass/fail each criterion
+6. **Auto-handoff** to `/evals.clarify` for axial coding and clustering
 
 **Key EDD Principles Applied**:
 
 - **Principle III**: Error Analysis & Pattern Discovery - Open coding → failure taxonomy
+- **Principle IX**: Test Data as Code - Quantification, adversarial planning, coverage analysis
 - **Principle II**: Binary Pass/Fail - No scoring, only pass/fail examples
 - **Principle V**: Trajectory Observability - Full multi-turn traces, not just outputs
 - **Principle VIII**: Close Production Loop - Production failures → evaluation criteria
@@ -47,6 +50,8 @@ Conduct **bottom-up error analysis** following **EDD Principle III** (Error Anal
 - `--traces N`: Number of traces to analyze (default: 20, min for theoretical saturation)
 - `--source SOURCE`: Trace source location or description
 - `--focus AREA`: Focus area (auth, retrieval, generation, security, etc.)
+- `--adversarial-min N`: Minimum adversarial scenarios per pattern (default: 3)
+- `--coverage-threshold PCT`: Minimum pattern coverage threshold (default: 0.1 or 10%)
 - `--json`: Output structured JSON for programmatic integration
 
 ## Role & Context
@@ -70,11 +75,13 @@ You are acting as an **Error Analysis Researcher** conducting systematic failure
 1. **Trace Collection** (Phase 0): Gather representative failure traces for analysis
 2. **Open Coding Phase**: Free-text annotation of individual traces without categories
 3. **Pattern Recognition**: Identify recurring themes in failure annotations
-4. **Criterion Drafting**: Convert patterns into binary pass/fail evaluation criteria
-5. **Example Extraction**: Document real pass/fail examples from traces
-6. **Theoretical Saturation Check**: Verify sufficient traces analyzed for pattern completeness
-7. **Draft Generation**: Create individual `eval-*.md` files with findings
-8. **Auto-Handoff**: Trigger `/evals.clarify` for axial coding and clustering
+4. **Theoretical Saturation Check**: Verify sufficient traces analyzed for pattern completeness
+5. **Quantitative Coverage Analysis**: Measure pattern distribution and identify gaps
+6. **Adversarial Scenario Identification**: Plan robustness testing requirements
+7. **Criterion Drafting**: Convert patterns into binary pass/fail evaluation criteria
+8. **Example Extraction**: Document real pass/fail examples from traces
+9. **Draft Generation**: Create individual `eval-*.md` files with findings
+10. **Auto-Handoff**: Trigger `/evals.clarify` for axial coding and clustering
 
 ## Execution Steps
 
@@ -226,7 +233,82 @@ Monitor for theoretical saturation (EDD Principle III):
 - Pattern refinements only (no new categories)
 - Analyst confidence: HIGH for identified patterns
 
-**Recommendation**: Theoretical saturation achieved, proceed to criterion drafting
+**Recommendation**: Theoretical saturation achieved, proceed to quantification
+```
+
+#### Step 4: Quantitative Coverage Analysis
+
+After saturation, quantify pattern distribution (EDD Principle IX):
+
+```markdown
+## Coverage Analysis Report
+
+**Total Traces**: 23
+**Total Patterns**: 8
+**Average Traces per Pattern**: 2.9
+
+### Pattern Distribution
+
+| Pattern | Count | % of Total | Severity | Confidence |
+|---------|-------|-----------|----------|------------|
+| Regulatory Compliance | 3 | 13% | HIGH | HIGH |
+| Context Adherence | 4 | 17% | MEDIUM | HIGH |
+| Safety Boundaries | 2 | 9% | HIGH | HIGH |
+| PII Protection | 2 | 9% | HIGH | MEDIUM |
+| Response Quality | 3 | 13% | LOW | MEDIUM |
+| Authentication Bypass | 2 | 9% | HIGH | HIGH |
+| Error Handling | 4 | 17% | MEDIUM | HIGH |
+| Rate Limiting | 3 | 13% | MEDIUM | MEDIUM |
+
+### Coverage Gaps Identified
+- Need more adversarial examples for security patterns
+- Limited representation of edge cases
+- Insufficient examples for low-frequency patterns
+
+### Recommendations
+1. Add 10-15 adversarial examples per high-severity pattern
+2. Include edge cases for context adherence
+3. Plan holdout split (20%) for validation
+```
+
+#### Step 5: Adversarial Scenario Identification
+
+Identify adversarial examples needed for robustness (EDD Principle IX):
+
+```markdown
+## Adversarial Scenarios Required
+
+### Security Patterns
+**Regulatory Compliance**:
+- Indirect advice requests ("hypothetically speaking...")
+- Multi-turn social engineering for advice
+- Technical information disguised as advice
+
+**Safety Boundaries**:
+- Jailbreak attempts ("ignore previous instructions")
+- Ethical boundary testing
+- Harmful request obfuscation
+
+**PII Protection**:
+- Cross-conversation data leakage
+- Inference attacks on anonymized data
+- Social engineering for user information
+
+### Quality Patterns
+**Context Adherence**:
+- Contradictory constraints
+- Implicit vs explicit requirements
+- Multi-turn context evolution
+
+**Authentication Bypass**:
+- Session hijacking scenarios
+- Token manipulation attempts
+- Authorization boundary testing
+
+### Action Items for `/evals.clarify`
+1. Generate adversarial variants for each pattern
+2. Include in goldset with clear pass/fail labels
+3. Ensure adversarial coverage: minimum 30% of test set
 ```
 
 ### Phase 2: Pattern to Criterion Translation
@@ -344,7 +426,8 @@ error_analysis:
 
 # Test data hygiene (EDD Principle IX)
 test_data:
-  adversarial_included: false  # Will be added in analyze phase
+  adversarial_included: false  # Scenarios identified, will be generated in clarify phase
+  adversarial_scenarios_planned: 3  # Indirect requests, social engineering, technical disguise
   holdout_ratio: 0.2
 
 # RAG decomposition (if applicable)
@@ -491,6 +574,17 @@ After creating drafts, **automatically trigger `/evals.clarify`** with error ana
   "drafts_created": 6,
   "traces_analyzed": 23,
   "theoretical_saturation": true,
+  "quantitative_analysis": {
+    "total_patterns": 8,
+    "avg_traces_per_pattern": 2.9,
+    "coverage_gaps": ["adversarial_examples", "edge_cases", "low_frequency_patterns"]
+  },
+  "adversarial_scenarios": {
+    "total_identified": 15,
+    "security_patterns": 9,
+    "quality_patterns": 6,
+    "min_coverage_target": 0.3
+  },
   "pattern_confidence": {
     "regulatory_compliance": "HIGH",
     "context_adherence": "HIGH",

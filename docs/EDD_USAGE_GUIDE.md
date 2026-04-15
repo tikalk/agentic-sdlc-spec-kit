@@ -73,3 +73,32 @@ evals/
 - ✅ Evaluating **AI systems built using the prompts** from this toolkit
 - ✅ Security baseline validation for production AI systems
 - ✅ Compliance checking for regulated industries
+
+---
+
+## 🔄 **Command Alignment Across Extensions**
+
+All extensions in Spec Kit follow a consistent workflow pattern:
+
+| Step | `/architect.*` | `/levelup.*` | `/evals.*` | Purpose |
+|------|---------------|--------------|-----------|---------|
+| **1. Initialize** | `/architect.init` | — | `/evals.init` | Reverse-engineer from existing codebase (brownfield) |
+| **2. Specify** | `/architect.specify` | `/levelup.specify` | `/evals.specify` | Extract core artifacts (ADRs, CDRs, eval criteria) from spec |
+| **3. Clarify** | `/architect.clarify` | `/levelup.clarify` | `/evals.clarify` | Resolve ambiguities through interactive questions |
+| **4. Implement** | `/architect.implement` | `/levelup.implement` | `/evals.implement` | Generate final outputs (AD.md, skills, PromptFoo config) |
+| **5. Validate** | `/architect.validate` | — | `/evals.validate` | Validate alignment/quality (READ-ONLY for architect) |
+| **6. Analyze/Trace** | `/architect.analyze` | `/levelup.trace` | `/evals.trace` | Post-implementation analysis and reporting |
+
+### Pattern Summary
+
+**Common workflow**:
+1. **init** (optional, brownfield only) →
+2. **specify** (extract) →
+3. **clarify** (refine) →
+4. **implement** (generate) →
+5. **validate/trace** (verify/analyze)
+
+**Key differences**:
+- **`/architect.*`**: Focuses on architectural decisions (ADRs → AD.md)
+- **`/levelup.*`**: Focuses on coding directives (CDRs → skills → team-ai-directives)
+- **`/evals.*`**: Focuses on evaluation criteria (goldset → PromptFoo config → test results)
