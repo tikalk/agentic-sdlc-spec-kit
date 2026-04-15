@@ -153,6 +153,7 @@ class ExtensionManifest:
             ValidationError: If manifest is invalid
         """
         self.path = manifest_path
+        self.warnings: List[str] = []
         self.data = self._load_yaml(manifest_path)
         self._validate()
 
@@ -233,16 +234,50 @@ class ExtensionManifest:
                     )
 
         # Validate commands (if present)
+        rename_map: Dict[str, str] = {}
         for cmd in commands:
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
-            # Validate command name format
+            # Validate command name format with auto-correction
             if not re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", cmd["name"]):
-                raise ValidationError(
-                    f"Invalid command name '{cmd['name']}': "
-                    "must follow pattern '(speckit|adlc).{extension}.{command}'"
-                )
+                corrected = self._try_correct_command_name(cmd["name"], ext["id"])
+                if corrected:
+                    self.warnings.append(
+                        f"Command name '{cmd['name']}' does not follow the required pattern "
+                        f"'(speckit|adlc).{{extension}}.{{command}}'. Registering as '{corrected}'. "
+                        f"The extension author should update the manifest to use this name."
+                    )
+                    rename_map[cmd["name"]] = corrected
+                    cmd["name"] = corrected
+                else:
+                    raise ValidationError(
+                        f"Invalid command name '{cmd['name']}': "
+                        "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                    )
+
+    @staticmethod
+    def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
+        """Try to auto-correct a non-conforming command name to the required pattern.
+
+        Handles these legacy formats:
+          - 'speckit.command' → 'speckit.{ext_id}.command'
+          - 'adlc.command' → 'adlc.{ext_id}.command'
+          - '{ext_id}.command' → 'speckit.{ext_id}.command'
+
+        The 'X.Y' form is only corrected when X matches ext_id to ensure the
+        result passes the install-time namespace check.
+
+        Returns the corrected name, or None if no safe correction is possible.
+        """
+        parts = name.split(".")
+        if len(parts) == 2:
+            if parts[0] in ("speckit", "adlc") or parts[0] == ext_id:
+                namespace = "speckit" if parts[0] == ext_id else parts[0]
+                candidate = f"{namespace}.{ext_id}.{parts[1]}"
+                if re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", candidate):
+                    return candidate
+        return None
 
     @property
     def id(self) -> str:
