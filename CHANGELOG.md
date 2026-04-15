@@ -2,7 +2,7 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
-## [0.4.9] - 2026-04-14
+# [0.4.11] - 2026-04-16
 
 ### Added
 
@@ -17,6 +17,20 @@ All notable changes to the Specify CLI and templates are documented here.
   - **Production-Ready**: Complete validation pipeline, error handling, and production loop closure
   - **8 Commands**: `init`, `specify`, `clarify`, `analyze`, `implement`, `validate`, `levelup`, `tasks`
   - **Comprehensive Documentation**: 190+ section README with architecture guide, examples, and troubleshooting
+
+## [0.4.10] - 2026-04-14
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit
+  - Added claude-ask-questions to community preset catalog (#2191)
+
+## [0.4.9] - 2026-04-14
+
+### Changed
+
+- **Command prefix**: Changed display from `/speckit.{name}` to `/spec.{name}` to match fork's command namespace
+- **Theming**: Fixed ○ bullet symbols in Enhancement Commands to use accent() function for orange color
 
 ## [0.4.8] - 2026-04-14
 
