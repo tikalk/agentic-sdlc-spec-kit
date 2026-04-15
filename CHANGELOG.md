@@ -4,6 +4,17 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.2] - 2026-04-16
+
+### Fixed
+
+- **UI improvements for init output**:
+  - Fixed duplicate "Initialize Specify Project" title in Live display
+  - Capitalized status labels for better readability:
+    - "team-directives" → "Team AI Directives setup"
+    - "extensions" → "Install bundled extensions"
+    - "presets" → "Install bundled presets"
+
 ### Changed
 
 - **Upstream merge**: Synced with github/spec-kit (8fc2bd3)
