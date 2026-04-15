@@ -1944,10 +1944,15 @@ def version():
 
     # Get CLI version from package metadata
     cli_version = "unknown"
-    try:
-        cli_version = importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml if running from source
+    # Try multiple package names (tikalk fork uses agentic-sdlc-specify-cli)
+    for pkg_name in ("agentic-sdlc-specify-cli", "specify-cli"):
+        try:
+            cli_version = importlib.metadata.version(pkg_name)
+            break
+        except Exception:
+            continue
+    # Fallback: try reading from pyproject.toml if running from source
+    if cli_version == "unknown":
         try:
             import tomllib
 
@@ -2020,22 +2025,25 @@ def get_speckit_version() -> str:
     """Get current spec-kit version."""
     import importlib.metadata
 
-    try:
-        return importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml
+    # Try multiple package names (tikalk fork uses agentic-sdlc-specify-cli)
+    for pkg_name in ("agentic-sdlc-specify-cli", "specify-cli"):
         try:
-            import tomllib
-
-            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                    return data.get("project", {}).get("version", "unknown")
+            return importlib.metadata.version(pkg_name)
         except Exception:
-            # Intentionally ignore any errors while reading/parsing pyproject.toml.
-            # If this lookup fails for any reason, we fall back to returning "unknown" below.
-            pass
+            continue
+    # Fallback: try reading from pyproject.toml
+    try:
+        import tomllib
+
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                return data.get("project", {}).get("version", "unknown")
+    except Exception:
+        # Intentionally ignore any errors while reading/parsing pyproject.toml.
+        # If this lookup fails for any reason, we fall back to returning "unknown" below.
+        pass
     return "unknown"
 
 
