@@ -296,6 +296,7 @@ class StepTracker:
             "skipped": 4,
         }
         self._refresh_cb = None  # callable to trigger UI refresh
+        self._tree = None  # cached Tree object
 
     def attach_refresh(self, cb):
         self._refresh_cb = cb
@@ -341,7 +342,13 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"{accent(self.title)}", guide_style="grey50")
+        # Reuse cached Tree to avoid duplicate banner issue
+        if self._tree is None:
+            self._tree = Tree(f"{accent(self.title)}", guide_style="grey50")
+        else:
+            # Clear existing children and re-add them
+            self._tree.children = []
+
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -375,8 +382,8 @@ class StepTracker:
                 else:
                     line = f"{symbol} [white]{label}[/white]"
 
-            tree.add(line)
-        return tree
+            self._tree.add(line)
+        return self._tree
 
 
 def get_key():
@@ -1578,10 +1585,10 @@ def init(
     ]:
         tracker.add(key, label)
 
-    with Live("", console=console, refresh_per_second=8, transient=True) as live:
-        initial_render = tracker.render()
+    with Live(
+        tracker.render(), console=console, refresh_per_second=8, transient=True
+    ) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
-        live.update(initial_render)
         try:
             # Integration-based scaffolding
             from .integrations.manifest import IntegrationManifest
