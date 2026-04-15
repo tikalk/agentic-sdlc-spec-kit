@@ -236,6 +236,10 @@ class ExtensionManifest:
         # Validate commands (if present)
         rename_map: Dict[str, str] = {}
         for cmd in commands:
+            if not isinstance(cmd, dict):
+                raise ValidationError(
+                    "Each command entry in 'provides.commands' must be a mapping"
+                )
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
@@ -255,6 +259,52 @@ class ExtensionManifest:
                         f"Invalid command name '{cmd['name']}': "
                         "must follow pattern '(speckit|adlc).{extension}.{command}'"
                     )
+
+            # Validate alias types; no pattern enforcement on aliases — they are
+            # intentionally free-form to preserve community extension compatibility.
+            aliases = cmd.get("aliases")
+            if aliases is None:
+                cmd["aliases"] = []
+                aliases = []
+            if not isinstance(aliases, list):
+                raise ValidationError(
+                    f"Aliases for command '{cmd['name']}' must be a list"
+                )
+            for alias in aliases:
+                if not isinstance(alias, str):
+                    raise ValidationError(
+                        f"Aliases for command '{cmd['name']}' must be strings"
+                    )
+
+        # Rewrite any hook command references that pointed at a renamed command or
+        # an alias-form ref (ext.cmd → namespace.ext.cmd). Always emit a warning when
+        # the reference is changed so extension authors know to update the manifest.
+        for hook_name, hook_data in self.data.get("hooks", {}).items():
+            if not isinstance(hook_data, dict):
+                raise ValidationError(
+                    f"Hook '{hook_name}' must be a mapping, got {type(hook_data).__name__}"
+                )
+            command_ref = hook_data.get("command")
+            if not isinstance(command_ref, str):
+                continue
+            # Step 1: apply any rename from the auto-correction pass.
+            after_rename = rename_map.get(command_ref, command_ref)
+            # Step 2: lift alias-form '{ext_id}.cmd' to canonical 'namespace.{ext_id}.cmd'.
+            parts = after_rename.split(".")
+            if len(parts) == 2 and parts[0] == ext["id"]:
+                # Preserve namespace: use speckit or adlc based on what's available
+                namespace = "speckit"  # default
+                if parts[0] in EXTENSION_NAMESPACES:
+                    namespace = parts[0]
+                final_ref = f"{namespace}.{ext['id']}.{parts[1]}"
+            else:
+                final_ref = after_rename
+            if final_ref != command_ref:
+                hook_data["command"] = final_ref
+                self.warnings.append(
+                    f"Hook '{hook_name}' referenced command '{command_ref}'; "
+                    f"updated to '{final_ref}'. The extension author should update the manifest."
+                )
 
     @staticmethod
     def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
@@ -900,10 +950,10 @@ class ExtensionManager:
             skill_content = (
                 f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
             )
-            if integration is not None and hasattr(integration, "post_process_skill_content"):
-                skill_content = integration.post_process_skill_content(
-                    skill_content
-                )
+            if integration is not None and hasattr(
+                integration, "post_process_skill_content"
+            ):
+                skill_content = integration.post_process_skill_content(skill_content)
 
             skill_file.write_text(skill_content, encoding="utf-8")
             written.append(skill_name)

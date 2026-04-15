@@ -2198,7 +2198,9 @@ class TestPresetSkills:
         assert skill_file.exists(), "Skill should still exist after preset removal"
         content = skill_file.read_text()
         assert "preset:self-test" not in content, "Preset content should be gone"
-assert "templates/commands/specify.md" in content, "Should reference core template"
+        assert "templates/commands/specify.md" in content, (
+            "Should reference core template"
+        )
         assert "disable-model-invocation: false" in content
 
     def test_skill_restored_on_remove_resolves_script_placeholders(self, project_dir):
@@ -3158,19 +3160,31 @@ class TestLeanPreset:
         from specify_cli.agents import CommandRegistrar
 
         for name in LEAN_COMMAND_NAMES:
-            cmd_path = LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
+            cmd_path = (
+                LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
+            )
             content = cmd_path.read_text()
             frontmatter, _ = CommandRegistrar.parse_frontmatter(content)
-            assert "scripts" not in frontmatter, f"{name} should not have scripts in frontmatter"
-            assert "agent_scripts" not in frontmatter, f"{name} should not have agent_scripts in frontmatter"
+            assert "scripts" not in frontmatter, (
+                f"{name} should not have scripts in frontmatter"
+            )
+            assert "agent_scripts" not in frontmatter, (
+                f"{name} should not have agent_scripts in frontmatter"
+            )
 
     def test_lean_commands_have_no_hooks(self):
         """Verify lean commands do not contain extension hook boilerplate."""
         for name in LEAN_COMMAND_NAMES:
-            cmd_path = LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
+            cmd_path = (
+                LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
+            )
             content = cmd_path.read_text()
-            assert "hooks." not in content, f"{name} should not reference extension hooks"
-            assert "extensions.yml" not in content, f"{name} should not reference extensions.yml"
+            assert "hooks." not in content, (
+                f"{name} should not reference extension hooks"
+            )
+            assert "extensions.yml" not in content, (
+                f"{name} should not reference extensions.yml"
+            )
 
     def test_install_lean_preset(self, project_dir):
         """Test installing the lean preset from its directory."""
@@ -3226,8 +3240,10 @@ class TestBundledPresetLocator:
         from specify_cli import app
 
         runner = CliRunner()
-        with patch.object(Path, "cwd", return_value=project_dir), \
-             patch("specify_cli.get_speckit_version", return_value="0.6.0"):
+        with (
+            patch.object(Path, "cwd", return_value=project_dir),
+            patch("specify_cli.get_speckit_version", return_value="0.6.0"),
+        ):
             result = runner.invoke(app, ["preset", "add", "lean"])
 
         assert result.exit_code == 0, result.output
@@ -3254,6 +3270,7 @@ class TestBundledPresetLocator:
             }
         }
         from unittest.mock import patch
+
         with patch.object(catalog, "_get_merged_packs", return_value=catalog_data):
             with pytest.raises(PresetError, match="bundled with spec-kit"):
                 catalog.download_pack("test-bundled")
@@ -3274,9 +3291,11 @@ class TestBundledPresetLocator:
             "bundled": True,
             "_install_allowed": True,
         }
-        with patch.object(Path, "cwd", return_value=project_dir), \
-             patch("specify_cli._locate_bundled_preset", return_value=None), \
-             patch("specify_cli.presets.PresetCatalog") as MockCatalog:
+        with (
+            patch.object(Path, "cwd", return_value=project_dir),
+            patch("specify_cli._locate_bundled_preset", return_value=None),
+            patch("specify_cli.presets.PresetCatalog") as MockCatalog,
+        ):
             MockCatalog.return_value.get_pack_info.return_value = fake_pack_info
             result = runner.invoke(app, ["preset", "add", "lean"])
 
