@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.4.12] - 2026-04-16
+
+### Fixed
+
+- **Version detection**: Fixed `specify version` and `get_speckit_version()` to correctly detect `agentic-sdlc-specify-cli` package (was showing "unknown" before)
+
 # [0.4.11] - 2026-04-16
 
 ### Added
