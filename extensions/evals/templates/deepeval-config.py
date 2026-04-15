@@ -16,9 +16,9 @@ Template Variables:
 import os
 import sys
 import json
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from deepeval import evaluate
-from deepeval.test_case import TestCase
+from deepeval.test_case import LLMTestCase
 from deepeval.dataset import EvaluationDataset
 
 # Import custom metrics (generated from goldset)
@@ -59,10 +59,12 @@ FAILURE_ROUTING = {
     }
 }
 
-def create_test_cases() -> List[TestCase]:
+def create_test_cases() -> List[LLMTestCase]:
     """
-    Create DeepEval TestCase objects from goldset examples.
+    Create DeepEval LLMTestCase objects from goldset examples.
     Returns test cases for binary pass/fail evaluation.
+
+    Note: DeepEval 3.x requires context to be List[str] or None
     """
 
     test_cases = []
@@ -72,13 +74,13 @@ def create_test_cases() -> List[TestCase]:
         {
             "input": "{{PASS_EXAMPLE_1_INPUT}}",
             "expected_output": "{{PASS_EXAMPLE_1_OUTPUT}}",
-            "context": "{{PASS_EXAMPLE_1_CONTEXT}}",
+            "context": ["{{PASS_EXAMPLE_1_CONTEXT}}"] if "{{PASS_EXAMPLE_1_CONTEXT}}" else None,  # List[str] or None
             "expected_result": True  # Should pass
         },
         {
             "input": "{{PASS_EXAMPLE_2_INPUT}}",
             "expected_output": "{{PASS_EXAMPLE_2_OUTPUT}}",
-            "context": "{{PASS_EXAMPLE_2_CONTEXT}}",
+            "context": ["{{PASS_EXAMPLE_2_CONTEXT}}"] if "{{PASS_EXAMPLE_2_CONTEXT}}" else None,  # List[str] or None
             "expected_result": True  # Should pass
         }
     ]
@@ -88,41 +90,41 @@ def create_test_cases() -> List[TestCase]:
         {
             "input": "{{FAIL_EXAMPLE_1_INPUT}}",
             "expected_output": "{{FAIL_EXAMPLE_1_OUTPUT}}",
-            "context": "{{FAIL_EXAMPLE_1_CONTEXT}}",
+            "context": ["{{FAIL_EXAMPLE_1_CONTEXT}}"] if "{{FAIL_EXAMPLE_1_CONTEXT}}" else None,  # List[str] or None
             "expected_result": False  # Should fail
         },
         {
             "input": "{{FAIL_EXAMPLE_2_INPUT}}",
             "expected_output": "{{FAIL_EXAMPLE_2_OUTPUT}}",
-            "context": "{{FAIL_EXAMPLE_2_CONTEXT}}",
+            "context": ["{{FAIL_EXAMPLE_2_CONTEXT}}"] if "{{FAIL_EXAMPLE_2_CONTEXT}}" else None,  # List[str] or None
             "expected_result": False  # Should fail
         }
     ]
 
-    # Adversarial examples (from analyze phase)
+    # Adversarial examples (from clarify phase)
     adversarial_examples = [
         {
             "input": "{{ADVERSARIAL_1_INPUT}}",
             "expected_output": "",  # We'll test actual output
-            "context": "{{ADVERSARIAL_1_CONTEXT}}",
+            "context": ["{{ADVERSARIAL_1_CONTEXT}}"] if "{{ADVERSARIAL_1_CONTEXT}}" else None,  # List[str] or None
             "attack_vector": "{{ADVERSARIAL_1_VECTOR}}",
             "expected_result": False  # Should fail
         },
         {
             "input": "{{ADVERSARIAL_2_INPUT}}",
             "expected_output": "",  # We'll test actual output
-            "context": "{{ADVERSARIAL_2_CONTEXT}}",
+            "context": ["{{ADVERSARIAL_2_CONTEXT}}"] if "{{ADVERSARIAL_2_CONTEXT}}" else None,  # List[str] or None
             "attack_vector": "{{ADVERSARIAL_2_VECTOR}}",
             "expected_result": False  # Should fail
         }
     ]
 
-    # Create TestCase objects
+    # Create LLMTestCase objects (DeepEval 3.x API)
     for i, example in enumerate(pass_examples + fail_examples + adversarial_examples):
-        test_case = TestCase(
+        test_case = LLMTestCase(
             input=example["input"],
             expected_output=example["expected_output"],
-            context=example.get("context", []),
+            context=example.get("context"),  # Pass List[str] or None directly
             additional_metadata={
                 "criterion_id": CRITERION_ID,
                 "example_type": "pass" if example["expected_result"] else "fail",

@@ -82,6 +82,68 @@ tests/
 - **Principle II**: Binary Pass/Fail - All graders return strict 1.0/0.0 evaluation
 - **Principle VII**: Annotation Queues - Route high-risk traces to humans
 
+### Dependency Management
+
+When implementing evaluators, the extension automatically manages system-specific dependencies:
+
+#### DeepEval Integration
+
+For DeepEval evaluators, the system automatically:
+
+1. **Adds Dependencies**: Updates `pyproject.toml` with required packages
+   ```toml
+   [project.optional-dependencies]
+   evals = [
+       "deepeval>=3.0.0",        # DeepEval 3.x with updated API
+       "openai>=1.3.0",          # Required by deepeval for LLM-judge metrics
+       "pytest>=7.0.0",          # For generated unit tests
+       "pytest-asyncio>=0.21.0"  # For async metric testing
+   ]
+   ```
+
+2. **Syncs Environment**: Automatically runs dependency installation
+   - With `uv`: `uv sync --group evals`
+   - With `pip`: `pip install -e .[evals]`
+
+3. **Verifies Installation**: Checks `import deepeval` succeeds before generating code
+   - Validates DeepEval 3.x API compatibility
+   - Ensures `LLMTestCase` is available (not old `TestCase`)
+   - Confirms context type support (`List[str]` required in v3.x)
+
+#### PromptFoo Integration
+
+For PromptFoo evaluators, the system automatically:
+
+1. **Adds Dependencies**: Updates `package.json` with required packages
+   ```json
+   {
+     "devDependencies": {
+       "promptfoo": "^0.60.0"
+     }
+   }
+   ```
+
+2. **Syncs Environment**: Runs `npm install` or `yarn install`
+
+3. **Verifies Installation**: Checks `promptfoo` CLI is available
+
+#### Verification Steps
+
+Before generating evaluators, the implementation process:
+
+1. ✅ **Detects evaluation system** from `.specify/config.yml` or user arguments
+2. ✅ **Checks existing dependencies** in `pyproject.toml` or `package.json`
+3. ✅ **Adds missing dependencies** with correct version constraints
+4. ✅ **Syncs package manager** (uv/pip/npm/yarn) to install dependencies
+5. ✅ **Validates imports** to ensure compatibility
+6. ✅ **Generates code** with system-specific templates
+
+**Error Handling**: If dependency installation fails, the command will:
+- Display clear error message with dependency name and required version
+- Suggest manual installation command
+- Provide link to dependency documentation
+- Halt code generation until dependencies are satisfied
+
 ### Flags
 
 - `--evaluator-type TYPE`: Primary evaluator type (llm-judge, code-based, hybrid)
@@ -1622,7 +1684,7 @@ Prepare for `/evals.validate` by ensuring all components are properly configured
 
 ### When NOT to Use This Command
 
-- **No goldset exists**: Run `/evals.analyze` first to finalize goldset
+- **No goldset exists**: Run `/evals.clarify` first to create goldset from drafts
 - **Evaluators already implemented**: Use `/evals.validate` to assess existing implementation
 - **Exploratory evaluation**: This creates production-ready evaluators, not experimental tools
 

@@ -698,7 +698,8 @@ Published evaluation criteria following EDD (Eval-Driven Development) principles
 
 EOF
 
-    # Initialize JSON array
+    # Initialize empty JSON array (will be populated by implement command with test data)
+    # NOTE: goldset.json is created here as placeholder but populated later by action_implement()
     echo '[]' > "$goldset_json"
 
     # Process each draft file
@@ -725,7 +726,7 @@ EOF
         log_success "Axial coding completed"
         log_info "Processed $draft_count drafts, accepted $accepted_count"
         log_info "Goldset updated: $goldset_md"
-        log_info "Next step: Run 'evals.analyze' to finalize goldset"
+        log_info "Next step: Run 'evals.implement' to generate evaluators"
     fi
 }
 
@@ -1187,6 +1188,8 @@ module.exports = {
 EOF
 
     # Generate goldset JSON for PromptFoo consumption
+    # NOTE: This contains metadata and criteria definitions, not test examples.
+    # Test examples should be extracted from goldset.md or generated separately.
     local goldset_json="$system_dir/goldset.json"
     cat > "$goldset_json" << EOF
 {
@@ -1481,6 +1484,23 @@ action_validate() {
     local pass_examples=$(grep -c "Pass Example\|pass example" "$goldset_md" 2>/dev/null || echo "0")
     local fail_examples=$(grep -c "Fail Example\|fail example" "$goldset_md" 2>/dev/null || echo "0")
 
+    # Check goldset.json if it exists
+    local goldset_json_examples=0
+    if [[ -f "$system_dir/goldset.json" ]]; then
+        # Count examples in goldset.json
+        if command -v jq &> /dev/null; then
+            goldset_json_examples=$(jq 'if type == "array" then length elif type == "object" then (.examples // [] | length) else 0 end' "$system_dir/goldset.json" 2>/dev/null || echo "0")
+        else
+            # Fallback: count non-empty lines (rough estimate)
+            goldset_json_examples=$(grep -c '"' "$system_dir/goldset.json" 2>/dev/null || echo "0")
+        fi
+
+        if [[ $goldset_json_examples -eq 0 ]]; then
+            log_error "Critical finding: goldset.json exists but has 0 examples"
+            log_warning "goldset.json should contain test examples for validation"
+        fi
+    fi
+
     # Quality thresholds
     local min_criteria=2
     local min_examples_per_criterion=2
@@ -1525,7 +1545,8 @@ action_validate() {
     [[ -d "$results_dir/fix_directives" ]] && ((edd_compliance_score++))  # Principle VIII
     [[ -d "$results_dir/evaluator_backlog" ]] && ((edd_compliance_score++)) # Principle VIII
     [[ -d "$results_dir/annotation_queue" ]] && ((edd_compliance_score++))  # Principle VII
-    [[ -f "$system_dir/goldset.json" ]] && ((edd_compliance_score++))     # Principle IX
+    # Principle IX: Test Data as Code - goldset.json must exist AND have examples
+    [[ -f "$system_dir/goldset.json" && $goldset_json_examples -gt 0 ]] && ((edd_compliance_score++))
     [[ $total_graders -ge 4 ]] && ((edd_compliance_score++))              # Basic implementation completeness
 
     local edd_compliance_percentage=$((edd_compliance_score * 100 / edd_total_checks))
@@ -1576,6 +1597,7 @@ action_validate() {
             \"total_criteria\": $total_criteria,
             \"pass_examples\": $pass_examples,
             \"fail_examples\": $fail_examples,
+            \"goldset_json_examples\": $goldset_json_examples,
             \"quality_passed\": $quality_passed
         },
         \"edd_compliance\": {
@@ -1611,6 +1633,13 @@ action_validate() {
         log_info "  Total Criteria: $total_criteria"
         log_info "  Pass Examples: $pass_examples"
         log_info "  Fail Examples: $fail_examples"
+        if [[ -f "$system_dir/goldset.json" ]]; then
+            if [[ $goldset_json_examples -eq 0 ]]; then
+                log_error "  goldset.json: 🚨 CRITICAL - 0 examples (file exists but empty)"
+            else
+                log_info "  goldset.json: $goldset_json_examples examples"
+            fi
+        fi
         log_info "  Quality Status: $([ "$quality_passed" == "true" ] && echo "✅ PASS" || echo "⚠ NEEDS IMPROVEMENT")"
         log_info ""
         log_info "🎯 EDD COMPLIANCE:"
@@ -1633,6 +1662,10 @@ action_validate() {
 
         log_info ""
         log_info "📈 RECOMMENDATIONS:"
+        if [[ -f "$system_dir/goldset.json" && $goldset_json_examples -eq 0 ]]; then
+            log_error "  • CRITICAL: goldset.json has 0 examples - ensure goldset.md examples are present"
+            log_info "    Run '/evals.clarify' to regenerate goldset from drafts, or manually populate goldset.json"
+        fi
         if [[ $average_accuracy -lt 90 ]]; then
             log_info "  • Improve grader accuracy through better examples or logic refinement"
         fi
@@ -1703,11 +1736,13 @@ ACTIONS (EDD Lifecycle):
     init        Initialize evals/{system}/ directory structure
     specify     Bottom-up goldset definition from human error analysis → drafts/
     clarify     Axial coding + accept drafts → goldset.md + goldset.json
-    analyze     Re-code + quantify + saturation + adversarial + holdout
+    analyze     (Internal) Re-code + quantify + saturation + adversarial + holdout
     tasks       Match published evals to feature tasks → [EVAL] markers
     implement   Generate PromptFoo config + graders from goldset
     validate    TPR/TNR + goldset quality + PromptFoo pass rate thresholds
     levelup     Scan evals/results/ + annotation queue → PR to team-ai-directives
+
+NOTE: 'analyze' is an internal action not exposed as a command. Use 'clarify' instead.
 
 OPTIONS:
     --system SYSTEM     Evaluation system: promptfoo (default), deepeval, custom, llm-judge

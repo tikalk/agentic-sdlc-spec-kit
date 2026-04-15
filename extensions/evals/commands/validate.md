@@ -812,9 +812,9 @@ Final recommendations for production deployment:
 **Success Path**: If validation passes, system is production-ready for deployment.
 
 **Failure Path**: If validation fails, identify issues and return to appropriate phase:
-- **Accuracy Issues** → Return to `/evals.analyze` for goldset improvement
+- **Accuracy Issues** → Return to `/evals.clarify` for goldset improvement (add more examples)
 - **Performance Issues** → Return to `/evals.implement` for optimization
-- **Compliance Issues** → Return to `/evals.clarify` for criterion refinement
+- **Compliance Issues** → Return to `/evals.specify` for criterion refinement
 
 **Complete Validation Flow**:
 

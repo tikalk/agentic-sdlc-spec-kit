@@ -22,8 +22,8 @@ requires:
       description: "Required for PromptFoo integration"
     - name: "deepeval"
       required: false
-      version: ">=0.21.0"
-      description: "Required for DeepEval integration"
+      version: ">=3.0.0"
+      description: "Required for DeepEval integration (v3.x API)"
 
 provides:
   commands:

@@ -46,56 +46,65 @@ class Test{{METRIC_CLASS_NAME}}:
         )
 
     @pytest.fixture
-    def pass_examples(self) -> List[Dict[str, str]]:
-        """Goldset examples that should pass evaluation."""
+    def pass_examples(self) -> List[Dict[str, Any]]:
+        """Goldset examples that should pass evaluation.
+
+        Note: DeepEval 3.x requires context to be List[str] or None
+        """
         return [
             {
                 "input": "{{PASS_EXAMPLE_1_INPUT}}",
                 "expected_output": "{{PASS_EXAMPLE_1_OUTPUT}}",
-                "context": "{{PASS_EXAMPLE_1_CONTEXT}}",
+                "context": ["{{PASS_EXAMPLE_1_CONTEXT}}"] if "{{PASS_EXAMPLE_1_CONTEXT}}" else None,
                 "description": "Pass example 1 from goldset"
             },
             {
                 "input": "{{PASS_EXAMPLE_2_INPUT}}",
                 "expected_output": "{{PASS_EXAMPLE_2_OUTPUT}}",
-                "context": "{{PASS_EXAMPLE_2_CONTEXT}}",
+                "context": ["{{PASS_EXAMPLE_2_CONTEXT}}"] if "{{PASS_EXAMPLE_2_CONTEXT}}" else None,
                 "description": "Pass example 2 from goldset"
             }
         ]
 
     @pytest.fixture
-    def fail_examples(self) -> List[Dict[str, str]]:
-        """Goldset examples that should fail evaluation."""
+    def fail_examples(self) -> List[Dict[str, Any]]:
+        """Goldset examples that should fail evaluation.
+
+        Note: DeepEval 3.x requires context to be List[str] or None
+        """
         return [
             {
                 "input": "{{FAIL_EXAMPLE_1_INPUT}}",
                 "expected_output": "{{FAIL_EXAMPLE_1_OUTPUT}}",
-                "context": "{{FAIL_EXAMPLE_1_CONTEXT}}",
+                "context": ["{{FAIL_EXAMPLE_1_CONTEXT}}"] if "{{FAIL_EXAMPLE_1_CONTEXT}}" else None,
                 "description": "Fail example 1 from goldset"
             },
             {
                 "input": "{{FAIL_EXAMPLE_2_INPUT}}",
                 "expected_output": "{{FAIL_EXAMPLE_2_OUTPUT}}",
-                "context": "{{FAIL_EXAMPLE_2_CONTEXT}}",
+                "context": ["{{FAIL_EXAMPLE_2_CONTEXT}}"] if "{{FAIL_EXAMPLE_2_CONTEXT}}" else None,
                 "description": "Fail example 2 from goldset"
             }
         ]
 
     @pytest.fixture
-    def adversarial_examples(self) -> List[Dict[str, str]]:
-        """Adversarial examples that should fail evaluation."""
+    def adversarial_examples(self) -> List[Dict[str, Any]]:
+        """Adversarial examples that should fail evaluation.
+
+        Note: DeepEval 3.x requires context to be List[str] or None
+        """
         return [
             {
                 "input": "{{ADVERSARIAL_1_INPUT}}",
                 "expected_output": "{{ADVERSARIAL_1_OUTPUT}}",
-                "context": "{{ADVERSARIAL_1_CONTEXT}}",
+                "context": ["{{ADVERSARIAL_1_CONTEXT}}"] if "{{ADVERSARIAL_1_CONTEXT}}" else None,
                 "attack_vector": "{{ADVERSARIAL_1_VECTOR}}",
                 "description": "Adversarial example 1"
             },
             {
                 "input": "{{ADVERSARIAL_2_INPUT}}",
                 "expected_output": "{{ADVERSARIAL_2_OUTPUT}}",
-                "context": "{{ADVERSARIAL_2_CONTEXT}}",
+                "context": ["{{ADVERSARIAL_2_CONTEXT}}"] if "{{ADVERSARIAL_2_CONTEXT}}" else None,
                 "attack_vector": "{{ADVERSARIAL_2_VECTOR}}",
                 "description": "Adversarial example 2"
             }
@@ -144,7 +153,7 @@ class Test{{METRIC_CLASS_NAME}}:
             test_case = LLMTestCase(
                 input=example["input"],
                 actual_output=example["expected_output"],
-                context=example.get("context", [])
+                context=example.get("context")
             )
 
             # Evaluate using the metric
@@ -168,7 +177,7 @@ class Test{{METRIC_CLASS_NAME}}:
             test_case = LLMTestCase(
                 input=example["input"],
                 actual_output=example["expected_output"],
-                context=example.get("context", [])
+                context=example.get("context")
             )
 
             # Evaluate using the metric
@@ -192,7 +201,7 @@ class Test{{METRIC_CLASS_NAME}}:
             test_case = LLMTestCase(
                 input=example["input"],
                 actual_output=example["expected_output"],
-                context=example.get("context", [])
+                context=example.get("context")
             )
 
             # Evaluate using the metric
@@ -428,7 +437,7 @@ class Test{{METRIC_CLASS_NAME}}:
         test_case = LLMTestCase(
             input=example["input"],
             actual_output=example["expected_output"],
-            context=example.get("context", [])
+            context=example.get("context")
         )
 
         # Test with DeepEval's assert function
