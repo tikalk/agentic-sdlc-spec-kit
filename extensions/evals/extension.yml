@@ -23,53 +23,41 @@ requires:
 
 provides:
   commands:
-    # Initialize evals directory structure
+    # Initialize evals directory structure (brownfield/greenfield)
     - name: "adlc.evals.init"
       file: "commands/init.md"
-      description: "Initialize evals/{system}/ directory structure for evaluation system"
+      description: "Initialize evals/{system}/ directory (brownfield: scan existing tests; greenfield: create structure)"
       aliases: ["evals.init"]
 
-    # Bottom-up goldset definition from human error analysis
+    # Extract eval criteria from spec + error analysis
     - name: "adlc.evals.specify"
       file: "commands/specify.md"
-      description: "Bottom-up goldset definition from human error analysis → drafts/"
+      description: "Extract eval criteria from feature spec + error analysis → drafts/ (includes quantification + saturation)"
       aliases: ["evals.specify"]
 
-    # Axial coding + accept drafts → goldset.md + goldset.json
+    # Resolve ambiguities via axial coding
     - name: "adlc.evals.clarify"
       file: "commands/clarify.md"
-      description: "Axial coding + accept drafts → goldset.md + goldset.json"
+      description: "Resolve ambiguities via axial coding → accept drafts → goldset.md + goldset.json"
       aliases: ["evals.clarify"]
 
-    # Re-code + quantify + saturation + adversarial check + holdout split
-    - name: "adlc.evals.analyze"
-      file: "commands/analyze.md"
-      description: "Re-code + quantify + saturation + adversarial check + holdout split"
-      aliases: ["evals.analyze"]
-
-    # Match published evals to feature tasks → [EVAL] markers
-    - name: "adlc.evals.tasks"
-      file: "commands/tasks.md"
-      description: "Match published evals to feature tasks → [EVAL] markers"
-      aliases: ["evals.tasks"]
-
-    # Generate PromptFoo config + graders from goldset
+    # Generate PromptFoo config + graders + test files
     - name: "adlc.evals.implement"
       file: "commands/implement.md"
-      description: "Generate PromptFoo config + graders from goldset"
+      description: "Generate PromptFoo config + graders + test files from goldset"
       aliases: ["evals.implement"]
 
-    # TPR/TNR + goldset quality + PromptFoo pass rate thresholds
+    # Run evals and validate results
     - name: "adlc.evals.validate"
       file: "commands/validate.md"
-      description: "TPR/TNR + goldset quality + PromptFoo pass rate thresholds"
+      description: "Run evals and validate results (TPR/TNR + goldset quality + pass rate thresholds)"
       aliases: ["evals.validate"]
 
-    # Scan evals/results/ + annotation queue → PR to team-ai-directives
-    - name: "adlc.evals.levelup"
-      file: "commands/levelup.md"
-      description: "Scan evals/results/ + annotation queue → PR to team-ai-directives"
-      aliases: ["evals.levelup"]
+    # Generate execution traces + analysis reports
+    - name: "adlc.evals.trace"
+      file: "commands/trace.md"
+      description: "Generate execution traces + analysis reports from evals/results/ → optional PR to team-ai-directives"
+      aliases: ["evals.trace"]
 
   config:
     - name: "evals-config.yml"
@@ -77,52 +65,36 @@ provides:
       description: "Evals extension configuration"
       required: false
 
-# Handoffs between commands (ADR/CDR Pattern)
+# Handoffs between commands (follows levelup/architect pattern)
 handoffs:
   evals.init:
-    - label: "Start Error Analysis"
+    - label: "Extract Eval Criteria"
       agent: "evals.specify"
-      prompt: "Begin bottom-up goldset definition from human error analysis"
+      prompt: "Extract eval criteria from feature spec and error analysis"
       send: true
 
   evals.specify:
     - label: "Clarify Eval Criteria"
       agent: "evals.clarify"
-      prompt: "Apply axial coding to cluster notes into failure modes and accept drafts"
+      prompt: "Resolve ambiguities via axial coding and accept drafts"
       send: true
 
   evals.clarify:
-    - label: "Analyze Goldset"
-      agent: "evals.analyze"
-      prompt: "Quantify, check saturation, add adversarial inputs, and create holdout split"
-      send: true
-
-  evals.analyze:
     - label: "Implement Evaluators"
       agent: "evals.implement"
       prompt: "Generate PromptFoo config and graders from finalized goldset"
       send: true
-    - label: "Mark Feature Tasks"
-      agent: "evals.tasks"
-      prompt: "Match published evals to feature tasks and add [EVAL] markers"
-      send: false
 
   evals.implement:
     - label: "Validate Eval System"
       agent: "evals.validate"
-      prompt: "Check TPR/TNR and goldset quality thresholds"
+      prompt: "Run evals and validate results (TPR/TNR + quality thresholds)"
       send: true
 
   evals.validate:
-    - label: "Level Up Team"
-      agent: "evals.levelup"
-      prompt: "Scan results and create PR to team-ai-directives with insights"
-      send: false
-
-  evals.tasks:
-    - label: "Validate Task Coverage"
-      agent: "evals.validate"
-      prompt: "Validate eval coverage across marked tasks"
+    - label: "Generate Traces"
+      agent: "evals.trace"
+      prompt: "Generate execution traces and analysis reports from results"
       send: false
 
 tags:
@@ -136,14 +108,9 @@ tags:
    - "binary-pass-fail"
    - "error-analysis"
 
-# Hooks triggered at workflow stage boundaries
-hooks:
-  after_tasks:
-    command: "adlc.evals.tasks"
-    description: "Match published evals to feature tasks → [EVAL] markers"
-  after_implement:
-    command: "adlc.evals.implement"
-    description: "Generate PromptFoo config + graders from goldset"
+# Integration points
+# - Task creation automatically matches evals to tasks via [EVAL] markers
+# - All commands are manual, no hooks required
 
 defaults:
   system: "promptfoo"  # promptfoo | custom | llm-judge
@@ -175,12 +142,12 @@ defaults:
     high_risk_routing: true
     binary_human_review: true
 
-# Goldset Lifecycle (ADR/CDR Pattern):
-# 1. init → initialize directory structure
-# 2. specify → bottom-up error analysis (drafts)
-# 3. clarify → axial coding (goldset.md + goldset.json)
-# 4. analyze → quantify + saturation + adversarial + holdout
-# 5. implement → PromptFoo config + graders (after_implement hook)
-# 6. tasks → [EVAL] markers (after_tasks hook)
-# 7. validate → TPR/TNR + quality thresholds
-# 8. levelup → results scan + annotation queue + PR
+# Goldset Lifecycle (follows levelup/architect pattern):
+# 1. init → initialize directory structure (brownfield/greenfield)
+# 2. specify → extract criteria from spec + error analysis (drafts)
+# 3. clarify → resolve ambiguities (goldset.md + goldset.json)
+# 4. implement → generate PromptFoo config + graders
+# 5. validate → run evals + TPR/TNR + quality thresholds
+# 6. trace → generate traces + analysis reports + optional PR
+#
+# Integration: Task creation automatically adds [EVAL] markers

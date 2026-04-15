@@ -1,8 +1,8 @@
 ---
-description: Scan evals/results/ + annotation queue → PR to team-ai-directives following EDD cross-functional observability and trajectory analysis
+description: Generate execution traces + analysis reports from evals/results/ → optional PR to team-ai-directives
 scripts:
-  sh: scripts/bash/setup-evals.sh "levelup {ARGS}"
-  ps: scripts/powershell/setup-evals.ps1 "levelup {ARGS}"
+  sh: scripts/bash/setup-evals.sh "trace {ARGS}"
+  ps: scripts/powershell/setup-evals.ps1 "trace {ARGS}"
 ---
 
 ## User Input
@@ -64,12 +64,12 @@ You are acting as a **Production Intelligence Analyst** conducting comprehensive
 - **Insight Generation**: Translating technical findings into actionable recommendations
 - **Cross-Functional Communication**: Creating insights tailored for different stakeholder groups
 
-### Levelup vs Validation
+### Trace vs Validate
 
 | Phase | Focus | Input | Output |
 |-------|-------|-------|--------|
-| **Validation** (validate) | System quality | Implemented evaluators | Production readiness assessment |
-| **Levelup** (this command) | Production insights | Live evaluation results | Cross-functional improvement recommendations |
+| **Validate** (/evals.validate) | Eval system quality | Implemented evaluators | Test results + quality metrics |
+| **Trace** (this command) | Production insights | Evaluation results | Execution traces + analysis reports |
 
 ## Outline
 
@@ -94,7 +94,7 @@ Assess all available evaluation results for analysis readiness:
 
 ```bash
 # Execute via setup script
-{SCRIPT} levelup --assess-results
+{SCRIPT} trace --assess-results
 ```
 
 **Expected Results Assessment**:
@@ -983,19 +983,19 @@ This PR contains comprehensive production intelligence analysis from March 15-30
 
 ## Workflow Guidance & Transitions
 
-### After `/evals.levelup`
+### After `/evals.trace`
 
-**Success Path**: Intelligence insights successfully generated and routed to team for implementation.
+**Success Path**: Execution traces and analysis reports successfully generated, with optional insights routed to team.
 
 **Follow-up Actions**:
 - **Domain Expert Reviews**: Specification fixes require domain expert validation
 - **Evaluator Implementation**: Generalization failures route to evaluator development backlog
 - **Monitoring Setup**: Continuous monitoring of pattern evolution and evaluator effectiveness
 
-**Complete Levelup Flow**:
+**Complete Trace Flow**:
 
 ```
-/evals.levelup "Comprehensive production intelligence analysis"
+/evals.trace "Comprehensive production intelligence analysis"
     ↓
 [Results discovery] → Inventory evaluation results and annotation queues
     ↓
@@ -1011,7 +1011,7 @@ This PR contains comprehensive production intelligence analysis from March 15-30
     ↓
 [Production loop closure] → Route findings to appropriate improvement pathways
     ↓
-[Team insights PR] → Create collaborative PR to team-ai-directives/AGENTS.md
+[Team insights PR] → Optional: Create collaborative PR to team-ai-directives/AGENTS.md
 ```
 
 ### When to Use This Command
