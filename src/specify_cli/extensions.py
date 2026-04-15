@@ -813,6 +813,7 @@ class ExtensionManager:
 
         from . import load_init_options
         from .agents import CommandRegistrar
+        from .integrations import get_integration
         import yaml
 
         written: List[str] = []
@@ -823,6 +824,7 @@ class ExtensionManager:
         if not isinstance(selected_ai, str) or not selected_ai:
             return []
         registrar = CommandRegistrar()
+        integration = get_integration(selected_ai)
 
         for cmd_info in manifest.commands:
             cmd_name = cmd_info["name"]
@@ -898,6 +900,10 @@ class ExtensionManager:
             skill_content = (
                 f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
             )
+            if integration is not None and hasattr(integration, "post_process_skill_content"):
+                skill_content = integration.post_process_skill_content(
+                    skill_content
+                )
 
             skill_file.write_text(skill_content, encoding="utf-8")
             written.append(skill_name)

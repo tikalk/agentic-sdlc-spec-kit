@@ -6,6 +6,18 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Changed
 
+- **Upstream merge**: Synced with github/spec-kit (8fc2bd3)
+  - Claude skill chaining for hook execution (#2227)
+  - Preserved fork customizations (adlc namespace, auto-correction, warnings)
+
+### Fixed
+
+- Test compatibility with upstream (disable-model-invocation: false)
+
+# [0.5.0] - 2026-04-15
+
+### Changed
+
 - **Upstream merge**: Synced with github/spec-kit (b78a3cd)
   - Merged upstream changes while preserving fork customizations (adlc namespace, theming, bundled extensions)
 
