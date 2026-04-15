@@ -129,6 +129,7 @@ def _build_ai_deprecation_warning(
         f"Use [bold]{replacement}[/bold] instead."
     )
 
+
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
 
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
@@ -872,7 +873,8 @@ def _locate_bundled_workflow(workflow_id: str) -> Path | None:
     source-checkout ``workflows/<id>/`` directory.
     """
     import re as _re
-    if not _re.match(r'^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$', workflow_id):
+
+    if not _re.match(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$", workflow_id):
         return None
 
     core = _locate_core_pack()
@@ -1577,10 +1579,9 @@ def init(
     ]:
         tracker.add(key, label)
 
-    with Live(
-        tracker.render(), console=console, refresh_per_second=8, transient=True
-    ) as live:
+    with Live("", console=console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
+        live.update(tracker.render())
         try:
             # Integration-based scaffolding
             from .integrations.manifest import IntegrationManifest
@@ -1697,29 +1698,36 @@ def init(
                 if bundled_wf:
                     from .workflows.catalog import WorkflowRegistry
                     from .workflows.engine import WorkflowDefinition
+
                     wf_registry = WorkflowRegistry(project_path)
                     if wf_registry.is_installed("speckit"):
                         tracker.complete("workflow", "already installed")
                     else:
                         import shutil as _shutil
+
                         dest_wf = project_path / ".specify" / "workflows" / "speckit"
                         dest_wf.mkdir(parents=True, exist_ok=True)
                         _shutil.copy2(
                             bundled_wf / "workflow.yml",
                             dest_wf / "workflow.yml",
                         )
-                        definition = WorkflowDefinition.from_yaml(dest_wf / "workflow.yml")
-                        wf_registry.add("speckit", {
-                            "name": definition.name,
-                            "version": definition.version,
-                            "description": definition.description,
-                            "source": "bundled",
-                        })
+                        definition = WorkflowDefinition.from_yaml(
+                            dest_wf / "workflow.yml"
+                        )
+                        wf_registry.add(
+                            "speckit",
+                            {
+                                "name": definition.name,
+                                "version": definition.version,
+                                "description": definition.description,
+                                "source": "bundled",
+                            },
+                        )
                         tracker.complete("workflow", "speckit installed")
                 else:
                     tracker.skip("workflow", "bundled workflow not found")
             except Exception as wf_err:
-                sanitized_wf = str(wf_err).replace('\n', ' ').strip()
+                sanitized_wf = str(wf_err).replace("\n", " ").strip()
                 tracker.error("workflow", f"install failed: {sanitized_wf[:120]}")
 
             # Fix permissions after all installs (scripts + extensions)
@@ -4197,7 +4205,9 @@ def extension_remove(
     # think in logical commands, not per-agent file counts.
     # Use get() without a default so we can distinguish "key missing" (fall back
     # to manifest) from "key present but empty dict" (zero commands registered).
-    registered_commands = reg_meta.get("registered_commands") if isinstance(reg_meta, dict) else None
+    registered_commands = (
+        reg_meta.get("registered_commands") if isinstance(reg_meta, dict) else None
+    )
     if isinstance(registered_commands, dict):
         cmd_count = max(
             (len(v) for v in registered_commands.values() if isinstance(v, list)),
@@ -4211,7 +4221,9 @@ def extension_remove(
     # Confirm removal
     if not force:
         console.print("\n[yellow]⚠  This will remove:[/yellow]")
-        console.print(f"   • {cmd_count} command{'s' if cmd_count != 1 else ''} per agent")
+        console.print(
+            f"   • {cmd_count} command{'s' if cmd_count != 1 else ''} per agent"
+        )
         if skill_count:
             console.print(f"   • {skill_count} agent skill(s)")
         console.print(f"   • Extension directory: .specify/extensions/{extension_id}/")
@@ -5254,10 +5266,14 @@ def workflow_run(
 
     project_root = Path.cwd()
     if not (project_root / ".specify").exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
     engine = WorkflowEngine(project_root)
-    engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
+    engine.on_step_start = lambda sid, label: console.print(
+        f"  \u25b8 [{sid}] {label} \u2026"
+    )
 
     try:
         definition = engine.load_workflow(source)
@@ -5281,12 +5297,16 @@ def workflow_run(
     if input_values:
         for kv in input_values:
             if "=" not in kv:
-                console.print(f"[red]Error:[/red] Invalid input format: {kv!r} (expected key=value)")
+                console.print(
+                    f"[red]Error:[/red] Invalid input format: {kv!r} (expected key=value)"
+                )
                 raise typer.Exit(1)
             key, _, value = kv.partition("=")
             inputs[key.strip()] = value.strip()
 
-    console.print(f"\n[bold cyan]Running workflow:[/bold cyan] {definition.name} ({definition.id})")
+    console.print(
+        f"\n[bold cyan]Running workflow:[/bold cyan] {definition.name} ({definition.id})"
+    )
     console.print(f"[dim]Version: {definition.version}[/dim]\n")
 
     try:
@@ -5309,7 +5329,9 @@ def workflow_run(
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
     if state.status.value == "paused":
-        console.print(f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]")
+        console.print(
+            f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]"
+        )
 
 
 @workflow_app.command("resume")
@@ -5321,10 +5343,14 @@ def workflow_resume(
 
     project_root = Path.cwd()
     if not (project_root / ".specify").exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
     engine = WorkflowEngine(project_root)
-    engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
+    engine.on_step_start = lambda sid, label: console.print(
+        f"  \u25b8 [{sid}] {label} \u2026"
+    )
 
     try:
         state = engine.resume(run_id)
@@ -5350,20 +5376,25 @@ def workflow_resume(
 
 @workflow_app.command("status")
 def workflow_status(
-    run_id: str | None = typer.Argument(None, help="Run ID to inspect (shows all if omitted)"),
+    run_id: str | None = typer.Argument(
+        None, help="Run ID to inspect (shows all if omitted)"
+    ),
 ):
     """Show workflow run status."""
     from .workflows.engine import WorkflowEngine
 
     project_root = Path.cwd()
     if not (project_root / ".specify").exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
     engine = WorkflowEngine(project_root)
 
     if run_id:
         try:
             from .workflows.engine import RunState
+
             state = RunState.load(run_id, project_root)
         except FileNotFoundError:
             console.print(f"[red]Error:[/red] Run not found: {run_id}")
@@ -5392,7 +5423,9 @@ def workflow_status(
             console.print(f"\n  [bold]Steps ({len(state.step_results)}):[/bold]")
             for step_id, step_data in state.step_results.items():
                 s = step_data.get("status", "unknown")
-                sc = {"completed": "green", "failed": "red", "paused": "yellow"}.get(s, "white")
+                sc = {"completed": "green", "failed": "red", "paused": "yellow"}.get(
+                    s, "white"
+                )
                 console.print(f"    [{sc}]●[/{sc}] {step_id}: {s}")
     else:
         runs = engine.list_runs()
@@ -5403,7 +5436,12 @@ def workflow_status(
         console.print("\n[bold cyan]Workflow Runs:[/bold cyan]\n")
         for run_data in runs:
             s = run_data.get("status", "unknown")
-            sc = {"completed": "green", "failed": "red", "paused": "yellow", "running": "blue"}.get(s, "white")
+            sc = {
+                "completed": "green",
+                "failed": "red",
+                "paused": "yellow",
+                "running": "blue",
+            }.get(s, "white")
             console.print(
                 f"  [{sc}]●[/{sc}] {run_data['run_id']}  "
                 f"{run_data.get('workflow_id', '?')}  "
@@ -5420,7 +5458,9 @@ def workflow_list():
     project_root = Path.cwd()
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     registry = WorkflowRegistry(project_root)
@@ -5434,7 +5474,9 @@ def workflow_list():
 
     console.print("\n[bold cyan]Installed Workflows:[/bold cyan]\n")
     for wf_id, wf_data in installed.items():
-        console.print(f"  [bold]{wf_data.get('name', wf_id)}[/bold] ({wf_id}) v{wf_data.get('version', '?')}")
+        console.print(
+            f"  [bold]{wf_data.get('name', wf_id)}[/bold] ({wf_id}) v{wf_data.get('version', '?')}"
+        )
         desc = wf_data.get("description", "")
         if desc:
             console.print(f"    {desc}")
@@ -5446,13 +5488,19 @@ def workflow_add(
     source: str = typer.Argument(..., help="Workflow ID, URL, or local path"),
 ):
     """Install a workflow from catalog, URL, or local path."""
-    from .workflows.catalog import WorkflowCatalog, WorkflowRegistry, WorkflowCatalogError
+    from .workflows.catalog import (
+        WorkflowCatalog,
+        WorkflowRegistry,
+        WorkflowCatalogError,
+    )
     from .workflows.engine import WorkflowDefinition
 
     project_root = Path.cwd()
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     registry = WorkflowRegistry(project_root)
@@ -5466,10 +5514,13 @@ def workflow_add(
             console.print(f"[red]Error:[/red] Invalid workflow YAML: {exc}")
             raise typer.Exit(1)
         if not definition.id or not definition.id.strip():
-            console.print("[red]Error:[/red] Workflow definition has an empty or missing 'id'")
+            console.print(
+                "[red]Error:[/red] Workflow definition has an empty or missing 'id'"
+            )
             raise typer.Exit(1)
 
         from .workflows.engine import validate_workflow
+
         errors = validate_workflow(definition)
         if errors:
             console.print("[red]Error:[/red] Workflow validation failed:")
@@ -5480,14 +5531,20 @@ def workflow_add(
         dest_dir = workflows_dir / definition.id
         dest_dir.mkdir(parents=True, exist_ok=True)
         import shutil
+
         shutil.copy2(yaml_path, dest_dir / "workflow.yml")
-        registry.add(definition.id, {
-            "name": definition.name,
-            "version": definition.version,
-            "description": definition.description,
-            "source": source_label,
-        })
-        console.print(f"[green]✓[/green] Workflow '{definition.name}' ({definition.id}) installed")
+        registry.add(
+            definition.id,
+            {
+                "name": definition.name,
+                "version": definition.version,
+                "description": definition.description,
+                "source": source_label,
+            },
+        )
+        console.print(
+            f"[green]✓[/green] Workflow '{definition.name}' ({definition.id}) installed"
+        )
 
     # Try as URL (http/https)
     if source.startswith("http://") or source.startswith("https://"):
@@ -5504,11 +5561,16 @@ def workflow_add(
             except ValueError:
                 # Host is not an IP literal (e.g., a DNS name); keep default non-loopback.
                 pass
-        if parsed_src.scheme != "https" and not (parsed_src.scheme == "http" and src_loopback):
-            console.print("[red]Error:[/red] Only HTTPS URLs are allowed, except HTTP for localhost.")
+        if parsed_src.scheme != "https" and not (
+            parsed_src.scheme == "http" and src_loopback
+        ):
+            console.print(
+                "[red]Error:[/red] Only HTTPS URLs are allowed, except HTTP for localhost."
+            )
             raise typer.Exit(1)
 
         import tempfile
+
         try:
             with urlopen(source, timeout=30) as resp:  # noqa: S310
                 final_url = resp.geturl()
@@ -5521,8 +5583,12 @@ def workflow_add(
                     except ValueError:
                         # Redirect host is not an IP literal; keep loopback as determined above.
                         pass
-                if final_parsed.scheme != "https" and not (final_parsed.scheme == "http" and final_lb):
-                    console.print(f"[red]Error:[/red] URL redirected to non-HTTPS: {final_url}")
+                if final_parsed.scheme != "https" and not (
+                    final_parsed.scheme == "http" and final_lb
+                ):
+                    console.print(
+                        f"[red]Error:[/red] URL redirected to non-HTTPS: {final_url}"
+                    )
                     raise typer.Exit(1)
                 with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
                     tmp.write(resp.read())
@@ -5565,13 +5631,17 @@ def workflow_add(
         raise typer.Exit(1)
 
     if not info.get("_install_allowed", True):
-        console.print(f"[yellow]Warning:[/yellow] Workflow '{source}' is from a discovery-only catalog")
+        console.print(
+            f"[yellow]Warning:[/yellow] Workflow '{source}' is from a discovery-only catalog"
+        )
         console.print("Direct installation is not enabled for this catalog source.")
         raise typer.Exit(1)
 
     workflow_url = info.get("url")
     if not workflow_url:
-        console.print(f"[red]Error:[/red] Workflow '{source}' does not have an install URL in the catalog")
+        console.print(
+            f"[red]Error:[/red] Workflow '{source}' does not have an install URL in the catalog"
+        )
         raise typer.Exit(1)
 
     # Validate URL scheme (HTTPS required, HTTP allowed for localhost only)
@@ -5589,7 +5659,9 @@ def workflow_add(
         except ValueError:
             # Host is not an IP literal (e.g., a regular hostname); treat as non-loopback.
             pass
-    if parsed_url.scheme != "https" and not (parsed_url.scheme == "http" and is_loopback):
+    if parsed_url.scheme != "https" and not (
+        parsed_url.scheme == "http" and is_loopback
+    ):
         console.print(
             f"[red]Error:[/red] Workflow '{source}' has an invalid install URL. "
             "Only HTTPS URLs are allowed, except HTTP for localhost/loopback."
@@ -5621,9 +5693,12 @@ def workflow_add(
                 except ValueError:
                     # Host is not an IP literal (e.g., a regular hostname); treat as non-loopback.
                     pass
-            if final_parsed.scheme != "https" and not (final_parsed.scheme == "http" and final_loopback):
+            if final_parsed.scheme != "https" and not (
+                final_parsed.scheme == "http" and final_loopback
+            ):
                 if workflow_dir.exists():
                     import shutil
+
                     shutil.rmtree(workflow_dir, ignore_errors=True)
                 console.print(
                     f"[red]Error:[/red] Workflow '{source}' redirected to non-HTTPS URL: {final_url}"
@@ -5633,8 +5708,11 @@ def workflow_add(
     except Exception as exc:
         if workflow_dir.exists():
             import shutil
+
             shutil.rmtree(workflow_dir, ignore_errors=True)
-        console.print(f"[red]Error:[/red] Failed to install workflow '{source}' from catalog: {exc}")
+        console.print(
+            f"[red]Error:[/red] Failed to install workflow '{source}' from catalog: {exc}"
+        )
         raise typer.Exit(1)
 
     # Validate the downloaded workflow before registering
@@ -5642,14 +5720,17 @@ def workflow_add(
         definition = WorkflowDefinition.from_yaml(workflow_file)
     except (ValueError, yaml.YAMLError) as exc:
         import shutil
+
         shutil.rmtree(workflow_dir, ignore_errors=True)
         console.print(f"[red]Error:[/red] Downloaded workflow is invalid: {exc}")
         raise typer.Exit(1)
 
     from .workflows.engine import validate_workflow
+
     errors = validate_workflow(definition)
     if errors:
         import shutil
+
         shutil.rmtree(workflow_dir, ignore_errors=True)
         console.print("[red]Error:[/red] Downloaded workflow validation failed:")
         for err in errors:
@@ -5659,6 +5740,7 @@ def workflow_add(
     # Enforce that the workflow's internal ID matches the catalog key
     if definition.id and definition.id != source:
         import shutil
+
         shutil.rmtree(workflow_dir, ignore_errors=True)
         console.print(
             f"[red]Error:[/red] Workflow ID in YAML ({definition.id!r}) "
@@ -5667,15 +5749,20 @@ def workflow_add(
         )
         raise typer.Exit(1)
 
-    registry.add(source, {
-        "name": definition.name or info.get("name", source),
-        "version": definition.version or info.get("version", "0.0.0"),
-        "description": definition.description or info.get("description", ""),
-        "source": "catalog",
-        "catalog_name": info.get("_catalog_name", ""),
-        "url": workflow_url,
-    })
-    console.print(f"[green]✓[/green] Workflow '{info.get('name', source)}' installed from catalog")
+    registry.add(
+        source,
+        {
+            "name": definition.name or info.get("name", source),
+            "version": definition.version or info.get("version", "0.0.0"),
+            "description": definition.description or info.get("description", ""),
+            "source": "catalog",
+            "catalog_name": info.get("_catalog_name", ""),
+            "url": workflow_url,
+        },
+    )
+    console.print(
+        f"[green]✓[/green] Workflow '{info.get('name', source)}' installed from catalog"
+    )
 
 
 @workflow_app.command("remove")
@@ -5688,7 +5775,9 @@ def workflow_remove(
     project_root = Path.cwd()
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     registry = WorkflowRegistry(project_root)
@@ -5701,6 +5790,7 @@ def workflow_remove(
     workflow_dir = project_root / ".specify" / "workflows" / workflow_id
     if workflow_dir.exists():
         import shutil
+
         shutil.rmtree(workflow_dir)
 
     registry.remove(workflow_id)
@@ -5717,7 +5807,9 @@ def workflow_search(
 
     project_root = Path.cwd()
     if not (project_root / ".specify").exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
     catalog = WorkflowCatalog(project_root)
 
@@ -5733,7 +5825,9 @@ def workflow_search(
 
     console.print(f"\n[bold cyan]Workflows ({len(results)}):[/bold cyan]\n")
     for wf in results:
-        console.print(f"  [bold]{wf.get('name', wf.get('id', '?'))}[/bold] ({wf.get('id', '?')}) v{wf.get('version', '?')}")
+        console.print(
+            f"  [bold]{wf.get('name', wf.get('id', '?'))}[/bold] ({wf.get('id', '?')}) v{wf.get('version', '?')}"
+        )
         desc = wf.get("description", "")
         if desc:
             console.print(f"    {desc}")
@@ -5748,12 +5842,18 @@ def workflow_info(
     workflow_id: str = typer.Argument(..., help="Workflow ID"),
 ):
     """Show workflow details and step graph."""
-    from .workflows.catalog import WorkflowCatalog, WorkflowRegistry, WorkflowCatalogError
+    from .workflows.catalog import (
+        WorkflowCatalog,
+        WorkflowRegistry,
+        WorkflowCatalogError,
+    )
     from .workflows.engine import WorkflowEngine
 
     project_root = Path.cwd()
     if not (project_root / ".specify").exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     # Check installed first
@@ -5804,7 +5904,9 @@ def workflow_info(
         info = None
 
     if info:
-        console.print(f"\n[bold cyan]{info.get('name', workflow_id)}[/bold cyan] ({workflow_id})")
+        console.print(
+            f"\n[bold cyan]{info.get('name', workflow_id)}[/bold cyan] ({workflow_id})"
+        )
         console.print(f"  Version:     {info.get('version', '?')}")
         if info.get("description"):
             console.print(f"  Description: {info['description']}")
@@ -5832,7 +5934,11 @@ def workflow_catalog_list():
 
     console.print("\n[bold cyan]Workflow Catalog Sources:[/bold cyan]\n")
     for i, cfg in enumerate(configs):
-        install_status = "[green]install allowed[/green]" if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
+        install_status = (
+            "[green]install allowed[/green]"
+            if cfg["install_allowed"]
+            else "[yellow]discovery only[/yellow]"
+        )
         console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")
         console.print(f"      {cfg['url']}")
         if cfg.get("description"):
@@ -5851,7 +5957,9 @@ def workflow_catalog_add(
     project_root = Path.cwd()
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     catalog = WorkflowCatalog(project_root)
@@ -5866,7 +5974,9 @@ def workflow_catalog_add(
 
 @workflow_catalog_app.command("remove")
 def workflow_catalog_remove(
-    index: int = typer.Argument(..., help="Catalog index to remove (from 'catalog list')"),
+    index: int = typer.Argument(
+        ..., help="Catalog index to remove (from 'catalog list')"
+    ),
 ):
     """Remove a workflow catalog source by index."""
     from .workflows.catalog import WorkflowCatalog, WorkflowValidationError
@@ -5874,7 +5984,9 @@ def workflow_catalog_remove(
     project_root = Path.cwd()
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         raise typer.Exit(1)
 
     catalog = WorkflowCatalog(project_root)
