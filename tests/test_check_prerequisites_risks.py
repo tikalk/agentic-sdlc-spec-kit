@@ -3,7 +3,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+from .conftest import requires_bash
 
+
+@requires_bash
 def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     script_dir = repo_root / "scripts" / "bash"
@@ -11,8 +15,13 @@ def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
 
     project_root = Path(__file__).resolve().parent.parent
 
-    shutil.copy(project_root / "scripts" / "bash" / "check-prerequisites.sh", script_dir / "check-prerequisites.sh")
-    shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
+    shutil.copy(
+        project_root / "scripts" / "bash" / "check-prerequisites.sh",
+        script_dir / "check-prerequisites.sh",
+    )
+    shutil.copy(
+        project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh"
+    )
 
     feature_dir = repo_root / "specs" / "001-risk-feature"
     feature_dir.mkdir(parents=True)
@@ -29,7 +38,9 @@ def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
 
     monkeypatch.setenv("SPECIFY_FEATURE", "001-risk-feature")
 
-    subprocess.run(["git", "init"], cwd=repo_root, check=True, capture_output=True, text=True)
+    subprocess.run(
+        ["git", "init"], cwd=repo_root, check=True, capture_output=True, text=True
+    )
 
     result = subprocess.run(
         ["bash", str(script_dir / "check-prerequisites.sh"), "--json"],
@@ -39,7 +50,14 @@ def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
         text=True,
     )
 
-    json_line = next((line for line in result.stdout.splitlines()[::-1] if line.strip().startswith("{")), "")
+    json_line = next(
+        (
+            line
+            for line in result.stdout.splitlines()[::-1]
+            if line.strip().startswith("{")
+        ),
+        "",
+    )
     assert json_line, "Expected JSON output"
     payload = json.loads(json_line)
 

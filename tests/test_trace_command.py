@@ -54,7 +54,7 @@ def test_trace_command_template_exists():
     assert template_file.exists(), f"Trace command template not found: {template_file}"
 
     # Verify template has required sections
-    content = template_file.read_text()
+    content = template_file.read_text(encoding="utf-8")
     assert "description:" in content, "Template missing description field"
     assert "scripts:" in content, "Template missing scripts field"
     assert "validation_script:" in content, "Template missing validation_script field"
@@ -76,7 +76,7 @@ def test_trace_template_structure():
     template_file = repo_root / "extensions/levelup/templates/trace-template.md"
     assert template_file.exists(), f"Trace template not found: {template_file}"
 
-    content = template_file.read_text()
+    content = template_file.read_text(encoding="utf-8")
 
     # Verify 5 sections exist
     assert "## 1. Session Overview" in content, "Section 1 missing"
@@ -96,7 +96,7 @@ def test_levelup_integration():
     levelup_spec = repo_root / "extensions/levelup/commands/specify.md"
     assert levelup_spec.exists(), f"Levelup specify command not found: {levelup_spec}"
 
-    content = levelup_spec.read_text()
+    content = levelup_spec.read_text(encoding="utf-8")
 
     # Verify levelup.specify mentions trace
     assert "trace" in content.lower() or "TRACE" in content, (
@@ -155,7 +155,7 @@ def test_trace_storage_location():
 
     # Trace command is now in levelup extension
     trace_template = repo_root / "extensions/levelup/commands/trace.md"
-    content = trace_template.read_text()
+    content = trace_template.read_text(encoding="utf-8")
 
     # Verify storage location documented
     assert "specs/{BRANCH}/trace.md" in content, (
@@ -172,7 +172,7 @@ def test_summary_section_in_template():
 
     # Trace template is now in levelup extension
     template_file = repo_root / "extensions/levelup/templates/trace-template.md"
-    content = template_file.read_text()
+    content = template_file.read_text(encoding="utf-8")
 
     # Verify Summary section exists
     assert "## Summary" in content, "Summary section missing from template"
@@ -191,8 +191,8 @@ def test_summary_section_in_generation_scripts():
     bash_script = repo_root / "extensions/levelup/scripts/bash/generate-trace.sh"
     ps_script = repo_root / "extensions/levelup/scripts/powershell/generate-trace.ps1"
 
-    bash_content = bash_script.read_text()
-    ps_content = ps_script.read_text()
+    bash_content = bash_script.read_text(encoding="utf-8")
+    ps_content = ps_script.read_text(encoding="utf-8")
 
     # Check bash has new functions
     assert "extract_problem_statement()" in bash_content, (
@@ -223,8 +223,8 @@ def test_summary_validation_in_scripts():
     bash_validate = repo_root / "extensions/levelup/scripts/bash/validate-trace.sh"
     ps_validate = repo_root / "extensions/levelup/scripts/powershell/validate-trace.ps1"
 
-    bash_content = bash_validate.read_text()
-    ps_content = ps_validate.read_text()
+    bash_content = bash_validate.read_text(encoding="utf-8")
+    ps_content = ps_validate.read_text(encoding="utf-8")
 
     # Check bash validates Summary
     assert "summary_valid" in bash_content, "Bash doesn't validate Summary"
@@ -249,7 +249,7 @@ def test_commands_documentation_mentions_summary():
 
     # Trace command is now in the levelup extension
     commands_doc = repo_root / "extensions/levelup/commands/trace.md"
-    content = commands_doc.read_text()
+    content = commands_doc.read_text(encoding="utf-8")
 
     # Check documentation mentions Summary
     assert "Summary" in content, "Commands doc doesn't mention Summary"

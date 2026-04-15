@@ -3,7 +3,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+from .conftest import requires_bash
 
+
+@requires_bash
 def test_create_new_feature_outputs_context_paths(tmp_path):
     repo_root = tmp_path / "repo"
     script_dir = repo_root / "scripts" / "bash"

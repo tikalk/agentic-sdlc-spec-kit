@@ -3,7 +3,11 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+from .conftest import requires_bash
 
+
+@requires_bash
 def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     script_dir = repo_root / "scripts" / "bash"
@@ -17,9 +21,17 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
 
     # Copy required scripts and template
     project_root = Path(__file__).resolve().parent.parent
-    shutil.copy(project_root / "scripts" / "bash" / "setup-plan.sh", script_dir / "setup-plan.sh")
-    shutil.copy(project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh")
-    shutil.copy(project_root / "templates" / "plan-template.md", templates_dir / "plan-template.md")
+    shutil.copy(
+        project_root / "scripts" / "bash" / "setup-plan.sh",
+        script_dir / "setup-plan.sh",
+    )
+    shutil.copy(
+        project_root / "scripts" / "bash" / "common.sh", script_dir / "common.sh"
+    )
+    shutil.copy(
+        project_root / "templates" / "plan-template.md",
+        templates_dir / "plan-template.md",
+    )
 
     # Seed constitution and team directives
     constitution = memory_dir / "constitution.md"
@@ -52,7 +64,14 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
         text=True,
     )
 
-    json_line = next((line for line in result.stdout.splitlines()[::-1] if line.strip().startswith("{")), "")
+    json_line = next(
+        (
+            line
+            for line in result.stdout.splitlines()[::-1]
+            if line.strip().startswith("{")
+        ),
+        "",
+    )
     assert json_line, "Expected JSON output from setup-plan script"
     data = json.loads(json_line)
     assert data["FEATURE_SPEC"].endswith("specs/001-test-feature/spec.md")
