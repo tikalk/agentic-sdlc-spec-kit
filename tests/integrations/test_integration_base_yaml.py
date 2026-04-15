@@ -384,6 +384,9 @@ class YamlIntegrationTests:
             files.append(f".specify/templates/{name}")
 
         files.append(".specify/memory/constitution.md")
+        # Bundled workflow
+        files.append(".specify/workflows/speckit/workflow.yml")
+        files.append(".specify/workflows/workflow-registry.json")
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):

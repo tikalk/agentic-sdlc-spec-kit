@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [Unreleased]
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (b78a3cd)
+  - Merged upstream changes while preserving fork customizations (adlc namespace, theming, bundled extensions)
+
 # [0.4.12] - 2026-04-16
 
 ### Fixed
@@ -1057,6 +1064,18 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.7.0] - 2026-04-14
+
+### Changed
+
+- Add workflow engine with catalog system (#2158)
+- docs(catalog): add claude-ask-questions to community preset catalog (#2191)
+- Add SFSpeckit — Salesforce SDD Extension (#2208)
+- feat(scripts): optional single-segment branch prefix for gitflow (#2202)
+- chore: release 0.6.2, begin 0.6.3.dev0 development (#2205)
+- Add Worktrees extension to community catalog (#2207)
+- feat: Update catalog.community.json for preset-fiction-book-writing (#2199)
 
 ## [0.6.2] - 2026-04-13
 
