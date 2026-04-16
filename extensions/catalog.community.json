@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-04-14T21:30:00Z",
+  "updated_at": "2026-04-16T18:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "aide": {
@@ -300,6 +300,38 @@
       "stars": 0,
       "created_at": "2026-03-29T00:00:00Z",
       "updated_at": "2026-03-29T00:00:00Z"
+    },
+    "catalog-ci": {
+      "name": "Catalog CI",
+      "id": "catalog-ci",
+      "description": "Automated validation for spec-kit community catalog entries — structure, URLs, diffs, and linting.",
+      "author": "Quratulain-bilal",
+      "version": "1.0.0",
+      "download_url": "https://github.com/Quratulain-bilal/spec-kit-catalog-ci/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/Quratulain-bilal/spec-kit-catalog-ci",
+      "homepage": "https://github.com/Quratulain-bilal/spec-kit-catalog-ci",
+      "documentation": "https://github.com/Quratulain-bilal/spec-kit-catalog-ci/blob/main/README.md",
+      "changelog": "https://github.com/Quratulain-bilal/spec-kit-catalog-ci/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.4.0"
+      },
+      "provides": {
+        "commands": 4,
+        "hooks": 0
+      },
+      "tags": [
+        "ci",
+        "validation",
+        "catalog",
+        "quality",
+        "automation"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-04-16T00:00:00Z",
+      "updated_at": "2026-04-16T00:00:00Z"
     },
     "ci-guard": {
       "name": "CI Guard",
@@ -714,7 +746,7 @@
       "updated_at": "2026-03-31T00:00:00Z"
     },
     "github-issues": {
-      "name": "GitHub Issues Integration",
+      "name": "GitHub Issues Integration 1",
       "id": "github-issues",
       "description": "Generate spec artifacts from GitHub Issues - import issues, sync updates, and maintain bidirectional traceability",
       "author": "Fatima367",
@@ -752,6 +784,38 @@
       "stars": 0,
       "created_at": "2026-04-12T15:30:00Z",
       "updated_at": "2026-04-13T14:39:00Z"
+    },
+    "issue": {
+      "name": "GitHub Issues Integration 2",
+      "id": "issue",
+      "description": "Creates and syncs local specs based on an existing issue in GitHub",
+      "author": "aaronrsun",
+      "version": "1.0.0",
+      "download_url": "https://github.com/aaronrsun/spec-kit-issue/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/aaronrsun/spec-kit-issue",
+      "homepage": "https://github.com/aaronrsun/spec-kit-issue",
+      "documentation": "https://github.com/aaronrsun/spec-kit-issue/blob/main/README.md",
+      "changelog": "https://github.com/aaronrsun/spec-kit-issue/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 0
+      },
+      "tags": [
+        "issue",
+        "integration",
+        "github",
+        "issues",
+        "sync"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-04-04T00:00:00Z",
+      "updated_at": "2026-04-04T00:00:00Z"
     },
     "iterate": {
       "name": "Iterate",
@@ -1076,8 +1140,8 @@
       "id": "memorylint",
       "description": "Agent memory governance tool: Automatically audits and fixes boundary conflicts between AGENTS.md and the constitution.",
       "author": "RbBtSn0w",
-      "version": "1.0.0",
-      "download_url": "https://github.com/RbBtSn0w/spec-kit-extensions/archive/refs/tags/v1.0.0.zip",
+      "version": "1.3.0",
+      "download_url": "https://github.com/RbBtSn0w/spec-kit-extensions/releases/download/memorylint-v1.3.0/memorylint.zip",
       "repository": "https://github.com/RbBtSn0w/spec-kit-extensions",
       "homepage": "https://github.com/RbBtSn0w/spec-kit-extensions/tree/main/memorylint",
       "documentation": "https://github.com/RbBtSn0w/spec-kit-extensions/blob/main/memorylint/README.md",
@@ -1101,7 +1165,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-04-09T00:00:00Z",
-      "updated_at": "2026-04-09T00:00:00Z"
+      "updated_at": "2026-04-16T13:10:26Z"
     },
     "onboard": {
       "name": "Onboard",
@@ -1829,8 +1893,8 @@
       "id": "superb",
       "description": "Orchestrates obra/superpowers skills within the spec-kit SDD workflow. Thin bridge commands delegate to superpowers' authoritative SKILL.md files at runtime (with graceful fallback), while bridge-original commands provide spec-kit-native value. Eight commands cover the full lifecycle: intent clarification, TDD enforcement, task review, verification, critique, systematic debugging, branch completion, and review response. Hook-bound commands fire automatically; standalone commands are invoked when needed.",
       "author": "rbbtsn0w",
-      "version": "1.0.0",
-      "download_url": "https://github.com/RbBtSn0w/spec-kit-extensions/releases/download/superpowers-bridge-v1.0.0/superpowers-bridge.zip",
+      "version": "1.3.0",
+      "download_url": "https://github.com/RbBtSn0w/spec-kit-extensions/releases/download/superpowers-bridge-v1.3.0/superpowers-bridge.zip",
       "repository": "https://github.com/RbBtSn0w/spec-kit-extensions",
       "homepage": "https://github.com/RbBtSn0w/spec-kit-extensions",
       "documentation": "https://github.com/RbBtSn0w/spec-kit-extensions/blob/main/superpowers-bridge/README.md",
@@ -1865,7 +1929,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-30T00:00:00Z",
-      "updated_at": "2026-03-30T00:00:00Z"
+      "updated_at": "2026-04-16T14:08:23Z"
     },
     "sync": {
       "name": "Spec Sync",
