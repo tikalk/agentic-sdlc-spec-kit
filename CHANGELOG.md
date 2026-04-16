@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.4] - 2026-04-16
+
+### Changed
+
+- **Evals Extension**: Added DeepEval integration as alternative to PromptFoo
+  - `/evals.init --system deepeval` for DeepEval configuration
+  - `/evals.init --system promptfoo` remains default for Promptfoo configuration
+  - Generated test structure with comprehensive unit tests for all evaluators
+
 # [0.5.3] - 2026-04-16
 
 ### Changed

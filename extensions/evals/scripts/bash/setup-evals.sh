@@ -840,6 +840,7 @@ action_implement() {
 
     local system_dir="$ROOT_DIR/evals/$SYSTEM"
     local goldset_md="$system_dir/goldset.md"
+    local goldset_json="$system_dir/goldset.json"
     local config_js="$system_dir/config.js"
     local templates_dir="$ROOT_DIR/extensions/evals/templates"
 
@@ -848,16 +849,39 @@ action_implement() {
         return 1
     fi
 
+    # Create results directory for failure routing
+    mkdir -p "$ROOT_DIR/evals/results/fix_directives"
+    mkdir -p "$ROOT_DIR/evals/results/evaluator_backlog"
+    mkdir -p "$ROOT_DIR/evals/results/annotation_queue"
+
+    # Call the grader and test generator script
+    log_info "Generating graders and unit tests from goldset using generator script"
+
+    local generator_script="$SCRIPT_DIR/generate-graders-with-tests.sh"
+
+    if [[ -f "$goldset_json" ]]; then
+        log_info "Using goldset.json for grader generation"
+
+        # Call the generator with test generation enabled
+        if [[ -x "$generator_script" ]]; then
+            log_info "Executing: $generator_script \"$goldset_json\" \"$system_dir/graders\""
+            "$generator_script" "$goldset_json" "$system_dir/graders" --test-dir "$ROOT_DIR/evals/tests" --module-name "graders" || {
+                log_warning "Generator script failed, falling back to manual grader creation"
+            }
+        else
+            log_warning "Generator script not found or not executable: $generator_script"
+            log_warning "Falling back to manual grader creation (tests will NOT be generated)"
+        fi
+    else
+        log_warning "goldset.json not found at $goldset_json"
+        log_warning "Manual grader creation will be used (tests will NOT be generated)"
+    fi
+
     log_info "Parsing goldset and generating evaluators"
 
     # Parse goldset.md to extract criteria (simplified parsing)
     local criteria_count=0
     local generated_graders=0
-
-    # Create results directory for failure routing
-    mkdir -p "$ROOT_DIR/evals/results/fix_directives"
-    mkdir -p "$ROOT_DIR/evals/results/evaluator_backlog"
-    mkdir -p "$ROOT_DIR/evals/results/annotation_queue"
 
     # Generate Context Adherence grader (example - generalization failure)
     cat > "$system_dir/graders/check_context_adherence.py" << 'EOF'
@@ -1328,7 +1352,11 @@ EOF
 
     chmod +x "$system_dir/../scripts/route_failures.py"
 
-    local details="{\"config_generated\": \"$config_js\", \"goldset_json\": \"$goldset_json\", \"security_graders\": 4, \"goldset_graders\": $generated_graders, \"tier_configs\": 2}"
+    # Count generated files
+    local grader_count=$(find "$system_dir/graders" -name "check_*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+    local test_count=$(find "$ROOT_DIR/evals/tests" -name "test_check_*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+    local details="{\"config_generated\": \"$config_js\", \"goldset_json\": \"$goldset_json\", \"security_graders\": 4, \"goldset_graders\": $generated_graders, \"tier_configs\": 2, \"total_graders\": $grader_count, \"unit_tests\": $test_count}"
 
     if [[ "$OUTPUT_FORMAT" == "json" ]]; then
         json_output "success" "implement" "PromptFoo config and graders generated" "$details"
@@ -1340,7 +1368,19 @@ EOF
         log_info "Goldset JSON: $goldset_json"
         log_info "Security baseline graders: 4 (PII, prompt injection, hallucination, misinformation)"
         log_info "Goldset graders: $generated_graders (regulatory compliance, context adherence)"
+        log_info "Total graders generated: $grader_count"
+        log_info "Unit tests generated: $test_count"
         log_info "Failure routing: fix_directives/ and evaluator_backlog/ directories created"
+
+        if [[ $test_count -eq 0 ]]; then
+            log_warning "⚠️  No unit tests were generated!"
+            log_warning "Tests require goldset.json and the generate-graders-with-tests.sh script"
+            log_warning "Run tests with: pytest $ROOT_DIR/evals/tests -v"
+        else
+            log_success "✅ Unit tests generated successfully!"
+            log_info "Run tests with: pytest $ROOT_DIR/evals/tests -v"
+            log_info "Coverage report: pytest $ROOT_DIR/evals/tests --cov=graders --cov-report=html"
+        fi
     fi
 }
 
