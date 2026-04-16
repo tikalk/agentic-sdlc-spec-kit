@@ -82,8 +82,8 @@ check_prerequisites() {
     fi
 
     # Check PromptFoo (only if using promptfoo system)
-    if [[ "$SYSTEM" == "promptfoo" ]] && ! command -v promptfoo &> /dev/null; then
-        log_warning "PromptFoo not found. Install with: npm install -g promptfoo"
+    if [[ "$SYSTEM" == "promptfoo" ]]; then
+        check_and_install_promptfoo
     fi
 
     # Check DeepEval (only if using deepeval system)
@@ -102,6 +102,132 @@ check_prerequisites() {
     fi
 
     return 0
+}
+
+# Check and install PromptFoo dependencies
+check_and_install_promptfoo() {
+    # Check if promptfoo is already installed
+    if command -v promptfoo &> /dev/null; then
+        log_info "PromptFoo is already installed"
+        return 0
+    fi
+
+    log_warning "PromptFoo not found. This is required for PromptFoo integration."
+
+    # Ask user for permission to install (unless in non-interactive mode)
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        # Running in sourced mode or JSON output - install automatically
+        install_promptfoo_deps
+    else
+        # Interactive mode - ask for permission
+        echo
+        echo "PromptFoo is required for this integration."
+        echo "The following will be added to package.json:"
+        echo "  - promptfoo: ^0.60.0 (devDependencies)"
+        echo
+        read -p "Install PromptFoo dependencies now? (y/N): " -r
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            install_promptfoo_deps
+        else
+            log_warning "PromptFoo not installed. You can install it later with:"
+            log_warning "  npm install --save-dev promptfoo"
+            return 1
+        fi
+    fi
+}
+
+# Install PromptFoo dependencies
+install_promptfoo_deps() {
+    log_info "Installing PromptFoo dependencies..."
+
+    # Check for package.json
+    if [[ -f "package.json" ]]; then
+        log_info "Found package.json - adding PromptFoo to devDependencies..."
+
+        # Check if devDependencies section exists
+        if ! grep -q '"devDependencies"' package.json; then
+            # Add devDependencies section
+            # Use jq if available, otherwise manual edit
+            if command -v jq &> /dev/null; then
+                jq '.devDependencies = {"promptfoo": "^0.60.0"}' package.json > package.json.tmp && mv package.json.tmp package.json
+                log_success "Added devDependencies with promptfoo"
+            else
+                # Manual JSON editing (before closing brace)
+                sed -i.bak 's/}$/,\n  "devDependencies": {\n    "promptfoo": "^0.60.0"\n  }\n}/' package.json
+                log_success "Added devDependencies with promptfoo"
+            fi
+        else
+            # Check if promptfoo already exists
+            if grep -q '"promptfoo"' package.json; then
+                log_info "promptfoo already exists in package.json"
+            else
+                # Add promptfoo to existing devDependencies
+                if command -v jq &> /dev/null; then
+                    jq '.devDependencies.promptfoo = "^0.60.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+                    log_success "Added promptfoo to devDependencies"
+                else
+                    # Manual addition after "devDependencies": {
+                    sed -i.bak '/"devDependencies": {/a\
+    "promptfoo": "^0.60.0",' package.json
+                    log_success "Added promptfoo to devDependencies"
+                fi
+            fi
+        fi
+
+        # Detect package manager and install
+        if [[ -f "yarn.lock" ]] && command -v yarn &> /dev/null; then
+            log_info "Using yarn to install dependencies..."
+            if yarn install; then
+                log_success "Dependencies installed with yarn"
+            else
+                log_error "Failed to install with yarn"
+                return 1
+            fi
+        elif command -v npm &> /dev/null; then
+            log_info "Using npm to install dependencies..."
+            if npm install; then
+                log_success "Dependencies installed with npm"
+            else
+                log_error "Failed to install with npm"
+                return 1
+            fi
+        else
+            log_error "Neither npm nor yarn found - cannot install dependencies"
+            return 1
+        fi
+    else
+        log_warning "No package.json found - using global npm install"
+
+        if command -v npm &> /dev/null; then
+            log_info "Installing PromptFoo globally..."
+            if npm install -g promptfoo; then
+                log_success "PromptFoo installed globally"
+            else
+                log_error "Failed to install PromptFoo globally"
+                log_error "You may need sudo: sudo npm install -g promptfoo"
+                return 1
+            fi
+        else
+            log_error "npm not found - cannot install PromptFoo"
+            log_error "Please install Node.js and npm first"
+            return 1
+        fi
+    fi
+
+    # Verify installation
+    if command -v promptfoo &> /dev/null; then
+        log_success "PromptFoo installed successfully"
+
+        # Show version
+        local version=$(promptfoo --version 2>/dev/null || echo "unknown")
+        log_info "PromptFoo version: $version"
+
+        return 0
+    else
+        log_error "PromptFoo installation verification failed"
+        return 1
+    fi
 }
 
 # Check and install DeepEval dependencies
@@ -134,8 +260,9 @@ check_and_install_deepeval() {
         # Interactive mode - ask for permission
         echo
         echo "DeepEval and related dependencies are required for this integration."
-        echo "The following packages will be installed:"
-        echo "  - deepeval>=0.21.0"
+        echo "The following will be added to pyproject.toml (if found) or installed directly:"
+        echo "  - deepeval>=3.0.0"
+        echo "  - openai>=1.3.0"
         echo "  - pytest>=7.0.0"
         echo "  - pytest-asyncio>=0.21.0"
         echo
@@ -145,7 +272,8 @@ check_and_install_deepeval() {
             install_deepeval_deps "$python_cmd"
         else
             log_warning "DeepEval not installed. You can install it later with:"
-            log_warning "  pip install deepeval pytest pytest-asyncio"
+            log_warning "  pip install -e .[evals]  # if using pyproject.toml"
+            log_warning "  pip install deepeval>=3.0.0 pytest pytest-asyncio openai>=1.3.0  # direct install"
             return 1
         fi
     fi
@@ -157,39 +285,93 @@ install_deepeval_deps() {
 
     log_info "Installing DeepEval dependencies..."
 
-    # List of required packages
-    local packages=(
-        "deepeval>=0.21.0"
-        "pytest>=7.0.0"
-        "pytest-asyncio>=0.21.0"
-        "openai>=1.0.0"
-        "anthropic>=0.25.0"
-    )
+    # Check for pyproject.toml
+    if [[ -f "pyproject.toml" ]]; then
+        log_info "Found pyproject.toml - adding evals dependencies..."
 
-    # Try to install using pip
-    local pip_cmd="${python_cmd} -m pip"
+        # Check if optional-dependencies.evals exists
+        if grep -q '^\[project\.optional-dependencies\]' pyproject.toml && grep -A 5 '^\[project\.optional-dependencies\]' pyproject.toml | grep -q '^evals = \['; then
+            log_info "evals group already exists in pyproject.toml"
+        else
+            # Add or update optional-dependencies section
+            if ! grep -q '^\[project\.optional-dependencies\]' pyproject.toml; then
+                # Add entire section
+                cat >> pyproject.toml << 'EOF'
 
-    # Install packages
-    for package in "${packages[@]}"; do
-        log_info "Installing $package..."
-        if ! $pip_cmd install "$package"; then
-            log_error "Failed to install $package"
-            log_error "You may need to install it manually: $pip_cmd install $package"
-            return 1
+[project.optional-dependencies]
+evals = [
+    "deepeval>=3.0.0",
+    "openai>=1.3.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+EOF
+                log_success "Added [project.optional-dependencies] with evals group"
+            else
+                # Section exists, add evals group
+                # Find line number of [project.optional-dependencies]
+                local line_num=$(grep -n '^\[project\.optional-dependencies\]' pyproject.toml | cut -d: -f1)
+                if [[ -n "$line_num" ]]; then
+                    # Insert after the section header
+                    sed -i.bak "${line_num}a\\
+evals = [\\
+    \"deepeval>=3.0.0\",\\
+    \"openai>=1.3.0\",\\
+    \"pytest>=7.0.0\",\\
+    \"pytest-asyncio>=0.21.0\",\\
+]" pyproject.toml
+                    log_success "Added evals group to optional-dependencies"
+                fi
+            fi
         fi
-    done
+
+        # Detect package manager and install
+        if command -v uv &> /dev/null; then
+            log_info "Using uv to install dependencies..."
+            if uv sync --group evals; then
+                log_success "Dependencies installed with uv sync --group evals"
+            else
+                log_warning "uv sync failed, trying pip..."
+                $python_cmd -m pip install -e ".[evals]"
+            fi
+        else
+            log_info "Using pip to install dependencies..."
+            if $python_cmd -m pip install -e ".[evals]"; then
+                log_success "Dependencies installed with pip install -e .[evals]"
+            else
+                log_error "Failed to install dependencies"
+                return 1
+            fi
+        fi
+    else
+        log_warning "No pyproject.toml found - using direct pip install"
+        local pip_cmd="${python_cmd} -m pip"
+        local packages=("deepeval>=3.0.0" "pytest>=7.0.0" "pytest-asyncio>=0.21.0" "openai>=1.3.0")
+
+        for package in "${packages[@]}"; do
+            log_info "Installing $package..."
+            if ! $pip_cmd install "$package"; then
+                log_error "Failed to install $package"
+                return 1
+            fi
+        done
+    fi
 
     # Verify installation
-    if $python_cmd -c "import deepeval; print('DeepEval', deepeval.__version__)" &> /dev/null; then
+    if $python_cmd -c "import deepeval" &> /dev/null; then
         log_success "DeepEval installed successfully"
-
-        # Show quick verification
         local version=$($python_cmd -c "import deepeval; print(deepeval.__version__)" 2>/dev/null || echo "unknown")
         log_info "DeepEval version: $version"
 
+        # Verify API compatibility (DeepEval 3.x)
+        if $python_cmd -c "from deepeval.test_case import LLMTestCase" &> /dev/null; then
+            log_success "DeepEval 3.x API verified"
+        else
+            log_warning "DeepEval may not be 3.x - LLMTestCase import failed"
+        fi
         return 0
     else
-        log_error "DeepEval installation verification failed"
+        log_error "DeepEval verification failed"
         return 1
     fi
 }
