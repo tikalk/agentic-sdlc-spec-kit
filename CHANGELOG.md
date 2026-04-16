@@ -4,6 +4,23 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.4] - 2026-04-16
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (076bb40)
+  - Integration catalog: new discovery, versioning, and community distribution system
+  - `specify integration list --catalog`: browse remote integrations
+  - `specify integration upgrade`: diff-aware upgrade with modified file detection
+  - Documentation: integrations FAQ and extensions reference
+
+### Added
+
+- **New integration**: `catalog.py` module with `IntegrationCatalog` and `IntegrationDescriptor`
+  - Fetches remote catalogs from configurable sources
+  - Caches for 1 hour in `.specify/integrations/.cache/`
+  - Validates integration YAML descriptors
+
 # [0.5.3] - 2026-04-16
 
 ### Changed
