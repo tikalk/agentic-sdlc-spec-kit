@@ -59,80 +59,152 @@ FAILURE_ROUTING = {
     }
 }
 
-def create_test_cases() -> List[LLMTestCase]:
+def load_goldset_json(goldset_path: str = "goldset.json") -> Dict[str, Any]:
     """
-    Create DeepEval LLMTestCase objects from goldset examples.
+    Load test cases from goldset.json file.
+
+    Args:
+        goldset_path: Path to goldset.json file
+
+    Returns:
+        Goldset data dictionary
+    """
+    import os
+
+    # Try to find goldset.json in common locations
+    search_paths = [
+        goldset_path,
+        os.path.join(os.path.dirname(__file__), goldset_path),
+        os.path.join(os.path.dirname(__file__), "..", goldset_path),
+    ]
+
+    for path in search_paths:
+        if os.path.exists(path):
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+
+    # Fallback to empty structure if goldset.json not found
+    print(f"Warning: goldset.json not found, using empty test cases")
+    return {
+        "metadata": {},
+        "pass_examples": [],
+        "fail_examples": [],
+        "adversarial_examples": []
+    }
+
+
+def split_dataset(goldset: Dict[str, Any], dataset_type: str = "all") -> Dict[str, List[Dict[str, Any]]]:
+    """
+    Split dataset into training/holdout sets (EDD Principle IX: Test data hygiene).
+
+    Args:
+        goldset: Loaded goldset data
+        dataset_type: "training", "holdout", or "all"
+
+    Returns:
+        Dict with pass_examples, fail_examples, adversarial_examples
+    """
+    all_pass = goldset.get("pass_examples", [])
+    all_fail = goldset.get("fail_examples", [])
+    all_adversarial = goldset.get("adversarial_examples", [])
+
+    if dataset_type == "all":
+        return {
+            "pass_examples": all_pass,
+            "fail_examples": all_fail,
+            "adversarial_examples": all_adversarial
+        }
+
+    # Split each category 80/20 (training/holdout)
+    def split_list(items: List[Any], holdout: bool = False) -> List[Any]:
+        if not items:
+            return []
+        split_idx = int(len(items) * 0.8)
+        if holdout:
+            return items[split_idx:]
+        else:
+            return items[:split_idx]
+
+    is_holdout = (dataset_type == "holdout")
+
+    return {
+        "pass_examples": split_list(all_pass, is_holdout),
+        "fail_examples": split_list(all_fail, is_holdout),
+        "adversarial_examples": split_list(all_adversarial, is_holdout)
+    }
+
+
+def create_test_cases(dataset_type: str = "all", goldset_path: str = "goldset.json") -> List[LLMTestCase]:
+    """
+    Create DeepEval LLMTestCase objects from goldset.json.
     Returns test cases for binary pass/fail evaluation.
 
     Note: DeepEval 3.x requires context to be List[str] or None
+
+    Args:
+        dataset_type: "training", "holdout", or "all" (default: "all")
+        goldset_path: Path to goldset.json file (default: "goldset.json")
+
+    Returns:
+        List of LLMTestCase instances
     """
+
+    # Load goldset from JSON
+    goldset = load_goldset_json(goldset_path)
+
+    # Split dataset according to requested type
+    dataset = split_dataset(goldset, dataset_type)
 
     test_cases = []
 
-    # Pass examples from goldset
-    pass_examples = [
-        {
-            "input": "{{PASS_EXAMPLE_1_INPUT}}",
-            "expected_output": "{{PASS_EXAMPLE_1_OUTPUT}}",
-            "context": ["{{PASS_EXAMPLE_1_CONTEXT}}"] if "{{PASS_EXAMPLE_1_CONTEXT}}" else None,  # List[str] or None
-            "expected_result": True  # Should pass
-        },
-        {
-            "input": "{{PASS_EXAMPLE_2_INPUT}}",
-            "expected_output": "{{PASS_EXAMPLE_2_OUTPUT}}",
-            "context": ["{{PASS_EXAMPLE_2_CONTEXT}}"] if "{{PASS_EXAMPLE_2_CONTEXT}}" else None,  # List[str] or None
-            "expected_result": True  # Should pass
-        }
-    ]
-
-    # Fail examples from goldset
-    fail_examples = [
-        {
-            "input": "{{FAIL_EXAMPLE_1_INPUT}}",
-            "expected_output": "{{FAIL_EXAMPLE_1_OUTPUT}}",
-            "context": ["{{FAIL_EXAMPLE_1_CONTEXT}}"] if "{{FAIL_EXAMPLE_1_CONTEXT}}" else None,  # List[str] or None
-            "expected_result": False  # Should fail
-        },
-        {
-            "input": "{{FAIL_EXAMPLE_2_INPUT}}",
-            "expected_output": "{{FAIL_EXAMPLE_2_OUTPUT}}",
-            "context": ["{{FAIL_EXAMPLE_2_CONTEXT}}"] if "{{FAIL_EXAMPLE_2_CONTEXT}}" else None,  # List[str] or None
-            "expected_result": False  # Should fail
-        }
-    ]
-
-    # Adversarial examples (from clarify phase)
-    adversarial_examples = [
-        {
-            "input": "{{ADVERSARIAL_1_INPUT}}",
-            "expected_output": "",  # We'll test actual output
-            "context": ["{{ADVERSARIAL_1_CONTEXT}}"] if "{{ADVERSARIAL_1_CONTEXT}}" else None,  # List[str] or None
-            "attack_vector": "{{ADVERSARIAL_1_VECTOR}}",
-            "expected_result": False  # Should fail
-        },
-        {
-            "input": "{{ADVERSARIAL_2_INPUT}}",
-            "expected_output": "",  # We'll test actual output
-            "context": ["{{ADVERSARIAL_2_CONTEXT}}"] if "{{ADVERSARIAL_2_CONTEXT}}" else None,  # List[str] or None
-            "attack_vector": "{{ADVERSARIAL_2_VECTOR}}",
-            "expected_result": False  # Should fail
-        }
-    ]
-
-    # Create LLMTestCase objects (DeepEval 3.x API)
-    for i, example in enumerate(pass_examples + fail_examples + adversarial_examples):
+    # Process pass examples
+    for example in dataset["pass_examples"]:
         test_case = LLMTestCase(
-            input=example["input"],
-            expected_output=example["expected_output"],
-            context=example.get("context"),  # Pass List[str] or None directly
+            input=example.get("input", ""),
+            expected_output=example.get("expected_output", ""),
+            context=example.get("context"),  # Already List[str] or None from goldset.json
             additional_metadata={
                 "criterion_id": CRITERION_ID,
-                "example_type": "pass" if example["expected_result"] else "fail",
-                "example_index": i,
+                "example_type": "pass",
+                "expected_result": True,
                 "tier": TIER,
                 "failure_type": FAILURE_TYPE,
-                "attack_vector": example.get("attack_vector"),
-                "edd_binary_expected": example["expected_result"]
+                "edd_binary_expected": True
+            }
+        )
+        test_cases.append(test_case)
+
+    # Process fail examples
+    for example in dataset["fail_examples"]:
+        test_case = LLMTestCase(
+            input=example.get("input", ""),
+            expected_output=example.get("expected_output", ""),
+            context=example.get("context"),  # Already List[str] or None from goldset.json
+            additional_metadata={
+                "criterion_id": CRITERION_ID,
+                "example_type": "fail",
+                "expected_result": False,
+                "tier": TIER,
+                "failure_type": FAILURE_TYPE,
+                "edd_binary_expected": False
+            }
+        )
+        test_cases.append(test_case)
+
+    # Process adversarial examples
+    for example in dataset["adversarial_examples"]:
+        test_case = LLMTestCase(
+            input=example.get("input", ""),
+            expected_output=example.get("expected_output", ""),
+            context=example.get("context"),  # Already List[str] or None from goldset.json
+            additional_metadata={
+                "criterion_id": CRITERION_ID,
+                "example_type": "adversarial",
+                "expected_result": False,
+                "tier": TIER,
+                "failure_type": FAILURE_TYPE,
+                "attack_vector": example.get("attack_vector", "unknown"),
+                "edd_binary_expected": False
             }
         )
         test_cases.append(test_case)
@@ -166,20 +238,22 @@ def create_evaluation_metrics() -> List[Any]:
 
     return metrics
 
-def run_evaluation(model_output_function=None, save_results=True) -> Dict[str, Any]:
+def run_evaluation(model_output_function=None, save_results=True, dataset_type="all", goldset_path="goldset.json") -> Dict[str, Any]:
     """
     Run DeepEval evaluation with EDD compliance.
 
     Args:
         model_output_function: Function that takes input and returns model output
         save_results: Whether to save results to disk
+        dataset_type: "training", "holdout", or "all" (default: "all")
+        goldset_path: Path to goldset.json file (default: "goldset.json")
 
     Returns:
         EDD-compliant evaluation results
     """
 
     # Create test cases and metrics
-    test_cases = create_test_cases()
+    test_cases = create_test_cases(dataset_type=dataset_type, goldset_path=goldset_path)
     metrics = create_evaluation_metrics()
 
     # If no model function provided, use test outputs from goldset
@@ -498,6 +572,17 @@ def main():
         help="Module and function name for model output (e.g., 'my_model.generate')"
     )
     parser.add_argument(
+        "--dataset",
+        choices=["training", "holdout", "all"],
+        default="all",
+        help="Dataset split to use: training (80%%), holdout (20%%), or all (default: all)"
+    )
+    parser.add_argument(
+        "--goldset",
+        default="goldset.json",
+        help="Path to goldset.json file (default: goldset.json)"
+    )
+    parser.add_argument(
         "--no-save",
         action="store_true",
         help="Don't save results to disk"
@@ -521,7 +606,9 @@ def main():
         # Run evaluation
         results = run_evaluation(
             model_output_function=model_function,
-            save_results=not args.no_save
+            save_results=not args.no_save,
+            dataset_type=args.dataset,
+            goldset_path=args.goldset
         )
 
         if args.json:
@@ -530,6 +617,7 @@ def main():
             # Human-readable output
             print(f"\n=== EDD Evaluation Results: {CRITERION_NAME} ===")
             print(f"Criterion: {CRITERION_ID}")
+            print(f"Dataset: {args.dataset}")
             print(f"Overall Result: {'PASS' if results['overall_pass'] else 'FAIL'}")
             print(f"Pass Rate: {results['statistics']['pass_rate']:.2%}")
             print(f"Tests: {results['statistics']['passed_tests']}/{results['statistics']['total_tests']}")
