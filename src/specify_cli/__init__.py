@@ -2137,6 +2137,15 @@ integration_app = typer.Typer(
 )
 app.add_typer(integration_app, name="integration")
 
+# Add skill_app if available and SKILLS_AVAILABLE is True
+try:
+    from .cli_customization import SKILLS_AVAILABLE
+
+    if SKILLS_AVAILABLE and skill_app is not None:
+        app.add_typer(skill_app, name="skill")
+except ImportError:
+    pass
+
 
 INTEGRATION_JSON = ".specify/integration.json"
 
