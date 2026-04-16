@@ -313,6 +313,9 @@ def pre_init(
     tracker: Any = None,
 ) -> None:
     """Pre-init hook - team AI directives sync."""
+    if tracker:
+        tracker.add("team-directives", "Team AI Directives setup")
+
     if not team_ai_directives:
         if tracker:
             tracker.skip("team-directives", "not specified")
@@ -378,6 +381,9 @@ def _install_bundled_extensions(
     Args:
         skip_git: If True, skip installing the 'git' extension (used when --no-git is passed).
     """
+    if tracker:
+        tracker.add("extensions", "Install bundled extensions")
+
     from .extensions import ExtensionManager
 
     project_extensions_dir = project_path / ".specify" / "extensions"
@@ -586,6 +592,9 @@ def _install_bundled_presets(
     tracker: Any = None,
 ) -> None:
     """Install bundled presets with scaffolding support."""
+    if tracker:
+        tracker.add("presets", "Install bundled presets")
+
     from .presets import PresetManager
 
     project_presets_dir = project_path / ".specify" / "presets"

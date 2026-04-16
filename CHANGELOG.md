@@ -2,6 +2,52 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [Unreleased]
+
+# [0.5.3] - 2026-04-16
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (752683d)
+  - Release 0.7.1 upstream changes
+  - CI: Windows test matrix support
+  - Docs cleanup (removed deprecated --skip-tls)
+  - Merged cleanly with fork customizations preserved
+
+# [0.5.2] - 2026-04-16
+
+### Fixed
+
+- **UI improvements for init output**:
+  - Fixed duplicate "Initialize Specify Project" title in Live display
+  - Capitalized status labels for better readability:
+    - "team-directives" → "Team AI Directives setup"
+    - "extensions" → "Install bundled extensions"
+    - "presets" → "Install bundled presets"
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (8fc2bd3)
+  - Claude skill chaining for hook execution (#2227)
+  - Preserved fork customizations (adlc namespace, auto-correction, warnings)
+
+### Fixed
+
+- Test compatibility with upstream (disable-model-invocation: false)
+
+# [0.5.0] - 2026-04-15
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit (b78a3cd)
+  - Merged upstream changes while preserving fork customizations (adlc namespace, theming, bundled extensions)
+
+# [0.4.12] - 2026-04-16
+
+### Fixed
+
+- **Version detection**: Fixed `specify version` and `get_speckit_version()` to correctly detect `agentic-sdlc-specify-cli` package (was showing "unknown" before)
+
 # [0.4.11] - 2026-04-16
 
 ### Added
@@ -1051,6 +1097,32 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.7.1] - 2026-04-15
+
+### Changed
+
+- ci: add windows-latest to test matrix (#2233)
+- docs: remove deprecated --skip-tls references from local-development guide (#2231)
+- fix: allow Claude to chain skills for hook execution (#2227)
+- docs: merge TESTING.md into CONTRIBUTING.md, remove TESTING.md (#2228)
+- Add agent-assign extension to community catalog (#2030)
+- fix: unofficial PyPI warning (#1982) and legacy extension command name auto-correction (#2017) (#2027)
+- feat: register architect-preview in community catalog (#2214)
+- chore: deprecate --ai flag in favor of --integration on specify init (#2218)
+- chore: release 0.7.0, begin 0.7.1.dev0 development (#2217)
+
+## [0.7.0] - 2026-04-14
+
+### Changed
+
+- Add workflow engine with catalog system (#2158)
+- docs(catalog): add claude-ask-questions to community preset catalog (#2191)
+- Add SFSpeckit — Salesforce SDD Extension (#2208)
+- feat(scripts): optional single-segment branch prefix for gitflow (#2202)
+- chore: release 0.6.2, begin 0.6.3.dev0 development (#2205)
+- Add Worktrees extension to community catalog (#2207)
+- feat: Update catalog.community.json for preset-fiction-book-writing (#2199)
 
 ## [0.6.2] - 2026-04-13
 

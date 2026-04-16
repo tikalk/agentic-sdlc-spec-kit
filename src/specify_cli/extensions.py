@@ -153,6 +153,7 @@ class ExtensionManifest:
             ValidationError: If manifest is invalid
         """
         self.path = manifest_path
+        self.warnings: List[str] = []
         self.data = self._load_yaml(manifest_path)
         self._validate()
 
@@ -233,16 +234,100 @@ class ExtensionManifest:
                     )
 
         # Validate commands (if present)
+        rename_map: Dict[str, str] = {}
         for cmd in commands:
+            if not isinstance(cmd, dict):
+                raise ValidationError(
+                    "Each command entry in 'provides.commands' must be a mapping"
+                )
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
-            # Validate command name format
+            # Validate command name format with auto-correction
             if not re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", cmd["name"]):
+                corrected = self._try_correct_command_name(cmd["name"], ext["id"])
+                if corrected:
+                    self.warnings.append(
+                        f"Command name '{cmd['name']}' does not follow the required pattern "
+                        f"'(speckit|adlc).{{extension}}.{{command}}'. Registering as '{corrected}'. "
+                        f"The extension author should update the manifest to use this name."
+                    )
+                    rename_map[cmd["name"]] = corrected
+                    cmd["name"] = corrected
+                else:
+                    raise ValidationError(
+                        f"Invalid command name '{cmd['name']}': "
+                        "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                    )
+
+            # Validate alias types; no pattern enforcement on aliases — they are
+            # intentionally free-form to preserve community extension compatibility.
+            aliases = cmd.get("aliases")
+            if aliases is None:
+                cmd["aliases"] = []
+                aliases = []
+            if not isinstance(aliases, list):
                 raise ValidationError(
-                    f"Invalid command name '{cmd['name']}': "
-                    "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                    f"Aliases for command '{cmd['name']}' must be a list"
                 )
+            for alias in aliases:
+                if not isinstance(alias, str):
+                    raise ValidationError(
+                        f"Aliases for command '{cmd['name']}' must be strings"
+                    )
+
+        # Rewrite any hook command references that pointed at a renamed command or
+        # an alias-form ref (ext.cmd → namespace.ext.cmd). Always emit a warning when
+        # the reference is changed so extension authors know to update the manifest.
+        for hook_name, hook_data in self.data.get("hooks", {}).items():
+            if not isinstance(hook_data, dict):
+                raise ValidationError(
+                    f"Hook '{hook_name}' must be a mapping, got {type(hook_data).__name__}"
+                )
+            command_ref = hook_data.get("command")
+            if not isinstance(command_ref, str):
+                continue
+            # Step 1: apply any rename from the auto-correction pass.
+            after_rename = rename_map.get(command_ref, command_ref)
+            # Step 2: lift alias-form '{ext_id}.cmd' to canonical 'namespace.{ext_id}.cmd'.
+            parts = after_rename.split(".")
+            if len(parts) == 2 and parts[0] == ext["id"]:
+                # Preserve namespace: use speckit or adlc based on what's available
+                namespace = "speckit"  # default
+                if parts[0] in EXTENSION_NAMESPACES:
+                    namespace = parts[0]
+                final_ref = f"{namespace}.{ext['id']}.{parts[1]}"
+            else:
+                final_ref = after_rename
+            if final_ref != command_ref:
+                hook_data["command"] = final_ref
+                self.warnings.append(
+                    f"Hook '{hook_name}' referenced command '{command_ref}'; "
+                    f"updated to '{final_ref}'. The extension author should update the manifest."
+                )
+
+    @staticmethod
+    def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
+        """Try to auto-correct a non-conforming command name to the required pattern.
+
+        Handles these legacy formats:
+          - 'speckit.command' → 'speckit.{ext_id}.command'
+          - 'adlc.command' → 'adlc.{ext_id}.command'
+          - '{ext_id}.command' → 'speckit.{ext_id}.command'
+
+        The 'X.Y' form is only corrected when X matches ext_id to ensure the
+        result passes the install-time namespace check.
+
+        Returns the corrected name, or None if no safe correction is possible.
+        """
+        parts = name.split(".")
+        if len(parts) == 2:
+            if parts[0] in ("speckit", "adlc") or parts[0] == ext_id:
+                namespace = "speckit" if parts[0] == ext_id else parts[0]
+                candidate = f"{namespace}.{ext_id}.{parts[1]}"
+                if re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", candidate):
+                    return candidate
+        return None
 
     @property
     def id(self) -> str:
@@ -778,6 +863,7 @@ class ExtensionManager:
 
         from . import load_init_options
         from .agents import CommandRegistrar
+        from .integrations import get_integration
         import yaml
 
         written: List[str] = []
@@ -788,6 +874,7 @@ class ExtensionManager:
         if not isinstance(selected_ai, str) or not selected_ai:
             return []
         registrar = CommandRegistrar()
+        integration = get_integration(selected_ai)
 
         for cmd_info in manifest.commands:
             cmd_name = cmd_info["name"]
@@ -863,6 +950,10 @@ class ExtensionManager:
             skill_content = (
                 f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
             )
+            if integration is not None and hasattr(
+                integration, "post_process_skill_content"
+            ):
+                skill_content = integration.post_process_skill_content(skill_content)
 
             skill_file.write_text(skill_content, encoding="utf-8")
             written.append(skill_name)

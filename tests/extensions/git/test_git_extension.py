@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import requires_bash
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 EXT_DIR = PROJECT_ROOT / "extensions" / "git"
 EXT_BASH = EXT_DIR / "scripts" / "bash"
@@ -211,6 +213,7 @@ class TestGitExtensionInstall:
 # ── initialize-repo.sh Tests ─────────────────────────────────────────────────
 
 
+@requires_bash
 class TestInitializeRepoBash:
     def test_initializes_git_repo(self, tmp_path: Path):
         """initialize-repo.sh creates a git repo with initial commit."""
@@ -269,6 +272,7 @@ class TestInitializeRepoPowerShell:
 # ── create-new-feature.sh Tests ──────────────────────────────────────────────
 
 
+@requires_bash
 class TestCreateFeatureBash:
     def test_creates_branch_sequential(self, tmp_path: Path):
         """Extension create-new-feature.sh creates sequential branch."""
@@ -376,6 +380,7 @@ class TestCreateFeaturePowerShell:
 # ── auto-commit.sh Tests ─────────────────────────────────────────────────────
 
 
+@requires_bash
 class TestAutoCommitBash:
     def test_disabled_by_default(self, tmp_path: Path):
         """auto-commit.sh exits silently when config is all false."""
@@ -491,6 +496,34 @@ class TestAutoCommitBash:
         result = _run_bash("auto-commit.sh", project)
         assert result.returncode != 0
 
+    def test_success_message_uses_ok_prefix(self, tmp_path: Path):
+        """auto-commit.sh success message uses [OK] (not Unicode)."""
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_specify:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        result = _run_bash("auto-commit.sh", project, "after_specify")
+        assert result.returncode == 0
+        assert "[OK] Changes committed" in result.stderr
+
+    def test_success_message_no_unicode_checkmark(self, tmp_path: Path):
+        """auto-commit.sh must not use Unicode checkmark in output."""
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_plan:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        result = _run_bash("auto-commit.sh", project, "after_plan")
+        assert result.returncode == 0
+        assert "\u2713" not in result.stderr, "Must not use Unicode checkmark"
+
 
 @pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
 class TestAutoCommitPowerShell:
@@ -523,10 +556,39 @@ class TestAutoCommitPowerShell:
         )
         assert "ps commit" in log.stdout
 
+    def test_success_message_uses_ok_prefix(self, tmp_path: Path):
+        """auto-commit.ps1 success message uses [OK] (not Unicode)."""
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_specify:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        result = _run_pwsh("auto-commit.ps1", project, "after_specify")
+        assert result.returncode == 0
+        assert "[OK] Changes committed" in result.stdout
+
+    def test_success_message_no_unicode_checkmark(self, tmp_path: Path):
+        """auto-commit.ps1 must not use Unicode checkmark in output."""
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_plan:\n"
+            "    enabled: true\n"
+        ))
+        (project / "new-file.txt").write_text("content")
+        result = _run_pwsh("auto-commit.ps1", project, "after_plan")
+        assert result.returncode == 0
+        assert "\u2713" not in result.stdout, "Must not use Unicode checkmark"
+
 
 # ── git-common.sh Tests ──────────────────────────────────────────────────────
 
 
+@requires_bash
 class TestGitCommonBash:
     def test_has_git_true(self, tmp_path: Path):
         """has_git returns 0 in a git repo."""

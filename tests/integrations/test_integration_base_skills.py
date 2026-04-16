@@ -408,6 +408,11 @@ class SkillsIntegrationTests:
             ".specify/templates/spec-template.md",
             ".specify/templates/tasks-template.md",
         ]
+        # Bundled workflow
+        files += [
+            ".specify/workflows/speckit/workflow.yml",
+            ".specify/workflows/workflow-registry.json",
+        ]
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path, monkeypatch):
