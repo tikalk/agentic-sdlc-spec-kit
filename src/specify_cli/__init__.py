@@ -163,16 +163,9 @@ try:
         skill_app,
         compute_skill_output_name,
     )
-
-    # skill_app is optional and may not be present in older cli_customization
-    try:
-        from .cli_customization import skill_app
-    except ImportError:
-        skill_app = None
 except ImportError:
     ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
-    TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
     TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
     PKG_NAMES = ["specify-cli"]
     skill_app = None
@@ -192,29 +185,34 @@ except ImportError:
     def accent_style() -> str:
         return ACCENT_COLOR
 
-    # Fallback hooks for upstream
     def pre_init(project_path, selected_ai, team_ai_directives, tracker=None):
         pass
 
     def post_init(project_path, selected_ai, tracker=None, no_git=False):
         pass
 
-    # No skill_app in upstream fallback
-    skill_app = None
-
-    # No fork-specific compute_skill_output_name in upstream fallback
-    compute_skill_output_name = None
+    def compute_skill_output_name():
+        return None
 
 
 def _run_git_command(
-    args: list[str], cwd: Path | None = None, *, env: dict[str, str] | None = None
+    args: list[str],
+    cwd: Path | None = None,
+    env: dict[str, str] | None = None,
+    check: bool = True,
 ) -> subprocess.CompletedProcess:
-    """Run a git command with optional working directory and environment overrides."""
+    """Run a git command and return the result."""
     cmd = ["git"]
-    if cwd is not None:
+    if cwd:
         cmd.extend(["-C", str(cwd)])
     cmd.extend(args)
-    return subprocess.run(cmd, check=True, capture_output=True, text=True, env=env)
+    return subprocess.run(
+        cmd,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=check,
+    )
 
 
 def sync_team_ai_directives(
@@ -296,7 +294,6 @@ class StepTracker:
             "skipped": 4,
         }
         self._refresh_cb = None  # callable to trigger UI refresh
-        self._tree = None  # cached Tree object
 
     def attach_refresh(self, cb):
         self._refresh_cb = cb
@@ -342,13 +339,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        # Reuse cached Tree to avoid duplicate banner issue
-        if self._tree is None:
-            self._tree = Tree(f"{accent(self.title)}", guide_style="grey50")
-        else:
-            # Clear existing children and re-add them
-            self._tree.children = []
-
+        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -359,7 +350,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = "[#f47721]○[/#f47721]"
+                symbol = "[cyan]○[/cyan]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -382,8 +373,8 @@ class StepTracker:
                 else:
                     line = f"{symbol} [white]{label}[/white]"
 
-            self._tree.add(line)
-        return self._tree
+            tree.add(line)
+        return tree
 
 
 def get_key():
@@ -432,14 +423,14 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style=accent_style(), justify="left", width=3)
+        table.add_column(style="cyan", justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"{accent(key)} [dim]({options[key]})[/dim]")
+                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
             else:
-                table.add_row(" ", f"{accent(key)} [dim]({options[key]})[/dim]")
+                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
 
         table.add_row("", "")
         table.add_row(
@@ -449,7 +440,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style=accent_style(),
+            border_style="cyan",
             padding=(1, 2),
         )
 
@@ -516,7 +507,7 @@ app = typer.Typer(
 def show_banner():
     """Display the ASCII art banner."""
     banner_lines = BANNER.strip().split("\n")
-    colors = BANNER_COLORS
+    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -524,7 +515,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style=f"italic {accent_style()}")))
+    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
     console.print()
 
 
@@ -636,7 +627,7 @@ def init_git_repo(
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print(accent("Initializing git repository..."))
+            console.print("[cyan]Initializing git repository...[/cyan]")
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(
@@ -825,7 +816,7 @@ def merge_json_files(
         return None
 
     if verbose:
-        console.print(f"{accent('Merged JSON file:')} {existing_path.name}")
+        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
 
     return merged
 
@@ -1061,7 +1052,7 @@ def ensure_executable_scripts(
     else:
         if updated:
             console.print(
-                f"{accent(f'Updated execute permissions on {updated} script(s) recursively')}"
+                f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]"
             )
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
@@ -1100,7 +1091,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print(accent("Initialized constitution from template"))
+            console.print("[cyan]Initialized constitution from template[/cyan]")
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -1248,11 +1239,6 @@ def init(
         None,
         "--integration-options",
         help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
-    ),
-    team_ai_directives: str = typer.Option(
-        None,
-        "--team-ai-directives",
-        help="Path or URL to team-ai-directives repository (local path or git URL)",
     ),
 ):
     """
@@ -1422,9 +1408,7 @@ def init(
             )
             if force:
                 console.print(
-                    accent(
-                        "--force supplied: skipping confirmation and proceeding with merge"
-                    )
+                    "[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]"
                 )
             else:
                 response = typer.confirm("Do you want to continue?")
@@ -1450,11 +1434,11 @@ def init(
                         "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
                     )
                 console.print(
-                    f"{accent('--force supplied: merging into existing directory')} '{project_name}'"
+                    f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]"
                 )
             else:
                 error_panel = Panel(
-                    f"Directory '{project_name}' already exists\n"
+                    f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
                     "Please choose a different project name or remove the existing directory.\n"
                     "Use [bold]--force[/bold] to merge into the existing directory.",
                     title="[red]Directory Conflict[/red]",
@@ -1502,7 +1486,7 @@ def init(
     current_dir = Path.cwd()
 
     setup_lines = [
-        accent("Specify Project Setup"),
+        "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -1511,9 +1495,7 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(
-        Panel("\n".join(setup_lines), border_style=accent_style(), padding=(1, 2))
-    )
+    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
 
     should_init_git = False
     if not no_git:
@@ -1529,10 +1511,10 @@ def init(
             install_url = agent_config["install_url"]
             if not check_tool(selected_ai):
                 error_panel = Panel(
-                    f"{accent(selected_ai)} not found\n"
-                    f"Install from: {accent(install_url)}\n"
+                    f"[cyan]{selected_ai}[/cyan] not found\n"
+                    f"Install from: [cyan]{install_url}[/cyan]\n"
                     f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    f"Tip: Use {accent('--ignore-agent-tools')} to skip this check",
+                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
                     title="[red]Agent Detection Error[/red]",
                     border_style="red",
                     padding=(1, 2),
@@ -1560,8 +1542,8 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"{accent('Selected AI assistant:')} {selected_ai}")
-    console.print(f"{accent('Selected script type:')} {selected_script}")
+    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
+    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -1582,6 +1564,7 @@ def init(
         ("constitution", "Constitution setup"),
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
+        ("final", "Finalize"),
     ]:
         tracker.add(key, label)
 
@@ -1758,7 +1741,6 @@ def init(
 
             if isinstance(resolved_integration, _SkillsPersist):
                 init_opts["ai_skills"] = True
-
             save_init_options(project_path, init_opts)
 
             # Install preset if specified
@@ -1823,12 +1805,6 @@ def init(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
 
-            # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
-            pre_init(project_path, selected_ai, team_ai_directives, tracker)
-            post_init(project_path, selected_ai, tracker, no_git=no_git)
-
-            # Add "Finalize" step at the end after all hooks complete
-            tracker.add("final", "Finalize")
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
             raise
@@ -1875,7 +1851,7 @@ def init(
         if agent_folder:
             security_notice = Panel(
                 f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-                f"Consider adding {accent(agent_folder)} (or parts of it) to {accent('.gitignore')} to prevent accidental credential leakage.",
+                f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
                 title="[yellow]Agent Folder Security[/yellow]",
                 border_style="yellow",
                 padding=(1, 2),
@@ -1896,7 +1872,7 @@ def init(
     steps_lines = []
     if not here:
         steps_lines.append(
-            f"1. Go to the project folder: {accent(f'cd {project_name}')}"
+            f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]"
         )
         step_num = 2
     else:
@@ -1931,17 +1907,17 @@ def init(
     if codex_skill_mode and not ai_skills:
         # Integration path installed skills; show the helpful notice
         steps_lines.append(
-            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to {accent('.agents/skills')}"
+            f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]"
         )
         step_num += 1
     if claude_skill_mode and not ai_skills:
         steps_lines.append(
-            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to {accent('.claude/skills')}"
+            f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]"
         )
         step_num += 1
     if cursor_agent_skill_mode and not ai_skills:
         steps_lines.append(
-            f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to {accent('.cursor/skills')}"
+            f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to [cyan].cursor/skills[/cyan]"
         )
         step_num += 1
     usage_label = "skills" if native_skill_mode else "slash commands"
@@ -1955,31 +1931,28 @@ def init(
             return f"/skill:speckit-{name}"
         if cursor_agent_skill_mode:
             return f"/speckit-{name}"
-        return f"/spec.{name}"
+        return f"/speckit.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
     steps_lines.append(
-        f"   {step_num}.1 {_display_cmd('constitution')} - Establish project principles"
+        f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles"
     )
     steps_lines.append(
-        f"   {step_num}.2 {_display_cmd('specify')} - Create baseline specification"
+        f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification"
     )
     steps_lines.append(
-        f"   {step_num}.3 {_display_cmd('plan')} - Create implementation plan"
+        f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan"
     )
     steps_lines.append(
-        f"   {step_num}.4 {_display_cmd('tasks')} - Generate actionable tasks"
+        f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks"
     )
     steps_lines.append(
-        f"   {step_num}.5 {_display_cmd('implement')} - Execute implementation"
+        f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation"
     )
 
     steps_panel = Panel(
-        "\n".join(steps_lines),
-        title="Next Steps",
-        border_style=accent_style(),
-        padding=(1, 2),
+        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
     )
     console.print()
     console.print(steps_panel)
@@ -1992,9 +1965,9 @@ def init(
     enhancement_lines = [
         enhancement_intro,
         "",
-        f"{accent('○')} {_display_cmd('clarify')} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {_display_cmd('plan')} if used)",
-        f"{accent('○')} {_display_cmd('analyze')} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {_display_cmd('tasks')}, before {_display_cmd('implement')})",
-        f"{accent('○')} {_display_cmd('checklist')} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {_display_cmd('plan')})",
+        f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
+        f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
+        f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])",
     ]
     enhancements_title = (
         "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
@@ -2002,7 +1975,7 @@ def init(
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title=enhancements_title,
-        border_style=accent_style(),
+        border_style="cyan",
         padding=(1, 2),
     )
     console.print()
@@ -2064,15 +2037,10 @@ def version():
 
     # Get CLI version from package metadata
     cli_version = "unknown"
-    # Try multiple package names (tikalk fork uses agentic-sdlc-specify-cli)
-    for pkg_name in ("agentic-sdlc-specify-cli", "specify-cli"):
-        try:
-            cli_version = importlib.metadata.version(pkg_name)
-            break
-        except Exception:
-            continue
-    # Fallback: try reading from pyproject.toml if running from source
-    if cli_version == "unknown":
+    try:
+        cli_version = importlib.metadata.version("specify-cli")
+    except Exception:
+        # Fallback: try reading from pyproject.toml if running from source
         try:
             import tomllib
 
@@ -2136,34 +2104,27 @@ preset_catalog_app = typer.Typer(
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
 
-# Skill commands (Tikalk fork - may be None in upstream)
-if skill_app is not None:
-    app.add_typer(skill_app, name="skill")
-
 
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
     import importlib.metadata
 
-    # Try multiple package names (tikalk fork uses agentic-sdlc-specify-cli)
-    for pkg_name in ("agentic-sdlc-specify-cli", "specify-cli"):
-        try:
-            return importlib.metadata.version(pkg_name)
-        except Exception:
-            continue
-    # Fallback: try reading from pyproject.toml
     try:
-        import tomllib
-
-        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
-        if pyproject_path.exists():
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-                return data.get("project", {}).get("version", "unknown")
+        return importlib.metadata.version("specify-cli")
     except Exception:
-        # Intentionally ignore any errors while reading/parsing pyproject.toml.
-        # If this lookup fails for any reason, we fall back to returning "unknown" below.
-        pass
+        # Fallback: try reading from pyproject.toml
+        try:
+            import tomllib
+
+            pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                    return data.get("project", {}).get("version", "unknown")
+        except Exception:
+            # Intentionally ignore any errors while reading/parsing pyproject.toml.
+            # If this lookup fails for any reason, we fall back to returning "unknown" below.
+            pass
     return "unknown"
 
 
@@ -2175,10 +2136,6 @@ integration_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(integration_app, name="integration")
-
-# Tikalk skill subcommand (if available from cli_customization)
-if skill_app is not None:
-    app.add_typer(skill_app, name="skill")
 
 
 INTEGRATION_JSON = ".specify/integration.json"
@@ -2269,7 +2226,9 @@ def _resolve_script_type(project_root: Path, script_type: str | None) -> str:
 
 @integration_app.command("list")
 def integration_list(
-    catalog: bool = typer.Option(False, "--catalog", help="Browse full catalog (built-in + community)"),
+    catalog: bool = typer.Option(
+        False, "--catalog", help="Browse full catalog (built-in + community)"
+    ),
 ):
     """List available integrations and installed status."""
     from .integrations import INTEGRATION_REGISTRY
@@ -2354,7 +2313,7 @@ def integration_list(
     console.print(table)
 
     if installed_key:
-        console.print(f"\n[dim]Current integration:[/dim] {accent({installed_key})}")
+        console.print(f"\n[dim]Current integration:[/dim] [cyan]{installed_key}[/cyan]")
     else:
         console.print("\n[yellow]No integration currently installed.[/yellow]")
         console.print(
@@ -2403,7 +2362,7 @@ def integration_install(
     if installed_key and installed_key == key:
         console.print(f"[yellow]Integration '{key}' is already installed.[/yellow]")
         console.print(
-            "Run {accent('specify integration uninstall')} first, then reinstall."
+            "Run [cyan]specify integration uninstall[/cyan] first, then reinstall."
         )
         raise typer.Exit(0)
 
@@ -2412,7 +2371,7 @@ def integration_install(
             f"[red]Error:[/red] Integration '{installed_key}' is already installed."
         )
         console.print(
-            f"Run {accent('specify integration uninstall')} first, or use [cyan]specify integration switch {key}[/cyan]."
+            f"Run [cyan]specify integration uninstall[/cyan] first, or use [cyan]specify integration switch {key}[/cyan]."
         )
         raise typer.Exit(1)
 
@@ -2692,7 +2651,7 @@ def integration_switch(
 
         if current_integration and manifest_path.exists():
             console.print(
-                f"Uninstalling current integration: {accent({installed_key})}"
+                f"Uninstalling current integration: [cyan]{installed_key}[/cyan]"
             )
             try:
                 old_manifest = IntegrationManifest.load(installed_key, project_root)
@@ -2756,7 +2715,7 @@ def integration_switch(
         ensure_executable_scripts(project_root)
 
     # Phase 2: Install target integration
-    console.print(f"Installing integration: {accent({target})}")
+    console.print(f"Installing integration: [cyan]{target}[/cyan]")
     manifest = IntegrationManifest(
         target_integration.key, project_root, version=get_speckit_version()
     )
@@ -2802,10 +2761,20 @@ def integration_switch(
 
 @integration_app.command("upgrade")
 def integration_upgrade(
-    key: str | None = typer.Argument(None, help="Integration key to upgrade (default: current integration)"),
-    force: bool = typer.Option(False, "--force", help="Force upgrade even if files are modified"),
-    script: str | None = typer.Option(None, "--script", help="Script type: sh or ps (default: from init-options.json or platform default)"),
-    integration_options: str | None = typer.Option(None, "--integration-options", help="Options for the integration"),
+    key: str | None = typer.Argument(
+        None, help="Integration key to upgrade (default: current integration)"
+    ),
+    force: bool = typer.Option(
+        False, "--force", help="Force upgrade even if files are modified"
+    ),
+    script: str | None = typer.Option(
+        None,
+        "--script",
+        help="Script type: sh or ps (default: from init-options.json or platform default)",
+    ),
+    integration_options: str | None = typer.Option(
+        None, "--integration-options", help="Options for the integration"
+    ),
 ):
     """Upgrade an integration by reinstalling with diff-aware file handling.
 
@@ -2819,7 +2788,9 @@ def integration_upgrade(
 
     specify_dir = project_root / ".specify"
     if not specify_dir.exists():
-        console.print("[red]Error:[/red] Not a spec-kit project (no .specify/ directory)")
+        console.print(
+            "[red]Error:[/red] Not a spec-kit project (no .specify/ directory)"
+        )
         console.print("Run this command from a spec-kit project root")
         raise typer.Exit(1)
 
@@ -2846,23 +2817,33 @@ def integration_upgrade(
 
     manifest_path = project_root / ".specify" / "integrations" / f"{key}.manifest.json"
     if not manifest_path.exists():
-        console.print(f"[yellow]No manifest found for integration '{key}'. Nothing to upgrade.[/yellow]")
-        console.print(f"Run [cyan]specify integration install {key}[/cyan] to perform a fresh install.")
+        console.print(
+            f"[yellow]No manifest found for integration '{key}'. Nothing to upgrade.[/yellow]"
+        )
+        console.print(
+            f"Run [cyan]specify integration install {key}[/cyan] to perform a fresh install."
+        )
         raise typer.Exit(0)
 
     try:
         old_manifest = IntegrationManifest.load(key, project_root)
     except (ValueError, FileNotFoundError) as exc:
-        console.print(f"[red]Error:[/red] Integration manifest for '{key}' is unreadable: {exc}")
+        console.print(
+            f"[red]Error:[/red] Integration manifest for '{key}' is unreadable: {exc}"
+        )
         raise typer.Exit(1)
 
     # Detect modified files via manifest hashes
     modified = old_manifest.check_modified()
     if modified and not force:
-        console.print(f"[yellow]⚠[/yellow]  {len(modified)} file(s) have been modified since installation:")
+        console.print(
+            f"[yellow]⚠[/yellow]  {len(modified)} file(s) have been modified since installation:"
+        )
         for rel in modified:
             console.print(f"    {rel}")
-        console.print("\nUse [cyan]--force[/cyan] to overwrite modified files, or resolve manually.")
+        console.print(
+            "\nUse [cyan]--force[/cyan] to overwrite modified files, or resolve manually."
+        )
         raise typer.Exit(1)
 
     selected_script = _resolve_script_type(project_root, script)
@@ -2891,12 +2872,16 @@ def integration_upgrade(
         )
         new_manifest.save()
         _write_integration_json(project_root, key, selected_script)
-        _update_init_options_for_integration(project_root, integration, script_type=selected_script)
+        _update_init_options_for_integration(
+            project_root, integration, script_type=selected_script
+        )
     except Exception as exc:
         # Don't teardown — setup overwrites in-place, so teardown would
         # delete files that were working before the upgrade.  Just report.
         console.print(f"[red]Error:[/red] Failed to upgrade integration: {exc}")
-        console.print("[yellow]The previous integration files may still be in place.[/yellow]")
+        console.print(
+            "[yellow]The previous integration files may still be in place.[/yellow]"
+        )
         raise typer.Exit(1)
 
     # Phase 2: Remove stale files from old manifest that are not in the new one
@@ -2908,7 +2893,9 @@ def integration_upgrade(
         stale_manifest._files = {k: old_files[k] for k in stale_keys}
         stale_removed, _ = stale_manifest.uninstall(project_root, force=True)
         if stale_removed:
-            console.print(f"  Removed {len(stale_removed)} stale file(s) from previous install")
+            console.print(
+                f"  Removed {len(stale_removed)} stale file(s) from previous install"
+            )
 
     name = (integration.config or {}).get("name", key)
     console.print(f"\n[green]✓[/green] Integration '{name}' upgraded successfully")
@@ -2962,7 +2949,7 @@ def preset_list():
 
 @preset_app.command("add")
 def preset_add(
-    pack_id: str = typer.Argument(None, help="Preset ID to install from catalog"),
+    preset_id: str = typer.Argument(None, help="Preset ID to install from catalog"),
     from_url: str = typer.Option(None, "--from", help="Install from a URL (ZIP file)"),
     dev: str = typer.Option(
         None, "--dev", help="Install from local directory (development mode)"
@@ -3009,7 +2996,7 @@ def preset_add(
                 console.print(f"[red]Error:[/red] Directory not found: {dev}")
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from {accent({dev_path})}...")
+            console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
             manifest = manager.install_from_directory(
                 dev_path, speckit_version, priority
             )
@@ -3031,7 +3018,7 @@ def preset_add(
                 )
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from {accent({from_url})}...")
+            console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
             import urllib.request
             import urllib.error
             import tempfile
@@ -3051,11 +3038,11 @@ def preset_add(
                 f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})"
             )
 
-        elif pack_id:
+        elif preset_id:
             # Try bundled preset first, then catalog
-            bundled_path = _locate_bundled_preset(pack_id)
+            bundled_path = _locate_bundled_preset(preset_id)
             if bundled_path:
-                console.print(f"Installing bundled preset {accent({pack_id})}...")
+                console.print(f"Installing bundled preset [cyan]{preset_id}[/cyan]...")
                 manifest = manager.install_from_directory(
                     bundled_path, speckit_version, priority
                 )
@@ -3064,11 +3051,11 @@ def preset_add(
                 )
             else:
                 catalog = PresetCatalog(project_root)
-                pack_info = catalog.get_pack_info(pack_id)
+                pack_info = catalog.get_pack_info(preset_id)
 
                 if not pack_info:
                     console.print(
-                        f"[red]Error:[/red] Preset '{pack_id}' not found in catalog"
+                        f"[red]Error:[/red] Preset '{preset_id}' not found in catalog"
                     )
                     raise typer.Exit(1)
 
@@ -3078,7 +3065,7 @@ def preset_add(
                     from .extensions import REINSTALL_COMMAND
 
                     console.print(
-                        f"[red]Error:[/red] Preset '{pack_id}' is bundled with spec-kit "
+                        f"[red]Error:[/red] Preset '{preset_id}' is bundled with spec-kit "
                         f"but could not be found in the installed package."
                     )
                     console.print(
@@ -3091,7 +3078,7 @@ def preset_add(
                 if not pack_info.get("_install_allowed", True):
                     catalog_name = pack_info.get("_catalog_name", "unknown")
                     console.print(
-                        f"[red]Error:[/red] Preset '{pack_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed)."
+                        f"[red]Error:[/red] Preset '{preset_id}' is from the '{catalog_name}' catalog which is discovery-only (install not allowed)."
                     )
                     console.print(
                         "Add the catalog with --install-allowed or install from the preset's repository directly with --from."
@@ -3099,11 +3086,11 @@ def preset_add(
                     raise typer.Exit(1)
 
                 console.print(
-                    f"Installing preset {accent({pack_info.get('name', pack_id)})}..."
+                    f"Installing preset [cyan]{pack_info.get('name', preset_id)}[/cyan]..."
                 )
 
                 try:
-                    zip_path = catalog.download_pack(pack_id)
+                    zip_path = catalog.download_pack(preset_id)
                     manifest = manager.install_from_zip(
                         zip_path, speckit_version, priority
                     )
@@ -3132,7 +3119,7 @@ def preset_add(
 
 @preset_app.command("remove")
 def preset_remove(
-    pack_id: str = typer.Argument(..., help="Preset ID to remove"),
+    preset_id: str = typer.Argument(..., help="Preset ID to remove"),
 ):
     """Remove an installed preset."""
     from .presets import PresetManager
@@ -3149,14 +3136,14 @@ def preset_remove(
 
     manager = PresetManager(project_root)
 
-    if not manager.registry.is_installed(pack_id):
-        console.print(f"[red]Error:[/red] Preset '{pack_id}' is not installed")
+    if not manager.registry.is_installed(preset_id):
+        console.print(f"[red]Error:[/red] Preset '{preset_id}' is not installed")
         raise typer.Exit(1)
 
-    if manager.remove(pack_id):
-        console.print(f"[green]✓[/green] Preset '{pack_id}' removed successfully")
+    if manager.remove(preset_id):
+        console.print(f"[green]✓[/green] Preset '{preset_id}' removed successfully")
     else:
-        console.print(f"[red]Error:[/red] Failed to remove preset '{pack_id}'")
+        console.print(f"[red]Error:[/red] Failed to remove preset '{preset_id}'")
         raise typer.Exit(1)
 
 
@@ -3237,7 +3224,7 @@ def preset_resolve(
 
 @preset_app.command("info")
 def preset_info(
-    pack_id: str = typer.Argument(..., help="Preset ID to get info about"),
+    preset_id: str = typer.Argument(..., help="Preset ID to get info about"),
 ):
     """Show detailed information about a preset."""
     from .extensions import normalize_priority
@@ -3255,7 +3242,7 @@ def preset_info(
 
     # Check if installed locally first
     manager = PresetManager(project_root)
-    local_pack = manager.get_pack(pack_id)
+    local_pack = manager.get_pack(preset_id)
 
     if local_pack:
         console.print(f"\n[bold cyan]Preset: {local_pack.name}[/bold cyan]\n")
@@ -3279,7 +3266,7 @@ def preset_info(
             console.print(f"  License:     {license_val}")
         console.print("\n  [green]Status: installed[/green]")
         # Get priority from registry
-        pack_metadata = manager.registry.get(pack_id)
+        pack_metadata = manager.registry.get(preset_id)
         priority = normalize_priority(
             pack_metadata.get("priority") if isinstance(pack_metadata, dict) else None
         )
@@ -3290,18 +3277,18 @@ def preset_info(
     # Fall back to catalog
     catalog = PresetCatalog(project_root)
     try:
-        pack_info = catalog.get_pack_info(pack_id)
+        pack_info = catalog.get_pack_info(preset_id)
     except PresetError:
         pack_info = None
 
     if not pack_info:
         console.print(
-            f"[red]Error:[/red] Preset '{pack_id}' not found (not installed and not in catalog)"
+            f"[red]Error:[/red] Preset '{preset_id}' not found (not installed and not in catalog)"
         )
         raise typer.Exit(1)
 
     console.print(
-        f"\n[bold cyan]Preset: {pack_info.get('name', pack_id)}[/bold cyan]\n"
+        f"\n[bold cyan]Preset: {pack_info.get('name', preset_id)}[/bold cyan]\n"
     )
     console.print(f"  ID:          {pack_info['id']}")
     console.print(f"  Version:     {pack_info.get('version', '?')}")
@@ -3315,13 +3302,13 @@ def preset_info(
     if pack_info.get("license"):
         console.print(f"  License:     {pack_info['license']}")
     console.print("\n  [yellow]Status: not installed[/yellow]")
-    console.print(f"  Install with: [cyan]specify preset add {pack_id}[/cyan]")
+    console.print(f"  Install with: [cyan]specify preset add {preset_id}[/cyan]")
     console.print()
 
 
 @preset_app.command("set-priority")
 def preset_set_priority(
-    pack_id: str = typer.Argument(help="Preset ID"),
+    preset_id: str = typer.Argument(help="Preset ID"),
     priority: int = typer.Argument(help="New priority (lower = higher precedence)"),
 ):
     """Set the resolution priority of an installed preset."""
@@ -3348,15 +3335,15 @@ def preset_set_priority(
     manager = PresetManager(project_root)
 
     # Check if preset is installed
-    if not manager.registry.is_installed(pack_id):
-        console.print(f"[red]Error:[/red] Preset '{pack_id}' is not installed")
+    if not manager.registry.is_installed(preset_id):
+        console.print(f"[red]Error:[/red] Preset '{preset_id}' is not installed")
         raise typer.Exit(1)
 
     # Get current metadata
-    metadata = manager.registry.get(pack_id)
+    metadata = manager.registry.get(preset_id)
     if metadata is None or not isinstance(metadata, dict):
         console.print(
-            f"[red]Error:[/red] Preset '{pack_id}' not found in registry (corrupted state)"
+            f"[red]Error:[/red] Preset '{preset_id}' not found in registry (corrupted state)"
         )
         raise typer.Exit(1)
 
@@ -3367,17 +3354,17 @@ def preset_set_priority(
     # This ensures corrupted values (e.g., "high") get repaired even when setting to default (10)
     if isinstance(raw_priority, int) and raw_priority == priority:
         console.print(
-            f"[yellow]Preset '{pack_id}' already has priority {priority}[/yellow]"
+            f"[yellow]Preset '{preset_id}' already has priority {priority}[/yellow]"
         )
         raise typer.Exit(0)
 
     old_priority = normalize_priority(raw_priority)
 
     # Update priority
-    manager.registry.update(pack_id, {"priority": priority})
+    manager.registry.update(preset_id, {"priority": priority})
 
     console.print(
-        f"[green]✓[/green] Preset '{pack_id}' priority changed: {old_priority} → {priority}"
+        f"[green]✓[/green] Preset '{preset_id}' priority changed: {old_priority} → {priority}"
     )
     console.print(
         "\n[dim]Lower priority = higher precedence in template resolution[/dim]"
@@ -3386,7 +3373,7 @@ def preset_set_priority(
 
 @preset_app.command("enable")
 def preset_enable(
-    pack_id: str = typer.Argument(help="Preset ID to enable"),
+    preset_id: str = typer.Argument(help="Preset ID to enable"),
 ):
     """Enable a disabled preset."""
     from .presets import PresetManager
@@ -3405,26 +3392,26 @@ def preset_enable(
     manager = PresetManager(project_root)
 
     # Check if preset is installed
-    if not manager.registry.is_installed(pack_id):
-        console.print(f"[red]Error:[/red] Preset '{pack_id}' is not installed")
+    if not manager.registry.is_installed(preset_id):
+        console.print(f"[red]Error:[/red] Preset '{preset_id}' is not installed")
         raise typer.Exit(1)
 
     # Get current metadata
-    metadata = manager.registry.get(pack_id)
+    metadata = manager.registry.get(preset_id)
     if metadata is None or not isinstance(metadata, dict):
         console.print(
-            f"[red]Error:[/red] Preset '{pack_id}' not found in registry (corrupted state)"
+            f"[red]Error:[/red] Preset '{preset_id}' not found in registry (corrupted state)"
         )
         raise typer.Exit(1)
 
     if metadata.get("enabled", True):
-        console.print(f"[yellow]Preset '{pack_id}' is already enabled[/yellow]")
+        console.print(f"[yellow]Preset '{preset_id}' is already enabled[/yellow]")
         raise typer.Exit(0)
 
     # Enable the preset
-    manager.registry.update(pack_id, {"enabled": True})
+    manager.registry.update(preset_id, {"enabled": True})
 
-    console.print(f"[green]✓[/green] Preset '{pack_id}' enabled")
+    console.print(f"[green]✓[/green] Preset '{preset_id}' enabled")
     console.print("\nTemplates from this preset will now be included in resolution.")
     console.print(
         "[dim]Note: Previously registered commands/skills remain active.[/dim]"
@@ -3433,7 +3420,7 @@ def preset_enable(
 
 @preset_app.command("disable")
 def preset_disable(
-    pack_id: str = typer.Argument(help="Preset ID to disable"),
+    preset_id: str = typer.Argument(help="Preset ID to disable"),
 ):
     """Disable a preset without removing it."""
     from .presets import PresetManager
@@ -3452,31 +3439,31 @@ def preset_disable(
     manager = PresetManager(project_root)
 
     # Check if preset is installed
-    if not manager.registry.is_installed(pack_id):
-        console.print(f"[red]Error:[/red] Preset '{pack_id}' is not installed")
+    if not manager.registry.is_installed(preset_id):
+        console.print(f"[red]Error:[/red] Preset '{preset_id}' is not installed")
         raise typer.Exit(1)
 
     # Get current metadata
-    metadata = manager.registry.get(pack_id)
+    metadata = manager.registry.get(preset_id)
     if metadata is None or not isinstance(metadata, dict):
         console.print(
-            f"[red]Error:[/red] Preset '{pack_id}' not found in registry (corrupted state)"
+            f"[red]Error:[/red] Preset '{preset_id}' not found in registry (corrupted state)"
         )
         raise typer.Exit(1)
 
     if not metadata.get("enabled", True):
-        console.print(f"[yellow]Preset '{pack_id}' is already disabled[/yellow]")
+        console.print(f"[yellow]Preset '{preset_id}' is already disabled[/yellow]")
         raise typer.Exit(0)
 
     # Disable the preset
-    manager.registry.update(pack_id, {"enabled": False})
+    manager.registry.update(preset_id, {"enabled": False})
 
-    console.print(f"[green]✓[/green] Preset '{pack_id}' disabled")
+    console.print(f"[green]✓[/green] Preset '{preset_id}' disabled")
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print(
         "[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]"
     )
-    console.print(f"To re-enable: specify preset enable {pack_id}")
+    console.print(f"To re-enable: specify preset enable {preset_id}")
 
 
 # ===== Preset Catalog Commands =====
@@ -4509,7 +4496,7 @@ def extension_search(
             # Install command (show warning if not installable)
             if install_allowed:
                 console.print(
-                    f"\n  {accent('Install:')} specify extension add {ext['id']}"
+                    f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}"
                 )
             else:
                 console.print(
@@ -4726,7 +4713,7 @@ def _print_extension_info(ext_info: dict, manager):
         console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
-        console.print(f"\n{accent('Install:')} specify extension add {ext_info['id']}")
+        console.print(f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}")
     else:
         catalog_name = ext_info.get("_catalog_name", "community")
         console.print("[yellow]Not installed[/yellow]")
