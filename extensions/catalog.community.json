@@ -714,7 +714,7 @@
       "updated_at": "2026-03-31T00:00:00Z"
     },
     "github-issues": {
-      "name": "GitHub Issues Integration",
+      "name": "GitHub Issues Integration 1",
       "id": "github-issues",
       "description": "Generate spec artifacts from GitHub Issues - import issues, sync updates, and maintain bidirectional traceability",
       "author": "Fatima367",
@@ -752,6 +752,38 @@
       "stars": 0,
       "created_at": "2026-04-12T15:30:00Z",
       "updated_at": "2026-04-13T14:39:00Z"
+    },
+    "issue": {
+      "name": "GitHub Issues Integration 2",
+      "id": "issue",
+      "description": "Creates and syncs local specs based on an existing issue in GitHub",
+      "author": "aaronrsun",
+      "version": "1.0.0",
+      "download_url": "https://github.com/aaronrsun/spec-kit-issue/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/aaronrsun/spec-kit-issue",
+      "homepage": "https://github.com/aaronrsun/spec-kit-issue",
+      "documentation": "https://github.com/aaronrsun/spec-kit-issue/blob/main/README.md",
+      "changelog": "https://github.com/aaronrsun/spec-kit-issue/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 0
+      },
+      "tags": [
+        "issue",
+        "integration",
+        "github",
+        "issues",
+        "sync"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-04-04T00:00:00Z",
+      "updated_at": "2026-04-04T00:00:00Z"
     },
     "iterate": {
       "name": "Iterate",
