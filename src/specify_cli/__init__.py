@@ -1827,6 +1827,7 @@ def init(
                     )
 
             # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
+            # MUST run before final tracker so they appear in correct order
             pre_init(project_path, selected_ai, team_ai_directives, tracker)
             post_init(project_path, selected_ai, tracker, no_git=no_git)
 
@@ -1956,7 +1957,8 @@ def init(
             return f"/skill:speckit-{name}"
         if cursor_agent_skill_mode:
             return f"/speckit-{name}"
-        return f"/speckit.{name}"
+        # Fork default: use "spec." prefix instead of "speckit."
+        return f"/spec.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your AI agent:")
 
@@ -1977,7 +1979,10 @@ def init(
     )
 
     steps_panel = Panel(
-        "\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2)
+        "\n".join(steps_lines),
+        title="Next Steps",
+        border_style=accent_style(),
+        padding=(1, 2),
     )
     console.print()
     console.print(steps_panel)
@@ -2000,7 +2005,7 @@ def init(
     enhancements_panel = Panel(
         "\n".join(enhancement_lines),
         title=enhancements_title,
-        border_style="cyan",
+        border_style=accent_style(),
         padding=(1, 2),
     )
     console.print()
