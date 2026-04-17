@@ -1565,8 +1565,8 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"[cyan]Selected AI assistant:[/cyan] {selected_ai}")
-    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"{accent('Selected AI assistant:')} {selected_ai}")
+    console.print(f"{accent('Selected script type:')} {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
