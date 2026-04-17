@@ -339,7 +339,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(accent(self.title), guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -440,7 +440,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=accent_style(),
             padding=(1, 2),
         )
 
@@ -1516,7 +1516,9 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+    console.print(
+        Panel("\n".join(setup_lines), border_style=accent_style(), padding=(1, 2))
+    )
 
     should_init_git = False
     if not no_git:
@@ -2101,8 +2103,8 @@ def version():
 
     panel = Panel(
         info_table,
-        title="[bold cyan]Specify CLI Information[/bold cyan]",
-        border_style="cyan",
+        title=("[bold]Specify CLI Information[/bold]"),
+        border_style=accent_style(),
         padding=(1, 2),
     )
 
