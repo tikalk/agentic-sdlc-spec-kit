@@ -1585,9 +1585,15 @@ def init(
         ("constitution", "Constitution setup"),
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
-        ("final", "Finalize"),
+        # Tikalk hooks must be IN ORDER here so Live renders them correctly
+        ("team-directives", "Team AI Directives setup"),
+        ("extensions", "Install bundled extensions"),
+        ("presets", "Install bundled presets"),
     ]:
         tracker.add(key, label)
+
+    # Add final LAST so it appears at end of tree
+    tracker.add("final", "Finalize")
 
     with Live(
         tracker.render(), console=console, refresh_per_second=8, transient=True
