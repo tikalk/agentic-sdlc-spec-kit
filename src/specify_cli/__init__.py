@@ -367,9 +367,9 @@ class StepTracker:
                 else:
                     line = f"{symbol} [bright_black]{label}[/bright_black]"
             else:
-                # Label white, detail (if any) light gray in parentheses
+                # Label white, detail in accent color
                 if detail_text:
-                    line = f"{symbol} [white]{label}[/white] [bright_black]({detail_text})[/bright_black]"
+                    line = f"{symbol} [white]{label}[/white] [{ACCENT_COLOR}]{detail_text}[/{ACCENT_COLOR}]"
                 else:
                     line = f"{symbol} [white]{label}[/white]"
 
