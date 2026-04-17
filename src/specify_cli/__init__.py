@@ -507,7 +507,7 @@ app = typer.Typer(
 def show_banner():
     """Display the ASCII art banner."""
     banner_lines = BANNER.strip().split("\n")
-    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
+    colors = BANNER_COLORS
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -515,7 +515,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
+    console.print(Align.center(Text(TAGLINE, style=f"italic {accent_style()}")))
     console.print()
 
 
@@ -1256,6 +1256,11 @@ def init(
         "--integration-options",
         help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
     ),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        help="Path or URL to team-ai-directives repository (local path or git URL)",
+    ),
 ):
     """
     Initialize a new Specify project.
@@ -1820,6 +1825,10 @@ def init(
                     console.print(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
+
+            # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
+            pre_init(project_path, selected_ai, team_ai_directives, tracker)
+            post_init(project_path, selected_ai, tracker, no_git=no_git)
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):

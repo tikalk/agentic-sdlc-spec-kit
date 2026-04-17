@@ -99,11 +99,20 @@ class TestActiveCatalogs:
         specify = tmp_path / ".specify"
         specify.mkdir()
         cfg = specify / "integration-catalogs.yml"
-        cfg.write_text(yaml.dump({
-            "catalogs": [
-                {"url": "https://my.example.com/cat.json", "name": "mine", "priority": 1, "install_allowed": True},
-            ]
-        }))
+        cfg.write_text(
+            yaml.dump(
+                {
+                    "catalogs": [
+                        {
+                            "url": "https://my.example.com/cat.json",
+                            "name": "mine",
+                            "priority": 1,
+                            "install_allowed": True,
+                        },
+                    ]
+                }
+            )
+        )
         cat = IntegrationCatalog(tmp_path)
         active = cat.get_active_catalogs()
         assert len(active) == 1
@@ -151,6 +160,7 @@ class TestCatalogFetch:
             return FakeResponse(catalog_data, url)
 
         import urllib.request
+
         monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
 
     def test_fetch_and_search_all(self, tmp_path, monkeypatch):
@@ -212,8 +222,20 @@ class TestCatalogFetch:
             "schema_version": "1.0",
             "updated_at": "2026-01-01T00:00:00Z",
             "integrations": {
-                "claude": {"id": "claude", "name": "Claude Code", "version": "1.0.0", "description": "Anthropic", "tags": []},
-                "gemini": {"id": "gemini", "name": "Gemini CLI", "version": "1.0.0", "description": "Google", "tags": []},
+                "claude": {
+                    "id": "claude",
+                    "name": "Claude Code",
+                    "version": "1.0.0",
+                    "description": "Anthropic",
+                    "tags": [],
+                },
+                "gemini": {
+                    "id": "gemini",
+                    "name": "Gemini CLI",
+                    "version": "1.0.0",
+                    "description": "Google",
+                    "tags": [],
+                },
             },
         }
         self._patch_urlopen(monkeypatch, catalog)
@@ -251,9 +273,13 @@ class TestCatalogFetch:
         (tmp_path / ".specify").mkdir()
         cat = IntegrationCatalog(tmp_path)
 
-        self._patch_urlopen(monkeypatch, {"schema_version": "1.0"})  # missing "integrations"
+        self._patch_urlopen(
+            monkeypatch, {"schema_version": "1.0"}
+        )  # missing "integrations"
 
-        with pytest.raises(IntegrationCatalogError, match="Failed to fetch any integration catalog"):
+        with pytest.raises(
+            IntegrationCatalogError, match="Failed to fetch any integration catalog"
+        ):
             cat.search()
 
     def test_clear_cache(self, tmp_path):
@@ -311,17 +337,24 @@ class TestIntegrationDescriptor:
         data = {**VALID_DESCRIPTOR}
         del data["schema_version"]
         p = self._write(tmp_path, data)
-        with pytest.raises(IntegrationDescriptorError, match="Missing required field: schema_version"):
+        with pytest.raises(
+            IntegrationDescriptorError, match="Missing required field: schema_version"
+        ):
             IntegrationDescriptor(p)
 
     def test_unsupported_schema_version(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "schema_version": "99.0"}
         p = self._write(tmp_path, data)
-        with pytest.raises(IntegrationDescriptorError, match="Unsupported schema version"):
+        with pytest.raises(
+            IntegrationDescriptorError, match="Unsupported schema version"
+        ):
             IntegrationDescriptor(p)
 
     def test_missing_integration_id(self, tmp_path):
-        data = {**VALID_DESCRIPTOR, "integration": {"name": "X", "version": "1.0.0", "description": "Y"}}
+        data = {
+            **VALID_DESCRIPTOR,
+            "integration": {"name": "X", "version": "1.0.0", "description": "Y"},
+        }
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="Missing integration.id"):
             IntegrationDescriptor(p)
@@ -343,29 +376,44 @@ class TestIntegrationDescriptor:
     def test_missing_speckit_version(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "requires": {}}
         p = self._write(tmp_path, data)
-        with pytest.raises(IntegrationDescriptorError, match="requires.speckit_version"):
+        with pytest.raises(
+            IntegrationDescriptorError, match="requires.speckit_version"
+        ):
             IntegrationDescriptor(p)
 
     def test_no_commands_or_scripts(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "provides": {}}
         p = self._write(tmp_path, data)
-        with pytest.raises(IntegrationDescriptorError, match="at least one command or script"):
+        with pytest.raises(
+            IntegrationDescriptorError, match="at least one command or script"
+        ):
             IntegrationDescriptor(p)
 
     def test_command_missing_name(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "provides": {"commands": [{"file": "x.md"}]}}
         p = self._write(tmp_path, data)
-        with pytest.raises(IntegrationDescriptorError, match="missing 'name' or 'file'"):
+        with pytest.raises(
+            IntegrationDescriptorError, match="missing 'name' or 'file'"
+        ):
             IntegrationDescriptor(p)
 
     def test_commands_not_a_list(self, tmp_path):
-        data = {**VALID_DESCRIPTOR, "provides": {"commands": "not-a-list", "scripts": ["a.sh"]}}
+        data = {
+            **VALID_DESCRIPTOR,
+            "provides": {"commands": "not-a-list", "scripts": ["a.sh"]},
+        }
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="expected a list"):
             IntegrationDescriptor(p)
 
     def test_scripts_not_a_list(self, tmp_path):
-        data = {**VALID_DESCRIPTOR, "provides": {"commands": [{"name": "a", "file": "b"}], "scripts": "not-a-list"}}
+        data = {
+            **VALID_DESCRIPTOR,
+            "provides": {
+                "commands": [{"name": "a", "file": "b"}],
+                "scripts": "not-a-list",
+            },
+        }
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="expected a list"):
             IntegrationDescriptor(p)
@@ -387,10 +435,13 @@ class TestIntegrationDescriptor:
         assert h.startswith("sha256:")
 
     def test_tools_accessor(self, tmp_path):
-        data = {**VALID_DESCRIPTOR, "requires": {
-            "speckit_version": ">=0.6.0",
-            "tools": [{"name": "my-agent", "version": ">=1.0.0", "required": True}],
-        }}
+        data = {
+            **VALID_DESCRIPTOR,
+            "requires": {
+                "speckit_version": ">=0.6.0",
+                "tools": [{"name": "my-agent", "version": ">=1.0.0", "required": True}],
+            },
+        }
         p = self._write(tmp_path, data)
         desc = IntegrationDescriptor(p)
         assert len(desc.tools) == 1
@@ -409,19 +460,27 @@ class TestIntegrationListCatalog:
         """Create a minimal spec-kit project."""
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "init", "--here",
-                "--integration", "copilot",
-                "--script", "sh",
-                "--no-git",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    "copilot",
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old)
         assert result.exit_code == 0, result.output
@@ -431,6 +490,7 @@ class TestIntegrationListCatalog:
         """--catalog should show catalog entries."""
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path)
 
@@ -454,16 +514,24 @@ class TestIntegrationListCatalog:
             def __init__(self, data, url=""):
                 self._data = json.dumps(data).encode()
                 self._url = url
+
             def read(self):
                 return self._data
+
             def geturl(self):
                 return self._url
+
             def __enter__(self):
                 return self
+
             def __exit__(self, *a):
                 pass
 
-        monkeypatch.setattr(urllib.request, "urlopen", lambda url, timeout=10: FakeResponse(catalog, url))
+        monkeypatch.setattr(
+            urllib.request,
+            "urlopen",
+            lambda url, timeout=10: FakeResponse(catalog, url),
+        )
 
         old = os.getcwd()
         try:
@@ -480,6 +548,7 @@ class TestIntegrationListCatalog:
         """Default list (no --catalog) works as before."""
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path)
 
@@ -506,19 +575,27 @@ class TestIntegrationUpgrade:
     def _init_project(self, tmp_path, integration="copilot"):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, [
-                "init", "--here",
-                "--integration", integration,
-                "--script", "sh",
-                "--no-git",
-                "--ignore-agent-tools",
-            ], catch_exceptions=False)
+            result = runner.invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    integration,
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
         finally:
             os.chdir(old)
         assert result.exit_code == 0, result.output
@@ -527,6 +604,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_requires_speckit_project(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         old = os.getcwd()
         try:
@@ -540,6 +618,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_no_integration_installed(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
@@ -556,13 +635,16 @@ class TestIntegrationUpgrade:
     def test_upgrade_succeeds(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, ["integration", "upgrade"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "upgrade", "--force"], catch_exceptions=False
+            )
         finally:
             os.chdir(old)
         assert result.exit_code == 0
@@ -571,6 +653,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_blocks_on_modified_files(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -597,6 +680,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_force_overwrites_modified(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -613,7 +697,9 @@ class TestIntegrationUpgrade:
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(app, ["integration", "upgrade", "--force"], catch_exceptions=False)
+            result = runner.invoke(
+                app, ["integration", "upgrade", "--force"], catch_exceptions=False
+            )
         finally:
             os.chdir(old)
         assert result.exit_code == 0
@@ -622,6 +708,7 @@ class TestIntegrationUpgrade:
     def test_upgrade_wrong_integration_key(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -638,6 +725,7 @@ class TestIntegrationUpgrade:
         """Upgrade with missing manifest suggests fresh install."""
         from typer.testing import CliRunner
         from specify_cli import app
+
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
