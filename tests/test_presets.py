@@ -1648,7 +1648,6 @@ CORE_TEMPLATE_NAMES = [
     "tasks-template",
     "checklist-template",
     "constitution-template",
-    "agent-file-template",
 ]
 
 
@@ -2911,7 +2910,7 @@ class TestLeanPreset:
             assert tmpl_path.exists(), f"Missing command file: {tmpl['file']}"
 
     def test_lean_commands_have_no_scripts(self):
-        """Verify lean commands have no scripts or agent_scripts in frontmatter."""
+        """Verify lean commands have no scripts in frontmatter."""
         from specify_cli.agents import CommandRegistrar
 
         for name in LEAN_COMMAND_NAMES:
@@ -2919,7 +2918,6 @@ class TestLeanPreset:
             content = cmd_path.read_text()
             frontmatter, _ = CommandRegistrar.parse_frontmatter(content)
             assert "scripts" not in frontmatter, f"{name} should not have scripts in frontmatter"
-            assert "agent_scripts" not in frontmatter, f"{name} should not have agent_scripts in frontmatter"
 
     def test_lean_commands_have_no_hooks(self):
         """Verify lean commands do not contain extension hook boilerplate."""
