@@ -15,12 +15,18 @@
 # Reference
 - name: Reference
   items:
+    - name: Overview
+      href: reference/overview.md
+    - name: Core Commands
+      href: reference/core.md
     - name: Integrations
-      href: integrations.md
+      href: reference/integrations.md
     - name: Extensions
-      href: extensions.md
+      href: reference/extensions.md
     - name: Presets
-      href: presets.md
+      href: reference/presets.md
+    - name: Workflows
+      href: reference/workflows.md
 
 # Development workflows
 - name: Development
