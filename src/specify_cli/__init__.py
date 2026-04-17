@@ -1875,7 +1875,7 @@ def init(
             pass
 
     console.print(tracker.render())
-    console.print("\n[bold green]Project ready.[/bold green]")
+    console.print(f"\n{accent('Project ready.', bold=True)}")
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)
