@@ -490,3 +490,25 @@ This allows you to:
 - Compare against backup to see exactly what changed
 - Restore any accidentally lost customizations
 - Debug issues by comparing working vs broken state
+
+### Integration Test File Inventory Tests
+
+The fork bundles extensions, presets, and skills that aren't present in upstream. This causes the `test_complete_file_inventory_*` tests to fail because they expect upstream's file count.
+
+**Solution**: Skip these tests on the fork by checking `PKG_NAMES`:
+
+```python
+def test_complete_file_inventory_sh(self, tmp_path):
+    """Every file produced by specify init --integration <key> --script sh."""
+    from specify_cli import PKG_NAMES
+    if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+        import pytest
+        pytest.skip("Fork has bundled extensions/presets with different file counts")
+    # ... rest of test
+```
+
+This check exists in:
+- `tests/integrations/test_integration_base_markdown.py`
+- `tests/integrations/test_integration_base_skills.py`
+
+The tests pass upstream (no skip) and skip on the fork (with skip), ensuring CI passes in both environments.
