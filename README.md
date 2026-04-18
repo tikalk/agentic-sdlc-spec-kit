@@ -849,8 +849,8 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ## 👥 Maintainers
 
-- **Lior Banai** — Original author and maintainer
-- **Tikalk Agentic SDLC Team** — Fork maintainers
+- **Lior Kanfi** — Fork maintainer
+- **Tikalk Agentic SDLC Team** — Contributors
 
 ## 💬 Support
 
