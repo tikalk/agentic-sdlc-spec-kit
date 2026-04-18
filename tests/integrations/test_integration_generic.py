@@ -16,7 +16,6 @@ class TestGenericIntegration:
 
     def test_registered(self):
         from specify_cli.integrations import INTEGRATION_REGISTRY
-
         assert "generic" in INTEGRATION_REGISTRY
 
     def test_is_markdown_integration(self):
@@ -32,9 +31,9 @@ class TestGenericIntegration:
         i = get_integration("generic")
         assert i.config["requires_cli"] is False
 
-    def test_context_file_is_none(self):
+    def test_context_file_is_agents_md(self):
         i = get_integration("generic")
-        assert i.context_file is None
+        assert i.context_file == "AGENTS.md"
 
     # -- Options ----------------------------------------------------------
 
@@ -64,14 +63,11 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.setup(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".myagent/commands"},
         )
         expected_dir = tmp_path / ".myagent" / "commands"
-        assert expected_dir.exists(), (
-            f"Expected directory {expected_dir} was not created"
-        )
+        assert expected_dir.exists(), f"Expected directory {expected_dir} was not created"
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0, "No command files were created"
         for f in cmd_files:
@@ -83,8 +79,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.setup(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".custom/cmds"},
         )
         cmd_files = [f for f in created if "scripts" not in f.parts]
@@ -97,8 +92,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.setup(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".custom/cmds"},
         )
         cmd_files = [f for f in created if "scripts" not in f.parts]
@@ -112,8 +106,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.setup(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".custom/cmds"},
         )
         for f in created:
@@ -124,8 +117,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.install(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".custom/cmds"},
         )
         assert len(created) > 0
@@ -140,8 +132,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         created = i.install(
-            tmp_path,
-            m,
+            tmp_path, m,
             parsed_options={"commands_dir": ".custom/cmds"},
         )
         m.save()
@@ -159,8 +150,7 @@ class TestGenericIntegration:
             i = get_integration("generic")
             m = IntegrationManifest("generic", project)
             created = i.setup(
-                project,
-                m,
+                project, m,
                 parsed_options={"commands_dir": path},
             )
             expected = project / path
@@ -168,37 +158,31 @@ class TestGenericIntegration:
             cmd_files = [f for f in created if "scripts" not in f.parts]
             assert len(cmd_files) > 0
 
-    # -- Scripts ----------------------------------------------------------
+    # -- Context section ---------------------------------------------------
 
-    def test_setup_installs_update_context_scripts(self, tmp_path):
+    def test_setup_upserts_context_section(self, tmp_path):
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        scripts_dir = tmp_path / ".specify" / "integrations" / "generic" / "scripts"
-        assert scripts_dir.is_dir(), "Scripts directory not created for generic"
-        assert (scripts_dir / "update-context.sh").exists()
-        assert (scripts_dir / "update-context.ps1").exists()
+        if i.context_file:
+            ctx_path = tmp_path / i.context_file
+            assert ctx_path.exists()
+            content = ctx_path.read_text(encoding="utf-8")
+            assert "<!-- SPECKIT START -->" in content
+            assert "<!-- SPECKIT END -->" in content
 
-    def test_scripts_tracked_in_manifest(self, tmp_path):
+    def test_plan_references_correct_context_file(self, tmp_path):
+        """The generated plan command must reference generic's context file."""
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        script_rels = [k for k in m.files if "update-context" in k]
-        assert len(script_rels) >= 2
-
-    def test_sh_script_is_executable(self, tmp_path):
-        i = get_integration("generic")
-        m = IntegrationManifest("generic", tmp_path)
-        i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        sh = (
-            tmp_path
-            / ".specify"
-            / "integrations"
-            / "generic"
-            / "scripts"
-            / "update-context.sh"
+        plan_file = tmp_path / ".custom" / "cmds" / "speckit.plan.md"
+        assert plan_file.exists()
+        content = plan_file.read_text(encoding="utf-8")
+        assert i.context_file in content, (
+            f"Plan command should reference {i.context_file!r}"
         )
-        assert os.access(sh, os.X_OK)
+        assert "__CONTEXT_FILE__" not in content
 
     # -- CLI --------------------------------------------------------------
 
@@ -206,174 +190,143 @@ class TestGenericIntegration:
         """--integration generic without --ai-commands-dir should fail."""
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
-        result = runner.invoke(
-            app,
-            [
-                "init",
-                str(tmp_path / "test-generic"),
-                "--integration",
-                "generic",
-                "--script",
-                "sh",
-                "--no-git",
-            ],
-        )
+        result = runner.invoke(app, [
+            "init", str(tmp_path / "test-generic"), "--integration", "generic",
+            "--script", "sh", "--no-git",
+        ])
         # Generic requires --commands-dir / --ai-commands-dir
         # The integration path validates via setup()
         assert result.exit_code != 0
 
-    def test_complete_file_inventory_sh(self, tmp_path, monkeypatch):
-        """Every file produced by specify init --integration generic --ai-commands-dir ... --script sh."""
+    def test_init_options_includes_context_file(self, tmp_path):
+        """init-options.json must include context_file for the generic integration."""
+        import json
         from typer.testing import CliRunner
         from specify_cli import app
 
-        # Skip bundled extensions/presets to get deterministic file inventory
-        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
+        project = tmp_path / "opts-generic"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", "generic",
+                "--ai-commands-dir", ".myagent/commands",
+                "--script", "sh", "--no-git",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        opts = json.loads((project / ".specify" / "init-options.json").read_text())
+        assert opts.get("context_file") == "AGENTS.md"
+
+    def test_complete_file_inventory_sh(self, tmp_path):
+        """Every file produced by specify init --integration generic --ai-commands-dir ... --script sh."""
+        from typer.testing import CliRunner
+        from specify_cli import app
 
         project = tmp_path / "inventory-generic-sh"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    "generic",
-                    "--ai-commands-dir",
-                    ".myagent/commands",
-                    "--script",
-                    "sh",
-                    "--no-git",
-                ],
-                catch_exceptions=False,
-            )
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", "generic",
+                "--ai-commands-dir", ".myagent/commands",
+                "--script", "sh", "--no-git",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(
-            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+            p.relative_to(project).as_posix()
+            for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted(
-            [
-                ".myagent/commands/speckit.analyze.md",
-                ".myagent/commands/speckit.checklist.md",
-                ".myagent/commands/speckit.clarify.md",
-                ".myagent/commands/speckit.constitution.md",
-                ".myagent/commands/speckit.implement.md",
-                ".myagent/commands/speckit.plan.md",
-                ".myagent/commands/speckit.specify.md",
-                ".myagent/commands/speckit.tasks.md",
-                ".myagent/commands/speckit.taskstoissues.md",
-                ".specify/init-options.json",
-                ".specify/integration.json",
-                ".specify/integrations/generic.manifest.json",
-                ".specify/integrations/generic/scripts/update-context.ps1",
-                ".specify/integrations/generic/scripts/update-context.sh",
-                ".specify/integrations/speckit.manifest.json",
-                ".specify/memory/constitution.md",
-                ".specify/scripts/bash/check-prerequisites.sh",
-                ".specify/scripts/bash/common.sh",
-                ".specify/scripts/bash/create-new-feature.sh",
-                ".specify/scripts/bash/generate-risk-tests.sh",
-                ".specify/scripts/bash/implement.sh",
-                ".specify/scripts/bash/scan-project-artifacts.sh",
-                ".specify/scripts/bash/setup-constitution.sh",
-                ".specify/scripts/bash/setup-plan.sh",
-                ".specify/scripts/bash/tasks-meta-utils.sh",
-                ".specify/scripts/bash/update-agent-context.sh",
-                ".specify/scripts/bash/validate-constitution.sh",
-                ".specify/templates/agent-file-template.md",
-                ".specify/templates/checklist-template.md",
-                ".specify/templates/constitution-template.md",
-                ".specify/templates/plan-template.md",
-                ".specify/templates/spec-template.md",
-                ".specify/templates/tasks-template.md",
-            ]
-        )
-        missing = sorted(set(expected) - set(actual))
-        assert not missing, (
+        expected = sorted([
+            "AGENTS.md",
+            ".myagent/commands/speckit.analyze.md",
+            ".myagent/commands/speckit.checklist.md",
+            ".myagent/commands/speckit.clarify.md",
+            ".myagent/commands/speckit.constitution.md",
+            ".myagent/commands/speckit.implement.md",
+            ".myagent/commands/speckit.plan.md",
+            ".myagent/commands/speckit.specify.md",
+            ".myagent/commands/speckit.tasks.md",
+            ".myagent/commands/speckit.taskstoissues.md",
+            ".specify/init-options.json",
+            ".specify/integration.json",
+            ".specify/integrations/generic.manifest.json",
+            ".specify/integrations/speckit.manifest.json",
+            ".specify/memory/constitution.md",
+            ".specify/scripts/bash/check-prerequisites.sh",
+            ".specify/scripts/bash/common.sh",
+            ".specify/scripts/bash/create-new-feature.sh",
+            ".specify/scripts/bash/setup-plan.sh",
+            ".specify/templates/checklist-template.md",
+            ".specify/templates/constitution-template.md",
+            ".specify/templates/plan-template.md",
+            ".specify/templates/spec-template.md",
+            ".specify/templates/tasks-template.md",
+            ".specify/workflows/speckit/workflow.yml",
+            ".specify/workflows/workflow-registry.json",
+        ])
+        assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )
 
-    def test_complete_file_inventory_ps(self, tmp_path, monkeypatch):
+    def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration generic --ai-commands-dir ... --script ps."""
         from typer.testing import CliRunner
         from specify_cli import app
-
-        # Skip bundled extensions/presets to get deterministic file inventory
-        monkeypatch.setenv("SPECKIT_SKIP_BUNDLED", "1")
 
         project = tmp_path / "inventory-generic-ps"
         project.mkdir()
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    "generic",
-                    "--ai-commands-dir",
-                    ".myagent/commands",
-                    "--script",
-                    "ps",
-                    "--no-git",
-                ],
-                catch_exceptions=False,
-            )
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", "generic",
+                "--ai-commands-dir", ".myagent/commands",
+                "--script", "ps", "--no-git",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(
-            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+            p.relative_to(project).as_posix()
+            for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted(
-            [
-                ".myagent/commands/speckit.analyze.md",
-                ".myagent/commands/speckit.checklist.md",
-                ".myagent/commands/speckit.clarify.md",
-                ".myagent/commands/speckit.constitution.md",
-                ".myagent/commands/speckit.implement.md",
-                ".myagent/commands/speckit.plan.md",
-                ".myagent/commands/speckit.specify.md",
-                ".myagent/commands/speckit.tasks.md",
-                ".myagent/commands/speckit.taskstoissues.md",
-                ".specify/init-options.json",
-                ".specify/integration.json",
-                ".specify/integrations/generic.manifest.json",
-                ".specify/integrations/generic/scripts/update-context.ps1",
-                ".specify/integrations/generic/scripts/update-context.sh",
-                ".specify/integrations/speckit.manifest.json",
-                ".specify/memory/constitution.md",
-                ".specify/scripts/powershell/check-prerequisites.ps1",
-                ".specify/scripts/powershell/common.ps1",
-                ".specify/scripts/powershell/create-new-feature.ps1",
-                ".specify/scripts/powershell/Detect-WorkflowConfig.ps1",
-                ".specify/scripts/powershell/discovery-functions.ps1",
-                ".specify/scripts/powershell/implement.ps1",
-                ".specify/scripts/powershell/scan-project-artifacts.ps1",
-                ".specify/scripts/powershell/setup-constitution.ps1",
-                ".specify/scripts/powershell/setup-plan.ps1",
-                ".specify/scripts/powershell/update-agent-context.ps1",
-                ".specify/scripts/powershell/validate-constitution.ps1",
-                ".specify/templates/agent-file-template.md",
-                ".specify/templates/checklist-template.md",
-                ".specify/templates/constitution-template.md",
-                ".specify/templates/plan-template.md",
-                ".specify/templates/spec-template.md",
-                ".specify/templates/tasks-template.md",
-            ]
-        )
-        missing = sorted(set(expected) - set(actual))
-        assert not missing, (
+        expected = sorted([
+            "AGENTS.md",
+            ".myagent/commands/speckit.analyze.md",
+            ".myagent/commands/speckit.checklist.md",
+            ".myagent/commands/speckit.clarify.md",
+            ".myagent/commands/speckit.constitution.md",
+            ".myagent/commands/speckit.implement.md",
+            ".myagent/commands/speckit.plan.md",
+            ".myagent/commands/speckit.specify.md",
+            ".myagent/commands/speckit.tasks.md",
+            ".myagent/commands/speckit.taskstoissues.md",
+            ".specify/init-options.json",
+            ".specify/integration.json",
+            ".specify/integrations/generic.manifest.json",
+            ".specify/integrations/speckit.manifest.json",
+            ".specify/memory/constitution.md",
+            ".specify/scripts/powershell/check-prerequisites.ps1",
+            ".specify/scripts/powershell/common.ps1",
+            ".specify/scripts/powershell/create-new-feature.ps1",
+            ".specify/scripts/powershell/setup-plan.ps1",
+            ".specify/templates/checklist-template.md",
+            ".specify/templates/constitution-template.md",
+            ".specify/templates/plan-template.md",
+            ".specify/templates/spec-template.md",
+            ".specify/templates/tasks-template.md",
+            ".specify/workflows/speckit/workflow.yml",
+            ".specify/workflows/workflow-registry.json",
+        ])
+        assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
         )

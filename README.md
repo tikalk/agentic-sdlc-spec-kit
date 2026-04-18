@@ -1,6 +1,6 @@
 <div align="center">
-    <img src="./media/timi_small.png" alt="Agentic SDLC Spec Kit Logo" width="200" height="200"/>
-    <h1>🐙 Agentic SDLC Spec Kit</h1>
+    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="200" height="200"/>
+    <h1>🌱 Spec Kit</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
 
@@ -8,34 +8,10 @@
     <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
 </p>
 
-## 🎯 Project Vision
-
-This fork combines the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology with Spec-Driven Development to create a comprehensive framework for AI-assisted software development. The 12 Factors provide the strategic foundation and operational principles, while Spec-Driven Development delivers the practical implementation workflow.
-
-### Why This Combination?
-
-**Agentic SDLC 12 Factors** establish the philosophical and strategic principles for building software with AI coding agents, covering aspects like strategic mindset, context scaffolding, dual execution loops, and team capability.
-
-**Spec-Driven Development** provides the concrete, actionable process for implementing these principles through structured specification, planning, task breakdown, and iterative implementation phases.
-
-Together, they form a complete methodology that transforms how organizations approach AI-assisted development, moving from ad-hoc AI usage to systematic, high-quality software production.
-
-### Why This Fork?
-
-The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
-
-- **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
-- **Adding enterprise-grade features** like team AI directives integration
-- **Enhancing tooling** with dual execution loop support (SYNC/ASYNC task classification)
-- **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
-- **Providing team templates** and best practices for scaling AI-assisted development across teams
-
-This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
-
 <p align="center">
-    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
-    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/stargazers"><img src="https://img.shields.io/github/stars/tikalk/agentic-sdlc-spec-kit?style=social" alt="GitHub stars"/></a>
-    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/tikalk/agentic-sdlc-spec-kit" alt="License"/></a>
+    <a href="https://github.com/github/spec-kit/releases/latest"><img src="https://img.shields.io/github/v/release/github/spec-kit" alt="Latest Release"/></a>
+    <a href="https://github.com/github/spec-kit/stargazers"><img src="https://img.shields.io/github/stars/github/spec-kit?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/github/spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/spec-kit" alt="License"/></a>
     <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
@@ -43,18 +19,14 @@ This fork represents the evolution from a development process to a complete orga
 
 ## Table of Contents
 
-- [🎯 Project Vision](#-project-vision)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
 - [📽️ Video Overview](#️-video-overview)
 - [🧩 Community Extensions](#-community-extensions)
 - [🎨 Community Presets](#-community-presets)
 - [🚶 Community Walkthroughs](#-community-walkthroughs)
-- [🎯 Core Features](#-core-features)
-- [📦 Extensions](#-extensions)
 - [🛠️ Community Friends](#️-community-friends)
-- [🤖 Supported AI Agents](#-supported-ai-agents)
-- [📦 Skills Package Manager](#-skills-package-manager)
+- [🤖 Supported AI Coding Agent Integrations](#-supported-ai-coding-agent-integrations)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [🧩 Making Spec Kit Your Own: Extensions & Presets](#-making-spec-kit-your-own-extensions--presets)
 - [📚 Core Philosophy](#-core-philosophy)
@@ -64,7 +36,6 @@ This fork represents the evolution from a development process to a complete orga
 - [📖 Learn More](#-learn-more)
 - [📋 Detailed Process](#-detailed-process)
 - [🔍 Troubleshooting](#-troubleshooting)
-- [👥 Maintainers](#-maintainers)
 - [💬 Support](#-support)
 - [🙏 Acknowledgements](#-acknowledgements)
 - [📄 License](#-license)
@@ -87,10 +58,10 @@ Install once and use everywhere. Pin a specific release tag for stability (check
 
 ```bash
 # Install a specific stable release (recommended — replace vX.Y.Z with the latest tag)
-uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
 
 # Or install latest from main (may include unreleased changes)
-uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
+uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 ```
 
 Then verify the correct version is installed:
@@ -275,6 +246,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | Spec Critique Extension | Dual-lens critical review of spec and plan from product strategy and engineering risk perspectives | `docs` | Read-only | [spec-kit-critique](https://github.com/arunt14/spec-kit-critique) |
 | Spec Diagram | Auto-generate Mermaid diagrams of SDD workflow state, feature progress, and task dependencies | `visibility` | Read-only | [spec-kit-diagram-](https://github.com/Quratulain-bilal/spec-kit-diagram-) |
 | Spec Refine | Update specs in-place, propagate changes to plan and tasks, and diff impact across artifacts | `process` | Read+Write | [spec-kit-refine](https://github.com/Quratulain-bilal/spec-kit-refine) |
+| Spec Scope | Effort estimation and scope tracking — estimate work, detect creep, and budget time per phase | `process` | Read-only | [spec-kit-scope-](https://github.com/Quratulain-bilal/spec-kit-scope-) |
 | Spec Sync | Detect and resolve drift between specs and implementation. AI-assisted resolution with human approval | `docs` | Read+Write | [spec-kit-sync](https://github.com/bgervin/spec-kit-sync) |
 | SpecTest | Auto-generate test scaffolds from spec criteria, map coverage, and find untested requirements | `code` | Read+Write | [spec-kit-spectest](https://github.com/Quratulain-bilal/spec-kit-spectest) |
 | Staff Review Extension | Staff-engineer-level code review that validates implementation against spec, checks security, performance, and test coverage | `code` | Read-only | [spec-kit-staff-review](https://github.com/arunt14/spec-kit-staff-review) |
@@ -333,79 +305,7 @@ See Spec-Driven Development in action across different scenarios with these comm
 
 ## 🛠️ Community Friends
 
-> [!NOTE]
-> Community projects listed here are independently created and maintained by their respective authors. They are **not reviewed, nor endorsed, nor supported by GitHub**. Review their source code before following along and use at your own discretion.
-
-Community projects that extend, visualize, or build on Spec Kit:
-
-- **[cc-spex](https://github.com/rhuss/cc-spex)** - A Claude Code plugin that adds composable traits on top of Spec Kit with [Superpowers](https://github.com/obra/superpowers)-based quality gates, spec/code review, git worktree isolation, and parallel implementation via agent teams.
-
-- **[Spec Kit Assistant](https://marketplace.visualstudio.com/items?itemName=rfsales.speckit-assistant)** — A VS Code extension that provides a visual orchestrator for the full SDD workflow (constitution → specification → planning → tasks → implementation) with phase status visualization, an interactive task checklist, DAG visualization, and support for Claude, Gemini, GitHub Copilot, and OpenAI backends. Requires the `specify` CLI in your PATH.
-
-- **[SpecKit Companion](https://marketplace.visualstudio.com/items?itemName=alfredoperez.speckit-companion)** — A VS Code extension that brings a visual GUI to Spec Kit. Browse specs in a rich markdown viewer with clickable file references, create specifications with image attachments, comment and refine each step inline (GitHub-style review), track your progress through the SDD workflow with a visual phase stepper, and manage steering documents like constitutions and templates.
-
-## 🎯 Core Features
-
-This fork provides additional features beyond the upstream Spec Kit:
-
-- **Team AI Directives Integration** — Synchronize team-level AI instructions and context across projects
-- **Dual Execution Loop** — Classify tasks as SYNC (immediate) or ASYNC (deferred) for better workflow management
-- **Levelup Command** — Analyze and improve session context with reusable knowledge packets
-- **Enhanced Extensions** — Built-in extensions for product thinking, architecture analysis, and TDD workflows
-
-## 📦 Bundled Extensions
-
-This fork includes pre-installed extensions:
-
-| Extension | Purpose |
-|-----------|---------|
-| architect | Architecture impact analysis and decision guidance |
-| evals | Evaluation criteria and test generation |
-| levelup | Session context improvement and knowledge management |
-| product | Product thinking and user story refinement |
-| quick | Quick start workflows for small tasks |
-| tdd | Test-driven development workflows |
-| git | Git workflow automation |
-
-## 🤖 Supported AI Agents
-
-This fork supports the following AI coding agents:
-
-| Agent | CLI | Skills | Setup |
-|-------|-----|--------|-------|
-| Claude Code | `claude` | ✓ | `--ai claude --ai-skills` |
-| GitHub Copilot | — | IDE | `--ai copilot` |
-| Cursor | `cursor-agent` | IDE | `--ai cursor-agent` |
-| Gemini CLI | `gemini` | ✓ | `--ai gemini --ai-skills` |
-| opencode | `opencode` | ✓ | `--ai opencode` |
-| Qwen | `qwen` | ✓ | `--ai qwen --ai-skills` |
-| Codex | `codex` | ✓ | `--ai codex --ai-skills` |
-| Windsurf | — | IDE | `--ai windsurf` |
-| Junie | `junie` | ✓ | `--ai junie --ai-skills` |
-| And more... |
-
-## 📦 Skills Package Manager
-
-The fork includes a skills package manager for managing reusable AI session context:
-
-```bash
-# List installed skills
-specify skills list
-
-# Install a skill package
-specify skills install <package>
-
-# Update skills
-specify skills update
-```
-
-## Relevant Skills (Auto-Detected)
-
-When you initialize a project, the following skills are auto-detected based on your AI assistant selection:
-
-- **Claude Code**: `.claude/skills/` — Skills installed from the specification
-- **Codex**: `.agents/skills/` — Skills installed via Codex CLI
-- **Custom**: Based on your selected integration
+Community projects that extend, visualize, or build on Spec Kit. See the full list on the [Community Friends](https://github.github.io/spec-kit/community/friends.html) page.
 
 ## 🤖 Supported AI Coding Agent Integrations
 
@@ -848,10 +748,22 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ## 🔍 Troubleshooting
 
-## 👥 Maintainers
+### Git Credential Manager on Linux
 
-- **Lior Banai** — Original author and maintainer
-- **Tikalk Agentic SDLC Team** — Fork maintainers
+If you're having issues with Git authentication on Linux, you can install Git Credential Manager:
+
+```bash
+#!/usr/bin/env bash
+set -e
+echo "Downloading Git Credential Manager v2.6.1..."
+wget https://github.com/git-ecosystem/git-credential-manager/releases/download/v2.6.1/gcm-linux_amd64.2.6.1.deb
+echo "Installing Git Credential Manager..."
+sudo dpkg -i gcm-linux_amd64.2.6.1.deb
+echo "Configuring Git to use GCM..."
+git config --global credential.helper manager
+echo "Cleaning up..."
+rm gcm-linux_amd64.2.6.1.deb
+```
 
 ## 💬 Support
 

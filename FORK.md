@@ -37,17 +37,26 @@ try:
     from .cli_customization import (
         ACCENT_COLOR,
         BANNER_COLORS,
+        TAGLINE,
         accent,
         accent_style,
         TEAM_DIRECTIVES_DIRNAME,
         PKG_NAMES,
+        pre_init,
+        post_init,
+        skill_app,
+        compute_skill_output_name,
     )
 except ImportError:
-    # Fallback to upstream defaults if cli_customization.py doesn't exist
     ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
+    TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+    PKG_NAMES = ["specify-cli"]
+    skill_app = None
 
-    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+    def accent(
+        text: str, bold: bool = False, italic: bool = False, dim: bool = False
+    ) -> str:
         style = ACCENT_COLOR
         if bold:
             style = f"bold {style}"
@@ -60,9 +69,17 @@ except ImportError:
     def accent_style() -> str:
         return ACCENT_COLOR
 
-    TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
-    PKG_NAMES = ("specify-cli",)
+    def pre_init(project_path, selected_ai, team_ai_directives, tracker=None):
+        pass
+
+    def post_init(project_path, selected_ai, tracker=None, no_git=False):
+        pass
+
+    def compute_skill_output_name():
+        return None
 ```
+
+**Critical**: This block must include ALL fork customizations with fallbacks, not just partial imports. The import block is the SINGLE SOURCE OF TRUTH for fork customizations - all theming, hooks (pre_init, post_init), and helper functions must be defined here.
 
 ## Extension Namespace Configuration
 
@@ -119,41 +136,33 @@ git merge upstream/main
 
 #### Step 3: Resolve Conflicts
 
-**Strategy**: Keep origin (fork) changes as base, adapt upstream changes to work with them.
+**CRITICAL: Never use `git checkout --theirs` for __init__.py or pyproject.toml**
 
-If there are conflicts in `__init__.py`, resolve the import block to use our pattern:
+**Correct Strategy**: Use upstream as clean base, then ADD fork customizations on top.
 
-```python
-# Tikalk fork customizations - import with fallback to upstream defaults
-try:
-    from .cli_customization import (
-        ACCENT_COLOR,
-        BANNER_COLORS,
-        accent,
-        accent_style,
-        TEAM_DIRECTIVES_DIRNAME,
-        PKG_NAMES,
-    )
-except ImportError:
-    # Fallback to upstream defaults if cli_customization.py doesn't exist
-    ACCENT_COLOR = "cyan"
-    BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
+1. **For `__init__.py`**: Merge upstream cleanly (no --theirs). Then manually add fork functions AFTER merge:
+   - `TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"`
+   - `_run_git_command()`
+   - `sync_team_ai_directives()`
+   - `compute_skill_output_name()` (delegates to cli_customization)
+   - `TAGLINE` (fork version)
 
-    def accent(
-        text: str, bold: bool = False, italic: bool = False, dim: bool = False
-    ) -> str:
-        style = ACCENT_COLOR
-        if bold:
-            style = f"bold {style}"
-        if italic:
-            style = f"italic {style}"
-        if dim:
-            style = f"dim {style}"
-        return f"[{style}]{text}[/]"
+2. **For `pyproject.toml`**: NEVER use `--theirs`. The file will be in conflict - manually edit to preserve fork values:
+   - `name = "agentic-sdlc-specify-cli"`
+   - `version = "0.5.X"` (fork version)
+   - `description` (fork description)
+   - Wheel paths: update to root directories (see below)
+   - Add `httpx>=0.27.0` dependency
 
-    def accent_style() -> str:
-        return ACCENT_COLOR
-```
+3. **For test files**: Accept upstream versions to avoid massive diffs:
+   ```bash
+   git checkout --theirs tests/
+   ```
+
+**Why this works**:
+- No merge conflicts in __init__.py because we're using upstream as base
+- Fork functions are small additions (~50 lines) - easy to add from backup
+- pyproject.toml needs manual edit to preserve fork version (never use --theirs)
 
 #### Step 4: Verify
 
@@ -372,3 +381,112 @@ uv run pytest
    ```
 3. **Check for conflicts**: `grep -rn "<<<<<<" src/`
 4. **Review recent changes**: `git log --oneline -10`
+
+## Lessons Learned from Upstream Merge
+
+This section documents hard-won lessons from merging upstream changes.
+
+### Critical Rules
+
+1. **NEVER use `git checkout --theirs` for pyproject.toml or __init__.py**
+   - Using `--theirs` on pyproject.toml discards the fork version entirely
+   - The stash with fork changes gets lost
+   - Always manually edit to preserve fork values after merge
+
+2. **Use upstream as clean base, then ADD fork customizations**
+   - Merge upstream/main cleanly first
+   - Then manually add fork-specific functions/values AFTER merge
+   - This prevents accidental overwriting
+
+3. **The import block is the SINGLE SOURCE OF TRUTH**
+   - All fork customizations must be in the try/except import block
+   - Both the imports AND the fallback functions must be complete
+   - Missing fallbacks = runtime errors when cli_customization.py is not available
+
+### pyproject.toml Wheel Paths
+
+The fork uses `specify_cli/core_pack/...` paths (NOT root-level directories):
+
+```toml
+[tool.hatch.build.targets.wheel.force-include]
+# Tikalk bundled extensions
+"extensions/levelup" = "specify_cli/core_pack/extensions/levelup"
+"extensions/evals" = "specify_cli/core_pack/extensions/evals"
+"extensions/architect" = "specify_cli/core_pack/extensions/architect"
+"extensions/quick" = "specify_cli/core_pack/extensions/quick"
+"extensions/product" = "specify_cli/core_pack/extensions/product"
+"extensions/tdd" = "specify_cli/core_pack/extensions/tdd"  # Don't forget!
+# Tikalk bundled presets
+"presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
+# Core pack assets
+"templates/agent-file-template.md" = "specify_cli/core_pack/templates/agent-file-template.md"
+# ... etc
+```
+
+**Common mistake**: Using root-level paths like `"extensions/levelup" = "extensions/levelup"` will cause build errors because those paths don't exist inside the wheel.
+
+### __init__.py Required Customizations
+
+After merging upstream, ensure these are present in __init__.py:
+
+1. **Full import block** (see above) - with ALL imports and fallbacks
+2. **TEAM_DIRECTIVES_DIRNAME** - for team-ai-directives feature
+3. **_run_git_command()** - helper for git operations
+4. **sync_team_ai_directives()** - clones/updates team repo
+5. **compute_skill_output_name()** - delegates to cli_customization
+6. **TAGLINE** - fork's tagline (different from upstream)
+
+### __init__.py Theming
+
+Apply theming to all UI elements using `accent_style()` and `accent()`:
+
+- `show_banner()`: Use `BANNER_COLORS` and `accent_style()` for tagline
+- StepTracker title: `f"[{accent_style()}]{self.title}"`
+- "Selected AI assistant:" and "Selected script type:": Use `accent()`
+- "Project ready.": Use `accent(bold=True)`
+- All Panel borders: Use `border_style=accent_style()`
+- Next Steps and Enhancement Commands panels
+
+### Tracker Steps
+
+The init flow must include these steps in order:
+
+```python
+for key, label in [
+    ("chmod", "Ensure scripts executable"),
+    ("constitution", "Constitution setup"),
+    ("git", "Install git extension"),
+    ("workflow", "Install bundled workflow"),
+    ("team-directives", "Team AI Directives setup"),
+    ("extensions", "Install bundled extensions"),
+    ("presets", "Install bundled presets"),
+]:
+    tracker.add(key, label)
+
+# Final MUST be added LAST
+tracker.add("final", "Finalize")
+```
+
+### Command Prefix
+
+The fork uses `/spec.*` prefix instead of upstream's `/speckit.*`:
+
+```python
+def _display_cmd(name: str) -> str:
+    # ... agent-specific cases ...
+    # Fork default: use "spec." prefix instead of "speckit."
+    return f"/spec.{name}"
+```
+
+### Backup Before Merge
+
+Always create a backup branch BEFORE merging:
+
+```bash
+git branch backup-before-upstream-merge-$(date +%Y%m%d-%H%M%S)
+```
+
+This allows you to:
+- Compare against backup to see exactly what changed
+- Restore any accidentally lost customizations
+- Debug issues by comparing working vs broken state

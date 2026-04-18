@@ -87,7 +87,7 @@ def pack_dir(temp_dir, valid_pack_data):
 
     # Write manifest
     manifest_path = p_dir / "preset.yml"
-    with open(manifest_path, "w") as f:
+    with open(manifest_path, 'w') as f:
         yaml.dump(valid_pack_data, f)
 
     # Create templates directory
@@ -164,18 +164,16 @@ class TestPresetManifest:
         """Test missing schema_version field."""
         del valid_pack_data["schema_version"]
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
-        with pytest.raises(
-            PresetValidationError, match="Missing required field: schema_version"
-        ):
+        with pytest.raises(PresetValidationError, match="Missing required field: schema_version"):
             PresetManifest(manifest_path)
 
     def test_wrong_schema_version(self, temp_dir, valid_pack_data):
         """Test unsupported schema version."""
         valid_pack_data["schema_version"] = "2.0"
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Unsupported schema version"):
             PresetManifest(manifest_path)
@@ -184,7 +182,7 @@ class TestPresetManifest:
         """Test missing preset.id field."""
         del valid_pack_data["preset"]["id"]
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Missing preset.id"):
             PresetManifest(manifest_path)
@@ -193,7 +191,7 @@ class TestPresetManifest:
         """Test invalid pack ID format."""
         valid_pack_data["preset"]["id"] = "Invalid_ID"
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Invalid preset ID"):
             PresetManifest(manifest_path)
@@ -202,7 +200,7 @@ class TestPresetManifest:
         """Test invalid semantic version."""
         valid_pack_data["preset"]["version"] = "not-a-version"
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Invalid version"):
             PresetManifest(manifest_path)
@@ -211,29 +209,25 @@ class TestPresetManifest:
         """Test missing requires.speckit_version."""
         del valid_pack_data["requires"]["speckit_version"]
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
-        with pytest.raises(
-            PresetValidationError, match="Missing requires.speckit_version"
-        ):
+        with pytest.raises(PresetValidationError, match="Missing requires.speckit_version"):
             PresetManifest(manifest_path)
 
     def test_no_templates_provided(self, temp_dir, valid_pack_data):
         """Test pack with no templates."""
         valid_pack_data["provides"]["templates"] = []
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
-        with pytest.raises(
-            PresetValidationError, match="must provide at least one template"
-        ):
+        with pytest.raises(PresetValidationError, match="must provide at least one template"):
             PresetManifest(manifest_path)
 
     def test_invalid_template_type(self, temp_dir, valid_pack_data):
         """Test template with invalid type."""
         valid_pack_data["provides"]["templates"][0]["type"] = "invalid"
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Invalid template type"):
             PresetManifest(manifest_path)
@@ -248,18 +242,16 @@ class TestPresetManifest:
         """Test template missing required fields."""
         valid_pack_data["provides"]["templates"] = [{"type": "template"}]
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
-        with pytest.raises(
-            PresetValidationError, match="missing 'type', 'name', or 'file'"
-        ):
+        with pytest.raises(PresetValidationError, match="missing 'type', 'name', or 'file'"):
             PresetManifest(manifest_path)
 
     def test_invalid_template_name_format(self, temp_dir, valid_pack_data):
         """Test template with invalid name format."""
         valid_pack_data["provides"]["templates"][0]["name"] = "Invalid Name"
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         with pytest.raises(PresetValidationError, match="Invalid template name"):
             PresetManifest(manifest_path)
@@ -274,25 +266,13 @@ class TestPresetManifest:
     def test_multiple_templates(self, temp_dir, valid_pack_data):
         """Test pack with multiple templates of different types."""
         valid_pack_data["provides"]["templates"] = [
-            {
-                "type": "template",
-                "name": "spec-template",
-                "file": "templates/spec-template.md",
-            },
-            {
-                "type": "template",
-                "name": "plan-template",
-                "file": "templates/plan-template.md",
-            },
+            {"type": "template", "name": "spec-template", "file": "templates/spec-template.md"},
+            {"type": "template", "name": "plan-template", "file": "templates/plan-template.md"},
             {"type": "command", "name": "specify", "file": "commands/specify.md"},
-            {
-                "type": "script",
-                "name": "create-new-feature",
-                "file": "scripts/create-new-feature.sh",
-            },
+            {"type": "script", "name": "create-new-feature", "file": "scripts/create-new-feature.sh"},
         ]
         manifest_path = temp_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         manifest = PresetManifest(manifest_path)
         assert len(manifest.templates) == 4
@@ -528,15 +508,9 @@ class TestPresetRegistry:
         packs_dir.mkdir()
         registry = PresetRegistry(packs_dir)
 
-        registry.add(
-            "pack-enabled", {"version": "1.0.0", "enabled": True, "priority": 5}
-        )
-        registry.add(
-            "pack-disabled", {"version": "1.0.0", "enabled": False, "priority": 1}
-        )
-        registry.add(
-            "pack-default", {"version": "1.0.0", "priority": 10}
-        )  # no enabled field = True
+        registry.add("pack-enabled", {"version": "1.0.0", "enabled": True, "priority": 5})
+        registry.add("pack-disabled", {"version": "1.0.0", "enabled": False, "priority": 1})
+        registry.add("pack-default", {"version": "1.0.0", "priority": 10})  # no enabled field = True
 
         # Default: exclude disabled
         by_priority = registry.list_by_priority()
@@ -551,12 +525,8 @@ class TestPresetRegistry:
         packs_dir.mkdir()
         registry = PresetRegistry(packs_dir)
 
-        registry.add(
-            "pack-enabled", {"version": "1.0.0", "enabled": True, "priority": 5}
-        )
-        registry.add(
-            "pack-disabled", {"version": "1.0.0", "enabled": False, "priority": 1}
-        )
+        registry.add("pack-enabled", {"version": "1.0.0", "enabled": True, "priority": 5})
+        registry.add("pack-disabled", {"version": "1.0.0", "enabled": False, "priority": 1})
 
         # Include disabled
         by_priority = registry.list_by_priority(include_disabled=True)
@@ -601,7 +571,7 @@ class TestPresetManager:
         incompat_dir = temp_dir / "incompat-pack"
         incompat_dir.mkdir()
         manifest_path = incompat_dir / "preset.yml"
-        with open(manifest_path, "w") as f:
+        with open(manifest_path, 'w') as f:
             yaml.dump(valid_pack_data, f)
         (incompat_dir / "templates").mkdir()
         (incompat_dir / "templates" / "spec-template.md").write_text("test")
@@ -613,8 +583,8 @@ class TestPresetManager:
     def test_install_from_zip(self, project_dir, pack_dir, temp_dir):
         """Test installing from a ZIP file."""
         zip_path = temp_dir / "test-pack.zip"
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for file_path in pack_dir.rglob("*"):
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            for file_path in pack_dir.rglob('*'):
                 if file_path.is_file():
                     arcname = file_path.relative_to(pack_dir)
                     zf.write(file_path, arcname)
@@ -627,8 +597,8 @@ class TestPresetManager:
     def test_install_from_zip_nested(self, project_dir, pack_dir, temp_dir):
         """Test installing from ZIP with nested directory."""
         zip_path = temp_dir / "test-pack.zip"
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for file_path in pack_dir.rglob("*"):
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            for file_path in pack_dir.rglob('*'):
                 if file_path.is_file():
                     arcname = Path("test-pack-v1.0.0") / file_path.relative_to(pack_dir)
                     zf.write(file_path, arcname)
@@ -640,7 +610,7 @@ class TestPresetManager:
     def test_install_from_zip_no_manifest(self, project_dir, temp_dir):
         """Test installing from ZIP without manifest raises error."""
         zip_path = temp_dir / "bad.zip"
-        with zipfile.ZipFile(zip_path, "w") as zf:
+        with zipfile.ZipFile(zip_path, 'w') as zf:
             zf.writestr("readme.txt", "no manifest here")
 
         manager = PresetManager(project_dir)
@@ -810,9 +780,7 @@ class TestPresetResolver:
         result = resolver.resolve("nonexistent-template")
         assert result is None
 
-    def test_resolve_higher_priority_pack_wins(
-        self, project_dir, temp_dir, valid_pack_data
-    ):
+    def test_resolve_higher_priority_pack_wins(self, project_dir, temp_dir, valid_pack_data):
         """Test that a pack with lower priority number wins over higher number."""
         manager = PresetManager(project_dir)
 
@@ -820,12 +788,8 @@ class TestPresetResolver:
         pack_a_dir = temp_dir / "pack-a"
         pack_a_dir.mkdir()
         data_a = {**valid_pack_data}
-        data_a["preset"] = {
-            **valid_pack_data["preset"],
-            "id": "pack-a",
-            "name": "Pack A",
-        }
-        with open(pack_a_dir / "preset.yml", "w") as f:
+        data_a["preset"] = {**valid_pack_data["preset"], "id": "pack-a", "name": "Pack A"}
+        with open(pack_a_dir / "preset.yml", 'w') as f:
             yaml.dump(data_a, f)
         (pack_a_dir / "templates").mkdir()
         (pack_a_dir / "templates" / "spec-template.md").write_text("# From Pack A\n")
@@ -834,12 +798,8 @@ class TestPresetResolver:
         pack_b_dir = temp_dir / "pack-b"
         pack_b_dir.mkdir()
         data_b = {**valid_pack_data}
-        data_b["preset"] = {
-            **valid_pack_data["preset"],
-            "id": "pack-b",
-            "name": "Pack B",
-        }
-        with open(pack_b_dir / "preset.yml", "w") as f:
+        data_b["preset"] = {**valid_pack_data["preset"], "id": "pack-b", "name": "Pack B"}
+        with open(pack_b_dir / "preset.yml", 'w') as f:
             yaml.dump(data_b, f)
         (pack_b_dir / "templates").mkdir()
         (pack_b_dir / "templates" / "spec-template.md").write_text("# From Pack B\n")
@@ -926,18 +886,14 @@ class TestPresetResolver:
         # Register extension as disabled
         extensions_dir = project_dir / ".specify" / "extensions"
         ext_registry = ExtensionRegistry(extensions_dir)
-        ext_registry.add(
-            "disabled-ext", {"version": "1.0.0", "priority": 1, "enabled": False}
-        )
+        ext_registry.add("disabled-ext", {"version": "1.0.0", "priority": 1, "enabled": False})
 
         # Template should NOT be resolved because extension is disabled
         resolver = PresetResolver(project_dir)
         result = resolver.resolve("disabled-template")
         assert result is None, "Disabled extension template should not be resolved"
 
-    def test_resolve_disabled_extension_not_picked_up_as_unregistered(
-        self, project_dir
-    ):
+    def test_resolve_disabled_extension_not_picked_up_as_unregistered(self, project_dir):
         """Test that disabled extensions are not picked up via unregistered dir scan."""
         # Create extension directory with templates
         ext_dir = project_dir / ".specify" / "extensions" / "test-disabled-ext"
@@ -954,13 +910,9 @@ class TestPresetResolver:
         # Verify the template is NOT resolved (even though the directory exists)
         resolver = PresetResolver(project_dir)
         result = resolver.resolve("unique-disabled-template")
-        assert result is None, (
-            "Disabled extension should not be picked up as unregistered"
-        )
+        assert result is None, "Disabled extension should not be picked up as unregistered"
 
-    def test_resolve_pack_over_extension(
-        self, project_dir, pack_dir, temp_dir, valid_pack_data
-    ):
+    def test_resolve_pack_over_extension(self, project_dir, pack_dir, temp_dir, valid_pack_data):
         """Test that pack templates take priority over extension templates."""
         # Create extension with templates
         ext_dir = project_dir / ".specify" / "extensions" / "my-ext"
@@ -1058,9 +1010,7 @@ class TestExtensionPriorityResolution:
         # Create registered extension with priority 20 (lower precedence than 10)
         registered_dir = extensions_dir / "registered-ext"
         (registered_dir / "templates").mkdir(parents=True)
-        (registered_dir / "templates" / "test-template.md").write_text(
-            "# From Registered\n"
-        )
+        (registered_dir / "templates" / "test-template.md").write_text("# From Registered\n")
 
         ext_registry = ExtensionRegistry(extensions_dir)
         ext_registry.add("registered-ext", {"version": "1.0.0", "priority": 20})
@@ -1068,9 +1018,7 @@ class TestExtensionPriorityResolution:
         # Create unregistered extension directory (implicit priority 10)
         unregistered_dir = extensions_dir / "unregistered-ext"
         (unregistered_dir / "templates").mkdir(parents=True)
-        (unregistered_dir / "templates" / "test-template.md").write_text(
-            "# From Unregistered\n"
-        )
+        (unregistered_dir / "templates" / "test-template.md").write_text("# From Unregistered\n")
 
         # Unregistered (priority 10) should beat registered (priority 20)
         resolver = PresetResolver(project_dir)
@@ -1086,9 +1034,7 @@ class TestExtensionPriorityResolution:
         # Create registered extension with priority 5 (higher precedence than 10)
         registered_dir = extensions_dir / "registered-ext"
         (registered_dir / "templates").mkdir(parents=True)
-        (registered_dir / "templates" / "test-template.md").write_text(
-            "# From Registered\n"
-        )
+        (registered_dir / "templates" / "test-template.md").write_text("# From Registered\n")
 
         ext_registry = ExtensionRegistry(extensions_dir)
         ext_registry.add("registered-ext", {"version": "1.0.0", "priority": 5})
@@ -1096,9 +1042,7 @@ class TestExtensionPriorityResolution:
         # Create unregistered extension directory (implicit priority 10)
         unregistered_dir = extensions_dir / "unregistered-ext"
         (unregistered_dir / "templates").mkdir(parents=True)
-        (unregistered_dir / "templates" / "test-template.md").write_text(
-            "# From Unregistered\n"
-        )
+        (unregistered_dir / "templates" / "test-template.md").write_text("# From Unregistered\n")
 
         # Registered (priority 5) should beat unregistered (priority 10)
         resolver = PresetResolver(project_dir)
@@ -1114,9 +1058,7 @@ class TestExtensionPriorityResolution:
         # Create registered extension with priority 20
         registered_dir = extensions_dir / "registered-ext"
         (registered_dir / "templates").mkdir(parents=True)
-        (registered_dir / "templates" / "test-template.md").write_text(
-            "# From Registered\n"
-        )
+        (registered_dir / "templates" / "test-template.md").write_text("# From Registered\n")
 
         ext_registry = ExtensionRegistry(extensions_dir)
         ext_registry.add("registered-ext", {"version": "1.0.0", "priority": 20})
@@ -1124,9 +1066,7 @@ class TestExtensionPriorityResolution:
         # Create unregistered extension (implicit priority 10)
         unregistered_dir = extensions_dir / "unregistered-ext"
         (unregistered_dir / "templates").mkdir(parents=True)
-        (unregistered_dir / "templates" / "test-template.md").write_text(
-            "# From Unregistered\n"
-        )
+        (unregistered_dir / "templates" / "test-template.md").write_text("# From Unregistered\n")
 
         # Attribution should show unregistered extension
         resolver = PresetResolver(project_dir)
@@ -1184,21 +1124,13 @@ class TestPresetCatalog:
         catalog = PresetCatalog(project_dir)
         catalog.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        catalog.cache_file.write_text(
-            json.dumps(
-                {
-                    "schema_version": "1.0",
-                    "presets": {},
-                }
-            )
-        )
-        catalog.cache_metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-        )
+        catalog.cache_file.write_text(json.dumps({
+            "schema_version": "1.0",
+            "presets": {},
+        }))
+        catalog.cache_metadata_file.write_text(json.dumps({
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }))
 
         assert catalog.is_cache_valid() is True
 
@@ -1207,21 +1139,13 @@ class TestPresetCatalog:
         catalog = PresetCatalog(project_dir)
         catalog.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        catalog.cache_file.write_text(
-            json.dumps(
-                {
-                    "schema_version": "1.0",
-                    "presets": {},
-                }
-            )
-        )
-        catalog.cache_metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": "2020-01-01T00:00:00+00:00",
-                }
-            )
-        )
+        catalog.cache_file.write_text(json.dumps({
+            "schema_version": "1.0",
+            "presets": {},
+        }))
+        catalog.cache_metadata_file.write_text(json.dumps({
+            "cached_at": "2020-01-01T00:00:00+00:00",
+        }))
 
         assert catalog.is_cache_valid() is False
 
@@ -1251,10 +1175,7 @@ class TestPresetCatalog:
         """Test search with cached catalog data."""
         from unittest.mock import patch
 
-        # Only use the default catalog to prevent fetching the community catalog from the network
-        monkeypatch.setenv(
-            "SPECKIT_PRESET_CATALOG_URL", PresetCatalog.DEFAULT_CATALOG_URL
-        )
+        monkeypatch.delenv("SPECKIT_PRESET_CATALOG_URL", raising=False)
         catalog = PresetCatalog(project_dir)
         catalog.cache_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1275,27 +1196,16 @@ class TestPresetCatalog:
                     "version": "1.0.0",
                     "tags": ["healthcare", "hipaa"],
                 },
-            },
+            }
         }
 
         catalog.cache_file.write_text(json.dumps(catalog_data))
-        catalog.cache_metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-        )
+        catalog.cache_metadata_file.write_text(json.dumps({
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }))
 
         # Isolate from community catalog so results are deterministic
-        default_only = [
-            PresetCatalogEntry(
-                url=catalog.DEFAULT_CATALOG_URL,
-                name="default",
-                priority=1,
-                install_allowed=True,
-            )
-        ]
+        default_only = [PresetCatalogEntry(url=catalog.DEFAULT_CATALOG_URL, name="default", priority=1, install_allowed=True)]
         with patch.object(catalog, "get_active_catalogs", return_value=default_only):
             # Search by query
             results = catalog.search(query="agile")
@@ -1327,17 +1237,13 @@ class TestPresetCatalog:
                     "name": "Test Pack",
                     "version": "1.0.0",
                 },
-            },
+            }
         }
 
         catalog.cache_file.write_text(json.dumps(catalog_data))
-        catalog.cache_metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-        )
+        catalog.cache_metadata_file.write_text(json.dumps({
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }))
 
         info = catalog.get_pack_info("test-pack")
         assert info is not None
@@ -1365,9 +1271,7 @@ class TestPresetCatalog:
 
     def test_env_var_catalog_url(self, project_dir, monkeypatch):
         """Test catalog URL from environment variable."""
-        monkeypatch.setenv(
-            "SPECKIT_PRESET_CATALOG_URL", "https://custom.example.com/catalog.json"
-        )
+        monkeypatch.setenv("SPECKIT_PRESET_CATALOG_URL", "https://custom.example.com/catalog.json")
         catalog = PresetCatalog(project_dir)
         assert catalog.get_catalog_url() == "https://custom.example.com/catalog.json"
 
@@ -1399,9 +1303,7 @@ class TestIntegration:
         assert result is not None
         assert "Core Spec Template" in result.read_text()
 
-    def test_override_beats_pack_beats_extension_beats_core(
-        self, project_dir, pack_dir
-    ):
+    def test_override_beats_pack_beats_extension_beats_core(self, project_dir, pack_dir):
         """Test the full priority stack: override > pack > extension > core."""
         resolver = PresetResolver(project_dir)
 
@@ -1442,8 +1344,8 @@ class TestIntegration:
         """Test installing from ZIP and then resolving."""
         # Create ZIP
         zip_path = temp_dir / "test-pack.zip"
-        with zipfile.ZipFile(zip_path, "w") as zf:
-            for file_path in pack_dir.rglob("*"):
+        with zipfile.ZipFile(zip_path, 'w') as zf:
+            for file_path in pack_dir.rglob('*'):
                 if file_path.is_file():
                     arcname = file_path.relative_to(pack_dir)
                     zf.write(file_path, arcname)
@@ -1525,20 +1427,16 @@ class TestPresetCatalogMultiCatalog:
     def test_project_config_overrides_defaults(self, project_dir):
         """Test that project-level config overrides built-in defaults."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "my-catalog",
-                            "url": "https://my.example.com/catalog.json",
-                            "priority": 1,
-                            "install_allowed": True,
-                        }
-                    ]
+                    "name": "my-catalog",
+                    "url": "https://my.example.com/catalog.json",
+                    "priority": 1,
+                    "install_allowed": True,
                 }
-            )
-        )
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         active = catalog.get_active_catalogs()
@@ -1593,19 +1491,15 @@ class TestPresetCatalogMultiCatalog:
     def test_load_catalog_config_http_url_rejected(self, project_dir):
         """Test that HTTP URLs are rejected."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "bad",
-                            "url": "http://insecure.example.com/catalog.json",
-                            "priority": 1,
-                        }
-                    ]
+                    "name": "bad",
+                    "url": "http://insecure.example.com/catalog.json",
+                    "priority": 1,
                 }
-            )
-        )
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         with pytest.raises(PresetValidationError, match="must use HTTPS"):
@@ -1614,26 +1508,22 @@ class TestPresetCatalogMultiCatalog:
     def test_load_catalog_config_priority_sorting(self, project_dir):
         """Test that catalogs are sorted by priority."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "low-priority",
-                            "url": "https://low.example.com/catalog.json",
-                            "priority": 10,
-                            "install_allowed": False,
-                        },
-                        {
-                            "name": "high-priority",
-                            "url": "https://high.example.com/catalog.json",
-                            "priority": 1,
-                            "install_allowed": True,
-                        },
-                    ]
-                }
-            )
-        )
+                    "name": "low-priority",
+                    "url": "https://low.example.com/catalog.json",
+                    "priority": 10,
+                    "install_allowed": False,
+                },
+                {
+                    "name": "high-priority",
+                    "url": "https://high.example.com/catalog.json",
+                    "priority": 1,
+                    "install_allowed": True,
+                },
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         entries = catalog._load_catalog_config(config_path)
@@ -1645,19 +1535,15 @@ class TestPresetCatalogMultiCatalog:
     def test_load_catalog_config_invalid_priority(self, project_dir):
         """Test that invalid priority raises error."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "bad",
-                            "url": "https://example.com/catalog.json",
-                            "priority": "not-a-number",
-                        }
-                    ]
+                    "name": "bad",
+                    "url": "https://example.com/catalog.json",
+                    "priority": "not-a-number",
                 }
-            )
-        )
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         with pytest.raises(PresetValidationError, match="Invalid priority"):
@@ -1666,20 +1552,16 @@ class TestPresetCatalogMultiCatalog:
     def test_load_catalog_config_install_allowed_string(self, project_dir):
         """Test that install_allowed accepts string values."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "test",
-                            "url": "https://example.com/catalog.json",
-                            "priority": 1,
-                            "install_allowed": "true",
-                        }
-                    ]
+                    "name": "test",
+                    "url": "https://example.com/catalog.json",
+                    "priority": 1,
+                    "install_allowed": "true",
                 }
-            )
-        )
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         entries = catalog._load_catalog_config(config_path)
@@ -1689,24 +1571,20 @@ class TestPresetCatalogMultiCatalog:
     def test_get_catalog_url_uses_highest_priority(self, project_dir):
         """Test that get_catalog_url returns URL of highest priority catalog."""
         config_path = project_dir / ".specify" / "preset-catalogs.yml"
-        config_path.write_text(
-            yaml.dump(
+        config_path.write_text(yaml.dump({
+            "catalogs": [
                 {
-                    "catalogs": [
-                        {
-                            "name": "secondary",
-                            "url": "https://secondary.example.com/catalog.json",
-                            "priority": 5,
-                        },
-                        {
-                            "name": "primary",
-                            "url": "https://primary.example.com/catalog.json",
-                            "priority": 1,
-                        },
-                    ]
-                }
-            )
-        )
+                    "name": "secondary",
+                    "url": "https://secondary.example.com/catalog.json",
+                    "priority": 5,
+                },
+                {
+                    "name": "primary",
+                    "url": "https://primary.example.com/catalog.json",
+                    "priority": 1,
+                },
+            ]
+        }))
 
         catalog = PresetCatalog(project_dir)
         assert catalog.get_catalog_url() == "https://primary.example.com/catalog.json"
@@ -1738,13 +1616,9 @@ class TestPresetCatalogMultiCatalog:
 
         catalog.cache_dir.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps({"schema_version": "1.0", "presets": {}}))
-        metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": datetime.now(timezone.utc).isoformat(),
-                }
-            )
-        )
+        metadata_file.write_text(json.dumps({
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }))
 
         assert catalog._is_url_cache_valid(url) is True
 
@@ -1756,13 +1630,9 @@ class TestPresetCatalogMultiCatalog:
 
         catalog.cache_dir.mkdir(parents=True, exist_ok=True)
         cache_file.write_text(json.dumps({"schema_version": "1.0", "presets": {}}))
-        metadata_file.write_text(
-            json.dumps(
-                {
-                    "cached_at": "2020-01-01T00:00:00+00:00",
-                }
-            )
-        )
+        metadata_file.write_text(json.dumps({
+            "cached_at": "2020-01-01T00:00:00+00:00",
+        }))
 
         assert catalog._is_url_cache_valid(url) is False
 
@@ -1778,7 +1648,6 @@ CORE_TEMPLATE_NAMES = [
     "tasks-template",
     "checklist-template",
     "constitution-template",
-    "agent-file-template",
 ]
 
 
@@ -1817,9 +1686,7 @@ class TestSelfTestPreset:
         for name in CORE_TEMPLATE_NAMES:
             tmpl_path = SELF_TEST_PRESET_DIR / "templates" / f"{name}.md"
             content = tmpl_path.read_text()
-            assert "preset:self-test" in content, (
-                f"{name}.md missing preset:self-test marker"
-            )
+            assert "preset:self-test" in content, f"{name}.md missing preset:self-test marker"
 
     def test_install_self_test_preset(self, project_dir):
         """Test installing the self-test preset from its directory."""
@@ -1956,9 +1823,7 @@ class TestSelfTestPreset:
         metadata = manager.registry.get("self-test")
         assert metadata["registered_commands"] == {}
 
-    def test_extension_command_skipped_when_extension_missing(
-        self, project_dir, temp_dir
-    ):
+    def test_extension_command_skipped_when_extension_missing(self, project_dir, temp_dir):
         """Test that extension command overrides are skipped if the extension isn't installed."""
         claude_dir = project_dir / ".claude" / "skills"
         claude_dir.mkdir(parents=True)
@@ -2001,9 +1866,7 @@ class TestSelfTestPreset:
         metadata = manager.registry.get("ext-override")
         assert metadata["registered_commands"] == {}
 
-    def test_extension_command_registered_when_extension_present(
-        self, project_dir, temp_dir
-    ):
+    def test_extension_command_registered_when_extension_present(self, project_dir, temp_dir):
         """Test that extension command overrides ARE registered when the extension is installed."""
         claude_dir = project_dir / ".claude" / "skills"
         claude_dir.mkdir(parents=True)
@@ -2079,19 +1942,17 @@ class TestInitOptions:
 class TestPresetSkills:
     """Tests for preset skill registration and unregistration."""
 
-    def _write_init_options(
-        self, project_dir, ai="claude", ai_skills=True, script="sh"
-    ):
+    def _write_init_options(self, project_dir, ai="claude", ai_skills=True, script="sh"):
         from specify_cli import save_init_options
 
-        save_init_options(
-            project_dir, {"ai": ai, "ai_skills": ai_skills, "script": script}
-        )
+        save_init_options(project_dir, {"ai": ai, "ai_skills": ai_skills, "script": script})
 
     def _create_skill(self, skills_dir, skill_name, body="original body"):
         skill_dir = skills_dir / skill_name
         skill_dir.mkdir(parents=True, exist_ok=True)
-        (skill_dir / "SKILL.md").write_text(f"---\nname: {skill_name}\n---\n\n{body}\n")
+        (skill_dir / "SKILL.md").write_text(
+            f"---\nname: {skill_name}\n---\n\n{body}\n"
+        )
         return skill_dir
 
     def test_skill_overridden_on_preset_install(self, project_dir, temp_dir):
@@ -2131,9 +1992,7 @@ class TestPresetSkills:
 
         skill_file = skills_dir / "speckit-specify" / "SKILL.md"
         content = skill_file.read_text()
-        assert "untouched" in content, (
-            "Skill should not be modified when ai_skills=False"
-        )
+        assert "untouched" in content, "Skill should not be modified when ai_skills=False"
 
     def test_get_skills_dir_returns_none_for_non_string_ai(self, project_dir):
         """Corrupted init-options ai values should not crash preset skill resolution."""
@@ -2179,9 +2038,7 @@ class TestPresetSkills:
         # Set up core command template in the project so restoration works
         core_cmds = project_dir / ".specify" / "templates" / "commands"
         core_cmds.mkdir(parents=True, exist_ok=True)
-        (core_cmds / "specify.md").write_text(
-            "---\ndescription: Core specify command\n---\n\nCore specify body\n"
-        )
+        (core_cmds / "specify.md").write_text("---\ndescription: Core specify command\n---\n\nCore specify body\n")
 
         manager = PresetManager(project_dir)
         SELF_TEST_DIR = Path(__file__).parent.parent / "presets" / "self-test"
@@ -2198,9 +2055,7 @@ class TestPresetSkills:
         assert skill_file.exists(), "Skill should still exist after preset removal"
         content = skill_file.read_text()
         assert "preset:self-test" not in content, "Preset content should be gone"
-        assert "templates/commands/specify.md" in content, (
-            "Should reference core template"
-        )
+        assert "templates/commands/specify.md" in content, "Should reference core template"
         assert "disable-model-invocation: false" in content
 
     def test_skill_restored_on_remove_resolves_script_placeholders(self, project_dir):
@@ -2216,7 +2071,7 @@ class TestPresetSkills:
             "---\n"
             "description: Core specify command\n"
             "scripts:\n"
-            '  sh: .specify/scripts/bash/create-new-feature.sh --json "{ARGS}"\n'
+            "  sh: .specify/scripts/bash/create-new-feature.sh --json \"{ARGS}\"\n"
             "---\n\n"
             "Run:\n"
             "{SCRIPT}\n"
@@ -2230,9 +2085,7 @@ class TestPresetSkills:
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "{SCRIPT}" not in content
         assert "{ARGS}" not in content
-        assert (
-            '.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"' in content
-        )
+        assert ".specify/scripts/bash/create-new-feature.sh --json \"$ARGUMENTS\"" in content
 
     def test_skill_not_overridden_when_skill_path_is_file(self, project_dir):
         """Preset install should skip non-directory skill targets."""
@@ -2261,16 +2114,12 @@ class TestPresetSkills:
         metadata = manager.registry.get("self-test")
         assert metadata.get("registered_skills", []) == []
 
-    def test_extension_skill_override_matches_hyphenated_multisegment_name(
-        self, project_dir, temp_dir
-    ):
+    def test_extension_skill_override_matches_hyphenated_multisegment_name(self, project_dir, temp_dir):
         """Preset overrides for speckit.<ext>.<cmd> should target speckit-<ext>-<cmd> skills."""
         self._write_init_options(project_dir, ai="codex")
         skills_dir = project_dir / ".agents" / "skills"
         self._create_skill(skills_dir, "speckit-fakeext-cmd", body="untouched")
-        (project_dir / ".specify" / "extensions" / "fakeext").mkdir(
-            parents=True, exist_ok=True
-        )
+        (project_dir / ".specify" / "extensions" / "fakeext").mkdir(parents=True, exist_ok=True)
 
         preset_dir = temp_dir / "ext-skill-override"
         preset_dir.mkdir()
@@ -2317,9 +2166,7 @@ class TestPresetSkills:
         """Preset removal should restore an extension-backed skill instead of deleting it."""
         self._write_init_options(project_dir, ai="codex")
         skills_dir = project_dir / ".agents" / "skills"
-        self._create_skill(
-            skills_dir, "speckit-fakeext-cmd", body="original extension skill"
-        )
+        self._create_skill(skills_dir, "speckit-fakeext-cmd", body="original extension skill")
 
         extension_dir = project_dir / ".specify" / "extensions" / "fakeext"
         (extension_dir / "commands").mkdir(parents=True, exist_ok=True)
@@ -2327,7 +2174,7 @@ class TestPresetSkills:
             "---\n"
             "description: Extension fakeext cmd\n"
             "scripts:\n"
-            '  sh: ../../scripts/bash/setup-plan.sh --json "{ARGS}"\n'
+            "  sh: ../../scripts/bash/setup-plan.sh --json \"{ARGS}\"\n"
             "---\n\n"
             "extension:fakeext\n"
             "Run {SCRIPT}\n"
@@ -2398,9 +2245,7 @@ class TestPresetSkills:
         assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
         assert "# Fakeext Cmd Skill" in content
 
-    def test_preset_remove_skips_skill_dir_without_skill_file(
-        self, project_dir, temp_dir
-    ):
+    def test_preset_remove_skips_skill_dir_without_skill_file(self, project_dir, temp_dir):
         """Preset removal should not delete arbitrary directories missing SKILL.md."""
         self._write_init_options(project_dir, ai="codex")
         skills_dir = project_dir / ".agents" / "skills"
@@ -2456,9 +2301,7 @@ class TestPresetSkills:
         assert stray_skill_dir.is_dir()
         assert note_file.read_text(encoding="utf-8") == "user content"
 
-    def test_kimi_legacy_dotted_skill_override_still_applies(
-        self, project_dir, temp_dir
-    ):
+    def test_kimi_legacy_dotted_skill_override_still_applies(self, project_dir, temp_dir):
         """Preset overrides should still target legacy dotted Kimi skill directories."""
         self._write_init_options(project_dir, ai="kimi")
         skills_dir = project_dir / ".kimi" / "skills"
@@ -2479,9 +2322,7 @@ class TestPresetSkills:
         metadata = manager.registry.get("self-test")
         assert "speckit.specify" in metadata.get("registered_skills", [])
 
-    def test_kimi_skill_updated_even_when_ai_skills_disabled(
-        self, project_dir, temp_dir
-    ):
+    def test_kimi_skill_updated_even_when_ai_skills_disabled(self, project_dir, temp_dir):
         """Kimi presets should still propagate command overrides to existing skills."""
         self._write_init_options(project_dir, ai="kimi", ai_skills=False)
         skills_dir = project_dir / ".kimi" / "skills"
@@ -2502,9 +2343,7 @@ class TestPresetSkills:
         metadata = manager.registry.get("self-test")
         assert "speckit-specify" in metadata.get("registered_skills", [])
 
-    def test_kimi_new_skill_created_even_when_ai_skills_disabled(
-        self, project_dir, temp_dir
-    ):
+    def test_kimi_new_skill_created_even_when_ai_skills_disabled(self, project_dir, temp_dir):
         """Kimi native skills should still receive brand-new preset commands."""
         self._write_init_options(project_dir, ai="kimi", ai_skills=False)
         skills_dir = project_dir / ".kimi" / "skills"
@@ -2514,7 +2353,10 @@ class TestPresetSkills:
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
         (preset_dir / "commands" / "speckit.research.md").write_text(
-            "---\ndescription: Kimi research workflow\n---\n\npreset:kimi-new-skill\n"
+            "---\n"
+            "description: Kimi research workflow\n"
+            "---\n\n"
+            "preset:kimi-new-skill\n"
         )
         manifest_data = {
             "schema_version": "1.0",
@@ -2550,9 +2392,7 @@ class TestPresetSkills:
         metadata = manager.registry.get("kimi-new-skill")
         assert "speckit-research" in metadata.get("registered_skills", [])
 
-    def test_kimi_preset_skill_override_resolves_script_placeholders(
-        self, project_dir, temp_dir
-    ):
+    def test_kimi_preset_skill_override_resolves_script_placeholders(self, project_dir, temp_dir):
         """Kimi preset skill overrides should resolve placeholders and rewrite project paths."""
         self._write_init_options(project_dir, ai="kimi", ai_skills=False, script="sh")
         skills_dir = project_dir / ".kimi" / "skills"
@@ -2566,7 +2406,7 @@ class TestPresetSkills:
             "---\n"
             "description: Kimi placeholder override\n"
             "scripts:\n"
-            '  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"\n'
+            "  sh: scripts/bash/create-new-feature.sh --json \"{ARGS}\"\n"
             "---\n\n"
             "Execute `{SCRIPT}` for __AGENT__\n"
             "Review templates/checklist.md and memory/constitution.md\n"
@@ -2599,88 +2439,10 @@ class TestPresetSkills:
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "{SCRIPT}" not in content
         assert "__AGENT__" not in content
-        assert (
-            '.specify/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"' in content
-        )
+        assert ".specify/scripts/bash/create-new-feature.sh --json \"$ARGUMENTS\"" in content
         assert ".specify/templates/checklist.md" in content
         assert ".specify/memory/constitution.md" in content
         assert "for kimi" in content
-
-    def test_markdown_agent_preset_command_resolves_script_placeholders(
-        self, project_dir, temp_dir
-    ):
-        """Preset commands for markdown agents (opencode, claude, etc.) should resolve {SCRIPT} placeholders."""
-        self._write_init_options(
-            project_dir, ai="opencode", ai_skills=False, script="sh"
-        )
-
-        # Create opencode commands directory (singular 'command' for opencode)
-        commands_dir = project_dir / ".opencode" / "command"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create preset with {SCRIPT} placeholder
-        preset_dir = temp_dir / "opencode-script-test"
-        preset_dir.mkdir()
-        (preset_dir / "commands").mkdir()
-        (preset_dir / "commands" / "speckit.specify.md").write_text(
-            "---\n"
-            "description: OpenCode script placeholder test\n"
-            "scripts:\n"
-            '  sh: scripts/bash/create-new-feature.sh --json "{ARGS}"\n'
-            '  ps: scripts/powershell/create-new-feature.ps1 -Json "{ARGS}"\n'
-            "---\n\n"
-            "Run `{SCRIPT}` to create the feature branch.\n"
-            "Check templates/spec-template.md for reference.\n"
-        )
-        manifest_data = {
-            "schema_version": "1.0",
-            "preset": {
-                "id": "opencode-script-test",
-                "name": "OpenCode Script Test",
-                "version": "1.0.0",
-                "description": "Test {SCRIPT} resolution for markdown agents",
-            },
-            "requires": {"speckit_version": ">=0.1.0"},
-            "provides": {
-                "templates": [
-                    {
-                        "type": "command",
-                        "name": "speckit.specify",
-                        "file": "commands/speckit.specify.md",
-                    }
-                ]
-            },
-        }
-        with open(preset_dir / "preset.yml", "w") as f:
-            yaml.dump(manifest_data, f)
-
-        manager = PresetManager(project_dir)
-        manager.install_from_directory(preset_dir, "0.1.5")
-
-        # Verify the command file was created and {SCRIPT} was replaced
-        command_file = commands_dir / "speckit.specify.md"
-        assert command_file.exists(), "Command file should be created"
-        full_content = command_file.read_text()
-
-        # Parse frontmatter and body separately to check body content
-        from specify_cli.agents import CommandRegistrar
-
-        _, body = CommandRegistrar.parse_frontmatter(full_content)
-
-        # {SCRIPT} should be replaced with the actual script path in body
-        assert "{SCRIPT}" not in body, "{SCRIPT} placeholder should be resolved in body"
-        assert ".specify/scripts/bash/create-new-feature.sh" in body, (
-            "Script path should be rewritten in body"
-        )
-
-        # {ARGS} should be replaced with $ARGUMENTS in body
-        assert "{ARGS}" not in body, "{ARGS} placeholder should be resolved in body"
-        assert "$ARGUMENTS" in body, "$ARGUMENTS should be present in body"
-
-        # Template paths should be rewritten in body
-        assert ".specify/templates/spec-template.md" in body, (
-            "Template path should be rewritten in body"
-        )
 
     def test_agy_skill_restored_on_preset_remove(self, project_dir, temp_dir):
         """Agy preset removal should restore native skills instead of deleting them."""
@@ -2688,9 +2450,7 @@ class TestPresetSkills:
         skills_dir = project_dir / ".agent" / "skills"
         self._create_skill(skills_dir, "speckit-specify", body="before override")
 
-        core_command = (
-            project_dir / ".specify" / "templates" / "commands" / "specify.md"
-        )
+        core_command = project_dir / ".specify" / "templates" / "commands" / "specify.md"
         core_command.write_text(
             "---\n"
             "description: Restored core specify workflow\n"
@@ -2702,7 +2462,10 @@ class TestPresetSkills:
         preset_dir.mkdir()
         (preset_dir / "commands").mkdir()
         (preset_dir / "commands" / "speckit.specify.md").write_text(
-            "---\ndescription: Agy override\n---\n\npreset agy body\n"
+            "---\n"
+            "description: Agy override\n"
+            "---\n\n"
+            "preset agy body\n"
         )
         manifest_data = {
             "schema_version": "1.0",
@@ -2738,9 +2501,7 @@ class TestPresetSkills:
         assert "restored core body" in restored
         assert "name: speckit-specify" in restored
 
-    def test_preset_skill_registration_handles_non_dict_init_options(
-        self, project_dir, temp_dir
-    ):
+    def test_preset_skill_registration_handles_non_dict_init_options(self, project_dir, temp_dir):
         """Non-dict init-options payloads should not crash preset install/remove flows."""
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
@@ -3044,14 +2805,7 @@ class TestPresetEnableDisable:
         manager.install_from_directory(pack_dir, "0.1.5")
 
         # Create a template in the preset directory
-        preset_template = (
-            project_dir
-            / ".specify"
-            / "presets"
-            / "test-pack"
-            / "templates"
-            / "test-template.md"
-        )
+        preset_template = project_dir / ".specify" / "presets" / "test-pack" / "templates" / "test-template.md"
         preset_template.parent.mkdir(parents=True, exist_ok=True)
         preset_template.write_text("# Template from test-pack")
 
@@ -3156,35 +2910,22 @@ class TestLeanPreset:
             assert tmpl_path.exists(), f"Missing command file: {tmpl['file']}"
 
     def test_lean_commands_have_no_scripts(self):
-        """Verify lean commands have no scripts or agent_scripts in frontmatter."""
+        """Verify lean commands have no scripts in frontmatter."""
         from specify_cli.agents import CommandRegistrar
 
         for name in LEAN_COMMAND_NAMES:
-            cmd_path = (
-                LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
-            )
+            cmd_path = LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
             content = cmd_path.read_text()
             frontmatter, _ = CommandRegistrar.parse_frontmatter(content)
-            assert "scripts" not in frontmatter, (
-                f"{name} should not have scripts in frontmatter"
-            )
-            assert "agent_scripts" not in frontmatter, (
-                f"{name} should not have agent_scripts in frontmatter"
-            )
+            assert "scripts" not in frontmatter, f"{name} should not have scripts in frontmatter"
 
     def test_lean_commands_have_no_hooks(self):
         """Verify lean commands do not contain extension hook boilerplate."""
         for name in LEAN_COMMAND_NAMES:
-            cmd_path = (
-                LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
-            )
+            cmd_path = LEAN_PRESET_DIR / "commands" / f"speckit.{name.split('.')[-1]}.md"
             content = cmd_path.read_text()
-            assert "hooks." not in content, (
-                f"{name} should not reference extension hooks"
-            )
-            assert "extensions.yml" not in content, (
-                f"{name} should not reference extensions.yml"
-            )
+            assert "hooks." not in content, f"{name} should not reference extension hooks"
+            assert "extensions.yml" not in content, f"{name} should not reference extensions.yml"
 
     def test_install_lean_preset(self, project_dir):
         """Test installing the lean preset from its directory."""
@@ -3240,10 +2981,8 @@ class TestBundledPresetLocator:
         from specify_cli import app
 
         runner = CliRunner()
-        with (
-            patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli.get_speckit_version", return_value="0.6.0"),
-        ):
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli.get_speckit_version", return_value="0.6.0"):
             result = runner.invoke(app, ["preset", "add", "lean"])
 
         assert result.exit_code == 0, result.output
@@ -3270,7 +3009,6 @@ class TestBundledPresetLocator:
             }
         }
         from unittest.mock import patch
-
         with patch.object(catalog, "_get_merged_packs", return_value=catalog_data):
             with pytest.raises(PresetError, match="bundled with spec-kit"):
                 catalog.download_pack("test-bundled")
@@ -3291,11 +3029,9 @@ class TestBundledPresetLocator:
             "bundled": True,
             "_install_allowed": True,
         }
-        with (
-            patch.object(Path, "cwd", return_value=project_dir),
-            patch("specify_cli._locate_bundled_preset", return_value=None),
-            patch("specify_cli.presets.PresetCatalog") as MockCatalog,
-        ):
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli._locate_bundled_preset", return_value=None), \
+             patch("specify_cli.presets.PresetCatalog") as MockCatalog:
             MockCatalog.return_value.get_pack_info.return_value = fake_pack_info
             result = runner.invoke(app, ["preset", "add", "lean"])
 

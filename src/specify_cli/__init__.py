@@ -146,7 +146,9 @@ BANNER = """
 ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
 
-TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
+TAGLINE = "Agentic SDLC toolkit for Spec-Driven Development with bundled extensions and AI agent support"
+
+TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 
 # Tikalk fork customizations - import with fallback to upstream defaults
 try:
@@ -218,11 +220,7 @@ def _run_git_command(
 def sync_team_ai_directives(
     repo_url: str, project_root: Path, *, skip_tls: bool = False
 ) -> tuple[str, Path]:
-    """Clone or update the team-ai-directives repository.
-
-    When repo_url points to a local directory, return it without cloning.
-    Returns a tuple of (status, resolved_path).
-    """
+    """Clone or update the team-ai-directives repository."""
     repo_url = (repo_url or "").strip()
     if not repo_url:
         raise ValueError("Team AI directives repository URL cannot be empty")
@@ -246,11 +244,7 @@ def sync_team_ai_directives(
             )
             try:
                 existing_remote = _run_git_command(
-                    [
-                        "config",
-                        "--get",
-                        "remote.origin.url",
-                    ],
+                    ["config", "--get", "remote.origin.url"],
                     cwd=destination,
                     env=git_env,
                 ).stdout.strip()
@@ -276,6 +270,15 @@ def sync_team_ai_directives(
     except subprocess.CalledProcessError as exc:
         message = exc.stderr.strip() if exc.stderr else str(exc)
         raise RuntimeError(f"Git operation failed: {message}") from exc
+
+
+def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
+    """Compute on-disk skill name - delegates to fork customizations."""
+    from .cli_customization import compute_skill_output_name as _fork_func
+
+    if _fork_func is not None:
+        return _fork_func(cmd_name, agent_config)
+    return None
 
 
 class StepTracker:
@@ -339,7 +342,9 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(accent(self.title), guide_style="grey50")
+        tree = Tree(
+            f"[{accent_style()}]{self.title}[/{accent_style()}]", guide_style="grey50"
+        )
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -367,10 +372,9 @@ class StepTracker:
                 else:
                     line = f"{symbol} [bright_black]{label}[/bright_black]"
             else:
-                # Label white, detail in accent color
+                # Label white, detail (if any) light gray in parentheses
                 if detail_text:
-                    detail_str = f"({accent(detail_text)})"
-                    line = f"{symbol} [white]{label}[/white] {detail_str}"
+                    line = f"{symbol} [white]{label}[/white] [bright_black]({detail_text})[/bright_black]"
                 else:
                     line = f"{symbol} [white]{label}[/white]"
 
@@ -1260,7 +1264,7 @@ def init(
     team_ai_directives: str = typer.Option(
         None,
         "--team-ai-directives",
-        help="Path or URL to team-ai-directives repository (local path or git URL)",
+        help="URL or local path to team-ai-directives repository",
     ),
 ):
     """
@@ -1508,7 +1512,7 @@ def init(
     current_dir = Path.cwd()
 
     setup_lines = [
-        accent("Specify Project Setup"),
+        "[cyan]Specify Project Setup[/cyan]",
         "",
         f"{'Project':<15} [green]{project_path.name}[/green]",
         f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -1630,7 +1634,6 @@ def init(
             manifest.save()
 
             # Write .specify/integration.json
-            script_ext = "sh" if selected_script == "sh" else "ps1"
             integration_json = project_path / ".specify" / "integration.json"
             integration_json.parent.mkdir(parents=True, exist_ok=True)
             integration_json.write_text(
@@ -1638,9 +1641,6 @@ def init(
                     {
                         "integration": resolved_integration.key,
                         "version": get_speckit_version(),
-                        "scripts": {
-                            "update-context": f".specify/integrations/{resolved_integration.key}/scripts/update-context.{script_ext}",
-                        },
                     },
                     indent=2,
                 )
@@ -1760,10 +1760,12 @@ def init(
                 "ai": selected_ai,
                 "integration": resolved_integration.key,
                 "branch_numbering": branch_numbering or "sequential",
+                "context_file": resolved_integration.context_file,
                 "here": here,
                 "preset": preset,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
+                "team_ai_directives": team_ai_directives,
             }
             # Ensure ai_skills is set for SkillsIntegration so downstream
             # tools (extensions, presets) emit SKILL.md overrides correctly.
@@ -1835,10 +1837,52 @@ def init(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
 
-            # Tikalk hooks: pre-init (team directives) and post-init (extensions/presets)
-            # MUST run before final tracker so they appear in correct order
-            pre_init(project_path, selected_ai, team_ai_directives, tracker)
-            post_init(project_path, selected_ai, tracker, no_git=no_git)
+            # Sync team-ai-directives repository if specified
+            if team_ai_directives:
+                tracker.start("team-directives")
+                try:
+                    status, directives_path = sync_team_ai_directives(
+                        team_ai_directives, project_path, skip_tls=skip_tls
+                    )
+                    tracker.complete("team-directives", f"{status}: {directives_path}")
+                except Exception as team_err:
+                    tracker.error("team-directives", str(team_err))
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Failed to sync team-ai-directives: {team_err}"
+                    )
+            else:
+                tracker.skip("team-directives", "not specified")
+
+            # Install bundled extensions (from cli_customization if available)
+            try:
+                tracker.start("extensions")
+                if pre_init or post_init:
+                    from .cli_customization import pre_init as _pre_init
+
+                    if _pre_init:
+                        _pre_init(
+                            project_path,
+                            selected_ai,
+                            team_ai_directives,
+                            tracker=tracker,
+                        )
+                tracker.complete("extensions", "bundled extensions")
+            except Exception as ext_err:
+                tracker.skip("extensions", "no bundled extensions")
+
+            # Install bundled presets (from cli_customization if available)
+            try:
+                tracker.start("presets")
+                if post_init:
+                    from .cli_customization import post_init as _post_init
+
+                    if _post_init:
+                        _post_init(
+                            project_path, selected_ai, tracker=tracker, no_git=no_git
+                        )
+                tracker.complete("presets", "bundled presets")
+            except Exception as pre_err:
+                tracker.skip("presets", "no bundled presets")
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
@@ -2077,7 +2121,7 @@ def version():
     # Get CLI version from package metadata
     cli_version = "unknown"
     try:
-        cli_version = importlib.metadata.version("specify-cli")
+        cli_version = importlib.metadata.version("agentic-sdlc-specify-cli")
     except Exception:
         # Fallback: try reading from pyproject.toml if running from source
         try:
@@ -2104,7 +2148,7 @@ def version():
 
     panel = Panel(
         info_table,
-        title=("[bold]Specify CLI Information[/bold]"),
+        title="[bold]Specify CLI Information[/bold]",
         border_style=accent_style(),
         padding=(1, 2),
     )
@@ -2149,7 +2193,7 @@ def get_speckit_version() -> str:
     import importlib.metadata
 
     try:
-        return importlib.metadata.version("specify-cli")
+        return importlib.metadata.version("agentic-sdlc-specify-cli")
     except Exception:
         # Fallback: try reading from pyproject.toml
         try:
@@ -2175,15 +2219,6 @@ integration_app = typer.Typer(
     add_completion=False,
 )
 app.add_typer(integration_app, name="integration")
-
-# Add skill_app if available and SKILLS_AVAILABLE is True
-try:
-    from .cli_customization import SKILLS_AVAILABLE
-
-    if SKILLS_AVAILABLE and skill_app is not None:
-        app.add_typer(skill_app, name="skill")
-except ImportError:
-    pass
 
 
 INTEGRATION_JSON = ".specify/integration.json"
@@ -2220,10 +2255,8 @@ def _read_integration_json(project_root: Path) -> dict[str, Any]:
 def _write_integration_json(
     project_root: Path,
     integration_key: str,
-    script_type: str,
 ) -> None:
     """Write ``.specify/integration.json`` for *integration_key*."""
-    script_ext = "sh" if script_type == "sh" else "ps1"
     dest = project_root / INTEGRATION_JSON
     dest.parent.mkdir(parents=True, exist_ok=True)
     dest.write_text(
@@ -2231,9 +2264,6 @@ def _write_integration_json(
             {
                 "integration": integration_key,
                 "version": get_speckit_version(),
-                "scripts": {
-                    "update-context": f".specify/integrations/{integration_key}/scripts/update-context.{script_ext}",
-                },
             },
             indent=2,
         )
@@ -2449,7 +2479,7 @@ def integration_install(
             raw_options=integration_options,
         )
         manifest.save()
-        _write_integration_json(project_root, integration.key, selected_script)
+        _write_integration_json(project_root, integration.key)
         _update_init_options_for_integration(
             project_root, integration, script_type=selected_script
         )
@@ -2538,6 +2568,7 @@ def _update_init_options_for_integration(
     opts = load_init_options(project_root)
     opts["integration"] = integration.key
     opts["ai"] = integration.key
+    opts["context_file"] = integration.context_file
     if script_type:
         opts["script"] = script_type
     if isinstance(integration, SkillsIntegration):
@@ -2597,6 +2628,7 @@ def integration_uninstall(
             opts.pop("integration", None)
             opts.pop("ai", None)
             opts.pop("ai_skills", None)
+            opts.pop("context_file", None)
             save_init_options(project_root, opts)
         raise typer.Exit(0)
 
@@ -2617,6 +2649,10 @@ def integration_uninstall(
 
     removed, skipped = manifest.uninstall(project_root, force=force)
 
+    # Remove managed context section from the agent context file
+    if integration:
+        integration.remove_context_section(project_root)
+
     _remove_integration_json(project_root)
 
     # Update init-options.json to clear the integration
@@ -2625,6 +2661,7 @@ def integration_uninstall(
         opts.pop("integration", None)
         opts.pop("ai", None)
         opts.pop("ai_skills", None)
+        opts.pop("context_file", None)
         save_init_options(project_root, opts)
 
     name = (integration.config or {}).get("name", key) if integration else key
@@ -2714,6 +2751,7 @@ def integration_switch(
                 )
                 raise typer.Exit(1)
             removed, skipped = old_manifest.uninstall(project_root, force=force)
+            current_integration.remove_context_section(project_root)
             if removed:
                 console.print(f"  Removed {len(removed)} file(s)")
             if skipped:
@@ -2754,6 +2792,7 @@ def integration_switch(
         opts.pop("integration", None)
         opts.pop("ai", None)
         opts.pop("ai_skills", None)
+        opts.pop("context_file", None)
         save_init_options(project_root, opts)
 
     # Ensure shared infrastructure is present (safe to run unconditionally;
@@ -2783,7 +2822,7 @@ def integration_switch(
             raw_options=integration_options,
         )
         manifest.save()
-        _write_integration_json(project_root, target_integration.key, selected_script)
+        _write_integration_json(project_root, target_integration.key)
         _update_init_options_for_integration(
             project_root, target_integration, script_type=selected_script
         )
@@ -2919,7 +2958,7 @@ def integration_upgrade(
             raw_options=integration_options,
         )
         new_manifest.save()
-        _write_integration_json(project_root, key, selected_script)
+        _write_integration_json(project_root, key)
         _update_init_options_for_integration(
             project_root, integration, script_type=selected_script
         )
