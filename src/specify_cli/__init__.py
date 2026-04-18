@@ -1867,7 +1867,7 @@ def init(
                             tracker=tracker,
                         )
                 tracker.complete("extensions", "bundled extensions")
-            except Exception as ext_err:
+            except Exception as _ext_err:
                 tracker.skip("extensions", "no bundled extensions")
 
             # Install bundled presets (from cli_customization if available)
@@ -1881,7 +1881,7 @@ def init(
                             project_path, selected_ai, tracker=tracker, no_git=no_git
                         )
                 tracker.complete("presets", "bundled presets")
-            except Exception as pre_err:
+            except Exception as _pre_err:
                 tracker.skip("presets", "no bundled presets")
 
             tracker.complete("final", "project ready")
