@@ -355,90 +355,92 @@ class MarkdownIntegrationTests:
 
         return sorted(files)
 
+    def test_complete_file_inventory_sh(self, tmp_path):
+        """Every file produced by specify init --integration <key> --script sh."""
+        from specify_cli import PKG_NAMES
 
-def test_complete_file_inventory_sh(self, tmp_path):
-    """Every file produced by specify init --integration <key> --script sh."""
-    from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            import pytest
 
-    if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-        import pytest
+            pytest.skip(
+                "Fork has bundled extensions/presets with different file counts"
+            )
 
-        pytest.skip("Fork has bundled extensions/presets with different file counts")
+        from typer.testing import CliRunner
+        from specify_cli import app
 
-    from typer.testing import CliRunner
-    from specify_cli import app
-
-    project = tmp_path / f"inventory-sh-{self.KEY}"
-    project.mkdir()
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = CliRunner().invoke(
-            app,
-            [
-                "init",
-                "--here",
-                "--integration",
-                self.KEY,
-                "--script",
-                "sh",
-                "--no-git",
-                "--ignore-agent-tools",
-            ],
-            catch_exceptions=False,
+        project = tmp_path / f"inventory-sh-{self.KEY}"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = CliRunner().invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    self.KEY,
+                    "--script",
+                    "sh",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0, f"init failed: {result.output}"
+        actual = sorted(
+            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-    finally:
-        os.chdir(old_cwd)
-    assert result.exit_code == 0, f"init failed: {result.output}"
-    actual = sorted(
-        p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
-    )
-    expected = self._expected_files("sh")
-    assert actual == expected, (
-        f"Missing: {sorted(set(expected) - set(actual))}\n"
-        f"Extra: {sorted(set(actual) - set(expected))}"
-    )
-
-
-def test_complete_file_inventory_ps(self, tmp_path):
-    """Every file produced by specify init --integration <key> --script ps."""
-    from specify_cli import PKG_NAMES
-
-    if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-        import pytest
-
-        pytest.skip("Fork has bundled extensions/presets with different file counts")
-
-    from typer.testing import CliRunner
-    from specify_cli import app
-
-    project = tmp_path / f"inventory-ps-{self.KEY}"
-    project.mkdir()
-    old_cwd = os.getcwd()
-    try:
-        os.chdir(project)
-        result = CliRunner().invoke(
-            app,
-            [
-                "init",
-                "--here",
-                "--integration",
-                self.KEY,
-                "--script",
-                "ps",
-                "--no-git",
-                "--ignore-agent-tools",
-            ],
-            catch_exceptions=False,
+        expected = self._expected_files("sh")
+        assert actual == expected, (
+            f"Missing: {sorted(set(expected) - set(actual))}\n"
+            f"Extra: {sorted(set(actual) - set(expected))}"
         )
-    finally:
-        os.chdir(old_cwd)
-    assert result.exit_code == 0, f"init failed: {result.output}"
-    actual = sorted(
-        p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
-    )
-    expected = self._expected_files("ps")
-    assert actual == expected, (
-        f"Missing: {sorted(set(expected) - set(actual))}\n"
-        f"Extra: {sorted(set(actual) - set(expected))}"
-    )
+
+    def test_complete_file_inventory_ps(self, tmp_path):
+        """Every file produced by specify init --integration <key> --script ps."""
+        from specify_cli import PKG_NAMES
+
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            import pytest
+
+            pytest.skip(
+                "Fork has bundled extensions/presets with different file counts"
+            )
+
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        project = tmp_path / f"inventory-ps-{self.KEY}"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = CliRunner().invoke(
+                app,
+                [
+                    "init",
+                    "--here",
+                    "--integration",
+                    self.KEY,
+                    "--script",
+                    "ps",
+                    "--no-git",
+                    "--ignore-agent-tools",
+                ],
+                catch_exceptions=False,
+            )
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0, f"init failed: {result.output}"
+        actual = sorted(
+            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+        )
+        expected = self._expected_files("ps")
+        assert actual == expected, (
+            f"Missing: {sorted(set(expected) - set(actual))}\n"
+            f"Extra: {sorted(set(actual) - set(expected))}"
+        )
