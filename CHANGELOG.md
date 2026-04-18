@@ -4,6 +4,23 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.6] - 2026-04-19
+
+### Fixed
+
+- **Preset commands aligned with templates**:
+  - Fixed hook filtering style from exclusive (`enabled: true` required) to inclusive (default enabled)
+  - Changed template path reference to relative path `templates/tasks-template.md`
+  - Added branch numbering mode support with `init-options.json` checking
+  - Fixed YAML indentation in `adlc.spec.plan.md`
+
+### Added
+
+- **Pre/Post-Execution Checks**: Added missing hook checking sections to:
+  - `adlc.spec.checklist.md`
+  - `adlc.spec.clarify.md`
+  - `adlc.spec.analyze.md`
+
 # [0.5.4] - 2026-04-16
 
 ### Changed

@@ -163,7 +163,13 @@ Given the approved Mission Brief, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Create the feature branch** by running the script with `--short-name` (and `--json`), and do NOT pass `--number` (the script auto-detects the next globally available number across all branches and spec directories):
+2. **Determine branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value:
+   - If `"timestamp"`: The script will use timestamp-based branch naming
+   - If `"sequential"` or absent: Use default sequential numbering (001, 002, etc.)
+
+   **GIT_BRANCH_NAME passthrough**: If `GIT_BRANCH_NAME` environment variable is set, pass it to the script for user-provided branch names.
+
+3. **Create the feature branch** by running the script with `--short-name` (and `--json`), and do NOT pass `--number` (the script auto-detects the next globally available number across all branches and spec directories):
 
    - Bash example: `{SCRIPT} --json --short-name "user-auth" "Add user authentication"`
    - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" "Add user authentication"`
