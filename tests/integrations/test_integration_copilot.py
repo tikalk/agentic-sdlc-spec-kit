@@ -189,15 +189,6 @@ class TestCopilotIntegration:
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration copilot --script sh."""
-        from specify_cli import PKG_NAMES
-
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-
-            pytest.skip(
-                "Fork has bundled extensions/presets with different file counts"
-            )
-
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -222,10 +213,10 @@ class TestCopilotIntegration:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(
+        actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted(
+        expected = set(
             [
                 ".github/agents/speckit.analyze.agent.md",
                 ".github/agents/speckit.checklist.agent.md",
@@ -265,22 +256,11 @@ class TestCopilotIntegration:
                 ".specify/workflows/workflow-registry.json",
             ]
         )
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        missing = expected - actual
+        assert not missing, f"Missing: {sorted(missing)}"
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration copilot --script ps."""
-        from specify_cli import PKG_NAMES
-
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-
-            pytest.skip(
-                "Fork has bundled extensions/presets with different file counts"
-            )
-
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -305,10 +285,10 @@ class TestCopilotIntegration:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(
+        actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted(
+        expected = set(
             [
                 ".github/agents/speckit.analyze.agent.md",
                 ".github/agents/speckit.checklist.agent.md",
@@ -348,7 +328,5 @@ class TestCopilotIntegration:
                 ".specify/workflows/workflow-registry.json",
             ]
         )
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        missing = expected - actual
+        assert not missing, f"Missing: {sorted(missing)}"

@@ -357,15 +357,6 @@ class MarkdownIntegrationTests:
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
-        from specify_cli import PKG_NAMES
-
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-
-            pytest.skip(
-                "Fork has bundled extensions/presets with different file counts"
-            )
-
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -391,26 +382,15 @@ class MarkdownIntegrationTests:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(
+        actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("sh")
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        expected = set(self._expected_files("sh"))
+        missing = expected - actual
+        assert not missing, f"Missing: {sorted(missing)}"
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration <key> --script ps."""
-        from specify_cli import PKG_NAMES
-
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-
-            pytest.skip(
-                "Fork has bundled extensions/presets with different file counts"
-            )
-
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -436,11 +416,9 @@ class MarkdownIntegrationTests:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(
+        actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("ps")
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        expected = set(self._expected_files("ps"))
+        missing = expected - actual
+        assert not missing, f"Missing: {sorted(missing)}"
