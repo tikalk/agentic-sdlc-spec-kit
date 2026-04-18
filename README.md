@@ -83,11 +83,11 @@ Choose your preferred installation method:
 
 #### Option 1: Persistent Installation (Recommended)
 
-Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/github/spec-kit/releases) for the latest):
+Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest):
 
 ```bash
-# Install a specific stable release (recommended — replace vX.Y.Z with the latest tag)
-uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
+# Install a specific stable release (recommended — replace agentic-sdlc-vX.Y.Z with the latest tag)
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z
 
 # Or install latest from main (may include unreleased changes)
 uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
@@ -117,7 +117,7 @@ specify check
 To upgrade Specify, see the [Upgrade Guide](./docs/upgrade.md) for detailed instructions. Quick upgrade:
 
 ```bash
-uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z
 ```
 
 #### Option 2: One-time Usage
@@ -125,13 +125,13 @@ uv tool install specify-cli --force --from git+https://github.com/github/spec-ki
 Run directly without installing:
 
 ```bash
-# Create new project (pinned to a stable release — replace vX.Y.Z with the latest tag)
-uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <PROJECT_NAME>
+# Create new project (pinned to a stable release — replace agentic-sdlc-vX.Y.Z with the latest tag)
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z specify init <PROJECT_NAME>
 
 # Or initialize in existing project
-uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init . --ai copilot
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z specify init . --ai copilot
 # or
-uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init --here --ai copilot
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z specify init --here --ai copilot
 ```
 
 **Benefits of persistent installation:**
@@ -854,7 +854,7 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ## 💬 Support
 
-For support, please open a [GitHub issue](https://github.com/github/spec-kit/issues/new). We welcome bug reports, feature requests, and questions about using Spec-Driven Development.
+For support, please open a [GitHub issue](https://github.com/tikalk/agentic-sdlc-spec-kit/issues/new). We welcome bug reports, feature requests, and questions about using Spec-Driven Development.
 
 ## 🙏 Acknowledgements
 
