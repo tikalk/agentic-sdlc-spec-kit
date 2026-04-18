@@ -1,6 +1,6 @@
 <div align="center">
-    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="200" height="200"/>
-    <h1>🌱 Spec Kit</h1>
+    <img src="./media/timi_small.png" alt="Agentic SDLC Spec Kit Logo" width="200" height="200"/>
+    <h1>🐙 Agentic SDLC Spec Kit</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
 
@@ -8,10 +8,34 @@
     <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
 </p>
 
+## 🎯 Project Vision
+
+This fork combines the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology with Spec-Driven Development to create a comprehensive framework for AI-assisted software development. The 12 Factors provide the strategic foundation and operational principles, while Spec-Driven Development delivers the practical implementation workflow.
+
+### Why This Combination?
+
+**Agentic SDLC 12 Factors** establish the philosophical and strategic principles for building software with AI coding agents, covering aspects like strategic mindset, context scaffolding, dual execution loops, and team capability.
+
+**Spec-Driven Development** provides the concrete, actionable process for implementing these principles through structured specification, planning, task breakdown, and iterative implementation phases.
+
+Together, they form a complete methodology that transforms how organizations approach AI-assisted development, moving from ad-hoc AI usage to systematic, high-quality software production.
+
+### Why This Fork?
+
+The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
+
+- **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
+- **Adding enterprise-grade features** like team AI directives integration
+- **Enhancing tooling** with dual execution loop support (SYNC/ASYNC task classification)
+- **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
+- **Providing team templates** and best practices for scaling AI-assisted development across teams
+
+This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
+
 <p align="center">
-    <a href="https://github.com/github/spec-kit/releases/latest"><img src="https://img.shields.io/github/v/release/github/spec-kit" alt="Latest Release"/></a>
-    <a href="https://github.com/github/spec-kit/stargazers"><img src="https://img.shields.io/github/stars/github/spec-kit?style=social" alt="GitHub stars"/></a>
-    <a href="https://github.com/github/spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/spec-kit" alt="License"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/stargazers"><img src="https://img.shields.io/github/stars/tikalk/agentic-sdlc-spec-kit?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/tikalk/agentic-sdlc-spec-kit" alt="License"/></a>
     <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
@@ -19,14 +43,18 @@
 
 ## Table of Contents
 
+- [🎯 Project Vision](#-project-vision)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
 - [📽️ Video Overview](#️-video-overview)
 - [🧩 Community Extensions](#-community-extensions)
 - [🎨 Community Presets](#-community-presets)
 - [🚶 Community Walkthroughs](#-community-walkthroughs)
+- [🎯 Core Features](#-core-features)
+- [📦 Extensions](#-extensions)
 - [🛠️ Community Friends](#️-community-friends)
-- [🤖 Supported AI Coding Agent Integrations](#-supported-ai-coding-agent-integrations)
+- [🤖 Supported AI Agents](#-supported-ai-agents)
+- [📦 Skills Package Manager](#-skills-package-manager)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [🧩 Making Spec Kit Your Own: Extensions & Presets](#-making-spec-kit-your-own-extensions--presets)
 - [📚 Core Philosophy](#-core-philosophy)
@@ -36,6 +64,7 @@
 - [📖 Learn More](#-learn-more)
 - [📋 Detailed Process](#-detailed-process)
 - [🔍 Troubleshooting](#-troubleshooting)
+- [👥 Maintainers](#-maintainers)
 - [💬 Support](#-support)
 - [🙏 Acknowledgements](#-acknowledgements)
 - [📄 License](#-license)
@@ -58,10 +87,10 @@ Install once and use everywhere. Pin a specific release tag for stability (check
 
 ```bash
 # Install a specific stable release (recommended — replace vX.Y.Z with the latest tag)
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
 
 # Or install latest from main (may include unreleased changes)
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
 ```
 
 Then verify the correct version is installed:
@@ -77,9 +106,9 @@ And use the tool directly:
 specify init <PROJECT_NAME>
 
 # Or initialize in existing project
-specify init . --ai claude
+specify init . --ai copilot
 # or
-specify init --here --ai claude
+specify init --here --ai copilot
 
 # Check installed tools
 specify check
@@ -100,9 +129,9 @@ Run directly without installing:
 uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <PROJECT_NAME>
 
 # Or initialize in existing project
-uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init . --ai claude
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init . --ai copilot
 # or
-uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init --here --ai claude
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init --here --ai copilot
 ```
 
 **Benefits of persistent installation:**
@@ -245,7 +274,6 @@ The following community-contributed extensions are available in [`catalog.commun
 | Spec Critique Extension | Dual-lens critical review of spec and plan from product strategy and engineering risk perspectives | `docs` | Read-only | [spec-kit-critique](https://github.com/arunt14/spec-kit-critique) |
 | Spec Diagram | Auto-generate Mermaid diagrams of SDD workflow state, feature progress, and task dependencies | `visibility` | Read-only | [spec-kit-diagram-](https://github.com/Quratulain-bilal/spec-kit-diagram-) |
 | Spec Refine | Update specs in-place, propagate changes to plan and tasks, and diff impact across artifacts | `process` | Read+Write | [spec-kit-refine](https://github.com/Quratulain-bilal/spec-kit-refine) |
-| Spec Scope | Effort estimation and scope tracking — estimate work, detect creep, and budget time per phase | `process` | Read-only | [spec-kit-scope-](https://github.com/Quratulain-bilal/spec-kit-scope-) |
 | Spec Sync | Detect and resolve drift between specs and implementation. AI-assisted resolution with human approval | `docs` | Read+Write | [spec-kit-sync](https://github.com/bgervin/spec-kit-sync) |
 | SpecTest | Auto-generate test scaffolds from spec criteria, map coverage, and find untested requirements | `code` | Read+Write | [spec-kit-spectest](https://github.com/Quratulain-bilal/spec-kit-spectest) |
 | Staff Review Extension | Staff-engineer-level code review that validates implementation against spec, checks security, performance, and test coverage | `code` | Read-only | [spec-kit-staff-review](https://github.com/arunt14/spec-kit-staff-review) |
@@ -305,7 +333,7 @@ See Spec-Driven Development in action across different scenarios with these comm
 ## 🛠️ Community Friends
 
 > [!NOTE]
-> Community projects listed here are independently created and maintained by their respective authors. They are **not reviewed, nor endorsed, nor supported by GitHub**. Review their source code before installation and use at your own discretion.
+> Community projects listed here are independently created and maintained by their respective authors. They are **not reviewed, nor endorsed, nor supported by GitHub**. Review their source code before following along and use at your own discretion.
 
 Community projects that extend, visualize, or build on Spec Kit:
 
@@ -315,9 +343,72 @@ Community projects that extend, visualize, or build on Spec Kit:
 
 - **[SpecKit Companion](https://marketplace.visualstudio.com/items?itemName=alfredoperez.speckit-companion)** — A VS Code extension that brings a visual GUI to Spec Kit. Browse specs in a rich markdown viewer with clickable file references, create specifications with image attachments, comment and refine each step inline (GitHub-style review), track your progress through the SDD workflow with a visual phase stepper, and manage steering documents like constitutions and templates.
 
+## 🎯 Core Features
+
+This fork provides additional features beyond the upstream Spec Kit:
+
+- **Team AI Directives Integration** — Synchronize team-level AI instructions and context across projects
+- **Dual Execution Loop** — Classify tasks as SYNC (immediate) or ASYNC (deferred) for better workflow management
+- **Levelup Command** — Analyze and improve session context with reusable knowledge packets
+- **Enhanced Extensions** — Built-in extensions for product thinking, architecture analysis, and TDD workflows
+
+## 📦 Bundled Extensions
+
+This fork includes pre-installed extensions:
+
+| Extension | Purpose |
+|-----------|---------|
+| architect | Architecture impact analysis and decision guidance |
+| evals | Evaluation criteria and test generation |
+| levelup | Session context improvement and knowledge management |
+| product | Product thinking and user story refinement |
+| quick | Quick start workflows for small tasks |
+| tdd | Test-driven development workflows |
+| git | Git workflow automation |
+
+## 🤖 Supported AI Agents
+
+This fork supports the following AI coding agents:
+
+| Agent | CLI | Skills | Setup |
+|-------|-----|--------|-------|
+| Claude Code | `claude` | ✓ | `--ai claude --ai-skills` |
+| GitHub Copilot | — | IDE | `--ai copilot` |
+| Cursor | `cursor-agent` | IDE | `--ai cursor-agent` |
+| Gemini CLI | `gemini` | ✓ | `--ai gemini --ai-skills` |
+| opencode | `opencode` | ✓ | `--ai opencode` |
+| Qwen | `qwen` | ✓ | `--ai qwen --ai-skills` |
+| Codex | `codex` | ✓ | `--ai codex --ai-skills` |
+| Windsurf | — | IDE | `--ai windsurf` |
+| Junie | `junie` | ✓ | `--ai junie --ai-skills` |
+| And more... |
+
+## 📦 Skills Package Manager
+
+The fork includes a skills package manager for managing reusable AI session context:
+
+```bash
+# List installed skills
+specify skills list
+
+# Install a skill package
+specify skills install <package>
+
+# Update skills
+specify skills update
+```
+
+## Relevant Skills (Auto-Detected)
+
+When you initialize a project, the following skills are auto-detected based on your AI assistant selection:
+
+- **Claude Code**: `.claude/skills/` — Skills installed from the specification
+- **Codex**: `.agents/skills/` — Skills installed via Codex CLI
+- **Custom**: Based on your selected integration
+
 ## 🤖 Supported AI Coding Agent Integrations
 
-Spec Kit works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.github.io/spec-kit/integrations.html) guide.
+Spec Kit works with 30+ AI coding agents — both CLI tools and IDE-based assistants. See the full list with notes and usage details in the [Supported AI Coding Agent Integrations](https://github.github.io/spec-kit/reference/integrations.html) guide.
 
 Run `specify integration list` to see all available integrations in your installed version.
 
@@ -350,135 +441,7 @@ Additional commands for enhanced quality and validation:
 
 ## 🔧 Specify CLI Reference
 
-The `specify` tool is invoked as
-
-```text
-specify <COMMAND> [SUBCOMMAND] [OPTIONS]
-```
-
-and supports the following commands:
-
-### Commands
-
-| Command       | Description                                                                                                                                                                                                                                                                                                                                                                                             |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `init`        | Initialize a new Specify project from the latest template.                                                                                                                                                                                                                                                                                                                                              |
-| `check`       | Check for installed tools: `git` plus all CLI-based agents configured in `AGENT_CONFIG` (for example: `claude`, `gemini`, `code`/`code-insiders`, `cursor-agent`, `windsurf`, `junie`, `qwen`, `opencode`, `codex`, `kiro-cli`, `shai`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, `forge`, etc.)                                                                                                            |
-| `version`     | Show the currently installed Spec Kit version.                                                                                                                                                                                                                                                                                                                                                          |
-| `extension`   | Manage extensions                                                                                                                                                                                                                                                                                                                                                                                       |
-| `preset`      | Manage presets                                                                                                                                                                                                                                                                                                                                                                                          |
-| `integration` | Manage integrations                                                                                                                                                                                                                                                                                                                                                                                     |
-
-### `specify init` Arguments & Options
-
-```bash
-specify init [PROJECT_NAME] <OPTIONS>
-```
-
-| Argument/Option        | Type     | Description                                                                                                                                                                                                                                                                                                                                                                               |
-| ---------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `<PROJECT_NAME>`       | Argument | Name for your new project directory (optional if using `--here`, or use `.` for current directory)                                                                                                                                                                                                                                                                                        |
-| `--ai`                 | Option   | AI assistant to use (see `AGENT_CONFIG` for the full, up-to-date list). Common options include: `claude`, `gemini`, `copilot`, `cursor-agent`, `qwen`, `opencode`, `codex`, `windsurf`, `junie`, `kilocode`, `auggie`, `roo`, `codebuddy`, `amp`, `shai`, `kiro-cli` (`kiro` alias), `agy`, `bob`, `qodercli`, `vibe`, `kimi`, `iflow`, `pi`, `forge`, or `generic` (requires `--ai-commands-dir`) |
-| `--ai-commands-dir`    | Option   | Directory for agent command files (required with `--ai generic`, e.g. `.myagent/commands/`)                                                                                                                                                                                                                                                                                               |
-| `--script`             | Option   | Script variant to use: `sh` (bash/zsh) or `ps` (PowerShell)                                                                                                                                                                                                                                                                                                                               |
-| `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                                                                                                                                                                                                                                                                                                                                           |
-| `--no-git`             | Flag     | Skip git repository initialization                                                                                                                                                                                                                                                                                                                                                        |
-| `--here`               | Flag     | Initialize project in the current directory instead of creating a new one                                                                                                                                                                                                                                                                                                                 |
-| `--force`              | Flag     | Force merge/overwrite when initializing in current directory (skip confirmation)                                                                                                                                                                                                                                                                                                          |
-| `--skip-tls`           | Flag     | Skip SSL/TLS verification (not recommended)                                                                                                                                                                                                                                                                                                                                               |
-| `--debug`              | Flag     | Enable detailed debug output for troubleshooting                                                                                                                                                                                                                                                                                                                                          |
-| `--github-token`       | Option   | GitHub token for API requests (or set GH_TOKEN/GITHUB_TOKEN env variable)                                                                                                                                                                                                                                                                                                                 |
-| `--ai-skills`          | Flag     | Install Prompt.MD templates as agent skills in agent-specific `skills/` directory (requires `--ai`). Extension commands are also auto-registered as skills when extensions are added later.                                                                                                                                                                                               |
-| `--branch-numbering`   | Option   | Branch numbering strategy: `sequential` (default — `001`, `002`, `003`, …, `1000`, … — expands beyond 3 digits automatically) or `timestamp` (`YYYYMMDD-HHMMSS`). Timestamp mode is useful for distributed teams to avoid numbering conflicts                                                                                                                                                                                                  |
-
-### Examples
-
-```bash
-# Basic project initialization
-specify init my-project
-
-# Initialize with specific AI assistant
-specify init my-project --ai claude
-
-# Initialize with Cursor support
-specify init my-project --ai cursor-agent
-
-# Initialize with Qoder support
-specify init my-project --ai qodercli
-
-# Initialize with Windsurf support
-specify init my-project --ai windsurf
-
-# Initialize with Kiro CLI support
-specify init my-project --ai kiro-cli
-
-# Initialize with Amp support
-specify init my-project --ai amp
-
-# Initialize with SHAI support
-specify init my-project --ai shai
-
-# Initialize with Mistral Vibe support
-specify init my-project --ai vibe
-
-# Initialize with IBM Bob support
-specify init my-project --ai bob
-
-# Initialize with Pi Coding Agent support
-specify init my-project --ai pi
-
-# Initialize with Codex CLI support
-specify init my-project --ai codex --ai-skills
-
-# Initialize with Antigravity support
-specify init my-project --ai agy --ai-skills
-
-# Initialize with Forge support
-specify init my-project --ai forge
-
-# Initialize with an unsupported agent (generic / bring your own agent)
-specify init my-project --ai generic --ai-commands-dir .myagent/commands/
-
-# Initialize with PowerShell scripts (Windows/cross-platform)
-specify init my-project --ai copilot --script ps
-
-# Initialize in current directory
-specify init . --ai copilot
-# or use the --here flag
-specify init --here --ai copilot
-
-# Force merge into current (non-empty) directory without confirmation
-specify init . --force --ai copilot
-# or
-specify init --here --force --ai copilot
-
-# Skip git initialization
-specify init my-project --ai gemini --no-git
-
-# Enable debug output for troubleshooting
-specify init my-project --ai claude --debug
-
-# Use GitHub token for API requests (helpful for corporate environments)
-specify init my-project --ai claude --github-token ghp_your_token_here
-
-# Claude Code installs skills with the project by default
-specify init my-project --ai claude
-
-# Initialize in current directory with agent skills
-specify init --here --ai gemini --ai-skills
-
-# Use timestamp-based branch numbering (useful for distributed teams)
-specify init my-project --ai claude --branch-numbering timestamp
-
-# Check system requirements
-specify check
-```
-
-### Environment Variables
-
-| Variable          | Description                                                                                                                                                                                                                                                                                            |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `SPECIFY_FEATURE` | Override feature detection for non-Git repositories. Set to the feature directory name (e.g., `001-photo-albums`) to work on a specific feature when not using Git branches.<br/>\*\*Must be set in the context of the agent you're working with prior to using `/speckit.plan` or follow-up commands. |
+For full command details, options, and examples, see the [CLI Reference](https://github.github.io/spec-kit/reference/overview.html).
 
 ## 🧩 Making Spec Kit Your Own: Extensions & Presets
 
@@ -799,24 +762,67 @@ Additionally, you might want to ask Claude Code to research details about the ch
 ```text
 I want you to go through the implementation plan and implementation details, looking for areas that could
 benefit from additional research as .NET Aspire is a rapidly changing library. For those areas that you identify that
-could use additional research, do that research and then update the implementation details as necessary.
+require further research, I want you to update the research document with additional details about the specific
+versions that we are going to be using in this Taskify application and spawn parallel research tasks to clarify
+any details using research from the web.
 ```
 
-### **STEP 5:** Generate tasks
+During this process, you might find that Claude Code gets stuck researching the wrong thing - you can help nudge it in the right direction with a prompt like this:
 
-You can use the `/speckit.tasks` command to parse the implementation plan into a set of implementation tasks.
+```text
+I think we need to break this down into a series of steps. First, identify a list of tasks
+that you would need to do during implementation that you're not sure of or would benefit
+from further research. Write down a list of those tasks. And then for each one of these tasks,
+I want you to spin up a separate research task so that the net results is we are researching
+all of those very specific tasks in parallel. What I saw you doing was it looks like you were
+researching .NET Aspire in general and I don't think that's gonna do much for us in this case.
+That's way too untargeted research. The research needs to help you solve a specific targeted question.
+```
+
+> [!NOTE]
+> Claude Code might be over-eager and add components that you did not ask for. Ask it to clarify the rationale and the source of the change.
+
+### **STEP 5:** Have Claude Code validate the plan
+
+With the plan in place, you should have Claude Code run through it to make sure that there are no missing pieces. You can use a prompt like this:
+
+```text
+Now I want you to go and audit the implementation plan and the implementation detail files.
+Read through it with an eye on determining whether or not there is a sequence of tasks that you need
+to be doing that are obvious from reading this. Because I don't know if there's enough here. For example,
+when I look at the core implementation, it would be useful to reference the appropriate places in the implementation
+details where it can find the information as it walks through each step in the core implementation or in the refinement.
+```
+
+This helps refine the implementation plan and helps you avoid potential blind spots that Claude Code missed in its planning cycle. Once the initial refinement pass is complete, ask Claude Code to go through the checklist once more before you can get to the implementation.
+
+You can also ask Claude Code (if you have the [GitHub CLI](https://docs.github.com/en/github-cli/github-cli) installed) to go ahead and create a pull request from your current branch to `main` with a detailed description, to make sure that the effort is properly tracked.
+
+> [!NOTE]
+> Before you have the agent implement it, it's also worth prompting Claude Code to cross-check the details to see if there are any over-engineered pieces (remember - it can be over-eager). If over-engineered components or decisions exist, you can ask Claude Code to resolve them. Ensure that Claude Code follows the [constitution](base/memory/constitution.md) as the foundational piece that it must adhere to when establishing the plan.
+
+### **STEP 6:** Generate task breakdown with /speckit.tasks
+
+With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/speckit.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
 
 ```text
 /speckit.tasks
 ```
 
-You should see a series of tasks generated that covers the implementation of the feature. The task list uses the GFM task list format, which most modern IDEs and text editors can render as interactive checkboxes.
+This step creates a `tasks.md` file in your feature specification directory that contains:
 
-The task list will be in the `specs/001-create-taskify/tasks.md` file.
+- **Task breakdown organized by user story** - Each user story becomes a separate implementation phase with its own set of tasks
+- **Dependency management** - Tasks are ordered to respect dependencies between components (e.g., models before services, services before endpoints)
+- **Parallel execution markers** - Tasks that can run in parallel are marked with `[P]` to optimize development workflow
+- **File path specifications** - Each task includes the exact file paths where implementation should occur
+- **Test-driven development structure** - If tests are requested, test tasks are included and ordered to be written before implementation
+- **Checkpoint validation** - Each user story phase includes checkpoints to validate independent functionality
 
-### **STEP 6:** Implement
+The generated tasks.md provides a clear roadmap for the `/speckit.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
 
-Once you have created the task list, you can run the `/speckit.implement` command:
+### **STEP 7:** Implementation
+
+Once ready, use the `/speckit.implement` command to execute your implementation plan:
 
 ```text
 /speckit.implement
@@ -841,22 +847,10 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ## 🔍 Troubleshooting
 
-### Git Credential Manager on Linux
+## 👥 Maintainers
 
-If you're having issues with Git authentication on Linux, you can install Git Credential Manager:
-
-```bash
-#!/usr/bin/env bash
-set -e
-echo "Downloading Git Credential Manager v2.6.1..."
-wget https://github.com/git-ecosystem/git-credential-manager/releases/download/v2.6.1/gcm-linux_amd64.2.6.1.deb
-echo "Installing Git Credential Manager..."
-sudo dpkg -i gcm-linux_amd64.2.6.1.deb
-echo "Configuring Git to use GCM..."
-git config --global credential.helper manager
-echo "Cleaning up..."
-rm gcm-linux_amd64.2.6.1.deb
-```
+- **Lior Banai** — Original author and maintainer
+- **Tikalk Agentic SDLC Team** — Fork maintainers
 
 ## 💬 Support
 
