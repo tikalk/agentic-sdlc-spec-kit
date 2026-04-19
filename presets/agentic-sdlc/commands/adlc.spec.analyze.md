@@ -172,8 +172,8 @@ Load documentation artifacts plus analyze actual codebase:
 
 - Load `AD.md` (root) for system-level architecture context
 - Load `{REPO_ROOT}/.specify/drafts/adr.md` for system-level ADRs
-- Load `specs/{feature}/AD.md` for feature-level architecture (if `--architecture` was enabled)
-- Load `specs/{feature}/adr.md` for feature-level ADRs (if `--architecture` was enabled)
+- Load `specs/{feature}/AD.md` for feature-level architecture (if architect extension is installed)
+- Load `specs/{feature}/adr.md` for feature-level ADRs (if before_plan hook is configured)
 
 ### 3. Build Semantic Models
 
@@ -409,7 +409,7 @@ At end of report, output a concise Next Actions block based on detected mode and
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /spec.specify with refinement", "Run /spec.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 - **Architecture**: If violations found: "Resolve ADR violations before proceeding" or "Run /architect.clarify to update system ADRs"
-- **Feature Architecture**: If gaps found: "Run /spec.plan --architecture to generate feature-level architecture"
+- **Feature Architecture**: If gaps found: Run `/spec.plan` (architect extension before_plan hook generates feature architecture if enabled)
 
 **Post-Implementation Next Actions:**
 
