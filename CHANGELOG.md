@@ -4,6 +4,19 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.8] - 2026-04-19
+
+### Fixed
+
+- **Dead code removal**: 
+  - Removed unused `--outdated` option from `skill_list` command
+  - Removed unused `original_ref` parameter from `_generate_skill_id`
+  - Found via vulture dead code detection
+
+### Changed
+
+- **Clarify handoffs alignment**: Changed `send: false` to `send: true` for auto-validation in init/specify commands
+
 # [0.5.6] - 2026-04-19
 
 ### Fixed
