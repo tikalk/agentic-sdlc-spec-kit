@@ -88,7 +88,7 @@ class SkillInstaller:
             return False, f"Invalid skill reference: {skill_ref}"
 
         # Generate skill ID
-        skill_id = self._generate_skill_id(skill_info, skill_ref)
+        skill_id = self._generate_skill_id(skill_info)
 
         # Check if blocked by team policy
         if self.team_manifest and self.team_manifest.should_enforce_blocked():
@@ -159,7 +159,7 @@ class SkillInstaller:
         # Same structure as GitHub
         return self._parse_github_path(path)
 
-    def _generate_skill_id(self, info: SkillInfo, original_ref: str) -> str:
+    def _generate_skill_id(self, info: SkillInfo) -> str:
         """Generate a canonical skill ID"""
         if info.source_type in ("github", "gitlab"):
             return f"{info.source_type}:{info.org}/{info.repo}/{info.skill_name}"
