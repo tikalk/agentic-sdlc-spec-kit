@@ -2,6 +2,17 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.9] - 2026-04-19
+
+### Fixed
+
+- **Auto-handoff to clarify**: Changed `send: false` to `send: true` in init.md and specify.md for automatic validation of discovered PDRs
+
+### Changed
+
+- `/product.init` now auto-triggers `/product.clarify` to validate brownfield findings
+- `/product.specify` now auto-triggers `/product.clarify` to validate greenfield decisions
+
 ## [1.1.8] - 2026-04-13
 
 ### Fixed

@@ -4,7 +4,7 @@ handoffs:
   - label: Validate PDRs
     agent: product.clarify
     prompt: Validate product requirements and decisions - confirm priorities, scope, and assumptions
-    send: false
+    send: true
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "specify {ARGS}"
   ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "specify {ARGS}"

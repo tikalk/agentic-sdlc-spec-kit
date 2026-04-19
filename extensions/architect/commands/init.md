@@ -4,7 +4,7 @@ handoffs:
   - label: Validate Architecture Findings
     agent: architect.clarify
     prompt: Validate brownfield architecture findings - confirm detected technologies, patterns, and decisions
-    send: false
+    send: true
 scripts:
   sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "init {ARGS}"
   ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "init {ARGS}"

@@ -2,6 +2,17 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.2] - 2026-04-19
+
+### Fixed
+
+- **Auto-handoff to clarify**: Changed `send: false` to `send: true` in init.md and specify.md for automatic validation of discovered/created ADRs
+
+### Changed
+
+- `/architect.init` now auto-triggers `/architect.clarify` to validate brownfield findings
+- `/architect.specify` now auto-triggers `/architect.clarify` to validate greenfield decisions
+
 ## [2.0.1] - 2026-04-13
 
 ### Fixed

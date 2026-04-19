@@ -4,7 +4,7 @@ handoffs:
   - label: Validate ADRs
     agent: architect.clarify
     prompt: Validate architecture decisions - confirm selections for system architecture, database, API style, and deployment
-    send: false
+    send: true
 scripts:
   sh: .specify/extensions/architect/scripts/bash/setup-architect.sh "specify {ARGS}"
   ps: .specify/extensions/architect/scripts/powershell/setup-architect.ps1 "specify {ARGS}"
