@@ -4,6 +4,26 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.9] - 2026-04-20
+
+### Added
+
+- **ZIP install for team-ai-directives**:
+  - `sync_team_ai_directives()` now downloads ZIP from GitHub releases
+  - Installs via ExtensionManager to `.specify/extensions/`
+  - Stores `source_url` and `target_repo` in extension registry for levelup
+  - Updated `load_team_directives_config()` to check extensions/ only
+  - Removed legacy `.specify/memory` support and git clone
+
+### Removed
+
+- **Legacy memory path**: All `.specify/memory/team-ai-directives` fallbacks removed
+- **Git clone**: No longer supported for team-ai-directives
+
+### Changed
+
+- **Path resolution**: Now only checks `.specify/extensions/team-ai-directives`
+
 # [0.5.8] - 2026-04-19
 
 ### Fixed

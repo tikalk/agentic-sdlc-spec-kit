@@ -672,23 +672,7 @@ fi
 
 # Resolve team directives path using centralized function
 load_team_directives_config "$REPO_ROOT"
-TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-"$REPO_ROOT/.specify/memory/team-ai-directives"}"
-
-# Sync team-ai-directives if URL provided (skip in dry-run mode)
-if [ "$DRY_RUN" != true ] && [[ "$TEAM_DIRECTIVES_DIR" =~ ^https?:// ]]; then
-    echo "[specify] Syncing team-ai-directives from $TEAM_DIRECTIVES_DIR..." >&2
-    TEMP_DIR=$(mktemp -d)
-    if git clone --depth 1 "$TEAM_DIRECTIVES_DIR" "$TEMP_DIR/team-ai-directives" 2>/dev/null; then
-        TARGET_DIR="$REPO_ROOT/.specify/memory/team-ai-directives"
-        rm -rf "$TARGET_DIR"
-        mv "$TEMP_DIR/team-ai-directives" "$TARGET_DIR"
-        TEAM_DIRECTIVES_DIR="$TARGET_DIR"
-        echo "[specify] Team-ai-directives synced successfully" >&2
-    else
-        echo "[specify] Warning: Failed to sync team-ai-directives" >&2
-    fi
-    rm -rf "$TEMP_DIR"
-fi
+TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-"$REPO_ROOT/.specify/extensions/team-ai-directives"}"
 
 # Discover directives and skills
 DISCOVERED_DIRECTIVES=$(discover_directives "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR")

@@ -103,10 +103,10 @@ load_team_directives_config() {
         fi
     fi
 
-    # Fall back to memory location if not in init-options.json
-    local default_dir="$repo_root/.specify/memory/$TEAM_DIRECTIVES_DIRNAME"
-    if [[ -d "$default_dir" ]]; then
-        export SPECIFY_TEAM_DIRECTIVES="$default_dir"
+    # Check extension location (installed via specify init --team-ai-directives with ZIP URL)
+    local ext_dir="$repo_root/.specify/extensions/$TEAM_DIRECTIVES_DIRNAME"
+    if [[ -d "$ext_dir" ]]; then
+        export SPECIFY_TEAM_DIRECTIVES="$ext_dir"
     fi
 }
 

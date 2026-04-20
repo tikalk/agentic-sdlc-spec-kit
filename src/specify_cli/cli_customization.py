@@ -328,10 +328,8 @@ def pre_init(
         status, directives_path = sync_team_ai_directives(
             team_ai_directives, project_path
         )
-        if status == "cloned":
-            tracker.complete("team-directives", f"cloned to {directives_path}")
-        elif status == "updated":
-            tracker.complete("team-directives", f"updated at {directives_path}")
+        if status == "installed":
+            tracker.complete("team-directives", f"installed to {directives_path}")
         elif status == "local":
             tracker.complete("team-directives", f"local: {directives_path}")
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
@@ -927,13 +925,9 @@ def skill_install(
     team_manifest = None
     if not skip_blocked_check:
         config = _load_config(project_path)
-        team_directives_path = (
-            config.get("team_directives", {}).get("path") if config else None
-        )
-        if not team_directives_path:
-            default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-            if default_path.exists():
-                team_directives_path = str(default_path)
+        ext_path = project_path / ".specify" / "extensions" / "team-ai-directives"
+        if ext_path.exists():
+            team_directives_path = str(ext_path)
 
         if team_directives_path:
             team_directives = Path(team_directives_path)
@@ -1230,15 +1224,9 @@ def skill_sync_team(
         raise typer.Exit(1)
 
     project_path = Path.cwd()
-    config = _load_config(project_path)
 
-    team_directives_path = (
-        config.get("team_directives", {}).get("path") if config else None
-    )
-    if not team_directives_path:
-        default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-        if default_path.exists():
-            team_directives_path = str(default_path)
+    ext_path = project_path / ".specify" / "extensions" / "team-ai-directives"
+    team_directives_path = str(ext_path) if ext_path.exists() else None
 
     if not team_directives_path:
         console.print(
