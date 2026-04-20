@@ -1883,22 +1883,6 @@ def init(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
 
-            # Sync team-ai-directives repository if specified
-            if team_ai_directives:
-                tracker.start("team-directives")
-                try:
-                    status, directives_path = sync_team_ai_directives(
-                        team_ai_directives, project_path, skip_tls=skip_tls
-                    )
-                    tracker.complete("team-directives", f"{status}: {directives_path}")
-                except Exception as team_err:
-                    tracker.error("team-directives", str(team_err))
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Failed to sync team-ai-directives: {team_err}"
-                    )
-            else:
-                tracker.skip("team-directives", "not specified")
-
             # Install bundled extensions (from cli_customization if available)
             try:
                 tracker.start("extensions")

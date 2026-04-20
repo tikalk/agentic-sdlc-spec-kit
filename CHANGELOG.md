@@ -8,6 +8,11 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Fixed
 
+- **team-ai-directives duplicate installation**: Removed duplicate `sync_team_ai_directives()` call
+  - The function was being called twice: once in main init flow and once in `pre_init()` hook
+  - This caused "already installed" error on clean installs
+  - Now only called via `pre_init()` hook in cli_customization
+
 - **team-ai-directives init-options**: Removed duplicate save of ZIP URL in `init-options.json`
   - The `team_ai_directives` field was being saved twice: first as the original ZIP URL, then as the local path
   - Now only saves the local filesystem path after extension installation
