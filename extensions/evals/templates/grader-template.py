@@ -60,6 +60,7 @@ def _normalize_context(context: Union[str, List[str], None]) -> Optional[str]:
 
     if isinstance(context, list):
         # DeepEval 3.x: List[str] -> join with newlines
+        # Note: Empty list [] returns None (treated as no context, not empty string)
         return "\n".join(context) if context else None
 
     # PromptFoo: str -> return as-is
@@ -392,7 +393,7 @@ Focus on semantic meaning and intent. Return JSON:
     try:
         # Simplified LLM call for hybrid mode
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model=LLM_MODEL,
             messages=[{"role": "user", "content": judge_prompt}],
             max_tokens=100,
             temperature=0.1,
