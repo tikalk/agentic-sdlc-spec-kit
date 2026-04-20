@@ -924,7 +924,6 @@ def skill_install(
     # Check for team manifest and blocked skills enforcement
     team_manifest = None
     if not skip_blocked_check:
-        config = _load_config(project_path)
         ext_path = project_path / ".specify" / "extensions" / "team-ai-directives"
         if ext_path.exists():
             team_directives_path = str(ext_path)
