@@ -1,0 +1,11 @@
+{
+  "_comment": "Maps criterion IDs to grader module names",
+  "_example": "If criterion ID is 'eval-001' and grader file is 'check_pii.py', map to 'check_pii'",
+
+  "eval-001": "check_pii_leakage",
+  "eval-002": "check_misinformation",
+  "eval-003": "check_hallucination",
+  "eval-004": "check_https_validation",
+  "eval-005": "check_prompt_injection",
+  "eval-006": "check_unit_conversion"
+}
