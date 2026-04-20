@@ -324,6 +324,7 @@ def pre_init(
     from . import sync_team_ai_directives
 
     tracker.start("team-directives")
+    directives_path = None
     try:
         status, directives_path = sync_team_ai_directives(
             team_ai_directives, project_path
@@ -333,18 +334,20 @@ def pre_init(
         elif status == "local":
             tracker.complete("team-directives", f"local: {directives_path}")
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
-
-        # Persist to init-options.json (less upstream merge conflicts)
-        from . import load_init_options, save_init_options
-
-        init_opts = load_init_options(project_path)
-        init_opts["team_ai_directives"] = str(directives_path)
-        save_init_options(project_path, init_opts)
     except Exception as e:
         tracker.error("team-directives", str(e))
         console.print(
             f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {e}"
         )
+        return
+
+    # Persist to init-options.json separately - failures here are critical
+    if directives_path:
+        from . import load_init_options, save_init_options
+
+        init_opts = load_init_options(project_path)
+        init_opts["team_ai_directives"] = str(directives_path)
+        save_init_options(project_path, init_opts)
 
 
 def post_init(
