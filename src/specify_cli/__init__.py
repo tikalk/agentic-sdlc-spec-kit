@@ -242,9 +242,20 @@ def _derive_target_repo_from_url(zip_url: str) -> str:
 
 
 def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, skip_tls: bool = False
+    repo_url: str, project_root: Path, *, install: bool = True, skip_tls: bool = False
 ) -> tuple[str, Path]:
-    """Install team-ai-directives as extension from ZIP URL or local path."""
+    """Install team-ai-directives as extension from ZIP URL or local path.
+
+    Args:
+        repo_url: URL or local path to team-ai-directives
+        project_root: Project root directory
+        install: If True, copy local directories to .specify/extensions/.
+                 If False, use local directories in-place (reference mode).
+        skip_tls: Skip TLS verification (for HTTPS URLs)
+
+    Returns:
+        Tuple of (status, path) where status is "installed", "local", or "reference"
+    """
     from .extensions import ExtensionManager, ExtensionManifest  # noqa: F401
 
     repo_url = (repo_url or "").strip()
@@ -254,6 +265,25 @@ def sync_team_ai_directives(
     potential_path = Path(repo_url).expanduser()
 
     if potential_path.exists() and potential_path.is_dir():
+        # Validate it's a proper extension
+        manifest_path = potential_path / "extension.yml"
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Invalid team-ai-directives directory: {potential_path}\n"
+                f"Missing extension.yml manifest file"
+            )
+
+        if not install:
+            # Reference mode: use directory in-place without copying
+            manifest = ExtensionManifest(manifest_path)
+            if manifest.id != TEAM_DIRECTIVES_DIRNAME:
+                raise ValueError(
+                    f"Extension ID mismatch: expected '{TEAM_DIRECTIVES_DIRNAME}', "
+                    f"got '{manifest.id}'"
+                )
+            return ("reference", potential_path)
+
+        # Install mode: copy to .specify/extensions/
         ext_manager = ExtensionManager(project_root)
         speckit_version = get_speckit_version()
         manifest = ext_manager.install_from_directory(
@@ -1197,6 +1227,24 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return {}
+
+
+def get_team_directives_path(project_path: Path) -> Path | None:
+    """Get team-ai-directives path from init-options or fallback to extensions dir.
+
+    Checks init-options.json first for external/override path, then falls back
+    to the standard .specify/extensions/team-ai-directives location.
+
+    Returns None if neither location exists.
+    """
+    init_opts = load_init_options(project_path)
+    if "team_ai_directives" in init_opts:
+        path = Path(init_opts["team_ai_directives"])
+        if path.exists():
+            return path
+    # Fallback to installed extension
+    fallback = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+    return fallback if fallback.exists() else None
 
 
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:

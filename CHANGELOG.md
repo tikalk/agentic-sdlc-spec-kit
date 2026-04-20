@@ -6,6 +6,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [0.5.10] - 2026-04-20
 
+### Added
+
+- **team-ai-directives reference mode**: Local directories are now used in-place without copying
+  - When `--team-ai-directives` points to a local directory, it's used directly (reference mode)
+  - When `--team-ai-directives` is a ZIP URL, it's downloaded and installed to `.specify/extensions/`
+  - Added `get_team_directives_path()` helper to resolve path from init-options or extensions dir
+  - Added `install` parameter to `sync_team_ai_directives()` for explicit control
+
 ### Fixed
 
 - **team-ai-directives duplicate installation**: Removed duplicate `sync_team_ai_directives()` call
