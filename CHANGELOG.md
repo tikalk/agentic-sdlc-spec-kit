@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.10] - 2026-04-20
+
+### Fixed
+
+- **team-ai-directives init-options**: Removed duplicate save of ZIP URL in `init-options.json`
+  - The `team_ai_directives` field was being saved twice: first as the original ZIP URL, then as the local path
+  - Now only saves the local filesystem path after extension installation
+  - Ensures `init-options.json` contains usable path instead of download URL
+
 # [0.5.9] - 2026-04-20
 
 ### Added

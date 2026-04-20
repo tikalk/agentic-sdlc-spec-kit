@@ -1812,7 +1812,6 @@ def init(
                 "preset": preset,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
-                "team_ai_directives": team_ai_directives,
             }
             # Ensure ai_skills is set for SkillsIntegration so downstream
             # tools (extensions, presets) emit SKILL.md overrides correctly.
