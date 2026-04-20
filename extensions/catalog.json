@@ -209,6 +209,7 @@
       "id": "evals",
       "name": "Evals - EDD (Eval-Driven Development) with PromptFoo Integration",
       "version": "1.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "Build evaluation systems following EDD (Eval-Driven Development) principles, integrating with PromptFoo for eval execution and annotation",
       "author": "Agentic SDLC Team",

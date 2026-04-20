@@ -13,6 +13,8 @@ All notable changes to the Specify CLI and templates are documented here.
   - Installs via ExtensionManager to `.specify/extensions/`
   - Stores `source_url` and `target_repo` in extension registry for levelup
   - Updated `load_team_directives_config()` to check extensions/ only
+
+- **Documentation**: Added team-ai-directives extension integration docs to README.md
   - Removed legacy `.specify/memory` support and git clone
 
 ### Removed
