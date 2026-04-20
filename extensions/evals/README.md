@@ -22,7 +22,7 @@ The Evals extension implements a systematic evaluation lifecycle for AI systems,
 | `/evals.clarify` | Resolve ambiguities → accept criteria → goldset.md |
 | `/evals.implement` | Generate config + graders (PromptFoo or DeepEval) |
 | `/evals.validate` | Run evals + validate quality (TPR/TNR + pass rates) |
-| `/evals.trace` | Analyze results → team insights → optional PR |
+| `/evals.analyze` | Analyze results → team insights → optional PR |
 
 ## Quick Start
 
@@ -44,7 +44,7 @@ The Evals extension implements a systematic evaluation lifecycle for AI systems,
 /evals.clarify
 /evals.implement
 /evals.validate
-/evals.trace                      # Generate team insights
+/evals.analyze                      # Generate team insights
 ```
 
 ## Goldset Lifecycle
@@ -52,7 +52,7 @@ The Evals extension implements a systematic evaluation lifecycle for AI systems,
 Evaluations follow a structured lifecycle similar to ADRs/PDRs:
 
 ```
-/evals.specify → /evals.clarify → /evals.implement → /evals.validate → /evals.trace
+/evals.specify → /evals.clarify → /evals.implement → /evals.validate → /evals.analyze
    (draft)          (accept)        (publish)          (run)          (analyze)
 ```
 
@@ -62,13 +62,13 @@ Evaluations follow a structured lifecycle similar to ADRs/PDRs:
 | **Accept** | `/evals.clarify` | Draft criteria | Accepted goldset in `evals/{system}/goldset.md` |
 | **Publish** | `/evals.implement` | Goldset criteria | Executable graders + config files |
 | **Run** | `/evals.validate` | Implemented evals | Test results + quality metrics |
-| **Analyze** | `/evals.trace` | Evaluation results | Team insights + patterns |
+| **Analyze** | `/evals.analyze` | Evaluation results | Team insights + patterns |
 
 ## Command Flow
 
 ```text
 Brownfield (Error Analysis):
-  /evals.init → /evals.specify → /evals.clarify → /evals.implement → /evals.validate → /evals.trace
+  /evals.init → /evals.specify → /evals.clarify → /evals.implement → /evals.validate → /evals.analyze
                    (analyze           (accept              (generate           (run evals)      (team insights)
                     failures)          criteria)            graders)
 
@@ -121,7 +121,7 @@ Choose between two evaluation frameworks:
 | **VII** | Annotation Queues | High-risk traces route to humans for binary review |
 | **VIII** | Close Production Loop | Spec failures → fix directives; Gen failures → build evaluator |
 | **IX** | Test Data as Code | Version datasets; 10%+ adversarial; 20% holdout set |
-| **X** | Cross-Functional | PMs, domain experts, AI engineers collaborate via `/evals.trace` |
+| **X** | Cross-Functional | PMs, domain experts, AI engineers collaborate via `/evals.analyze` |
 
 ### Key Implementation Details
 
@@ -200,11 +200,11 @@ Creates executable graders + framework configs (Tier 1 + Tier 2).
 
 Executes evals + validates quality (TPR/TNR, SLA compliance, EDD principles).
 
-### `/evals.trace` - Team Insights
+### `/evals.analyze` - Team Insights
 
 ```bash
-/evals.trace
-/evals.trace --focus security
+/evals.analyze
+/evals.analyze --focus security
 ```
 
 Analyzes results → failure patterns → cross-functional insights → optional PR.
@@ -321,7 +321,7 @@ Evals integrate via automatic task markers:
 2. **Binary pass/fail only** - Never use Likert scales or confidence scores
 3. **Balance speed/coverage** - Tier 1 (<30s) for fast checks, Tier 2 (<5min) for semantic judges
 4. **Version everything** - Goldsets, datasets, configs under version control
-5. **Cross-functional collaboration** - Include domain experts, use `/evals.trace` for insights
+5. **Cross-functional collaboration** - Include domain experts, use `/evals.analyze` for insights
 
 ## Related
 

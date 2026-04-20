@@ -1,8 +1,8 @@
 ---
-description: Generate execution traces + analysis reports from evals/results/ → optional PR to team-ai-directives
+description: Generate execution analysis + reports from evals/results/ → optional PR to team-ai-directives
 scripts:
-  sh: scripts/bash/setup-evals.sh "trace {ARGS}"
-  ps: scripts/powershell/setup-evals.ps1 "trace {ARGS}"
+  sh: scripts/bash/setup-evals.sh "analyze {ARGS}"
+  ps: scripts/powershell/setup-evals.ps1 "analyze {ARGS}"
 ---
 
 ## User Input
@@ -983,7 +983,7 @@ This PR contains comprehensive production intelligence analysis from March 15-30
 
 ## Workflow Guidance & Transitions
 
-### After `/evals.trace`
+### After `/evals.analyze`
 
 **Success Path**: Execution traces and analysis reports successfully generated, with optional insights routed to team.
 
@@ -995,7 +995,7 @@ This PR contains comprehensive production intelligence analysis from March 15-30
 **Complete Trace Flow**:
 
 ```
-/evals.trace "Comprehensive production intelligence analysis"
+/evals.analyze "Comprehensive production intelligence analysis"
     ↓
 [Results discovery] → Inventory evaluation results and annotation queues
     ↓

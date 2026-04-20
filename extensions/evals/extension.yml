@@ -57,11 +57,11 @@ provides:
       description: "Run evals and validate results (TPR/TNR + goldset quality + pass rate thresholds)"
       aliases: ["evals.validate"]
 
-    # Generate execution traces + analysis reports
-    - name: "adlc.evals.trace"
-      file: "commands/trace.md"
-      description: "Generate execution traces + analysis reports from evals/results/ → optional PR to team-ai-directives"
-      aliases: ["evals.trace"]
+    # Generate execution analysis + reports
+    - name: "adlc.evals.analyze"
+      file: "commands/analyze.md"
+      description: "Generate execution analysis + reports from evals/results/ → optional PR to team-ai-directives"
+      aliases: ["evals.analyze"]
 
   config:
     - name: "evals-config.yml"
@@ -96,9 +96,9 @@ handoffs:
       send: true
 
   evals.validate:
-    - label: "Generate Traces"
-      agent: "evals.trace"
-      prompt: "Generate execution traces and analysis reports from results"
+    - label: "Generate Analysis"
+      agent: "evals.analyze"
+      prompt: "Generate execution analysis and reports from results"
       send: false
 
 tags:
@@ -153,6 +153,6 @@ defaults:
 # 3. clarify → resolve ambiguities (goldset.md + goldset.json)
 # 4. implement → generate eval config + graders (choose PromptFoo/DeepEval)
 # 5. validate → run evals + TPR/TNR + quality thresholds
-# 6. trace → generate traces + analysis reports + optional PR
+# 6. analyze → generate analysis + reports + optional PR
 #
 # Integration: Task creation automatically adds [EVAL] markers
