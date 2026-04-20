@@ -13,6 +13,11 @@ All notable changes to the Specify CLI and templates are documented here.
   - Now only saves the local filesystem path after extension installation
   - Ensures `init-options.json` contains usable path instead of download URL
 
+- **team-ai-directives save error handling**: Separated `save_init_options()` from sync exception handler
+  - Moved save logic outside the try/except block to prevent silent failures
+  - When sync fails, early return prevents save attempt
+  - When sync succeeds, save failures will now raise visible errors instead of being swallowed
+
 # [0.5.9] - 2026-04-20
 
 ### Added
