@@ -4,7 +4,7 @@ handoffs:
   - label: Resolve Conflicts
     agent: adlc.levelup.clarify
     prompt: Resolve rule conflicts detected by validate command
-    send: false
+    send: true
   - label: Create PR
     agent: adlc.levelup.implement
     prompt: Compile conflict resolution CDRs to team-ai-directives PR

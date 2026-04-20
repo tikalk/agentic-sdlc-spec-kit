@@ -17,9 +17,43 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Outline
+## Pre-Execution Checks
 
-Goal: Detect and reduce ambiguity or missing decision points in the active feature specification. Validate spec against project constitution and architecture (three-pillar validation). Record clarifications directly in the spec file.
+**Check for extension hooks (before clarification)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_clarify` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Goal.
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
+## Goal
+
+Detect and reduce ambiguity or missing decision points in the active feature specification. Validate spec against project constitution and architecture (three-pillar validation). Record clarifications directly in the spec file.
 
 Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/spec.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
@@ -433,5 +467,37 @@ Behavior rules:
 - **Auto-fix diagrams silently**: When fixing diagram inconsistencies, apply update and note in clarifications (don't ask user)
 
 - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
+
+## Post-Execution Checks
+
+**Check for extension hooks (after clarification)**:
+Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.after_clarify` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 Context for prioritization: {ARGS}

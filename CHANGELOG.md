@@ -4,14 +4,76 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.9] - 2026-04-20
+
+### Added
+
+- **DeepEval Integration**: Full support for DeepEval as alternative evaluation framework
+  - Custom metric class generation with DeepEval v3.x API support
+  - Automatic version compatibility validation (DeepEval >=3.0.0 required)
+  - System detection to choose between PromptFoo and DeepEval
+- **Atomic Generation Order**: Prevents import errors in generated configurations
+  - Graders generated before config (normal Python imports work)
+  - Validation step with rollback on failure
+  - Clear error messages for missing dependencies
+
+### Changed
+
+- **Command Naming**: Renamed `evals.trace` to `evals.analyze` for clarity
+- **Command Structure**: Standardized command interface across all evals commands
+
+### Fixed
+
+- **Import Errors**: Resolved chicken-and-egg problem in DeepEval config generation
+- **Version Compatibility**: Added clear error messages for DeepEval v2.x users with upgrade instructions
+- **Documentation**: Clarified threshold parameter usage in EDD binary evaluation mode
+
+# [0.5.8] - 2026-04-19
+
+### Fixed
+
+- **Dead code removal**: 
+  - Removed unused `--outdated` option from `skill_list` command
+  - Removed unused `original_ref` parameter from `_generate_skill_id`
+  - Found via vulture dead code detection
+
+### Changed
+
+- **Clarify handoffs alignment**: Changed `send: false` to `send: true` for auto-validation in init/specify commands
+
+# [0.5.6] - 2026-04-19
+
+### Fixed
+
+- **Preset commands aligned with templates**:
+  - Fixed hook filtering style from exclusive (`enabled: true` required) to inclusive (default enabled)
+  - Changed template path reference to relative path `templates/tasks-template.md`
+  - Added branch numbering mode support with `init-options.json` checking
+  - Fixed YAML indentation in `adlc.spec.plan.md`
+
+### Added
+
+- **Pre/Post-Execution Checks**: Added missing hook checking sections to:
+  - `adlc.spec.checklist.md`
+  - `adlc.spec.clarify.md`
+  - `adlc.spec.analyze.md`
+
 # [0.5.4] - 2026-04-16
 
 ### Changed
 
-- **Evals Extension**: Added DeepEval integration as alternative to PromptFoo
-  - `/evals.init --system deepeval` for DeepEval configuration
-  - `/evals.init --system promptfoo` remains default for Promptfoo configuration
-  - Generated test structure with comprehensive unit tests for all evaluators
+- **Upstream merge**: Synced with github/spec-kit (076bb40)
+  - Integration catalog: new discovery, versioning, and community distribution system
+  - `specify integration list --catalog`: browse remote integrations
+  - `specify integration upgrade`: diff-aware upgrade with modified file detection
+  - Documentation: integrations FAQ and extensions reference
+
+### Added
+
+- **New integration**: `catalog.py` module with `IntegrationCatalog` and `IntegrationDescriptor`
+  - Fetches remote catalogs from configurable sources
+  - Caches for 1 hour in `.specify/integrations/.cache/`
+  - Validates integration YAML descriptors
 
 # [0.5.3] - 2026-04-16
 
@@ -1106,6 +1168,36 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.7.3] - 2026-04-17
+
+### Changed
+
+- fix: replace shell-based context updates with marker-based upsert (#2259)
+- Add Community Friends page to docs site (#2261)
+- Add Spec Scope extension to community catalog (#2172)
+- docs: add Community-maintained plugin for Claude Code and GitHub Copilot CLI that installs Spec Kit skills via the plugin marketplace to README (#2250)
+- fix: suppress CRLF warnings in auto-commit.ps1 (#2258)
+- feat: register Blueprint in community catalog (#2252)
+- preset: Update preset-fiction-book-writing to community catalog -> v1.5.0 (#2256)
+- chore(deps): bump actions/upload-pages-artifact from 3 to 5 (#2251)
+- fix: add reference/*.md to docfx content glob (#2248)
+- chore: release 0.7.2, begin 0.7.3.dev0 development (#2247)
+
+## [0.7.2] - 2026-04-16
+
+### Changed
+
+- docs: add core commands reference and simplify README CLI section (#2245)
+- docs: add workflows reference, reorganize into docs/reference/, and add --version flag (#2244)
+- docs: add presets reference page and rename pack_id to preset_id (#2243)
+- docs: add extensions reference page and integrations FAQ (#2242)
+- docs: consolidate integration documentation into docs/integrations.md (#2241)
+- feat: update memorylint and superpowers-bridge versions to 1.3.0 with new download URLs (#2240)
+- feat: Integration catalog — discovery, versioning, and community distribution (#2130)
+- Add Catalog CI extension to community catalog (#2239)
+- Added issues extension (#2194)
+- chore: release 0.7.1, begin 0.7.2.dev0 development (#2235)
 
 ## [0.7.1] - 2026-04-15
 

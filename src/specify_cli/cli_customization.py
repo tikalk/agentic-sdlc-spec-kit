@@ -1070,9 +1070,6 @@ def skill_remove(
 
 @skill_app.command("list")
 def skill_list(
-    outdated: bool = typer.Option(
-        False, "--outdated", "-o", help="Show only outdated skills"
-    ),
     json_output: bool = typer.Option(
         False, "--json", "-j", help="Output as JSON for scripting"
     ),

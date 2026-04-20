@@ -83,7 +83,8 @@ jobs:
           VERSION_NO_V=${VERSION#v}
           gh release create "$VERSION" \
             --title "Spec Kit - $VERSION_NO_V" \
-            --notes-file release_notes.md
+            --notes-file release_notes.md \
+            --draft=false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

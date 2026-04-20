@@ -13,6 +13,40 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Pre-Execution Checks
+
+**Check for extension hooks (before analysis)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_analyze` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Goal.
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+
 ## Goal
 
 Perform consistency and quality analysis across artifacts and implementation with automatic context detection:
@@ -138,8 +172,8 @@ Load documentation artifacts plus analyze actual codebase:
 
 - Load `AD.md` (root) for system-level architecture context
 - Load `{REPO_ROOT}/.specify/drafts/adr.md` for system-level ADRs
-- Load `specs/{feature}/AD.md` for feature-level architecture (if `--architecture` was enabled)
-- Load `specs/{feature}/adr.md` for feature-level ADRs (if `--architecture` was enabled)
+- Load `specs/{feature}/AD.md` for feature-level architecture (if architect extension is installed)
+- Load `specs/{feature}/adr.md` for feature-level ADRs (if before_plan hook is configured)
 
 ### 3. Build Semantic Models
 
@@ -375,7 +409,7 @@ At end of report, output a concise Next Actions block based on detected mode and
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
 - Provide explicit command suggestions: e.g., "Run /spec.specify with refinement", "Run /spec.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 - **Architecture**: If violations found: "Resolve ADR violations before proceeding" or "Run /architect.clarify to update system ADRs"
-- **Feature Architecture**: If gaps found: "Run /spec.plan --architecture to generate feature-level architecture"
+- **Feature Architecture**: If gaps found: Run `/spec.plan` (architect extension before_plan hook generates feature architecture if enabled)
 
 **Post-Implementation Next Actions:**
 
@@ -462,6 +496,38 @@ If post-implementation analysis identifies critical problems requiring rollback:
 - **Documentation synchronization**: Identify gaps between code and docs without assuming intent
 - **Refinement focus**: Suggest improvements based on real implementation experience
 - **Performance awareness**: Flag obvious bottlenecks but don't micro-optimize
+
+## Post-Execution Checks
+
+**Check for extension hooks (after analysis)**:
+Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.after_analyze` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Context
 

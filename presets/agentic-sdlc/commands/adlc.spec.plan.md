@@ -9,11 +9,11 @@ handoffs:
     agent: adlc.spec.checklist
     prompt: Create a checklist for the following domain...
 scripts:
-    sh: scripts/bash/setup-plan.sh --json
-    ps: scripts/powershell/setup-plan.ps1 -Json
+  sh: scripts/bash/setup-plan.sh --json
+  ps: scripts/powershell/setup-plan.ps1 -Json
 agent_scripts:
-    sh: scripts/bash/update-agent-context.sh __AGENT__
-    ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
+  sh: scripts/bash/update-agent-context.sh __AGENT__
+  ps: scripts/powershell/update-agent-context.ps1 -AgentType __AGENT__
 ---
 
 ## User Input
@@ -34,7 +34,7 @@ Parse the following parameters from `$ARGUMENTS`:
 - Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root
 - If it exists, read it and look for entries under the `hooks.before_plan` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter to only hooks where `enabled: true`
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 - For hooks with conditions, skip condition evaluation (leave to HookExecutor)
 - For hooks without conditions, treat as executable
 
@@ -259,7 +259,7 @@ Document each task with: Classification ([SYNC]/[ASYNC]), Primary Criteria, Risk
 - After plan is generated, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root
 - If it exists, read it and look for entries under the `hooks.after_plan` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter to only hooks where `enabled: true`
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
 
 **For each executable hook**:
 - **Optional hook** (`optional: true`):

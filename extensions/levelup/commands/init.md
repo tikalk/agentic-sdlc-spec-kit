@@ -11,7 +11,7 @@ handoffs:
       - Existing coverage (does team-ai-directives already have this?)
       - Priority (high-value vs nice-to-have patterns)
       Focus on validating assumptions, not suggesting new patterns.
-    send: false
+    send: true
   - label: Refine from Feature Context
     agent: adlc.levelup.specify
     prompt: Refine CDRs using current feature spec context
