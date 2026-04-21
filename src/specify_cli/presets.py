@@ -16,7 +16,10 @@ import zipfile
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Dict, List, Any
+from typing import TYPE_CHECKING, Optional, Dict, List, Any
+
+if TYPE_CHECKING:
+    from .agents import CommandRegistrar
 from datetime import datetime, timezone
 import re
 
@@ -25,6 +28,59 @@ from packaging import version as pkg_version
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
 from .extensions import ExtensionRegistry, normalize_priority
+
+
+def _substitute_core_template(
+    body: str,
+    cmd_name: str,
+    project_root: "Path",
+    registrar: "CommandRegistrar",
+) -> "tuple[str, dict]":
+    """Substitute {CORE_TEMPLATE} with the body of the installed core command template.
+
+    Args:
+        body: Preset command body (may contain {CORE_TEMPLATE} placeholder).
+        cmd_name: Full command name (e.g. "speckit.git.feature" or "speckit.specify").
+        project_root: Project root path.
+        registrar: CommandRegistrar instance for parse_frontmatter.
+
+    Returns:
+        A tuple of (body, core_frontmatter) where body has {CORE_TEMPLATE} replaced
+        by the core template body and core_frontmatter holds the core template's parsed
+        frontmatter (so callers can inherit scripts/agent_scripts from it).  Both are
+        unchanged / empty when the placeholder is absent or the core template file does
+        not exist.
+    """
+    if "{CORE_TEMPLATE}" not in body:
+        return body, {}
+
+    # Derive the short name (strip "speckit." prefix) used by core command templates.
+    short_name = cmd_name
+    if short_name.startswith("speckit."):
+        short_name = short_name[len("speckit."):]
+
+    resolver = PresetResolver(project_root)
+    # Resolution order for the core template:
+    # 1. resolve_core(cmd_name) — covers tier-1 project overrides and tier-3/4
+    #    name-based lookup (file named <cmd_name>.md).  Checked first so that a
+    #    local override always wins, even for extension commands.
+    # 2. resolve_extension_command_via_manifest(cmd_name) — manifest-based tier-3
+    #    fallback for extension commands whose file is named differently from the
+    #    command name (e.g. speckit.selftest.extension → commands/selftest.md).
+    # 3. resolve_core(short_name) — core template fallback using the unprefixed
+    #    name (e.g. specify → templates/commands/specify.md).
+    # resolve_core() skips installed presets (tier 2) to prevent accidental nesting
+    # where another preset's wrap output is mistaken for the real core.
+    core_file = (
+        resolver.resolve_core(cmd_name, "command")
+        or resolver.resolve_extension_command_via_manifest(cmd_name)
+        or resolver.resolve_core(short_name, "command")
+    )
+    if core_file is None:
+        return body, {}
+
+    core_frontmatter, core_body = registrar.parse_frontmatter(core_file.read_text(encoding="utf-8"))
+    return body.replace("{CORE_TEMPLATE}", core_body), core_frontmatter
 
 
 @dataclass
@@ -555,6 +611,232 @@ class PresetManager:
         registrar = CommandRegistrar()
         registrar.unregister_commands(registered_commands, self.project_root)
 
+    def _replay_wraps_for_command(self, cmd_name: str) -> None:
+        """Recompose and rewrite agent files for a wrap-strategy command.
+
+        Collects all installed presets that declare cmd_name in their
+        wrap_commands registry field, sorts them so the highest-precedence
+        preset (lowest priority number) wraps outermost, then writes the
+        fully composed output to every agent directory.
+
+        Called after every install and remove to keep agent files correct
+        regardless of installation order.
+
+        Args:
+            cmd_name: Full command name (e.g. "speckit.specify")
+        """
+        try:
+            from .agents import CommandRegistrar
+        except ImportError:
+            return
+
+        # Collect enabled presets that wrap this command, sorted ascending
+        # (lowest priority number = highest precedence = outermost).
+        wrap_presets = []
+        for pack_id, metadata in self.registry.list_by_priority(include_disabled=False):
+            if cmd_name not in metadata.get("wrap_commands", []):
+                continue
+            pack_dir = self.presets_dir / pack_id
+            if not pack_dir.is_dir():
+                continue  # corrupted state — skip
+            wrap_presets.append((pack_id, pack_dir))
+
+        if not wrap_presets:
+            return
+
+        # Derive short name for core resolution fallback.
+        short_name = cmd_name
+        if short_name.startswith("speckit."):
+            short_name = short_name[len("speckit."):]
+
+        resolver = PresetResolver(self.project_root)
+        core_file = (
+            resolver.resolve_core(cmd_name, "command")
+            or resolver.resolve_extension_command_via_manifest(cmd_name)
+            or (
+                resolver.resolve_extension_command_via_manifest(short_name)
+                if short_name != cmd_name
+                else None
+            )
+            or resolver.resolve_core(short_name, "command")
+        )
+        if core_file is None:
+            return
+
+        registrar = CommandRegistrar()
+        core_frontmatter, core_body = registrar.parse_frontmatter(
+            core_file.read_text(encoding="utf-8")
+        )
+        replay_aliases: List[str] = []
+        seen_aliases: set[str] = set()
+
+        # Apply wraps innermost-first (reverse of ascending list).
+        accumulated_body = core_body
+        outermost_frontmatter = {}
+        outermost_pack_id = wrap_presets[0][0]  # fallback; updated per contributing preset
+        for pack_id, pack_dir in reversed(wrap_presets):
+            manifest_path = pack_dir / "preset.yml"
+            cmd_file: Optional[Path] = None
+            if manifest_path.exists():
+                try:
+                    manifest = PresetManifest(manifest_path)
+                except (PresetValidationError, KeyError, TypeError, ValueError):
+                    manifest = None
+                if manifest is not None:
+                    for template in manifest.templates:
+                        if template.get("type") != "command" or template.get("name") != cmd_name:
+                            continue
+                        file_rel = template.get("file")
+                        if isinstance(file_rel, str):
+                            rel_path = Path(file_rel)
+                            if not rel_path.is_absolute():
+                                try:
+                                    preset_root = pack_dir.resolve()
+                                    candidate = (preset_root / rel_path).resolve()
+                                    candidate.relative_to(preset_root)
+                                except (OSError, ValueError):
+                                    candidate = None
+                                if candidate is not None:
+                                    cmd_file = candidate
+                        aliases = template.get("aliases", [])
+                        if not isinstance(aliases, list):
+                            aliases = []
+                        for alias in aliases:
+                            if isinstance(alias, str) and alias not in seen_aliases:
+                                replay_aliases.append(alias)
+                                seen_aliases.add(alias)
+                        break
+            if cmd_file is None:
+                cmd_file = pack_dir / "commands" / f"{cmd_name}.md"
+            if not cmd_file.exists():
+                continue
+            wrap_fm, wrap_body = registrar.parse_frontmatter(
+                cmd_file.read_text(encoding="utf-8")
+            )
+            accumulated_body = wrap_body.replace("{CORE_TEMPLATE}", accumulated_body)
+            outermost_frontmatter = wrap_fm  # last iteration = outermost preset
+            outermost_pack_id = pack_id
+
+        # Build final frontmatter: outermost preset wins; fall back to core for
+        # scripts/agent_scripts if the outermost preset does not define them.
+        final_frontmatter = dict(outermost_frontmatter)
+        final_frontmatter.pop("strategy", None)
+        for key in ("scripts", "agent_scripts"):
+            if key not in final_frontmatter and key in core_frontmatter:
+                final_frontmatter[key] = core_frontmatter[key]
+
+        composed_content = (
+            registrar.render_frontmatter(final_frontmatter) + "\n" + accumulated_body
+        )
+
+        self._replay_skill_override(cmd_name, composed_content, outermost_pack_id)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp_path = Path(tmpdir)
+            cmd_dir = tmp_path / "commands"
+            cmd_dir.mkdir()
+            (cmd_dir / f"{cmd_name}.md").write_text(composed_content, encoding="utf-8")
+            registrar._ensure_configs()
+            for agent_name, agent_config in registrar.AGENT_CONFIGS.items():
+                if agent_config.get("extension") == "/SKILL.md":
+                    continue
+                agent_dir = self.project_root / agent_config["dir"]
+                if not agent_dir.exists():
+                    continue
+                try:
+                    registrar.register_commands(
+                        agent_name,
+                        [{
+                            "name": cmd_name,
+                            "file": f"commands/{cmd_name}.md",
+                            "aliases": replay_aliases,
+                        }],
+                        f"preset:{outermost_pack_id}",
+                        tmp_path,
+                        self.project_root,
+                    )
+                except ValueError:
+                    continue
+
+    def _replay_skill_override(
+        self,
+        cmd_name: str,
+        composed_content: str,
+        outermost_pack_id: str,
+    ) -> None:
+        """Rewrite any active SKILL.md override for a replayed wrap command."""
+        skills_dir = self._get_skills_dir()
+        if not skills_dir:
+            return
+
+        from . import SKILL_DESCRIPTIONS, load_init_options
+        from .agents import CommandRegistrar
+        from .integrations import get_integration
+
+        init_opts = load_init_options(self.project_root)
+        if not isinstance(init_opts, dict):
+            init_opts = {}
+        selected_ai = init_opts.get("ai")
+        if not isinstance(selected_ai, str):
+            return
+
+        registrar = CommandRegistrar()
+        integration = get_integration(selected_ai)
+        agent_config = registrar.AGENT_CONFIGS.get(selected_ai, {})
+        create_missing_skills = bool(init_opts.get("ai_skills")) and agent_config.get("extension") != "/SKILL.md"
+
+        skill_name, legacy_skill_name = self._skill_names_for_command(cmd_name)
+        target_skill_names: List[str] = []
+        if (skills_dir / skill_name).is_dir():
+            target_skill_names.append(skill_name)
+        if legacy_skill_name != skill_name and (skills_dir / legacy_skill_name).is_dir():
+            target_skill_names.append(legacy_skill_name)
+        if not target_skill_names and create_missing_skills:
+            missing_skill_dir = skills_dir / skill_name
+            if not missing_skill_dir.exists():
+                target_skill_names.append(skill_name)
+        if not target_skill_names:
+            return
+
+        raw_short_name = cmd_name
+        if raw_short_name.startswith("speckit."):
+            raw_short_name = raw_short_name[len("speckit."):]
+        short_name = raw_short_name.replace(".", "-")
+        skill_title = self._skill_title_from_command(cmd_name)
+
+        frontmatter, body = registrar.parse_frontmatter(composed_content)
+        original_desc = frontmatter.get("description", "")
+        enhanced_desc = SKILL_DESCRIPTIONS.get(
+            short_name,
+            original_desc or f"Spec-kit workflow command: {short_name}",
+        )
+        body = registrar.resolve_skill_placeholders(
+            selected_ai, dict(frontmatter), body, self.project_root
+        )
+
+        for target_skill_name in target_skill_names:
+            skill_subdir = skills_dir / target_skill_name
+            if skill_subdir.exists() and not skill_subdir.is_dir():
+                continue
+            skill_subdir.mkdir(parents=True, exist_ok=True)
+            frontmatter_data = registrar.build_skill_frontmatter(
+                selected_ai,
+                target_skill_name,
+                enhanced_desc,
+                f"preset:{outermost_pack_id}",
+            )
+            frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+            skill_content = (
+                f"---\n"
+                f"{frontmatter_text}\n"
+                f"---\n\n"
+                f"# Speckit {skill_title} Skill\n\n"
+                f"{body}\n"
+            )
+            if integration is not None and hasattr(integration, "post_process_skill_content"):
+                skill_content = integration.post_process_skill_content(skill_content)
+            (skill_subdir / "SKILL.md").write_text(skill_content, encoding="utf-8")
+
     def _get_skills_dir(self) -> Optional[Path]:
         """Return the active skills directory for preset skill overrides.
 
@@ -624,7 +906,7 @@ class PresetManager:
 
             try:
                 manifest = ExtensionManifest(manifest_path)
-            except ValidationError:
+            except (ValidationError, TypeError, AttributeError):
                 continue
 
             ext_root = ext_dir.resolve()
@@ -760,6 +1042,13 @@ class PresetManager:
             # Parse the command file
             content = source_file.read_text(encoding="utf-8")
             frontmatter, body = registrar.parse_frontmatter(content)
+
+            if frontmatter.get("strategy") == "wrap":
+                body, core_frontmatter = _substitute_core_template(body, cmd_name, self.project_root, registrar)
+                frontmatter = dict(frontmatter)
+                for key in ("scripts", "agent_scripts"):
+                    if key not in frontmatter and key in core_frontmatter:
+                        frontmatter[key] = core_frontmatter[key]
 
             original_desc = frontmatter.get("description", "")
             enhanced_desc = SKILL_DESCRIPTIONS.get(
@@ -974,6 +1263,24 @@ class PresetManager:
         # Update corresponding skills when --ai-skills was previously used
         registered_skills = self._register_skills(manifest, dest_dir)
 
+        # Detect wrap commands before registry.add() so a read failure doesn't
+        # leave a partially-committed registry entry.
+        wrap_commands = []
+        try:
+            from .agents import CommandRegistrar as _CR
+            _registrar = _CR()
+            for cmd_tmpl in manifest.templates:
+                if cmd_tmpl.get("type") != "command":
+                    continue
+                cmd_file = dest_dir / cmd_tmpl["file"]
+                if not cmd_file.exists():
+                    continue
+                cmd_fm, _ = _registrar.parse_frontmatter(cmd_file.read_text(encoding="utf-8"))
+                if cmd_fm.get("strategy") == "wrap":
+                    wrap_commands.append(cmd_tmpl["name"])
+        except ImportError:
+            pass
+
         self.registry.add(manifest.id, {
             "version": manifest.version,
             "source": "local",
@@ -982,7 +1289,11 @@ class PresetManager:
             "priority": priority,
             "registered_commands": registered_commands,
             "registered_skills": registered_skills,
+            "wrap_commands": wrap_commands,
         })
+
+        for cmd_name in wrap_commands:
+            self._replay_wraps_for_command(cmd_name)
 
         return manifest
 
@@ -1058,9 +1369,16 @@ class PresetManager:
         # Restore original skills when preset is removed
         registered_skills = metadata.get("registered_skills", []) if metadata else []
         registered_commands = metadata.get("registered_commands", {}) if metadata else {}
+        wrap_commands = metadata.get("wrap_commands", []) if metadata else []
         pack_dir = self.presets_dir / pack_id
+
+        # _unregister_skills must run before directory deletion (reads preset files)
         if registered_skills:
             self._unregister_skills(registered_skills, pack_dir)
+            # When _unregister_skills has already handled skill-agent files, strip
+            # those entries from registered_commands to avoid double-deletion.
+            # (When registered_skills is empty, skill-agent entries in
+            # registered_commands are the only deletion path for those files.)
             try:
                 from .agents import CommandRegistrar
             except ImportError:
@@ -1072,14 +1390,44 @@ class PresetManager:
                     if CommandRegistrar.AGENT_CONFIGS.get(agent_name, {}).get("extension") != "/SKILL.md"
                 }
 
-        # Unregister non-skill command files from AI agents.
-        if registered_commands:
-            self._unregister_commands(registered_commands)
-
+        # Delete the preset directory before mutating the registry so a
+        # filesystem failure cannot leave files on disk without a registry entry.
         if pack_dir.exists():
             shutil.rmtree(pack_dir)
 
+        # Remove from registry before replaying so _replay_wraps_for_command sees
+        # the post-removal registry state.
         self.registry.remove(pack_id)
+
+        # Separate wrap commands from non-wrap commands in registered_commands.
+        non_wrap_commands = {
+            agent_name: [c for c in cmd_names if c not in wrap_commands]
+            for agent_name, cmd_names in registered_commands.items()
+        }
+        non_wrap_commands = {k: v for k, v in non_wrap_commands.items() if v}
+
+        # Unregister non-wrap command files from AI agents.
+        if non_wrap_commands:
+            self._unregister_commands(non_wrap_commands)
+
+        # For each wrapped command, either re-compose remaining wraps or delete.
+        for cmd_name in wrap_commands:
+            remaining = [
+                pid for pid, meta in self.registry.list().items()
+                if cmd_name in meta.get("wrap_commands", [])
+            ]
+            if remaining:
+                self._replay_wraps_for_command(cmd_name)
+            else:
+                # No wrap presets remain — delete the agent file entirely.
+                wrap_agent_commands = {
+                    agent_name: [c for c in cmd_names if c == cmd_name]
+                    for agent_name, cmd_names in registered_commands.items()
+                }
+                wrap_agent_commands = {k: v for k, v in wrap_agent_commands.items() if v}
+                if wrap_agent_commands:
+                    self._unregister_commands(wrap_agent_commands)
+
         return True
 
     def list_installed(self) -> List[Dict[str, Any]]:
@@ -1735,6 +2083,7 @@ class PresetResolver:
         self,
         template_name: str,
         template_type: str = "template",
+        skip_presets: bool = False,
     ) -> Optional[Path]:
         """Resolve a template name to its file path.
 
@@ -1743,6 +2092,8 @@ class PresetResolver:
         Args:
             template_name: Template name (e.g., "spec-template")
             template_type: Template type ("template", "command", or "script")
+            skip_presets: When True, skip tier 2 (installed presets). Use
+                resolve_core() as the preferred caller-facing API for this.
 
         Returns:
             Path to the resolved template file, or None if not found
@@ -1771,7 +2122,7 @@ class PresetResolver:
             return override
 
         # Priority 2: Installed presets (sorted by priority — lower number wins)
-        if self.presets_dir.exists():
+        if not skip_presets and self.presets_dir.exists():
             registry = PresetRegistry(self.presets_dir)
             for pack_id, _metadata in registry.list_by_priority():
                 pack_dir = self.presets_dir / pack_id
@@ -1810,6 +2161,99 @@ class PresetResolver:
             if core.exists():
                 return core
 
+        # Priority 5: Bundled core_pack (wheel install) or repo-root templates
+        # (source-checkout / editable install).  This is the canonical home for
+        # speckit's built-in command/template files and must always be checked
+        # so that strategy:wrap presets can locate {CORE_TEMPLATE}.
+        from specify_cli import _locate_core_pack  # local import to avoid cycles
+        _core_pack = _locate_core_pack()
+        if _core_pack is not None:
+            # Wheel install path
+            if template_type == "template":
+                candidate = _core_pack / "templates" / f"{template_name}.md"
+            elif template_type == "command":
+                candidate = _core_pack / "commands" / f"{template_name}.md"
+            elif template_type == "script":
+                candidate = _core_pack / "scripts" / f"{template_name}{ext}"
+            else:
+                candidate = _core_pack / f"{template_name}.md"
+            if candidate.exists():
+                return candidate
+        else:
+            # Source-checkout / editable install: templates live at repo root
+            repo_root = Path(__file__).parent.parent.parent
+            if template_type == "template":
+                candidate = repo_root / "templates" / f"{template_name}.md"
+            elif template_type == "command":
+                candidate = repo_root / "templates" / "commands" / f"{template_name}.md"
+            elif template_type == "script":
+                candidate = repo_root / "scripts" / f"{template_name}{ext}"
+            else:
+                candidate = repo_root / f"{template_name}.md"
+            if candidate.exists():
+                return candidate
+
+        return None
+
+    def resolve_core(
+        self,
+        template_name: str,
+        template_type: str = "template",
+    ) -> Optional[Path]:
+        """Resolve while skipping installed presets (tier 2).
+
+        Searches tiers 1, 3, 4, and 5 (bundled core_pack / repo-root fallback).
+        Use when resolving {CORE_TEMPLATE} to guarantee the result is actual
+        base content, never another preset's wrap output.
+        """
+        return self.resolve(template_name, template_type, skip_presets=True)
+
+    def resolve_extension_command_via_manifest(self, cmd_name: str) -> Optional[Path]:
+        """Resolve an extension command by consulting installed extension manifests.
+
+        Walks installed extension directories in priority order, loads each
+        extension.yml via ExtensionManifest, and looks up the command by its
+        declared name to find the actual file path.  This is necessary because
+        the manifest's ``provides.commands[].file`` field is authoritative and
+        may differ from the command name
+        (e.g. ``speckit.selftest.extension`` → ``commands/selftest.md``).
+
+        Returns None if no manifest maps the given command name, so the caller
+        can fall back to the name-based lookup.
+        """
+        if not self.extensions_dir.exists():
+            return None
+
+        from .extensions import ExtensionManifest, ValidationError
+
+        for _priority, ext_id, _metadata in self._get_all_extensions_by_priority():
+            ext_dir = self.extensions_dir / ext_id
+            manifest_path = ext_dir / "extension.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                manifest = ExtensionManifest(manifest_path)
+            except (ValidationError, OSError, TypeError, AttributeError):
+                continue
+            for cmd_info in manifest.commands:
+                if cmd_info.get("name") != cmd_name:
+                    continue
+                file_rel = cmd_info.get("file")
+                if not file_rel:
+                    continue
+                # Mirror the containment check in ExtensionManager to guard against
+                # path traversal via a malformed manifest (e.g. file: ../../AGENTS.md).
+                cmd_path = Path(file_rel)
+                if cmd_path.is_absolute():
+                    continue
+                try:
+                    ext_root = ext_dir.resolve()
+                    candidate = (ext_root / cmd_path).resolve()
+                    candidate.relative_to(ext_root)  # raises ValueError if outside
+                except (OSError, ValueError):
+                    continue
+                if candidate.is_file():
+                    return candidate
         return None
 
     def resolve_with_source(

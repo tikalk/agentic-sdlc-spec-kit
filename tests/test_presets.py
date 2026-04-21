@@ -999,6 +999,94 @@ class TestPresetResolver:
         assert result is None
 
 
+class TestResolveCore:
+    """Test PresetResolver.resolve_core() skips the installed-presets tier."""
+
+    def test_resolve_core_does_not_return_preset_files(self, project_dir):
+        """resolve_core must not return files from .specify/presets/."""
+        preset_cmd_dir = project_dir / ".specify" / "presets" / "my-preset" / "commands"
+        preset_cmd_dir.mkdir(parents=True)
+        (preset_cmd_dir / "specify.md").write_text("---\ndescription: preset wrap\n---\n\nwrap body\n")
+
+        resolver = PresetResolver(project_dir)
+        result = resolver.resolve_core("specify", "command")
+        # The preset file must never be returned — but the bundled core may be.
+        if result is not None:
+            assert "presets" not in result.parts
+
+    def test_resolve_core_returns_core_template(self, project_dir):
+        """resolve_core falls through to core templates (tier 4)."""
+        core_cmd_dir = project_dir / ".specify" / "templates" / "commands"
+        core_cmd_dir.mkdir(parents=True, exist_ok=True)
+        (core_cmd_dir / "specify.md").write_text("---\ndescription: core\n---\n\ncore body\n")
+
+        # Also place a preset file — resolve_core must still return the core
+        preset_cmd_dir = project_dir / ".specify" / "presets" / "my-preset" / "commands"
+        preset_cmd_dir.mkdir(parents=True)
+        (preset_cmd_dir / "specify.md").write_text("---\ndescription: preset wrap\n---\n\nwrap body\n")
+
+        resolver = PresetResolver(project_dir)
+        result = resolver.resolve_core("specify", "command")
+        assert result is not None
+        assert "presets" not in result.parts
+        assert result.parts[-3:] == ("templates", "commands", "specify.md")
+
+    def test_resolve_core_returns_override(self, project_dir):
+        """resolve_core returns tier-1 override if present."""
+        override_dir = project_dir / ".specify" / "templates" / "overrides"
+        override_dir.mkdir(parents=True)
+        (override_dir / "specify.md").write_text("---\ndescription: override\n---\n\noverride body\n")
+
+        resolver = PresetResolver(project_dir)
+        result = resolver.resolve_core("specify", "command")
+        assert result is not None
+        assert result.parts[-2:] == ("overrides", "specify.md")
+
+    def test_resolve_core_returns_extension_template(self, project_dir):
+        """resolve_core returns extension templates (tier 3)."""
+        ext_cmd_dir = project_dir / ".specify" / "extensions" / "myext" / "commands"
+        ext_cmd_dir.mkdir(parents=True)
+        (ext_cmd_dir / "myext-cmd.md").write_text("---\ndescription: ext\n---\n\next body\n")
+
+        resolver = PresetResolver(project_dir)
+        result = resolver.resolve_core("myext-cmd", "command")
+        assert result is not None
+        assert result.parts[-4:-1] == ("extensions", "myext", "commands")
+
+    def test_resolve_core_returns_none_when_nothing_found(self, project_dir):
+        """resolve_core returns None when no file found in tiers 1/3/4."""
+        resolver = PresetResolver(project_dir)
+        result = resolver.resolve_core("nonexistent", "command")
+        assert result is None
+
+    def test_resolve_extension_command_via_manifest_skips_oserror_manifests(self, project_dir):
+        """resolve_extension_command_via_manifest skips extensions whose manifest raises OSError."""
+        import unittest.mock as mock
+
+        ext_dir = project_dir / ".specify" / "extensions" / "bad-ext"
+        cmd_dir = ext_dir / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "mycmd.md").write_text("---\ndescription: d\n---\n\nbody\n")
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n  id: bad-ext\n  name: Bad\n  version: 1.0.0\n"
+            "  description: d\n  author: a\n  repository: https://example.com\n"
+            "  license: MIT\n"
+            "requires:\n  speckit_version: '>=0.2.0'\n"
+            "provides:\n  commands:\n"
+            "    - name: speckit.bad-ext.mycmd\n"
+            "      file: commands/mycmd.md\n"
+            "      description: My command\n"
+        )
+
+        resolver = PresetResolver(project_dir)
+        # Simulate a permission error when opening the manifest file.
+        with mock.patch("builtins.open", side_effect=PermissionError("denied")):
+            result = resolver.resolve_extension_command_via_manifest("speckit.bad-ext.mycmd")
+
+        assert result is None, "OSError during manifest load must be silently skipped"
+
+
 class TestExtensionPriorityResolution:
     """Test extension priority resolution with registered and unregistered extensions."""
 
@@ -1665,7 +1753,7 @@ class TestSelfTestPreset:
         assert manifest.id == "self-test"
         assert manifest.name == "Self-Test Preset"
         assert manifest.version == "1.0.0"
-        assert len(manifest.templates) == 7  # 6 templates + 1 command
+        assert len(manifest.templates) == 8  # 6 templates + 2 commands
 
     def test_self_test_provides_all_core_templates(self):
         """Verify the self-test preset provides an override for every core template."""
@@ -3041,3 +3129,1184 @@ class TestBundledPresetLocator:
         output = strip_ansi(result.output).lower()
         assert "bundled" in output, result.output
         assert "reinstall" in output, result.output
+
+
+class TestWrapStrategy:
+    """Tests for strategy: wrap preset command substitution."""
+
+    def test_substitute_core_template_replaces_placeholder(self, project_dir):
+        """Core template body replaces {CORE_TEMPLATE} in preset command body."""
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        # Set up a core command template
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\n---\n\n# Core Specify\n\nDo the thing.\n"
+        )
+
+        registrar = CommandRegistrar()
+        body = "## Pre-Logic\n\nBefore stuff.\n\n{CORE_TEMPLATE}\n\n## Post-Logic\n\nAfter stuff.\n"
+        result, core_fm = _substitute_core_template(body, "specify", project_dir, registrar)
+
+        assert "{CORE_TEMPLATE}" not in result
+        assert "# Core Specify" in result
+        assert "## Pre-Logic" in result
+        assert "## Post-Logic" in result
+        assert core_fm.get("description") == "core"
+
+    def test_substitute_core_template_no_op_when_placeholder_absent(self, project_dir):
+        """Returns body unchanged when {CORE_TEMPLATE} is not present."""
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCore body.\n")
+
+        registrar = CommandRegistrar()
+        body = "## No placeholder here.\n"
+        result, core_fm = _substitute_core_template(body, "specify", project_dir, registrar)
+        assert result == body
+        assert core_fm == {}
+
+    def test_substitute_core_template_no_op_when_core_missing(self, project_dir):
+        """Returns body unchanged when core template file does not exist."""
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        registrar = CommandRegistrar()
+        body = "Pre.\n\n{CORE_TEMPLATE}\n\nPost.\n"
+        result, core_fm = _substitute_core_template(body, "nonexistent", project_dir, registrar)
+        assert result == body
+        assert "{CORE_TEMPLATE}" in result
+        assert core_fm == {}
+
+    def test_register_commands_substitutes_core_template_for_wrap_strategy(self, project_dir):
+        """register_commands substitutes {CORE_TEMPLATE} when strategy: wrap."""
+        from specify_cli.agents import CommandRegistrar
+
+        # Set up core command template
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\n---\n\n# Core Specify\n\nCore body here.\n"
+        )
+
+        # Create a preset command dir with a wrap-strategy command
+        cmd_dir = project_dir / "preset" / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: wrap test\nstrategy: wrap\n---\n\n"
+            "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
+        )
+
+        commands = [{"name": "speckit.specify", "file": "commands/speckit.specify.md"}]
+        registrar = CommandRegistrar()
+
+        # Use a generic agent that writes markdown to commands/
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        # Patch AGENT_CONFIGS to use a simple markdown agent pointing at our dir
+        import copy
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+            "strip_frontmatter_keys": [],
+        }
+        try:
+            registrar.register_commands(
+                "test-agent", commands, "test-preset",
+                project_dir / "preset", project_dir
+            )
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "{CORE_TEMPLATE}" not in written
+        assert "# Core Specify" in written
+        assert "## Pre" in written
+        assert "## Post" in written
+
+    def test_end_to_end_wrap_via_self_test_preset(self, project_dir):
+        """Installing self-test preset with a wrap command substitutes {CORE_TEMPLATE}."""
+        from specify_cli.presets import PresetManager
+
+        # Install a core template that wrap-test will wrap around
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "wrap-test.md").write_text(
+            "---\ndescription: core wrap-test\n---\n\n# Core Wrap-Test Body\n"
+        )
+
+        # Set up skills dir (simulating --ai claude)
+        skills_dir = project_dir / ".claude" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        skill_subdir = skills_dir / "speckit-wrap-test"
+        skill_subdir.mkdir()
+        (skill_subdir / "SKILL.md").write_text("---\nname: speckit-wrap-test\n---\n\nold content\n")
+
+        # Write init-options so _register_skills finds the claude skills dir
+        import json
+        (project_dir / ".specify" / "init-options.json").write_text(
+            json.dumps({"ai": "claude", "ai_skills": True})
+        )
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(SELF_TEST_PRESET_DIR, "0.1.5")
+
+        written = (skill_subdir / "SKILL.md").read_text()
+        assert "{CORE_TEMPLATE}" not in written
+        assert "# Core Wrap-Test Body" in written
+        assert "preset:self-test wrap-pre" in written
+        assert "preset:self-test wrap-post" in written
+
+    def test_substitute_core_template_returns_core_scripts(self, project_dir):
+        """core_frontmatter in the returned tuple includes scripts/agent_scripts."""
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: run.sh\nagent_scripts:\n  sh: agent-run.sh\n---\n\n# Body\n"
+        )
+
+        registrar = CommandRegistrar()
+        body = "## Wrapper\n\n{CORE_TEMPLATE}\n"
+        result, core_fm = _substitute_core_template(body, "specify", project_dir, registrar)
+
+        assert "# Body" in result
+        assert core_fm.get("scripts") == {"sh": "run.sh"}
+        assert core_fm.get("agent_scripts") == {"sh": "agent-run.sh"}
+
+    def test_register_skills_inherits_scripts_from_core_when_preset_omits_them(self, project_dir):
+        """_register_skills merges scripts/agent_scripts from core when preset lacks them."""
+        from specify_cli.presets import PresetManager
+        import json
+
+        # Core template with scripts
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "wrap-test.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: .specify/scripts/run.sh\n---\n\n"
+            "Run: {SCRIPT}\n"
+        )
+
+        # Skills dir for claude
+        skills_dir = project_dir / ".claude" / "skills"
+        skills_dir.mkdir(parents=True, exist_ok=True)
+        skill_subdir = skills_dir / "speckit-wrap-test"
+        skill_subdir.mkdir()
+        (skill_subdir / "SKILL.md").write_text("---\nname: speckit-wrap-test\n---\n\nold\n")
+
+        (project_dir / ".specify" / "init-options.json").write_text(
+            json.dumps({"ai": "claude", "ai_skills": True})
+        )
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(SELF_TEST_PRESET_DIR, "0.1.5")
+
+        written = (skill_subdir / "SKILL.md").read_text()
+        # {SCRIPT} should have been resolved (not left as a literal placeholder)
+        assert "{SCRIPT}" not in written
+
+    def test_register_skills_preset_scripts_take_precedence_over_core(self, project_dir):
+        """preset-defined scripts/agent_scripts are not overwritten by core frontmatter."""
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: core-run.sh\n---\n\nCore body.\n"
+        )
+
+        registrar = CommandRegistrar()
+        body = "{CORE_TEMPLATE}"
+        _, core_fm = _substitute_core_template(body, "specify", project_dir, registrar)
+
+        # Simulate preset frontmatter that already defines scripts
+        preset_fm = {"description": "preset", "strategy": "wrap", "scripts": {"sh": "preset-run.sh"}}
+        for key in ("scripts", "agent_scripts"):
+            if key not in preset_fm and key in core_fm:
+                preset_fm[key] = core_fm[key]
+
+        # Preset's scripts must not be overwritten by core
+        assert preset_fm["scripts"] == {"sh": "preset-run.sh"}
+
+    def test_register_commands_inherits_scripts_from_core(self, project_dir):
+        """register_commands merges scripts/agent_scripts from core and normalizes paths."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: .specify/scripts/run.sh {ARGS}\n---\n\n"
+            "Run: {SCRIPT}\n"
+        )
+
+        cmd_dir = project_dir / "preset" / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        # Preset has strategy: wrap but no scripts of its own
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: wrap no scripts\nstrategy: wrap\n---\n\n"
+            "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
+        )
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+            "strip_frontmatter_keys": [],
+        }
+        try:
+            registrar.register_commands(
+                "test-agent",
+                [{"name": "speckit.specify", "file": "commands/speckit.specify.md"}],
+                "test-preset",
+                project_dir / "preset",
+                project_dir,
+            )
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "{CORE_TEMPLATE}" not in written
+        assert "Run:" in written
+        assert "scripts:" in written
+        assert "run.sh" in written
+
+    def test_register_commands_toml_resolves_inherited_scripts(self, project_dir):
+        """TOML agents resolve {SCRIPT} from inherited core scripts when preset omits them."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: .specify/scripts/run.sh {ARGS}\n---\n\n"
+            "Run: {SCRIPT}\n"
+        )
+
+        cmd_dir = project_dir / "preset" / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: toml wrap\nstrategy: wrap\n---\n\n"
+            "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
+        )
+
+        toml_dir = project_dir / ".gemini" / "commands"
+        toml_dir.mkdir(parents=True, exist_ok=True)
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-toml-agent"] = {
+            "dir": str(toml_dir.relative_to(project_dir)),
+            "format": "toml",
+            "args": "{{args}}",
+            "extension": ".toml",
+            "strip_frontmatter_keys": [],
+        }
+        try:
+            registrar.register_commands(
+                "test-toml-agent",
+                [{"name": "speckit.specify", "file": "commands/speckit.specify.md"}],
+                "test-preset",
+                project_dir / "preset",
+                project_dir,
+            )
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (toml_dir / "speckit.specify.toml").read_text()
+        assert "{CORE_TEMPLATE}" not in written
+        assert "{SCRIPT}" not in written
+        assert "run.sh" in written
+        # args token must use TOML format, not the intermediate $ARGUMENTS
+        assert "$ARGUMENTS" not in written
+        assert "{{args}}" in written
+
+    def test_register_commands_markdown_resolves_inherited_scripts(self, project_dir):
+        """Markdown agents resolve {SCRIPT} from inherited core scripts when preset omits them."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: .specify/scripts/run.sh {ARGS}\n---\n\n"
+            "Run: {SCRIPT}\n"
+        )
+
+        cmd_dir = project_dir / "preset" / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: markdown wrap\nstrategy: wrap\n---\n\n"
+            "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
+        )
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-md-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown",
+            "args": "$ARGUMENTS",
+            "extension": ".md",
+            "strip_frontmatter_keys": [],
+        }
+        try:
+            registrar.register_commands(
+                "test-md-agent",
+                [{"name": "speckit.specify", "file": "commands/speckit.specify.md"}],
+                "test-preset",
+                project_dir / "preset",
+                project_dir,
+            )
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "{CORE_TEMPLATE}" not in written
+        assert "{SCRIPT}" not in written
+        assert "run.sh" in written
+        assert "strategy" not in written
+
+    def test_register_commands_markdown_converts_args_after_script_resolution(self, project_dir):
+        """Markdown agents re-run arg placeholder conversion after resolve_skill_placeholders.
+
+        resolve_skill_placeholders injects $ARGUMENTS (via {ARGS} expansion). A second
+        _convert_argument_placeholder call must convert those to the agent's native format.
+        """
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text(
+            "---\ndescription: core\nscripts:\n  sh: .specify/scripts/run.sh {ARGS}\n---\n\n"
+            "Run: {SCRIPT}\n"
+        )
+
+        cmd_dir = project_dir / "preset" / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: forge wrap\nstrategy: wrap\n---\n\n"
+            "## Pre\n\n{CORE_TEMPLATE}\n\n## Post\n"
+        )
+
+        agent_dir = project_dir / ".forge" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-forge-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown",
+            "args": "{{parameters}}",
+            "extension": ".md",
+            "strip_frontmatter_keys": [],
+        }
+        try:
+            registrar.register_commands(
+                "test-forge-agent",
+                [{"name": "speckit.specify", "file": "commands/speckit.specify.md"}],
+                "test-preset",
+                project_dir / "preset",
+                project_dir,
+            )
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "{SCRIPT}" not in written
+        assert "run.sh" in written
+        # $ARGUMENTS injected by resolve_skill_placeholders must be re-converted
+        assert "$ARGUMENTS" not in written
+        assert "{{parameters}}" in written
+
+    def test_extension_command_resolves_via_extension_directory(self, project_dir):
+        """Extension commands (e.g. speckit.git.feature) resolve from the extension directory.
+
+        Both _register_skills and register_commands pass the full cmd_name to
+        _substitute_core_template, which tries the full name first via PresetResolver
+        and finds speckit.git.feature.md in the extension commands directory.
+        """
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        # Place the template where a real extension would install it
+        ext_cmd_dir = project_dir / ".specify" / "extensions" / "git" / "commands"
+        ext_cmd_dir.mkdir(parents=True, exist_ok=True)
+        (ext_cmd_dir / "speckit.git.feature.md").write_text(
+            "---\ndescription: git feature core\n---\n\n# Git Feature Core\n"
+        )
+        # Ensure a hyphenated or dot-separated fallback does NOT exist
+        assert not (project_dir / ".specify" / "templates" / "commands" / "git.feature.md").exists()
+        assert not (project_dir / ".specify" / "templates" / "commands" / "git-feature.md").exists()
+
+        registrar = CommandRegistrar()
+        body = "## Wrapper\n\n{CORE_TEMPLATE}\n"
+
+        # Both call sites now pass the full cmd_name
+        result, _ = _substitute_core_template(body, "speckit.git.feature", project_dir, registrar)
+
+        assert "# Git Feature Core" in result
+        assert "{CORE_TEMPLATE}" not in result
+
+    def test_extension_command_resolves_via_manifest_when_filename_differs(self, project_dir):
+        """Extension commands whose filename differs from the command name resolve via extension.yml.
+
+        The selftest extension maps speckit.selftest.extension → commands/selftest.md.
+        Name-based lookup would look for commands/speckit.selftest.extension.md and fail;
+        manifest-based lookup must find the actual file declared in the manifest.
+        """
+        from specify_cli.presets import _substitute_core_template
+        from specify_cli.agents import CommandRegistrar
+
+        ext_dir = project_dir / ".specify" / "extensions" / "selftest"
+        cmd_dir = ext_dir / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+
+        # File is named selftest.md, NOT speckit.selftest.extension.md
+        (cmd_dir / "selftest.md").write_text(
+            "---\ndescription: selftest core\n---\n\n# Selftest Core\n"
+        )
+        # Manifest maps the command name to the actual file
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n  id: selftest\n  name: Self-Test\n  version: 1.0.0\n"
+            "  description: test\n  author: test\n  repository: https://example.com\n"
+            "  license: MIT\n"
+            "requires:\n  speckit_version: '>=0.2.0'\n"
+            "provides:\n"
+            "  commands:\n"
+            "    - name: speckit.selftest.extension\n"
+            "      file: commands/selftest.md\n"
+            "      description: Selftest command\n"
+        )
+
+        registrar = CommandRegistrar()
+        body = "## Wrapper\n\n{CORE_TEMPLATE}\n"
+        result, _ = _substitute_core_template(body, "speckit.selftest.extension", project_dir, registrar)
+
+        assert "# Selftest Core" in result
+        assert "{CORE_TEMPLATE}" not in result
+
+
+# ===== _replay_wraps_for_command Tests =====
+
+def _make_wrap_preset_dir(
+    base: Path,
+    preset_id: str,
+    cmd_name: str,
+    pre: str,
+    post: str,
+    aliases: list[str] | None = None,
+    file_rel: str | None = None,
+) -> Path:
+    """Create a minimal wrap-strategy preset directory for testing."""
+    preset_dir = base / preset_id
+    cmd_dir = preset_dir / "commands"
+    cmd_dir.mkdir(parents=True)
+    file_rel = file_rel or f"commands/{cmd_name}.md"
+    template = {
+        "type": "command",
+        "name": cmd_name,
+        "file": file_rel,
+        "description": f"{preset_id} wrap",
+    }
+    if aliases is not None:
+        template["aliases"] = aliases
+    manifest = {
+        "schema_version": "1.0",
+        "preset": {
+            "id": preset_id,
+            "name": preset_id,
+            "version": "1.0.0",
+            "description": f"Preset {preset_id}",
+            "author": "test",
+            "repository": "https://example.com",
+            "license": "MIT",
+        },
+        "requires": {"speckit_version": ">=0.1.0"},
+        "provides": {
+            "templates": [template]
+        },
+        "tags": [],
+    }
+    import yaml as _yaml
+    (preset_dir / "preset.yml").write_text(_yaml.dump(manifest))
+    command_path = preset_dir / file_rel
+    command_path.parent.mkdir(parents=True, exist_ok=True)
+    command_path.write_text(
+        f"---\ndescription: {preset_id} wrap\nstrategy: wrap\n---\n\n"
+        f"[{pre}]\n\n{{CORE_TEMPLATE}}\n\n[{post}]\n"
+    )
+    return preset_dir
+
+
+class TestReplayWrapsForCommand:
+    """Tests for PresetManager._replay_wraps_for_command()."""
+
+    def test_replay_no_op_when_no_wrap_presets(self, project_dir):
+        """replay does nothing when no presets declare wrap_commands for the command."""
+        manager = PresetManager(project_dir)
+        # Should not raise
+        manager._replay_wraps_for_command("speckit.specify")
+
+    def test_replay_no_op_when_core_missing(self, project_dir, temp_dir):
+        """replay exits gracefully when resolve_core returns None."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        preset_dir = _make_wrap_preset_dir(temp_dir, "preset-a", "speckit.nonexistent-cmd", "pre-a", "post-a")
+        installed = project_dir / ".specify" / "presets" / "preset-a"
+        import shutil as _shutil
+        _shutil.copytree(preset_dir, installed)
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.nonexistent-cmd"],
+        })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            # No core file exists for this command — replay should return without writing
+            manager._replay_wraps_for_command("speckit.nonexistent-cmd")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        assert not (agent_dir / "speckit.nonexistent-cmd.md").exists()
+
+    def test_replay_single_preset_writes_composed_output(self, project_dir, temp_dir):
+        """Single wrap preset: replay writes pre + core + post to agent dirs."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        # Core template
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\ncore body\n")
+
+        # Install preset-a
+        preset_dir = _make_wrap_preset_dir(temp_dir, "preset-a", "speckit.specify", "pre-a", "post-a")
+        installed = project_dir / ".specify" / "presets" / "preset-a"
+        _shutil.copytree(preset_dir, installed)
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.specify"],
+        })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager._replay_wraps_for_command("speckit.specify")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "[pre-a]" in written
+        assert "core body" in written
+        assert "[post-a]" in written
+        assert "{CORE_TEMPLATE}" not in written
+        assert "strategy" not in written
+
+    def test_replay_uses_manifest_command_file_mapping(self, project_dir, temp_dir):
+        """Replay reads wrapper files from preset.yml instead of assuming command-name paths."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        preset_dir = _make_wrap_preset_dir(
+            temp_dir,
+            "preset-a",
+            "speckit.specify",
+            "pre-a",
+            "post-a",
+            file_rel="commands/custom-wrapper.md",
+        )
+        installed = project_dir / ".specify" / "presets" / "preset-a"
+        _shutil.copytree(preset_dir, installed)
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.specify"],
+        })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager._replay_wraps_for_command("speckit.specify")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "[pre-a]" in written
+        assert "CORE" in written
+        assert "[post-a]" in written
+
+    def test_replay_resolves_extension_core_via_manifest_mapping(self, project_dir, temp_dir):
+        """Replay finds extension core commands whose manifest file differs from command name."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        ext_dir = project_dir / ".specify" / "extensions" / "selftest"
+        cmd_dir = ext_dir / "commands"
+        cmd_dir.mkdir(parents=True, exist_ok=True)
+        (cmd_dir / "selftest.md").write_text(
+            "---\ndescription: selftest core\n---\n\nEXTENSION-CORE\n"
+        )
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n  id: selftest\n  name: Self-Test\n  version: 1.0.0\n"
+            "  description: test\n  author: test\n  repository: https://example.com\n"
+            "  license: MIT\n"
+            "requires:\n  speckit_version: '>=0.2.0'\n"
+            "provides:\n"
+            "  commands:\n"
+            "    - name: speckit.selftest.extension\n"
+            "      file: commands/selftest.md\n"
+            "      description: Selftest command\n"
+        )
+
+        preset_dir = _make_wrap_preset_dir(
+            temp_dir, "preset-a", "speckit.selftest.extension", "pre-a", "post-a"
+        )
+        installed = project_dir / ".specify" / "presets" / "preset-a"
+        _shutil.copytree(preset_dir, installed)
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.selftest.extension"],
+        })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager._replay_wraps_for_command("speckit.selftest.extension")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.selftest.extension.md").read_text()
+        assert "[pre-a]" in written
+        assert "EXTENSION-CORE" in written
+        assert "[post-a]" in written
+
+    def test_replay_priority_order_lower_number_outermost(self, project_dir, temp_dir):
+        """Two wrap presets: lower priority number = outermost wrapper."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        for pid in ("preset-outer", "preset-inner"):
+            src = _make_wrap_preset_dir(temp_dir, pid, "speckit.specify", f"pre-{pid}", f"post-{pid}")
+            _shutil.copytree(src, project_dir / ".specify" / "presets" / pid)
+
+        manager = PresetManager(project_dir)
+        # preset-outer has priority 1 (highest precedence = outermost)
+        # preset-inner has priority 10 (lowest precedence = innermost)
+        for pid, pri in (("preset-outer", 1), ("preset-inner", 10)):
+            manager.registry.add(pid, {
+                "version": "1.0.0", "source": "local", "enabled": True,
+                "priority": pri, "manifest_hash": "x",
+                "registered_commands": {}, "registered_skills": [],
+                "wrap_commands": ["speckit.specify"],
+            })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager._replay_wraps_for_command("speckit.specify")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        # Outermost (preset-outer, p=1) wraps everything; innermost (preset-inner, p=10) is next
+        outer_pre = written.index("[pre-preset-outer]")
+        inner_pre = written.index("[pre-preset-inner]")
+        core_pos = written.index("CORE")
+        inner_post = written.index("[post-preset-inner]")
+        outer_post = written.index("[post-preset-outer]")
+        assert outer_pre < inner_pre < core_pos < inner_post < outer_post
+
+    def test_replay_install_order_independent(self, project_dir, temp_dir):
+        """Nesting order is determined by priority, not install order."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        for pid in ("preset-a", "preset-b"):
+            src = _make_wrap_preset_dir(temp_dir, pid, "speckit.specify", f"pre-{pid}", f"post-{pid}")
+            _shutil.copytree(src, project_dir / ".specify" / "presets" / pid)
+
+        manager = PresetManager(project_dir)
+        # preset-a priority=5 (outermost), preset-b priority=10 (innermost)
+        # Install in reverse order to verify install order doesn't affect nesting
+        for pid, pri in (("preset-b", 10), ("preset-a", 5)):
+            manager.registry.add(pid, {
+                "version": "1.0.0", "source": "local", "enabled": True,
+                "priority": pri, "manifest_hash": "x",
+                "registered_commands": {}, "registered_skills": [],
+                "wrap_commands": ["speckit.specify"],
+            })
+
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True)
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager._replay_wraps_for_command("speckit.specify")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        a_pre = written.index("[pre-preset-a]")
+        b_pre = written.index("[pre-preset-b]")
+        core_pos = written.index("CORE")
+        b_post = written.index("[post-preset-b]")
+        a_post = written.index("[post-preset-a]")
+        # preset-a (p=5) is outermost regardless of install order
+        assert a_pre < b_pre < core_pos < b_post < a_post
+
+    def test_replay_updates_skill_outputs(self, project_dir, temp_dir):
+        """Replay also rewrites SKILL.md-backed agent outputs."""
+        import json
+        import shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        preset_dir = _make_wrap_preset_dir(temp_dir, "preset-a", "speckit.specify", "pre-a", "post-a")
+        _shutil.copytree(preset_dir, project_dir / ".specify" / "presets" / "preset-a")
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.specify"],
+        })
+
+        skills_dir = project_dir / ".claude" / "skills"
+        skill_subdir = skills_dir / "speckit-specify"
+        skill_subdir.mkdir(parents=True)
+        (skill_subdir / "SKILL.md").write_text("---\nname: speckit-specify\n---\n\nold\n")
+        (project_dir / ".specify" / "init-options.json").write_text(
+            json.dumps({"ai": "claude", "ai_skills": True})
+        )
+
+        manager._replay_wraps_for_command("speckit.specify")
+
+        written = (skill_subdir / "SKILL.md").read_text()
+        assert "[pre-a]" in written
+        assert "CORE" in written
+        assert "[post-a]" in written
+
+    def test_replay_applies_integration_post_processing_to_skill(self, project_dir, temp_dir):
+        """_replay_skill_override must call post_process_skill_content, matching _register_skills."""
+        import json
+        import shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        preset_dir = _make_wrap_preset_dir(temp_dir, "preset-a", "speckit.specify", "pre-a", "post-a")
+        _shutil.copytree(preset_dir, project_dir / ".specify" / "presets" / "preset-a")
+
+        manager = PresetManager(project_dir)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": ["speckit.specify"],
+        })
+
+        skills_dir = project_dir / ".claude" / "skills"
+        skill_subdir = skills_dir / "speckit-specify"
+        skill_subdir.mkdir(parents=True)
+        (skill_subdir / "SKILL.md").write_text("---\nname: speckit-specify\n---\n\nold\n")
+        (project_dir / ".specify" / "init-options.json").write_text(
+            json.dumps({"ai": "claude", "ai_skills": True})
+        )
+
+        manager._replay_wraps_for_command("speckit.specify")
+
+        # ClaudeIntegration.post_process_skill_content injects these flags.
+        # Their presence proves the integration hook ran during replay.
+        written = (skill_subdir / "SKILL.md").read_text()
+        assert "disable-model-invocation: false" in written, (
+            "_replay_skill_override must call post_process_skill_content "
+            "(same as _register_skills)"
+        )
+
+
+class TestInstallRemoveWrapLifecycle:
+    """Tests for wrap_commands stored on install and replayed on remove."""
+
+    def _setup_agent(self, project_dir, registrar, agent_configs_dict):
+        """Register a test markdown agent and return its commands dir."""
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        agent_configs_dict["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        return agent_dir
+
+    def test_install_stores_wrap_commands_in_registry(self, project_dir, temp_dir):
+        """install_from_directory stores wrap_commands in the registry entry."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\ncore\n")
+
+        preset_src = _make_wrap_preset_dir(temp_dir, "preset-a", "speckit.specify", "pre", "post")
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            manager.install_from_directory(preset_src, "0.1.0", priority=10)
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        meta = manager.registry.get("preset-a")
+        assert "wrap_commands" in meta
+        assert "speckit.specify" in meta["wrap_commands"]
+
+    def test_install_replay_produces_correct_nested_output(self, project_dir, temp_dir):
+        """After installing two wrap presets, agent file contains correctly nested output."""
+        from specify_cli.agents import CommandRegistrar
+        import copy, shutil as _shutil
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            # Install outermost first (priority=5), then innermost (priority=10)
+            outer_src = _make_wrap_preset_dir(temp_dir, "preset-outer", "speckit.specify", "OUTER-PRE", "OUTER-POST")
+            # Rename to avoid id conflict with fixture
+            inner_src = _make_wrap_preset_dir(temp_dir, "preset-inner", "speckit.specify", "INNER-PRE", "INNER-POST")
+            manager.install_from_directory(outer_src, "0.1.0", priority=5)
+            manager.install_from_directory(inner_src, "0.1.0", priority=10)
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        outer_pre = written.index("OUTER-PRE")
+        inner_pre = written.index("INNER-PRE")
+        core_pos = written.index("CORE")
+        inner_post = written.index("INNER-POST")
+        outer_post = written.index("OUTER-POST")
+        assert outer_pre < inner_pre < core_pos < inner_post < outer_post
+
+    def test_remove_replays_remaining_wraps(self, project_dir, temp_dir):
+        """Removing one wrap preset re-composes the remaining wraps correctly."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            outer_src = _make_wrap_preset_dir(temp_dir, "preset-outer", "speckit.specify", "OUTER-PRE", "OUTER-POST")
+            inner_src = _make_wrap_preset_dir(temp_dir, "preset-inner", "speckit.specify", "INNER-PRE", "INNER-POST")
+            manager.install_from_directory(outer_src, "0.1.0", priority=5)
+            manager.install_from_directory(inner_src, "0.1.0", priority=10)
+            manager.remove("preset-outer")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        written = (agent_dir / "speckit.specify.md").read_text()
+        # Only inner wrap remains — should be: INNER-PRE + CORE + INNER-POST, no OUTER
+        assert "INNER-PRE" in written
+        assert "CORE" in written
+        assert "INNER-POST" in written
+        assert "OUTER-PRE" not in written
+        assert "OUTER-POST" not in written
+
+    def test_wrap_aliases_are_replayed_and_removed(self, project_dir, temp_dir):
+        """Replay preserves wrap aliases across install/remove lifecycle changes."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            outer_src = _make_wrap_preset_dir(
+                temp_dir,
+                "preset-outer",
+                "speckit.specify",
+                "OUTER-PRE",
+                "OUTER-POST",
+                aliases=["speckit.alias"],
+            )
+            inner_src = _make_wrap_preset_dir(
+                temp_dir, "preset-inner", "speckit.specify", "INNER-PRE", "INNER-POST"
+            )
+            manager.install_from_directory(outer_src, "0.1.0", priority=5)
+            manager.install_from_directory(inner_src, "0.1.0", priority=10)
+
+            alias_file = agent_dir / "speckit.alias.md"
+            written = alias_file.read_text()
+            assert "OUTER-PRE" in written
+            assert "INNER-PRE" in written
+            assert "INNER-POST" in written
+            assert "OUTER-POST" in written
+
+            manager.remove("preset-inner")
+            written = alias_file.read_text()
+            assert "OUTER-PRE" in written
+            assert "OUTER-POST" in written
+            assert "INNER-PRE" not in written
+            assert "INNER-POST" not in written
+
+            manager.remove("preset-outer")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        assert not (agent_dir / "speckit.alias.md").exists()
+
+    def test_remove_last_wrap_preset_deletes_agent_file(self, project_dir, temp_dir):
+        """Removing the only wrap preset deletes the agent command file."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+
+        core_dir = project_dir / ".specify" / "templates" / "commands"
+        core_dir.mkdir(parents=True, exist_ok=True)
+        (core_dir / "specify.md").write_text("---\ndescription: core\n---\n\nCORE\n")
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            src = _make_wrap_preset_dir(temp_dir, "preset-only", "speckit.specify", "PRE", "POST")
+            manager.install_from_directory(src, "0.1.0", priority=10)
+            assert (agent_dir / "speckit.specify.md").exists()
+            manager.remove("preset-only")
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        assert not (agent_dir / "speckit.specify.md").exists()
+
+    def test_remove_keeps_registry_entry_when_directory_delete_fails(self, project_dir, monkeypatch):
+        """A failed preset directory delete must not leave files untracked by the registry."""
+        manager = PresetManager(project_dir)
+        pack_dir = manager.presets_dir / "preset-a"
+        pack_dir.mkdir(parents=True)
+        manager.registry.add("preset-a", {
+            "version": "1.0.0", "source": "local", "enabled": True,
+            "priority": 10, "manifest_hash": "x",
+            "registered_commands": {}, "registered_skills": [],
+            "wrap_commands": [],
+        })
+
+        def fail_rmtree(_path):
+            raise OSError("locked")
+
+        monkeypatch.setattr(shutil, "rmtree", fail_rmtree)
+
+        with pytest.raises(OSError, match="locked"):
+            manager.remove("preset-a")
+
+        assert manager.registry.is_installed("preset-a")
+        assert pack_dir.exists()
+
+    def test_non_wrap_commands_unaffected_by_wrap_lifecycle(self, project_dir, temp_dir):
+        """wrap_commands is empty for a preset with no strategy:wrap commands."""
+        from specify_cli.agents import CommandRegistrar
+        import copy
+        import yaml as _yaml
+
+        # Create a preset with a non-wrap command
+        preset_dir = temp_dir / "non-wrap-preset"
+        cmd_dir = preset_dir / "commands"
+        cmd_dir.mkdir(parents=True)
+        manifest = {
+            "schema_version": "1.0",
+            "preset": {
+                "id": "non-wrap-preset", "name": "Non-wrap", "version": "1.0.0",
+                "description": "no wrap", "author": "test",
+                "repository": "https://example.com", "license": "MIT",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {"templates": [
+                {"type": "command", "name": "speckit.specify",
+                 "file": "commands/speckit.specify.md", "description": "override"},
+            ]},
+            "tags": [],
+        }
+        (preset_dir / "preset.yml").write_text(_yaml.dump(manifest))
+        (cmd_dir / "speckit.specify.md").write_text(
+            "---\ndescription: plain override\n---\n\nplain body\n"
+        )
+
+        registrar = CommandRegistrar()
+        original = copy.deepcopy(registrar.AGENT_CONFIGS)
+        agent_dir = project_dir / ".claude" / "commands"
+        agent_dir.mkdir(parents=True, exist_ok=True)
+        registrar.AGENT_CONFIGS["test-agent"] = {
+            "dir": str(agent_dir.relative_to(project_dir)),
+            "format": "markdown", "args": "$ARGUMENTS",
+            "extension": ".md", "strip_frontmatter_keys": [],
+        }
+        try:
+            manager = PresetManager(project_dir)
+            manager.install_from_directory(preset_dir, "0.1.0", priority=10)
+        finally:
+            CommandRegistrar.AGENT_CONFIGS.clear()
+            CommandRegistrar.AGENT_CONFIGS.update(original)
+
+        meta = manager.registry.get("non-wrap-preset")
+        assert meta.get("wrap_commands", []) == []
+        written = (agent_dir / "speckit.specify.md").read_text()
+        assert "plain body" in written

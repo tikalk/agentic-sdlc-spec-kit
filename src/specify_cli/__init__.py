@@ -1115,7 +1115,7 @@ def init(
                 console.print(f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]")
             else:
                 error_panel = Panel(
-                    f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
+                    f"Directory already exists: '[cyan]{project_name}[/cyan]'\n"
                     "Please choose a different project name or remove the existing directory.\n"
                     "Use [bold]--force[/bold] to merge into the existing directory.",
                     title="[red]Directory Conflict[/red]",
@@ -1371,7 +1371,6 @@ def init(
                 "branch_numbering": branch_numbering or "sequential",
                 "context_file": resolved_integration.context_file,
                 "here": here,
-                "preset": preset,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
             }
