@@ -75,8 +75,11 @@ Connect to shared team knowledge and standards:
 # Use local team-ai-directives directory
 uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives ~/workspace/team-ai-directives
 
-# Clone from remote repository
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives.git
+# Install from GitHub archive (ZIP download)
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip
+
+# Or from a specific release tag
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/tags/v1.0.0.zip
 ```
 
 ## Verification

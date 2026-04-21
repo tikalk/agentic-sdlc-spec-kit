@@ -282,9 +282,9 @@ $skillsJson = Discover-Skills -FeatureDescription $featureDescription -TeamDirec
 ### Example 1: New Feature with Team Directives
 
 ```bash
-# Initialize project with team-ai-directives
+# Initialize project with team-ai-directives (from GitHub archive)
 cd my-project
-specify init . --team-ai-directives https://github.com/my-org/team-ai-directives.git
+specify init . --team-ai-directives https://github.com/my-org/team-ai-directives/archive/refs/heads/main.zip
 
 # Create feature
 ./create-new-feature.sh --json "Add user authentication with OAuth2"

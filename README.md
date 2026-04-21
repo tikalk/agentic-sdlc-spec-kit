@@ -371,11 +371,14 @@ This fork includes pre-installed extensions:
 This fork supports team-ai-directives — a foundation for version-controlled AI agent behavior. Install during project initialization:
 
 ```bash
-# Install from GitHub repository (ZIP download)
-specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git
+# Install from GitHub archive (ZIP download)
+specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip
 
 # Or from a specific release tag
 specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/tags/v1.0.0.zip
+
+# Or use a local directory
+specify init <project> --team-ai-directives ~/workspace/team-ai-directives
 ```
 
 The directives are installed to `.specify/extensions/team-ai-directives/` and available to all AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
