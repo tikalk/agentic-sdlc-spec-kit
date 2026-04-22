@@ -171,12 +171,10 @@ If working in a non-git repository:
    - Extract principles, constraints, and patterns using `CONSTITUTION_RULES`
    - Prepare for cross-validation with spec
 
-   **Architecture Loading** (if `AD_EXISTS: true`):
-   - Load AD.md from path provided in JSON
-   - Extract 7 viewpoints using `AD_VIEWS`
-   - Extract diagrams using `AD_DIAGRAMS`
-   - Identify components, entities, and integration points
-   - Prepare for alignment validation
+   **Architecture Loading** (if architecture loaded via hook):
+   - Architecture context is loaded via the `before_clarify` hook (if configured in `.specify/extensions.yml`)
+   - Access architecture artifacts through hook-provided variables
+   - Prepared for alignment validation
 
    **Graceful Degradation**:
    - If constitution missing: Skip constitution validation
@@ -279,9 +277,9 @@ If working in a non-git repository:
    - Example: Constitution requires OAuth2, spec uses API keys
    - Example: Constitution mandates audit logging, spec doesn't mention it
 
-   **PILLAR 3: Architecture Alignment** (NEW - if architecture exists)
+   **PILLAR 3: Architecture Alignment** (if architecture loaded via hook)
 
-   Validate spec against architectural boundaries:
+   Validate spec against architectural boundaries (loaded via `before_clarify` hook):
 
    System Boundaries (Context View):
    - Does spec operate within defined external entity interactions?
@@ -300,6 +298,8 @@ If working in a non-git repository:
 
    Process Coordination (Concurrency View):
    - Are concurrency requirements architecturally feasible?
+
+   (Skip validation if architecture not loaded via hook)
    - Do threading/async patterns match Concurrency View?
    - Are synchronization mechanisms appropriate?
 
