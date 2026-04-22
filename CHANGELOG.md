@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Changed
+
+- **Hook-based architecture loading**: Replaced hardcoded AD.md/adr.md file loading in preset commands with hook-based architecture
+  - Architecture context now loaded via `before_specify`/`before_analyze`/`before_clarify` hooks
+  - Removed direct file path references from `adlc.spec.analyze.md` and `adlc.spec.clarify.md`
+  - Aligns with extension hook system for better extensibility
+
 # [0.5.10] - 2026-04-20
 
 ### Added
