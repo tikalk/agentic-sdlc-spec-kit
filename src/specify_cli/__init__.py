@@ -197,26 +197,6 @@ except ImportError:
         return None
 
 
-def _run_git_command(
-    args: list[str],
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    check: bool = True,
-) -> subprocess.CompletedProcess:
-    """Run a git command and return the result."""
-    cmd = ["git"]
-    if cwd:
-        cmd.extend(["-C", str(cwd)])
-    cmd.extend(args)
-    return subprocess.run(
-        cmd,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=check,
-    )
-
-
 def _derive_target_repo_from_url(zip_url: str) -> str:
     """Derive target repository URL from ZIP download URL.
 
