@@ -1523,6 +1523,38 @@
       "created_at": "2026-03-14T00:00:00Z",
       "updated_at": "2026-03-14T00:00:00Z"
     },
+    "red-team": {
+      "name": "Red Team",
+      "id": "red-team",
+      "description": "Adversarial review of functional specs before /speckit.plan. Parallel adversarial lens agents catch hostile actors, silent failures, and regulatory blind spots that clarify/analyze cannot.",
+      "author": "Ash Brener",
+      "version": "1.0.2",
+      "download_url": "https://github.com/ashbrener/spec-kit-red-team/releases/download/v1.0.2/red-team-v1.0.2.zip",
+      "repository": "https://github.com/ashbrener/spec-kit-red-team",
+      "homepage": "https://github.com/ashbrener/spec-kit-red-team",
+      "documentation": "https://github.com/ashbrener/spec-kit-red-team/blob/main/README.md",
+      "changelog": "https://github.com/ashbrener/spec-kit-red-team/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 2,
+        "hooks": 1
+      },
+      "tags": [
+        "adversarial-review",
+        "quality-gate",
+        "spec-hardening",
+        "pre-plan",
+        "audit"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-04-22T00:00:00Z",
+      "updated_at": "2026-04-22T00:00:00Z"
+    },
     "refine": {
       "name": "Spec Refine",
       "id": "refine",
