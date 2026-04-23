@@ -409,7 +409,6 @@ function Get-FeaturePathsEnv {
     # Project-level governance documents
     $memoryDir = Join-Path $repoRoot '.specify/memory'
     $constitutionFile = Join-Path $memoryDir 'constitution.md'
-    $adrFile = Join-Path $repoRoot '.specify/drafts/adr.md'
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
@@ -424,9 +423,6 @@ function Get-FeaturePathsEnv {
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
         CONSTITUTION  = $constitutionFile
-        SYSTEM_AD     = $systemAdFile
-        FEATURE_AD    = $featureAdFile
-        ADR           = $adrFile
     }
 }
 
