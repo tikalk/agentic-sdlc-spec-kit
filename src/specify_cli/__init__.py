@@ -1268,6 +1268,12 @@ def init(
                 integration_parsed_options["commands_dir"] = ai_commands_dir
             if ai_skills:
                 integration_parsed_options["skills"] = True
+            # Parse --integration-options and merge into parsed_options so
+            # flags like --skills reach the integration's setup().
+            if integration_options:
+                extra = _parse_integration_options(resolved_integration, integration_options)
+                if extra:
+                    integration_parsed_options.update(extra)
 
             resolved_integration.setup(
                 project_path, manifest,
@@ -1393,8 +1399,10 @@ def init(
             }
             # Ensure ai_skills is set for SkillsIntegration so downstream
             # tools (extensions, presets) emit SKILL.md overrides correctly.
+            # Also set for integrations running in skills mode (e.g. Copilot
+            # with --skills).
             from .integrations.base import SkillsIntegration as _SkillsPersist
-            if isinstance(resolved_integration, _SkillsPersist):
+            if isinstance(resolved_integration, _SkillsPersist) or getattr(resolved_integration, "_skills_mode", False):
                 init_opts["ai_skills"] = True
             save_init_options(project_path, init_opts)
 
@@ -1506,7 +1514,7 @@ def init(
     # Determine skill display mode for the next-steps panel.
     # Skills integrations (codex, kimi, agy, trae, cursor-agent) should show skill invocation syntax.
     from .integrations.base import SkillsIntegration as _SkillsInt
-    _is_skills_integration = isinstance(resolved_integration, _SkillsInt)
+    _is_skills_integration = isinstance(resolved_integration, _SkillsInt) or getattr(resolved_integration, "_skills_mode", False)
 
     codex_skill_mode = selected_ai == "codex" and (ai_skills or _is_skills_integration)
     claude_skill_mode = selected_ai == "claude" and (ai_skills or _is_skills_integration)
@@ -1514,7 +1522,8 @@ def init(
     agy_skill_mode = selected_ai == "agy" and _is_skills_integration
     trae_skill_mode = selected_ai == "trae"
     cursor_agent_skill_mode = selected_ai == "cursor-agent" and (ai_skills or _is_skills_integration)
-    native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode or trae_skill_mode or cursor_agent_skill_mode
+    copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
+    native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode or trae_skill_mode or cursor_agent_skill_mode or copilot_skill_mode
 
     if codex_skill_mode and not ai_skills:
         # Integration path installed skills; show the helpful notice
@@ -1535,7 +1544,7 @@ def init(
             return f"/speckit-{name}"
         if kimi_skill_mode:
             return f"/skill:speckit-{name}"
-        if cursor_agent_skill_mode:
+        if cursor_agent_skill_mode or copilot_skill_mode:
             return f"/speckit-{name}"
         return f"/speckit.{name}"
 
@@ -2166,7 +2175,7 @@ def _update_init_options_for_integration(
     opts["context_file"] = integration.context_file
     if script_type:
         opts["script"] = script_type
-    if isinstance(integration, SkillsIntegration):
+    if isinstance(integration, SkillsIntegration) or getattr(integration, "_skills_mode", False):
         opts["ai_skills"] = True
     else:
         opts.pop("ai_skills", None)
