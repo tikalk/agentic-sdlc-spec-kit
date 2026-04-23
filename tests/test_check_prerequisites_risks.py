@@ -26,8 +26,6 @@ def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
     feature_dir = repo_root / "specs" / "001-risk-feature"
     feature_dir.mkdir(parents=True)
 
-    (feature_dir / "context.md").write_text("# Context\n- ready")
-
     (feature_dir / "spec.md").write_text(
         """# Spec\n\n## Risk Register\n- RISK: R1 | Statement: Data loss during retries | Impact: High | Likelihood: Medium | Test: Simulate retry storm\n- RISK: R2 | Statement: Unauthorized admin escalation | Impact: High | Likelihood: Low | Test: RBAC denies non-admin roles\n"""
     )

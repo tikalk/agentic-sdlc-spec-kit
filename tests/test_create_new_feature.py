@@ -33,12 +33,6 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
         project_root / "templates" / "spec-template.md",
         template_dir / "spec-template.md",
     )
-    # context-template.md is now in the agentic-sdlc preset
-    preset_context = (
-        project_root / "presets" / "agentic-sdlc" / "templates" / "context-template.md"
-    )
-    shutil.copy(preset_context, template_dir / "context-template.md")
-    shutil.copy(preset_context, repo_root / "templates" / "context-template.md")
 
     constitution_path = memory_dir / "constitution.md"
     constitution_path.write_text("Principles")
@@ -61,8 +55,3 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
 
     spec_file = Path(data["SPEC_FILE"])
     assert spec_file.exists()
-    context_file = spec_file.parent / "context.md"
-    assert context_file.exists()
-    context_text = context_file.read_text()
-    assert "Feature Context" in context_text
-    assert "Mission" in context_text

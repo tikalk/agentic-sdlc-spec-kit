@@ -90,7 +90,6 @@ class ForkInventoryMixin:
             ".specify/presets/agentic-sdlc/commands/adlc.spec.tasks.md",
             ".specify/presets/agentic-sdlc/templates/checklist-template.md",
             ".specify/presets/agentic-sdlc/templates/constitution-template.md",
-            ".specify/presets/agentic-sdlc/templates/context-template.md",
             ".specify/presets/agentic-sdlc/templates/delegation-template.md",
             ".specify/presets/agentic-sdlc/templates/plan-template.md",
             ".specify/presets/agentic-sdlc/templates/spec-template.md",

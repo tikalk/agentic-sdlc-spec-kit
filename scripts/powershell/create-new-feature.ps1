@@ -347,75 +347,8 @@ if (-not $DryRun) {
     Replace-DatePlaceholders -FilePath $specFile
 }
 
-# Function to populate context.md with defaults (tikalk customization)
-function Populate-ContextFile {
-    param(
-        [string]$ContextFile,
-        [string]$FeatureName,
-        [string]$FeatureDescription,
-        [string]$Mode
-    )
-
-    # Extract feature title (first line or first sentence)
-    $featureTitle = ($featureDescription -split "`n")[0].Trim()
-
-    # Extract mission (first sentence, limited to reasonable length)
-    $mission = ($featureDescription -split '[.!?]')[0]
-    if (-not $mission) {
-        $mission = $featureDescription
-    }
-    # Limit mission length for readability
-    if ($mission.Length -gt 200) {
-        $mission = $mission.Substring(0, 200).TrimEnd() + "..."
-    }
-
-    # Spec mode: Comprehensive context for full specification
-    # Detect code paths (basic detection based on common patterns)
-    $codePaths = "To be determined during planning phase"
-    if ($featureDescription -match "(?i)api|endpoint|service") {
-        $codePaths = "api/, services/"
-    } elseif ($featureDescription -match "(?i)ui|frontend|component") {
-        $codePaths = "src/components/, src/pages/"
-    } elseif ($featureDescription -match "(?i)database|data|model") {
-        $codePaths = "src/models/, database/"
-    }
-
-    # Read team directives if available
-    $directives = "None"
-    $teamDirectivesFile = Join-Path $repoRoot '.specify/memory/team-ai-directives/directives.md'
-    if (Test-Path $teamDirectivesFile) {
-        $directives = "See team-ai-directives repository for applicable guidelines"
-    }
-
-    # Set research needs
-    $research = "To be identified during specification and planning phases"
-
-    # Create context.md with populated values
-    $contextContent = @"
-# Feature Context
-
-**Feature**: $featureTitle
-**Mission**: $mission
-**Code Paths**: $codePaths
-**Directives**: $directives
-**Research**: $research
-
-"@
-
-    $contextContent | Out-File -FilePath $contextFile -Encoding UTF8
-}
-
-# Populate context.md with defaults (tikalk customization)
-$contextTemplate = Resolve-Template -TemplateName 'context-template' -RepoRoot $repoRoot
-$contextFile = Join-Path $featureDir 'context.md'
+# Set SPECIFY_FEATURE environment variable
 if (-not $DryRun) {
-    if ($contextTemplate -and (Test-Path $contextTemplate)) {
-        Populate-ContextFile -ContextFile $contextFile -FeatureName $branchSuffix -FeatureDescription $featureDescription
-    } else {
-        New-Item -ItemType File -Path $contextFile | Out-Null
-    }
-
-    # Set the SPECIFY_FEATURE environment variable for the current session
     $env:SPECIFY_FEATURE = $branchName
 }
 

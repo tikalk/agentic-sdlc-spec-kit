@@ -199,18 +199,6 @@ if [[ ! -f "$IMPL_PLAN" ]]; then
     exit 1
 fi
 
-if [[ ! -f "$CONTEXT" ]]; then
-    echo "ERROR: context.md not found in $FEATURE_DIR" >&2
-    echo "Run /specify and populate context.md before continuing." >&2
-    exit 1
-fi
-
-if grep -q "\[NEEDS INPUT\]" "$CONTEXT"; then
-    echo "ERROR: context.md contains unresolved [NEEDS INPUT] markers." >&2
-    echo "Update $CONTEXT with current mission, code paths, directives, and research details before proceeding." >&2
-    exit 1
-fi
-
 # Check for tasks.md if required
 if $REQUIRE_TASKS && [[ ! -f "$TASKS" ]]; then
     echo "ERROR: tasks.md not found in $FEATURE_DIR" >&2
@@ -326,5 +314,4 @@ PY
     echo ""
     echo "GOVERNANCE DOCUMENTS:"
     check_file "$CONSTITUTION" "constitution.md (optional)"
-    check_file "$AD" "AD.md (optional)"
 fi

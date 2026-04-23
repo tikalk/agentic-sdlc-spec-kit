@@ -14,18 +14,7 @@ requires:
 
 provides:
   templates:
-    # Fork-only templates
-    - type: "template"
-      name: "context-template"
-      file: "templates/context-template.md"
-      description: "Feature context with team-ai-directives integration"
-
-    - type: "template"
-      name: "delegation-template"
-      file: "templates/delegation-template.md"
-      description: "Task delegation template for autonomous agents"
-
-    # Core template overrides (enhanced versions)
+# Core template overrides (enhanced versions)
     - type: "template"
       name: "spec-template"
       file: "templates/spec-template.md"

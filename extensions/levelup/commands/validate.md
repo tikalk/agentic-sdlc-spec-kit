@@ -43,7 +43,7 @@ Scan **team-ai-directives** for rule conflicts and create CDRs for resolution. T
 
 **Key Concept**:
 
-This command is the "Rule Conflict Detector" - it validates that team-ai-directives rules don't contradict each other, similar to how `validate-constitution.sh` checks for constitutional conflicts.
+This command is the "Rule Conflict Detector" - it validates that team-ai-directives rules don't contradict each other.
 
 ### Flags
 
