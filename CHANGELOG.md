@@ -4,7 +4,17 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
-# [0.5.12] - 2025-04-23
+# [0.5.13] - 2026-04-23
+
+### Fixed
+
+- **Restored constitution command**: `adlc.spec.constitution` command now restored to agentic-sdlc preset
+  - Uses hook-based architecture (`before_constitution` hook)
+  - Integrates with team-ai-directives extension for team principles loading
+  - Follows same pattern as other preset commands (adlc.spec.plan, adlc.spec.clarify, etc.)
+  - No custom scripts required - pure hook-based loading
+
+# [0.5.12] - 2026-04-23
 
 ### Changed
 
