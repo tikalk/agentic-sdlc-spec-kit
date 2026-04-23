@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-04-10T00:00:00Z",
+  "updated_at": "2026-04-20T18:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
     "git": {
@@ -17,6 +17,32 @@
         "workflow",
         "core"
       ]
+    },
+    "team-ai-directives": {
+      "id": "team-ai-directives",
+      "name": "Team AI Directives",
+      "version": "1.1.0",
+      "bundled": false,
+      "preinstall": false,
+      "description": "Team-specific AI agent context, skills, and conventions for Spec-Driven Development",
+      "author": "Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-team-ai-directives/archive/refs/tags/{{VERSION}}.zip",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.3.0"
+      },
+      "commands": [
+        "adlc.team-ai-directives.verify"
+      ],
+      "tags": [
+        "team-directives",
+        "context",
+        "skills"
+      ],
+      "verified": false,
+      "featured": false
     },
     "tdd": {
       "id": "tdd",
@@ -183,6 +209,7 @@
       "id": "evals",
       "name": "Evals - EDD (Eval-Driven Development) with PromptFoo Integration",
       "version": "1.0.0",
+      "bundled": true,
       "preinstall": true,
       "description": "Build evaluation systems following EDD (Eval-Driven Development) principles, integrating with PromptFoo for eval execution and annotation",
       "author": "Agentic SDLC Team",

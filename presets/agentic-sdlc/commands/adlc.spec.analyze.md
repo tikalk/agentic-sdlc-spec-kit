@@ -58,7 +58,7 @@ Perform consistency and quality analysis across artifacts and implementation wit
 
 **Pre-Implementation Analysis**: Identify inconsistencies, duplications, ambiguities, and underspecified items across available artifacts (spec.md, plan.md, tasks.md required). This command should run after `/spec.tasks` has successfully produced a complete `tasks.md`.
 
-**Architecture Cross-Validation** (NEW): When architecture artifacts exist (`AD.md`, `{REPO_ROOT}/.specify/drafts/adr.md`, or `specs/{feature}/AD.md`), validate spec and plan alignment with system and feature-level architecture constraints.
+**Architecture Cross-Validation**: When architecture context is loaded via `before_analyze` hook, validate spec and plan alignment with system and feature-level architecture constraints.
 
 **Post-Implementation Analysis**: Analyze actual implemented code against documentation to identify refinement opportunities, synchronization needs, and real-world improvements.
 
@@ -168,12 +168,11 @@ Load documentation artifacts plus analyze actual codebase:
 
 - Load `/memory/constitution.md` for principle validation (both modes)
 
-**From architecture (if exists):**
+**From architecture (if architecture loaded via hook):**
 
-- Load `AD.md` (root) for system-level architecture context
-- Load `{REPO_ROOT}/.specify/drafts/adr.md` for system-level ADRs
-- Load `specs/{feature}/AD.md` for feature-level architecture (if architect extension is installed)
-- Load `specs/{feature}/adr.md` for feature-level ADRs (if before_plan hook is configured)
+- Architecture context is loaded via the `before_analyze` hook (if configured in `.specify/extensions.yml`)
+- Access architecture artifacts through hook-provided variables (`AD_PATH`, `ADR_PATH`, `FEATURE_AD_PATH`, etc.)
+- See hook configuration in project for available artifacts
 
 ### 3. Build Semantic Models
 
@@ -256,14 +255,14 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - Testing gaps revealed
 - Monitoring/logging enhancements needed
 
-#### K. Architecture Cross-Validation (Both Modes - if architecture exists)
+#### K. Architecture Cross-Validation (Both Modes - if architecture loaded via hook)
 
 **Purpose**: Ensure feature spec/plan alignment with system and feature-level architecture.
 
-**System-Level Validation** (if `AD.md` and `{REPO_ROOT}/.specify/drafts/adr.md` exist):
+**System-Level Validation** (if architecture context loaded via `before_analyze` hook):
 
 1. **Context View Alignment**:
-   - Does spec respect system boundaries defined in AD.md?
+   - Does spec respect system boundaries defined in architecture?
    - Are new external dependencies within acceptable scope?
    - Do integration points match Context View entities?
 
@@ -282,7 +281,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
    - Are technology choices consistent with ADR decisions?
    - Are architectural patterns followed?
 
-**Feature-Level Validation** (if `specs/{feature}/AD.md` and `specs/{feature}/adr.md` exist):
+**Feature-Level Validation** (if feature architecture loaded via hook):
 
 1. **Feature ADR Consistency**:
    - Do feature ADRs align with system ADRs (marked "Aligns with ADR-XXX")?
@@ -301,7 +300,7 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 - **Data inconsistencies**: Feature entities conflict with Information View
 - **ADR violations**: Feature contradicts accepted system decisions
 - **Missing feature ADRs**: Complex feature decisions not documented
-- **Stale architecture**: System AD.md out of date with feature changes
+- **Stale architecture**: System architecture out of date with feature changes
 
 **Severity Assignment**:
 

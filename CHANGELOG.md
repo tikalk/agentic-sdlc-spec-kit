@@ -4,7 +4,7 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
-# [0.5.9] - 2026-04-20
+# [0.5.11] - 2026-04-23
 
 ### Added
 
@@ -27,6 +27,62 @@ All notable changes to the Specify CLI and templates are documented here.
 - **Import Errors**: Resolved chicken-and-egg problem in DeepEval config generation
 - **Version Compatibility**: Added clear error messages for DeepEval v2.x users with upgrade instructions
 - **Documentation**: Clarified threshold parameter usage in EDD binary evaluation mode
+
+# [0.5.10] - 2026-04-20
+
+### Added
+
+- **team-ai-directives reference mode**: Local directories are now used in-place without copying
+  - When `--team-ai-directives` points to a local directory, it's used directly (reference mode)
+  - When `--team-ai-directives` is a ZIP URL, it's downloaded and installed to `.specify/extensions/`
+  - Added `get_team_directives_path()` helper to resolve path from init-options or extensions dir
+  - Added `install` parameter to `sync_team_ai_directives()` for explicit control
+
+### Changed
+
+- **Hook-based architecture loading**: Replaced hardcoded AD.md/adr.md file loading in preset commands with hook-based architecture
+  - Architecture context now loaded via `before_specify`/`before_analyze`/`before_clarify` hooks
+  - Removed direct file path references from `adlc.spec.analyze.md` and `adlc.spec.clarify.md`
+  - Aligns with extension hook system for better extensibility
+
+### Fixed
+
+- **team-ai-directives duplicate installation**: Removed duplicate `sync_team_ai_directives()` call
+  - The function was being called twice: once in main init flow and once in `pre_init()` hook
+  - This caused "already installed" error on clean installs
+  - Now only called via `pre_init()` hook in cli_customization
+
+- **team-ai-directives init-options**: Removed duplicate save of ZIP URL in `init-options.json`
+  - The `team_ai_directives` field was being saved twice: first as the original ZIP URL, then as the local path
+  - Now only saves the local filesystem path after extension installation
+  - Ensures `init-options.json` contains usable path instead of download URL
+
+- **team-ai-directives save error handling**: Separated `save_init_options()` from sync exception handler
+  - Moved save logic outside the try/except block to prevent silent failures
+  - When sync fails, early return prevents save attempt
+  - When sync succeeds, save failures will now raise visible errors instead of being swallowed
+
+# [0.5.9] - 2026-04-20
+
+### Added
+
+- **ZIP install for team-ai-directives**:
+  - `sync_team_ai_directives()` now downloads ZIP from GitHub releases
+  - Installs via ExtensionManager to `.specify/extensions/`
+  - Stores `source_url` and `target_repo` in extension registry for levelup
+  - Updated `load_team_directives_config()` to check extensions/ only
+
+- **Documentation**: Added team-ai-directives extension integration docs to README.md
+  - Removed legacy `.specify/memory` support and git clone
+
+### Removed
+
+- **Legacy memory path**: All `.specify/memory/team-ai-directives` fallbacks removed
+- **Git clone**: No longer supported for team-ai-directives
+
+### Changed
+
+- **Path resolution**: Now only checks `.specify/extensions/team-ai-directives`
 
 # [0.5.8] - 2026-04-19
 

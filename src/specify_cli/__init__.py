@@ -197,79 +197,136 @@ except ImportError:
         return None
 
 
-def _run_git_command(
-    args: list[str],
-    cwd: Path | None = None,
-    env: dict[str, str] | None = None,
-    check: bool = True,
-) -> subprocess.CompletedProcess:
-    """Run a git command and return the result."""
-    cmd = ["git"]
-    if cwd:
-        cmd.extend(["-C", str(cwd)])
-    cmd.extend(args)
-    return subprocess.run(
-        cmd,
-        env=env,
-        capture_output=True,
-        text=True,
-        check=check,
-    )
+def _derive_target_repo_from_url(zip_url: str) -> str:
+    """Derive target repository URL from ZIP download URL.
+
+    Example:
+        https://github.com/org/repo/archive/refs/tags/v1.0.0.zip
+        -> https://github.com/org/repo
+    """
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(zip_url)
+    path = parsed.path
+
+    if "/archive/refs/tags/" in path:
+        repo_path = path.split("/archive/refs/tags/")[0]
+    elif "/archive/refs/heads/" in path:
+        repo_path = path.split("/archive/refs/heads/")[0]
+    elif "/archive/" in path:
+        repo_path = path.split("/archive/")[1]
+    else:
+        repo_path = path.rsplit("/", 1)[0]
+
+    return f"{parsed.scheme}://{parsed.netloc}{repo_path}"
 
 
 def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, skip_tls: bool = False
+    repo_url: str, project_root: Path, *, install: bool = True, skip_tls: bool = False
 ) -> tuple[str, Path]:
-    """Clone or update the team-ai-directives repository."""
+    """Install team-ai-directives as extension from ZIP URL or local path.
+
+    Args:
+        repo_url: URL or local path to team-ai-directives
+        project_root: Project root directory
+        install: If True, copy local directories to .specify/extensions/.
+                 If False, use local directories in-place (reference mode).
+        skip_tls: Skip TLS verification (for HTTPS URLs)
+
+    Returns:
+        Tuple of (status, path) where status is "installed", "local", or "reference"
+    """
+    from .extensions import ExtensionManager, ExtensionManifest  # noqa: F401
+
     repo_url = (repo_url or "").strip()
     if not repo_url:
         raise ValueError("Team AI directives repository URL cannot be empty")
 
     potential_path = Path(repo_url).expanduser()
+
     if potential_path.exists() and potential_path.is_dir():
-        return ("local", potential_path.resolve())
-
-    memory_root = project_root / ".specify" / "memory"
-    memory_root.mkdir(parents=True, exist_ok=True)
-    destination = memory_root / TEAM_DIRECTIVES_DIRNAME
-
-    git_env = os.environ.copy()
-    if skip_tls:
-        git_env["GIT_SSL_NO_VERIFY"] = "1"
-
-    try:
-        if destination.exists() and any(destination.iterdir()):
-            _run_git_command(
-                ["rev-parse", "--is-inside-work-tree"], cwd=destination, env=git_env
+        # Validate it's a proper extension
+        manifest_path = potential_path / "extension.yml"
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Invalid team-ai-directives directory: {potential_path}\n"
+                f"Missing extension.yml manifest file"
             )
-            try:
-                existing_remote = _run_git_command(
-                    ["config", "--get", "remote.origin.url"],
-                    cwd=destination,
-                    env=git_env,
-                ).stdout.strip()
-            except subprocess.CalledProcessError:
-                existing_remote = ""
 
-            if existing_remote and existing_remote != repo_url:
-                _run_git_command(
-                    ["remote", "set-url", "origin", repo_url],
-                    cwd=destination,
-                    env=git_env,
+        if not install:
+            # Reference mode: use directory in-place without copying
+            manifest = ExtensionManifest(manifest_path)
+            if manifest.id != TEAM_DIRECTIVES_DIRNAME:
+                raise ValueError(
+                    f"Extension ID mismatch: expected '{TEAM_DIRECTIVES_DIRNAME}', "
+                    f"got '{manifest.id}'"
                 )
+            return ("reference", potential_path)
 
-            _run_git_command(["pull", "--ff-only"], cwd=destination, env=git_env)
-            return ("updated", destination)
+        # Install mode: copy to .specify/extensions/
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+        manifest = ext_manager.install_from_directory(
+            potential_path, speckit_version, priority=1
+        )
+        dest_dir = project_root / ".specify" / "extensions" / manifest.id
+        _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
+        return ("local", dest_dir)
 
-        if destination.exists() and not any(destination.iterdir()):
-            shutil.rmtree(destination)
+    if repo_url.endswith(".zip") or "/archive/" in repo_url:
+        import urllib.request  # noqa: F401
 
-        memory_root.mkdir(parents=True, exist_ok=True)
-        _run_git_command(["clone", repo_url, str(destination)], env=git_env)
-        return ("cloned", destination)
-    except subprocess.CalledProcessError as exc:
-        message = exc.stderr.strip() if exc.stderr else str(exc)
-        raise RuntimeError(f"Git operation failed: {message}") from exc
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+
+        download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+        download_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = download_dir / "team-ai-directives-download.zip"
+
+        try:
+            with urllib.request.urlopen(repo_url, timeout=60) as response:
+                zip_data = response.read()
+            zip_path.write_bytes(zip_data)
+
+            manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)
+            dest_dir = project_root / ".specify" / "extensions" / manifest.id
+
+            target_repo = _derive_target_repo_from_url(repo_url)
+            _store_extension_source_url(project_root, manifest.id, repo_url, target_repo)
+
+            return ("installed", dest_dir)
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+    else:
+        raise ValueError(
+            "Invalid team-ai-directives URL. Expected:\n"
+            "  - Local directory path\n"
+            "  - ZIP file URL (ending in .zip)\n"
+            "  - GitHub archive URL (e.g., https://github.com/org/repo/archive/refs/tags/v1.0.0.zip)"
+        )
+
+
+def _store_extension_source_url(
+    project_root: Path,
+    extension_id: str,
+    source_url: str,
+    target_repo: str | None = None,
+) -> None:
+    """Store source URL in extension registry for later reference (e.g., levelup)."""
+    from .extensions import ExtensionRegistry
+
+    extensions_dir = project_root / ".specify" / "extensions"
+    registry = ExtensionRegistry(extensions_dir)
+
+    if not registry.is_installed(extension_id):
+        return
+
+    metadata = registry.get(extension_id)
+    metadata["source_url"] = source_url
+    if target_repo:
+        metadata["target_repo"] = target_repo
+    registry.update(extension_id, metadata)
 
 
 def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
@@ -1152,6 +1209,24 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return {}
 
 
+def get_team_directives_path(project_path: Path) -> Path | None:
+    """Get team-ai-directives path from init-options or fallback to extensions dir.
+
+    Checks init-options.json first for external/override path, then falls back
+    to the standard .specify/extensions/team-ai-directives location.
+
+    Returns None if neither location exists.
+    """
+    init_opts = load_init_options(project_path)
+    if "team_ai_directives" in init_opts:
+        path = Path(init_opts["team_ai_directives"])
+        if path.exists():
+            return path
+    # Fallback to installed extension
+    fallback = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+    return fallback if fallback.exists() else None
+
+
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
     """Resolve the agent-specific skills directory.
 
@@ -1765,7 +1840,6 @@ def init(
                 "preset": preset,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
-                "team_ai_directives": team_ai_directives,
             }
             # Ensure ai_skills is set for SkillsIntegration so downstream
             # tools (extensions, presets) emit SKILL.md overrides correctly.
@@ -1836,22 +1910,6 @@ def init(
                     console.print(
                         f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}"
                     )
-
-            # Sync team-ai-directives repository if specified
-            if team_ai_directives:
-                tracker.start("team-directives")
-                try:
-                    status, directives_path = sync_team_ai_directives(
-                        team_ai_directives, project_path, skip_tls=skip_tls
-                    )
-                    tracker.complete("team-directives", f"{status}: {directives_path}")
-                except Exception as team_err:
-                    tracker.error("team-directives", str(team_err))
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Failed to sync team-ai-directives: {team_err}"
-                    )
-            else:
-                tracker.skip("team-directives", "not specified")
 
             # Install bundled extensions (from cli_customization if available)
             try:

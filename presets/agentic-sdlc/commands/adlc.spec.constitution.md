@@ -1,8 +1,5 @@
 ---
 description: Create or update the project constitution from interactive or provided principle inputs, ensuring all dependent templates stay in sync.
-scripts:
-  sh: scripts/bash/setup-constitution.sh
-  ps: scripts/powershell/setup-constitution.ps1
 handoffs: 
   - label: Build Specification
     agent: adlc.spec.specify
@@ -25,16 +22,11 @@ You are updating the project constitution at `{REPO_ROOT}/.specify/memory/consti
 
 Follow this execution flow:
 
-1. **Run setup script** to load team directives and project context:
-   - Execute: `{SCRIPT}` from repository root
-   - Parse JSON output for `TEAM_DIRECTIVES` path (if available)
-   - If team constitution exists at `{TEAM_DIRECTIVES}/context_modules/constitution.md` or `{TEAM_DIRECTIVES}/constitution.md`, load it as the foundation for project principles
-
-2. **Load the existing constitution** at `{REPO_ROOT}/.specify/memory/constitution.md`:
+1. Load the existing constitution at `{REPO_ROOT}/.specify/memory/constitution.md`:
    - Identify every placeholder token of the form `[ALL_CAPS_IDENTIFIER]`
    - **IMPORTANT**: The user might require fewer or more principles than the template. Respect any specified count.
 
-3. **Collect/derive values for placeholders**:
+2. Collect/derive values for placeholders:
    - If user input supplies a value, use it
    - If team constitution exists, inherit principles from it (numbered list with `**Principle Name**` pattern)
    - Otherwise infer from existing repo context (README, docs, prior constitution versions)
@@ -44,35 +36,35 @@ Follow this execution flow:
      - MINOR: New principle/section added or materially expanded guidance
      - PATCH: Clarifications, wording, typo fixes, non-semantic refinements
 
-4. **Draft the updated constitution content**:
+3. Draft the updated constitution content:
    - Replace every placeholder with concrete text (no bracketed tokens left)
    - Preserve heading hierarchy; remove comments once replaced
    - Ensure each Principle section has: succinct name, rules (paragraph or bullets), rationale if not obvious
    - Ensure Governance section lists amendment procedure, versioning policy, and compliance expectations
 
-5. **Consistency propagation checklist** (READ-ONLY - report discrepancies, do NOT modify preset templates):
+4. Consistency propagation checklist (READ-ONLY - report discrepancies, do NOT modify preset templates):
    - Review `{REPO_ROOT}/.specify/templates/plan-template.md` - check "Constitution Check" alignment
    - Review `{REPO_ROOT}/.specify/templates/spec-template.md` - check requirements alignment
    - Review `{REPO_ROOT}/.specify/templates/tasks-template.md` - check task categorization
    - Flag any runtime guidance docs (README.md, AGENTS.md) that may reference changed principles
    - Report all findings in the Sync Impact Report
 
-6. **Produce a Sync Impact Report** (prepend as HTML comment at top of constitution file):
+5. Produce a Sync Impact Report (prepend as HTML comment at top of constitution file):
    - Version change: old → new
    - Modified principles (old title → new title if renamed)
    - Added/removed sections
    - Templates requiring updates (✅ updated / ⚠ pending)
    - Follow-up TODOs if any placeholders intentionally deferred
 
-7. **Validation before final output**:
+6. Validation before final output:
    - No remaining unexplained bracket tokens
    - Version line matches report
    - Dates in ISO format YYYY-MM-DD
    - Principles are declarative and testable
 
-8. **Write the completed constitution** to `{REPO_ROOT}/.specify/memory/constitution.md` (overwrite).
+7. Write the completed constitution to `{REPO_ROOT}/.specify/memory/constitution.md` (overwrite).
 
-9. **Output final summary** to the user:
+8. Output final summary to the user:
    - New version and bump rationale
    - Files flagged for manual follow-up
    - Suggested commit message (e.g., `docs: amend constitution to vX.Y.Z`)

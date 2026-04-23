@@ -12,7 +12,7 @@ This guide will help you get started with Spec-Driven Development using Agentic 
 **Alignment with 12 Factors:** This stage establishes the foundation guided by [I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html) and [II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html), positioning the developer as orchestrator and assembling necessary context for AI collaboration.
 
 1. **Project Initialization (`/init`)**  
-   **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives.git`) to configure local settings and clone the shared `team-ai-directives` modules.  
+   **Action:** From the project root, run the Agentic SDLC Spec Kit `init` command (e.g., `specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip`) to configure local settings and install the shared `team-ai-directives` modules.  
    **Purpose:** Creates the handshake that brings the repository into the managed Agentic SDLC ecosystem, wiring credentials, endpoints, and shared knowledge needed for subsequent commands.
 2. **Establishing the Constitution (`/constitution`)**  
    **Action:** Within the IDE, execute `/constitution`, importing relevant modules from `team-ai-directives` and adding any project-specific principles.  

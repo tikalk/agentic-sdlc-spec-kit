@@ -324,29 +324,42 @@ def pre_init(
     from . import sync_team_ai_directives
 
     tracker.start("team-directives")
+    directives_path = None
     try:
-        status, directives_path = sync_team_ai_directives(
-            team_ai_directives, project_path
-        )
-        if status == "cloned":
-            tracker.complete("team-directives", f"cloned to {directives_path}")
-        elif status == "updated":
-            tracker.complete("team-directives", f"updated at {directives_path}")
-        elif status == "local":
-            tracker.complete("team-directives", f"local: {directives_path}")
+        # Determine if this is a local directory (use reference mode) or URL (install)
+        potential_path = Path(team_ai_directives).expanduser()
+        is_local_dir = potential_path.exists() and potential_path.is_dir()
+
+        if is_local_dir:
+            # Local directory: use reference mode (no copy)
+            status, directives_path = sync_team_ai_directives(
+                team_ai_directives, project_path, install=False
+            )
+            tracker.complete("team-directives", f"referenced: {directives_path}")
+        else:
+            # ZIP URL: install to .specify/extensions/
+            status, directives_path = sync_team_ai_directives(
+                team_ai_directives, project_path, install=True
+            )
+            if status == "installed":
+                tracker.complete("team-directives", f"installed to {directives_path}")
+            elif status == "local":
+                tracker.complete("team-directives", f"local: {directives_path}")
         os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
-
-        # Persist to init-options.json (less upstream merge conflicts)
-        from . import load_init_options, save_init_options
-
-        init_opts = load_init_options(project_path)
-        init_opts["team_ai_directives"] = str(directives_path)
-        save_init_options(project_path, init_opts)
     except Exception as e:
         tracker.error("team-directives", str(e))
         console.print(
             f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {e}"
         )
+        return
+
+    # Persist to init-options.json separately - failures here are critical
+    if directives_path:
+        from . import load_init_options, save_init_options
+
+        init_opts = load_init_options(project_path)
+        init_opts["team_ai_directives"] = str(directives_path)
+        save_init_options(project_path, init_opts)
 
 
 def post_init(
@@ -926,29 +939,21 @@ def skill_install(
     # Check for team manifest and blocked skills enforcement
     team_manifest = None
     if not skip_blocked_check:
-        config = _load_config(project_path)
-        team_directives_path = (
-            config.get("team_directives", {}).get("path") if config else None
-        )
-        if not team_directives_path:
-            default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-            if default_path.exists():
-                team_directives_path = str(default_path)
+        from . import get_team_directives_path
 
+        team_directives_path = get_team_directives_path(project_path)
         if team_directives_path:
-            team_directives = Path(team_directives_path)
-            if team_directives.exists():
-                team_manifest = TeamSkillsManifest(team_directives)
-                if team_manifest.exists() and team_manifest.should_enforce_blocked():
-                    blocked = team_manifest.get_blocked_skills()
-                    for blocked_skill in blocked:
-                        if blocked_skill in skill_ref or skill_ref in blocked_skill:
-                            console.print(
-                                f"[red]✗ Skill blocked by team policy:[/red] {skill_ref}\n"
-                                f"  Blocked pattern: {blocked_skill}\n"
-                                f"  Use --skip-blocked-check to override (not recommended)"
-                            )
-                            raise typer.Exit(1)
+            team_manifest = TeamSkillsManifest(team_directives_path)
+            if team_manifest.exists() and team_manifest.should_enforce_blocked():
+                blocked = team_manifest.get_blocked_skills()
+                for blocked_skill in blocked:
+                    if blocked_skill in skill_ref or skill_ref in blocked_skill:
+                        console.print(
+                            f"[red]✗ Skill blocked by team policy:[/red] {skill_ref}\n"
+                            f"  Blocked pattern: {blocked_skill}\n"
+                            f"  Use --skip-blocked-check to override (not recommended)"
+                        )
+                        raise typer.Exit(1)
 
     installer = SkillInstaller(manifest, team_manifest)
 
@@ -1230,15 +1235,10 @@ def skill_sync_team(
         raise typer.Exit(1)
 
     project_path = Path.cwd()
-    config = _load_config(project_path)
 
-    team_directives_path = (
-        config.get("team_directives", {}).get("path") if config else None
-    )
-    if not team_directives_path:
-        default_path = project_path / ".specify" / "memory" / "team-ai-directives"
-        if default_path.exists():
-            team_directives_path = str(default_path)
+    from . import get_team_directives_path
+
+    team_directives_path = get_team_directives_path(project_path)
 
     if not team_directives_path:
         console.print(
@@ -1247,7 +1247,7 @@ def skill_sync_team(
         )
         return
 
-    team_directives = Path(team_directives_path)
+    team_directives = team_directives_path
     if not team_directives.exists():
         console.print(f"[red]Team directives not found:[/red] {team_directives}")
         return

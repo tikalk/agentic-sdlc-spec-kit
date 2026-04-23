@@ -366,6 +366,25 @@ This fork includes pre-installed extensions:
 | tdd | Test-driven development workflows |
 | git | Git workflow automation |
 
+## 🔧 Team AI Directives Integration
+
+This fork supports team-ai-directives — a foundation for version-controlled AI agent behavior. Install during project initialization:
+
+```bash
+# Install from GitHub archive (ZIP download)
+specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip
+
+# Or from a specific release tag
+specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/tags/v1.0.0.zip
+
+# Or use a local directory
+specify init <project> --team-ai-directives ~/workspace/team-ai-directives
+```
+
+The directives are installed to `.specify/extensions/team-ai-directives/` and available to all AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
+
+See [agentic-sdlc-team-ai-directives](https://github.com/tikalk/agentic-sdlc-team-ai-directives) for the full starter kit.
+
 ## 🤖 Supported AI Agents
 
 This fork supports the following AI coding agents:
@@ -629,7 +648,7 @@ The first step should be establishing your project's governing principles using 
 /spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
 ```
 
-This step creates or updates the `.specify/memory/constitution.md` file with your project's foundational guidelines that the AI agent will reference during specification, planning, and implementation phases.
+This step creates or updates your project's constitution file. If team-ai-directives is installed (via `--team-ai-directives`), the constitution is loaded from `.specify/extensions/team-ai-directives/context_modules/constitution.md` for team-wide governance principles.
 
 ### **STEP 2:** Create project specifications
 
