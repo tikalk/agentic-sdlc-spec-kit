@@ -2762,14 +2762,58 @@ def preset_resolve(
         raise typer.Exit(1)
 
     resolver = PresetResolver(project_root)
-    result = resolver.resolve_with_source(template_name)
+    layers = resolver.collect_all_layers(template_name)
 
-    if result:
-        console.print(f"  [bold]{template_name}[/bold]: {result['path']}")
-        console.print(f"    [dim](from: {result['source']})[/dim]")
+    if layers:
+        # Use the highest-priority layer for display because the final output
+        # may be composed and may not map to resolve_with_source()'s single path.
+        display_layer = layers[0]
+        console.print(f"  [bold]{template_name}[/bold]: {display_layer['path']}")
+        console.print(f"    [dim](top layer from: {display_layer['source']})[/dim]")
+
+        has_composition = (
+            layers[0]["strategy"] != "replace"
+            and any(layer["strategy"] != "replace" for layer in layers)
+        )
+        if has_composition:
+            # Verify composition is actually possible
+            try:
+                composed = resolver.resolve_content(template_name)
+            except Exception as exc:
+                composed = None
+                console.print(f"    [yellow]Warning: composition error: {exc}[/yellow]")
+            if composed is None:
+                console.print("    [yellow]Warning: composition cannot produce output (no base layer with 'replace' strategy)[/yellow]")
+            else:
+                console.print("    [dim]Final output is composed from multiple preset layers; the path above is the highest-priority contributing layer.[/dim]")
+            console.print("\n  [bold]Composition chain:[/bold]")
+            # Compute the effective base: first replace layer scanning from
+            # highest priority (matching resolve_content top-down logic).
+            # Only show layers from the base upward (lower layers are ignored).
+            effective_base_idx = None
+            for idx, lyr in enumerate(layers):
+                if lyr["strategy"] == "replace":
+                    effective_base_idx = idx
+                    break
+            # Show only contributing layers (base and above)
+            if effective_base_idx is not None:
+                contributing = layers[:effective_base_idx + 1]
+            else:
+                contributing = layers
+            for i, layer in enumerate(reversed(contributing)):
+                strategy_label = layer["strategy"]
+                if strategy_label == "replace" and i == 0:
+                    strategy_label = "base"
+                console.print(f"    {i + 1}. [{strategy_label}] {layer['source']} → {layer['path']}")
     else:
-        console.print(f"  [yellow]{template_name}[/yellow]: not found")
-        console.print("    [dim]No template with this name exists in the resolution stack[/dim]")
+        # No layers found — fall back to resolve_with_source for non-composition cases
+        result = resolver.resolve_with_source(template_name)
+        if result:
+            console.print(f"  [bold]{template_name}[/bold]: {result['path']}")
+            console.print(f"    [dim](from: {result['source']})[/dim]")
+        else:
+            console.print(f"  [yellow]{template_name}[/yellow]: not found")
+            console.print("    [dim]No template with this name exists in the resolution stack[/dim]")
 
 
 @preset_app.command("info")
