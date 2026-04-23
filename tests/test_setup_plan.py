@@ -35,12 +35,9 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
         templates_dir / "plan-template.md",
     )
 
-    # Seed constitution and team directives (memory for constitution, extensions for team-directives)
+    # Seed constitution (memory for constitution)
     constitution = memory_dir / "constitution.md"
     constitution.write_text("Principles")
-    team_directives = extensions_dir / "team-ai-directives"
-    team_directives.mkdir(parents=True)
-    (team_directives / "context_modules").mkdir(parents=True)
 
     # Seed feature spec directory
     feature_dir = repo_root / "specs" / "001-test-feature"
@@ -78,4 +75,3 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     data = json.loads(json_line)
     assert data["FEATURE_SPEC"].endswith("specs/001-test-feature/spec.md")
     assert data["CONSTITUTION"] == str(constitution)
-    assert data["TEAM_DIRECTIVES"] == str(team_directives)

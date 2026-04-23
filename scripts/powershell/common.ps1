@@ -581,39 +581,6 @@ function Get-ArchitectureDiagrams {
     }
 }
 
-
-# Load team directives configuration from init-options.json
-# Reads team_ai_directives path set by 'specify init --team-ai-directives'
-function Load-TeamDirectivesConfig {
-    param(
-        [string]$RepoRoot = (Get-RepoRoot)
-    )
-
-    $initOptsFile = Join-Path $RepoRoot ".specify/init-options.json"
-
-    if (Test-Path $initOptsFile) {
-        try {
-            $initOpts = Get-Content $initOptsFile -Raw | ConvertFrom-Json
-            $path = $initOpts.team_ai_directives
-            if ($path -and (Test-Path $path -PathType Container)) {
-                $env:SPECIFY_TEAM_DIRECTIVES = $path
-                return $path
-            }
-        } catch {
-            # Ignore errors, fall back to memory
-        }
-    }
-
-    # Fall back to memory location
-    $defaultDir = Join-Path $RepoRoot ".specify/memory/team-ai-directives"
-    if (Test-Path $defaultDir -PathType Container) {
-        $env:SPECIFY_TEAM_DIRECTIVES = $defaultDir
-        return $defaultDir
-    }
-
-    return $null
-}
-
 function Resolve-Template {
     param(
         [Parameter(Mandatory=$true)][string]$TemplateName,

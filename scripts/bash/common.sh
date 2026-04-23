@@ -1,9 +1,6 @@
 #!/usr/bin/env bash
 # Common functions and variables for all scripts
 
-# Shared constants
-TEAM_DIRECTIVES_DIRNAME="team-ai-directives"
-
 # Get the global config path using XDG Base Directory spec
 # Platform-specific locations:
 # - Linux: ~/.config/specify/config.json
@@ -87,27 +84,6 @@ validate_mermaid_syntax() {
     
     # Basic syntax passed
     return 0
-}
-
-load_team_directives_config() {
-    local repo_root="${1:-$(get_repo_root)}"
-
-    # Read team_ai_directives from init-options.json (set by specify init --team-ai-directives)
-    local init_opts_file="$repo_root/.specify/init-options.json"
-    if [[ -f "$init_opts_file" ]]; then
-        local path
-        path=$(python3 -c "import json; print(json.load(open('$init_opts_file')).get('team_ai_directives', ''))" 2>/dev/null || echo "")
-        if [[ -n "$path" && -d "$path" ]]; then
-            export SPECIFY_TEAM_DIRECTIVES="$path"
-            return
-        fi
-    fi
-
-    # Check extension location (installed via specify init --team-ai-directives with ZIP URL)
-    local ext_dir="$repo_root/.specify/extensions/$TEAM_DIRECTIVES_DIRNAME"
-    if [[ -d "$ext_dir" ]]; then
-        export SPECIFY_TEAM_DIRECTIVES="$ext_dir"
-    fi
 }
 
 # Get repository root, with fallback for non-git repositories
@@ -311,7 +287,6 @@ find_feature_dir_by_prefix() {
 
 get_feature_paths() {
     local repo_root=$(get_repo_root)
-    load_team_directives_config "$repo_root"
     local current_branch=$(get_current_branch)
     local has_git_repo="false"
 
@@ -355,7 +330,6 @@ get_feature_paths() {
     # Project-level governance documents
     local memory_dir="$repo_root/.specify/memory"
     local constitution_file="$memory_dir/constitution.md"
-    local adr_file="$memory_dir/adr.md"
 
     # Use printf '%q' to safely quote values, preventing shell injection
     # via crafted branch names or paths containing special characters
@@ -372,7 +346,6 @@ get_feature_paths() {
     printf 'CONTRACTS_DIR=%q\n' "$feature_dir/contracts"
     printf 'TEAM_DIRECTIVES=%q\n' "${SPECIFY_TEAM_DIRECTIVES:-}"
     printf 'CONSTITUTION=%q\n' "$constitution_file"
-    printf 'ADR=%q\n' "$adr_file"
 }
 
 # Check if jq is available for safe JSON construction

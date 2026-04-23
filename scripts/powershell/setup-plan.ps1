@@ -59,70 +59,6 @@ if (Test-Path $constitutionFile) {
     $constitutionFile = ''
 }
 
-$teamDirectives = $env:SPECIFY_TEAM_DIRECTIVES
-if (-not $teamDirectives) {
-    $projectConfig = Join-Path $paths.REPO_ROOT ".specify\config.json"
-    if (Test-Path $projectConfig) {
-        try {
-            $config = Get-Content $projectConfig -Raw | ConvertFrom-Json
-            $teamDirectives = $config.team_directives.path
-        } catch {}
-    }
-}
-if (-not $teamDirectives) {
-    $teamDirectives = Join-Path $paths.REPO_ROOT ".specify\memory\team-ai-directives"
-}
-$teamAgentsMd = ''
-if (Test-Path $teamDirectives) {
-    $env:SPECIFY_TEAM_DIRECTIVES = $teamDirectives
-    # Check for team-level AGENTS.md
-    $teamAgentsMd = Join-Path $teamDirectives 'AGENTS.md'
-    if (-not (Test-Path $teamAgentsMd)) {
-        $teamAgentsMd = ''
-    }
-} else {
-    $teamDirectives = ''
-}
-
-# Resolve architecture path (prefer env override, silent if missing)
-# New structure: AD.md at root (system-level) or specs/{feature}/AD.md (feature-level)
-$adFile = $env:SPECIFY_AD
-if (-not $adFile) {
-    # Check for feature-level AD first
-    if ($paths.CURRENT_BRANCH -and (Test-Path (Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/AD.md"))) {
-        $adFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/AD.md"
-    }
-    # Then check for system-level AD
-    elseif (Test-Path (Join-Path $paths.REPO_ROOT "AD.md")) {
-        $adFile = Join-Path $paths.REPO_ROOT "AD.md"
-    }
-}
-
-if (Test-Path $adFile) {
-    $env:SPECIFY_AD = $adFile
-} else {
-    $adFile = ''
-}
-
-# Also resolve ADR file
-$adrFile = $env:SPECIFY_ADR
-if (-not $adrFile) {
-    # Check for feature-level ADR first
-    if ($paths.CURRENT_BRANCH -and (Test-Path (Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"))) {
-        $adrFile = Join-Path $paths.REPO_ROOT "specs/$($paths.CURRENT_BRANCH)/adr.md"
-    }
-    # Then check for system-level ADR
-    elseif (Test-Path (Join-Path $paths.REPO_ROOT ".specify/drafts/adr.md")) {
-        $adrFile = Join-Path $paths.REPO_ROOT ".specify/drafts/adr.md"
-    }
-}
-
-if (Test-Path $adrFile) {
-    $env:SPECIFY_ADR = $adrFile
-} else {
-    $adrFile = ''
-}
-
 # Output results
 if ($Json) {
     $result = [PSCustomObject]@{ 
@@ -132,10 +68,6 @@ if ($Json) {
         BRANCH = $paths.CURRENT_BRANCH
         HAS_GIT = $paths.HAS_GIT
         CONSTITUTION = $constitutionFile
-        TEAM_DIRECTIVES = $teamDirectives
-        TEAM_AGENTS_MD = $teamAgentsMd
-        AD = $adFile
-        ADR = $adrFile
     }
     $result | ConvertTo-Json -Compress
 } else {
@@ -148,21 +80,5 @@ if ($Json) {
         Write-Output "CONSTITUTION: $constitutionFile"
     } else {
         Write-Output "CONSTITUTION: (missing)"
-    }
-    if ($teamDirectives) {
-        Write-Output "TEAM_DIRECTIVES: $teamDirectives"
-        if ($teamAgentsMd) {
-            Write-Output "TEAM_AGENTS_MD: $teamAgentsMd"
-        } else {
-            Write-Output "TEAM_AGENTS_MD: (missing)"
-        }
-    } else {
-        Write-Output "TEAM_DIRECTIVES: (missing)"
-        Write-Output "TEAM_AGENTS_MD: (missing)"
-    }
-    if ($adrFile) {
-        Write-Output "ADR: $adrFile"
-    } else {
-        Write-Output "ADR (Architecture Decision Records): (missing)"
     }
 }
