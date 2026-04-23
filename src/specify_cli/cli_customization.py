@@ -337,9 +337,9 @@ def pre_init(
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
         else:
-            # ZIP URL: install to .specify/extensions/
+            # ZIP URL: install to .specify/extensions/ (auto-override existing)
             status, directives_path = sync_team_ai_directives(
-                team_ai_directives, project_path, install=True
+                team_ai_directives, project_path, install=True, force=True
             )
             if status == "installed":
                 tracker.complete("team-directives", f"installed to {directives_path}")

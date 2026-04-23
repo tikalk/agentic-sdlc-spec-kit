@@ -51,6 +51,10 @@ bin/
 sdd-*/
 docs/dev
 
+# Synced copies (local working copies, not committed)
+.specify/
+.opencode/
+
 # User-specific configuration (now stored globally in ~/.config/specify/)
 # Old local config directory is kept for backward compatibility but should not be used
 .specify/config/

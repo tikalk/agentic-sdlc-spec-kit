@@ -222,7 +222,7 @@ def _derive_target_repo_from_url(zip_url: str) -> str:
 
 
 def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, install: bool = True, skip_tls: bool = False
+    repo_url: str, project_root: Path, *, install: bool = True, force: bool = False
 ) -> tuple[str, Path]:
     """Install team-ai-directives as extension from ZIP URL or local path.
 
@@ -231,7 +231,8 @@ def sync_team_ai_directives(
         project_root: Project root directory
         install: If True, copy local directories to .specify/extensions/.
                  If False, use local directories in-place (reference mode).
-        skip_tls: Skip TLS verification (for HTTPS URLs)
+        force: If True, remove existing team-ai-directives before reinstalling.
+              If False (default), raise error if already installed.
 
     Returns:
         Tuple of (status, path) where status is "installed", "local", or "reference"
@@ -266,6 +267,11 @@ def sync_team_ai_directives(
         # Install mode: copy to .specify/extensions/
         ext_manager = ExtensionManager(project_root)
         speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
         manifest = ext_manager.install_from_directory(
             potential_path, speckit_version, priority=1
         )
@@ -278,6 +284,10 @@ def sync_team_ai_directives(
 
         ext_manager = ExtensionManager(project_root)
         speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
 
         download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
         download_dir.mkdir(parents=True, exist_ok=True)

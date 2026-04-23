@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Fixed
+
+- **team-ai-directives override**: `sync_team_ai_directives()` now auto-overrides existing installation
+  - Added `force` parameter to allow reinstalling over existing team-ai-directives
+  - Matches pre-installed extension behavior (unconditionally overwrites)
+  - Removes need to manually run `specify extension remove team-ai-directives` first
+
 # [0.5.15] - 2026-04-23
 
 ### Changed
