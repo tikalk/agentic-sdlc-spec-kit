@@ -4,7 +4,7 @@
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
 - AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Codebuddy CLI](https://www.codebuddy.ai/cli), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [Pi Coding Agent](https://pi.dev)
-- [uv](https://docs.astral.sh/uv/) for package management
+- [uv](https://docs.astral.sh/uv/) for package management (recommended) or [pipx](https://pypa.github.io/pipx/) for persistent installation
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
 
@@ -23,6 +23,13 @@ uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <PROJE
 # Or install latest from main (may include unreleased changes)
 uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
 ```
+
+> [!NOTE]
+> For a persistent installation, `pipx` works equally well:
+> ```bash
+> pipx install git+https://github.com/github/spec-kit.git@vX.Y.Z
+> ```
+> The project uses a standard `hatchling` build backend and has no uv-specific dependencies.
 
 Or initialize in the current directory:
 
