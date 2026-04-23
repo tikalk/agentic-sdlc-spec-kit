@@ -128,6 +128,14 @@ hooks:
   after_specify:
     command: "adlc.product.validate"
     description: "Validate feature spec alignment with PRD (READ-ONLY)"
+  before_clarify:
+    command: "adlc.product.link"
+    description: "Load PDR context for clarification"
+    optional: true
+  after_clarify:
+    command: "adlc.product.validate"
+    description: "Validate clarifications against PRD"
+    optional: true
 
 tags:
    - "product"

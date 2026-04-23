@@ -64,94 +64,17 @@ You **MUST** consider the user input before proceeding (if not empty).
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
 
-    Wait for the result of the hook command before proceeding to Mission Brief.
+    Wait for the result of the hook command before proceeding to the Outline.
     ```
 - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
----
-
-## ⚠️ ENFORCEMENT CHECKPOINT 1: Mission Brief
-
-### STOP: COLLECT MISSION BRIEF BEFORE PROCEEDING
-
----
-
-### Phase 1: Extract or Ask for Mission Brief
-
-**If $ARGUMENTS is provided (non-empty):**
-
-Extract the following from the user's description:
-- **Goal**: The core purpose/objective (one sentence)
-- **Success Criteria**: 2-3 measurable outcomes
-- **Constraints**: Technical, business, or regulatory limitations
-- **Demo Sentence**: Observable user capability after completion
-
-Use reasonable inference for any missing elements based on context.
-
-**If $ARGUMENTS is empty or minimal (less than 10 words):**
-
-Ask the Mission Brief Questions:
-
-```markdown
-## Mission Brief Questions
-
-### Question 1: What needs to be built?
-What is the primary feature, capability, or change you need?
-
-### Question 2: What defines success?
-How will we know when this feature is complete? What outcomes matter?
-
-### Question 3: Any constraints?
-Time constraints? Technical limitations? Dependencies? Regulatory requirements?
-```
-
-**⚠️ STOP HERE if questions asked**: Wait for user answers before proceeding.
-
----
-
-### CHECKPOINT 1: Display Mission Brief for APPROVAL
-
-After collecting/extracting information, display Mission Brief in this EXACT format:
-
-```markdown
-## Mission Brief
-
-**Goal**: {extracted or provided goal - one sentence}
-
-**Success Criteria**:
-- {criterion 1 - measurable}
-- {criterion 2 - measurable}
-- {criterion 3 - if applicable}
-
-**Constraints**:
-- {constraint 1}
-- {constraint 2}
-- "None identified" if no constraints
-
-**Demo Sentence**:
-After this feature, the user can: {observable, demo-able capability}
-```
-
-### MANDATORY: Get User Confirmation
-
-```markdown
-**Proceed with this Mission Brief?** (yes / no / adjust)
-```
-
-**⚠️ STOP**: Wait for explicit response.
-
-- If **"no"** or **"adjust"**: Ask what needs to change. Re-display Mission Brief with adjustments. Ask again.
-- If **"yes"**: Proceed to Outline (branch creation and spec writing).
-
----
-
 ## Outline
 
-The text the user typed after `/spec.specify` in the triggering message **is** the feature description. The Mission Brief has been approved above. Now proceed with branch creation and spec writing.
+The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
-Given the approved Mission Brief, do this:
+Given that feature description, do this:
 
-1. **Generate a concise short name** (2-4 words) for the branch:
+1. **Generate a concise short name** (2-4 words) for the feature:
    - Analyze the feature description and extract the most meaningful keywords
    - Create a 2-4 word short name that captures the essence of the feature
    - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
@@ -163,36 +86,54 @@ Given the approved Mission Brief, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Determine branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value:
-   - If `"timestamp"`: The script will use timestamp-based branch naming
-   - If `"sequential"` or absent: Use default sequential numbering (001, 002, etc.)
+2. **Branch creation** (optional, via hook):
 
-   **GIT_BRANCH_NAME passthrough**: If `GIT_BRANCH_NAME` environment variable is set, pass it to the script for user-provided branch names.
+   **Branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value.
+   - If `"timestamp"`, add `--timestamp` (Bash) or `-Timestamp` (PowerShell) to the script invocation
+   - If `"sequential"` or absent, do not add any extra flag (default behavior)
 
-3. **Create the feature branch** by running the script with `--short-name` (and `--json`), and do NOT pass `--number` (the script auto-detects the next globally available number across all branches and spec directories):
+   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
 
-   - Bash example: `{SCRIPT} --json --short-name "user-auth" "Add user authentication"`
-   - PowerShell example: `{SCRIPT} -Json -ShortName "user-auth" "Add user authentication"`
+   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
+
+3. **Create the spec feature directory**:
+
+   Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
+
+   **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
+   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
+   2. Otherwise, auto-generate it under `specs/`:
+      - Check `.specify/init-options.json` for `branch_numbering`
+      - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
+      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
+      - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
+      - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
+
+   **Create the directory and spec file**:
+   - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
+   - Copy `templates/spec-template.md` to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
+   - Persist the resolved path to `.specify/feature.json`:
+     ```json
+     {
+       "feature_directory": "<resolved feature dir>"
+     }
+     ```
+     Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
+     This allows downstream commands (`/spec.plan`, `/spec.tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - Do NOT pass `--number` — the script determines the correct next number automatically
-   - Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
-   - You must only ever run this script once per feature
-   - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
-   - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
+   - You must only create one feature per `/spec.specify` invocation
+   - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
+   - The spec directory and file are always created by this command, never by the hook
 
-3. Load `templates/spec-template.md` to understand required sections.
+4. Load `templates/spec-template.md` to understand required sections.
 
-4. Follow this execution flow (Mission Brief already approved):
-
-    1. Use the approved Mission Brief as the foundation:
-       - **Goal** → spec header's Goal field
-       - **Success Criteria** → spec's Success Criteria section (expand with details)
-       - **Constraints** → spec header's Constraints field
-       - **Demo Sentence** → spec's Demo Sentence section
-    2. Extract additional key concepts from original description
-       Identify: actors, actions, data, edge cases
+5. Follow this execution flow:
+    1. Parse user description from arguments
+       If empty: ERROR "No feature description provided"
+    2. Extract key concepts from description
+       Identify: actors, actions, data, constraints
     3. For unclear aspects:
        - Make informed guesses based on context and industry standards
        - Only mark with [NEEDS CLARIFICATION: specific question] if:
@@ -213,45 +154,28 @@ Given the approved Mission Brief, do this:
     7. Identify Key Entities (if data involved)
     8. Return: SUCCESS (spec ready for planning)
 
-5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 
-### CRITICAL - Path Validation
+7. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-**DO NOT write to project root directory**
-- Parse `BRANCH_NAME` and `SPEC_FILE` from script JSON output
-- Write ONLY to `SPEC_FILE` path - never to `./spec.md`
-- The correct path is: `./specs/<BRANCH_NAME>/spec.md` (e.g., `./specs/001-user-auth/spec.md`)
-- Common mistake: Writing to `./spec.md` instead of `./specs/001-user-auth/spec.md`
-
-### Non-Git Repository Support
-
-If working in a non-git repository:
-- The script outputs `SPECIFY_FEATURE` hint to stderr: `# To persist: export SPECIFY_FEATURE=001-user-auth`
-- After running the script, you MUST set this environment variable before using follow-up commands:
-  - Bash: `export SPECIFY_FEATURE=<BRANCH_NAME>`
-  - PowerShell: `$env:SPECIFY_FEATURE="<BRANCH_NAME>"`
-- This must be set in the AI agent's context before running `/spec.plan` or `/spec.tasks`
-
-6. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
-
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `FEATURE_DIR/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
-      
+
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
       **Feature**: [Link to spec.md]
-      
+
       ## Content Quality
-      
+
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
-      
+
       ## Requirement Completeness
-      
+
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
       - [ ] Success criteria are measurable
@@ -260,16 +184,16 @@ If working in a non-git repository:
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
-      
+
       ## Feature Readiness
-      
+
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
-      
+
       ## Notes
-      
+
       - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
       ```
 
@@ -294,20 +218,20 @@ If working in a non-git repository:
 
            ```markdown
            ## Question [N]: [Topic]
-           
+
            **Context**: [Quote relevant spec section]
-           
+
            **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
-           
+
            **Suggested Answers**:
-           
+
            | Option | Answer | Implications |
-           |--------|--------|--------------|
+           |--------|--------|---------------|
            | A      | [First suggested answer] | [What this means for the feature] |
            | B      | [Second suggested answer] | [What this means for the feature] |
            | C      | [Third suggested answer] | [What this means for the feature] |
            | Custom | Provide your own answer | [Explain how to provide custom input] |
-           
+
            **Your choice**: _[Wait for user response]_
            ```
 
@@ -324,9 +248,13 @@ If working in a non-git repository:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-7. Report completion with branch name, spec file path, checklist results, and readiness for the next phase (`/spec.clarify` or `/spec.plan`).
+8. **Report completion** to the user with:
+   - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
+   - `SPEC_FILE` — the spec file path
+   - Checklist results summary
+   - Readiness for the next phase (`/spec.clarify` or `/spec.plan`)
 
-8. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+9. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_specify` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -355,7 +283,7 @@ If working in a non-git repository:
         ```
     - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
-**NOTE:** The script creates and checks out the new branch and initializes the spec file before writing.
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 
 ## Quick Guidelines
 

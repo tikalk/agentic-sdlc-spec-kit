@@ -4,6 +4,24 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.17] - 2026-04-24
+
+### Changed
+
+- **Aligned preset commands to templates**: All agentic-sdlc preset commands now aligned with template structure
+  - plan.md: -118 lines, kept Triage Framework [SYNC]/[ASYNC]
+  - analyze.md: -170 lines, kept Auto-Detection Pre/Post-Implementation
+  - clarify.md: -141 lines, kept Mission Brief validation
+  - checklist.md: -21 lines, kept Path Validation section
+  - implement.md: -11 lines, kept Dual Execution Mode
+  - specify.md: -73 lines, kept Mission Brief Enforcement
+
+### Added
+
+- **Product extension clarify hooks**: Added `before_clarify` and `after_clarify` hooks
+  - Uses existing `adlc.product.link` command for PDR context loading
+  - Aligns with architect extension pattern (plan hooks)
+
 ### Fixed
 
 - **team-ai-directives override**: `sync_team_ai_directives()` now auto-overrides existing installation

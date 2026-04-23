@@ -1,8 +1,8 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 scripts:
-  sh: scripts/bash/implement.sh "$(scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks)"
-  ps: scripts/powershell/implement.ps1 "$(scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks)"
+  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
 
 ## User Input
@@ -42,14 +42,12 @@ You **MUST** consider the user input before proceeding (if not empty).
     **Automatic Pre-Hook**: {extension}
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
-    
+
     Wait for the result of the hook command before proceeding to the Outline.
     ```
-- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
-
-**Focus:** Comprehensive implementation with full validation
 
 1. Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
@@ -61,13 +59,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 - Common mistakes:
   - Reading from `./tasks.md` instead of `./specs/<BRANCH>/tasks.md`
   - Writing implementation files to root instead of feature directory
-
-### Non-Git Repository Support
-
-If working in a non-git repository:
-- Ensure `SPECIFY_FEATURE` environment variable is set
-- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
-- Without this, FEATURE_DIR will resolve to the wrong location
 
 2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
@@ -101,15 +92,15 @@ If working in a non-git repository:
      - Automatically proceed to step 3
 
 3. Load and analyze the implementation context:
-    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
-    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
-    - **IF EXISTS**: Read data-model.md for entities and relationships
-    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
-    - **IF EXISTS**: Read research.md for technical decisions and constraints
-    - **IF EXISTS**: Read quickstart.md for integration scenarios
+   - **REQUIRED**: Read tasks.md for the complete task list and execution plan
+   - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
+   - **IF EXISTS**: Read data-model.md for entities and relationships
+   - **IF EXISTS**: Read contracts/ for API specifications and test requirements
+   - **IF EXISTS**: Read research.md for technical decisions and constraints
+   - **IF EXISTS**: Read quickstart.md for integration scenarios
 
 4. **Project Setup Verification**:
-   - **REQUIRED**: Create/verify ignore files based on actual project setup:
+   - **REQUIRED**: Create/verify ignore files based on actual project setup
 
    **Detection & Creation Logic**:
    - Check if the following command succeeds to determine if the repository is a git repo (create/verify .gitignore if so):
@@ -129,7 +120,7 @@ If working in a non-git repository:
    **If ignore file already exists**: Verify it contains essential patterns, append missing critical patterns only
    **If ignore file missing**: Create with full pattern set for detected technology
 
-   **Common Patterns by Technology** (from plan.md tech stack if available, otherwise detect from project files):
+   **Common Patterns by Technology** (from plan.md tech stack):
    - **Node.js/JavaScript/TypeScript**: `node_modules/`, `dist/`, `build/`, `*.log`, `.env*`
    - **Python**: `__pycache__/`, `*.pyc`, `.venv/`, `venv/`, `dist/`, `*.egg-info/`
    - **Java**: `target/`, `*.class`, `*.jar`, `.gradle/`, `build/`
@@ -152,49 +143,48 @@ If working in a non-git repository:
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-    1. Parse tasks.md structure and extract:
-        - **Task phases**: Setup, Tests, Core, Integration, Polish
-        - **Task dependencies**: Sequential vs parallel execution rules
-        - **Task details**: ID, description, file paths, parallel markers [P]
-        - **Execution flow**: Order and dependency requirements
-- **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
-         - Record assigned agents and job IDs for ASYNC tasks
+5. Parse tasks.md structure and extract:
+   - **Task phases**: Setup, Tests, Core, Integration, Polish
+   - **Task dependencies**: Sequential vs parallel execution rules
+   - **Task details**: ID, description, file paths, parallel markers [P]
+   - **Execution flow**: Order and dependency requirements
+   - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
+     - Record assigned agents and job IDs for ASYNC tasks
 
-    2. Execute implementation following execution approach:
+6. Execute implementation following execution approach:
+   - **Phase-by-phase execution**: Complete each phase before moving to the next
+   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
+   - **Follow TDD approach** (if enabled): Check framework settings - if TDD enabled, execute test tasks before implementation tasks
+   - **File-based coordination**: Tasks affecting the same files must run sequentially
+   - **Dual execution mode handling**:
+     - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+     - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
+   - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
+   - **Validation checkpoints**: Verify each phase completion before proceeding
 
-         - **Phase-by-phase execution**: Complete each phase before moving to the next
-         - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
-         - **Follow TDD approach** (if enabled): Check framework settings - if TDD enabled, execute test tasks before implementation tasks
-         - **File-based coordination**: Tasks affecting the same files must run sequentially
-         - **Dual execution mode handling**:
-           - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-             - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
-         - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-         - **Validation checkpoints**: Verify each phase completion before proceeding
+7. Implementation execution rules:
+   - **Setup first**: Initialize project structure, dependencies, configuration
+   - **Tests before code** (if TDD enabled): If TDD is enabled in current settings and you need to write tests for contracts, entities, and integration scenarios
+   - **Core development**: Implement models, services, CLI commands, endpoints
+   - **Integration work**: Database connections, middleware, logging, external services
+   - **Polish and validation**: Unit tests, performance optimization, documentation
 
-5. Implementation execution rules:
-       - **Setup first**: Initialize project structure, dependencies, configuration
-       - **Tests before code** (if TDD enabled): If TDD is enabled in current settings and you need to write tests for contracts, entities, and integration scenarios
-       - **Core development**: Implement models, services, CLI commands, endpoints
-       - **Integration work**: Database connections, middleware, logging, external services
-       - **Polish and validation**: Unit tests, performance optimization, documentation
+8. Progress tracking and error handling:
+   - Report progress after each completed task
+   - Halt execution if any non-parallel task fails
+   - For parallel tasks [P], continue with successful tasks, report failed ones
+   - Provide clear error messages with context for debugging
+   - Suggest next steps if implementation cannot proceed
+   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
 
-6. Progress tracking and error handling:
-       - Report progress after each completed task
-       - Halt execution if any non-parallel task fails
-       - For parallel tasks [P], continue with successful tasks, report failed ones
-       - Provide clear error messages with context for debugging
-       - Suggest next steps if implementation cannot proceed
-       - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+9. Completion validation:
+   - Verify all required tasks are completed
+   - Check that implemented features match the original specification
+   - Validate that tests pass and coverage meets requirements
+   - Confirm the implementation follows the technical plan
+   - Report final status with comprehensive summary of completed work
 
-7. Completion validation:
-       - Verify all required tasks are completed
-       - Check that implemented features match the original specification
-       - Validate that tests pass and coverage meets requirements
-       - Confirm the implementation follows the technical plan
-       - Report final status with comprehensive summary of completed work
-
-  9. **Check for extension hooks**: After completion validation, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+10. **Check for extension hooks**: After completion validation, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_implement` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -221,7 +211,7 @@ If working in a non-git repository:
         Executing: `/{command}`
         EXECUTE_COMMAND: {command}
         ```
-- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+    - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
 

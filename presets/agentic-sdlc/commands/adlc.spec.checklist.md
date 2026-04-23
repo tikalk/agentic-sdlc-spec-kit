@@ -70,9 +70,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution Steps
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS.
-    - All file paths must be absolute.
-    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS list.
+   - All file paths must be absolute.
+   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 ### CRITICAL - Path Validation
 
@@ -80,12 +80,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 - Parse `FEATURE_DIR` from script output
 - Write checklist files ONLY to `./specs/<BRANCH>/checklists/` NOT root
 - Common mistake: Writing to `./checklists/` instead of `./specs/<BRANCH>/checklists/`
-
-### Non-Git Repository Support
-
-If working in a non-git repository:
-- Ensure `SPECIFY_FEATURE` environment variable is set
-- Run: `export SPECIFY_FEATURE=001-user-auth` before this command
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
    - Be generated from the user's phrasing + extracted signals from spec/plan/tasks
@@ -126,16 +120,16 @@ If working in a non-git repository:
    - Infer any missing context from spec/plan/tasks (do NOT hallucinate)
 
 4. **Load feature context**: Read from FEATURE_DIR:
-     - spec.md: Feature requirements and scope
-     - plan.md (if exists): Technical details, dependencies
-     - tasks.md (if exists): Implementation tasks
-     - {REPO_ROOT}/.specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
+   - spec.md: Feature requirements and scope
+   - plan.md (if exists): Technical details, dependencies
+   - tasks.md (if exists): Implementation tasks
+   - {REPO_ROOT}/.specify/config/config.json: Current mode and enabled options (under `workflow` and `options` sections)
 
-    **Context Loading Strategy**:
-     - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
-     - Prefer summarizing long sections into concise scenario/requirement bullets
-     - Use progressive disclosure: add follow-on retrieval only if gaps detected
-     - If source docs are large, generate interim summary items instead of embedding raw text
+   **Context Loading Strategy**:
+   - Load only necessary portions relevant to active focus areas (avoid full-file dumping)
+   - Prefer summarizing long sections into concise scenario/requirement bullets
+   - Use progressive disclosure: add follow-on retrieval only if gaps detected
+   - If source docs are large, generate interim summary items instead of embedding raw text
 
 5. **Generate checklist** - Create "Unit Tests for Requirements":
    - Create `FEATURE_DIR/checklists/` directory if it doesn't exist
@@ -145,9 +139,9 @@ If working in a non-git repository:
    - File handling behavior:
      - If file does NOT exist: Create new file and number items starting from CHK001
      - If file exists: Append new items to existing file, continuing from the last CHK ID (e.g., if last item is CHK015, start new items at CHK016)
-    - Never delete or replace existing checklist content - always preserve and append
+   - Never delete or replace existing checklist content - always preserve and append
 
-    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
+   **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
    Every checklist item MUST evaluate the REQUIREMENTS THEMSELVES for:
    - **Completeness**: Are all necessary requirements present?
    - **Clarity**: Are requirements unambiguous and specific?
@@ -155,7 +149,18 @@ If working in a non-git repository:
    - **Measurability**: Can requirements be objectively verified?
    - **Coverage**: Are all scenarios/edge cases addressed?
 
-    **HOW TO WRITE CHECKLIST ITEMS - "Unit Tests for English"**:
+   **Category Structure** - Group items by requirement quality dimensions:
+   - **Requirement Completeness** (Are all necessary requirements documented?)
+   - **Requirement Clarity** (Are requirements specific and unambiguous?)
+   - **Requirement Consistency** (Do requirements align without conflicts?)
+   - **Acceptance Criteria Quality** (Are success criteria measurable?)
+   - **Scenario Coverage** (Are all flows/cases addressed?)
+   - **Edge Case Coverage** (Are boundary conditions defined?)
+   - **Non-Functional Requirements** (Performance, Security, Accessibility, etc. - are they specified?)
+   - **Dependencies & Assumptions** (Are they documented and validated?)
+   - **Ambiguities & Conflicts** (What needs clarification?)
+
+   **HOW TO WRITE CHECKLIST ITEMS - "Unit Tests for English"**:
 
    ❌ **WRONG** (Testing implementation):
    - "Verify landing page displays 3 episode cards"
@@ -177,7 +182,7 @@ If working in a non-git repository:
    - Focus on what's WRITTEN (or not written) in the spec/plan
    - Include quality dimension in brackets [Completeness/Clarity/Consistency/etc.]
    - Reference spec section `[Spec §X.Y]` when checking existing requirements
-      - Use `[Gap]` marker when checking for missing requirements
+   - Use `[Gap]` marker when checking for missing requirements
 
    **EXAMPLES BY QUALITY DIMENSION**:
 
@@ -200,56 +205,33 @@ If working in a non-git repository:
    - "Are concurrent user interaction scenarios addressed? [Coverage, Gap]"
    - "Are requirements specified for partial data loading failures? [Coverage, Exception Flow]"
 
-    Measurability:
-    - "Are visual hierarchy requirements measurable/testable? [Acceptance Criteria, Spec §FR-1]"
-    - "Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"
+   Measurability:
+   - "Are visual hierarchy requirements measurable/testable? [Acceptance Criteria, Spec §FR-1]"
+   - "Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"
 
-    Completeness:
-    - "Are error handling requirements defined for all API failure modes? [Gap]"
-    - "Are accessibility requirements specified for all interactive elements? [Completeness]"
-    - "Are mobile breakpoint requirements defined for responsive layouts? [Gap]"
-
-    Clarity:
-    - "Is 'fast loading' quantified with specific timing thresholds? [Clarity, Spec §NFR-2]"
-    - "Are 'related episodes' selection criteria explicitly defined? [Clarity, Spec §FR-5]"
-    - "Is 'prominent' defined with measurable visual properties? [Ambiguity, Spec §FR-4]"
-
-    Consistency:
-    - "Do navigation requirements align across all pages? [Consistency, Spec §FR-10]"
-    - "Are card component requirements consistent between landing and detail pages? [Consistency]"
-
-    Coverage:
-    - "Are requirements defined for zero-state scenarios (no episodes)? [Coverage, Edge Case]"
-    - "Are concurrent user interaction scenarios addressed? [Coverage, Gap]"
-    - "Are requirements specified for partial data loading failures? [Coverage, Exception Flow]"
-
-    Measurability:
-    - "Are visual hierarchy requirements measurable/testable? [Acceptance Criteria, Spec §FR-1]"
-    - "Can 'balanced visual weight' be objectively verified? [Measurability, Spec §FR-2]"
-
-    **Scenario Classification & Coverage** (Requirements Quality Focus):
-    - Check if requirements exist for: Primary, Alternate, Exception/Error, Recovery, Non-Functional scenarios
-    - For each scenario class, ask: "Are [scenario type] requirements complete, clear, and consistent?"
-    - If scenario class missing: "Are [scenario type] requirements intentionally excluded or missing? [Gap]"
-    - Include resilience/rollback when state mutation occurs: "Are rollback requirements defined for migration failures? [Gap]"
+   **Scenario Classification & Coverage** (Requirements Quality Focus):
+   - Check if requirements exist for: Primary, Alternate, Exception/Error, Recovery, Non-Functional scenarios
+   - For each scenario class, ask: "Are [scenario type] requirements complete, clear, and consistent?"
+   - If scenario class missing: "Are [scenario type] requirements intentionally excluded or missing? [Gap]"
+   - Include resilience/rollback when state mutation occurs: "Are rollback requirements defined for migration failures? [Gap]"
 
    **Traceability Requirements**:
    - MINIMUM: ≥80% of items MUST include at least one traceability reference
    - Each item should reference: spec section `[Spec §X.Y]`, or use markers: `[Gap]`, `[Ambiguity]`, `[Conflict]`, `[Assumption]`
    - If no ID system exists: "Is a requirement & acceptance criteria ID scheme established? [Traceability]"
 
-    **Surface & Resolve Issues** (Requirements Quality Problems):
-    Ask questions about the requirements themselves:
-    - Ambiguities: "Is the term 'fast' quantified with specific metrics? [Ambiguity, Spec §NFR-1]"
-    - Conflicts: "Do navigation requirements conflict between §FR-10 and §FR-10a? [Conflict]"
-    - Assumptions: "Is the assumption of 'always available podcast API' validated? [Assumption]"
-    - Dependencies: "Are external podcast API requirements documented? [Dependency, Gap]"
-    - Missing definitions: "Is 'visual hierarchy' defined with measurable criteria? [Gap]"
+   **Surface & Resolve Issues** (Requirements Quality Problems):
+   Ask questions about the requirements themselves:
+   - Ambiguities: "Is the term 'fast' quantified with specific metrics? [Ambiguity, Spec §NFR-1]"
+   - Conflicts: "Do navigation requirements conflict between §FR-10 and §FR-10a? [Conflict]"
+   - Assumptions: "Is the assumption of 'always available podcast API' validated? [Assumption]"
+   - Dependencies: "Are external podcast API requirements documented? [Dependency, Gap]"
+   - Missing definitions: "Is 'visual hierarchy' defined with measurable criteria? [Gap]"
 
-    **Content Consolidation**:
-    - Soft cap: If raw candidate items > 40, prioritize by risk/impact
-    - Merge near-duplicates checking the same requirement aspect
-    - If >5 low-impact edge cases, create one item: "Are edge cases X, Y, Z addressed in requirements? [Coverage]"
+   **Content Consolidation**:
+   - Soft cap: If raw candidate items > 40, prioritize by risk/impact
+   - Merge near-duplicates checking the same requirement aspect
+   - If >5 low-impact edge cases, create one item: "Are edge cases X, Y, Z addressed in requirements? [Coverage]"
 
    **🚫 ABSOLUTELY PROHIBITED** - These make it an implementation test, not a requirements test:
    - ❌ Any item starting with "Verify", "Test", "Confirm", "Check" + implementation behavior
@@ -267,15 +249,13 @@ If working in a non-git repository:
    - ✅ "Are [edge cases/scenarios] addressed in requirements?"
    - ✅ "Does the spec define [missing aspect]?"
 
-7. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
+6. **Structure Reference**: Generate the checklist following the canonical template in `templates/checklist-template.md` for title, meta section, category headings, and ID formatting. If template is unavailable, use: H1 title, purpose/created meta lines, `##` category sections containing `- [ ] CHK### <requirement item>` lines with globally incrementing IDs starting at CHK001.
 
 7. **Report**: Output full path to checklist file, item count, and summarize whether the run created a new file or appended to an existing one. Summarize:
    - Focus areas selected
    - Depth level
    - Actor/timing
    - Any explicit user-specified must-have items incorporated
-   - MCP configuration validation status (if included in checklist)
-   - Framework options validation status (based on enabled mode options)
 
 **Important**: Each `/spec.checklist` command invocation uses a short, descriptive checklist filename and either creates a new file or appends to an existing one. This allows:
 
