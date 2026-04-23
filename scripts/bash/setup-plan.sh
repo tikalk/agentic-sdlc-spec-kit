@@ -80,7 +80,6 @@ fi
 
 # Resolve ADR file
 ADR_FILE="${SPECIFY_ADR:-}"
-ADR_FILE="${SPECIFY_ADR:-}"
 if [[ -z "$ADR_FILE" ]]; then
     # Check for feature-level ADR first
     if [[ -n "$CURRENT_BRANCH" && -f "$REPO_ROOT/specs/$CURRENT_BRANCH/adr.md" ]]; then
@@ -109,11 +108,13 @@ if $JSON_MODE; then
             --arg constitution "$CONSTITUTION_FILE" \
             --arg team_directives "$TEAM_DIRECTIVES_DIR" \
             --arg team_agents_md "$TEAM_AGENTS_MD" \
+            --arg ad "$AD_FILE" \
             --arg adr "$ADR_FILE" \
-            '{FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,SPECS_DIR:$specs_dir,BRANCH:$branch,HAS_GIT:$has_git,CONSTITUTION:$constitution,TEAM_DIRECTIVES:$team_directives,TEAM_AGENTS_MD:$team_agents_md,ADR:$adr}'
+            --arg context_file "$CONTEXT_FILE" \
+            '{FEATURE_SPEC:$feature_spec,IMPL_PLAN:$impl_plan,SPECS_DIR:$specs_dir,BRANCH:$branch,HAS_GIT:$has_git,CONSTITUTION:$constitution,TEAM_DIRECTIVES:$team_directives,TEAM_AGENTS_MD:$team_agents_md,AD:$ad,ADR:$adr,CONTEXT_FILE:$context_file}'
     else
-        printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","TEAM_AGENTS_MD":"%s","ADR":"%s"}\n' \
-            "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$HAS_GIT")" "$(json_escape "$CONSTITUTION_FILE")" "$(json_escape "$TEAM_DIRECTIVES_DIR")" "$(json_escape "$TEAM_AGENTS_MD")" "$(json_escape "$ADR_FILE")"
+        printf '{"FEATURE_SPEC":"%s","IMPL_PLAN":"%s","SPECS_DIR":"%s","BRANCH":"%s","HAS_GIT":"%s","CONSTITUTION":"%s","TEAM_DIRECTIVES":"%s","TEAM_AGENTS_MD":"%s","AD":"%s","ADR":"%s","CONTEXT_FILE":"%s"}\n' \
+            "$(json_escape "$FEATURE_SPEC")" "$(json_escape "$IMPL_PLAN")" "$(json_escape "$FEATURE_DIR")" "$(json_escape "$CURRENT_BRANCH")" "$(json_escape "$HAS_GIT")" "$(json_escape "$CONSTITUTION_FILE")" "$(json_escape "$TEAM_DIRECTIVES_DIR")" "$(json_escape "$TEAM_AGENTS_MD")" "$(json_escape "$AD_FILE")" "$(json_escape "$ADR_FILE")" "$(json_escape "$CONTEXT_FILE")"
     fi
 else
     echo "FEATURE_SPEC: $FEATURE_SPEC"
@@ -137,38 +138,16 @@ else
         echo "TEAM_DIRECTIVES: (missing)"
         echo "TEAM_AGENTS_MD: (missing)"
     fi
-    if [[ -n "$ADR_FILE" ]]; then
-        echo "ADR: $ADR_FILE"
+    if [[ -n "$AD_FILE" ]]; then
+        echo "AD: $AD_FILE"
     else
-        echo "ADR (Architecture Decision Records): (missing)"
-    fi
-fi
-else
-    echo "FEATURE_SPEC: $FEATURE_SPEC"
-    echo "IMPL_PLAN: $IMPL_PLAN"
-    echo "SPECS_DIR: $FEATURE_DIR"
-    echo "BRANCH: $CURRENT_BRANCH"
-    echo "HAS_GIT: $HAS_GIT"
-    if [[ -n "$CONSTITUTION_FILE" ]]; then
-        echo "CONSTITUTION: $CONSTITUTION_FILE"
-    else
-        echo "CONSTITUTION: (missing)"
-    fi
-    if [[ -n "$TEAM_DIRECTIVES_DIR" ]]; then
-        echo "TEAM_DIRECTIVES: $TEAM_DIRECTIVES_DIR"
-        if [[ -n "$TEAM_AGENTS_MD" ]]; then
-            echo "TEAM_AGENTS_MD: $TEAM_AGENTS_MD"
-        else
-            echo "TEAM_AGENTS_MD: (missing)"
-        fi
-    else
-        echo "TEAM_DIRECTIVES: (missing)"
-        echo "TEAM_AGENTS_MD: (missing)"
+        echo "AD (Architecture Description): (missing - run /architect.init or /architect.specify)"
     fi
     if [[ -n "$ADR_FILE" ]]; then
         echo "ADR: $ADR_FILE"
     else
         echo "ADR (Architecture Decision Records): (missing)"
     fi
+    echo "CONTEXT_FILE: $CONTEXT_FILE"
 fi
 
