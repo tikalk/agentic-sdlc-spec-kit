@@ -160,11 +160,6 @@ if ($Json) {
         Write-Output "TEAM_DIRECTIVES: (missing)"
         Write-Output "TEAM_AGENTS_MD: (missing)"
     }
-    if ($adFile) {
-        Write-Output "AD: $adFile"
-    } else {
-        Write-Output "AD (Architecture Description): (missing - run /architect.init or /architect.specify)"
-    }
     if ($adrFile) {
         Write-Output "ADR: $adrFile"
     } else {

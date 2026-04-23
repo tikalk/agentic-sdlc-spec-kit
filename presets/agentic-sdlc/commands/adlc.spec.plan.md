@@ -246,10 +246,6 @@ Document each task with: Classification ([SYNC]/[ASYNC]), Primary Criteria, Risk
    - Append newly discovered items
    - On conflicts: Keep higher confidence score, annotate the change
 
-3. **Show refresh status** in context.md
-   - What changed: New items, removed items, score changes
-   - Mark items that moved between baseline and AI categories
-
 **Detection logic**: Use same AI semantic approach as /specify command to ensure consistency.
 
 

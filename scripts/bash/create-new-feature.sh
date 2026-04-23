@@ -411,10 +411,7 @@ if [ "$DRY_RUN" != true ]; then
     replace_date_placeholders "$SPEC_FILE"
 fi
 
-CONTEXT_TEMPLATE=$(resolve_template "context-template" "$REPO_ROOT") || true
-CONTEXT_FILE="$FEATURE_DIR/context.md"
-
-# Function to discover team directives (Issue #47)
+# Resolve team directives path using centralized function
 discover_directives() {
     local feature_description="$1"
     local team_directives_path="$2"
@@ -607,68 +604,6 @@ discover_skills() {
             "last_refresh": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"
         }'
 }
-
-# Function to populate context.md with defaults
-populate_context_file() {
-    local context_file="$1"
-    local feature_name="$2"
-    local feature_description="$3"
-
-    # Extract feature title (first line or first sentence)
-    local feature_title=$(echo "$feature_description" | head -1 | sed 's/^[[:space:]]*//' | sed 's/[[:space:]]*$//')
-
-    # Extract mission (first sentence, limited to reasonable length)
-    local mission=$(echo "$feature_description" | grep -o '^[[:print:]]*[.!?]' | head -1 | sed 's/[.!?]$//')
-    if [ -z "$mission" ]; then
-        mission="$feature_description"
-    fi
-    # Limit mission length for readability
-    if [ ${#mission} -gt 200 ]; then
-        mission=$(echo "$mission" | cut -c1-200 | sed 's/[[:space:]]*$//' | sed 's/[[:space:]]*$/.../')
-    fi
-
-    # Spec mode: Comprehensive context for full specification
-    # Detect code paths (basic detection based on common patterns)
-    local code_paths="To be determined during planning phase"
-    if echo "$feature_description" | grep -qi "api\|endpoint\|service"; then
-        code_paths="api/, services/"
-    elif echo "$feature_description" | grep -qi "ui\|frontend\|component"; then
-        code_paths="src/components/, src/pages/"
-    elif echo "$feature_description" | grep -qi "database\|data\|model"; then
-        code_paths="src/models/, database/"
-    fi
-
-    # Read team directives if available
-    local directives="None"
-    local team_directives_file="$REPO_ROOT/.specify/memory/team-ai-directives/directives.md"
-    if [ -f "$team_directives_file" ]; then
-        directives="See team-ai-directives repository for applicable guidelines"
-    fi
-
-    # Set research needs
-    local research="To be identified during specification and planning phases"
-
-    # Create context.md with populated values
-    cat > "$context_file" << EOF
-# Feature Context
-
-**Feature**: $feature_title
-**Mission**: $mission
-**Code Paths**: $code_paths
-**Directives**: $directives
-**Research**: $research
-
-EOF
-}
-
-# Populate context.md with defaults
-if [ "$DRY_RUN" != true ]; then
-    if [ -f "$CONTEXT_TEMPLATE" ]; then
-        populate_context_file "$CONTEXT_FILE" "$BRANCH_SUFFIX" "$FEATURE_DESCRIPTION"
-    else
-        touch "$CONTEXT_FILE"
-    fi
-fi
 
 # Resolve team directives path using centralized function
 load_team_directives_config "$REPO_ROOT"

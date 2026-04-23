@@ -355,8 +355,6 @@ get_feature_paths() {
     # Project-level governance documents
     local memory_dir="$repo_root/.specify/memory"
     local constitution_file="$memory_dir/constitution.md"
-    # New architecture structure: AD.md at root, ADRs in .specify/memory/
-    local ad_file="$repo_root/AD.md"
     local adr_file="$memory_dir/adr.md"
 
     # Use printf '%q' to safely quote values, preventing shell injection
@@ -371,11 +369,9 @@ get_feature_paths() {
     printf 'RESEARCH=%q\n' "$feature_dir/research.md"
     printf 'DATA_MODEL=%q\n' "$feature_dir/data-model.md"
     printf 'QUICKSTART=%q\n' "$feature_dir/quickstart.md"
-    printf 'CONTEXT=%q\n' "$feature_dir/context.md"
     printf 'CONTRACTS_DIR=%q\n' "$feature_dir/contracts"
     printf 'TEAM_DIRECTIVES=%q\n' "${SPECIFY_TEAM_DIRECTIVES:-}"
     printf 'CONSTITUTION=%q\n' "$constitution_file"
-    printf 'AD=%q\n' "$ad_file"
     printf 'ADR=%q\n' "$adr_file"
 }
 

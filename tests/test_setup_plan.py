@@ -46,7 +46,6 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     feature_dir = repo_root / "specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
     (feature_dir / "spec.md").write_text("# Spec")
-    (feature_dir / "context.md").write_text("""# Feature Context\n- filled""")
 
     # Prefer SPECIFY_FEATURE to avoid git dependency
     monkeypatch.setenv("SPECIFY_FEATURE", "001-test-feature")
@@ -80,4 +79,3 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     assert data["FEATURE_SPEC"].endswith("specs/001-test-feature/spec.md")
     assert data["CONSTITUTION"] == str(constitution)
     assert data["TEAM_DIRECTIVES"] == str(team_directives)
-    assert data["CONTEXT_FILE"] == str(feature_dir / "context.md")

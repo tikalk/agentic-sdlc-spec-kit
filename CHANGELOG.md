@@ -4,6 +4,43 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.12] - 2025-04-23
+
+### Changed
+
+- **Removed context-template.md**: `context-template.md` and the legacy `context.md` feature file have been removed from the agentic-sdlc preset
+  - Auto-discovery of team context is now handled exclusively by `team-ai-directives` extension
+  - Removed template file from `presets/agentic-sdlc/templates/`
+  - Removed `context-template` entry from `preset.yml`
+  - Removed `populate_context_file()` function and `CONTEXT_TEMPLATE` resolution from `create-new-feature.sh` (bash and PowerShell)
+  - Removed `context.md` file generation from feature creation workflow
+  - Updated tests to remove context-template references
+
+- **Removed AD.md references**: Architecture Description file references removed from scripts
+  - The `@extensions/architect` extension now provides architecture via hooks (`before_*` hooks)
+  - Removed AD checks and output from `setup-plan.sh` (scripts/ and .specify/scripts/)
+  - Removed AD checks from `check-prerequisites.sh`
+  - Removed AD from `common.sh` environment variable output (note: AD was never actually exported, only displayed)
+
+- **Sync setup-plan.sh**: Synchronized `.specify/scripts/bash/setup-plan.sh` with `scripts/bash/setup-plan.sh`
+  - Removed CONTEXT_FILE from JSON output
+  - Removed AD output block
+  - Both directories now identical after sync
+
+- **Removed constitution scripts**: Functionality moved to `team-ai-directives/commands/constitution.md`
+  - Deleted `setup-constitution.sh` from `.specify/scripts/bash/`
+  - Deleted `validate-constitution.sh` from `.specify/scripts/bash/`
+  - Deleted command files referencing removed scripts:
+    - `.opencode/command/spec.constitution.md`
+    - `.opencode/command/adlc.spec.constitution.md`
+    - `presets/agentic-sdlc/commands/adlc.spec.constitution.md`
+  - Removed mentions of `validate-constitution.sh` from levelup validate commands
+
+- **Hook-based architecture loading**: Replaced hardcoded AD.md/adr.md file loading in preset commands with hook-based architecture
+  - Architecture context now loaded via `before_specify`/`before_analyze`/`before_clarify` hooks
+  - Removed direct file path references from `adlc.spec.analyze.md` and `adlc.spec.clarify.md`
+  - Aligns with extension hook system for better extensibility
+
 # [0.5.11] - 2026-04-23
 
 ### Added

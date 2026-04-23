@@ -409,14 +409,7 @@ function Get-FeaturePathsEnv {
     # Project-level governance documents
     $memoryDir = Join-Path $repoRoot '.specify/memory'
     $constitutionFile = Join-Path $memoryDir 'constitution.md'
-    
-    # New architecture document structure (AD.md at root or feature level, ADR in memory/)
-    $systemAdFile = Join-Path $repoRoot 'AD.md'
-    $featureAdFile = Join-Path $featureDir 'AD.md'
     $adrFile = Join-Path $repoRoot '.specify/drafts/adr.md'
-    
-    # Determine which AD file to use
-    $adFile = if (Test-Path $featureAdFile) { $featureAdFile } elseif (Test-Path $systemAdFile) { $systemAdFile } else { $null }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
@@ -431,7 +424,6 @@ function Get-FeaturePathsEnv {
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
         CONSTITUTION  = $constitutionFile
-        AD            = $adFile
         SYSTEM_AD     = $systemAdFile
         FEATURE_AD    = $featureAdFile
         ADR           = $adrFile
