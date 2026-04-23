@@ -4,6 +4,24 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.15] - 2026-04-23
+
+### Changed
+
+- **Removed TEAM_DIRECTIVES from core scripts**: setup-plan no longer resolves team-ai-directives path
+  - Removed `load_team_directives_config()` from common.sh
+  - Removed `Load-TeamDirectivesConfig()` from common.ps1
+  - setup-plan output no longer includes `TEAM_DIRECTIVES` or `TEAM_AGENTS_MD`
+- **Removed team-ai-directives from extensions**: architect and product extensions no longer copy ADRs/PDRs to team-ai-directives
+  - ADRs remain in `.specify/drafts/` and `.specify/memory/`
+  - PDRs remain in `.specify/drafts/` and `.specify/memory/`
+  - AD.md and PRD.md always output to project root
+
+### Fixed
+
+- **Removed ADR from setup-plan scripts**: ADR resolution code removed from bash and PowerShell scripts
+- **Removed PDR from setup-plan scripts**: PDR resolution code removed from bash and PowerShell scripts
+
 # [0.5.14] - 2026-04-23
 
 ### Fixed

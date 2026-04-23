@@ -2,6 +2,12 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.10] - 2026-04-23
+
+### Changed
+
+- **Removed team-ai-directives integration**: PDRs now stored only in `.specify/drafts/` and `.specify/memory/`, PRD.md now always outputs to project root
+
 ## [1.1.9] - 2026-04-19
 
 ### Fixed

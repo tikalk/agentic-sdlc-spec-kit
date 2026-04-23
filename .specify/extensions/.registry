@@ -1,0 +1,184 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "git": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:9731aa8143a72fbebfdb440f155038ab42642517c2b2bdbbf67c8fdbe076ed79",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "speckit.git.feature",
+          "speckit.git.validate",
+          "speckit.git.remote",
+          "speckit.git.initialize",
+          "speckit.git.commit"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.549845+00:00"
+    },
+    "tdd": {
+      "version": "1.0.2",
+      "source": "local",
+      "manifest_hash": "sha256:20b178b15190b3662b5737880b8675c15f00374fccff2367b549d7ce751016b2",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.tdd.plan",
+          "tdd.plan",
+          "adlc.tdd.tasks",
+          "tdd.tasks",
+          "adlc.tdd.implement",
+          "tdd.implement",
+          "adlc.tdd.validate",
+          "tdd.validate"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.767033+00:00"
+    },
+    "levelup": {
+      "version": "1.1.7",
+      "source": "local",
+      "manifest_hash": "sha256:98b80c82fd95dc74cd706a149926bb3cc163e13c997cb58da4c6ea563626e077",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.levelup.init",
+          "levelup.init",
+          "adlc.levelup.clarify",
+          "levelup.clarify",
+          "adlc.levelup.specify",
+          "levelup.specify",
+          "adlc.levelup.skills",
+          "levelup.skills",
+          "adlc.levelup.implement",
+          "levelup.implement",
+          "adlc.levelup.trace",
+          "levelup.trace",
+          "adlc.levelup.validate",
+          "levelup.validate"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.786797+00:00"
+    },
+    "architect": {
+      "version": "2.0.2",
+      "source": "local",
+      "manifest_hash": "sha256:35b2f1c2624e2ca0209424263d7e9c362adcae2b99fab34d26b12a20d1e3495b",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.architect.init",
+          "architect.init",
+          "adlc.architect.specify",
+          "architect.specify",
+          "adlc.architect.clarify",
+          "architect.clarify",
+          "adlc.architect.implement",
+          "architect.implement",
+          "adlc.architect.analyze",
+          "architect.analyze",
+          "adlc.architect.validate",
+          "architect.validate"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.818283+00:00"
+    },
+    "quick": {
+      "version": "1.0.2",
+      "source": "local",
+      "manifest_hash": "sha256:5c997291556633ceac82db8347361d4c81550f6fcf1c78c0537e22f7c10b514e",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.quick.implement",
+          "quick.implement"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.821744+00:00"
+    },
+    "product": {
+      "version": "1.1.9",
+      "source": "local",
+      "manifest_hash": "sha256:f6d0c4dac9109e3d264ca970eb4322bbf7113fab34be4d2fddcb708f546723f9",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.product.init",
+          "product.init",
+          "adlc.product.specify",
+          "product.specify",
+          "adlc.product.clarify",
+          "product.clarify",
+          "adlc.product.implement",
+          "product.implement",
+          "adlc.product.analyze",
+          "product.analyze",
+          "adlc.product.validate",
+          "product.validate",
+          "adlc.product.roadmap",
+          "product.roadmap",
+          "adlc.product.link",
+          "product.link"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.857293+00:00"
+    },
+    "evals": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:c35b73c6c05bcbf6a5189dc38f2f67061297a52cc9367a241477f731f0c0619b",
+      "enabled": true,
+      "priority": 10,
+      "registered_commands": {
+        "opencode": [
+          "adlc.evals.init",
+          "evals.init",
+          "adlc.evals.specify",
+          "evals.specify",
+          "adlc.evals.clarify",
+          "evals.clarify",
+          "adlc.evals.implement",
+          "evals.implement",
+          "adlc.evals.validate",
+          "evals.validate",
+          "adlc.evals.trace",
+          "evals.trace"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:29:56.882017+00:00"
+    },
+    "team-ai-directives": {
+      "version": "1.2.0",
+      "source": "local",
+      "manifest_hash": "sha256:f83836717b901eef89209276547b7f41ab6a229a614ac1c91aca1d97cf39c632",
+      "enabled": true,
+      "priority": 1,
+      "registered_commands": {
+        "opencode": [
+          "adlc.team-ai-directives.verify",
+          "team-ai-directives.verify",
+          "adlc.team-ai-directives.discover",
+          "team-ai-directives.discover"
+        ]
+      },
+      "registered_skills": [],
+      "installed_at": "2026-04-21T12:41:56.619892+00:00",
+      "source_url": "https://github.com/tikalk/agentic-sdlc-team-ai-directives/archive/refs/tags/v1.2.0.zip",
+      "target_repo": "https://github.com/tikalk/agentic-sdlc-team-ai-directives"
+    }
+  }
+}

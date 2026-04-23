@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.1.9"
+  version: "1.1.10"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) for systematic product development"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

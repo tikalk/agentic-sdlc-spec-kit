@@ -2,6 +2,12 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.3] - 2026-04-23
+
+### Changed
+
+- **Removed team-ai-directives integration**: ADRs now stored only in `.specify/drafts/` and `.specify/memory/`, no longer copied to team-ai-directives
+
 ## [2.0.2] - 2026-04-19
 
 ### Fixed

@@ -1,0 +1,95 @@
+schema_version: "1.0"
+
+extension:
+  id: "tdd"
+  name: "TDD - Test-Driven Development Workflow"
+  version: "1.0.2"
+  description: "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation."
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/tdd"
+
+requires:
+  speckit_version: ">=0.0.80"
+  tools:
+    - name: "git"
+      required: true
+
+provides:
+  commands:
+    - name: "adlc.tdd.plan"
+      file: "commands/plan.md"
+      description: "TDD planning phase - plan tests before writing code"
+      aliases: ["tdd.plan"]
+
+    - name: "adlc.tdd.tasks"
+      file: "commands/tasks.md"
+      description: "Detect language and generate hybrid TDD tests (increment-based + risk-based)"
+      aliases: ["tdd.tasks"]
+
+    - name: "adlc.tdd.implement"
+      file: "commands/implement.md"
+      description: "Execute RED→GREEN→REFACTOR TDD cycle for each task"
+      aliases: ["tdd.implement"]
+
+    - name: "adlc.tdd.validate"
+      file: "commands/validate.md"
+      description: "Validate test quality: coverage, isolation, anti-patterns"
+      aliases: ["tdd.validate"]
+
+  config:
+    - name: "tdd-config.yml"
+      template: "config-template.yml"
+      description: "TDD extension configuration"
+      required: false
+
+# Manual handoffs between TDD commands
+handoffs:
+  tdd.tasks:
+    - label: "Execute TDD Cycle"
+      agent: "tdd.implement"
+      prompt: "Execute RED→GREEN→REFACTOR cycle for generated tests"
+      send: false
+
+  tdd.implement:
+    - label: "Validate Tests"
+      agent: "tdd.validate"
+      prompt: "Validate test quality after implementation"
+      send: false
+
+# Extension hooks for automatic execution
+hooks:
+  after_plan:
+    command: "adlc.tdd.plan"
+    optional: true
+    description: "TDD planning phase - answer 5 questions about interface, behaviors, and testability"
+    
+  after_tasks:
+    command: "adlc.tdd.tasks"
+    optional: false
+    description: "Generate hybrid TDD tests after tasks.md created"
+    
+  before_implement:
+    command: "adlc.tdd.implement"
+    optional: false
+    description: "Execute RED→GREEN→REFACTOR TDD cycle before implementation"
+    
+  after_implement:
+    command: "adlc.tdd.validate"
+    optional: true
+    description: "Validate test quality: coverage, isolation, anti-patterns"
+
+tags:
+  - "tdd"
+  - "testing"
+  - "red-green-refactor"
+  - "risk-based-testing"
+  - "vertical-slicing"
+
+defaults:
+  tdd:
+    test_directory: "tests/"
+    test_flags: "-xvs"
+    risk_threshold: "medium"  # low | medium | high
+    auto_detect: true

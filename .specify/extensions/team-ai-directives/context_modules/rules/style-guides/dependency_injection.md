@@ -1,0 +1,3 @@
+# Dependency Injection
+
+All services and components should use dependency injection (DI) rather than creating dependencies directly. This promotes loose coupling, testability, and maintainability. Use constructor injection as the primary method, with field injection only when necessary for framework integration. Dependencies should be defined as interfaces when possible to enable easy mocking and swapping of implementations.

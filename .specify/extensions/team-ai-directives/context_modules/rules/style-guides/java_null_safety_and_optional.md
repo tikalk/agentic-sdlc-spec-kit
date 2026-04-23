@@ -1,0 +1,3 @@
+# Java Null Safety and Optional
+
+Prefer `Optional<T>` for methods that may return null, making the possibility of absence explicit in the type system. Avoid returning null from methods; use `Optional.empty()` instead. Use `Optional` for chaining operations and providing default values. For nullable fields, document them clearly and validate at boundaries. Consider using `@Nullable` and `@NonNull` annotations (from JSR-305 or similar) to document nullability contracts in APIs.
