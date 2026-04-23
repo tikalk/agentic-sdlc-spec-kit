@@ -4,6 +4,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.14] - 2026-04-23
+
+### Fixed
+
+- **setup-plan.sh syntax error**: Fixed broken if/fi structure after upstream alignment
+  - Removed context.md and AD.md checks but left orphaned `else` causing syntax errors
+  - Scripts now work correctly without context.md and AD.md dependencies
+
 # [0.5.13] - 2026-04-23
 
 ### Fixed
