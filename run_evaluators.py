@@ -99,6 +99,7 @@ class EvaluatorRunner:
         example_input = example.get("input", "")
         expected_output = example.get("expected_output")
         expected_pass = example.get("expected_pass", True)
+        context = example.get("context")
 
         input_str = self.normalize_input(example_input)
 
@@ -108,7 +109,7 @@ class EvaluatorRunner:
 
             # Signature 1: grade(output, context) - promptfoo style
             try:
-                result = grader_fn(input_str, None)
+                result = grader_fn(input_str, context)
             except TypeError:
                 pass
 

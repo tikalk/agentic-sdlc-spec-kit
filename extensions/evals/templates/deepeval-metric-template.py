@@ -165,13 +165,11 @@ class {{METRIC_CLASS_NAME}}(BaseMetric):
 
         {{#if_evaluator_type_llm_judge}}
         # Convert async LLM call to sync
-        import asyncio
         result = asyncio.run(self._llm_judge_evaluation(test_case))
         {{/if_evaluator_type_llm_judge}}
 
         {{#if_evaluator_type_hybrid}}
         # Convert async hybrid call to sync
-        import asyncio
         result = asyncio.run(self._hybrid_evaluation(test_case))
         {{/if_evaluator_type_hybrid}}
 
