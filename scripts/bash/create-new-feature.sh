@@ -606,7 +606,6 @@ discover_skills() {
 }
 
 # Resolve team directives path using centralized function
-load_team_directives_config "$REPO_ROOT"
 TEAM_DIRECTIVES_DIR="${SPECIFY_TEAM_DIRECTIVES:-"$REPO_ROOT/.specify/extensions/team-ai-directives"}"
 
 # Discover directives and skills
