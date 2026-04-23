@@ -139,7 +139,6 @@ defaults:
     heuristic: "surprising"  # surprising | all | minimal
     drafts_location: ".specify/drafts/adr.md"      # Working copy (init/specify/clarify)
     memory_location: ".specify/memory/adr.md"      # Accepted ADRs (project canonical)
-    team_location: "context_modules/adr.md"         # Accepted ADRs (team-ai-directives)
   ad:
     location: "AD.md"
   views: "core"  # core | all | comma-separated
@@ -182,5 +181,5 @@ defaults:
 # ADR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)
 # 2. clarify -> drafts (refines in place)
-# 3. implement -> Accepted ADRs to memory or team-ai-directives
+# 3. implement -> Accepted ADRs to memory (.specify/memory)
 # 4. analyze/validate -> read from all locations

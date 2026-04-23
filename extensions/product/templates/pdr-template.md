@@ -217,7 +217,6 @@ This field indicates what type of product decision this PDR represents.
 
 - Working PDRs go in `.specify/drafts/pdr.md`
 - Accepted PDRs go in `.specify/memory/pdr.md` (project canonical)
-- For team-ai-directives: use `{TEAM_DIRECTIVES}/context_modules/pdr.md`
 - PRD synthesizes all PDRs into a cohesive requirements document
 - PDRs should reference each other for dependencies
 - Conflicts with product vision should be flagged as VIOLATION
@@ -226,5 +225,5 @@ This field indicates what type of product decision this PDR represents.
 
 1. init/specify → drafts (Proposed/Discovered status)
 2. clarify → drafts (refines in place)
-3. implement → Accepted PDRs to memory or team-ai-directives
+3. implement → Accepted PDRs to memory (.specify/memory)
 4. analyze/validate → read from all locations

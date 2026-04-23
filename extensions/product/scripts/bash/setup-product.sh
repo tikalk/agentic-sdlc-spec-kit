@@ -71,27 +71,7 @@ NC='\033[0m' # No Color
 
 # Default locations
 PDR_LOCATION=".specify/drafts/pdr.md"
-
-# Resolve team-ai-directives path
-# Priority: 1. env var, 2. init-options.json, 3. config.json (legacy), 4. team-ai-directives file, 5. memory fallback
-# Resolve team directives using centralized function
-load_team_directives_config "$REPO_ROOT"
-TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
-if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
-fi
-if [[ -z "$TEAM_DIRECTIVES" ]] || [[ ! -d "$TEAM_DIRECTIVES" ]]; then
-    TEAM_DIRECTIVES=""
-fi
-
-# PRD output location - use TD if configured, else project root
-if [[ -n "$TEAM_DIRECTIVES" ]]; then
-    PRD_LOCATION="$TEAM_DIRECTIVES/PRD.md"
-    PRD_TEAM_MODE=true
-else
-    PRD_LOCATION="PRD.md"
-    PRD_TEAM_MODE=false
-fi
+PRD_LOCATION="PRD.md"
 
 log_info() {
     echo -e "${GREEN}[INFO]${NC} $1"

@@ -11,10 +11,8 @@ adr:
   # ADR file locations (ADR Lifecycle)
   # Working copy - init/specify/clarify write here
   drafts_location: ".specify/drafts/adr.md"
-  # Project canonical - Accepted ADRs (when no team-ai-directives)
+  # Project canonical - Accepted ADRs
   memory_location: ".specify/memory/adr.md"
-  # Team canonical - Accepted ADRs (when team-ai-directives is configured)
-  team_location: "context_modules/adr.md"
 
 ad:
   # Architecture Description file location

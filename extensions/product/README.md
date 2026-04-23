@@ -141,7 +141,7 @@ Validate feature spec alignment with PRD (READ-ONLY).
    ↓
 4. /product.implement
    ↓
-5. PRD.md generated (to project root or {TEAM_DIRECTIVES}/context_modules/ via PR)
+5. PRD.md generated (to project root)
    ↓
 6. Feature development with /spec.specify
 ```
@@ -157,7 +157,7 @@ Validate feature spec alignment with PRD (READ-ONLY).
    ↓
 4. /product.implement
    ↓
-5. PRD.md generated (to project root or {TEAM_DIRECTIVES}/context_modules/ via PR)
+5. PRD.md generated (to project root)
 ```
 
 ## Integration

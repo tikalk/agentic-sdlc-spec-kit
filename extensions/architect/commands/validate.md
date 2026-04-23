@@ -34,7 +34,6 @@ If ADRs exist in any location (check all three):
 
 1. Load ADRs from all locations (priority order):
    - `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
-   - `{TEAM_DIRECTIVES}/context_modules/adr.md` (team canonical - if configured)
    - `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
 2. Load architecture description from `AD.md` (if present)
 3. Load the generated plan from `{REPO_ROOT}/.specify/memory/plan.md`
@@ -106,7 +105,7 @@ This command also detects when architectural decisions in the plan **require new
 Example output:
 
 ```text
-⏭️  Architecture not found (no ADRs in drafts/memory/team)
+⏭️  Architecture not found (no ADRs in drafts/memory)
      Skipping validation gracefully
 ```
 
@@ -119,7 +118,6 @@ Example output:
 
 📋 ADR files found: N
    - memory: X ADR(s)
-   - team: Y ADR(s) [if configured]
    - drafts: Z ADR(s)
 
 Executing validation checks...
@@ -145,7 +143,6 @@ Warnings: 5
   "action": "validate",
   "adr_locations": {
     "memory": "{REPO_ROOT}/.specify/memory/adr.md",
-    "team": "{TEAM_DIRECTIVES}/context_modules/adr.md",
     "drafts": "{REPO_ROOT}/.specify/drafts/adr.md"
   },
   "adr_count": 12,

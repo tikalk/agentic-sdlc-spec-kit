@@ -137,17 +137,6 @@ ADR_FILE="$REPO_ROOT/.specify/drafts/adr.md"  # Default to drafts
 TEMPLATE_FILE="$REPO_ROOT/.specify/templates/architecture-template.md"
 AD_TEMPLATE_FILE="$REPO_ROOT/.specify/templates/AD-template.md"
 
-# Team-ai-directives (if configured) using centralized function
-load_team_directives_config "$REPO_ROOT"
-TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
-if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -f "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-    TEAM_DIRECTIVES=$(cat "$REPO_ROOT/.specify/team-ai-directives" 2>/dev/null || echo "")
-fi
-if [[ -n "$TEAM_DIRECTIVES" ]] && [[ -d "$TEAM_DIRECTIVES" ]]; then
-    mkdir -p "$TEAM_DIRECTIVES/context_modules"
-    ADR_TEAM_FILE="$TEAM_DIRECTIVES/context_modules/adr.md"
-fi
-
 # Export for use in functions
 export ARCHITECTURE_VIEWS="$VIEWS"
 export ADR_HEURISTIC="$ADR_HEURISTIC"
@@ -768,12 +757,7 @@ action_implement() {
     echo "  3. Apply Security and Performance perspectives" >&2
     echo "  4. Create Mermaid diagrams for each view" >&2
     echo "  5. Write complete AD.md to project root" >&2
-    echo "  6. Move Accepted ADRs to canonical location" >&2
-    if [[ -n "$TEAM_DIRECTIVES" ]]; then
-        echo "     - Accepted ADRs -> team-ai-directives/context_modules/adr.md" >&2
-    else
-        echo "     - Accepted ADRs -> .specify/memory/adr.md" >&2
-    fi
+    echo "  6. Move Accepted ADRs to canonical location (.specify/memory/adr.md)" >&2
     echo "  7. Clean up drafts if all ADRs are Accepted" >&2
     
     if $JSON_MODE; then

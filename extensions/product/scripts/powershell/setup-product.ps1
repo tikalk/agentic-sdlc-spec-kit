@@ -321,17 +321,8 @@ function Setup-PRD {
 
 $REPO_ROOT = Get-RepoRoot
 
-# Resolve team-ai-directives path using centralized function
-$teamDirectives = Load-TeamDirectivesConfig
-
-# PRD output location - use TD if configured
-if ($teamDirectives) {
-    $PRD_LOCATION = Join-Path $teamDirectives "PRD.md"
-    $prdTeamMode = $true
-} else {
-    $PRD_LOCATION = "PRD.md"
-    $prdTeamMode = $false
-}
+# PRD output location
+$PRD_LOCATION = "PRD.md"
 
 # DAG Action Functions
 

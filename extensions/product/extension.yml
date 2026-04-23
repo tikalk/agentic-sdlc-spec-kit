@@ -143,11 +143,8 @@ defaults:
     heuristic: "surprising"
     drafts_location: ".specify/drafts/pdr.md"      # Working copy (init/specify/clarify)
     memory_location: ".specify/memory/pdr.md"      # Accepted PDRs (project canonical)
-    team_location: "context_modules/pdr.md"         # Accepted PDRs (team-ai-directives)
   prd:
     location: "PRD.md"
-    team_location: "PRD.md"
-    team_pr: true
   sections: "all"
   decompose: true
   dag:
@@ -160,5 +157,5 @@ defaults:
 # PDR Lifecycle:
 # 1. init/specify -> drafts (Proposed/Discovered status)
 # 2. clarify -> drafts (refines in place)
-# 3. implement -> Accepted PDRs to memory or team-ai-directives
+# 3. implement -> Accepted PDRs to memory (.specify/memory)
 # 4. analyze/validate -> read from all locations

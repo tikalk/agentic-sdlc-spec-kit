@@ -24,9 +24,8 @@ You are acting as a **Product Linker** - your job is to find and link an existin
 
 Check for PDR file in this order:
 
-1. **`{TEAM_DIRECTIVES}/context_modules/pdr.md`** - If `SPECIFY_TEAM_DIRECTIVES` env var or `.specify/team-ai-directives` file is configured
-2. **`{REPO_ROOT}/.specify/memory/pdr.md`** - Project canonical (Accepted PDRs)
-3. **`{REPO_ROOT}/.specify/drafts/pdr.md`** - Working copy (Proposed/Discovered PDRs)
+1. **`{REPO_ROOT}/.specify/memory/pdr.md`** - Project canonical (Accepted PDRs)
+2. **`{REPO_ROOT}/.specify/drafts/pdr.md`** - Working copy (Proposed/Discovered PDRs)
 
 ## Execution Steps
 
