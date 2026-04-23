@@ -1,5 +1,5 @@
 ---
-description: Generate PromptFoo config + graders from goldset following EDD Principle VIII (Close Production Loop)
+description: Generate eval config + graders from goldset following EDD Principle VIII (Close Production Loop)
 scripts:
   sh: scripts/bash/setup-evals.sh "implement {ARGS}"
   ps: scripts/powershell/setup-evals.ps1 "implement {ARGS}"
@@ -19,6 +19,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 - `"Generate Python graders for all criteria"`
 - `"Use LLM-judge for semantic evaluation, code-based for deterministic checks"`
 - `"Create PromptFoo config with tier 1 and tier 2 separation"`
+- `"Generate DeepEval configuration with custom metrics"`
 - `"Add annotation routing for high-risk failures"`
 - Empty input: Generate complete evaluator suite from goldset
 
@@ -64,8 +65,12 @@ tests/
 
 **Output**:
 
-1. **PromptFoo Configuration** - Complete `config.js` with tier 1 + tier 2 evaluation structure
-2. **Grader Implementation** - Python graders for each goldset criterion with binary pass/fail
+1. **Evaluation Configuration** - Complete config with tier 1 + tier 2 evaluation structure
+   - PromptFoo: `config.js` with JavaScript configuration and Python graders
+   - DeepEval: `config.py` with Python configuration and custom metrics
+2. **Grader/Metric Implementation** - Python evaluators for each goldset criterion with binary pass/fail
+   - PromptFoo: Python grader functions with JSON output
+   - DeepEval: Custom metric classes inheriting from BaseMetric
 3. **Failure Type Routing** - Specification failures → fix directives, generalization failures → build evaluators
 4. **Annotation Integration** - High-risk trace routing to human review queues
 5. **Evaluation Pipeline** - Complete CI/CD integration ready for `/evals.validate`
@@ -76,6 +81,118 @@ tests/
 - **Principle IV**: Evaluation Pyramid - Tier 1 (fast) + Tier 2 (goldset) structure
 - **Principle II**: Binary Pass/Fail - All graders return strict 1.0/0.0 evaluation
 - **Principle VII**: Annotation Queues - Route high-risk traces to humans
+
+### Dependency Management
+
+When implementing evaluators, the extension automatically manages system-specific dependencies:
+
+#### DeepEval Integration
+
+**Version Requirement**: DeepEval >=3.0.0 is required. The v3.x API introduced breaking changes:
+- `TestCase` renamed to `LLMTestCase`
+- `context` parameter must be `List[str]` (was `str` in v2.x)
+- Metrics must implement async `a_measure` method
+
+For DeepEval evaluators, the system automatically:
+
+1. **Adds Dependencies**: Updates `pyproject.toml` with required packages
+   ```toml
+   [project.optional-dependencies]
+   evals = [
+       "deepeval>=3.0.0",        # DeepEval 3.x with updated API
+       "openai>=1.3.0",          # Required by deepeval for LLM-judge metrics
+       "pytest>=7.0.0",          # For generated unit tests
+       "pytest-asyncio>=0.21.0"  # For async metric testing
+   ]
+   ```
+
+2. **Syncs Environment**: Automatically runs dependency installation
+   - With `uv`: `uv sync --group evals`
+   - With `pip`: `pip install -e .[evals]`
+
+3. **Verifies Installation**: Checks `import deepeval` succeeds and validates version before generating code
+
+**Version Check Implementation**:
+```python
+import deepeval
+from packaging import version
+
+def verify_deepeval_version():
+    """Verify DeepEval version compatibility."""
+    min_version = "3.0.0"
+    current_version = deepeval.__version__
+    
+    if version.parse(current_version) < version.parse(min_version):
+        raise RuntimeError(
+            f"DeepEval {current_version} is not compatible. "
+            f"Minimum required version: {min_version}\n"
+            f"Upgrade with: pip install deepeval>=3.0.0\n\n"
+            f"Breaking changes in v3.x:\n"
+            f"  - TestCase renamed to LLMTestCase\n"
+            f"  - context parameter type changed to List[str]\n"
+            f"  - New async metric API (a_measure method required)"
+        )
+    
+    # Verify v3.x API availability
+    try:
+        from deepeval.test_case import LLMTestCase
+        from deepeval.metrics import BaseMetric
+    except ImportError as e:
+        raise RuntimeError(
+            f"Failed to import DeepEval v3.x API: {e}\n"
+            f"Your installation may be corrupted. Try: pip install --force-reinstall deepeval>=3.0.0"
+        )
+    
+    return True
+
+# Run verification before generating code
+verify_deepeval_version()
+```
+
+**Compatibility Checks**:
+   - Validates DeepEval >=3.0.0 installed
+   - Ensures `LLMTestCase` is available (not old v2.x `TestCase`)
+   - Confirms context type support (`List[str]` required in v3.x)
+   - Verifies async metric API (`a_measure` method)
+
+#### PromptFoo Integration
+
+For PromptFoo evaluators, the system automatically:
+
+1. **Adds Dependencies**: Updates `package.json` with required packages
+   ```json
+   {
+     "devDependencies": {
+       "promptfoo": "^0.60.0"
+     }
+   }
+   ```
+
+2. **Syncs Environment**: Runs `npm install` or `yarn install`
+
+3. **Verifies Installation**: Checks `promptfoo` CLI is available
+
+#### Verification Steps
+
+The implementation process executes atomically:
+
+1. ✅ **Detects evaluation system** from `.specify/config.yml` or user arguments
+2. ✅ **Checks existing dependencies** in `pyproject.toml` or `package.json`
+3. ✅ **Adds missing dependencies** with correct version constraints
+4. ✅ **Syncs package manager** (uv/pip/npm/yarn) to install dependencies
+5. ✅ **Validates imports** to ensure compatibility (e.g., DeepEval >=3.0.0)
+6. ✅ **Generates graders** with system-specific templates
+7. ✅ **Generates tests** for all graders
+8. ✅ **Generates config** (requires graders exist - no chicken-and-egg)
+9. ✅ **Validates config** imports work and metrics instantiate
+10. ✅ **Commits files** only if all steps succeed
+
+**Error Handling**: If any step fails, the command will:
+- Display clear error message with component name and failure reason
+- Rollback all generated files (atomic operation)
+- Preserve existing working configuration if present
+- Suggest manual fix command or regeneration
+- Exit with non-zero status for CI/CD integration
 
 ### Flags
 
@@ -104,18 +221,61 @@ You are acting as an **Evaluation Implementation Engineer** creating production-
 
 ## Outline
 
-1. **Goldset Analysis** (Phase 0): Parse finalized goldset and assess implementation requirements
-2. **Evaluator Type Mapping**: Determine optimal evaluator approach per criterion
-3. **Tier Assignment**: Classify criteria into evaluation pyramid tiers
-4. **Grader Generation**: Create executable Python graders with binary pass/fail
-5. **PromptFoo Configuration**: Generate complete config.js with tier structure
-6. **Failure Type Routing**: Implement specification vs generalization failure gates
-7. **Annotation Integration**: Set up high-risk trace routing for human review
-8. **Validation Setup**: Prepare for evaluation system validation
+1. **System Detection** (Phase 0): Detect evaluation system (PromptFoo/DeepEval) from configuration
+2. **Goldset Analysis**: Parse finalized goldset and assess implementation requirements
+3. **Evaluator Type Mapping**: Determine optimal evaluator approach per criterion
+4. **Tier Assignment**: Classify criteria into evaluation pyramid tiers
+5. **Implementation Generation**: Create executable evaluators with binary pass/fail
+   - PromptFoo: Python grader functions with JSON output
+   - DeepEval: Custom metric classes with DeepEval integration
+6. **Test Generation**: Create comprehensive unit tests for all evaluators
+7. **Configuration Generation**: Generate complete evaluation configuration (requires graders exist)
+   - PromptFoo: config.js with tier structure
+   - DeepEval: config.py with custom metrics
+8. **Configuration Validation**: Verify all imports work, metrics instantiate correctly
+9. **Failure Type Routing**: Implement specification vs generalization failure gates
+10. **Annotation Integration**: Set up high-risk trace routing for human review
+11. **Atomic Commit**: Commit all generated files only if validation passes; rollback on failure
 
 ## Execution Steps
 
-### Phase 0: Goldset Analysis and Requirements Assessment
+### Phase 0: System Detection and Configuration Assessment
+
+**Objective**: Detect evaluation system and prepare appropriate implementation strategy
+
+#### Step 1: System Detection
+
+Detect the configured evaluation system from the evals configuration:
+
+```bash
+# Check system configuration
+cat evals/*/config.yml | grep "^system:" | head -n1
+```
+
+**Detection Logic**:
+```markdown
+## Evaluation System Detection
+
+**Detected System**: {promptfoo|deepeval|custom|llm-judge}
+**Configuration Source**: `evals/{system}/config.yml`
+**Templates Required**:
+- PromptFoo: `promptfoo-test.yaml`, `grader-template.py`
+- DeepEval: `deepeval-config.py`, `deepeval-metric-template.py`
+```
+
+#### Step 2: Template Validation
+
+Verify required templates exist for the detected system:
+
+| System | Required Templates | Status |
+|--------|-------------------|--------|
+| promptfoo | `templates/promptfoo-test.yaml` | ✓ |
+| promptfoo | `templates/grader-template.py` | ✓ |
+| deepeval | `templates/deepeval-config.py` | ✓ |
+| deepeval | `templates/deepeval-metric-template.py` | ✓ |
+| deepeval | `templates/deepeval-test-template.py` | ✓ |
+
+### Phase 1: Goldset Analysis and Requirements Assessment
 
 **Objective**: Parse goldset and determine implementation requirements
 
@@ -694,6 +854,8 @@ tests/
 
 **Objective**: Create complete PromptFoo configuration with evaluation pyramid structure
 
+**Generation Order**: Config is generated AFTER all grader files exist. This ensures grader references in config.js are valid. The implementation process is atomic: all graders → tests → config → validation → commit. Failure at any step rolls back generated files.
+
 #### Step 1: Main Configuration Generation
 
 Generate comprehensive `config.js` using `templates/promptfoo-test.yaml` structure:
@@ -937,6 +1099,434 @@ module.exports = {
     use_case: 'merge_gate_validation'
   }
 };
+```
+
+#### Step 3: Configuration Validation
+
+After generating config.js, validate all grader references work correctly:
+
+**Validation Script** (`scripts/validate_promptfoo_config.sh`):
+```bash
+#!/bin/bash
+# Validate PromptFoo configuration and grader files
+# Run after generation to ensure all dependencies exist
+
+echo "🔍 Validating PromptFoo configuration..."
+
+# Check required grader files exist
+required_graders=(
+    "graders/check_pii_leakage.py"
+    "graders/check_prompt_injection.py"
+    "graders/check_hallucination.py"
+    "graders/check_misinformation.py"
+    "graders/check_auth_bypass.py"
+    "graders/check_regulatory_compliance.py"
+    "graders/check_safety_boundaries.py"
+)
+
+missing=()
+for grader in "${required_graders[@]}"; do
+    if [[ ! -f "$grader" ]]; then
+        missing+=("$grader")
+    fi
+done
+
+if [[ ${#missing[@]} -gt 0 ]]; then
+    echo "❌ Missing grader files:"
+    printf '   - %s\n' "${missing[@]}"
+    exit 1
+fi
+
+echo "✅ All grader files exist"
+
+# Validate config.js syntax
+if ! node -c config.js 2>/dev/null; then
+    echo "❌ Config.js has syntax errors"
+    exit 1
+fi
+
+echo "✅ Config.js syntax valid"
+
+# Test grader execution
+echo "🧪 Testing grader execution..."
+if ! python graders/check_pii_leakage.py "test input" 2>/dev/null | jq -e '.pass != null' >/dev/null; then
+    echo "❌ Graders not returning expected JSON format"
+    exit 1
+fi
+
+echo "✅ Graders return valid JSON"
+echo "✅ Configuration validation passed"
+```
+
+**Validation Execution**:
+```bash
+# After generating all files:
+bash scripts/validate_promptfoo_config.sh
+
+# Expected output:
+# 🔍 Validating PromptFoo configuration...
+# ✅ All grader files exist
+# ✅ Config.js syntax valid
+# ✅ Graders return valid JSON
+# ✅ Configuration validation passed
+```
+
+### Phase 2b: DeepEval Configuration Generation (Alternative to PromptFoo)
+
+**Objective**: Create complete DeepEval configuration with custom metrics for evaluation pyramid
+
+**Note**: This phase runs instead of Phase 2 when system is configured as "deepeval"
+
+**Generation Order**: Config is generated AFTER all grader files exist. This ensures normal Python imports work without chicken-and-egg problems. The implementation process is atomic: all graders → config → validation → commit. Failure at any step rolls back generated files.
+
+#### Step 1: Main Configuration Generation
+
+Generate comprehensive `config.py` using `templates/deepeval-config.py` structure:
+
+```python
+#!/usr/bin/env python3
+"""
+Auto-generated DeepEval Configuration
+EDD-compliant evaluation suite with custom metrics
+Generated: {current_date}
+Goldset version: 1.0.0
+
+NOTE: This config requires all grader files to exist.
+Generated by: evals.implement --goldset goldset.json --system deepeval
+"""
+
+import os
+import sys
+from typing import List, Dict, Any
+from deepeval import evaluate
+from deepeval.test_case import LLMTestCase  # v3.x API
+from deepeval.dataset import EvaluationDataset
+
+# Import generated custom metrics
+# These imports will fail if graders not generated - this is intentional
+# Run: evals.implement to generate all required grader files
+from graders.pii_leakage_metric import PIILeakageMetric
+from graders.prompt_injection_metric import PromptInjectionMetric
+from graders.hallucination_metric import HallucinationMetric
+from graders.misinformation_metric import MisinformationMetric
+# Domain-specific metrics (generated from goldset)
+from graders.auth_bypass_metric import AuthBypassMetric
+from graders.regulatory_compliance_metric import RegulatoryComplianceMetric
+from graders.safety_boundaries_metric import SafetyBoundariesMetric
+
+def create_evaluation_metrics() -> List[Any]:
+    """
+    Create all EDD-compliant metrics for evaluation.
+    
+    EDD Principle II Compliance:
+    All metrics return strict binary 1.0 (pass) or 0.0 (fail).
+    The 'threshold' parameter is required by DeepEval's BaseMetric API
+    but does NOT affect output - no scoring or gradations occur.
+    edd_compliant=True enforces binary-only behavior.
+    """
+
+    metrics = []
+
+    # ============================================
+    # TIER 1: Fast Deterministic Metrics (<30s)
+    # ============================================
+
+    # Security Baseline (Always Applied)
+    # Note: threshold required by DeepEval API but unused in EDD mode
+    metrics.append(PIILeakageMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    ))
+
+    metrics.append(PromptInjectionMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    ))
+
+    metrics.append(HallucinationMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    ))
+
+    metrics.append(MisinformationMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        include_reason=True,
+        edd_compliant=True,
+        tier=1,
+        failure_type="specification_failure"
+    ))
+
+    # ============================================
+    # TIER 2: Semantic LLM Metrics (<300s)
+    # ============================================
+
+    # Domain-specific metrics (from goldset)
+    metrics.append(AuthBypassMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="specification_failure"
+    ))
+
+    metrics.append(RegulatoryComplianceMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="specification_failure"
+    ))
+
+    metrics.append(SafetyBoundariesMetric(
+        threshold=0.5,  # DeepEval API requirement; EDD mode returns binary only
+        model="gpt-4",
+        include_reason=True,
+        edd_compliant=True,
+        tier=2,
+        failure_type="generalization_failure"
+    ))
+
+    return metrics
+
+
+def create_test_cases() -> List[LLMTestCase]:
+    """Create test cases from goldset examples."""
+
+    test_cases = []
+
+    # Load test cases from goldset.json
+    goldset_path = "goldset.json"
+    if os.path.exists(goldset_path):
+        import json
+        with open(goldset_path, 'r') as f:
+            goldset_data = json.load(f)
+
+        for example in goldset_data.get("examples", []):
+            # v3.x uses LLMTestCase with List[str] for context
+            test_case = LLMTestCase(
+                input=example["input"],
+                expected_output=example["expected_output"],
+                context=example.get("context", []),  # Must be List[str] in v3.x
+                additional_metadata={
+                    "criterion_id": example.get("criterion_id"),
+                    "example_type": example.get("type"),
+                    "tier": example.get("tier", 1)
+                }
+            )
+            test_cases.append(test_case)
+
+    return test_cases
+
+def run_evaluation(model_function=None):
+    """Run complete EDD evaluation with DeepEval."""
+
+    # Create metrics and test cases
+    metrics = create_evaluation_metrics()
+    test_cases = create_test_cases()
+
+    # Set actual outputs for test cases
+    if model_function:
+        for test_case in test_cases:
+            test_case.actual_output = model_function(
+                test_case.input,
+                test_case.context
+            )
+    else:
+        # Use expected outputs for validation
+        for test_case in test_cases:
+            test_case.actual_output = test_case.expected_output
+
+    # Run evaluation
+    results = evaluate(
+        test_cases=test_cases,
+        metrics=metrics,
+        hyperparameters={
+            "edd_binary_only": True,
+            "tier1_timeout": 30,
+            "tier2_timeout": 300
+        }
+    )
+
+    return results
+
+if __name__ == "__main__":
+    results = run_evaluation()
+    print("DeepEval evaluation completed")
+```
+
+#### Step 2: Metric Generation
+
+Generate custom DeepEval metrics using `templates/deepeval-metric-template.py`:
+
+**Generated Metric Structure**:
+```python
+# Example: graders/auth_bypass_metric.py
+class AuthBypassMetric(BaseMetric):
+    def __init__(self, threshold=0.5, model="gpt-4", **kwargs):
+        # EDD-compliant initialization
+
+    async def a_measure(self, test_case: LLMTestCase) -> float:
+        # Binary evaluation logic
+        # Returns 1.0 (pass) or 0.0 (fail)
+
+    def is_successful(self) -> bool:
+        # EDD Principle II: Binary success check
+```
+
+#### Step 3: Test Generation
+
+Generate comprehensive tests using `templates/deepeval-test-template.py`:
+
+**Generated Test Structure**:
+```python
+# Example: tests/test_auth_bypass_metric.py
+class TestAuthBypassMetric:
+    def test_goldset_pass_examples(self):
+        # Verify goldset pass examples return 1.0
+
+    def test_goldset_fail_examples(self):
+        # Verify goldset fail examples return 0.0
+
+    def test_edd_compliance(self):
+        # Verify binary-only behavior
+```
+
+#### Step 4: Configuration Validation
+
+After generating config.py, validate all imports work correctly:
+
+**Validation Script** (`scripts/validate_deepeval_config.py`):
+```python
+#!/usr/bin/env python3
+"""
+Validate DeepEval configuration imports and metrics.
+Run after generation to ensure all dependencies exist.
+"""
+
+import sys
+import os
+from pathlib import Path
+
+def validate_config():
+    """Validate config.py can be imported without errors."""
+    
+    print("🔍 Validating DeepEval configuration...")
+    
+    # Check grader files exist
+    required_graders = [
+        "graders/pii_leakage_metric.py",
+        "graders/prompt_injection_metric.py",
+        "graders/hallucination_metric.py",
+        "graders/misinformation_metric.py",
+        "graders/auth_bypass_metric.py",
+        "graders/regulatory_compliance_metric.py",
+        "graders/safety_boundaries_metric.py",
+    ]
+    
+    missing = [g for g in required_graders if not Path(g).exists()]
+    if missing:
+        print(f"❌ Missing grader files:")
+        for m in missing:
+            print(f"   - {m}")
+        return False
+    
+    print("✅ All grader files exist")
+    
+    # Try importing config
+    try:
+        import config
+        print("✅ Config imports successfully")
+    except ImportError as e:
+        print(f"❌ Config import failed: {e}")
+        return False
+    
+    # Try creating metrics
+    try:
+        metrics = config.create_evaluation_metrics()
+        print(f"✅ Created {len(metrics)} metrics")
+    except Exception as e:
+        print(f"❌ Metric creation failed: {e}")
+        return False
+    
+    # Validate metric types
+    from deepeval.metrics import BaseMetric
+    for i, metric in enumerate(metrics):
+        if not isinstance(metric, BaseMetric):
+            print(f"❌ Metric {i} is not BaseMetric subclass")
+            return False
+    
+    print("✅ All metrics are valid BaseMetric instances")
+    print("✅ Configuration validation passed")
+    return True
+
+if __name__ == "__main__":
+    success = validate_config()
+    sys.exit(0 if success else 1)
+```
+
+**Validation Execution**:
+```bash
+# After generating all files:
+python scripts/validate_deepeval_config.py
+
+# Expected output:
+# 🔍 Validating DeepEval configuration...
+# ✅ All grader files exist
+# ✅ Config imports successfully
+# ✅ Created 7 metrics
+# ✅ All metrics are valid BaseMetric instances
+# ✅ Configuration validation passed
+```
+
+**Rollback on Failure**:
+If validation fails, the implement command should:
+1. Display clear error message with missing component
+2. Rollback all generated files (delete partial artifacts)
+3. Preserve existing working configuration if present
+4. Log error details for debugging
+
+```python
+# In implement command logic:
+generated_files = []
+
+try:
+    # Generate graders
+    for grader in graders_to_generate:
+        file_path = generate_grader(grader)
+        generated_files.append(file_path)
+    
+    # Generate config
+    config_path = generate_config()
+    generated_files.append(config_path)
+    
+    # Validate
+    if not validate_config():
+        raise RuntimeError("Configuration validation failed")
+    
+    print("✅ Implementation complete and validated")
+    
+except Exception as e:
+    print(f"❌ Implementation failed: {e}")
+    print("🔄 Rolling back generated files...")
+    
+    for file_path in generated_files:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            print(f"   Removed: {file_path}")
+    
+    print("❌ Implementation rolled back")
+    sys.exit(1)
 ```
 
 ### Phase 3: Failure Type Routing Implementation
@@ -1355,7 +1945,7 @@ Prepare for `/evals.validate` by ensuring all components are properly configured
 
 ### When NOT to Use This Command
 
-- **No goldset exists**: Run `/evals.analyze` first to finalize goldset
+- **No goldset exists**: Run `/evals.clarify` first to create goldset from drafts
 - **Evaluators already implemented**: Use `/evals.validate` to assess existing implementation
 - **Exploratory evaluation**: This creates production-ready evaluators, not experimental tools
 

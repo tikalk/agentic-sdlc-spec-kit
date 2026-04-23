@@ -152,25 +152,126 @@ Verify all prerequisites for comprehensive validation:
 **Prerequisites Status**: ✅ ALL REQUIREMENTS MET
 ```
 
+#### Step 3: Execute Evaluators and Generate Results
+
+**CRITICAL**: Before validation can proceed, evaluators must be executed to generate results files.
+
+Detect evaluation system type and execute appropriately:
+
+```bash
+# Detect system type
+if [ -f "evals/promptfoo/config.js" ] || [ -f "evals/config.js" ]; then
+    EVAL_SYSTEM="promptfoo"
+elif [ -f "evals/deepeval/goldset.json" ] || [ -f "evals/goldset.json" ]; then
+    EVAL_SYSTEM="deepeval-custom"
+else
+    echo "❌ Cannot detect evaluation system type"
+    exit 1
+fi
+
+echo "🔍 Detected evaluation system: $EVAL_SYSTEM"
+```
+
+**For PromptFoo:**
+```bash
+# Run PromptFoo evaluation
+cd evals/promptfoo 2>/dev/null || cd evals
+promptfoo eval --config config.js --no-cache --output ../results/promptfoo_results.json
+```
+
+**For DeepEval/Custom:**
+```bash
+# Run custom evaluator execution framework
+if [ ! -f "./run_evaluators.py" ]; then
+    echo "❌ run_evaluators.py not found"
+    echo "   This script is required to execute custom/DeepEval evaluators"
+    exit 1
+fi
+
+# Execute evaluators against goldset
+./run_evaluators.py \
+    --goldset evals/deepeval/goldset.json \
+    --graders evals/deepeval/graders \
+    --results evals/results \
+    --mapping evals/grader_mapping.json \
+    --pass-threshold 0.8
+
+if [ $? -ne 0 ]; then
+    echo "⚠️  Evaluator execution completed with failures"
+    echo "   Results generated but accuracy below threshold"
+fi
+```
+
+**Expected Output:**
+```markdown
+## Evaluator Execution Results
+
+**System**: DeepEval/Custom
+**Goldset**: evals/deepeval/goldset.json (version 1.0)
+**Graders Discovered**: 6
+
+### Execution Summary
+- Total Examples: 42
+- Passed: 38/42 (90.5%)
+- Failed: 4/42
+- Errors: 0
+
+### Per-Criterion Results
+| Criterion | Examples | Passed | Accuracy |
+|-----------|----------|--------|----------|
+| eval-001 (PII Leakage) | 8 | 8/8 | 100% |
+| eval-002 (Misinformation) | 7 | 6/7 | 85.7% |
+| eval-003 (Hallucination) | 6 | 5/6 | 83.3% |
+| eval-004 (HTTPS Validation) | 8 | 8/8 | 100% |
+| eval-005 (Prompt Injection) | 7 | 6/7 | 85.7% |
+| eval-006 (Unit Conversion) | 6 | 5/6 | 83.3% |
+
+**Results Location**: 
+- Latest: `evals/results/evaluation_results_latest.json`
+- Timestamped: `evals/results/evaluation_results_20260420_153042.json`
+
+✅ Results ready for statistical validation
+```
+
+**Verification:**
+```bash
+# Verify results files exist
+if [ ! -f "evals/results/evaluation_results_latest.json" ]; then
+    echo "❌ No results found in evals/results/"
+    echo "   Evaluators validated but never executed"
+    echo "   Run evaluators first to generate results"
+    exit 1
+fi
+
+echo "✅ Results files found, proceeding to validation"
+```
+
 ### Phase 1: Statistical Validation
 
 **Objective**: Comprehensive statistical analysis of evaluation system accuracy and reliability
 
+**Input**: Generated results from Phase 0 Step 3 execution
+
 #### Step 1: True Positive Rate (TPR) / True Negative Rate (TNR) Analysis
 
-Calculate and validate classification performance metrics:
+Calculate and validate classification performance metrics from execution results:
 
 ```python
-# Statistical validation implementation
+# Statistical validation from execution results
 import json
 import numpy as np
 from scipy import stats
-import subprocess
 from typing import Dict, List, Tuple
+from pathlib import Path
 
-def calculate_tpr_tnr(grader_path: str, test_examples: List[Dict]) -> Dict:
+def load_execution_results(results_path: str = "evals/results/evaluation_results_latest.json") -> Dict:
+    """Load results from evaluator execution."""
+    with open(results_path) as f:
+        return json.load(f)
+
+def calculate_tpr_tnr_from_results(criterion_results: Dict) -> Dict:
     """
-    Calculate TPR/TNR for a specific grader using goldset examples.
+    Calculate TPR/TNR from execution results.
 
     TPR (Sensitivity) = True Positives / (True Positives + False Negatives)
     TNR (Specificity) = True Negatives / (True Negatives + False Positives)
@@ -181,54 +282,66 @@ def calculate_tpr_tnr(grader_path: str, test_examples: List[Dict]) -> Dict:
     true_negatives = 0
     false_negatives = 0
 
-    for example in test_examples:
-        # Run grader on example
-        result = subprocess.run([
-            'python3', grader_path,
-            example['input'],
-            example.get('context', '')
-        ], capture_output=True, text=True)
+    for example_result in criterion_results.get("example_results", []):
+        if "error" in example_result.get("grader_output", {}):
+            continue  # Skip errors in TPR/TNR calculation
 
-        if result.returncode == 0:
-            grader_output = json.loads(result.stdout)
-            predicted_pass = grader_output.get('pass', False)
-            actual_pass = example['expected_pass']
+        expected_pass = example_result["expected_pass"]
+        grader_pass = example_result["grader_pass"]
 
-            # Update confusion matrix
-            if actual_pass and predicted_pass:
-                true_positives += 1
-            elif actual_pass and not predicted_pass:
-                false_negatives += 1
-            elif not actual_pass and not predicted_pass:
-                true_negatives += 1
-            elif not actual_pass and predicted_pass:
-                false_positives += 1
+        # Build confusion matrix
+        if expected_pass and grader_pass:
+            true_positives += 1
+        elif expected_pass and not grader_pass:
+            false_negatives += 1
+        elif not expected_pass and not grader_pass:
+            true_negatives += 1
+        elif not expected_pass and grader_pass:
+            false_positives += 1
 
     # Calculate metrics
-    tpr = true_positives / (true_positives + false_negatives) if (true_positives + false_negatives) > 0 else 0
-    tnr = true_negatives / (true_negatives + false_positives) if (true_negatives + false_positives) > 0 else 0
-
-    # Calculate confidence intervals (95%)
     total_positive = true_positives + false_negatives
     total_negative = true_negatives + false_positives
 
+    tpr = true_positives / total_positive if total_positive > 0 else 0
+    tnr = true_negatives / total_negative if total_negative > 0 else 0
+
+    # Calculate confidence intervals (95%)
     tpr_ci = stats.binom.interval(0.95, total_positive, tpr) if total_positive > 0 else (0, 0)
     tnr_ci = stats.binom.interval(0.95, total_negative, tnr) if total_negative > 0 else (0, 0)
+
+    accuracy = (true_positives + true_negatives) / (total_positive + total_negative) if (total_positive + total_negative) > 0 else 0
 
     return {
         'tpr': tpr,
         'tnr': tnr,
-        'tpr_ci': tpr_ci,
-        'tnr_ci': tnr_ci,
+        'tpr_ci': (tpr_ci[0]/total_positive if total_positive > 0 else 0, 
+                   tpr_ci[1]/total_positive if total_positive > 0 else 0),
+        'tnr_ci': (tnr_ci[0]/total_negative if total_negative > 0 else 0,
+                   tnr_ci[1]/total_negative if total_negative > 0 else 0),
         'confusion_matrix': {
             'tp': true_positives,
             'fp': false_positives,
             'tn': true_negatives,
             'fn': false_negatives
         },
-        'total_examples': len(test_examples),
-        'accuracy': (true_positives + true_negatives) / len(test_examples)
+        'total_examples': total_positive + total_negative,
+        'accuracy': accuracy
     }
+
+def validate_all_criteria():
+    """Validate TPR/TNR for all criteria from execution results."""
+    results = load_execution_results()
+    
+    validation_results = {}
+    for criterion_id, criterion_data in results.get("criteria_results", {}).items():
+        metrics = calculate_tpr_tnr_from_results(criterion_data)
+        validation_results[criterion_id] = {
+            "criterion_name": criterion_data.get("criterion_name", criterion_id),
+            **metrics
+        }
+    
+    return validation_results
 ```
 
 #### Step 2: Goldset Accuracy Validation
@@ -812,9 +925,9 @@ Final recommendations for production deployment:
 **Success Path**: If validation passes, system is production-ready for deployment.
 
 **Failure Path**: If validation fails, identify issues and return to appropriate phase:
-- **Accuracy Issues** → Return to `/evals.analyze` for goldset improvement
+- **Accuracy Issues** → Return to `/evals.clarify` for goldset improvement (add more examples)
 - **Performance Issues** → Return to `/evals.implement` for optimization
-- **Compliance Issues** → Return to `/evals.clarify` for criterion refinement
+- **Compliance Issues** → Return to `/evals.specify` for criterion refinement
 
 **Complete Validation Flow**:
 

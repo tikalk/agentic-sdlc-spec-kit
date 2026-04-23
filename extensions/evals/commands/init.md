@@ -16,11 +16,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 **Examples of User Input**:
 
 - `"--system promptfoo"` - Initialize with PromptFoo integration (default)
+- `"--system deepeval"` - Initialize with DeepEval integration
 - `"--system custom"` - Initialize with custom evaluation framework
 - `"--system llm-judge"` - Initialize with LLM-based evaluation system
 - `"Django API with user authentication, focus on security evals"`
 - `"RAG system with retrieval and generation components"`
-- Empty input: Initialize with default PromptFoo system
+- Empty input: Ask user to choose between PromptFoo and DeepEval
 
 When users provide context about their system, use it to focus the initialization setup.
 
@@ -45,9 +46,11 @@ Initialize the evaluation directory structure following **EDD (Eval-Driven Devel
 ### Flags
 
 - `--system SYSTEM`: Evaluation system to initialize
-  - `promptfoo` (default): PromptFoo integration with JavaScript/Python graders
+  - `promptfoo`: PromptFoo integration with JavaScript/Python graders
+  - `deepeval`: DeepEval integration with Python metrics
   - `custom`: Custom evaluation framework setup
   - `llm-judge`: LLM-based evaluation system setup
+  - If not specified, user will be prompted to choose
 
 - `--json`: Output structured JSON for programmatic integration
 
@@ -91,7 +94,7 @@ Detect technologies to recommend appropriate evaluation system:
 | Technology Found | Recommended System | Reason |
 |------------------|-------------------|--------|
 | `package.json` + AI libs | PromptFoo | Strong Node.js integration |
-| `requirements.txt` + LLM frameworks | PromptFoo + Python graders | Python ML ecosystem support |
+| `requirements.txt` + LLM frameworks | DeepEval or PromptFoo | Python-native vs mixed ecosystem |
 | Custom ML pipeline | Custom | Need specialized evaluators |
 | Multiple LLM providers | LLM-judge | Provider-agnostic evaluation |
 
@@ -104,9 +107,41 @@ Detect technologies to recommend appropriate evaluation system:
 | **Content Generation** | Text generation, templates | Binary pass/fail criteria |
 | **Security-Sensitive** | Auth, PII handling | Enhanced security baseline |
 
-#### Step 3: System Recommendation
+#### Step 3: System Selection
 
-Present recommendation to user:
+If no `--system` flag provided, present options to user for selection:
+
+```text
+## Choose Evaluation Integration
+
+Which evaluation framework would you like to use?
+
+1. **DeepEval** - Python-native framework with built-in LLM metrics
+   • Perfect for Python-heavy projects
+   • Built-in metrics: faithfulness, answer relevancy, bias detection
+   • Integrated with popular ML libraries
+
+2. **PromptFoo** - Flexible framework with JavaScript config + Python graders
+   • Great for mixed tech stacks
+   • Extensive provider support
+   • Rich visualization and reporting
+
+3. **Custom** - Build your own evaluation framework
+   • Full control over evaluation logic
+   • Specialized metrics for unique use cases
+
+4. **LLM-Judge** - Use LLM models as evaluators
+   • GPT-4/Claude for semantic evaluation
+   • Natural language criteria
+
+Enter choice [1-4]:
+```
+
+If `--system` flag is provided, skip this step and use the specified system.
+
+#### Step 4: System Recommendation (when analyzing codebase)
+
+Present additional recommendation to user based on codebase analysis:
 
 ```markdown
 ## Evaluation System Recommendation
@@ -119,15 +154,17 @@ Based on your codebase analysis:
 - PostgreSQL with vector extensions
 
 **Recommended Setup**:
-- **System**: `promptfoo` (Python graders + JavaScript config)
+- **System**: `deepeval` or `promptfoo` (choose based on preference)
 - **Focus Areas**: RAG decomposition, trajectory observability
 - **Security**: Enhanced PII detection for chat logs
 
-**Alternative Options**:
+**Integration Options**:
+- `deepeval`: Python-native metrics with built-in LLM evaluators
+- `promptfoo`: JavaScript config with Python graders, broader ecosystem
 - `custom`: If you need specialized RAG evaluation metrics
 - `llm-judge`: If you want GPT-4 to evaluate responses
 
-**Proceed with PromptFoo setup?** [Y/n]
+**Choose integration: [1] DeepEval, [2] PromptFoo, [3] Custom, [4] LLM-judge**
 ```
 
 ### Phase 1: Directory Structure Initialization
@@ -143,11 +180,11 @@ Based on your codebase analysis:
 
 ```
 evals/
-├── {system}/                    # promptfoo | custom | llm-judge
+├── {system}/                    # promptfoo | deepeval | custom | llm-judge
 │   ├── goldset.md              # Published evals (EDD Principle I)
 │   ├── goldset.json            # Auto-generated for system consumption
 │   ├── config.yml              # System-specific configuration
-│   ├── config.js               # Generated system config (PromptFoo)
+│   ├── config.{ext}            # Generated system config (.js for promptfoo, .py for deepeval)
 │   └── graders/                # Binary pass/fail graders (Principle II)
 │       ├── check_pii_leakage.py           # Security baseline (always applied)
 │       ├── check_prompt_injection.py     # Security baseline (always applied)

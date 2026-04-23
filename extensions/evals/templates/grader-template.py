@@ -17,7 +17,7 @@ Template Variables:
 import re
 import json
 import sys
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, List
 
 # Configuration from goldset
 CRITERION_ID = "{{CRITERION_ID}}"
@@ -38,12 +38,40 @@ FAILURE_ROUTING = {
     }
 }
 
+# ============================================
+# UTILITY FUNCTIONS
+# ============================================
+
+def _normalize_context(context: Union[str, List[str], None]) -> Optional[str]:
+    """
+    Normalize context to string format for grader processing.
+
+    DeepEval 3.x uses List[str], PromptFoo uses str.
+    This function handles both and returns a single string.
+
+    Args:
+        context: Context as str, List[str], or None
+
+    Returns:
+        Normalized context as string or None
+    """
+    if context is None:
+        return None
+
+    if isinstance(context, list):
+        # DeepEval 3.x: List[str] -> join with newlines
+        # Note: Empty list [] returns None (treated as no context, not empty string)
+        return "\n".join(context) if context else None
+
+    # PromptFoo: str -> return as-is
+    return context if context else None
+
 {{#if_evaluator_type_code_based}}
 # ============================================
 # CODE-BASED EVALUATOR (Tier 1 - Fast)
 # ============================================
 
-def grade(output: str, context: str = None) -> Dict[str, Any]:
+def grade(output: str, context: Union[str, List[str], None] = None) -> Dict[str, Any]:
     """
     Code-based evaluation using deterministic patterns.
     Returns binary pass/fail (EDD Principle II).
@@ -117,7 +145,7 @@ LLM_MODEL = os.getenv("OPENAI_MODEL", "gpt-4")
 LLM_TEMPERATURE = float(os.getenv("OPENAI_TEMPERATURE", "0.1"))
 MAX_RETRIES = 3
 
-def grade(output: str, context: str = None) -> Dict[str, Any]:
+def grade(output: str, context: Union[str, List[str], None] = None) -> Dict[str, Any]:
     """
     LLM-judge evaluation using semantic understanding.
     Returns binary pass/fail (EDD Principle II).
@@ -157,14 +185,17 @@ def grade(output: str, context: str = None) -> Dict[str, Any]:
             # Wait before retry
             sleep(2 ** attempt)  # Exponential backoff
 
-def _create_judge_prompt(output: str, context: str = None) -> str:
+def _create_judge_prompt(output: str, context: Union[str, List[str], None] = None) -> str:
     """Create structured prompt for LLM binary evaluation."""
 
+    # Normalize context for processing (handles both PromptFoo str and DeepEval List[str])
+    normalized_context = _normalize_context(context)
+
     context_section = ""
-    if context:
+    if normalized_context:
         context_section = f"""
 CONTEXT:
-{context}
+{normalized_context}
 """
 
     return f"""
@@ -248,7 +279,7 @@ import openai
 import os
 from time import sleep
 
-def grade(output: str, context: str = None) -> Dict[str, Any]:
+def grade(output: str, context: Union[str, List[str], None] = None) -> Dict[str, Any]:
     """
     Hybrid evaluation: code-based pre-filtering + LLM semantic judgment.
     Returns binary pass/fail (EDD Principle II).
@@ -362,7 +393,7 @@ Focus on semantic meaning and intent. Return JSON:
     try:
         # Simplified LLM call for hybrid mode
         response = openai.ChatCompletion.create(
-            model="gpt-4",
+            model=LLM_MODEL,
             messages=[{"role": "user", "content": judge_prompt}],
             max_tokens=100,
             temperature=0.1,

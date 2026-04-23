@@ -18,7 +18,7 @@ NC='\033[0m' # No Color
 
 # Global variables
 OUTPUT_FORMAT="text"  # text | json
-SYSTEM="promptfoo"    # promptfoo | custom | llm-judge
+SYSTEM="promptfoo"    # promptfoo | deepeval | custom | llm-judge
 DRY_RUN=false
 VERBOSE=false
 
@@ -82,8 +82,13 @@ check_prerequisites() {
     fi
 
     # Check PromptFoo (only if using promptfoo system)
-    if [[ "$SYSTEM" == "promptfoo" ]] && ! command -v promptfoo &> /dev/null; then
-        log_warning "PromptFoo not found. Install with: npm install -g promptfoo"
+    if [[ "$SYSTEM" == "promptfoo" ]]; then
+        check_and_install_promptfoo
+    fi
+
+    # Check DeepEval (only if using deepeval system)
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval
     fi
 
     # Check Python (for graders)
@@ -99,9 +104,362 @@ check_prerequisites() {
     return 0
 }
 
+# Check and install PromptFoo dependencies
+check_and_install_promptfoo() {
+    # Check if promptfoo is already installed
+    if command -v promptfoo &> /dev/null; then
+        log_info "PromptFoo is already installed"
+        return 0
+    fi
+
+    log_warning "PromptFoo not found. This is required for PromptFoo integration."
+
+    # Ask user for permission to install (unless in non-interactive mode)
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        # Running in sourced mode or JSON output - install automatically
+        install_promptfoo_deps
+    else
+        # Interactive mode - ask for permission
+        echo
+        echo "PromptFoo is required for this integration."
+        echo "The following will be added to package.json:"
+        echo "  - promptfoo: ^0.60.0 (devDependencies)"
+        echo
+        read -p "Install PromptFoo dependencies now? (y/N): " -r
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            install_promptfoo_deps
+        else
+            log_warning "PromptFoo not installed. You can install it later with:"
+            log_warning "  npm install --save-dev promptfoo"
+            return 1
+        fi
+    fi
+}
+
+# Install PromptFoo dependencies
+install_promptfoo_deps() {
+    log_info "Installing PromptFoo dependencies..."
+
+    # Check for package.json
+    if [[ -f "package.json" ]]; then
+        log_info "Found package.json - adding PromptFoo to devDependencies..."
+
+        # Check if devDependencies section exists
+        if ! grep -q '"devDependencies"' package.json; then
+            # Add devDependencies section
+            # Use jq if available, otherwise manual edit
+            if command -v jq &> /dev/null; then
+                jq '.devDependencies = {"promptfoo": "^0.60.0"}' package.json > package.json.tmp && mv package.json.tmp package.json
+                log_success "Added devDependencies with promptfoo"
+            else
+                # Manual JSON editing (before closing brace)
+                sed -i.bak 's/}$/,\n  "devDependencies": {\n    "promptfoo": "^0.60.0"\n  }\n}/' package.json
+                log_success "Added devDependencies with promptfoo"
+            fi
+        else
+            # Check if promptfoo already exists
+            if grep -q '"promptfoo"' package.json; then
+                log_info "promptfoo already exists in package.json"
+            else
+                # Add promptfoo to existing devDependencies
+                if command -v jq &> /dev/null; then
+                    jq '.devDependencies.promptfoo = "^0.60.0"' package.json > package.json.tmp && mv package.json.tmp package.json
+                    log_success "Added promptfoo to devDependencies"
+                else
+                    # Manual addition after "devDependencies": {
+                    sed -i.bak '/"devDependencies": {/a\
+    "promptfoo": "^0.60.0",' package.json
+                    log_success "Added promptfoo to devDependencies"
+                fi
+            fi
+        fi
+
+        # Detect package manager and install
+        if [[ -f "yarn.lock" ]] && command -v yarn &> /dev/null; then
+            log_info "Using yarn to install dependencies..."
+            if yarn install; then
+                log_success "Dependencies installed with yarn"
+            else
+                log_error "Failed to install with yarn"
+                return 1
+            fi
+        elif command -v npm &> /dev/null; then
+            log_info "Using npm to install dependencies..."
+            if npm install; then
+                log_success "Dependencies installed with npm"
+            else
+                log_error "Failed to install with npm"
+                return 1
+            fi
+        else
+            log_error "Neither npm nor yarn found - cannot install dependencies"
+            return 1
+        fi
+    else
+        log_warning "No package.json found - using global npm install"
+
+        if command -v npm &> /dev/null; then
+            log_info "Installing PromptFoo globally..."
+            if npm install -g promptfoo; then
+                log_success "PromptFoo installed globally"
+            else
+                log_error "Failed to install PromptFoo globally"
+                log_error "You may need sudo: sudo npm install -g promptfoo"
+                return 1
+            fi
+        else
+            log_error "npm not found - cannot install PromptFoo"
+            log_error "Please install Node.js and npm first"
+            return 1
+        fi
+    fi
+
+    # Verify installation
+    if command -v promptfoo &> /dev/null; then
+        log_success "PromptFoo installed successfully"
+
+        # Show version
+        local version=$(promptfoo --version 2>/dev/null || echo "unknown")
+        log_info "PromptFoo version: $version"
+
+        return 0
+    else
+        log_error "PromptFoo installation verification failed"
+        return 1
+    fi
+}
+
+# Check and install DeepEval dependencies
+check_and_install_deepeval() {
+    local python_cmd="python3"
+
+    # Check if python3 is available, fallback to python
+    if ! command -v python3 &> /dev/null; then
+        if command -v python &> /dev/null; then
+            python_cmd="python"
+        else
+            log_error "Python is required for DeepEval but not found"
+            return 1
+        fi
+    fi
+
+    # Check if deepeval is already installed
+    if $python_cmd -c "import deepeval" &> /dev/null; then
+        log_info "DeepEval is already installed"
+        return 0
+    fi
+
+    log_warning "DeepEval not found. This is required for DeepEval integration."
+
+    # Ask user for permission to install (unless in non-interactive mode)
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]]; then
+        # Running in sourced mode or JSON output - install automatically
+        install_deepeval_deps "$python_cmd"
+    else
+        # Interactive mode - ask for permission
+        echo
+        echo "DeepEval and related dependencies are required for this integration."
+        echo "The following will be added to pyproject.toml (if found) or installed directly:"
+        echo "  - deepeval>=3.0.0"
+        echo "  - openai>=1.3.0"
+        echo "  - pytest>=7.0.0"
+        echo "  - pytest-asyncio>=0.21.0"
+        echo
+        read -p "Install DeepEval dependencies now? (y/N): " -r
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            install_deepeval_deps "$python_cmd"
+        else
+            log_warning "DeepEval not installed. You can install it later with:"
+            log_warning "  pip install -e .[evals]  # if using pyproject.toml"
+            log_warning "  pip install deepeval>=3.0.0 pytest pytest-asyncio openai>=1.3.0  # direct install"
+            return 1
+        fi
+    fi
+}
+
+# Install DeepEval dependencies
+install_deepeval_deps() {
+    local python_cmd="$1"
+
+    log_info "Installing DeepEval dependencies..."
+
+    # Check for pyproject.toml
+    if [[ -f "pyproject.toml" ]]; then
+        log_info "Found pyproject.toml - adding evals dependencies..."
+
+        # Check if optional-dependencies.evals exists
+        if grep -q '^\[project\.optional-dependencies\]' pyproject.toml && grep -A 5 '^\[project\.optional-dependencies\]' pyproject.toml | grep -q '^evals = \['; then
+            log_info "evals group already exists in pyproject.toml"
+        else
+            # Add or update optional-dependencies section
+            if ! grep -q '^\[project\.optional-dependencies\]' pyproject.toml; then
+                # Add entire section
+                cat >> pyproject.toml << 'EOF'
+
+[project.optional-dependencies]
+evals = [
+    "deepeval>=3.0.0",
+    "openai>=1.3.0",
+    "pytest>=7.0.0",
+    "pytest-asyncio>=0.21.0",
+]
+EOF
+                log_success "Added [project.optional-dependencies] with evals group"
+            else
+                # Section exists, add evals group
+                # Find line number of [project.optional-dependencies]
+                local line_num=$(grep -n '^\[project\.optional-dependencies\]' pyproject.toml | cut -d: -f1)
+                if [[ -n "$line_num" ]]; then
+                    # Insert after the section header
+                    sed -i.bak "${line_num}a\\
+evals = [\\
+    \"deepeval>=3.0.0\",\\
+    \"openai>=1.3.0\",\\
+    \"pytest>=7.0.0\",\\
+    \"pytest-asyncio>=0.21.0\",\\
+]" pyproject.toml
+                    log_success "Added evals group to optional-dependencies"
+                fi
+            fi
+        fi
+
+        # Detect package manager and install
+        if command -v uv &> /dev/null; then
+            log_info "Using uv to install dependencies..."
+            if uv sync --group evals; then
+                log_success "Dependencies installed with uv sync --group evals"
+            else
+                log_warning "uv sync failed, trying pip..."
+                $python_cmd -m pip install -e ".[evals]"
+            fi
+        else
+            log_info "Using pip to install dependencies..."
+            if $python_cmd -m pip install -e ".[evals]"; then
+                log_success "Dependencies installed with pip install -e .[evals]"
+            else
+                log_error "Failed to install dependencies"
+                return 1
+            fi
+        fi
+    else
+        log_warning "No pyproject.toml found - using direct pip install"
+        local pip_cmd="${python_cmd} -m pip"
+        local packages=("deepeval>=3.0.0" "pytest>=7.0.0" "pytest-asyncio>=0.21.0" "openai>=1.3.0")
+
+        for package in "${packages[@]}"; do
+            log_info "Installing $package..."
+            if ! $pip_cmd install "$package"; then
+                log_error "Failed to install $package"
+                return 1
+            fi
+        done
+    fi
+
+    # Verify installation
+    if $python_cmd -c "import deepeval" &> /dev/null; then
+        log_success "DeepEval installed successfully"
+        local version=$($python_cmd -c "import deepeval; print(deepeval.__version__)" 2>/dev/null || echo "unknown")
+        log_info "DeepEval version: $version"
+
+        # Verify API compatibility (DeepEval 3.x)
+        if $python_cmd -c "from deepeval.test_case import LLMTestCase" &> /dev/null; then
+            log_success "DeepEval 3.x API verified"
+        else
+            log_warning "DeepEval may not be 3.x - LLMTestCase import failed"
+        fi
+        return 0
+    else
+        log_error "DeepEval verification failed"
+        return 1
+    fi
+}
+
+# Prompt user to choose evaluation integration
+prompt_system_selection() {
+    # Skip if system was explicitly provided
+    if [[ "$SYSTEM" != "promptfoo" ]] || [[ "$#" -gt 0 && "$*" =~ --system ]]; then
+        return 0
+    fi
+
+    # Skip in non-interactive modes
+    if [[ "${BASH_SOURCE[0]}" != "${0}" ]] || [[ "$OUTPUT_FORMAT" == "json" ]] || [[ ! -t 0 ]]; then
+        log_info "Using default system: promptfoo (non-interactive mode)"
+        return 0
+    fi
+
+    echo
+    echo "=== Choose Evaluation Integration ==="
+    echo
+    echo "Which evaluation framework would you like to use?"
+    echo
+    echo "1. DeepEval - Python-native framework with built-in LLM metrics"
+    echo "   • Perfect for Python-heavy projects"
+    echo "   • Built-in metrics: faithfulness, answer relevancy, bias detection"
+    echo "   • Integrated with popular ML libraries"
+    echo
+    echo "2. PromptFoo - Flexible framework with JavaScript config + Python graders"
+    echo "   • Great for mixed tech stacks"
+    echo "   • Extensive provider support (50+ LLM providers)"
+    echo "   • Rich visualization and reporting"
+    echo
+    echo "3. Custom - Build your own evaluation framework"
+    echo "   • Full control over evaluation logic"
+    echo "   • Specialized metrics for unique use cases"
+    echo
+    echo "4. LLM-Judge - Use LLM models as evaluators"
+    echo "   • GPT-4/Claude for semantic evaluation"
+    echo "   • Natural language criteria"
+    echo
+
+    while true; do
+        read -p "Enter choice [1-4] (default: 2): " -r choice
+
+        case "${choice:-2}" in
+            1)
+                SYSTEM="deepeval"
+                log_info "Selected: DeepEval (Python-native)"
+                break
+                ;;
+            2)
+                SYSTEM="promptfoo"
+                log_info "Selected: PromptFoo (JavaScript + Python)"
+                break
+                ;;
+            3)
+                SYSTEM="custom"
+                log_info "Selected: Custom evaluation framework"
+                break
+                ;;
+            4)
+                SYSTEM="llm-judge"
+                log_info "Selected: LLM-Judge evaluation"
+                break
+                ;;
+            *)
+                echo "Invalid choice. Please enter 1-4."
+                ;;
+        esac
+    done
+
+    echo
+}
+
 # EDD Action 1: Initialize evals/{system}/ directory structure
 action_init() {
+    # Prompt for system selection if not explicitly set
+    prompt_system_selection "$@"
+
     log_info "Initializing evals directory structure for system: $SYSTEM"
+
+    # Check dependencies for selected system
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval || {
+            log_error "DeepEval setup failed. Initialization aborted."
+            return 1
+        }
+    fi
 
     local evals_dir="$ROOT_DIR/evals"
     local system_dir="$evals_dir/$SYSTEM"
@@ -522,7 +880,8 @@ Published evaluation criteria following EDD (Eval-Driven Development) principles
 
 EOF
 
-    # Initialize JSON array
+    # Initialize empty JSON array (will be populated by implement command with test data)
+    # NOTE: goldset.json is created here as placeholder but populated later by action_implement()
     echo '[]' > "$goldset_json"
 
     # Process each draft file
@@ -549,7 +908,7 @@ EOF
         log_success "Axial coding completed"
         log_info "Processed $draft_count drafts, accepted $accepted_count"
         log_info "Goldset updated: $goldset_md"
-        log_info "Next step: Run 'evals.analyze' to finalize goldset"
+        log_info "Next step: Run 'evals.implement' to generate evaluators"
     fi
 }
 
@@ -651,10 +1010,19 @@ action_tasks() {
 
 # EDD Action 6: Generate PromptFoo config + graders from goldset
 action_implement() {
-    log_info "Generating PromptFoo config and graders from goldset"
+    log_info "Generating evaluation config and graders from goldset for system: $SYSTEM"
+
+    # Check dependencies for selected system
+    if [[ "$SYSTEM" == "deepeval" ]]; then
+        check_and_install_deepeval || {
+            log_error "DeepEval setup failed. Implementation aborted."
+            return 1
+        }
+    fi
 
     local system_dir="$ROOT_DIR/evals/$SYSTEM"
     local goldset_md="$system_dir/goldset.md"
+    local goldset_json="$system_dir/goldset.json"
     local config_js="$system_dir/config.js"
     local templates_dir="$ROOT_DIR/extensions/evals/templates"
 
@@ -663,16 +1031,39 @@ action_implement() {
         return 1
     fi
 
+    # Create results directory for failure routing
+    mkdir -p "$ROOT_DIR/evals/results/fix_directives"
+    mkdir -p "$ROOT_DIR/evals/results/evaluator_backlog"
+    mkdir -p "$ROOT_DIR/evals/results/annotation_queue"
+
+    # Call the grader and test generator script
+    log_info "Generating graders and unit tests from goldset using generator script"
+
+    local generator_script="$SCRIPT_DIR/generate-graders-with-tests.sh"
+
+    if [[ -f "$goldset_json" ]]; then
+        log_info "Using goldset.json for grader generation"
+
+        # Call the generator with test generation enabled
+        if [[ -x "$generator_script" ]]; then
+            log_info "Executing: $generator_script \"$goldset_json\" \"$system_dir/graders\""
+            "$generator_script" "$goldset_json" "$system_dir/graders" --test-dir "$ROOT_DIR/evals/tests" --module-name "graders" || {
+                log_warning "Generator script failed, falling back to manual grader creation"
+            }
+        else
+            log_warning "Generator script not found or not executable: $generator_script"
+            log_warning "Falling back to manual grader creation (tests will NOT be generated)"
+        fi
+    else
+        log_warning "goldset.json not found at $goldset_json"
+        log_warning "Manual grader creation will be used (tests will NOT be generated)"
+    fi
+
     log_info "Parsing goldset and generating evaluators"
 
     # Parse goldset.md to extract criteria (simplified parsing)
     local criteria_count=0
     local generated_graders=0
-
-    # Create results directory for failure routing
-    mkdir -p "$ROOT_DIR/evals/results/fix_directives"
-    mkdir -p "$ROOT_DIR/evals/results/evaluator_backlog"
-    mkdir -p "$ROOT_DIR/evals/results/annotation_queue"
 
     # Generate Context Adherence grader (example - generalization failure)
     cat > "$system_dir/graders/check_context_adherence.py" << 'EOF'
@@ -1003,6 +1394,8 @@ module.exports = {
 EOF
 
     # Generate goldset JSON for PromptFoo consumption
+    # NOTE: This contains metadata and criteria definitions, not test examples.
+    # Test examples should be extracted from goldset.md or generated separately.
     local goldset_json="$system_dir/goldset.json"
     cat > "$goldset_json" << EOF
 {
@@ -1141,7 +1534,11 @@ EOF
 
     chmod +x "$system_dir/../scripts/route_failures.py"
 
-    local details="{\"config_generated\": \"$config_js\", \"goldset_json\": \"$goldset_json\", \"security_graders\": 4, \"goldset_graders\": $generated_graders, \"tier_configs\": 2}"
+    # Count generated files
+    local grader_count=$(find "$system_dir/graders" -name "check_*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+    local test_count=$(find "$ROOT_DIR/evals/tests" -name "test_check_*.py" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+    local details="{\"config_generated\": \"$config_js\", \"goldset_json\": \"$goldset_json\", \"security_graders\": 4, \"goldset_graders\": $generated_graders, \"tier_configs\": 2, \"total_graders\": $grader_count, \"unit_tests\": $test_count}"
 
     if [[ "$OUTPUT_FORMAT" == "json" ]]; then
         json_output "success" "implement" "PromptFoo config and graders generated" "$details"
@@ -1153,7 +1550,19 @@ EOF
         log_info "Goldset JSON: $goldset_json"
         log_info "Security baseline graders: 4 (PII, prompt injection, hallucination, misinformation)"
         log_info "Goldset graders: $generated_graders (regulatory compliance, context adherence)"
+        log_info "Total graders generated: $grader_count"
+        log_info "Unit tests generated: $test_count"
         log_info "Failure routing: fix_directives/ and evaluator_backlog/ directories created"
+
+        if [[ $test_count -eq 0 ]]; then
+            log_warning "⚠️  No unit tests were generated!"
+            log_warning "Tests require goldset.json and the generate-graders-with-tests.sh script"
+            log_warning "Run tests with: pytest $ROOT_DIR/evals/tests -v"
+        else
+            log_success "✅ Unit tests generated successfully!"
+            log_info "Run tests with: pytest $ROOT_DIR/evals/tests -v"
+            log_info "Coverage report: pytest $ROOT_DIR/evals/tests --cov=graders --cov-report=html"
+        fi
     fi
 }
 
@@ -1297,6 +1706,23 @@ action_validate() {
     local pass_examples=$(grep -c "Pass Example\|pass example" "$goldset_md" 2>/dev/null || echo "0")
     local fail_examples=$(grep -c "Fail Example\|fail example" "$goldset_md" 2>/dev/null || echo "0")
 
+    # Check goldset.json if it exists
+    local goldset_json_examples=0
+    if [[ -f "$system_dir/goldset.json" ]]; then
+        # Count examples in goldset.json
+        if command -v jq &> /dev/null; then
+            goldset_json_examples=$(jq 'if type == "array" then length elif type == "object" then (.examples // [] | length) else 0 end' "$system_dir/goldset.json" 2>/dev/null || echo "0")
+        else
+            # Fallback: count non-empty lines (rough estimate)
+            goldset_json_examples=$(grep -c '"' "$system_dir/goldset.json" 2>/dev/null || echo "0")
+        fi
+
+        if [[ $goldset_json_examples -eq 0 ]]; then
+            log_error "Critical finding: goldset.json exists but has 0 examples"
+            log_warning "goldset.json should contain test examples for validation"
+        fi
+    fi
+
     # Quality thresholds
     local min_criteria=2
     local min_examples_per_criterion=2
@@ -1341,7 +1767,8 @@ action_validate() {
     [[ -d "$results_dir/fix_directives" ]] && ((edd_compliance_score++))  # Principle VIII
     [[ -d "$results_dir/evaluator_backlog" ]] && ((edd_compliance_score++)) # Principle VIII
     [[ -d "$results_dir/annotation_queue" ]] && ((edd_compliance_score++))  # Principle VII
-    [[ -f "$system_dir/goldset.json" ]] && ((edd_compliance_score++))     # Principle IX
+    # Principle IX: Test Data as Code - goldset.json must exist AND have examples
+    [[ -f "$system_dir/goldset.json" && $goldset_json_examples -gt 0 ]] && ((edd_compliance_score++))
     [[ $total_graders -ge 4 ]] && ((edd_compliance_score++))              # Basic implementation completeness
 
     local edd_compliance_percentage=$((edd_compliance_score * 100 / edd_total_checks))
@@ -1392,6 +1819,7 @@ action_validate() {
             \"total_criteria\": $total_criteria,
             \"pass_examples\": $pass_examples,
             \"fail_examples\": $fail_examples,
+            \"goldset_json_examples\": $goldset_json_examples,
             \"quality_passed\": $quality_passed
         },
         \"edd_compliance\": {
@@ -1427,6 +1855,13 @@ action_validate() {
         log_info "  Total Criteria: $total_criteria"
         log_info "  Pass Examples: $pass_examples"
         log_info "  Fail Examples: $fail_examples"
+        if [[ -f "$system_dir/goldset.json" ]]; then
+            if [[ $goldset_json_examples -eq 0 ]]; then
+                log_error "  goldset.json: 🚨 CRITICAL - 0 examples (file exists but empty)"
+            else
+                log_info "  goldset.json: $goldset_json_examples examples"
+            fi
+        fi
         log_info "  Quality Status: $([ "$quality_passed" == "true" ] && echo "✅ PASS" || echo "⚠ NEEDS IMPROVEMENT")"
         log_info ""
         log_info "🎯 EDD COMPLIANCE:"
@@ -1449,6 +1884,10 @@ action_validate() {
 
         log_info ""
         log_info "📈 RECOMMENDATIONS:"
+        if [[ -f "$system_dir/goldset.json" && $goldset_json_examples -eq 0 ]]; then
+            log_error "  • CRITICAL: goldset.json has 0 examples - ensure goldset.md examples are present"
+            log_info "    Run '/evals.clarify' to regenerate goldset from drafts, or manually populate goldset.json"
+        fi
         if [[ $average_accuracy -lt 90 ]]; then
             log_info "  • Improve grader accuracy through better examples or logic refinement"
         fi
@@ -1519,14 +1958,16 @@ ACTIONS (EDD Lifecycle):
     init        Initialize evals/{system}/ directory structure
     specify     Bottom-up goldset definition from human error analysis → drafts/
     clarify     Axial coding + accept drafts → goldset.md + goldset.json
-    analyze     Re-code + quantify + saturation + adversarial + holdout
+    analyze     (Internal) Re-code + quantify + saturation + adversarial + holdout
     tasks       Match published evals to feature tasks → [EVAL] markers
     implement   Generate PromptFoo config + graders from goldset
     validate    TPR/TNR + goldset quality + PromptFoo pass rate thresholds
     levelup     Scan evals/results/ + annotation queue → PR to team-ai-directives
 
+NOTE: 'analyze' is an internal action not exposed as a command. Use 'clarify' instead.
+
 OPTIONS:
-    --system SYSTEM     Evaluation system: promptfoo (default), custom, llm-judge
+    --system SYSTEM     Evaluation system: promptfoo (default), deepeval, custom, llm-judge
     --json             Output results in JSON format
     --dry-run          Show what would be done without making changes
     --verbose          Enable verbose logging

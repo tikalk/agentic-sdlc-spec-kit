@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **DeepEval Integration**: Full DeepEval support as alternative to PromptFoo
+  - Custom metric class generation with DeepEval v3.x API (`LLMTestCase`, async `a_measure`)
+  - DeepEval-specific configuration templates and validation scripts
+  - Automatic dependency management with version compatibility checks (DeepEval >=3.0.0)
+  - System detection logic to choose PromptFoo vs DeepEval based on configuration
+- **Atomic Generation Order**: Prevent chicken-and-egg import problems
+  - Graders generated first, then tests, then config (normal Python imports)
+  - Configuration validation after generation (import checks, metric instantiation)
+  - Rollback on failure (all-or-nothing file generation)
+  - Clear error messages for missing dependencies or validation failures
+- **Version Compatibility Validation**: DeepEval v2.x vs v3.x detection
+  - Runtime version check with detailed upgrade instructions
+  - Breaking changes documentation (TestCase → LLMTestCase, context type changes)
+  - Graceful error handling with actionable fix commands
+
+### Changed
+- **Command Naming**: Renamed `trace` command to `analyze` for clarity
+  - Better alignment with goldset analysis phase terminology
+  - Consistent with bottom-up error analysis workflow
+- **Command Structure**: Evals extension now follows same logical pattern as other extensions
+  - Standardized command interface across all extension commands
+  - Improved consistency with framework conventions
+
+### Fixed
+- **DeepEval Import Issues**: Resolved chicken-and-egg problem in generated config.py
+  - Config now generated AFTER graders exist (not before)
+  - Validation step ensures all imports work before commit
+  - Rollback mechanism prevents partial/broken state
+- **Version Compatibility**: Added DeepEval >=3.0.0 requirement with clear error messages
+  - Users with v2.x get upgrade instructions with breaking changes list
+  - Import validation catches missing v3.x API components
+- **EDD Principle II Clarity**: Added comments explaining threshold parameter in DeepEval metrics
+  - Clarified that threshold is DeepEval API requirement, not scoring system
+  - Documented that `edd_compliant=True` enforces strict binary 1.0/0.0 output
+  - Function docstring explains binary-only behavior despite threshold presence
+
+### Documentation
+- **DeepEval Integration Guide**: Complete documentation for DeepEval setup and usage
+  - Metric class structure and template usage
+  - Configuration validation and testing procedures
+  - Migration notes for v2.x to v3.x breaking changes
+- **Atomic Generation Process**: Documented generation order and validation workflow
+  - Step-by-step execution outline with rollback behavior
+  - Verification checklist for both PromptFoo and DeepEval systems
+  - Error handling and troubleshooting guidance
+
 ### Planned
 - Web UI for goldset management and annotation queues
 - Advanced statistical analysis with effect size calculations

@@ -4,12 +4,29 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.5.11] - 2026-04-23
+
+### Added
+
+- **DeepEval Integration**: Full support for DeepEval as alternative evaluation framework
+  - Custom metric class generation with DeepEval v3.x API support
+  - Automatic version compatibility validation (DeepEval >=3.0.0 required)
+  - System detection to choose between PromptFoo and DeepEval
+- **Atomic Generation Order**: Prevents import errors in generated configurations
+  - Graders generated before config (normal Python imports work)
+  - Validation step with rollback on failure
+  - Clear error messages for missing dependencies
+
 ### Changed
 
-- **Hook-based architecture loading**: Replaced hardcoded AD.md/adr.md file loading in preset commands with hook-based architecture
-  - Architecture context now loaded via `before_specify`/`before_analyze`/`before_clarify` hooks
-  - Removed direct file path references from `adlc.spec.analyze.md` and `adlc.spec.clarify.md`
-  - Aligns with extension hook system for better extensibility
+- **Command Naming**: Renamed `evals.trace` to `evals.analyze` for clarity
+- **Command Structure**: Standardized command interface across all evals commands
+
+### Fixed
+
+- **Import Errors**: Resolved chicken-and-egg problem in DeepEval config generation
+- **Version Compatibility**: Added clear error messages for DeepEval v2.x users with upgrade instructions
+- **Documentation**: Clarified threshold parameter usage in EDD binary evaluation mode
 
 # [0.5.10] - 2026-04-20
 
@@ -20,6 +37,13 @@ All notable changes to the Specify CLI and templates are documented here.
   - When `--team-ai-directives` is a ZIP URL, it's downloaded and installed to `.specify/extensions/`
   - Added `get_team_directives_path()` helper to resolve path from init-options or extensions dir
   - Added `install` parameter to `sync_team_ai_directives()` for explicit control
+
+### Changed
+
+- **Hook-based architecture loading**: Replaced hardcoded AD.md/adr.md file loading in preset commands with hook-based architecture
+  - Architecture context now loaded via `before_specify`/`before_analyze`/`before_clarify` hooks
+  - Removed direct file path references from `adlc.spec.analyze.md` and `adlc.spec.clarify.md`
+  - Aligns with extension hook system for better extensibility
 
 ### Fixed
 

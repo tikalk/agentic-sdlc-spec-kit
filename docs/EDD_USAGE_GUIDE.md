@@ -87,7 +87,7 @@ All extensions in Spec Kit follow a consistent workflow pattern:
 | **3. Clarify** | `/architect.clarify` | `/levelup.clarify` | `/evals.clarify` | Resolve ambiguities through interactive questions |
 | **4. Implement** | `/architect.implement` | `/levelup.implement` | `/evals.implement` | Generate final outputs (AD.md, skills, PromptFoo config) |
 | **5. Validate** | `/architect.validate` | — | `/evals.validate` | Validate alignment/quality (READ-ONLY for architect) |
-| **6. Analyze/Trace** | `/architect.analyze` | `/levelup.trace` | `/evals.trace` | Post-implementation analysis and reporting |
+| **6. Analyze/Trace** | `/architect.analyze` | `/levelup.trace` | `/evals.analyze` | Post-implementation analysis and reporting |
 
 ### Pattern Summary
 
