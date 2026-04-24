@@ -723,6 +723,7 @@ def _install_shared_infra(
     script_type: str,
     tracker: StepTracker | None = None,
     force: bool = False,
+    invoke_separator: str = ".",
 ) -> bool:
     """Install shared infrastructure files into *project_path*.
 
@@ -730,12 +731,17 @@ def _install_shared_infra(
     bundled core_pack or source checkout.  Tracks all installed files
     in ``speckit.manifest.json``.
 
+    Page templates are processed to resolve ``__SPECKIT_COMMAND_<NAME>__``
+    placeholders using *invoke_separator* (``"."`` for markdown agents,
+    ``"-"`` for skills agents).
+
     When *force* is ``True``, existing files are overwritten with the
     latest bundled versions.  When ``False`` (default), only missing
     files are added and existing ones are skipped.
 
     Returns ``True`` on success.
     """
+    from .integrations.base import IntegrationBase
     from .integrations.manifest import IntegrationManifest
 
     core = _locate_core_pack()
@@ -786,7 +792,11 @@ def _install_shared_infra(
                 if dst.exists() and not force:
                     skipped_files.append(str(dst.relative_to(project_path)))
                 else:
-                    shutil.copy2(f, dst)
+                    content = f.read_text(encoding="utf-8")
+                    content = IntegrationBase.resolve_command_refs(
+                        content, invoke_separator
+                    )
+                    dst.write_text(content, encoding="utf-8")
                     rel = dst.relative_to(project_path).as_posix()
                     manifest.record_existing(rel)
 
@@ -1295,7 +1305,7 @@ def init(
 
             # Install shared infrastructure (scripts, templates)
             tracker.start("shared-infra")
-            _install_shared_infra(project_path, selected_script, tracker=tracker, force=force)
+            _install_shared_infra(project_path, selected_script, tracker=tracker, force=force, invoke_separator=resolved_integration.effective_invoke_separator(integration_parsed_options))
             tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
 
             ensure_constitution_from_template(project_path, tracker=tracker)
@@ -2072,20 +2082,22 @@ def integration_install(
 
     selected_script = _resolve_script_type(project_root, script)
 
+    # Build parsed options from --integration-options so the integration
+    # can determine its effective invoke separator before shared infra
+    # is installed.
+    parsed_options: dict[str, Any] | None = None
+    if integration_options:
+        parsed_options = _parse_integration_options(integration, integration_options)
+
     # Ensure shared infrastructure is present (safe to run unconditionally;
     # _install_shared_infra merges missing files without overwriting).
-    _install_shared_infra(project_root, selected_script)
+    _install_shared_infra(project_root, selected_script, invoke_separator=integration.effective_invoke_separator(parsed_options))
     if os.name != "nt":
         ensure_executable_scripts(project_root)
 
     manifest = IntegrationManifest(
         integration.key, project_root, version=get_speckit_version()
     )
-
-    # Build parsed options from --integration-options
-    parsed_options: dict[str, Any] | None = None
-    if integration_options:
-        parsed_options = _parse_integration_options(integration, integration_options)
 
     try:
         integration.setup(
@@ -2356,9 +2368,16 @@ def integration_switch(
         opts.pop("context_file", None)
         save_init_options(project_root, opts)
 
+    # Build parsed options from --integration-options so the integration
+    # can determine its effective invoke separator before shared infra
+    # is installed.
+    parsed_options: dict[str, Any] | None = None
+    if integration_options:
+        parsed_options = _parse_integration_options(target_integration, integration_options)
+
     # Ensure shared infrastructure is present (safe to run unconditionally;
     # _install_shared_infra merges missing files without overwriting).
-    _install_shared_infra(project_root, selected_script)
+    _install_shared_infra(project_root, selected_script, invoke_separator=target_integration.effective_invoke_separator(parsed_options))
     if os.name != "nt":
         ensure_executable_scripts(project_root)
 
@@ -2367,10 +2386,6 @@ def integration_switch(
     manifest = IntegrationManifest(
         target_integration.key, project_root, version=get_speckit_version()
     )
-
-    parsed_options: dict[str, Any] | None = None
-    if integration_options:
-        parsed_options = _parse_integration_options(target_integration, integration_options)
 
     try:
         target_integration.setup(
@@ -2465,18 +2480,21 @@ def integration_upgrade(
 
     selected_script = _resolve_script_type(project_root, script)
 
+    # Build parsed options from --integration-options so the integration
+    # can determine its effective invoke separator before shared infra
+    # is installed.
+    parsed_options: dict[str, Any] | None = None
+    if integration_options:
+        parsed_options = _parse_integration_options(integration, integration_options)
+
     # Ensure shared infrastructure is up to date; --force overwrites existing files.
-    _install_shared_infra(project_root, selected_script, force=force)
+    _install_shared_infra(project_root, selected_script, force=force, invoke_separator=integration.effective_invoke_separator(parsed_options))
     if os.name != "nt":
         ensure_executable_scripts(project_root)
 
     # Phase 1: Install new files (overwrites existing; old-only files remain)
     console.print(f"Upgrading integration: [cyan]{key}[/cyan]")
     new_manifest = IntegrationManifest(key, project_root, version=get_speckit_version())
-
-    parsed_options: dict[str, Any] | None = None
-    if integration_options:
-        parsed_options = _parse_integration_options(integration, integration_options)
 
     try:
         integration.setup(
