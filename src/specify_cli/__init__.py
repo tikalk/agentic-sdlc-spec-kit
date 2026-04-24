@@ -24,21 +24,26 @@ Or install globally:
     specify init --here
 """
 
+import importlib.metadata
 import os
+import shlex
+import shutil
+import stat
 import subprocess
 import sys
-import zipfile
 import tempfile
-import shutil
-import json
-import json5
-import stat
-import shlex
-import yaml
+import urllib.error
+import urllib.request  # noqa: F401 - required for test mocking
+import zipfile
 from pathlib import Path
 from typing import Any, Optional
 
+import json
+import json5
+import yaml
+
 import typer
+from packaging.version import Version, InvalidVersion
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
@@ -1008,6 +1013,7 @@ def _install_shared_infra(
     project_path: Path,
     script_type: str,
     tracker: StepTracker | None = None,
+    force: bool = False,
 ) -> bool:
     """Install shared infrastructure files into *project_path*.
 
@@ -1015,6 +1021,7 @@ def _install_shared_infra(
     bundled core_pack or source checkout.  Tracks all installed files
     in ``speckit.manifest.json``.
     Returns ``True`` on success.
+    If *force* is True, overwrites existing files.
     """
     from .integrations.manifest import IntegrationManifest
 
@@ -1040,12 +1047,12 @@ def _install_shared_infra(
         if variant_src.is_dir():
             dest_variant = dest_scripts / variant_dir
             dest_variant.mkdir(parents=True, exist_ok=True)
-            # Merge without overwriting — only add files that don't exist yet
+            # Merge without overwriting — only add files that don't exist yet (unless force=True)
             for src_path in variant_src.rglob("*"):
                 if src_path.is_file():
                     rel_path = src_path.relative_to(variant_src)
                     dst_path = dest_variant / rel_path
-                    if dst_path.exists():
+                    if dst_path.exists() and not force:
                         skipped_files.append(str(dst_path.relative_to(project_path)))
                     else:
                         dst_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1070,7 +1077,7 @@ def _install_shared_infra(
                 and not f.name.startswith(".")
             ):
                 dst = dest_templates / f.name
-                if dst.exists():
+                if dst.exists() and not force:
                     skipped_files.append(str(dst.relative_to(project_path)))
                 else:
                     shutil.copy2(f, dst)
@@ -1078,12 +1085,12 @@ def _install_shared_infra(
                     manifest.record_existing(rel)
 
     if skipped_files:
-        import logging
-
-        logging.getLogger(__name__).warning(
-            "The following shared files already exist and were not overwritten:\n%s",
-            "\n".join(f"  {f}" for f in skipped_files),
+        console.print(
+            "[yellow]Warning:[/yellow] The following shared files already exist and were not updated:\n"
+            + "\n".join(f"  {f}" for f in skipped_files)
         )
+        console.print("[dim]To overwrite, run: specify init --here --force[/dim]")
+        console.print("[dim]Or for integrations: specify integration upgrade --force[/dim]")
 
     manifest.save()
     return True
@@ -1740,7 +1747,7 @@ def init(
 
             # Install shared infrastructure (scripts, templates)
             tracker.start("shared-infra")
-            _install_shared_infra(project_path, selected_script, tracker=tracker)
+            _install_shared_infra(project_path, selected_script, tracker=tracker, force=force)
             tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
 
             ensure_constitution_from_template(project_path, tracker=tracker)
@@ -2182,7 +2189,6 @@ def check():
 def version():
     """Display version and system information."""
     import platform
-    import importlib.metadata
 
     show_banner()
 
@@ -2258,7 +2264,6 @@ preset_app.add_typer(preset_catalog_app, name="catalog")
 
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
-    import importlib.metadata
 
     try:
         return importlib.metadata.version("agentic-sdlc-specify-cli")
@@ -3853,6 +3858,126 @@ def preset_catalog_remove(
         )
 
 
+# ===== Self Commands =====
+
+# Fork GitHub API endpoint (customized for tikalk fork)
+try:
+    from .cli_customization import FORK_GITHUB_API_LATEST as _GITHUB_API
+except ImportError:
+    _GITHUB_API = "https://api.github.com/repos/github/spec-kit/releases/latest"
+
+
+def _get_installed_version() -> str:
+    """Return the installed specify-cli distribution version or 'unknown'."""
+    import importlib.metadata
+    from importlib.metadata import PackageNotFoundError
+
+    # Python 3.10+ has InvalidMetadataError; fall back to Exception for earlier versions
+    InvalidMetadataError = getattr(importlib.metadata, "InvalidMetadataError", Exception)
+
+    try:
+        from .cli_customization import PKG_NAMES
+    except ImportError:
+        PKG_NAMES = ("specify-cli",)
+
+    for pkg_name in PKG_NAMES:
+        try:
+            return importlib.metadata.version(pkg_name)
+        except (PackageNotFoundError, InvalidMetadataError):
+            continue
+    return "unknown"
+
+
+def _normalize_tag(tag: str) -> str:
+    """Strip exactly one leading 'v' from a release tag."""
+    return tag[1:] if tag.startswith("v") else tag
+
+
+def _is_newer(latest: str, current: str) -> bool:
+    """Return True iff `latest` is strictly greater than `current` under PEP 440."""
+    if latest == "unknown" or current == "unknown":
+        return False
+    try:
+        return Version(latest) > Version(current)
+    except InvalidVersion:
+        return False
+
+
+def _fetch_latest_release_tag() -> tuple[str | None, str | None]:
+    """Return (tag, failure_reason). Exactly one outbound call, 5 s timeout."""
+    import urllib.error
+    import urllib.request
+
+    req = urllib.request.Request(_GITHUB_API, headers={"Accept": "application/vnd.github+json"})
+    for env_var in ("GH_TOKEN", "GITHUB_TOKEN"):
+        token = os.environ.get(env_var)
+        if token:
+            token = token.strip()
+            if token:
+                req.add_header("Authorization", f"Bearer {token}")
+                break
+    try:
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            payload = json.loads(resp.read().decode("utf-8"))
+            tag = payload.get("tag_name")
+            if not isinstance(tag, str) or not tag:
+                raise ValueError("GitHub API response missing valid tag_name")
+            return tag, None
+    except urllib.error.HTTPError as e:
+        if e.code == 403:
+            return None, "rate limited (try setting GH_TOKEN or GITHUB_TOKEN)"
+        return None, f"HTTP {e.code}"
+    except (urllib.error.URLError, OSError):
+        return None, "offline or timeout"
+
+
+self_app = typer.Typer(
+    name="self",
+    help="Manage the specify CLI itself (read-only check and reserved upgrade command).",
+    add_completion=False,
+)
+app.add_typer(self_app, name="self")
+
+
+@self_app.command("check")
+def self_check() -> None:
+    """Check whether a newer release is available. Read-only."""
+    installed = _get_installed_version()
+    tag, failure_reason = _fetch_latest_release_tag()
+
+    if tag is None:
+        console.print(f"Installed: {installed}")
+        console.print(f"[yellow]Could not check latest release:[/yellow] {failure_reason}")
+        return
+
+    latest = _normalize_tag(tag)
+
+    if installed == "unknown":
+        console.print("Current version could not be determined.")
+        console.print(f"Latest release: {latest}")
+        console.print("\nTo reinstall:")
+        console.print("  uv tool install agentic-sdlc-specify-cli --force \\")
+        console.print("    --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}")
+        return
+
+    if _is_newer(latest, installed):
+        console.print(f"[green]Update available:[/green] {installed} → {latest}")
+        console.print("\nTo upgrade:")
+        console.print("  uv tool install agentic-sdlc-specify-cli --force \\")
+        console.print("    --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}")
+        return
+
+    console.print(f"[green]Up to date:[/green] {installed}")
+
+
+@self_app.command("upgrade")
+def self_upgrade() -> None:
+    """Reserved command surface for self-upgrade; not implemented in this release."""
+    console.print("specify self upgrade is not implemented yet.")
+    console.print("Run 'specify self check' to see whether a newer release is available.")
+    console.print("Actual self-upgrade is planned as follow-up work.")
+
+
 # ===== Extension Commands =====
 
 
@@ -4323,7 +4448,6 @@ def extension_add(
 
             elif from_url:
                 # Install from URL (ZIP file)
-                import urllib.request
                 import urllib.error
                 from urllib.parse import urlparse
 

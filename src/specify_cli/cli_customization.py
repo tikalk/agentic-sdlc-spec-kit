@@ -118,6 +118,17 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 
 
 # ============================================================================
+# FORK SELF CHECK - GitHub API endpoint for specify self check command
+# ============================================================================
+
+# Fork GitHub API endpoint for self check command
+FORK_GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
+
+# Install command template for fork (used in self check output)
+FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}"
+
+
+# ============================================================================
 # SKILL OUTPUT NAME COMPUTATION - Fork-specific naming for Claude Code slash commands
 # ============================================================================
 

@@ -136,6 +136,17 @@ uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init 
 uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init .
 ```
 
+> [!NOTE]
+> You can also install the CLI persistently with `pipx`:
+> ```bash
+> pipx install git+https://github.com/github/spec-kit.git
+> ```
+> After installing with `pipx`, run `specify` directly instead of `uvx --from ... specify`, for example:
+> ```bash
+> specify init <PROJECT_NAME>
+> specify init .
+> ```
+
 Pick script type explicitly (optional):
 
 ```bash

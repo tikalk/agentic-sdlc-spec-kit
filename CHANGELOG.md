@@ -4,6 +4,28 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.0+adlc1] - 2026-04-24
+
+### Changed
+
+- **Upstream sync**: Merged upstream v0.8.0 with fork customizations preserved
+  - `specify self check` now uses fork's GitHub API (`tikalk/agentic-sdlc-spec-kit`)
+  - `specify self upgrade` shows fork's install command
+  - Added `FORK_GITHUB_API_LATEST` and `FORK_INSTALL_COMMAND` to `cli_customization.py`
+
+### Fixed
+
+- **_install_shared_infra force parameter**: Added `force` parameter to allow overwriting existing shared files
+- **InvalidMetadataError handling**: `_get_installed_version()` now handles `InvalidMetadataError` for corrupted package metadata
+- **YAML mapping validation**: `ExtensionManifest._load_yaml()` now properly rejects non-mapping YAML (scalars, lists)
+
+### Added
+
+- **Upstream features from v0.8.0**:
+  - `specify self check` command to check for updates
+  - `specify self upgrade` stub command
+  - New agent integrations and improvements
+
 # [0.5.17] - 2026-04-24
 
 ### Changed
@@ -1322,6 +1344,51 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.0] - 2026-04-23
+
+### Changed
+
+- feat(presets): Composition strategies (prepend, append, wrap) for templates, commands, and scripts (#2133)
+- feat(copilot): support `--integration-options="--skills"` for skills-based scaffolding (#2324)
+- docs(install): add pipx as alternative installation method (#2288)
+- Add Memory MD community extension (#2327)
+- Update version-guard to v1.2.0 (#2321)
+- fix: `--force` now overwrites shared infra files during init and upgrade (#2320)
+- chore: release 0.7.5, begin 0.7.6.dev0 development (#2322)
+
+## [0.7.5] - 2026-04-22
+
+### Changed
+
+- fix: resolve skill placeholders for all SKILL.md agents, not just codex/kimi (#2313)
+- feat(cli): add specify self check and self upgrade stub (#2316)
+- Update version-guard to v1.1.0 (#2318)
+- docs: move community presets from README to docs/community (#2314)
+- catalog: add wireframe extension (v0.1.1) (#2262)
+- Move community walkthroughs from README to docs/community (#2312)
+- docs(readme): list red-team in community-extensions table (#2311)
+- feat(catalog): add red-team extension to community catalog (#2306)
+- Add superpowers-bridge community extension (#2309)
+- feat: implement preset wrap strategy (#2189)
+- fix(agents): block directory traversal in command write paths (#2229) (#2296)
+- chore: release 0.7.4, begin 0.7.5.dev0 development (#2299)
+
+## [0.7.4] - 2026-04-21
+
+### Changed
+
+- fix(copilot): use --yolo to grant all permissions in non-interactive mode (#2298)
+- feat: add CITATION.cff and .zenodo.json for academic citation support (#2291)
+- Add spec-validate to community catalog (#2274)
+- feat: register Ripple in community catalog (#2272)
+- Add version-guard to community catalog (#2286)
+- Add spec-reference-loader to community catalog (#2285)
+- Add memory-loader to community catalog (#2284)
+- fix(integrations): strip UTF-8 BOM when reading agent context files (#2283)
+- Preset fiction book writing1.6 (#2270)
+- fix(integrations): migrate Antigravity (agy) layout to .agents/ and deprecate --skills (#2276)
+- chore: release 0.7.3, begin 0.7.4.dev0 development (#2263)
 
 ## [0.7.3] - 2026-04-17
 
