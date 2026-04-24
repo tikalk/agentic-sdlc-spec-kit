@@ -2,6 +2,22 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.8.1] - 2026-04-24
+
+### Changed
+
+- fix(plan): use .specify/feature.json to allow /speckit.plan on custom git branches (#2305) (#2349)
+- feat(vibe): migrate to SkillsIntegration from the old prompts-based MarkdownIntegration (#2336)
+- docs: move community presets table to docs site, add missing entries (#2341)
+- docs(presets): add lean preset README and enrich catalog metadata (#2340)
+- fix: resolve command references per integration type (dot vs hyphen) (#2354)
+- Update product-forge to v1.5.1 in community catalog (#2352)
+- chore(deps): bump astral-sh/setup-uv from 8.0.0 to 8.1.0 (#2345)
+- fix: replace xargs trim with sed to handle quotes in descriptions (#2351)
+- feat: register jira preset in community catalog (#2224)
+- feat: Preset screenwriting (#2332)
+- chore: release 0.8.0, begin 0.8.1.dev0 development (#2333)
+
 ## [0.8.0] - 2026-04-23
 
 ### Changed
