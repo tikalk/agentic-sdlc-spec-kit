@@ -163,12 +163,8 @@ class TestCopilotIntegration:
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration copilot --script sh."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
         project = tmp_path / "inventory-sh"
         project.mkdir()
         old_cwd = os.getcwd()
@@ -180,8 +176,9 @@ class TestCopilotIntegration:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
-        expected = sorted([
+        actual = set(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        # Core files that must be present in all environments
+        core_expected = {
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -218,20 +215,19 @@ class TestCopilotIntegration:
             ".specify/memory/constitution.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        }
+        missing = core_expected - actual
+        assert not missing, f"Missing core files: {sorted(missing)}"
+        # For upstream (non-fork), also check no extra files
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if not is_fork:
+            extra = actual - core_expected
+            assert not extra, f"Extra files: {sorted(extra)}"
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration copilot --script ps."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
         project = tmp_path / "inventory-ps"
         project.mkdir()
         old_cwd = os.getcwd()
@@ -243,8 +239,9 @@ class TestCopilotIntegration:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
-        expected = sorted([
+        actual = set(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        # Core files that must be present in all environments
+        core_expected = {
             ".github/agents/speckit.analyze.agent.md",
             ".github/agents/speckit.checklist.agent.md",
             ".github/agents/speckit.clarify.agent.md",
@@ -281,11 +278,14 @@ class TestCopilotIntegration:
             ".specify/memory/constitution.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        }
+        missing = core_expected - actual
+        assert not missing, f"Missing core files: {sorted(missing)}"
+        # For upstream (non-fork), also check no extra files
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if not is_fork:
+            extra = actual - core_expected
+            assert not extra, f"Extra files: {sorted(extra)}"
 
 
 class TestCopilotSkillsMode:
@@ -592,7 +592,7 @@ class TestCopilotSkillsMode:
     def test_complete_file_inventory_skills_sh(self, tmp_path):
         """Every file produced by specify init --integration copilot --integration-options='--skills' --script sh."""
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
         project = tmp_path / "inventory-skills-sh"
         project.mkdir()
         old_cwd = os.getcwd()
@@ -606,8 +606,9 @@ class TestCopilotSkillsMode:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
-        expected = sorted([
+        actual = set(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        # Core files that must be present in all environments
+        core_expected = {
             # Skill files
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Context file
@@ -632,11 +633,14 @@ class TestCopilotSkillsMode:
             # Bundled workflow
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        }
+        missing = core_expected - actual
+        assert not missing, f"Missing core files: {sorted(missing)}"
+        # For upstream (non-fork), also check no extra files
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if not is_fork:
+            extra = actual - core_expected
+            assert not extra, f"Extra files: {sorted(extra)}"
 
     # -- Singleton leak: _skills_mode must reset --------------------------
 
