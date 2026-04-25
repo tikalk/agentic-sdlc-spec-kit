@@ -112,7 +112,7 @@ class TestInitIntegrationFlag:
         assert "--ai" in normalized_output
         assert "deprecated" in normalized_output
         assert "no longer be available" in normalized_output
-        assert "1.0.0" in normalized_output
+        assert "0.10.0" in normalized_output
         assert "--integration copilot" in normalized_output
         assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
         assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
@@ -446,6 +446,33 @@ class TestGitExtensionAutoInstall:
         ext_dir = project / ".specify" / "extensions" / "git"
         assert not ext_dir.exists(), "git extension should not be installed with --no-git"
 
+    def test_no_git_emits_deprecation_warning(self, tmp_path):
+        """Using --no-git emits a visible deprecation warning."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        project = tmp_path / "no-git-warn"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            runner = CliRunner()
+            result = runner.invoke(app, [
+                "init", "--here", "--ai", "claude", "--script", "sh",
+                "--no-git", "--ignore-agent-tools",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        normalized_output = _normalize_cli_output(result.output)
+        assert result.exit_code == 0, result.output
+        assert "--no-git" in normalized_output
+        assert "deprecated" in normalized_output
+        assert "0.10.0" in normalized_output
+        assert "specify extension" in normalized_output
+        assert "will be removed" in normalized_output
+        assert "git extension will no longer be enabled by default" in normalized_output
+
     def test_git_extension_commands_registered(self, tmp_path):
         """Git extension commands are registered with the agent during init."""
         from typer.testing import CliRunner
@@ -471,3 +498,133 @@ class TestGitExtensionAutoInstall:
         assert claude_skills.exists(), "Claude skills directory was not created"
         git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")]
         assert len(git_skills) > 0, "no git extension commands registered"
+
+
+class TestSharedInfraCommandRefs:
+    """Verify _install_shared_infra resolves __SPECKIT_COMMAND_*__ in page templates."""
+
+    def test_dot_separator_in_page_templates(self, tmp_path):
+        """Markdown agents get /speckit.<name> in page templates."""
+        from specify_cli import _install_shared_infra
+
+        project = tmp_path / "dot-test"
+        project.mkdir()
+        (project / ".specify").mkdir()
+
+        _install_shared_infra(project, "sh", invoke_separator=".")
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        assert plan.exists()
+        content = plan.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
+        assert "/speckit.plan" in content
+
+        checklist = project / ".specify" / "templates" / "checklist-template.md"
+        content = checklist.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content
+        assert "/speckit.checklist" in content
+
+    def test_hyphen_separator_in_page_templates(self, tmp_path):
+        """Skills agents get /speckit-<name> in page templates."""
+        from specify_cli import _install_shared_infra
+
+        project = tmp_path / "hyphen-test"
+        project.mkdir()
+        (project / ".specify").mkdir()
+
+        _install_shared_infra(project, "sh", invoke_separator="-")
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        assert plan.exists()
+        content = plan.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
+        assert "/speckit-plan" in content
+        assert "/speckit.plan" not in content, "dot-notation leaked into skills page template"
+
+        tasks = project / ".specify" / "templates" / "tasks-template.md"
+        content = tasks.read_text(encoding="utf-8")
+        assert "__SPECKIT_COMMAND_" not in content
+        assert "/speckit-tasks" in content
+
+    def test_full_init_claude_resolves_page_templates(self, tmp_path):
+        """Full CLI init with Claude (skills agent) produces hyphen refs in page templates."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        runner = CliRunner()
+        project = tmp_path / "init-claude"
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, [
+                "init", str(project),
+                "--integration", "claude",
+                "--script", "sh",
+                "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "/speckit-plan" in content, "Claude (skills) should use /speckit-plan"
+        assert "__SPECKIT_COMMAND_" not in content
+
+    def test_full_init_copilot_resolves_page_templates(self, tmp_path):
+        """Full CLI init with Copilot (markdown agent) produces dot refs in page templates."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        runner = CliRunner()
+        project = tmp_path / "init-copilot"
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, [
+                "init", str(project),
+                "--integration", "copilot",
+                "--script", "sh",
+                "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "/speckit.plan" in content, "Copilot (markdown) should use /speckit.plan"
+        assert "__SPECKIT_COMMAND_" not in content
+
+    def test_full_init_copilot_skills_resolves_page_templates(self, tmp_path):
+        """Full CLI init with Copilot --skills produces hyphen refs in page templates."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        runner = CliRunner()
+        project = tmp_path / "init-copilot-skills"
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmp_path)
+            result = runner.invoke(app, [
+                "init", str(project),
+                "--integration", "copilot",
+                "--integration-options", "--skills",
+                "--script", "sh",
+                "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        content = plan.read_text(encoding="utf-8")
+        assert "/speckit-plan" in content, "Copilot --skills should use /speckit-plan"
+        assert "/speckit.plan" not in content, "dot-notation leaked into Copilot skills page template"
+        assert "__SPECKIT_COMMAND_" not in content

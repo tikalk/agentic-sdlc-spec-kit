@@ -1,12 +1,10 @@
 # Installation Guide
 
-> Agentic SDLC Spec Kit implements the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology for structured AI-assisted development.
-
 ## Prerequisites
 
 - **Linux/macOS** (or Windows; PowerShell scripts now supported without WSL)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Codebuddy CLI](https://www.codebuddy.ai/cli) or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
-- [uv](https://docs.astral.sh/uv/) for package management
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Codebuddy CLI](https://www.codebuddy.ai/cli), [Gemini CLI](https://github.com/google-gemini/gemini-cli), or [Pi Coding Agent](https://pi.dev)
+- [uv](https://docs.astral.sh/uv/) for package management (recommended) or [pipx](https://pypa.github.io/pipx/) for persistent installation
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
 
@@ -19,27 +17,38 @@
 The easiest way to get started is to initialize a new project. Pin a specific release tag for stability (check [Releases](https://github.com/github/spec-kit/releases) for the latest):
 
 ```bash
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <PROJECT_NAME>
+# Install from a specific stable release (recommended — replace vX.Y.Z with the latest tag)
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <PROJECT_NAME>
+
+# Or install latest from main (may include unreleased changes)
+uvx --from git+https://github.com/github/spec-kit.git specify init <PROJECT_NAME>
 ```
+
+> [!NOTE]
+> For a persistent installation, `pipx` works equally well:
+> ```bash
+> pipx install git+https://github.com/github/spec-kit.git@vX.Y.Z
+> ```
+> The project uses a standard `hatchling` build backend and has no uv-specific dependencies.
 
 Or initialize in the current directory:
 
 ```bash
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init .
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init .
 # or use the --here flag
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init --here
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init --here
 ```
 
-### Specify AI Agent
+### Specify Integration
 
-You can proactively specify your AI agent during initialization:
+You can proactively specify your coding agent integration during initialization:
 
 ```bash
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai gemini
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai copilot
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai codebuddy
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai pi
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration claude
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration gemini
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration copilot
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration codebuddy
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration pi
 ```
 
 ### Specify Script Type (Shell vs PowerShell)
@@ -55,8 +64,8 @@ Auto behavior:
 Force a specific script type:
 
 ```bash
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --script sh
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --script ps
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --script sh
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --script ps
 ```
 
 ### Ignore Agent Tools Check
@@ -64,22 +73,7 @@ uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init 
 If you prefer to get the templates without checking for the right tools:
 
 ```bash
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --ai claude --ignore-agent-tools
-```
-
-### Configure Team AI Directives
-
-Connect to shared team knowledge and standards:
-
-```bash
-# Use local team-ai-directives directory
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives ~/workspace/team-ai-directives
-
-# Install from GitHub archive (ZIP download)
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip
-
-# Or from a specific release tag
-uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init <project_name> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/tags/v1.0.0.zip
+uvx --from git+https://github.com/github/spec-kit.git@vX.Y.Z specify init <project_name> --integration claude --ignore-agent-tools
 ```
 
 ## Verification
@@ -92,22 +86,13 @@ specify version
 
 This helps verify you are running the official Spec Kit build from GitHub, not an unrelated package with the same name.
 
-After initialization, you should see the following commands available in your AI agent:
+After initialization, you should see the following commands available in your coding agent:
 
-- `/spec.constitution` - Establish project principles and assemble constitution
-- `/spec.specify` - Create specifications
-- `/spec.plan` - Generate implementation plans
-- `/spec.tasks` - Break down into actionable tasks
-- `/spec.implement` - Execute implementation with SYNC/ASYNC dual execution loops
-- `/levelup.specify` - Extract patterns from current feature and create CDRs for team knowledge
-- `/levelup.init` - Discover patterns from entire codebase (brownfield)
-- `/levelup.clarify` - Resolve ambiguities in discovered CDRs
-- `/levelup.implement` - Compile CDRs into PR to team-ai-directives
-- `/spec.analyze` - Cross-artifact consistency and alignment reports
-- `/spec.checklist` - Generate quality checklists for requirements validation
-- `/spec.clarify` - Structured questions to de-risk ambiguous areas
+- `/speckit.specify` - Create specifications
+- `/speckit.plan` - Generate implementation plans  
+- `/speckit.tasks` - Break down into actionable tasks
 
-The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts for automation.
+The `.specify/scripts` directory will contain both `.sh` and `.ps1` scripts.
 
 ## Troubleshooting
 
@@ -146,12 +131,10 @@ pip install --no-index --find-links=./dist specify-cli
 
 ```bash
 # Initialize a project — no GitHub access needed
-specify init my-project --ai claude --offline
+specify init my-project --integration claude
 ```
 
-The `--offline` flag tells the CLI to use the templates, commands, and scripts bundled inside the wheel instead of downloading from GitHub.
-
-> **Deprecation notice:** Starting with v0.6.0, `specify init` will use bundled assets by default and the `--offline` flag will be removed. The GitHub download path will be retired because bundled assets eliminate the need for network access, avoid proxy/firewall issues, and guarantee that templates always match the installed CLI version. No action will be needed — `specify init` will simply work without network access out of the box.
+Bundled assets are used by default — no network access is required.
 
 > **Note:** Python 3.11+ is required.
 

@@ -4,6 +4,23 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.2+adlc1] - 2026-04-25
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit v0.8.1 → v0.8.2.dev0
+  - feat: GitHub token auth for catalog/download requests (new `_github_http.py` module)
+  - feat: deprecate `--no-git` flag (gate at v0.10.0)
+  - feat: Vibe → SkillsIntegration migration (requires Mistral Vibe v2.0.0+)
+  - fix: plan on custom git branches via `feature.json`
+  - fix: command references per integration type (dot vs hyphen separator)
+  - fix: replace xargs trim with sed for quoted descriptions
+  - docs: deprecate `--ai` → `--integration` in documentation
+
+### Fixed
+
+- **Integration options parsing**: Fixed `--integration-options "--skills"` not being parsed before `_install_shared_infra` call, causing incorrect invoke separator for page templates
+
 # [0.8.0+adlc1] - 2026-04-24
 
 ### Changed
@@ -1344,6 +1361,22 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.1] - 2026-04-24
+
+### Changed
+
+- fix(plan): use .specify/feature.json to allow /speckit.plan on custom git branches (#2305) (#2349)
+- feat(vibe): migrate to SkillsIntegration from the old prompts-based MarkdownIntegration (#2336)
+- docs: move community presets table to docs site, add missing entries (#2341)
+- docs(presets): add lean preset README and enrich catalog metadata (#2340)
+- fix: resolve command references per integration type (dot vs hyphen) (#2354)
+- Update product-forge to v1.5.1 in community catalog (#2352)
+- chore(deps): bump astral-sh/setup-uv from 8.0.0 to 8.1.0 (#2345)
+- fix: replace xargs trim with sed to handle quotes in descriptions (#2351)
+- feat: register jira preset in community catalog (#2224)
+- feat: Preset screenwriting (#2332)
+- chore: release 0.8.0, begin 0.8.1.dev0 development (#2333)
 
 ## [0.8.0] - 2026-04-23
 

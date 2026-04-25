@@ -100,9 +100,8 @@ class MarkdownIntegrationTests:
             assert "{SCRIPT}" not in content, f"{f.name} has unprocessed {{SCRIPT}}"
             assert "__AGENT__" not in content, f"{f.name} has unprocessed __AGENT__"
             assert "{ARGS}" not in content, f"{f.name} has unprocessed {{ARGS}}"
-            assert "\nscripts:\n" not in content, (
-                f"{f.name} has unstripped scripts: block"
-            )
+            assert "__SPECKIT_COMMAND_" not in content, f"{f.name} has unprocessed __SPECKIT_COMMAND_*__"
+            assert "\nscripts:\n" not in content, f"{f.name} has unstripped scripts: block"
 
     def test_plan_references_correct_context_file(self, tmp_path):
         """The generated plan command must reference this integration's context file."""
