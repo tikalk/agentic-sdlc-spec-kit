@@ -712,7 +712,7 @@ class TestCopilotSkillsMode:
     def test_init_skills_next_steps_show_skill_syntax(self, tmp_path):
         """specify init --integration copilot --integration-options='--skills' shows /speckit-plan not /speckit.plan."""
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
         project = tmp_path / "copilot-nextsteps"
         project.mkdir()
         old_cwd = os.getcwd()
@@ -726,10 +726,20 @@ class TestCopilotSkillsMode:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        # Skills mode should show /speckit-plan (hyphenated)
-        assert "/speckit-plan" in result.output, (
-            f"Expected /speckit-plan in next steps but got:\n{result.output}"
-        )
+
+        # Check fork status
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+
+        if is_fork:
+            # Fork uses spec.* aliases (e.g., /spec.plan)
+            assert "/spec.plan" in result.output, (
+                f"Expected /spec.plan in next steps but got:\n{result.output}"
+            )
+        else:
+            # Upstream: Skills mode should show /speckit-plan (hyphenated)
+            assert "/speckit-plan" in result.output, (
+                f"Expected /speckit-plan in next steps but got:\n{result.output}"
+            )
         # Must NOT show the dotted /speckit.plan form
         assert "/speckit.plan" not in result.output, (
             f"Should not show /speckit.plan in skills mode:\n{result.output}"
