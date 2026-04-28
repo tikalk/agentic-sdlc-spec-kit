@@ -957,7 +957,7 @@
         "speckit_version": ">=0.1.0",
         "tools": [
           {
-            "name": "m365 CLI (CLI for Microsoft 365)",
+            "name": "m365",
             "required": true
           }
         ]
