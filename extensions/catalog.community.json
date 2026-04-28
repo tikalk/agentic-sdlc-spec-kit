@@ -958,6 +958,7 @@
         "tools": [
           {
             "name": "m365",
+            "version": ">=0.0.0",
             "required": true
           }
         ]
