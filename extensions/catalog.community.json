@@ -955,7 +955,12 @@
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.1.0",
-        "tools": ["m365 CLI (CLI for Microsoft 365)"]
+        "tools": [
+          {
+            "name": "m365 CLI (CLI for Microsoft 365)",
+            "required": true
+          }
+        ]
       },
       "provides": {
         "commands": 3,
