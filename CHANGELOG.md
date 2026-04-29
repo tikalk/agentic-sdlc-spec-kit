@@ -4,6 +4,19 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.3+adlc1] - 2026-04-29
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit v0.8.2 → v0.8.3.dev0 (22 commits)
+  - fix: include --from git+... in upgrade hint to avoid PyPI squat package (#2411)
+  - fix: dispatch opencode commands via run (#2410)
+  - feat: add catalog discovery CLI commands (#2360)
+  - fix(extensions): use explicit UTF-8 encoding when reading manifest YAML (#2370)
+  - feat: Speckit preset fiction book v1.7 - Support for RAG (Chroma DB) offline semantic search (#2367)
+  - chore: release 0.8.2, begin 0.8.3.dev0 development (#2397)
+  - Catalog updates: security review v1.3.0, v-model v0.6.0, threatmodel, isaqb-architecture-governance, m365, MarkItDown
+
 # [0.8.2+adlc3] - 2026-04-29
 
 ### Added
@@ -1379,6 +1392,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.2] - 2026-04-28
+
+### Changed
+
+- Add MarkItDown Document Converter extension to community catalog (#2390)
+- feat: Speckit preset fiction book v1.7 - Support for RAG (Chroma DB) offline semantic search (#2367)
+- fix(extensions): use explicit UTF-8 encoding when reading manifest YAML (#2370)
+- catalog: add m365 community extension
+- docs: replace deprecated --ai flag with --integration in all documentation (#2359)
+- feat(extensions,presets): authenticate GitHub-hosted catalog and download requests with GITHUB_TOKEN/GH_TOKEN (#2331)
+- Update extensify to v1.1.0 in community catalog (#2337)
+- feat(init): deprecate --no-git flag, gate deprecations at v0.10.0 (#2357)
+- Add Spec Orchestrator extension to community catalog (#2350)
+- chore: release 0.8.1, begin 0.8.2.dev0 development (#2356)
 
 ## [0.8.1] - 2026-04-24
 
