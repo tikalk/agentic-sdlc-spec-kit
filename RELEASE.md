@@ -48,10 +48,25 @@ cat pyproject.toml | grep "^version"
 ```
 
 ### Step 2: Update Version
+
+#### For Upstream Merge
+Update base version and reset fork suffix:
+```toml
+[project]
+version = "0.9.0+adlc1"  # New upstream + reset fork counter
+```
+
+#### For Fork-Only Changes (No Upstream Merge)
+Increment only the fork suffix:
+```toml
+[project]
+version = "0.8.2+adlc2"  # Same upstream base, new fork release
+```
+
 Edit `pyproject.toml`:
 ```toml
 [project]
-version = "X.Y.Z"
+version = "X.Y.Z+adlcN"
 ```
 
 ### Step 3: Commit Prefix Guide

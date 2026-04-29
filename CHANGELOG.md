@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.2+adlc2] - 2026-04-29
+
+### Added
+
+- **Auto-register bundled catalogs**: When using `--team-ai-directives`, the CLI now automatically registers the extension's bundled catalog (`extensions/catalog.json`) for updates. This enables custom forks to distribute their own extensions seamlessly.
+- New helper function `_register_bundled_catalog()` to manage catalog registration in `extension-catalogs.yml`
+
 # [0.8.2+adlc1] - 2026-04-25
 
 ### Changed

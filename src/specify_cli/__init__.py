@@ -309,6 +309,14 @@ def sync_team_ai_directives(
             target_repo = _derive_target_repo_from_url(repo_url)
             _store_extension_source_url(project_root, manifest.id, repo_url, target_repo)
 
+            # Register bundled catalog if exists
+            if target_repo:
+                catalog_url = target_repo.replace(
+                    "github.com",
+                    "raw.githubusercontent.com"
+                ) + "/main/extensions/catalog.json"
+                _register_bundled_catalog(project_root, catalog_url)
+
             return ("installed", dest_dir)
         finally:
             if zip_path.exists():
@@ -342,6 +350,53 @@ def _store_extension_source_url(
     if target_repo:
         metadata["target_repo"] = target_repo
     registry.update(extension_id, metadata)
+
+
+def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
+    """Register bundled catalog from extension.
+
+    Adds the extension's bundled catalog to extension-catalogs.yml with priority 1.
+    """
+    import yaml
+
+    config_path = project_root / ".specify" / "extension-catalogs.yml"
+
+    # Load existing config
+    if config_path.exists():
+        try:
+            config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            config = {}
+    else:
+        config = {}
+
+    catalogs = config.get("catalogs", [])
+    if not isinstance(catalogs, list):
+        catalogs = []
+
+    # Update existing or add new
+    updated = False
+    for cat in catalogs:
+        if isinstance(cat, dict) and cat.get("name") == "team-ai-directives":
+            cat["url"] = catalog_url
+            cat["priority"] = 1
+            cat["install_allowed"] = True
+            updated = True
+            break
+
+    if not updated:
+        catalogs.append({
+            "name": "team-ai-directives",
+            "url": catalog_url,
+            "priority": 1,
+            "install_allowed": True
+        })
+
+    config["catalogs"] = catalogs
+    config_path.write_text(
+        yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True),
+        encoding="utf-8"
+    )
 
 
 def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:

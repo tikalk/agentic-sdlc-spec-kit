@@ -10,6 +10,31 @@ The fork isolates all customizations into a single file (`cli_customization.py`)
 2. All customization logic lives in `cli_customization.py`
 3. Upstream changes to other parts of `__init__.py` merge cleanly
 
+## Fork Versioning Scheme
+
+The fork uses a suffix-based versioning system to track both upstream and fork-specific changes:
+
+### Version Format
+`<upstream-version>+adlc<N>`
+
+Examples:
+- `0.8.2+adlc1` - Fork based on upstream 0.8.2, first fork release
+- `0.8.2+adlc2` - Same upstream base, second fork release with new features
+- `0.9.0+adlc1` - After upstream merge to 0.9.0, reset fork counter
+
+### When to Bump
+
+| Scenario | Version Change | Example |
+|----------|---------------|---------|
+| Fork adds new feature | Increment adlc suffix | `0.8.2+adlc1` → `0.8.2+adlc2` |
+| Merge upstream release | Update base, reset suffix | `0.8.2+adlc5` → `0.9.0+adlc1` |
+| Hotfix/patch | Increment adlc suffix | `0.8.2+adlc1` → `0.8.2+adlc2` |
+
+### Tag Format
+Use `agentic-sdlc-v<version>` with dashes instead of plus:
+- Version: `0.8.2+adlc2`
+- Tag: `agentic-sdlc-v0.8.2-adlc2`
+
 ## Customization Module
 
 **File**: `src/specify_cli/cli_customization.py`
