@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-04-13T00:00:00Z",
+  "updated_at": "2026-04-26T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/workflows/catalog.json",
   "workflows": {
     "speckit": {
@@ -11,6 +11,15 @@
       "version": "1.0.0",
       "url": "https://raw.githubusercontent.com/github/spec-kit/main/workflows/speckit/workflow.yml",
       "tags": ["sdd", "full-cycle"]
+    },
+    "feature-squad": {
+      "id": "feature-squad",
+      "name": "Feature Squad",
+      "description": "Parallel agent execution with human review gate \u2014 Squad-WF pattern",
+      "author": "Tikals",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/tikals/agentic-sdlc-spec-kit/main/workflows/feature-squad.yml",
+      "tags": ["squad", "parallel", "review"]
     }
   }
 }

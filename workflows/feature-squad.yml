@@ -1,0 +1,61 @@
+name: feature-squad
+description: "Feature Squad — Squad-WF pattern for parallel agent execution with human review gate"
+
+inputs:
+  spec:
+    type: string
+    required: true
+    prompt: "Describe the feature to build"
+
+steps:
+  # Coordinator: Analyze requirements
+  - id: analyze
+    type: prompt
+    prompt: |
+      Analyze the feature request and decompose into actionable tasks.
+      
+      Feature: {{ inputs.spec }}
+      
+      Output a JSON array of task objects with fields: id, name, description, priority
+    integration: claude
+
+  # Parallel specialists (fan-out)
+  - id: parallel-work
+    type: fan-out
+    items: "{{ steps.analyze.output.tasks }}"
+    max_concurrency: 3
+    step:
+      type: prompt
+      prompt: |
+        Implement the following task:
+        
+        Task: {{ item.name }}
+        Description: {{ item.description }}
+        Priority: {{ item.priority }}
+        
+        Follow the Spec-Driven Development workflow:
+        1. Create SPEC.md
+        2. Implement the code
+        3. Ensure tests pass
+    integration: claude
+
+  # Human review gate
+  - id: review
+    type: gate
+    message: "Review changes before merge"
+    options: [approve, request-changes]
+    on_reject: abort
+
+  # Aggregate results (fan-in)
+  - id: collect
+    type: fan-in
+    wait_for: [parallel-work]
+    output:
+      completed: "{{ steps.parallel-work.completed }}"
+      tasks: "{{ steps.parallel-work.results }}"
+
+  # Decision logging
+  - id: log-decision
+    type: shell
+    run: |
+      echo "- $(date -Iseconds): {{ inputs.spec }} completed ({{ steps.parallel-work.completed }} tasks)" >> .adlc/decisions.md

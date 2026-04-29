@@ -4,6 +4,17 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.2+adlc3] - 2026-04-29
+
+### Added
+
+- **GitLab authentication support**: Added new `_gitlab_http.py` module for authenticating with GitLab private repositories. Uses `Private-Token` header for API requests and supports both GitHub and GitLab.
+- Updated `extensions.py` and `presets.py` to detect GitLab URLs and use appropriate authentication
+
+### Changed
+
+- **GitLab raw URL pattern**: Now uses `/-/raw/main/` path pattern for GitLab raw file access (vs `raw.githubusercontent.com` for GitHub)
+
 # [0.8.2+adlc2] - 2026-04-29
 
 ### Added
