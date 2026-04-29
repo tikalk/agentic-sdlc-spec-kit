@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.3+adlc2] - 2026-04-29
+
+### Fixed
+
+- **team-ai-directives option**: Fixed `--team-ai-directives` option not being processed during `specify init`. Added persistence to init_opts, the pre_init hook in cli_customization.py now properly handles installation for both local directories (reference mode) and URLs (install mode).
+
 # [0.8.3+adlc1] - 2026-04-29
 
 ### Changed
