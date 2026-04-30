@@ -299,8 +299,36 @@ def sync_team_ai_directives(
         zip_path = download_dir / "team-ai-directives-download.zip"
 
         try:
-            with urllib.request.urlopen(repo_url, timeout=60) as response:
-                zip_data = response.read()
+            req = urllib.request.Request(repo_url)
+            for env_var in ("GH_TOKEN", "GITHUB_TOKEN"):
+                token = os.environ.get(env_var)
+                if token:
+                    token = token.strip()
+                    if token:
+                        req.add_header("Authorization", f"Bearer {token}")
+                        break
+            try:
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    zip_data = response.read()
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    raise ValueError(
+                        f"Authentication failed accessing {repo_url}\n"
+                        f"The repository may be private. Please set GH_TOKEN or GITHUB_TOKEN environment variable.\n"
+                        f"Example: export GH_TOKEN=ghp_xxxxxxx"
+                    ) from e
+                elif e.code == 404:
+                    raise ValueError(
+                        f"Repository not found: {repo_url}\n"
+                        f"Please verify the URL is correct and the repository exists."
+                    ) from e
+                else:
+                    raise
+            except urllib.error.URLError as e:
+                raise ValueError(
+                    f"Failed to download team-ai-directives: {e.reason}\n"
+                    f"Check your network connection and the URL."
+                ) from e
             zip_path.write_bytes(zip_data)
 
             manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)

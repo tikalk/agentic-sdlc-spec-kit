@@ -4,6 +4,10 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Fixed
+
+- **Private team-ai-directives support**: Added GitHub token authentication (`GH_TOKEN`/`GITHUB_TOKEN` env vars) to `sync_team_ai_directives()` for downloading from private repositories. Also added better error messages for 401/403/404 HTTP errors.
+
 # [0.8.4+adlc1] - 2026-04-30
 
 ### Changed
