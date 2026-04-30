@@ -22,6 +22,7 @@ import json
 import os
 import shutil
 import typer
+from packaging import version
 from pathlib import Path
 from typing import Any, Optional
 
@@ -275,6 +276,26 @@ def _scaffold_extensions_to_project(
     return scaffolded
 
 
+# ============================================================================
+# PRESET VERSIONING
+# ============================================================================
+
+
+def _read_preset_version(preset_dir: Path) -> str | None:
+    """Read version from preset.yml if it exists."""
+    preset_yml = preset_dir / "preset.yml"
+    if not preset_yml.exists():
+        return None
+
+    from .presets import PresetManifest
+
+    try:
+        manifest = PresetManifest(preset_yml)
+        return manifest.version
+    except Exception:
+        return None
+
+
 def _scaffold_presets_to_project(
     source_dir: Path,
     project_dir: Path,
@@ -294,6 +315,14 @@ def _scaffold_presets_to_project(
         proj_preset = project_dir / preset_dir.name
 
         if (proj_preset / "preset.yml").exists():
+            bundled_version = _read_preset_version(preset_dir)
+            installed_version = _read_preset_version(proj_preset)
+            if bundled_version and installed_version:
+                try:
+                    if version.parse(bundled_version) <= version.parse(installed_version):
+                        continue
+                except Exception:
+                    pass
             continue
 
         if proj_preset.exists():
@@ -683,9 +712,22 @@ def _install_bundled_presets(
             continue
 
         try:
+            bundled_version = _read_preset_version(preset_dir)
+
             if registry.is_installed(preset_name):
-                skipped.append(f"{preset_name} (existing)")
-                continue
+                reg_entry = registry.get(preset_name)
+                installed_version = reg_entry.get("version") if reg_entry else None
+
+                if bundled_version and installed_version:
+                    try:
+                        if version.parse(bundled_version) <= version.parse(installed_version):
+                            skipped.append(f"{preset_name} (existing v{installed_version})")
+                            continue
+                    except Exception:
+                        pass
+                else:
+                    skipped.append(f"{preset_name} (existing)")
+                    continue
 
             from .presets import PresetManifest
 

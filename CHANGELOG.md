@@ -4,7 +4,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
-# [0.8.4+adlc3] - 2026-04-30
+# [0.8.4+adlc4] - 2026-04-30
+
+### Added
+
+- **Preset auto-upgrade**: Presets now auto-upgrade when CLI version bumps.
+  - Add version comparison at two gates: file scaffolding + registry re-registration
+  - Bundled version > installed version triggers re-scaffold/re-register
+  - Bundled version <= installed version skips (preserves manual edits)
 
 ### Changed
 
