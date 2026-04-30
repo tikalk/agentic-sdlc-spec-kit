@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.4+adlc5] - 2026-04-30
+
+### Fixed
+
+- **Critical preset auto-upgrade bug**: Fixed a logic error that prevented presets from being upgraded.
+  - The bare `continue` statement in `_scaffold_presets_to_project()` was outside the version check block
+  - This caused presets to never be re-scaffolded, even when bundled version > installed version
+  - Fixed by removing the bare `continue` and adding `shutil.rmtree()` to properly replace old preset files
+
 # [0.8.4+adlc4] - 2026-04-30
 
 ### Added

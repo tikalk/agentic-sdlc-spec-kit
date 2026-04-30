@@ -321,9 +321,12 @@ def _scaffold_presets_to_project(
                 try:
                     if version.parse(bundled_version) <= version.parse(installed_version):
                         continue
+                    # bundled > installed: upgrade needed - remove old and re-scaffold
+                    shutil.rmtree(proj_preset)
                 except Exception:
-                    pass
-            continue
+                    continue
+            else:
+                continue
 
         if proj_preset.exists():
             for src in preset_dir.rglob("*"):
