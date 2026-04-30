@@ -4,6 +4,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.4+adlc7] - 2026-04-30
+
+### Fixed
+
+- **specify command (preset)**: Reverted `__SPECKIT_COMMAND_*__` placeholders to hardcoded `/spec.*` commands
+  - Placeholders require upstream `CommandRegistrar` pipeline changes to resolve
+  - Hardcoded commands ensure correct user-facing output without unresolved placeholders
+
 # [0.8.4+adlc6] - 2026-04-30
 
 ### Changed
@@ -12,7 +20,6 @@ All notable changes to the Specify CLI and templates are documented here.
   - Structured collect/display/confirm flow (extract from substantial input, ask 3 questions for minimal)
   - Explicit `(yes / no / adjust)` approval prompt with defined behavior for each response
   - Approved Mission Brief values written into spec header fields
-- **specify command (preset)**: Replaced hardcoded `/spec.*` command references with `__SPECKIT_COMMAND_*__` placeholders for cross-platform portability
 - **specify command (preset)**: Added explicit hook output display (Branch created / Feature #)
 
 ### Fixed

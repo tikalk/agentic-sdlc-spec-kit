@@ -66,7 +66,7 @@ After collecting/extracting answers, display:
 
 **DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
 
-**Failure to follow these rules violates the __SPECKIT_COMMAND_SPECIFY__ contract.**
+**Failure to follow these rules violates the /spec.specify contract.**
 
 ---
 
@@ -114,7 +114,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `__SPECKIT_COMMAND_SPECIFY__` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -170,10 +170,10 @@ Given that feature description, do this:
      }
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
+     This allows downstream commands (`/spec.plan`, `/spec.tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
+   - You must only create one feature per `/spec.specify` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
 
@@ -244,7 +244,7 @@ Given that feature description, do this:
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
+      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -302,7 +302,7 @@ Given that feature description, do this:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary
-   - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
+   - Readiness for the next phase (`/spec.clarify` or `/spec.plan`)
 
 9. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_specify` key
