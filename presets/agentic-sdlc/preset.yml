@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "agentic-sdlc"
   name: "Agentic SDLC Governance"
-  version: "1.0.1"
+  version: "1.0.2"
   description: "Enhanced templates with governance, team-ai-directives integration, extension hooks, and architectural rigor for the Agentic SDLC workflow"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

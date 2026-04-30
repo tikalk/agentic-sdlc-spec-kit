@@ -13,16 +13,60 @@ scripts:
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
-## ⚠️ ENFORCEMENT MODE: MISSION BRIEF REQUIRED
+## ⚠️ MANDATORY STOP: Mission Brief
 
-### CRITICAL RULES
+### Collect Mission Brief
 
-1. **MUST COLLECT MISSION BRIEF** - Gather Goal, Success Criteria, Constraints FIRST
-2. **MUST WAIT FOR USER APPROVAL** - Display summary and get explicit "yes"
-3. **DO NOT CREATE BRANCH WITHOUT APPROVAL** - Mission Brief must be confirmed
-4. **DO NOT SKIP MISSION BRIEF** - Even if $ARGUMENTS is provided, extract and confirm
+If user input ($ARGUMENTS) is substantial (10+ words), extract the Mission Brief elements from it.
+If minimal (< 10 words) or empty, ask the user these questions:
 
-**Failure to follow these rules violates the adlc.spec.specify contract.**
+```markdown
+## Mission Brief
+
+**Question 1: What needs to be done?**
+What is the primary feature or change you need?
+
+**Question 2: What defines success?**
+How will we know this is complete? 2-3 measurable outcomes.
+
+**Question 3: Any constraints?**
+Technical, business, or regulatory limitations?
+```
+
+### Display Mission Brief
+
+After collecting/extracting answers, display:
+
+```markdown
+## Mission Brief
+
+**Goal**: {goal}
+
+**Success Criteria**:
+- {criterion 1}
+- {criterion 2}
+
+**Constraints**:
+- {constraint 1}
+```
+
+### ⚠️ STOP: Get User Confirmation
+
+```markdown
+**Proceed with this Mission Brief?** (yes / no / adjust)
+```
+
+**STOP HERE** - Wait for explicit response.
+
+- **yes**: Proceed to Pre-Execution Checks and spec creation.
+  Write the approved Goal, Success Criteria, and Constraints into the
+  spec header fields (Goal, Success Criteria, Constraints).
+- **adjust**: Ask what needs changing, update the Mission Brief, re-display, ask again.
+- **no**: Stop. Do not create branch or spec.
+
+**DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
+
+**Failure to follow these rules violates the __SPECKIT_COMMAND_SPECIFY__ contract.**
 
 ---
 
@@ -70,7 +114,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `__SPECKIT_COMMAND_SPECIFY__` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -93,6 +137,12 @@ Given that feature description, do this:
    - If `"sequential"` or absent, do not add any extra flag (default behavior)
 
    If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+
+   **Display hook output to user**:
+   If `BRANCH_NAME` and `FEATURE_NUM` were returned, display:
+   ```
+   Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
+   ```
 
    If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
@@ -120,10 +170,10 @@ Given that feature description, do this:
      }
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`/spec.plan`, `/spec.tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
+     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `/spec.specify` invocation
+   - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
 
@@ -194,7 +244,7 @@ Given that feature description, do this:
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
+      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -252,7 +302,7 @@ Given that feature description, do this:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary
-   - Readiness for the next phase (`/spec.clarify` or `/spec.plan`)
+   - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
 9. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_specify` key

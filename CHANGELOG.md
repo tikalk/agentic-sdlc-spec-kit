@@ -4,6 +4,21 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.4+adlc6] - 2026-04-30
+
+### Changed
+
+- **specify command (preset)**: Aligned Mission Brief with Quick extension pattern
+  - Structured collect/display/confirm flow (extract from substantial input, ask 3 questions for minimal)
+  - Explicit `(yes / no / adjust)` approval prompt with defined behavior for each response
+  - Approved Mission Brief values written into spec header fields
+- **specify command (preset)**: Replaced hardcoded `/spec.*` command references with `__SPECKIT_COMMAND_*__` placeholders for cross-platform portability
+- **specify command (preset)**: Added explicit hook output display (Branch created / Feature #)
+
+### Fixed
+
+- **specify template**: Fixed duplicate step 8 numbering (now correctly 8 and 9)
+
 # [0.8.4+adlc5] - 2026-04-30
 
 ### Fixed
