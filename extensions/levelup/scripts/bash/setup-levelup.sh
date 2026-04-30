@@ -12,11 +12,26 @@ ARGS=()
 # Get script directory for common.sh sourcing
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Load common functions
-if [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+# Find project root by walking up from script location
+_find_project_root() {
+    local dir="$SCRIPT_DIR"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.specify" ] || [ -d "$dir/.git" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+PROJECT_ROOT="$(_find_project_root)" || PROJECT_ROOT="$SCRIPT_DIR"
+
+# Load common functions - use absolute path from project root
+if [[ -n "$PROJECT_ROOT" && -f "$PROJECT_ROOT/.specify/scripts/bash/common.sh" ]]; then
+    source "$PROJECT_ROOT/.specify/scripts/bash/common.sh"
+elif [[ -f "$SCRIPT_DIR/common.sh" ]]; then
     source "$SCRIPT_DIR/common.sh"
-elif [[ -f "$SCRIPT_DIR/../../../../scripts/bash/common.sh" ]]; then
-    source "$SCRIPT_DIR/../../../../scripts/bash/common.sh"
 fi
 
 # Get repository root using common.sh function (searches upward for .specify first)
@@ -197,18 +212,13 @@ detect_subsystems() {
 
 # Resolve team-ai-directives path
 # Priority:
-# 1. SPECIFY_TEAM_DIRECTIVES environment variable
-# 2. .specify/init-options.json team_ai_directives (from specify init)
-# 3. .specify/config.json team_directives.path (legacy)
-# 4. .specify/team-ai-directives (submodule - recommended)
-# 5. .specify/memory/team-ai-directives (clone - legacy)
+#   1. SPECIFY_TEAM_DIRECTIVES environment variable (manual override)
+#   2. .specify/init-options.json team_ai_directives (from specify init)
+#   3. .specify/extensions/team-ai-directives (installed extension)
 
-# Resolve team directives using centralized function
+# Load team directives using centralized function from common.sh
 load_team_directives_config "$REPO_ROOT"
 TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
-if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-    TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-fi
 
 # Skills drafts location
 SKILLS_DRAFTS="$REPO_ROOT/.specify/drafts/skills"

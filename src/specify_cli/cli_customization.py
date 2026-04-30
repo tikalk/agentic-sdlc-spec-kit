@@ -356,7 +356,7 @@ def pre_init(
                 tracker.complete("team-directives", f"installed to {directives_path}")
             elif status == "local":
                 tracker.complete("team-directives", f"local: {directives_path}")
-        os.environ["SPECIFY_TEAM_DIRECTIVES"] = str(directives_path)
+        
     except Exception as e:
         tracker.error("team-directives", str(e))
         console.print(

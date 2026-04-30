@@ -20,9 +20,31 @@ if ($Help) {
 
 $ErrorActionPreference = "Stop"
 
-# Get script directory and load common functions
+# Get script directory for common.ps1 sourcing
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-. "$ScriptDir\common.ps1"
+
+# Find project root by walking up from script location
+function Get-ProjectRoot {
+    param([string]$StartPath)
+    $dir = $StartPath
+    while ($dir -ne "") {
+        if ((Test-Path "$dir\.specify") -or (Test-Path "$dir\.git")) {
+            return $dir
+        }
+        $dir = Split-Path $dir -Parent
+    }
+    return $StartPath
+}
+
+$projectRoot = Get-ProjectRoot $ScriptDir
+
+# Load common functions - use absolute path from project root
+$commonPath = "$projectRoot\.specify\scripts\powershell\common.ps1"
+if (Test-Path $commonPath) {
+    . $commonPath
+} elseif (Test-Path "$ScriptDir\common.ps1") {
+    . "$ScriptDir\common.ps1"
+}
 
 # If no trace file specified, use current feature trace
 if (-not $TraceFile) {

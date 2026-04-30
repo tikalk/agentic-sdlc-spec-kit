@@ -3,8 +3,30 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
-REPO_ROOT="${REPO_ROOT:-$(pwd)}"
+
+# Find project root by walking up from script location
+_find_project_root() {
+    local dir="$SCRIPT_DIR"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.specify" ] || [ -d "$dir/.git" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+PROJECT_ROOT="$(_find_project_root)" || PROJECT_ROOT="$SCRIPT_DIR"
+
+# Load common functions - use absolute path from project root
+if [[ -n "$PROJECT_ROOT" && -f "$PROJECT_ROOT/.specify/scripts/bash/common.sh" ]]; then
+    source "$PROJECT_ROOT/.specify/scripts/bash/common.sh"
+elif [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+fi
+
+REPO_ROOT="${REPO_ROOT:-$PROJECT_ROOT}"
 OUTPUT_FORMAT="json"
 SEVERITY_FILTER="info"
 
@@ -55,11 +77,7 @@ done
 validate_environment() {
     # Use centralized function to load team directives
     load_team_directives_config "$REPO_ROOT"
-    TEAM_DIRECTIVES="$SPECIFY_TEAM_DIRECTIVES"
-    
-    if [[ -z "$TEAM_DIRECTIVES" ]] && [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-        TEAM_DIRECTIVES="$REPO_ROOT/.specify/team-ai-directives"
-    fi
+    TEAM_DIRECTIVES="${SPECIFY_TEAM_DIRECTIVES:-}"
     
     if [[ -z "$TEAM_DIRECTIVES" ]] || [[ ! -d "$TEAM_DIRECTIVES" ]]; then
         echo "Error: team-ai-directives not found. Run 'specify init --team-ai-directives <path>' to configure." >&2

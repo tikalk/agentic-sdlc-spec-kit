@@ -2,6 +2,12 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.1.11] - 2026-04-30
+
+### Fixed
+
+- **Fragile path sourcing**: Fixed bash and PowerShell scripts using fragile relative paths to source common.sh.
+
 ## [1.1.10] - 2026-04-23
 
 ### Changed

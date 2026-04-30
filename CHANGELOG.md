@@ -4,6 +4,19 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.3+adlc3] - 2026-04-30
+
+### Fixed
+
+- **team-ai-directives resolution**: Added `load_team_directives_config()` function to `scripts/bash/common.sh` to properly resolve team-ai-directives path from init-options.json at runtime (not just during init).
+- **Fragile path sourcing in scripts**: Fixed bash and PowerShell scripts in levelup, product, and architect extensions that used fragile relative paths (`../../../../`) to source common.sh. Now uses robust project-root-finding pattern that works regardless of script location.
+
+### Changed
+
+- **levelup**: v1.1.7 → v1.1.8
+- **product**: v1.1.10 → v1.1.11
+- **architect**: v2.0.3 → v2.0.4
+
 # [0.8.3+adlc2] - 2026-04-29
 
 ### Fixed

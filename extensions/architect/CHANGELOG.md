@@ -2,6 +2,12 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.4] - 2026-04-30
+
+### Fixed
+
+- **Fragile path sourcing**: Fixed bash script using fragile relative paths to source common.sh.
+
 ## [2.0.3] - 2026-04-23
 
 ### Changed

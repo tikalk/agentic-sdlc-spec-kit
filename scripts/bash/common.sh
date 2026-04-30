@@ -681,3 +681,33 @@ except Exception:
     # Callers running under set -e should use: TEMPLATE=$(resolve_template ...) || true
     return 1
 }
+
+# Resolve team-ai-directives path for extensions like levelup
+# Priority:
+#   1. SPECIFY_TEAM_DIRECTIVES environment variable (manual override)
+#   2. .specify/init-options.json → team_ai_directives (from specify init)
+#   3. .specify/extensions/team-ai-directives (installed extension)
+load_team_directives_config() {
+    local repo_root="${1:-$(get_repo_root)}"
+    
+    # 1. Environment variable (manual override)
+    if [[ -n "${SPECIFY_TEAM_DIRECTIVES:-}" ]]; then
+        return 0
+    fi
+    
+    # 2. init-options.json (from specify init --team-ai-directives)
+    local init_opts="$repo_root/.specify/init-options.json"
+    if [[ -f "$init_opts" ]] && command -v python3 >/dev/null 2>&1; then
+        local path
+        path=$(python3 -c "import json, sys; print(json.load(open('$init_opts')).get('team_ai_directives', ''))" 2>/dev/null)
+        if [[ -n "$path" && -d "$path" ]]; then
+            export SPECIFY_TEAM_DIRECTIVES="$path"
+            return 0
+        fi
+    fi
+    
+    # 3. Installed extension (default location)
+    if [[ -d "$repo_root/.specify/extensions/team-ai-directives" ]]; then
+        export SPECIFY_TEAM_DIRECTIVES="$repo_root/.specify/extensions/team-ai-directives"
+    fi
+}
