@@ -4,6 +4,20 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.4+adlc1] - 2026-04-30
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit v0.8.3 → v0.8.4.dev0 (4 commits)
+  - `da1bf02` feat: add Squad Bridge extension to community catalog (#2417)
+  - `7cedd85` chore: release 0.8.3, begin 0.8.4.dev0 development (#2418)
+  - `2cb848f` Add Work IQ extension to community catalog (#2415)
+  - `237e918` feat(integrations): add Devin for Terminal skills-based integration (#2364)
+
+### Added
+
+- **Devin for Terminal**: New skills-based integration from upstream (`.devin/skills/`)
+
 # [0.8.3+adlc3] - 2026-04-30
 
 ### Fixed
@@ -1411,6 +1425,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.3] - 2026-04-29
+
+### Changed
+
+- Add Work IQ extension to community catalog (#2415)
+- feat(integrations): add Devin for Terminal skills-based integration (#2364)
+- fix: include --from git+... in upgrade hint to avoid PyPI squat package (#2411)
+- fix: dispatch opencode commands via run (#2410)
+- feat: add catalog discovery CLI commands (#2360)
+- update security review extension catalog to v1.3.0 (#2374)
+- chore(catalog): bump v-model extension to v0.6.0 (#2399)
+- feat: add threatmodel extension to community catalog (#2369)
+- Add isaqb-architecture-governance to community catalog (#2385)
+- chore: release 0.8.2, begin 0.8.3.dev0 development (#2397)
 
 ## [0.8.2] - 2026-04-28
 
