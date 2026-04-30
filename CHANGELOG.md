@@ -4,6 +4,21 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.4+adlc3] - 2026-04-30
+
+### Changed
+
+- **constitution command**: Major alignment with templates/commands/constitution.md
+  - Output to `.specify/memory/constitution.md` (path consistency)
+  - Added full Pre/Post-Execution Checks
+  - Added consistency propagation checklist
+  - Added Sync Impact Report generation
+  - Uses `spec.specify` alias for handoffs
+
+- **Private team-ai-directives support**: Added GitHub token authentication (`GH_TOKEN`/`GITHUB_TOKEN` env vars) to `sync_team_ai_directives()` for downloading from private repositories. Also added better error messages for 401/403/404 HTTP errors.
+
+# [0.8.4+adlc2] - 2026-04-30
+
 ### Fixed
 
 - **Private team-ai-directives support**: Added GitHub token authentication (`GH_TOKEN`/`GITHUB_TOKEN` env vars) to `sync_team_ai_directives()` for downloading from private repositories. Also added better error messages for 401/403/404 HTTP errors.
