@@ -46,6 +46,8 @@ This fork represents the evolution from a development process to a complete orga
 - [🎯 Project Vision](#-project-vision)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
+- [🚀 Quick Start Guide](./QUICKSTART.md) — Complete team onboarding with team-ai-directives
+- [🛠️ Installation Guide (AI Assistants)](./INSTALL.md) — Guide for AI agents helping team members
 - [📽️ Video Overview](#️-video-overview)
 - [🧩 Community Extensions](#-community-extensions)
 - [🎨 Community Presets](#-community-presets)
@@ -74,6 +76,8 @@ This fork represents the evolution from a development process to a complete orga
 Spec-Driven Development **flips the script** on traditional software development. For decades, code has been king — specifications were just scaffolding we built and discarded once the "real work" of coding began. Spec-Driven Development changes this: **specifications become executable**, directly generating working implementations rather than just guiding them.
 
 ## ⚡ Get Started
+
+> **New Team Members:** For a comprehensive onboarding guide including team-ai-directives setup, see [QUICKSTART.md](./QUICKSTART.md). AI assistants helping with setup should refer to [INSTALL.md](./INSTALL.md).
 
 ### 1. Install Specify CLI
 
