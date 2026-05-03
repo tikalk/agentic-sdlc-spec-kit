@@ -4,6 +4,22 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.5+adlc1] - 2026-05-03
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit main branch
+  - Migrated to new integration-based architecture with `INTEGRATION_REGISTRY`
+  - Added support for controlled multi-install for safe AI agent integrations
+  - Added token-analyzer to community catalog
+  - Added git extension default change notice at init time
+  - Added Spec2Cloud extension for Azure deployment workflow
+  - Added multiple governance extensions (security, cross-platform, architecture, a11y)
+  - Fixed migration of extension commands on integration switch
+  - Fixed self-referencing step number in validation flow
+  - Fixed template override support for tasks-template
+  - Added `setup-tasks` script to file inventory tests
+
 # [0.8.4+adlc7] - 2026-04-30
 
 ### Fixed
@@ -1482,6 +1498,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.4] - 2026-05-01
+
+### Changed
+
+- fix(specify): correct self-referencing step number in validation flow (#2152)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#2425)
+- Add security-governance to community catalog (#2386)
+- Add cross-platform-governance to community catalog (#2384)
+- Add architecture-governance to community catalog (#2383)
+- Add a11y-governance to community catalog (#2381)
+- feat(extensions): add Spec2Cloud extension for Azure deployment workflow (#2412)
+- fix: migrate extension commands on integration switch (#2404)
+- feat: add Squad Bridge extension to community catalog (#2417)
+- chore: release 0.8.3, begin 0.8.4.dev0 development (#2418)
 
 ## [0.8.3] - 2026-04-29
 
