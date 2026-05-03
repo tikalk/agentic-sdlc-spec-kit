@@ -212,7 +212,7 @@ BANNER = """
 ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝        ╚═╝
 """
 
-TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
+TAGLINE = "Agentic SDLC toolkit for Spec-Driven Development with bundled extensions and AI agent support"
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.
@@ -263,7 +263,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(f"[{accent_style()}]{self.title}[/{accent_style()}]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -356,7 +356,7 @@ def select_with_arrows(options: dict, prompt_text: str = "Select an option", def
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=accent_style(),
             padding=(1, 2)
         )
 
@@ -415,7 +415,7 @@ app = typer.Typer(
 def show_banner():
     """Display the ASCII art banner."""
     banner_lines = BANNER.strip().split('\n')
-    colors = ["bright_blue", "blue", "cyan", "bright_cyan", "white", "bright_white"]
+    colors = BANNER_COLORS
 
     styled_banner = Text()
     for i, line in enumerate(banner_lines):
@@ -423,7 +423,7 @@ def show_banner():
         styled_banner.append(line + "\n", style=color)
 
     console.print(Align.center(styled_banner))
-    console.print(Align.center(Text(TAGLINE, style="italic bright_yellow")))
+    console.print(Align.center(Text(TAGLINE, style=f"italic {accent_style()}")))
     console.print()
 
 def _version_callback(value: bool):
@@ -1250,7 +1250,7 @@ def init(
     if not here:
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-    console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+    console.print(Panel("\n".join(setup_lines), border_style=accent_style(), padding=(1, 2)))
 
     should_init_git = False
     if not no_git:
@@ -1289,8 +1289,8 @@ def init(
         else:
             selected_script = default_script
 
-    console.print(f"[cyan]Selected coding agent integration:[/cyan] {selected_ai}")
-    console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+    console.print(f"{accent('Selected coding agent integration:')} {selected_ai}")
+    console.print(f"{accent('Selected script type:')} {selected_script}")
 
     tracker = StepTracker("Initialize Specify Project")
 
@@ -1597,7 +1597,7 @@ def init(
             pass
 
     console.print(tracker.render())
-    console.print("\n[bold green]Project ready.[/bold green]")
+    console.print(f"\n{accent('Project ready.', bold=True)}")
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)
@@ -1701,7 +1701,7 @@ def init(
     steps_lines.append(f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks")
     steps_lines.append(f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation")
 
-    steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1,2))
+    steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=accent_style(), padding=(1,2))
     console.print()
     console.print(steps_panel)
 
@@ -1718,7 +1718,7 @@ def init(
         f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])"
     ]
     enhancements_title = "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
-    enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style="cyan", padding=(1,2))
+    enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style=accent_style(), padding=(1,2))
     console.print()
     console.print(enhancements_panel)
 
@@ -1758,7 +1758,7 @@ def check():
 
     console.print(tracker.render())
 
-    console.print("\n[bold green]Specify CLI is ready to use![/bold green]")
+    console.print(f"\n{accent('Specify CLI is ready to use!', bold=True)}")
 
     if not git_ok:
         console.print("[dim]Tip: Install git for repository management[/dim]")
@@ -1789,7 +1789,7 @@ def version():
     panel = Panel(
         info_table,
         title="[bold cyan]Specify CLI Information[/bold cyan]",
-        border_style="cyan",
+        border_style=accent_style(),
         padding=(1, 2)
     )
 
@@ -2225,6 +2225,15 @@ integration_catalog_app = typer.Typer(
     add_completion=False,
 )
 integration_app.add_typer(integration_catalog_app, name="catalog")
+
+# Add skill_app if available and SKILLS_AVAILABLE is True
+try:
+    from .cli_customization import SKILLS_AVAILABLE
+
+    if SKILLS_AVAILABLE and skill_app is not None:
+        app.add_typer(skill_app, name="skill")
+except ImportError:
+    pass
 
 
 def _read_integration_json(project_root: Path) -> dict[str, Any]:
