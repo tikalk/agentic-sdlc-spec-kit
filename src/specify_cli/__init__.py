@@ -1024,6 +1024,11 @@ def init(
     branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
     integration: str = typer.Option(None, "--integration", help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai."),
     integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
+    team_ai_directives: str = typer.Option(
+        None,
+        "--team-ai-directives",
+        help="URL or local path to team-ai-directives repository",
+    ),
 ):
     """
     Initialize a new Specify project.
@@ -1306,6 +1311,9 @@ def init(
         ("constitution", "Constitution setup"),
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
+        ("team-directives", "Team AI Directives setup"),
+        ("extensions", "Install bundled extensions"),
+        ("presets", "Install bundled presets"),
         ("final", "Finalize"),
     ]:
         tracker.add(key, label)
@@ -1472,6 +1480,7 @@ def init(
                 "here": here,
                 "script": selected_script,
                 "speckit_version": get_speckit_version(),
+                "team_ai_directives": team_ai_directives,
             }
             # Ensure ai_skills is set for SkillsIntegration so downstream
             # tools (extensions, presets) emit SKILL.md overrides correctly.
@@ -1529,6 +1538,42 @@ def init(
                                             pass
                 except Exception as preset_err:
                     console.print(f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}")
+
+            # Call pre_init hook for team-ai-directives and bundled extensions
+            try:
+                tracker.start("team-directives")
+                if pre_init:
+                    from .cli_customization import pre_init as _pre_init
+                    if _pre_init:
+                        _pre_init(
+                            project_path,
+                            selected_ai,
+                            team_ai_directives,
+                            tracker=tracker,
+                        )
+                tracker.complete("team-directives", "done")
+            except Exception as team_err:
+                tracker.error("team-directives", str(team_err))
+                console.print(f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {team_err}")
+
+            # Call post_init hook for bundled extensions and presets
+            try:
+                tracker.start("extensions")
+                tracker.start("presets")
+                if post_init:
+                    from .cli_customization import post_init as _post_init
+                    if _post_init:
+                        _post_init(
+                            project_path,
+                            selected_ai,
+                            tracker=tracker,
+                            no_git=no_git,
+                        )
+                tracker.complete("extensions", "done")
+                tracker.complete("presets", "done")
+            except Exception as hook_err:
+                tracker.skip("extensions", f"hook error: {hook_err}")
+                tracker.skip("presets", f"hook error: {hook_err}")
 
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
@@ -1959,6 +2004,210 @@ def get_speckit_version() -> str:
             # If this lookup fails for any reason, we fall back to returning "unknown" below.
             pass
     return "unknown"
+
+
+def _store_extension_source_url(
+    project_root: Path, extension_id: str, source_url: str, target_repo: str | None = None
+) -> None:
+    """Store extension source URL in registry for later reference."""
+    registry_path = project_root / ".specify" / "extensions" / "registry.json"
+    registry = {}
+    if registry_path.exists():
+        try:
+            registry = json.loads(registry_path.read_text())
+        except json.JSONDecodeError:
+            pass
+    if extension_id not in registry:
+        registry[extension_id] = {}
+    registry[extension_id]["source_url"] = source_url
+    if target_repo:
+        registry[extension_id]["target_repo"] = target_repo
+    registry_path.write_text(json.dumps(registry, indent=2))
+
+
+def _derive_target_repo_from_url(url: str) -> str | None:
+    """Derive target repository URL from archive URL.
+
+    Converts GitHub archive URLs to repository URLs.
+    """
+    if "github.com" in url:
+        # Handle archive URLs like: https://github.com/org/repo/archive/refs/tags/v1.0.0.zip
+        if "/archive/" in url:
+            parts = url.split("/archive/")[0].split("/")
+            if len(parts) >= 2:
+                return f"https://github.com/{parts[-2]}/{parts[-1]}"
+        # Handle direct zip URLs
+        elif url.endswith(".zip"):
+            parts = url.replace(".zip", "").split("/")
+            if len(parts) >= 2:
+                return f"https://github.com/{parts[-2]}/{parts[-1]}"
+    return None
+
+
+def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
+    """Register bundled catalog from team-ai-directives repository."""
+    try:
+        import urllib.request
+        req = urllib.request.Request(catalog_url)
+        with urllib.request.urlopen(req, timeout=30) as response:
+            catalog_data = json.loads(response.read().decode("utf-8"))
+        
+        # Save to project's catalog.bundled.json
+        bundled_catalog_path = project_root / ".specify" / "extensions" / "catalog.bundled.json"
+        bundled_catalog_path.write_text(json.dumps(catalog_data, indent=2))
+    except Exception:
+        # Silently fail - bundled catalog is optional
+        pass
+
+
+def sync_team_ai_directives(
+    repo_url: str, project_root: Path, *, install: bool = True, force: bool = False
+) -> tuple[str, Path]:
+    """Install team-ai-directives as extension from ZIP URL or local path.
+
+    Args:
+        repo_url: URL or local path to team-ai-directives
+        project_root: Project root directory
+        install: If True, copy local directories to .specify/extensions/.
+                 If False, use local directories in-place (reference mode).
+        force: If True, remove existing team-ai-directives before reinstalling.
+              If False (default), raise error if already installed.
+
+    Returns:
+        Tuple of (status, path) where status is "installed", "local", or "reference"
+    """
+    from .extensions import ExtensionManager, ExtensionManifest  # noqa: F401
+
+    repo_url = (repo_url or "").strip()
+    if not repo_url:
+        raise ValueError("Team AI directives repository URL cannot be empty")
+
+    potential_path = Path(repo_url).expanduser()
+
+    if potential_path.exists() and potential_path.is_dir():
+        # Validate it's a proper extension
+        manifest_path = potential_path / "extension.yml"
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Invalid team-ai-directives directory: {potential_path}\n"
+                f"Missing extension.yml manifest file"
+            )
+
+        if not install:
+            # Reference mode: use directory in-place without copying
+            manifest = ExtensionManifest(manifest_path)
+            if manifest.id != TEAM_DIRECTIVES_DIRNAME:
+                raise ValueError(
+                    f"Extension ID mismatch: expected '{TEAM_DIRECTIVES_DIRNAME}', "
+                    f"got '{manifest.id}'"
+                )
+            return ("reference", potential_path)
+
+        # Install mode: copy to .specify/extensions/
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+        manifest = ext_manager.install_from_directory(
+            potential_path, speckit_version, priority=1
+        )
+        dest_dir = project_root / ".specify" / "extensions" / manifest.id
+        _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
+        return ("local", dest_dir)
+
+    if repo_url.endswith(".zip") or "/archive/" in repo_url:
+        import urllib.request  # noqa: F401
+
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+        download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+        download_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = download_dir / "team-ai-directives-download.zip"
+
+        try:
+            req = urllib.request.Request(repo_url)
+            for env_var in ("GH_TOKEN", "GITHUB_TOKEN"):
+                token = os.environ.get(env_var)
+                if token:
+                    token = token.strip()
+                    if token:
+                        req.add_header("Authorization", f"Bearer {token}")
+                        break
+            try:
+                with urllib.request.urlopen(req, timeout=60) as response:
+                    zip_data = response.read()
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    raise ValueError(
+                        f"Authentication failed accessing {repo_url}\n"
+                        f"The repository may be private. Please set GH_TOKEN or GITHUB_TOKEN environment variable.\n"
+                        f"Example: export GH_TOKEN=ghp_xxxxxxx"
+                    ) from e
+                elif e.code == 404:
+                    raise ValueError(
+                        f"Repository not found: {repo_url}\n"
+                        f"Please verify the URL is correct and the repository exists."
+                    ) from e
+                else:
+                    raise
+            except urllib.error.URLError as e:
+                raise ValueError(
+                    f"Failed to download team-ai-directives: {e.reason}\n"
+                    f"Check your network connection and the URL."
+                ) from e
+            zip_path.write_bytes(zip_data)
+
+            manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)
+            dest_dir = project_root / ".specify" / "extensions" / manifest.id
+
+            target_repo = _derive_target_repo_from_url(repo_url)
+            _store_extension_source_url(project_root, manifest.id, repo_url, target_repo)
+
+            # Register bundled catalog if exists
+            if target_repo:
+                catalog_url = target_repo.replace(
+                    "github.com",
+                    "raw.githubusercontent.com"
+                ) + "/main/extensions/catalog.json"
+                _register_bundled_catalog(project_root, catalog_url)
+
+            return ("installed", dest_dir)
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+    else:
+        raise ValueError(
+            "Invalid team-ai-directives URL. Expected:\n"
+            "  - Local directory path\n"
+            "  - ZIP file URL (ending in .zip)\n"
+            "  - GitHub archive URL (e.g., https://github.com/org/repo/archive/refs/tags/v1.0.0.zip)"
+        )
+
+
+def get_team_directives_path(project_path: Path) -> Path | None:
+    """Get team-ai-directives path from init-options or fallback to extensions dir.
+
+    Checks init-options.json first for external/override path, then falls back
+    to the standard .specify/extensions/team-ai-directives location.
+
+    Returns None if neither location exists.
+    """
+    init_opts = load_init_options(project_path)
+    if "team_ai_directives" in init_opts:
+        path = Path(init_opts["team_ai_directives"])
+        if path.exists():
+            return path
+    # Fallback to installed extension
+    fallback = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+    return fallback if fallback.exists() else None
 
 
 # ===== Integration Commands =====

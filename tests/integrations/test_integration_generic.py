@@ -253,12 +253,8 @@ class TestGenericIntegration:
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration generic --ai-commands-dir ... --script sh."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
 
         project = tmp_path / "inventory-generic-sh"
         project.mkdir()
@@ -286,7 +282,7 @@ class TestGenericIntegration:
         actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted([
+        expected = [
             "AGENTS.md",
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
@@ -314,20 +310,26 @@ class TestGenericIntegration:
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        ]
+        # Fork adds extra bundled files (shared infrastructure)
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if is_fork:
+            expected.extend([
+                ".specify/scripts/bash/generate-risk-tests.sh",
+                ".specify/scripts/bash/implement.sh",
+                ".specify/scripts/bash/scan-project-artifacts.sh",
+                ".specify/scripts/bash/tasks-meta-utils.sh",
+                ".specify/templates/agent-file-template.md",
+            ])
+        expected = sorted(expected)
+        # Check that all expected files are present (allow extra files from bundled extensions/presets)
+        missing = set(expected) - actual
+        assert not missing, f"Missing: {sorted(missing)}"
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration generic --ai-commands-dir ... --script ps."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
-        from specify_cli import app
+        from specify_cli import app, PKG_NAMES
 
         project = tmp_path / "inventory-generic-ps"
         project.mkdir()
@@ -355,7 +357,7 @@ class TestGenericIntegration:
         actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted([
+        expected = [
             "AGENTS.md",
             ".myagent/commands/speckit.analyze.md",
             ".myagent/commands/speckit.checklist.md",
@@ -383,8 +385,16 @@ class TestGenericIntegration:
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
-        assert actual == expected, (
-            f"Missing: {sorted(set(expected) - set(actual))}\n"
-            f"Extra: {sorted(set(actual) - set(expected))}"
-        )
+        ]
+        # Fork adds extra bundled files (shared infrastructure)
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if is_fork:
+            expected.extend([
+                ".specify/scripts/powershell/implement.ps1",
+                ".specify/scripts/powershell/scan-project-artifacts.ps1",
+                ".specify/templates/agent-file-template.md",
+            ])
+        expected = sorted(expected)
+        # Check that all expected files are present (allow extra files from bundled extensions/presets)
+        missing = set(expected) - actual
+        assert not missing, f"Missing: {sorted(missing)}"

@@ -20,6 +20,16 @@ All notable changes to the Specify CLI and templates are documented here.
   - Fixed template override support for tasks-template
   - Added `setup-tasks` script to file inventory tests
 
+### Fixed
+
+- **Restored fork-specific features lost in upstream merge**:
+  - Restored `--team-ai-directives` CLI option for specifying custom team directives repository
+  - Restored `sync_team_ai_directives()` function for installing/syncing team directives
+  - Restored `get_team_directives_path()` function for resolving team directives path
+  - Restored `pre_init()` and `post_init()` hook calls in init flow
+  - Restored tracker steps: team-directives, extensions, presets
+  - Fixed file inventory tests to include fork-specific bundled files instead of skipping
+
 # [0.8.4+adlc7] - 2026-04-30
 
 ### Fixed
