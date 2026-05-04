@@ -4,6 +4,18 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.6+adlc1] - 2026-05-05
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit main branch (0.8.5 release + 0.8.6.dev0)
+  - Pin GitHub Actions by SHA for security
+  - Fix workflow catalog list to require project context
+  - Add agent-parity-governance to community catalog
+  - Add Spec2Cloud preset to community catalog
+  - Update Ralph Loop to v1.0.2
+  - Update security-review and memory-md extensions
+
 # [0.8.5+adlc5] - 2026-05-05
 
 ### Fixed
@@ -1533,6 +1545,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.5] - 2026-05-04
+
+### Changed
+
+- feat(presets): add Spec2Cloud preset for Azure deployment workflow (#2413)
+- update security-review and memory-md extensions to latest versions (#2445)
+- fix: honor template overrides for tasks-template (#2278) (#2292)
+- Add token-analyzer to community catalog (#2433)
+- docs: add April 2026 newsletter (#2434)
+- feat: emit init-time notice for git extension default change (#2165) (#2432)
+- Update DyanGalih(Memory Hub and Security Review) community extensions (#2429)
+- Support controlled multi-install for safe AI agent integrations (#2389)
+- chore(integrations): clean up docs and project guard (#2428)
+- chore: release 0.8.4, begin 0.8.5.dev0 development (#2431)
 
 ## [0.8.4] - 2026-05-01
 
