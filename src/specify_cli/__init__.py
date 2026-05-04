@@ -1568,6 +1568,7 @@ def init(
                             selected_ai,
                             tracker=tracker,
                             no_git=no_git,
+                            force=force,
                         )
                 tracker.complete("extensions", "done")
                 tracker.complete("presets", "done")

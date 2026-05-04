@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.5+adlc5] - 2026-05-05
+
+### Fixed
+
+- **Use correct CommandRegistrar for bundled extension registration**: `_install_bundled_extensions()` was calling `manager.register_commands_for_all_agents()` on `ExtensionManager` which doesn't have that method. Changed to use `extensions.CommandRegistrar` which wraps the agents registrar and accepts `ExtensionManifest` objects. The `AttributeError` was silently caught by a broad `except Exception`, causing all extension commands to be skipped.
+- **Pass `--force` flag to bundled extension/preset installers**: When reinitializing an existing project with `--force`, bundled extensions and presets were skipped because their version/hash matched the registry. Now `--force` bypasses the version/hash check, ensuring command files are always written to the agent directory.
+
 # [0.8.5+adlc4] - 2026-05-04
 
 ### Fixed

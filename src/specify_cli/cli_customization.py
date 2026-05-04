@@ -410,11 +410,14 @@ def post_init(
     selected_ai: str,
     tracker: Any = None,
     no_git: bool = False,
+    force: bool = False,
 ) -> None:
     """Post-init hook - bundled extensions and presets.
 
     Args:
         no_git: If True, skip installing the git extension (user passed --no-git).
+        force: If True, re-register command files even when extension/preset
+               version and hash are unchanged (used with ``--force`` reinit).
     """
     if os.environ.get("SPECKIT_SKIP_BUNDLED"):
         if tracker:
@@ -422,8 +425,8 @@ def post_init(
             tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
         return
 
-    _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git)
-    _install_bundled_presets(project_path, selected_ai, tracker)
+    _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git, force=force)
+    _install_bundled_presets(project_path, selected_ai, tracker, force=force)
 
 
 def _install_bundled_extensions(
@@ -431,11 +434,14 @@ def _install_bundled_extensions(
     selected_ai: str,
     tracker: Any = None,
     skip_git: bool = False,
+    force: bool = False,
 ) -> None:
     """Install bundled extensions with scaffolding support.
 
     Args:
         skip_git: If True, skip installing the 'git' extension (used when --no-git is passed).
+        force: If True, always re-register command files even when version/hash
+               are unchanged (ensures files exist on disk after ``--force`` reinit).
     """
     if tracker:
         tracker.add("extensions", "Install bundled extensions")
@@ -555,7 +561,7 @@ def _install_bundled_extensions(
             manifest = ExtensionManifest(manifest_path)
 
             # Check if already installed - compare versions for update
-            if registry.is_installed(ext_name):
+            if not force and registry.is_installed(ext_name):
                 from packaging.version import Version
 
                 existing = registry.get(ext_name)
@@ -645,8 +651,14 @@ def _install_bundled_presets(
     project_path: Path,
     selected_ai: str,
     tracker: Any = None,
+    force: bool = False,
 ) -> None:
-    """Install bundled presets with scaffolding support."""
+    """Install bundled presets with scaffolding support.
+
+    Args:
+        force: If True, always re-register command files even when version
+               is unchanged (ensures files exist on disk after ``--force`` reinit).
+    """
     if tracker:
         tracker.add("presets", "Install bundled presets")
 
@@ -716,7 +728,7 @@ def _install_bundled_presets(
         try:
             bundled_version = _read_preset_version(preset_dir)
 
-            if registry.is_installed(preset_name):
+            if not force and registry.is_installed(preset_name):
                 reg_entry = registry.get(preset_name)
                 installed_version = reg_entry.get("version") if reg_entry else None
 
