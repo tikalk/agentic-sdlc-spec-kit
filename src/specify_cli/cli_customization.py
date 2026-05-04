@@ -422,14 +422,6 @@ def post_init(
             tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
         return
 
-    from .agents import CommandRegistrar
-
-    registrar = CommandRegistrar()
-    agent_config = registrar.AGENT_CONFIGS.get(selected_ai)
-    if agent_config:
-        agent_dir = project_path / agent_config["dir"]
-        agent_dir.mkdir(parents=True, exist_ok=True)
-
     _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git)
     _install_bundled_presets(project_path, selected_ai, tracker)
 

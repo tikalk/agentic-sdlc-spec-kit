@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.5+adlc4] - 2026-05-04
+
+### Fixed
+
+- **Remove unnecessary agent directory pre-creation**: Reverted the directory pre-creation added in adlc3 — the integration's `setup()` already creates the correct agent directory before `post_init()` runs. The pre-creation was causing a regression where Copilot `--skills` mode would incorrectly create `.github/agents/` alongside `.github/skills/`.
+
 # [0.8.5+adlc3] - 2026-05-04
 
 ### Fixed
