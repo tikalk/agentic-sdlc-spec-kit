@@ -526,11 +526,10 @@ def _install_bundled_extensions(
         ]
 
     if bundled_extensions:
-        from .extensions import ExtensionManager, CommandRegistrar, HookExecutor
+        from .extensions import ExtensionManager, HookExecutor
 
         manager = ExtensionManager(project_path)
         registry = manager.registry
-        registrar = CommandRegistrar()
         hook_executor = HookExecutor(project_path)
 
     installed = []
@@ -570,10 +569,8 @@ def _install_bundled_extensions(
 
                     if version_changed or hash_changed:
                         # Update to newer version or manifest changed - re-register commands/skills/hooks
-                        registered_commands = (
-                            registrar.register_commands_for_all_agents(
-                                manifest, ext_dir, project_path
-                            )
+                        registered_commands = manager.register_commands_for_all_agents(
+                            manifest, ext_dir, project_path
                         )
                         registered_skills = manager._register_extension_skills(
                             manifest, ext_dir
@@ -603,7 +600,7 @@ def _install_bundled_extensions(
                 continue
 
             # New installation
-            registered_commands = registrar.register_commands_for_all_agents(
+            registered_commands = manager.register_commands_for_all_agents(
                 manifest, ext_dir, project_path
             )
 

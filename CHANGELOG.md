@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.5+adlc2] - 2026-05-04
+
+### Fixed
+
+- **Bundled extension command registration**: Fixed incorrect method call in `_install_bundled_extensions()` that prevented extension commands from being registered during init. Changed from `registrar.register_commands_for_all_agents()` to `manager.register_commands_for_all_agents()` to properly handle ExtensionManifest objects.
+
 # [0.8.5+adlc1] - 2026-05-03
 
 ### Changed
