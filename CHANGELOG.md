@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.5+adlc3] - 2026-05-04
+
+### Fixed
+
+- **Pre-create agent directory during init**: Added code in `post_init()` to create the selected agent's directory before installing bundled extensions/presets. This ensures extension commands are properly registered in the agent's command directory during init.
+
 # [0.8.5+adlc2] - 2026-05-04
 
 ### Fixed
