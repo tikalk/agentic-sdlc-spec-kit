@@ -1540,6 +1540,8 @@ def init(
                     console.print(f"[yellow]Warning:[/yellow] Failed to install preset: {preset_err}")
 
             # Call pre_init hook for team-ai-directives and bundled extensions
+            # NOTE: pre_init is responsible for marking the tracker status
+            # (complete/skip/error) with an accurate message.
             try:
                 tracker.start("team-directives")
                 if pre_init:
@@ -1551,10 +1553,13 @@ def init(
                             team_ai_directives,
                             tracker=tracker,
                         )
-                tracker.complete("team-directives", "done")
+                else:
+                    tracker.skip("team-directives", "no hook")
             except Exception as team_err:
                 tracker.error("team-directives", str(team_err))
-                console.print(f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {team_err}")
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to sync team AI directives: {team_err}"
+                )
 
             # Call post_init hook for bundled extensions and presets
             try:
@@ -2046,19 +2051,27 @@ def _derive_target_repo_from_url(url: str) -> str | None:
 
 
 def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
-    """Register bundled catalog from team-ai-directives repository."""
+    """Register bundled catalog from team-ai-directives repository.
+
+    Failures are non-fatal (the bundled catalog is an optional enhancement),
+    but we should not silently swallow exceptions during `specify init`.
+    """
     try:
         import urllib.request
+
         req = urllib.request.Request(catalog_url)
         with urllib.request.urlopen(req, timeout=30) as response:
             catalog_data = json.loads(response.read().decode("utf-8"))
-        
+
         # Save to project's catalog.bundled.json
         bundled_catalog_path = project_root / ".specify" / "extensions" / "catalog.bundled.json"
         bundled_catalog_path.write_text(json.dumps(catalog_data, indent=2))
-    except Exception:
-        # Silently fail - bundled catalog is optional
-        pass
+    except Exception as e:
+        # Non-fatal, but surfaced so users can diagnose failures.
+        sanitized = str(e).replace("\n", " ").strip()
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to register bundled extension catalog: {sanitized[:200]}"
+        )
 
 
 def sync_team_ai_directives(

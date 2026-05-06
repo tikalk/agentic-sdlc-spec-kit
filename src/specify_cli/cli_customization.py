@@ -367,7 +367,8 @@ def pre_init(
     from . import sync_team_ai_directives
 
     tracker.start("team-directives")
-    directives_path = None
+    directives_path: Path | None = None
+
     try:
         # Determine if this is a local directory (use reference mode) or URL (install)
         potential_path = Path(team_ai_directives).expanduser()
@@ -379,16 +380,32 @@ def pre_init(
                 team_ai_directives, project_path, install=False
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
-        else:
-            # ZIP URL: install to .specify/extensions/ (auto-override existing)
-            status, directives_path = sync_team_ai_directives(
-                team_ai_directives, project_path, install=True, force=True
-            )
-            if status == "installed":
-                tracker.complete("team-directives", f"installed to {directives_path}")
-            elif status == "local":
-                tracker.complete("team-directives", f"local: {directives_path}")
-        
+            return
+
+        # ZIP URL: install to .specify/extensions/ (auto-override existing)
+        status, directives_path = sync_team_ai_directives(
+            team_ai_directives, project_path, install=True, force=True
+        )
+
+        if status == "installed":
+            tracker.complete("team-directives", f"installed to {directives_path}")
+            return
+
+        if status == "local":
+            tracker.complete("team-directives", f"local: {directives_path}")
+            return
+
+        # If sync_team_ai_directives returns an unexpected status, treat it as an error.
+        tracker.error(
+            "team-directives",
+            f"unexpected status '{status}' (path={directives_path})",
+        )
+        console.print(
+            "[yellow]Warning:[/yellow] Failed to sync team AI directives: "
+            f"unexpected status '{status}'"
+        )
+        return
+
     except Exception as e:
         tracker.error("team-directives", str(e))
         console.print(

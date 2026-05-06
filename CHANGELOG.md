@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.6+adlc2] - 2026-05-07
+
+### Fixed
+
+- **specify init team-ai-directives reporting**: Prevent `Team AI Directives setup` from being incorrectly marked as "done" when team directives sync fails (e.g. bad ZIP/URL). The init command no longer force-completes this step; the hook now reports accurate status.
+- **specify init bundled catalog error visibility**: Stop silently swallowing exceptions when registering the bundled extension catalog; failures now emit a warning.
+
 # [0.8.6+adlc1] - 2026-05-05
 
 ### Changed
