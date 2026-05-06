@@ -1603,7 +1603,13 @@ def init(
             pass
 
     console.print(tracker.render())
-    console.print(f"\n{accent('Project ready.', bold=True)}")
+
+    # Only print success message if no steps ended in error.
+    had_error = any(step.get("status") == "error" for step in tracker.steps)
+    if not had_error:
+        console.print(f"\n{accent('Project ready.', bold=True)}")
+    else:
+        console.print(f"\n[red]Initialization completed with errors.[/red]")
 
     # Agent folder security notice
     agent_config = AGENT_CONFIG.get(selected_ai)
