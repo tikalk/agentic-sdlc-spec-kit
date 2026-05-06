@@ -2012,21 +2012,24 @@ preset_app.add_typer(preset_catalog_app, name="catalog")
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
     import importlib.metadata
-    try:
-        return importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml
+    # Try all known package names (fork may have different names)
+    for pkg_name in PKG_NAMES:
         try:
-            import tomllib
-            pyproject_path = _repo_root() / "pyproject.toml"
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                    return data.get("project", {}).get("version", "unknown")
+            return importlib.metadata.version(pkg_name)
         except Exception:
-            # Intentionally ignore any errors while reading/parsing pyproject.toml.
-            # If this lookup fails for any reason, we fall back to returning "unknown" below.
-            pass
+            continue
+    # Fallback: try reading from pyproject.toml
+    try:
+        import tomllib
+        pyproject_path = _repo_root() / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                return data.get("project", {}).get("version", "unknown")
+    except Exception:
+        # Intentionally ignore any errors while reading/parsing pyproject.toml.
+        # If this lookup fails for any reason, we fall back to returning "unknown" below.
+        pass
     return "unknown"
 
 

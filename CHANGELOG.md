@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc3] - 2026-05-07
+
+### Fixed
+
+- **CLI Version detection**: Fix `get_speckit_version()` to check all package names in `PKG_NAMES` (supports fork's `agentic-sdlc-specify-cli` package name)
+
 # [0.8.7+adlc2] - 2026-05-07
 
 ### Fixed
