@@ -4,6 +4,13 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc2] - 2026-05-07
+
+### Fixed
+
+- **Align preset commands with upstream**: Add constitution.md context loading to `adlc.spec.implement.md`
+- **Remove taskstoissues from preset**: The taskstoissues command is not part of the core agentic-sdlc preset
+
 # [0.8.7+adlc1] - 2026-05-07
 
 ### Changed
