@@ -4,6 +4,12 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.6+adlc3] - 2026-05-07
+
+### Fixed
+
+- **specify init final messaging**: Move success-message logic into `cli_customization.py` and avoid printing "Project ready." when any init step ends in error.
+
 # [0.8.6+adlc2] - 2026-05-07
 
 ### Fixed

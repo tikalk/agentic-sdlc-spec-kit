@@ -206,6 +206,19 @@ TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 console = Console()
 
 
+def should_print_project_ready(tracker: Any) -> bool:
+    """Return True if init should print the "Project ready." success message.
+
+    We consider init "not ready" if any tracked step ended in an error state.
+    This keeps the final messaging aligned with the progress view.
+    """
+    try:
+        return not any(step.get("status") == "error" for step in getattr(tracker, "steps", []))
+    except Exception:
+        # Be conservative: if we can't inspect the tracker, do not claim success.
+        return False
+
+
 def _scaffold_extensions_to_project(
     source_dir: Path,
     project_dir: Path,

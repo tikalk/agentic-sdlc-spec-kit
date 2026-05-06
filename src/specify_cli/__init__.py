@@ -1604,9 +1604,10 @@ def init(
 
     console.print(tracker.render())
 
-    # Only print success message if no steps ended in error.
-    had_error = any(step.get("status") == "error" for step in tracker.steps)
-    if not had_error:
+    # Final messaging (fork customization)
+    from .cli_customization import should_print_project_ready
+
+    if should_print_project_ready(tracker):
         console.print(f"\n{accent('Project ready.', bold=True)}")
     else:
         console.print(f"\n[red]Initialization completed with errors.[/red]")
