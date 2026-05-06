@@ -4,6 +4,23 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc1] - 2026-05-07
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit main branch (0.8.6 release + 0.8.7.dev0)
+  - Add lingma support (lingma CLI integration)
+  - Add uv installation guide and inline callouts
+  - Add fx-to-dotnet to community extension catalog
+  - Default non-interactive init to copilot integration
+  - Fix forge integration to use hyphen notation for command refs
+  - Add Cost Tracker (cost) community extension
+  - Load constitution context in `/speckit.implement` to enforce governance during implementation
+  - Improve catalog submission templates and CODEOWNERS
+  - Validate URL scheme in build_github_request
+  - Add Architecture Guard to community catalog
+  - Add multi-model-review extension to community catalog
+
 # [0.8.6+adlc3] - 2026-05-07
 
 ### Fixed
@@ -1558,6 +1575,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.6] - 2026-05-06
+
+### Changed
+
+- Load constitution context in `/speckit.implement` to enforce governance during implementation (#2460)
+- feat: improve catalog submission templates and CODEOWNERS (#2401)
+- fix: validate URL scheme in build_github_request (#2449)
+- Add Architecture Guard to community catalog (#2430)
+- Add multi-model-review extension to community catalog (#2446)
+- Update Ralph Loop to v1.0.2 (#2435)
+- Pin GitHub Actions by SHA (#2441)
+- fix(workflows): require project for catalog list (#2436)
+- Add agent-parity-governance to community catalog (#2382)
+- chore: release 0.8.5, begin 0.8.6.dev0 development (#2447)
 
 ## [0.8.5] - 2026-05-04
 
