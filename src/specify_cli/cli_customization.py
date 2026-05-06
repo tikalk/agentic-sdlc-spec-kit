@@ -191,6 +191,34 @@ TAGLINE = "Agentic SDLC toolkit for Spec-Driven Development with bundled extensi
 PKG_NAMES = ("agentic-sdlc-specify-cli", "specify-cli")
 
 
+def get_speckit_version() -> str:
+    """Get current spec-kit version.
+
+    Fork customization: checks all package names in PKG_NAMES to support
+    the fork's package name (agentic-sdlc-specify-cli) as well as upstream.
+    """
+    import importlib.metadata
+    # Try all known package names (fork may have different names)
+    for pkg_name in PKG_NAMES:
+        try:
+            return importlib.metadata.version(pkg_name)
+        except Exception:
+            continue
+    # Fallback: try reading from pyproject.toml
+    try:
+        import tomllib
+        from pathlib import Path
+
+        pyproject_path = Path(__file__).parent.parent.parent / "pyproject.toml"
+        if pyproject_path.exists():
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                return data.get("project", {}).get("version", "unknown")
+    except Exception:
+        pass
+    return "unknown"
+
+
 # ============================================================================
 # TEAM DIRECTIVES
 # ============================================================================

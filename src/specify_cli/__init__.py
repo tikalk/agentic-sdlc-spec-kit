@@ -92,6 +92,7 @@ try:
         post_init,
         skill_app,
         compute_skill_output_name,
+        get_speckit_version,
     )
 except ImportError:
     ACCENT_COLOR = "cyan"
@@ -123,6 +124,15 @@ except ImportError:
 
     def compute_skill_output_name():
         return None
+
+    def get_speckit_version():
+        """Fallback version detection using upstream package name only."""
+        import importlib.metadata
+        try:
+            return importlib.metadata.version("specify-cli")
+        except Exception:
+            pass
+        return "unknown"
 
 GITHUB_API_LATEST = "https://api.github.com/repos/github/spec-kit/releases/latest"
 
@@ -2012,24 +2022,21 @@ preset_app.add_typer(preset_catalog_app, name="catalog")
 def get_speckit_version() -> str:
     """Get current spec-kit version."""
     import importlib.metadata
-    # Try all known package names (fork may have different names)
-    for pkg_name in PKG_NAMES:
-        try:
-            return importlib.metadata.version(pkg_name)
-        except Exception:
-            continue
-    # Fallback: try reading from pyproject.toml
     try:
-        import tomllib
-        pyproject_path = _repo_root() / "pyproject.toml"
-        if pyproject_path.exists():
-            with open(pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-                return data.get("project", {}).get("version", "unknown")
+        return importlib.metadata.version("specify-cli")
     except Exception:
-        # Intentionally ignore any errors while reading/parsing pyproject.toml.
-        # If this lookup fails for any reason, we fall back to returning "unknown" below.
-        pass
+        # Fallback: try reading from pyproject.toml
+        try:
+            import tomllib
+            pyproject_path = _repo_root() / "pyproject.toml"
+            if pyproject_path.exists():
+                with open(pyproject_path, "rb") as f:
+                    data = tomllib.load(f)
+                    return data.get("project", {}).get("version", "unknown")
+        except Exception:
+            # Intentionally ignore any errors while reading/parsing pyproject.toml.
+            # If this lookup fails for any reason, we fall back to returning "unknown" below.
+            pass
     return "unknown"
 
 
