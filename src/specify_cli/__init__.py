@@ -2019,27 +2019,6 @@ preset_catalog_app = typer.Typer(
 preset_app.add_typer(preset_catalog_app, name="catalog")
 
 
-def get_speckit_version() -> str:
-    """Get current spec-kit version."""
-    import importlib.metadata
-    try:
-        return importlib.metadata.version("specify-cli")
-    except Exception:
-        # Fallback: try reading from pyproject.toml
-        try:
-            import tomllib
-            pyproject_path = _repo_root() / "pyproject.toml"
-            if pyproject_path.exists():
-                with open(pyproject_path, "rb") as f:
-                    data = tomllib.load(f)
-                    return data.get("project", {}).get("version", "unknown")
-        except Exception:
-            # Intentionally ignore any errors while reading/parsing pyproject.toml.
-            # If this lookup fails for any reason, we fall back to returning "unknown" below.
-            pass
-    return "unknown"
-
-
 def _store_extension_source_url(
     project_root: Path, extension_id: str, source_url: str, target_repo: str | None = None
 ) -> None:
