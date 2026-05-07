@@ -553,7 +553,7 @@ def pre_init(
                         selected_ai=selected_ai,
                         force=False,
                     )
-                    console.print(f"[dim]Installed team-ai-directives skills[/dim]")
+                    console.print("[dim]Installed team-ai-directives skills[/dim]")
                 except Exception as e:
                     console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
             return
