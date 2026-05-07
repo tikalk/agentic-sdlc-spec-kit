@@ -906,23 +906,15 @@ class ExtensionManager:
             if not source_file.is_file():
                 continue
 
-            # Derive skill name from command name using the same hyphenated
-            # convention as hook rendering and preset skill registration.
-            # Handle fork prefixes (adlc.*, spec.*) without prepending speckit-
-            short_name_raw = cmd_name
-            if short_name_raw.startswith("speckit."):
-                short_name_raw = short_name_raw[len("speckit.") :]
-                skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
-            elif short_name_raw.startswith("adlc."):
-                # Fork command: adlc.X.Y -> adlc-X-Y (no speckit- prefix)
-                short_name_raw = short_name_raw[len("adlc.") :]
-                skill_name = f"adlc-{short_name_raw.replace('.', '-')}"
-            elif short_name_raw.startswith("spec."):
-                # Fork alias: spec.X -> spec-X (no speckit- prefix)
-                short_name_raw = short_name_raw[len("spec.") :]
-                skill_name = f"spec-{short_name_raw.replace('.', '-')}"
-            else:
-                skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+            # Derive skill name from command name using alias map
+            # Alias map returns the alias form (e.g., "spec.constitution"),
+            # which we convert to hyphenated skill name (e.g., "spec-constitution")
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved_name = resolve_command_alias(cmd_name, self.project_root)
+            except Exception:
+                resolved_name = cmd_name
+            skill_name = resolved_name.replace(".", "-")
 
             # Skip creating primary skill when aliases exist (fork alias-only mode)
             has_aliases = bool(cmd_info.get("aliases"))
@@ -975,11 +967,13 @@ class ExtensionManager:
             )
             frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
 
-            # Derive a human-friendly title from the command name
-            short_name = cmd_name
-            if short_name.startswith("speckit."):
-                short_name = short_name[len("speckit.") :]
-            title_name = short_name.replace(".", " ").replace("-", " ").title()
+            # Derive a human-friendly title from the command name using alias map
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved_name = resolve_command_alias(cmd_name, self.project_root)
+            except Exception:
+                resolved_name = cmd_name
+            title_name = resolved_name.replace(".", " ").replace("-", " ").title()
 
             skill_content = (
                 f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
@@ -2550,17 +2544,15 @@ class HookExecutor:
             return ""
         command_id = command.strip()
 
-        # Handle fork prefixes
-        if command_id.startswith("adlc."):
-            return f"adlc-{command_id[len('adlc.') :].replace('.', '-')}"
-        if command_id.startswith("spec."):
-            return f"spec-{command_id[len('spec.') :].replace('.', '-')}"
-        if command_id.startswith("git."):
-            return f"git-{command_id[len('git.') :].replace('.', '-')}"
-        if command_id.startswith("speckit."):
-            return f"speckit-{command_id[len('speckit.') :].replace('.', '-')}"
+        # Use alias map to resolve to alias form, then convert to hyphenated skill name
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(command_id, self.project_root)
+        except Exception:
+            resolved_name = command_id
+        skill_name = resolved_name.replace(".", "-")
 
-        return ""
+        return skill_name
 
     def _render_hook_invocation(self, command: Any) -> str:
         """Render an agent-specific invocation string for a hook command."""

@@ -265,15 +265,6 @@ def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: P
     resolved = resolve_command_alias(cmd_name, project_root)
     return resolved.replace(".", "-")
 
-    # For non-fork commands (e.g., speckit.test-ext.hello), use upstream behavior
-    # Strip "speckit." prefix and add "speckit-" back
-    if cmd_name.startswith("speckit."):
-        short_name = cmd_name[len("speckit.") :]
-        return f"speckit-{short_name.replace('.', '-')}"
-
-    # Fallback for any other commands (shouldn't normally hit this)
-    return cmd_name.replace(".", "-")
-
 
 # ============================================================================
 # CLI IDENTITY

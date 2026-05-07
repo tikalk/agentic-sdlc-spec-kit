@@ -154,10 +154,13 @@ class CopilotIntegration(IntegrationBase):
         Skills mode: ``/speckit-<stem>`` slash-command dispatch.
         """
         if self._skills_mode:
-            stem = command_name
-            if stem.startswith("speckit."):
-                stem = stem[len("speckit."):]
-            invocation = "/speckit-" + stem.replace(".", "-")
+            # Use alias map to resolve to canonical form
+            try:
+                from ...cli_customization import resolve_command_alias
+                resolved = resolve_command_alias(command_name)
+            except Exception:
+                resolved = command_name
+            invocation = "/" + resolved.replace(".", "-")
             if args:
                 invocation = f"{invocation} {args}"
             return invocation
@@ -180,30 +183,37 @@ class CopilotIntegration(IntegrationBase):
         the user's arguments.
 
         In skills mode, the prompt includes the skill invocation
-        (``/speckit-<stem>``).
+        (``/spec-<stem>``).
         """
         import subprocess
 
-        stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        # Use alias map to resolve to canonical form
+        try:
+            from ...cli_customization import resolve_command_alias
+            resolved = resolve_command_alias(command_name)
+        except Exception:
+            resolved = command_name
 
         # Detect skills mode from project layout when not set via setup()
         skills_mode = self._skills_mode
         if not skills_mode and project_root:
             skills_dir = project_root / ".github" / "skills"
             if skills_dir.is_dir():
+                # Check for spec-* skills (fork format)
                 skills_mode = any(
+                    d.is_dir() and (d / "SKILL.md").is_file()
+                    for d in skills_dir.glob("spec-*")
+                ) or any(
                     d.is_dir() and (d / "SKILL.md").is_file()
                     for d in skills_dir.glob("speckit-*")
                 )
 
         if skills_mode:
-            prompt = "/speckit-" + stem.replace(".", "-")
+            prompt = "/" + resolved.replace(".", "-")
             if args:
                 prompt = f"{prompt} {args}"
         else:
-            agent_name = f"speckit.{stem}"
+            agent_name = resolved
             prompt = args or ""
 
         cli_args = ["copilot", "-p", prompt]

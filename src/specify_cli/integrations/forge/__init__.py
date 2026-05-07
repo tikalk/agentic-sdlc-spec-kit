@@ -23,43 +23,47 @@ def format_forge_command_name(cmd_name: str) -> str:
     compatibility with ZSH and other shells. This function converts
     dot-notation command names to hyphenated format.
     
+    Uses alias map to resolve fork command names to their canonical form.
+    
     The function is idempotent: already-formatted names are returned unchanged.
     
     Examples:
         >>> format_forge_command_name("plan")
-        'speckit-plan'
+        'spec-plan'
         >>> format_forge_command_name("speckit.plan")
-        'speckit-plan'
-        >>> format_forge_command_name("speckit-plan")
-        'speckit-plan'
-        >>> format_forge_command_name("speckit.my-extension.example")
-        'speckit-my-extension-example'
-        >>> format_forge_command_name("speckit-my-extension-example")
-        'speckit-my-extension-example'
-        >>> format_forge_command_name("speckit.jira.sync-status")
-        'speckit-jira-sync-status'
+        'spec-plan'
+        >>> format_forge_command_name("spec-plan")
+        'spec-plan'
+        >>> format_forge_command_name("spec.my-extension.example")
+        'spec-my-extension-example'
+        >>> format_forge_command_name("spec-my-extension-example")
+        'spec-my-extension-example'
+        >>> format_forge_command_name("spec.jira.sync-status")
+        'spec-jira-sync-status'
     
     Args:
         cmd_name: Command name in dot notation (speckit.foo.bar), 
                   hyphenated format (speckit-foo-bar), or plain name (foo)
     
     Returns:
-        Hyphenated command name with 'speckit-' prefix
+        Hyphenated command name using alias form (spec-*)
     """
-    # Already in hyphenated format - return as-is (idempotent)
-    if cmd_name.startswith("speckit-"):
+    # Already in hyphenated format with spec- prefix - return as-is
+    if cmd_name.startswith("spec-"):
         return cmd_name
     
-    # Strip 'speckit.' prefix if present
-    short_name = cmd_name
-    if short_name.startswith("speckit."):
-        short_name = short_name[len("speckit."):]
+    # Already in hyphenated format with speckit- prefix - convert to spec-
+    if cmd_name.startswith("speckit-"):
+        return cmd_name.replace("speckit-", "spec-", 1)
     
-    # Replace all dots with hyphens
-    short_name = short_name.replace(".", "-")
+    # Use alias map to resolve to canonical form, then hyphenate
+    try:
+        from ...cli_customization import resolve_command_alias
+        resolved = resolve_command_alias(cmd_name)
+    except Exception:
+        resolved = cmd_name
     
-    # Return with 'speckit-' prefix
-    return f"speckit-{short_name}"
+    return resolved.replace(".", "-")
 
 
 class ForgeIntegration(MarkdownIntegration):

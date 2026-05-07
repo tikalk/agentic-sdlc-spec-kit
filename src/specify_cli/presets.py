@@ -1216,38 +1216,26 @@ class PresetManager:
         Handles both upstream (speckit.X) and fork (adlc.*, spec.*) command names.
         Fork commands use 'adlc-' or 'spec-' prefix instead of 'speckit-'.
         """
-        raw_short_name = cmd_name
-
-        # Handle fork core commands (adlc.spec.X) - use spec- prefix (alias form)
-        if raw_short_name.startswith("adlc.spec."):
-            raw_short_name = raw_short_name[len("adlc.spec."):]
-            modern_skill_name = f"spec-{raw_short_name.replace('.', '-')}"
-        # Handle fork alias (spec.X) - use spec- prefix
-        elif raw_short_name.startswith("spec."):
-            raw_short_name = raw_short_name[len("spec."):]
-            modern_skill_name = f"spec-{raw_short_name.replace('.', '-')}"
-        # Handle fork extension commands (adlc.architect.X, adlc.product.X, etc.)
-        elif raw_short_name.startswith("adlc."):
-            raw_short_name = raw_short_name[len("adlc."):]
-            modern_skill_name = f"adlc-{raw_short_name.replace('.', '-')}"
-        # Handle upstream prefix (speckit.X)
-        elif raw_short_name.startswith("speckit."):
-            raw_short_name = raw_short_name[len("speckit."):]
-            modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
-        else:
-            # Fallback for any other format
-            modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
-
-        legacy_skill_name = f"speckit.{raw_short_name}"
+        # Use alias map to resolve command to its alias form, then convert to skill names
+        try:
+            from .cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(cmd_name, self.project_root)
+        except Exception:
+            resolved_name = cmd_name
+        
+        modern_skill_name = resolved_name.replace(".", "-")
+        legacy_skill_name = f"speckit.{resolved_name.replace('.', '-')}"
         return modern_skill_name, legacy_skill_name
 
-    @staticmethod
-    def _skill_title_from_command(cmd_name: str) -> str:
+    def _skill_title_from_command(self, cmd_name: str) -> str:
         """Return a human-friendly title for a skill command name."""
-        title_name = cmd_name
-        if title_name.startswith("speckit."):
-            title_name = title_name[len("speckit."):]
-        return title_name.replace(".", " ").replace("-", " ").title()
+        # Use alias map to get the canonical short form, then convert to title
+        try:
+            from .cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(cmd_name, self.project_root)
+        except Exception:
+            resolved_name = cmd_name
+        return resolved_name.replace(".", " ").replace("-", " ").title()
 
     def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
         """Index extension-backed skill restore data by skill directory name."""
