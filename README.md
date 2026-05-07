@@ -484,6 +484,83 @@ Additional commands for enhanced quality and validation:
 
 For full command details, options, and examples, see the [CLI Reference](https://github.github.io/spec-kit/reference/overview.html).
 
+### 🐳 Running OpenCode in Docker
+
+You can run OpenCode async tasks in a Docker container for easier testing, CI/CD integration, or remote execution. This is useful for sandboxed execution or running on servers.
+
+**Prerequisites:**
+- Docker Desktop or Docker Engine
+- `docker-compose` CLI tool
+
+**Starting the Docker container:**
+
+```bash
+# Initialize your project (if not already done)
+specify init . --integration opencode
+
+# Start OpenCode in Docker
+spec docker-up
+
+# Output:
+# Starting OpenCode Docker container...
+# ✓ OpenCode container running at http://localhost:9000
+```
+
+**Using OpenCode from Docker:**
+
+Once the container is running, all `spec.implement` tasks and OpenCode commands automatically execute on the Docker container via HTTP API:
+
+```bash
+/spec.implement "write a hello world function"
+# Runs on Docker OpenCode instead of local binary
+```
+
+**Checking container status:**
+
+```bash
+spec docker-status
+
+# Output:
+# ✓ OpenCode container opencode-dev is running
+# URL: http://localhost:9000
+# Recent logs:
+# ...
+```
+
+**Stopping the container:**
+
+```bash
+spec docker-down
+
+# Output:
+# Stopping OpenCode Docker container...
+# ✓ OpenCode container stopped
+```
+
+**Configuration:**
+
+Docker settings are stored in `.specify/opencode.json`:
+
+```json
+{
+  "mode": "docker",
+  "docker": {
+    "enabled": true,
+    "compose_file": "./docker-compose.yml",
+    "container_name": "opencode-dev",
+    "http_url": "http://localhost:9000"
+  }
+}
+```
+
+**Environment override:**
+
+You can also use the `OPENCODE_MODE` environment variable to temporarily enable Docker mode:
+
+```bash
+OPENCODE_MODE=docker spec.implement "write a function"
+```
+
 ## 🧩 Making Spec Kit Your Own: Extensions & Presets
 
 Spec Kit can be tailored to your needs through two complementary systems — **extensions** and **presets** — plus project-local overrides for one-off adjustments:

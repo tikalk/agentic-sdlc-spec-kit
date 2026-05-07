@@ -6195,6 +6195,147 @@ def workflow_catalog_remove(
     console.print(f"[green]✓[/green] Catalog source '{removed_name}' removed")
 
 
+@app.command()
+def docker_up():
+    """Start OpenCode in a Docker container.
+
+    Builds and starts the Docker container, then waits for it to be ready.
+    Configuration is stored in .specify/opencode.json.
+    """
+    from .integrations.opencode.docker_manager import DockerManager
+
+    project_root = _require_specify_project()
+
+    # Scaffold Docker files from package if they don't exist
+    docker_template_dir = Path(__file__).parent / "integrations" / "opencode" / "docker"
+    dockerfile_src = docker_template_dir / "Dockerfile"
+    compose_src = docker_template_dir / "docker-compose.yml"
+
+    specify_dir = project_root / ".specify"
+    dockerfile_dst = specify_dir / "Dockerfile"
+    compose_dst = specify_dir / "docker-compose.yml"
+
+    specify_dir.mkdir(parents=True, exist_ok=True)
+
+    if not dockerfile_dst.exists() and dockerfile_src.exists():
+        shutil.copy(dockerfile_src, dockerfile_dst)
+        console.print(f"[dim]Created {dockerfile_dst}[/dim]")
+
+    if not compose_dst.exists() and compose_src.exists():
+        shutil.copy(compose_src, compose_dst)
+        console.print(f"[dim]Created {compose_dst}[/dim]")
+
+    # Load or create config
+    config_path = project_root / ".specify" / "opencode.json"
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    docker_config = config.get("docker", {})
+    compose_file = docker_config.get("compose_file", "./.specify/docker-compose.yml")
+    container_name = docker_config.get("container_name", "opencode-dev")
+    http_url = docker_config.get("http_url", "http://localhost:9000")
+
+    manager = DockerManager(compose_file, container_name, http_url)
+
+    console.print("[bold]Starting OpenCode Docker container...[/bold]")
+    if manager.docker_up():
+        config["mode"] = "docker"
+        config["docker"] = {
+            "enabled": True,
+            "compose_file": compose_file,
+            "container_name": container_name,
+            "http_url": http_url,
+        }
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+        console.print(f"[green]✓[/green] OpenCode container running at {http_url}")
+    else:
+        console.print("[red]✗[/red] Failed to start Docker container")
+        raise typer.Exit(1)
+
+
+@app.command()
+def docker_down():
+    """Stop the OpenCode Docker container."""
+    from .integrations.opencode.docker_manager import DockerManager
+
+    project_root = _require_specify_project()
+
+    config_path = project_root / ".specify" / "opencode.json"
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    docker_config = config.get("docker", {})
+    compose_file = docker_config.get("compose_file", "./.specify/docker-compose.yml")
+    container_name = docker_config.get("container_name", "opencode-dev")
+    http_url = docker_config.get("http_url", "http://localhost:9000")
+
+    manager = DockerManager(compose_file, container_name, http_url)
+
+    console.print("[bold]Stopping OpenCode Docker container...[/bold]")
+    if manager.docker_down():
+        config["mode"] = "local"
+        config["docker"]["enabled"] = False
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+        console.print("[green]✓[/green] OpenCode container stopped")
+    else:
+        console.print("[red]✗[/red] Failed to stop Docker container")
+        raise typer.Exit(1)
+
+
+@app.command()
+def docker_status():
+    """Show OpenCode Docker container status."""
+    from .integrations.opencode.docker_manager import DockerManager
+
+    project_root = _require_specify_project()
+
+    config_path = project_root / ".specify" / "opencode.json"
+    config = {}
+    if config_path.exists():
+        try:
+            with open(config_path) as f:
+                config = json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+
+    docker_config = config.get("docker", {})
+    compose_file = docker_config.get("compose_file", "./.specify/docker-compose.yml")
+    container_name = docker_config.get("container_name", "opencode-dev")
+    http_url = docker_config.get("http_url", "http://localhost:9000")
+
+    manager = DockerManager(compose_file, container_name, http_url)
+
+    status = manager.docker_status()
+    if status is None:
+        console.print("[yellow]⚠[/yellow] Could not retrieve Docker status")
+        return
+
+    if status.get("running"):
+        console.print(f"[green]✓[/green] OpenCode container [bold]{status.get('name')}[/bold] is running")
+        console.print(f"[dim]URL: {http_url}[/dim]")
+    else:
+        console.print(f"[yellow]○[/yellow] OpenCode container is not running")
+
+    # Show recent logs
+    logs = manager.get_container_logs(lines=10)
+    if logs:
+        console.print("\n[bold]Recent logs:[/bold]")
+        console.print("[dim]" + logs + "[/dim]")
+
+
 def main():
     app()
 

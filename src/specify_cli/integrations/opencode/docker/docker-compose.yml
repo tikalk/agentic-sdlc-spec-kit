@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  opencode:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: opencode-dev
+    ports:
+      - "9000:3000"
+    volumes:
+      - ..:/workspace
+    environment:
+      - NODE_ENV=development
+      - OPENCODE_PORT=3000
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
