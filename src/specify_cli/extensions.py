@@ -932,7 +932,7 @@ class ExtensionManager:
             except Exception:
                 is_fork = False
             has_aliases = bool(cmd_info.get("aliases"))
-            if is_fork and cmd_name.startswith("adlc.") and has_aliases:
+            if is_fork and (cmd_name.startswith("adlc.") or cmd_name.startswith("speckit.")) and has_aliases:
                 # Skip primary - alias will be created by register_commands
                 continue
 

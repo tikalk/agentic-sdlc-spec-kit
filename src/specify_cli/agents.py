@@ -529,10 +529,10 @@ class CommandRegistrar:
 
             output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
-            # Skip writing primary adlc.* command when aliases exist.
-            # This prevents duplicate commands (adlc-*-X and alias-X) - we only want alias-X.
+            # Skip writing primary adlc.* or speckit.* command when aliases exist.
+            # This prevents duplicate commands (primary and alias) - we only want alias.
             # Applies to ALL agent types (skill and non-skill).
-            is_fork_command = cmd_name.startswith("adlc.")
+            is_fork_command = cmd_name.startswith("adlc.") or cmd_name.startswith("speckit.")
             has_aliases = bool(cmd_info.get("aliases"))
 
             # Check if running fork version
