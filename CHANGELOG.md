@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc7] - 2026-05-07
+
+### Fixed
+
+- **Alias-only installation for non-skill agents**: Extended the skip-primary logic to ALL agent types (not just skill agents)
+  - Non-skill agents (opencode, cursor, etc.) now only install alias form (`spec.constitution.md`) without duplicate primary (`adlc.spec.constitution.md`)
+  - Cleanup function now removes `speckit.*.md` files for non-skill agents when preset declares `replaces`
+  - Fixes issue where opencode/cursor showed both `adlc.spec.*` and `spec.*` command files
+
 # [0.8.7+adlc6] - 2026-05-07
 
 ### Fixed
