@@ -58,8 +58,8 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
-        assert (project / ".github" / "prompts" / "speckit.plan.prompt.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
+        assert (project / ".github" / "prompts" / "spec.plan.prompt.md").exists()
         assert (project / ".specify" / "scripts" / "bash" / "common.sh").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -99,7 +99,7 @@ class TestInitIntegrationFlag:
 
         assert result.exit_code == 0, result.output
         assert f"defaulting to '{specify_cli.DEFAULT_INIT_INTEGRATION}'" in result.output
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == specify_cli.DEFAULT_INIT_INTEGRATION
@@ -119,7 +119,7 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
     def test_ai_emits_deprecation_warning_with_integration_replacement(self, tmp_path):
         from typer.testing import CliRunner
@@ -146,7 +146,7 @@ class TestInitIntegrationFlag:
         assert "0.10.0" in normalized_output
         assert "--integration copilot" in normalized_output
         assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
     def test_ai_generic_warning_suggests_integration_options_equivalent(self, tmp_path):
         from typer.testing import CliRunner
@@ -857,7 +857,7 @@ class TestGitExtensionAutoInstall:
         # Git extension commands should be registered with the agent
         claude_skills = project / ".claude" / "skills"
         assert claude_skills.exists(), "Claude skills directory was not created"
-        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")]
+        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("git-")]
         assert len(git_skills) > 0, "no git extension commands registered"
 
 
