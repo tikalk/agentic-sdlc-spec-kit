@@ -1712,7 +1712,8 @@ def init(
     _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
 
     def _display_cmd(name: str) -> str:
-        skill_prefix = "adlc-spec" if _is_fork else "speckit"
+        # Fork uses "spec" prefix for skills (matching the alias-only installation)
+        skill_prefix = "spec" if _is_fork else "speckit"
         non_skill_prefix = "spec" if _is_fork else "speckit"
         if codex_skill_mode or agy_skill_mode or trae_skill_mode:
             return f"${skill_prefix}-{name}"

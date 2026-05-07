@@ -679,9 +679,76 @@ class PresetManager:
             return {}
 
         registrar = CommandRegistrar()
-        return registrar.register_commands_for_all_agents(
+        registered = registrar.register_commands_for_all_agents(
             commands_to_register, manifest.id, preset_dir, self.project_root
         )
+
+        # Clean up replaced commands (core speckit-* skills that the preset overrides)
+        self._cleanup_replaced_commands(manifest, command_templates)
+
+        return registered
+
+    def _cleanup_replaced_commands(
+        self,
+        manifest: "PresetManifest",
+        command_templates: List[Dict[str, Any]],
+    ) -> None:
+        """Remove core command skill directories that the preset replaces.
+
+        When a preset command declares 'replaces: speckit.X', this removes the
+        corresponding core skill directory (e.g., speckit-X) from skill-based
+        agent directories to prevent duplicate commands.
+
+        Args:
+            manifest: Preset manifest
+            command_templates: List of command template dicts from the manifest
+        """
+        # Collect all replaced command names (e.g., "speckit.constitution")
+        replaced_commands = set()
+        for cmd in command_templates:
+            replaces = cmd.get("replaces")
+            if replaces:
+                replaced_commands.add(replaces)
+
+        if not replaced_commands:
+            return
+
+        # Compute skill directory names for replaced commands
+        # "speckit.constitution" -> "speckit-constitution"
+        replaced_skill_dirs = set()
+        for cmd_name in replaced_commands:
+            skill_dir = cmd_name.replace(".", "-")
+            replaced_skill_dirs.add(skill_dir)
+
+        # Find skill-based agent directories and remove replaced skills
+        try:
+            from .agents import CommandRegistrar
+
+            agent_configs = CommandRegistrar.AGENT_CONFIGS
+        except (ImportError, AttributeError):
+            return
+
+        # For each agent, check and remove replaced skill directories
+        for agent_name, agent_config in agent_configs.items():
+            # Only check agents that have skills directories
+            # AGENT_CONFIGS uses "dir" key for the full path (e.g., ".claude/skills")
+            agent_dir = self.project_root / agent_config.get("dir", f".{agent_name}/skills")
+
+            if not agent_dir.exists():
+                continue
+
+            # Remove speckit-* directories for replaced commands
+            # Note: We intentionally do NOT delete spec-* (fork alias) directories here.
+            # Fork skills (spec-*) are managed by the presets that create them.
+            # Deleting them here would incorrectly remove skills created by presets like
+            # agentic-sdlc when a later preset (like lean) replaces the core command.
+            for skill_dir in replaced_skill_dirs:
+                skill_path = agent_dir / skill_dir
+                if skill_path.exists():
+                    try:
+                        shutil.rmtree(skill_path)
+                    except OSError:
+                        pass  # best-effort cleanup
 
     def _unregister_commands(self, registered_commands: Dict[str, List[str]]) -> None:
         """Remove previously registered command files from agent directories.
@@ -1130,12 +1197,33 @@ class PresetManager:
 
     @staticmethod
     def _skill_names_for_command(cmd_name: str) -> tuple[str, str]:
-        """Return the modern and legacy skill directory names for a command."""
-        raw_short_name = cmd_name
-        if raw_short_name.startswith("speckit."):
-            raw_short_name = raw_short_name[len("speckit."):]
+        """Return the modern and legacy skill directory names for a command.
 
-        modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
+        Handles both upstream (speckit.X) and fork (adlc.*, spec.*) command names.
+        Fork commands use 'adlc-' or 'spec-' prefix instead of 'speckit-'.
+        """
+        raw_short_name = cmd_name
+
+        # Handle fork core commands (adlc.spec.X) - use spec- prefix (alias form)
+        if raw_short_name.startswith("adlc.spec."):
+            raw_short_name = raw_short_name[len("adlc.spec."):]
+            modern_skill_name = f"spec-{raw_short_name.replace('.', '-')}"
+        # Handle fork alias (spec.X) - use spec- prefix
+        elif raw_short_name.startswith("spec."):
+            raw_short_name = raw_short_name[len("spec."):]
+            modern_skill_name = f"spec-{raw_short_name.replace('.', '-')}"
+        # Handle fork extension commands (adlc.architect.X, adlc.product.X, etc.)
+        elif raw_short_name.startswith("adlc."):
+            raw_short_name = raw_short_name[len("adlc."):]
+            modern_skill_name = f"adlc-{raw_short_name.replace('.', '-')}"
+        # Handle upstream prefix (speckit.X)
+        elif raw_short_name.startswith("speckit."):
+            raw_short_name = raw_short_name[len("speckit."):]
+            modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
+        else:
+            # Fallback for any other format
+            modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
+
         legacy_skill_name = f"speckit.{raw_short_name}"
         return modern_skill_name, legacy_skill_name
 
@@ -1210,7 +1298,7 @@ class PresetManager:
         directory.  If so, the skill is overwritten with content derived
         from the preset's command file.  This ensures that presets that
         override commands also propagate to the agentskills.io skill
-        layer when ``--ai-skills`` was used during project initialisation.
+        layer when ``--ai-skills`` was previously used during project initialisation.
 
         Args:
             manifest: Preset manifest.
@@ -1266,6 +1354,14 @@ class PresetManager:
 
         written: List[str] = []
 
+        # Build a set of command names that have 'replaces' directives
+        # These should create skills even if create_missing_skills is False
+        replaced_commands = {
+            t.get("replaces") for t in filtered if t.get("replaces")
+        }
+
+        written: List[str] = []
+
         for cmd_tmpl in filtered:
             cmd_name = cmd_tmpl["name"]
             cmd_file_rel = cmd_tmpl["file"]
@@ -1295,10 +1391,23 @@ class PresetManager:
                 target_skill_names.append(skill_name)
             if legacy_skill_name != skill_name and (skills_dir / legacy_skill_name).is_dir():
                 target_skill_names.append(legacy_skill_name)
-            if not target_skill_names and create_missing_skills:
+            # For fork commands (adlc.spec.*), also check for speckit-* skills
+            # that were created during initial scaffolding
+            if not target_skill_names and skill_name.startswith("spec-"):
+                speckit_skill_name = skill_name.replace("spec-", "speckit-", 1)
+                if (skills_dir / speckit_skill_name).is_dir():
+                    target_skill_names.append(speckit_skill_name)
+
+            # Check if this command replaces a core command (indicated by 'replaces' directive)
+            # If so, we should create the skill even if create_missing_skills is False
+            # because the preset is explicitly replacing a core command
+            is_replacing_core = cmd_name in replaced_commands or cmd_tmpl.get("replaces")
+
+            if not target_skill_names and (create_missing_skills or is_replacing_core):
                 missing_skill_dir = skills_dir / skill_name
                 if not missing_skill_dir.exists():
                     target_skill_names.append(skill_name)
+
             if not target_skill_names:
                 continue
 
@@ -1323,6 +1432,13 @@ class PresetManager:
             body = registrar.resolve_skill_placeholders(
                 selected_ai, frontmatter, body, self.project_root
             )
+
+            # Resolve __SPECKIT_COMMAND_*__ placeholders and handoff agents
+            from .integrations.base import IntegrationBase
+
+            _sep = agent_config.get("invoke_separator", ".")
+            body = IntegrationBase.resolve_command_refs(body, _sep)
+            body = IntegrationBase.resolve_handoff_agents(body, _sep)
 
             for target_skill_name in target_skill_names:
                 skill_subdir = skills_dir / target_skill_name

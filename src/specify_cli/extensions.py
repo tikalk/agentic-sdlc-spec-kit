@@ -908,10 +908,33 @@ class ExtensionManager:
 
             # Derive skill name from command name using the same hyphenated
             # convention as hook rendering and preset skill registration.
+            # Handle fork prefixes (adlc.*, spec.*) without prepending speckit-
             short_name_raw = cmd_name
             if short_name_raw.startswith("speckit."):
                 short_name_raw = short_name_raw[len("speckit.") :]
-            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+                skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+            elif short_name_raw.startswith("adlc."):
+                # Fork command: adlc.X.Y -> adlc-X-Y (no speckit- prefix)
+                short_name_raw = short_name_raw[len("adlc.") :]
+                skill_name = f"adlc-{short_name_raw.replace('.', '-')}"
+            elif short_name_raw.startswith("spec."):
+                # Fork alias: spec.X -> spec-X (no speckit- prefix)
+                short_name_raw = short_name_raw[len("spec.") :]
+                skill_name = f"spec-{short_name_raw.replace('.', '-')}"
+            else:
+                skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+
+            # Skip creating primary adlc-* skill when aliases exist (fork alias-only mode)
+            try:
+                import importlib.util
+
+                is_fork = importlib.util.find_spec("specify_cli.cli_customization") is not None
+            except Exception:
+                is_fork = False
+            has_aliases = bool(cmd_info.get("aliases"))
+            if is_fork and cmd_name.startswith("adlc.") and has_aliases:
+                # Skip primary - alias will be created by register_commands
+                continue
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
@@ -2519,13 +2542,25 @@ class HookExecutor:
 
     @staticmethod
     def _skill_name_from_command(command: Any) -> str:
-        """Map a command id like speckit.plan to speckit-plan skill name."""
+        """Map a command id to skill name (e.g., speckit.plan -> speckit-plan).
+
+        Handles fork prefixes: adlc.* -> adlc-*, spec.* -> spec-*, git.* -> git-*
+        """
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
-        if not command_id.startswith("speckit."):
-            return ""
-        return f"speckit-{command_id[len('speckit.') :].replace('.', '-')}"
+
+        # Handle fork prefixes
+        if command_id.startswith("adlc."):
+            return f"adlc-{command_id[len('adlc.') :].replace('.', '-')}"
+        if command_id.startswith("spec."):
+            return f"spec-{command_id[len('spec.') :].replace('.', '-')}"
+        if command_id.startswith("git."):
+            return f"git-{command_id[len('git.') :].replace('.', '-')}"
+        if command_id.startswith("speckit."):
+            return f"speckit-{command_id[len('speckit.') :].replace('.', '-')}"
+
+        return ""
 
     def _render_hook_invocation(self, command: Any) -> str:
         """Render an agent-specific invocation string for a hook command."""
@@ -2837,6 +2872,7 @@ class HookExecutor:
                 lines.append(f"To execute: `{display_invocation}`")
             else:
                 lines.append(f"\n**Automatic Hook**: {extension}")
+                lines.append(f"Executing: `{display_invocation}`")
                 lines.append(f"Execute now: read the command file for `{command_text}` and run its instructions.")
                 lines.append(f"Invocation: `{display_invocation}`")
                 lines.append("If the command file is not found or execution fails, log a warning and continue.")

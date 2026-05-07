@@ -144,6 +144,13 @@ class TestKimiNextSteps:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0
-        assert "/skill:speckit-constitution" in result.output
-        assert "/speckit.constitution" not in result.output
+        # Check prefix based on fork vs upstream
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        if is_fork:
+            assert "/skill:spec-constitution" in result.output
+            assert "/skill:speckit-constitution" not in result.output
+        else:
+            assert "/skill:speckit-constitution" in result.output
+            assert "/skill:spec-constitution" not in result.output
         assert "Optional skills that you can use for your specs" in result.output

@@ -24,6 +24,19 @@ if TYPE_CHECKING:
     from .manifest import IntegrationManifest
 
 
+def _get_command_prefix() -> str:
+    """Get the command prefix for __SPECKIT_COMMAND_*__ placeholder resolution.
+
+    Fork uses 'spec', upstream uses 'speckit'.
+    Lazily imported to avoid issues when cli_customization isn't available at module load time.
+    """
+    try:
+        from ..cli_customization import COMMAND_PREFIX
+        return COMMAND_PREFIX
+    except ImportError:
+        return "speckit"
+
+
 # ---------------------------------------------------------------------------
 # IntegrationOption
 # ---------------------------------------------------------------------------
@@ -141,18 +154,22 @@ class IntegrationBase(ABC):
 
         The CLI tools discover and execute commands from installed files
         on disk.  This method builds the invocation string the CLI
-        expects — e.g. ``"/speckit.specify my-feature"`` for markdown
-        agents or ``"/speckit-specify my-feature"`` for skills agents.
+        expects — e.g. ``"/spec.specify my-feature"`` (fork) or ``"/speckit.specify my-feature"`` (upstream)
+        for markdown agents or ``"/spec-specify my-feature"`` (fork) or ``"/speckit-specify my-feature"`` (upstream)
+        for skills agents.
 
         *command_name* may be a full dotted name like
-        ``"speckit.specify"``, an extension command like
+        ``"speckit.specify"``, ``"spec.specify"``, ``"adlc.specify"``, an extension command like
         ``"speckit.git.commit"``, or a bare stem like ``"specify"``.
         """
         stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        # Handle fork-specific prefixes
+        for prefix in ("adlc.", "spec.", "speckit."):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+                break
 
-        invocation = f"/speckit.{stem}"
+        invocation = f"/{_get_command_prefix()}.{stem}"
         if args:
             invocation = f"{invocation} {args}"
         return invocation
@@ -630,14 +647,73 @@ class IntegrationBase(ABC):
         ``__SPECKIT_COMMAND_GIT_COMMIT__``).  The replacement uses
         *separator* to join the segments:
 
-        * ``separator="."`` → ``/speckit.plan``, ``/speckit.git.commit``
-        * ``separator="-"`` → ``/speckit-plan``, ``/speckit-git-commit``
+        * ``separator="."`` → ``/spec.plan`` (fork) or ``/speckit.plan`` (upstream)
+        * ``separator="-"`` → ``/spec-plan`` (fork) or ``/speckit-plan`` (upstream)
         """
         return re.sub(
             r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__",
-            lambda m: "/speckit" + separator + m.group(1).lower().replace("_", separator),
+            lambda m: "/" + _get_command_prefix() + separator + m.group(1).lower().replace("_", separator),
             content,
         )
+
+    @staticmethod
+    def resolve_handoff_agents(content: str, separator: str = ".") -> str:
+        """Replace agent references in handoffs YAML with the correct format.
+
+        The handoffs section uses 'agent:' to specify which command/skill to hand off to.
+        The format differs by agent type:
+        - For skills (separator='-'): use directory name, e.g., 'spec-plan'
+        - For non-skills (separator='.'): use command name, e.g., 'spec.plan'
+
+        Also transforms adlc.spec.X → spec.X/spec-X and speckit.X → spec.X/spec-X
+        for fork compatibility.
+        """
+        lines = content.splitlines()
+        result = []
+        in_handoffs = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Detect handoffs section
+            if stripped == "handoffs:" or stripped.startswith("handoffs:"):
+                in_handoffs = True
+                result.append(line)
+                continue
+
+            # Check if we exited handoffs (back to same or less indentation)
+            if in_handoffs and line and not line[0].isspace():
+                in_handoffs = False
+
+            if in_handoffs and stripped.startswith("agent:"):
+                # Extract the agent value
+                agent_value = stripped[6:].strip()  # Skip "agent:"
+
+                # Transform agent names:
+                # - adlc.spec.X → spec-X (skills) or spec.X (non-skills)
+                # - spec.X → spec-X (skills) or spec.X (non-skills)
+                # - speckit.X → spec-X (skills) or spec.X (non-skills)
+                new_agent = agent_value
+
+                # Handle adlc.spec.* prefix
+                if agent_value.startswith("adlc.spec."):
+                    cmd = agent_value[len("adlc.spec."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+                # Handle spec.* prefix (shouldn't happen but handle anyway)
+                elif agent_value.startswith("spec."):
+                    cmd = agent_value[len("spec."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+                # Handle speckit.* prefix
+                elif agent_value.startswith("speckit."):
+                    cmd = agent_value[len("speckit."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+
+                # Replace in the line
+                result.append(line.replace(f"agent: {agent_value}", f"agent: {new_agent}"))
+            else:
+                result.append(line)
+
+        return "\n".join(result)
 
     @staticmethod
     def process_template(
@@ -730,6 +806,9 @@ class IntegrationBase(ABC):
 
         # 8. Replace __SPECKIT_COMMAND_<NAME>__ with invocation strings
         content = IntegrationBase.resolve_command_refs(content, invoke_separator)
+
+        # 9. Resolve handoff agent references in frontmatter
+        content = IntegrationBase.resolve_handoff_agents(content, invoke_separator)
 
         return content
 
@@ -1358,12 +1437,18 @@ class SkillsIntegration(IntegrationBase):
         return project_root / folder / subdir
 
     def build_command_invocation(self, command_name: str, args: str = "") -> str:
-        """Skills use ``/speckit-<stem>`` (hyphenated directory name)."""
-        stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        """Skills use ``/<PREFIX>-<stem>`` (hyphenated directory name).
 
-        invocation = "/speckit-" + stem.replace(".", "-")
+        Uses COMMAND_PREFIX: /spec- for fork, /speckit- for upstream.
+        """
+        stem = command_name
+        # Handle fork-specific prefixes
+        for prefix in ("adlc.", "spec.", "speckit."):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+                break
+
+        invocation = f"/{_get_command_prefix()}-" + stem.replace(".", "-")
         if args:
             invocation = f"{invocation} {args}"
         return invocation

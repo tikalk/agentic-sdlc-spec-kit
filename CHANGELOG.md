@@ -4,6 +4,27 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc6] - 2026-05-07
+
+### Fixed
+
+- **Unified `spec` command prefix**: Fork now uses consistent `spec` prefix for all agents instead of `speckit`
+  - Display shows `/spec-constitution`, `/spec.specify` etc. (skill and non-skill agents)
+  - Preset commands use `__SPECKIT_COMMAND_*__` placeholders, resolved dynamically per agent type
+  - Handoff agent references resolved automatically for skill vs non-skill agents
+  - `_display_cmd()`, `resolve_command_refs()`, `build_command_invocation()` all fork-aware
+- **Preset `replaces` field now functional**: Core `speckit-*` skill directories are removed when a preset declares `replaces`
+- **Alias-only skill installation**: Fork skill agents only install the `spec-*` alias form (no duplicate `adlc-spec-*` primary)
+- **Extension skill naming**: `adlc.*` extension commands create `adlc-*` skill directories (not `speckit-adlc-*`)
+- **Placeholder resolution in preset skills**: `_register_skills()` now resolves `__SPECKIT_COMMAND_*__` and handoff agents
+- **ARGUMENT_HINTS injection**: Claude skill argument hints now work with fork-prefixed skills (`spec-*`, `adlc-spec-*`)
+- **`_skill_names_for_command()`**: Handles all `adlc.*` prefixes (not just `adlc.spec.*`)
+
+### Changed
+
+- Added `COMMAND_PREFIX = "spec"` to `cli_customization.py`
+- Replaced 15 hardcoded `/spec.*` references in preset commands with `__SPECKIT_COMMAND_*__` placeholders
+
 # [0.8.7+adlc5] - 2026-05-07
 
 ### Fixed

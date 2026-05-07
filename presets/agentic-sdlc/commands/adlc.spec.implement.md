@@ -205,4 +205,4 @@ You **MUST** consider the user input before proceeding (if not empty).
     - If the hook command file cannot be found or execution fails, log a warning and continue
     - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
-Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/spec.tasks` first to regenerate the task list.
+Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `__SPECKIT_COMMAND_TASKS__` first to regenerate the task list.

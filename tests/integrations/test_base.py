@@ -175,69 +175,102 @@ class TestBuildCommandInvocation:
 
     def test_base_core_command_dotted(self):
         i = StubIntegration()
-        assert i.build_command_invocation("speckit.plan") == "/speckit.plan"
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        assert i.build_command_invocation("speckit.plan") == f"/{prefix}.plan"
 
     def test_base_core_command_bare(self):
         i = StubIntegration()
-        assert i.build_command_invocation("plan") == "/speckit.plan"
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        assert i.build_command_invocation("plan") == f"/{prefix}.plan"
 
     def test_base_core_command_with_args(self):
         i = StubIntegration()
-        assert i.build_command_invocation("plan", "my feature") == "/speckit.plan my feature"
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        assert i.build_command_invocation("plan", "my feature") == f"/{prefix}.plan my feature"
 
     def test_base_extension_command(self):
         i = StubIntegration()
-        assert i.build_command_invocation("speckit.git.commit") == "/speckit.git.commit"
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        assert i.build_command_invocation("speckit.git.commit") == f"/{prefix}.git.commit"
 
     def test_base_extension_command_bare(self):
         i = StubIntegration()
-        assert i.build_command_invocation("git.commit") == "/speckit.git.commit"
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        assert i.build_command_invocation("git.commit") == f"/{prefix}.git.commit"
 
     def test_skills_core_command(self):
         from specify_cli.integrations import get_integration
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.plan") == "/speckit-plan"
-        assert i.build_command_invocation("plan") == "/speckit-plan"
+        assert i.build_command_invocation("speckit.plan") == f"/{prefix}-plan"
+        assert i.build_command_invocation("plan") == f"/{prefix}-plan"
 
     def test_skills_extension_command(self):
         from specify_cli.integrations import get_integration
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
-        assert i.build_command_invocation("git.commit") == "/speckit-git-commit"
+        assert i.build_command_invocation("speckit.git.commit") == f"/{prefix}-git-commit"
+        assert i.build_command_invocation("git.commit") == f"/{prefix}-git-commit"
 
     def test_skills_extension_command_with_args(self):
         from specify_cli.integrations import get_integration
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit", "fix typo") == "/speckit-git-commit fix typo"
+        assert i.build_command_invocation("speckit.git.commit", "fix typo") == f"/{prefix}-git-commit fix typo"
 
 
 class TestResolveCommandRefs:
     """Tests for __SPECKIT_COMMAND_<NAME>__ placeholder resolution."""
 
+    def _get_prefix(self):
+        from specify_cli import PKG_NAMES
+        return "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+
     def test_dot_separator_core_command(self):
         text = "Run `__SPECKIT_COMMAND_PLAN__` to plan."
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "Run `/speckit.plan` to plan."
+        prefix = self._get_prefix()
+        assert result == f"Run `/{prefix}.plan` to plan."
 
     def test_hyphen_separator_core_command(self):
         text = "Run `__SPECKIT_COMMAND_PLAN__` to plan."
         result = IntegrationBase.resolve_command_refs(text, "-")
-        assert result == "Run `/speckit-plan` to plan."
+        prefix = self._get_prefix()
+        assert result == f"Run `/{prefix}-plan` to plan."
 
     def test_multiple_placeholders(self):
         text = "__SPECKIT_COMMAND_SPECIFY__ then __SPECKIT_COMMAND_PLAN__ then __SPECKIT_COMMAND_TASKS__"
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "/speckit.specify then /speckit.plan then /speckit.tasks"
+        prefix = self._get_prefix()
+        assert result == f"/{prefix}.specify then /{prefix}.plan then /{prefix}.tasks"
 
     def test_extension_command_dot(self):
         text = "Run __SPECKIT_COMMAND_GIT_COMMIT__ to commit."
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "Run /speckit.git.commit to commit."
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}.git.commit to commit."
 
     def test_extension_command_hyphen(self):
         text = "Run __SPECKIT_COMMAND_GIT_COMMIT__ to commit."
         result = IntegrationBase.resolve_command_refs(text, "-")
-        assert result == "Run /speckit-git-commit to commit."
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}-git-commit to commit."
 
     def test_no_placeholders_unchanged(self):
         text = "No placeholders here."
@@ -245,7 +278,8 @@ class TestResolveCommandRefs:
 
     def test_default_separator_is_dot(self):
         text = "__SPECKIT_COMMAND_PLAN__"
-        assert IntegrationBase.resolve_command_refs(text) == "/speckit.plan"
+        prefix = self._get_prefix()
+        assert IntegrationBase.resolve_command_refs(text) == f"/{prefix}.plan"
 
     def test_invoke_separator_class_attribute(self):
         assert IntegrationBase.invoke_separator == "."
@@ -263,7 +297,8 @@ class TestResolveCommandRefs:
         result = IntegrationBase.process_template(
             content, "test-agent", "sh", invoke_separator="."
         )
-        assert "/speckit.plan" in result
+        prefix = self._get_prefix()
+        assert f"/{prefix}.plan" in result
         assert "__SPECKIT_COMMAND_" not in result
 
     def test_process_template_skills_separator(self):
@@ -271,7 +306,8 @@ class TestResolveCommandRefs:
         result = IntegrationBase.process_template(
             content, "test-agent", "sh", invoke_separator="-"
         )
-        assert "/speckit-plan" in result
+        prefix = self._get_prefix()
+        assert f"/{prefix}-plan" in result
         assert "__SPECKIT_COMMAND_" not in result
 
     def test_unclosed_placeholder_unchanged(self):
@@ -289,9 +325,11 @@ class TestResolveCommandRefs:
     def test_placeholder_adjacent_to_text(self):
         text = "foo__SPECKIT_COMMAND_PLAN__bar"
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "foo/speckit.planbar"
+        prefix = self._get_prefix()
+        assert result == f"foo/{prefix}.planbar"
 
     def test_placeholder_with_digits(self):
         text = "__SPECKIT_COMMAND_V2_PLAN__"
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "/speckit.v2.plan"
+        prefix = self._get_prefix()
+        assert result == f"/{prefix}.v2.plan"

@@ -224,10 +224,16 @@ class ClaudeIntegration(SkillsIntegration):
             updated = self.post_process_skill_content(content)
 
             # Inject argument-hint if available for this skill
-            skill_dir_name = path.parent.name  # e.g. "speckit-plan"
+            skill_dir_name = path.parent.name  # e.g. "speckit-plan" or "spec-plan"
             stem = skill_dir_name
-            if stem.startswith("speckit-"):
-                stem = stem[len("speckit-"):]
+            # Handle both upstream (speckit-) and fork (spec-, adlc-spec-) prefixes
+            for prefix in ("speckit-", "adlc-spec-"):
+                if stem.startswith(prefix):
+                    stem = stem[len(prefix):]
+                    break
+            # Also handle just "spec-" (the fork alias form)
+            if stem.startswith("spec-") and not stem.startswith("speckit-") and not stem.startswith("adlc-spec-"):
+                stem = stem[len("spec-"):]
             hint = ARGUMENT_HINTS.get(stem, "")
             if hint:
                 updated = self.inject_argument_hint(updated, hint)

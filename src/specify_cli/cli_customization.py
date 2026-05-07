@@ -117,6 +117,10 @@ EXTENSION_NAMESPACES = ["speckit", "adlc"]
 # Enable short alias format: {extension}.{command} (e.g., architect.init)
 EXTENSION_ALIAS_PATTERN_ENABLED = True
 
+# Command prefix for __SPECKIT_COMMAND_*__ placeholder resolution
+# Upstream uses "speckit", fork uses "spec"
+COMMAND_PREFIX = "spec"
+
 
 # ============================================================================
 # FORK SELF CHECK - GitHub API endpoint for specify self check command

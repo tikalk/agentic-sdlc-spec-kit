@@ -529,6 +529,23 @@ class CommandRegistrar:
 
             output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
+            # Skip writing primary adlc.* command for skill agents when aliases exist.
+            # This prevents duplicate commands (adlc-*-X and alias-X) - we only want alias-X.
+            # For non-skill agents, we still write both (they use different file format/layout).
+            is_skill_agent = agent_config["extension"] == "/SKILL.md"
+            is_fork_command = cmd_name.startswith("adlc.")
+            has_aliases = bool(cmd_info.get("aliases"))
+
+            # Check if running fork version
+            try:
+                import importlib.util
+                is_fork = importlib.util.find_spec("specify_cli.cli_customization") is not None
+            except Exception:
+                is_fork = False
+
+            # Flag to control whether to write primary command file
+            write_primary = not (is_skill_agent and is_fork_command and has_aliases and is_fork)
+
             if agent_config["extension"] == "/SKILL.md":
                 output = self.render_skill_command(
                     agent_name,
@@ -564,15 +581,17 @@ class CommandRegistrar:
             else:
                 raise ValueError(f"Unsupported format: {agent_config['format']}")
 
-            dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
-            self._ensure_inside(dest_file, commands_dir)
-            dest_file.parent.mkdir(parents=True, exist_ok=True)
-            dest_file.write_text(output, encoding="utf-8")
+            # Only write primary command file if not skipping (fork skill agents with aliases)
+            if write_primary:
+                dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
+                self._ensure_inside(dest_file, commands_dir)
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                dest_file.write_text(output, encoding="utf-8")
 
-            if agent_name == "copilot":
-                self.write_copilot_prompt(project_root, cmd_name)
+                if agent_name == "copilot":
+                    self.write_copilot_prompt(project_root, cmd_name)
 
-            registered.append(cmd_name)
+                registered.append(cmd_name)
 
             for alias in cmd_info.get("aliases", []):
                 alias_output_name = self._compute_output_name(
