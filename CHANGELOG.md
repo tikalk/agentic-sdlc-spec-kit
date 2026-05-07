@@ -4,6 +4,20 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc10] - 2026-05-08
+
+### Changed
+
+- **Disabled auto-install for selected extensions**: The following extensions are no longer auto-installed during `specify init`:
+  - `architect` - Can be installed manually via `specify extension install architect`
+  - `evals` - Can be installed manually via `specify extension install evals`
+  - `product` - Can be installed manually via `specify extension install product`
+  - `tdd` - Can be installed manually via `specify extension install tdd`
+  
+  Extensions that remain auto-installed:
+  - `levelup` - Team AI Directives contributor
+  - `quick` - Quick implementation shortcuts
+
 # [0.8.7+adlc9] - 2026-05-08
 
 ### Added
