@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc11] - 2026-05-08
+
+### Fixed
+
+- **Extension catalog not bundled in wheel**: Added `extensions/catalog.json` to `pyproject.toml` force-include section
+  - The catalog.json file was missing from the Python wheel package, causing a fallback that installed ALL bundled extensions
+  - Now properly respects the `preinstall` flags in catalog.json
+  - Architect, evals, product, and tdd extensions are correctly excluded from auto-installation
+
 # [0.8.7+adlc10] - 2026-05-08
 
 ### Changed
