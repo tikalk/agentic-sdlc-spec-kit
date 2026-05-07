@@ -182,7 +182,7 @@ Once planning complete:
 echo "Planning complete. Starting TDD cycles..."
 echo ""
 echo "Ready for RED→GREEN→REFACTOR workflow:"
-echo "EXECUTE_COMMAND: tdd.implement"
+echo "Run /tdd.implement to start the TDD workflow"
 ```
 
 ## References

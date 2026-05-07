@@ -297,7 +297,7 @@ else
   echo "🎉 All TDD increments complete!"
   echo ""
   echo "Run tdd.validate to check test quality:"
-  echo "EXECUTE_COMMAND: tdd.validate"
+  echo "/tdd.validate"
 fi
 ```
 
@@ -332,5 +332,5 @@ After execution, it can trigger follow-up hooks:
 ```bash
 echo ""
 echo "📦 Post-implementation hooks available:"
-echo "EXECUTE_COMMAND: tdd.validate"
+echo "Run /tdd.validate to check test quality"
 ```

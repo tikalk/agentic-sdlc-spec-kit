@@ -2,6 +2,11 @@
 
 All notable changes to the TDD Extension will be documented in this file.
 
+## [1.0.3] - 2026-05-07
+
+### Fixed
+- **Hook execution deadlock**: Replace `EXECUTE_COMMAND` + "wait for the result" pattern with self-executing hook instructions. The old pattern caused non-deterministic agent deadlocks when mandatory hooks were present. Now uses explicit instructions to read and execute the hook command immediately, with graceful fallback on failure.
+
 ## [1.0.2] - 2026-04-13
 
 ### Added

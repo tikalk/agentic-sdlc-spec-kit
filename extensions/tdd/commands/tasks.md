@@ -237,11 +237,11 @@ echo "Execute /spec.implement to start RED→GREEN→REFACTOR workflow."
 
 This command is triggered by the `after_tasks` hook from `/spec.tasks`.
 
-After execution, it outputs the `EXECUTE_COMMAND` marker for any follow-up hooks:
+After execution, it outputs guidance for any follow-up hooks:
 
 ```bash
 # Check if tdd.validate should run (optional hook)
 echo ""
 echo "📦 Post-implementation hooks available:"
-echo "EXECUTE_COMMAND: tdd.validate"
+echo "Run /tdd.validate to check test quality"
 ```

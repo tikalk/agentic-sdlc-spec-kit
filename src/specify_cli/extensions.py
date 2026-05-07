@@ -2837,9 +2837,9 @@ class HookExecutor:
                 lines.append(f"To execute: `{display_invocation}`")
             else:
                 lines.append(f"\n**Automatic Hook**: {extension}")
-                lines.append(f"Executing: `{display_invocation}`")
-                lines.append(f"EXECUTE_COMMAND: {command_text}")
-                lines.append(f"EXECUTE_COMMAND_INVOCATION: {display_invocation}")
+                lines.append(f"Execute now: read the command file for `{command_text}` and run its instructions.")
+                lines.append(f"Invocation: `{display_invocation}`")
+                lines.append(f"If the command file is not found or execution fails, log a warning and continue.")
 
         return "\n".join(lines)
 

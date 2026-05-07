@@ -7,5 +7,6 @@
   "eval-003": "check_hallucination",
   "eval-004": "check_https_validation",
   "eval-005": "check_prompt_injection",
-  "eval-006": "check_unit_conversion"
+  "eval-006": "check_unit_conversion",
+  "eval-007": "check_hook_execution_flow"
 }

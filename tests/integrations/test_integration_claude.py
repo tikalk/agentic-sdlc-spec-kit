@@ -270,8 +270,8 @@ class TestClaudeIntegration:
         )
 
         assert "Executing: `/speckit-plan`" in message
-        assert "EXECUTE_COMMAND: speckit.plan" in message
-        assert "EXECUTE_COMMAND_INVOCATION: /speckit-plan" in message
+        assert "Execute now: read the command file for `speckit.plan`" in message
+        assert "Invocation: `/speckit-plan`" in message
 
     def test_claude_preset_creates_new_skill_without_commands_dir(self, tmp_path):
         from specify_cli import save_init_options

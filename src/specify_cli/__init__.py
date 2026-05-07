@@ -1712,20 +1712,17 @@ def init(
     _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
 
     def _display_cmd(name: str) -> str:
+        skill_prefix = "adlc-spec" if _is_fork else "speckit"
+        non_skill_prefix = "spec" if _is_fork else "speckit"
         if codex_skill_mode or agy_skill_mode or trae_skill_mode:
-            return f"$speckit-{name}"
+            return f"${skill_prefix}-{name}"
         if claude_skill_mode:
-            return f"/speckit-{name}"
+            return f"/{skill_prefix}-{name}"
         if kimi_skill_mode:
-            return f"/skill:speckit-{name}"
+            return f"/skill:{skill_prefix}-{name}"
         if cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode:
-            # Fork uses /spec.* prefix for skills too, upstream uses /speckit-*
-            if _is_fork:
-                return f"/spec.{name}"
-            return f"/speckit-{name}"
-        # Default case: fork uses /spec.* prefix, upstream uses /speckit.*
-        prefix = "spec" if _is_fork else "speckit"
-        return f"/{prefix}.{name}"
+            return f"/{non_skill_prefix}.{name}"
+        return f"/{non_skill_prefix}.{name}"
 
     steps_lines.append(f"{step_num}. Start using {usage_label} with your coding agent:")
 

@@ -4,6 +4,26 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc5] - 2026-05-07
+
+### Fixed
+
+- **Hook execution deadlock**: Replace `EXECUTE_COMMAND` + "wait for the result" pattern with self-executing hook instructions. The old pattern caused non-deterministic agent deadlocks when mandatory hooks were present. Now uses explicit instructions to read and execute the hook command immediately, with graceful fallback on failure.
+- **Graceful hook failure**: Mandatory hooks now warn and proceed if the hook command file is not found or execution fails, preventing workflow blockage.
+
+### Changed
+
+- Updated 9 command templates in `templates/commands/` with new hook execution semantics
+- Updated 8 preset commands in `presets/agentic-sdlc/commands/` with new hook execution semantics and aligned paths (`{REPO_ROOT}/` prefix removal)
+- Updated `format_hook_message()` in `extensions.py` to emit actionable instructions instead of `EXECUTE_COMMAND` tokens
+- Updated TDD extension command files with same hook pattern fix
+- Added behavioral trace eval for hook deadlock detection
+
+### Added
+
+- **Behavioral eval**: New PromptFoo eval suite (`evals/configs/promptfooconfig-hook.js`) to detect hook deadlock regression
+- **Grader**: `check_hook_execution_flow()` in `evals/graders/custom_graders.py` to verify LLM output doesn't contain deadlock signals
+
 # [0.8.7+adlc4] - 2026-05-07
 
 ### Fixed

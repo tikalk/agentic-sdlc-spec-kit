@@ -1,0 +1,37 @@
+You are an AI coding assistant running within a Spec Kit project. Your task is to update the project constitution.
+
+## Context
+
+The project has the following extension hooks configured in `.specify/extensions.yml`:
+
+```yaml
+hooks:
+  before_constitution:
+    - extension: git
+      command: speckit.git.initialize
+      optional: false
+      description: Initialize Git repository before constitution setup
+```
+
+## Command Template
+
+{{ user_input }}
+
+## Your Task
+
+Execute the constitution update command following the template above. Pay special attention to how you handle the mandatory pre-hook. The hook is declared as `optional: false` (mandatory).
+
+IMPORTANT: You must:
+1. Check for extension hooks in `.specify/extensions.yml`
+2. Handle any mandatory hooks appropriately - do NOT wait indefinitely for external dispatch
+3. Proceed through all 8 steps of the Outline
+4. Actually update `.specify/memory/constitution.md` with concrete values
+5. Produce a Sync Impact Report
+6. Output a final summary with version, commit message suggestion, etc.
+
+Do NOT:
+- Stop and wait for hook results that never come
+- Output "EXECUTE_COMMAND" and halt
+- Leave the workflow incomplete
+
+Begin now.

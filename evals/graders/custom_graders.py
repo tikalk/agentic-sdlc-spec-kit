@@ -1397,3 +1397,70 @@ def check_completeness(output: str, context: dict) -> dict:
         'score': avg_score,
         'reason': f'Completeness: {avg_score:.0%} ({", ".join(details)})'
     }
+
+
+def check_hook_execution_flow(output: str, context: dict) -> dict:
+    """
+    Check that the LLM output doesn't contain hook deadlock signals and
+    completes the expected workflow.
+
+    Args:
+        output: The LLM-generated response text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass' (bool), 'score' (0.0-1.0), 'reason' (str)
+    """
+    output_lower = output.lower()
+
+    # Check for deadlock signals - these should NOT be present
+    deadlock_signals = [
+        'execute_command',
+        'wait for the result',
+        'waiting for hook',
+        'waiting for the hook'
+    ]
+    has_deadlock = any(signal in output_lower for signal in deadlock_signals)
+
+    # Check for workflow completion signals
+    completion_signals = [
+        'version',
+        'sync impact',
+        'commit message',
+        'summary',
+        'outline'
+    ]
+    completion_count = sum(1 for sig in completion_signals if sig in output_lower)
+
+    # Check for graceful hook handling (mentions hooks but doesn't block)
+    graceful_mentions = [
+        'read the command file',
+        'execute the instructions',
+        'proceed to',
+        'hook completes'
+    ]
+    graceful_count = sum(1 for sig in graceful_mentions if sig in output_lower)
+
+    # Calculate score
+    # Heavy penalty for deadlock signals
+    if has_deadlock:
+        return {
+            'pass': False,
+            'score': 0.0,
+            'reason': 'DEADLOCK: Contains EXECUTE_COMMAND or "wait for result" - agent likely halted'
+        }
+
+    # Score based on completion signals and graceful handling
+    score = (completion_count / len(completion_signals)) * 0.6 + (graceful_count / len(graceful_mentions)) * 0.4
+
+    missing = []
+    if completion_count < 3:
+        missing.append('workflow completion')
+    if graceful_count < 2:
+        missing.append('graceful hook handling')
+
+    return {
+        'pass': score >= 0.6,
+        'score': score,
+        'reason': f'Score: {score:.0%}. Completion: {completion_count}/{len(completion_signals)}, Graceful: {graceful_count}/{len(graceful_mentions)}. Missing: {", ".join(missing) or "none"}'
+    }
