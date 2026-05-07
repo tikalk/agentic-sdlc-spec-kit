@@ -529,10 +529,9 @@ class CommandRegistrar:
 
             output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
-            # Skip writing primary adlc.* command for skill agents when aliases exist.
+            # Skip writing primary adlc.* command when aliases exist.
             # This prevents duplicate commands (adlc-*-X and alias-X) - we only want alias-X.
-            # For non-skill agents, we still write both (they use different file format/layout).
-            is_skill_agent = agent_config["extension"] == "/SKILL.md"
+            # Applies to ALL agent types (skill and non-skill).
             is_fork_command = cmd_name.startswith("adlc.")
             has_aliases = bool(cmd_info.get("aliases"))
 
@@ -544,7 +543,7 @@ class CommandRegistrar:
                 is_fork = False
 
             # Flag to control whether to write primary command file
-            write_primary = not (is_skill_agent and is_fork_command and has_aliases and is_fork)
+            write_primary = not (is_fork_command and has_aliases and is_fork)
 
             if agent_config["extension"] == "/SKILL.md":
                 output = self.render_skill_command(

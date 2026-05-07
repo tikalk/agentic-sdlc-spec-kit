@@ -728,27 +728,41 @@ class PresetManager:
         except (ImportError, AttributeError):
             return
 
-        # For each agent, check and remove replaced skill directories
+        # For each agent, check and remove replaced skills/command files
         for agent_name, agent_config in agent_configs.items():
-            # Only check agents that have skills directories
-            # AGENT_CONFIGS uses "dir" key for the full path (e.g., ".claude/skills")
+            # AGENT_CONFIGS uses "dir" key for the full path (e.g., ".claude/skills" or ".opencode/command")
             agent_dir = self.project_root / agent_config.get("dir", f".{agent_name}/skills")
 
             if not agent_dir.exists():
                 continue
 
-            # Remove speckit-* directories for replaced commands
-            # Note: We intentionally do NOT delete spec-* (fork alias) directories here.
-            # Fork skills (spec-*) are managed by the presets that create them.
-            # Deleting them here would incorrectly remove skills created by presets like
-            # agentic-sdlc when a later preset (like lean) replaces the core command.
-            for skill_dir in replaced_skill_dirs:
-                skill_path = agent_dir / skill_dir
-                if skill_path.exists():
-                    try:
-                        shutil.rmtree(skill_path)
-                    except OSError:
-                        pass  # best-effort cleanup
+            # Check if this is a skill agent or non-skill agent
+            is_skill_agent = agent_config.get("extension") == "/SKILL.md"
+
+            if is_skill_agent:
+                # Remove speckit-* directories for replaced commands
+                # Note: We intentionally do NOT delete spec-* (fork alias) directories here.
+                # Fork skills (spec-*) are managed by the presets that create them.
+                for skill_dir in replaced_skill_dirs:
+                    skill_path = agent_dir / skill_dir
+                    if skill_path.exists():
+                        try:
+                            shutil.rmtree(skill_path)
+                        except OSError:
+                            pass  # best-effort cleanup
+            else:
+                # For non-skill agents (markdown, toml, yaml), remove command files
+                # e.g., speckit.constitution.md, speckit.plan.md
+                extension = agent_config.get("extension", ".md")
+                for cmd_name in replaced_commands:
+                    # Replace dots with the appropriate separator for the file naming convention
+                    # Most non-skill agents use the command name as-is with dots
+                    cmd_file = agent_dir / f"{cmd_name}{extension}"
+                    if cmd_file.exists():
+                        try:
+                            cmd_file.unlink()
+                        except OSError:
+                            pass  # best-effort cleanup
 
     def _unregister_commands(self, registered_commands: Dict[str, List[str]]) -> None:
         """Remove previously registered command files from agent directories.
