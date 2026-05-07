@@ -1209,8 +1209,7 @@ class PresetManager:
 
         return skills_dir
 
-    @staticmethod
-    def _skill_names_for_command(cmd_name: str) -> tuple[str, str]:
+    def _skill_names_for_command(self, cmd_name: str) -> tuple[str, str]:
         """Return the modern and legacy skill directory names for a command.
 
         Handles both upstream (speckit.X) and fork (adlc.*, spec.*) command names.

@@ -2534,8 +2534,7 @@ class HookExecutor:
             self._init_options_cache = payload if isinstance(payload, dict) else {}
         return self._init_options_cache
 
-    @staticmethod
-    def _skill_name_from_command(command: Any) -> str:
+    def _skill_name_from_command(self, command: Any) -> str:
         """Map a command id to skill name (e.g., speckit.plan -> speckit-plan).
 
         Handles fork prefixes: adlc.* -> adlc-*, spec.* -> spec-*, git.* -> git-*
