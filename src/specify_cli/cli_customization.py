@@ -513,10 +513,27 @@ def pre_init(
                 team_ai_directives, project_path, install=False
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
-            
-            # Install skills after successful sync
+
+            # Add team-skills to tracker right after team-directives
             if tracker:
                 tracker.add("team-skills", "Install Team AI Skills")
+                # Reorder: move team-skills to right after team-directives
+                if hasattr(tracker, 'steps'):
+                    steps = tracker.steps
+                    team_skills_idx = None
+                    team_directives_idx = None
+                    for i, step in enumerate(steps):
+                        if step['key'] == 'team-skills':
+                            team_skills_idx = i
+                        elif step['key'] == 'team-directives':
+                            team_directives_idx = i
+                    if team_skills_idx is not None and team_directives_idx is not None:
+                        # Remove team-skills from its current position and insert after team-directives
+                        team_skills_step = steps.pop(team_skills_idx)
+                        # Adjust index if team-directives was after team-skills
+                        if team_directives_idx > team_skills_idx:
+                            team_directives_idx -= 1
+                        steps.insert(team_directives_idx + 1, team_skills_step)
             if directives_path and selected_ai:
                 try:
                     tracker.start("team-skills")
