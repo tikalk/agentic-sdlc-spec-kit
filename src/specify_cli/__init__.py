@@ -1333,7 +1333,7 @@ def init(
         ("git", "Install git extension"),
         ("workflow", "Install bundled workflow"),
         ("team-directives", "Team AI Directives setup"),
-        ("team-skills", "Install Team AI Skills"),
+        ("team-skills", "Install Team AI skills"),
         ("extensions", "Install bundled extensions"),
         ("presets", "Install bundled presets"),
         ("final", "Finalize"),

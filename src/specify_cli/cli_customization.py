@@ -516,7 +516,7 @@ def pre_init(
 
             # Add team-skills to tracker right after team-directives
             if tracker:
-                tracker.add("team-skills", "Install Team AI Skills")
+                tracker.add("team-skills", "Install Team AI skills")
                 # Reorder: move team-skills to right after team-directives
                 if hasattr(tracker, 'steps'):
                     steps = tracker.steps
