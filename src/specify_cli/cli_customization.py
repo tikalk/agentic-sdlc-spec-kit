@@ -513,18 +513,28 @@ def pre_init(
                 team_ai_directives, project_path, install=False
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
+            
             # Install skills after successful sync
+            if tracker:
+                tracker.add("team-skills", "Install Team AI Skills")
             if directives_path and selected_ai:
                 try:
-                    _install_skills_from_path(
+                    tracker.start("team-skills")
+                    installed = _install_skills_from_path(
                         team_directives_path=directives_path,
                         project_path=project_path,
                         selected_ai=selected_ai,
                         force=False,
                     )
-                    console.print(f"[dim]Installed team-ai-directives skills[/dim]")
+                    if installed:
+                        console.print(f"[dim]Installed team-ai-directives skills: {installed}[/dim]")
+                        tracker.complete("team-skills", f"{len(installed)} skills")
+                    else:
+                        tracker.skip("team-skills", "no required skills found")
                 except Exception as e:
                     console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
+                    if tracker:
+                        tracker.error("team-skills", str(e))
             return
 
         # ZIP URL: install to .specify/extensions/ (auto-override existing)
