@@ -513,6 +513,18 @@ def pre_init(
                 team_ai_directives, project_path, install=False
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
+            # Install skills after successful sync
+            if directives_path and selected_ai:
+                try:
+                    _install_skills_from_path(
+                        team_directives_path=directives_path,
+                        project_path=project_path,
+                        selected_ai=selected_ai,
+                        force=False,
+                    )
+                    console.print(f"[dim]Installed team-ai-directives skills[/dim]")
+                except Exception as e:
+                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
             return
 
         # ZIP URL: install to .specify/extensions/ (auto-override existing)
@@ -522,6 +534,18 @@ def pre_init(
 
         if status == "installed":
             tracker.complete("team-directives", f"installed to {directives_path}")
+            # Install skills after successful sync
+            if directives_path and selected_ai:
+                try:
+                    _install_skills_from_path(
+                        team_directives_path=directives_path,
+                        project_path=project_path,
+                        selected_ai=selected_ai,
+                        force=False,
+                    )
+                    console.print(f"[dim]Installed team-ai-directives skills[/dim]")
+                except Exception as e:
+                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
             return
 
         if status == "local":
@@ -1125,9 +1149,9 @@ def skill_search(
 
 @skill_app.command("install")
 def skill_install(
-    skill_ref: str = typer.Argument(
-        ...,
-        help="Skill reference (github:org/repo/skill, local:./path, or registry:name)",
+    skill_ref: Optional[str] = typer.Argument(
+        None,
+        help="Skill reference (github:org/repo/skill, local:./path, or registry:name). Omit to inject local skills.",
     ),
     version: Optional[str] = typer.Option(
         None, "--version", "-v", help="Specific version to install"
@@ -1145,7 +1169,57 @@ def skill_install(
         False, "--skip-blocked-check", help="Skip team blocked skills check"
     ),
 ):
-    """Install a skill from various sources."""
+    """Install a skill or inject local skills into agent integration.
+    
+    With argument: Install a skill from external sources (GitHub, registry, etc.)
+    Without argument: Inject local skills from team-ai-directives and .specify/skills/
+    
+    Examples:
+        specify skill install                           # Inject local skills
+        specify skill install github:org/repo/skill     # Install external skill
+    """
+    # If no argument, inject local skills
+    if skill_ref is None:
+        project_path = Path.cwd()
+        
+        # Get selected AI from init-options
+        from . import load_init_options
+        init_opts = load_init_options(project_path)
+        selected_ai = init_opts.get("ai")
+        
+        if not selected_ai:
+            console.print("[red]No AI assistant configured.[/red]")
+            console.print("Run 'specify init --ai <agent>' first.")
+            raise typer.Exit(1)
+        
+        # Get team-ai-directives path
+        team_directives_path = None
+        team_ai_directives = init_opts.get("team_ai_directives")
+        if team_ai_directives:
+            team_directives_path = Path(team_ai_directives)
+        
+        try:
+            installed = _install_skills_from_path(
+                team_directives_path=team_directives_path,
+                project_path=project_path,
+                selected_ai=selected_ai,
+                force=force,
+            )
+            
+            if installed:
+                console.print(f"\n[green]✓[/green] Installed {len(installed)} skills:")
+                for skill in installed:
+                    console.print(f"  - {skill}")
+            else:
+                console.print("\n[yellow]No skills to install.[/yellow]")
+                
+        except Exception as e:
+            console.print(f"[red]✗[/red] Failed to inject skills: {e}")
+            raise typer.Exit(1)
+        
+        return
+    
+    # Otherwise, install external skill (existing logic)
     if not SKILLS_AVAILABLE:
         console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
@@ -1544,6 +1618,124 @@ def skill_sync_team(
         console.print("[bold]Blocked Skills (will be rejected on install):[/bold]")
         for skill_id in blocked:
             console.print(f"  [red]✗[/red] {skill_id}")
+
+
+def _install_skills_from_path(
+    team_directives_path: Path | None,
+    project_path: Path,
+    selected_ai: str,
+    force: bool = False,
+) -> list[str]:
+    """Install team-ai-directives skills to agent integration directory.
+    
+    Reads skills from:
+    - team-ai-directives (if configured): .specify/extensions/team-ai-directives/skills/
+    - local skills: .specify/skills/
+    
+    Args:
+        team_directives_path: Path to team-ai-directives extension (or None)
+        project_path: Project root
+        selected_ai: Agent type (claude, windsurf, etc.)
+        force: Force re-install even if skill already exists
+    
+    Returns:
+        List of installed skill names
+    
+    Raises:
+        Exception: If skill installation fails
+    """
+    from .integrations import INTEGRATION_REGISTRY
+    
+    if selected_ai not in INTEGRATION_REGISTRY:
+        raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
+    
+    integration = INTEGRATION_REGISTRY[selected_ai]
+    skills_dest = integration.skills_dest(project_path)
+    
+    installed = []
+    
+    # 1. Install team-ai-directives skills (with team- prefix)
+    if team_directives_path and team_directives_path.exists():
+        team_skills_dir = team_directives_path / "skills"
+        if team_skills_dir.exists():
+            # Parse .skills.json to get required skills
+            skills_json_path = team_directives_path / ".skills.json"
+            required_skills = []
+            if skills_json_path.exists():
+                try:
+                    import json
+                    with open(skills_json_path) as f:
+                        skills_data = json.load(f)
+                    required_skills = skills_data.get("skills", {}).get("required", {})
+                except Exception:
+                    pass
+            
+            # Get list of skill directories
+            for skill_dir in team_skills_dir.iterdir():
+                if not skill_dir.is_dir():
+                    continue
+                
+                skill_name = skill_dir.name
+                skill_md = skill_dir / "SKILL.md"
+                if not skill_md.exists():
+                    continue
+                
+                # Check if skill is in required list (only install required)
+                skill_ref = f"local:./skills/{skill_name}"
+                if skill_ref not in required_skills and required_skills:
+                    continue
+                
+                # Install with team- prefix
+                target_name = f"team-{skill_name}"
+                target_dir = skills_dest / target_name
+                target_file = target_dir / "SKILL.md"
+                
+                if target_file.exists() and not force:
+                    continue
+                
+                # Create target directory
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Copy SKILL.md
+                try:
+                    content = skill_md.read_text(encoding="utf-8")
+                    target_file.write_text(content, encoding="utf-8")
+                    installed.append(target_name)
+                except Exception as e:
+                    raise Exception(f"Failed to install {target_name}: {e}")
+    
+    # 2. Install local skills (without prefix)
+    local_skills_dir = project_path / ".specify" / "skills"
+    if local_skills_dir.exists():
+        for skill_dir in local_skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            
+            skill_name = skill_dir.name
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
+            
+            # Skip if it's a team-prefixed skill (already installed above)
+            if skill_name.startswith("team-"):
+                continue
+            
+            target_dir = skills_dest / skill_name
+            target_file = target_dir / "SKILL.md"
+            
+            if target_file.exists() and not force:
+                continue
+            
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                content = skill_md.read_text(encoding="utf-8")
+                target_file.write_text(content, encoding="utf-8")
+                installed.append(skill_name)
+            except Exception as e:
+                raise Exception(f"Failed to install {skill_name}: {e}")
+    
+    return installed
 
 
 @skill_app.command("check-updates")
