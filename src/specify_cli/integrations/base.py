@@ -1511,7 +1511,7 @@ class SkillsIntegration(IntegrationBase):
 
             # Derive the skill name from the template stem
             command_name = src_file.stem  # e.g. "plan"
-            skill_name = f"speckit-{command_name.replace('.', '-')}"
+            skill_name = f"{_get_command_prefix()}-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description
             frontmatter: dict[str, Any] = {}

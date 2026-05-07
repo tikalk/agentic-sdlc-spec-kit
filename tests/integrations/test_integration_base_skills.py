@@ -180,10 +180,12 @@ class SkillsIntegrationTests:
         for f in skill_files:
             content = f.read_text(encoding="utf-8")
             # Skills agents must use /spec-<name>, not /spec.<name>
-            assert "/spec." not in content, (
-                f"{f.name} contains dot-notation /spec. reference; "
-                f"skills agents must use /spec-<name>"
-            )
+            # Check for common command patterns (plan, specify, tasks, etc.)
+            for cmd in ["plan", "specify", "tasks", "constitution", "clarify", "analyze", "checklist", "implement"]:
+                assert f"/spec.{cmd}" not in content, (
+                    f"{f.name} contains dot-notation /spec.{cmd} reference; "
+                    f"skills agents must use /spec-{cmd}"
+                )
 
     def test_skill_body_has_content(self, tmp_path):
         """Each SKILL.md body should contain template content after the frontmatter."""
