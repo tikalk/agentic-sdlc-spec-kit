@@ -21,7 +21,7 @@
     "team-ai-directives": {
       "id": "team-ai-directives",
       "name": "Team AI Directives",
-      "version": "1.3.0",
+      "version": "1.5.0",
       "bundled": false,
       "preinstall": false,
       "description": "Team-specific AI agent context, skills, and conventions for Spec-Driven Development",
@@ -34,9 +34,9 @@
         "speckit_version": ">=0.3.0"
       },
       "commands": [
-        "adlc.team-ai-directives.verify",
-        "adlc.team-ai-directives.discover",
-        "adlc.team-ai-directives.constitution"
+        "adlc.team.verify",
+        "adlc.team.discover",
+        "adlc.team.constitution"
       ],
       "tags": [
         "team-directives",

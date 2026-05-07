@@ -1441,6 +1441,9 @@ class PresetManager:
             body = IntegrationBase.resolve_command_refs(body, _sep)
             body = IntegrationBase.resolve_handoff_agents(body, _sep)
 
+            # Resolve canonical command names to alias forms
+            body = IntegrationBase.resolve_command_names(body, self.project_root)
+
             for target_skill_name in target_skill_names:
                 skill_subdir = skills_dir / target_skill_name
                 if skill_subdir.exists() and not skill_subdir.is_dir():

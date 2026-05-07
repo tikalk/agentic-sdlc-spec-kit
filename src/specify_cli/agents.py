@@ -485,6 +485,16 @@ class CommandRegistrar:
                 continue
 
             content = source_file.read_text(encoding="utf-8")
+
+            # Resolve handoff agent references and command names in full content
+            # (including frontmatter) before parsing. This ensures handoffs section
+            # gets processed correctly.
+            from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
+
+            _sep = agent_config.get("invoke_separator", ".")
+            content = IntegrationBase.resolve_handoff_agents(content, _sep)
+            content = IntegrationBase.resolve_command_names(content, project_root)
+
             frontmatter, body = self.parse_frontmatter(content)
 
             if frontmatter.get("strategy") == "wrap":

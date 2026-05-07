@@ -671,19 +671,46 @@ class IntegrationBase(ABC):
         lines = content.splitlines()
         result = []
         in_handoffs = False
+        handoffs_base_indent = None
+        in_list_item = False
 
-        for line in lines:
+        for i, line in enumerate(lines):
             stripped = line.strip()
+            current_indent = len(line) - len(line.lstrip())
 
             # Detect handoffs section
             if stripped == "handoffs:" or stripped.startswith("handoffs:"):
                 in_handoffs = True
+                handoffs_base_indent = current_indent
+                in_list_item = False
                 result.append(line)
                 continue
 
-            # Check if we exited handoffs (back to same or less indentation)
-            if in_handoffs and line and not line[0].isspace():
+            if not in_handoffs:
+                result.append(line)
+                continue
+
+            # Check for list item start (line starts with '- ')
+            if stripped.startswith("- "):
+                in_list_item = True
+
+            # Check for end of handoffs section
+            # Exit if we hit the closing '---' of frontmatter
+            if stripped == "---" and i > 0:
                 in_handoffs = False
+                in_list_item = False
+
+            # Also exit if we're at same or lower indentation as handoffs key
+            # AND we're not inside a list item
+            if in_handoffs and stripped:
+                if (
+                    not stripped.startswith("- ")
+                    and not stripped.startswith("handoffs")
+                    and not in_list_item
+                    and current_indent <= handoffs_base_indent
+                ):
+                    in_handoffs = False
+                    in_list_item = False
 
             if in_handoffs and stripped.startswith("agent:"):
                 # Extract the agent value
@@ -723,6 +750,7 @@ class IntegrationBase(ABC):
         arg_placeholder: str = "$ARGUMENTS",
         context_file: str = "",
         invoke_separator: str = ".",
+        project_root: Path | None = None,
     ) -> str:
         """Process a raw command template into agent-ready content.
 
@@ -735,6 +763,8 @@ class IntegrationBase(ABC):
         6. Replace ``__CONTEXT_FILE__`` with *context_file*
         7. Rewrite paths: ``scripts/`` → ``.specify/scripts/`` etc.
         8. Replace ``__SPECKIT_COMMAND_<NAME>__`` with invocation strings
+        9. Resolve handoff agent references in frontmatter
+        10. Resolve canonical command names to alias forms
         """
         # 1. Extract script command from frontmatter
         script_command = ""
@@ -810,7 +840,58 @@ class IntegrationBase(ABC):
         # 9. Resolve handoff agent references in frontmatter
         content = IntegrationBase.resolve_handoff_agents(content, invoke_separator)
 
+        # 10. Resolve canonical command names to alias forms
+        # This transforms 'speckit.git.initialize' -> 'git.initialize'
+        content = IntegrationBase.resolve_command_names(content, project_root)
+
         return content
+
+    @staticmethod
+    def resolve_command_names(content: str, project_root: Path | None = None) -> str:
+        """Resolve canonical command names to alias forms in template content.
+
+        Scans content for command name patterns (e.g., 'speckit.git.initialize',
+        'adlc.spec.constitution') and replaces them with their alias forms
+        (e.g., 'git.initialize', 'spec.constitution').
+
+        This ensures AI command templates display the user-friendly alias form
+        rather than the internal canonical name.
+
+        Args:
+            content: Template content to process
+            project_root: Project root for building alias map
+
+        Returns:
+            Content with command names resolved to alias forms
+        """
+        if project_root is None:
+            project_root = Path.cwd()
+
+        try:
+            from ..cli_customization import build_alias_map
+
+            alias_map = build_alias_map(project_root)
+        except Exception:
+            return content
+
+        if not alias_map:
+            return content
+
+        # Sort by longest command name first to avoid partial matches
+        # e.g., resolve 'adlc.spec.constitution' before 'adlc.spec.plan'
+        sorted_commands = sorted(
+            alias_map.items(), key=lambda x: len(x[0]), reverse=True
+        )
+
+        result = content
+        for canonical_name, alias in sorted_commands:
+            # Replace exact command name references
+            # Use word boundaries to avoid partial matches
+            # Match command name not preceded by alphanumeric or dot, not followed by alphanumeric
+            pattern = r"(?<![\w.])" + re.escape(canonical_name) + r"(?![\w])"
+            result = re.sub(pattern, alias, result)
+
+        return result
 
     def setup(
         self,
@@ -974,6 +1055,7 @@ class MarkdownIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(
@@ -1180,6 +1262,7 @@ class TomlIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
             toml_content = self._render_toml(description, body)
@@ -1363,6 +1446,7 @@ class YamlIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
             yaml_content = self._render_yaml(
@@ -1530,6 +1614,7 @@ class SkillsIntegration(IntegrationBase):
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
                 invoke_separator=self.invoke_separator,
+                project_root=project_root,
             )
             # Strip the processed frontmatter — we rebuild it for skills.
             # Preserve leading whitespace in the body to match release ZIP
