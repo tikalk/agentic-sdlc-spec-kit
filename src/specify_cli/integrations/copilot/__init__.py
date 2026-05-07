@@ -262,7 +262,13 @@ class CopilotIntegration(IntegrationBase):
 
     def command_filename(self, template_name: str) -> str:
         """Copilot commands use ``.agent.md`` extension."""
-        return f"speckit.{template_name}.agent.md"
+        # Use spec prefix for fork, speckit for upstream
+        try:
+            from specify_cli.integrations.base import _get_command_prefix
+            prefix = _get_command_prefix()
+        except Exception:
+            prefix = "speckit"
+        return f"{prefix}.{template_name}.agent.md"
 
     def post_process_skill_content(self, content: str) -> str:
         """Inject Copilot-specific ``mode:`` field into SKILL.md frontmatter.
@@ -288,9 +294,11 @@ class CopilotIntegration(IntegrationBase):
                 if stripped.startswith("name:"):
                     # Parse: name: "speckit-plan" → speckit.plan
                     val = stripped.split(":", 1)[1].strip().strip('"').strip("'")
-                    # Convert speckit-plan → speckit.plan
+                    # Convert speckit-plan → speckit.plan or spec-plan → spec.plan
                     if val.startswith("speckit-"):
                         skill_name = "speckit." + val[len("speckit-"):]
+                    elif val.startswith("spec-"):
+                        skill_name = "spec." + val[len("spec-"):]
                     else:
                         skill_name = val
 
@@ -386,8 +394,14 @@ class CopilotIntegration(IntegrationBase):
 
         # 2. Generate companion .prompt.md files from the templates we just wrote
         prompts_dir = project_root / ".github" / "prompts"
+        # Get command prefix (spec for fork, speckit for upstream)
+        try:
+            from specify_cli.integrations.base import _get_command_prefix
+            prefix = _get_command_prefix()
+        except Exception:
+            prefix = "speckit"
         for src_file in templates:
-            cmd_name = f"speckit.{src_file.stem}"
+            cmd_name = f"{prefix}.{src_file.stem}"
             prompt_content = f"---\nagent: {cmd_name}\n---\n"
             prompt_file = self.write_file_and_record(
                 prompt_content,
