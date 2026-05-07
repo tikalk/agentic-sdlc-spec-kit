@@ -327,7 +327,7 @@ class TestCopilotSkillsMode:
         assert len(skill_files) > 0
         for f in skill_files:
             assert f.exists()
-            assert f.parent.name.startswith("speckit-")
+            assert f.parent.name.startswith("spec-")
 
     def test_skills_directory_under_github_skills(self, tmp_path):
         copilot = self._make_copilot()
@@ -341,7 +341,7 @@ class TestCopilotSkillsMode:
             )
 
     def test_skills_directory_structure(self, tmp_path):
-        """Each command produces speckit-<name>/SKILL.md."""
+        """Each command produces spec-<name>/SKILL.md."""
         copilot = self._make_copilot()
         created, _ = self._setup_skills(copilot, tmp_path)
         skill_files = [f for f in created if f.name == "SKILL.md"]
@@ -349,8 +349,8 @@ class TestCopilotSkillsMode:
         actual_commands = set()
         for f in skill_files:
             skill_dir_name = f.parent.name
-            assert skill_dir_name.startswith("speckit-")
-            actual_commands.add(skill_dir_name.removeprefix("speckit-"))
+            assert skill_dir_name.startswith("spec-")
+            actual_commands.add(skill_dir_name.removeprefix("spec-"))
         assert actual_commands == expected_commands
 
     # -- No companion files in skills mode --------------------------------
@@ -404,20 +404,20 @@ class TestCopilotSkillsMode:
         copilot = self._make_copilot()
         content = (
             "---\n"
-            'name: "speckit-plan"\n'
+            'name: "spec-plan"\n'
             'description: "Plan workflow"\n'
             "---\n"
             "\nBody content\n"
         )
         updated = copilot.post_process_skill_content(content)
-        assert "mode: speckit.plan" in updated
+        assert "mode: spec.plan" in updated
 
     def test_post_process_idempotent(self):
         """post_process_skill_content() must be idempotent."""
         copilot = self._make_copilot()
         content = (
             "---\n"
-            'name: "speckit-plan"\n'
+            'name: "spec-plan"\n'
             'description: "Plan workflow"\n'
             "---\n"
             "\nBody content\n"
@@ -437,10 +437,10 @@ class TestCopilotSkillsMode:
             parts = content.split("---", 2)
             fm = yaml.safe_load(parts[1])
             assert "mode" in fm, f"{f} frontmatter missing 'mode'"
-            # mode should be speckit.<stem>
+            # mode should be spec.<stem>
             skill_dir_name = f.parent.name
-            stem = skill_dir_name.removeprefix("speckit-")
-            assert fm["mode"] == f"speckit.{stem}"
+            stem = skill_dir_name.removeprefix("spec-")
+            assert fm["mode"] == f"spec.{stem}"
 
     # -- Template processing ----------------------------------------------
 
@@ -458,16 +458,16 @@ class TestCopilotSkillsMode:
             assert "__SPECKIT_COMMAND_" not in content, f"{f.name} has unprocessed __SPECKIT_COMMAND_*__"
 
     def test_skills_command_refs_use_hyphen(self, tmp_path):
-        """Copilot skills mode must use /speckit-<name> not /speckit.<name>."""
+        """Copilot skills mode must use /spec-<name> not /spec.<name>."""
         copilot = self._make_copilot()
         created, _ = self._setup_skills(copilot, tmp_path)
         skill_files = [f for f in created if f.name == "SKILL.md"]
         assert len(skill_files) > 0
         for f in skill_files:
             content = f.read_text(encoding="utf-8")
-            assert "/speckit." not in content, (
-                f"{f.name} contains dot-notation /speckit. reference; "
-                f"skills mode must use /speckit-<name>"
+            assert "/spec." not in content, (
+                f"{f.name} contains dot-notation /spec. reference; "
+                f"skills mode must use /spec-<name>"
             )
 
     def test_skills_mode_invoke_separator(self):
@@ -492,7 +492,7 @@ class TestCopilotSkillsMode:
         """The generated plan skill must reference copilot's context file."""
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        plan_file = tmp_path / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        plan_file = tmp_path / ".github" / "skills" / "spec-plan" / "SKILL.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
         assert copilot.context_file in content
@@ -537,15 +537,15 @@ class TestCopilotSkillsMode:
     def test_build_command_invocation_skills_mode(self):
         copilot = self._make_copilot()
         copilot._skills_mode = True
-        assert copilot.build_command_invocation("speckit.plan") == "/speckit-plan"
-        assert copilot.build_command_invocation("plan") == "/speckit-plan"
-        assert copilot.build_command_invocation("plan", "my args") == "/speckit-plan my args"
+        assert copilot.build_command_invocation("speckit.plan") == "/spec-plan"
+        assert copilot.build_command_invocation("plan") == "/spec-plan"
+        assert copilot.build_command_invocation("plan", "my args") == "/spec-plan my args"
 
     def test_build_command_invocation_skills_extension_command(self):
         copilot = self._make_copilot()
         copilot._skills_mode = True
-        assert copilot.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
-        assert copilot.build_command_invocation("git.commit") == "/speckit-git-commit"
+        assert copilot.build_command_invocation("speckit.git.commit") == "/git-commit"
+        assert copilot.build_command_invocation("git.commit") == "/git-commit"
 
     def test_build_command_invocation_default_mode(self):
         copilot = self._make_copilot()
@@ -584,8 +584,8 @@ class TestCopilotSkillsMode:
         assert result.exit_code == 0, f"init failed: {result.output}"
         skills_dir = project / ".github" / "skills"
         assert skills_dir.is_dir(), "Skills directory was not created"
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists(), "speckit-plan/SKILL.md not found"
+        plan_skill = skills_dir / "spec-plan" / "SKILL.md"
+        assert plan_skill.exists(), "spec-plan/SKILL.md not found"
         # Verify no default-mode artifacts
         assert not (project / ".github" / "agents").exists()
         assert not (project / ".github" / "prompts").exists()
@@ -612,7 +612,7 @@ class TestCopilotSkillsMode:
         # Core files that must be present in all environments
         core_expected = {
             # Skill files
-            *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
+            *[f".github/skills/spec-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Context file
             ".github/copilot-instructions.md",
             # Integration metadata
@@ -688,11 +688,13 @@ class TestCopilotSkillsMode:
             assert "speckit.plan" in call_args
 
     def test_dispatch_detects_speckit_skills_layout(self, tmp_path):
-        """dispatch_command() detects speckit-*/SKILL.md as skills mode."""
+        """dispatch_command() detects spec-*/SKILL.md as skills mode."""
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         copilot = self._make_copilot()
-        skill_dir = tmp_path / ".github" / "skills" / "speckit-plan"
+        skill_dir = tmp_path / ".github" / "skills" / "spec-plan"
         skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md").write_text("---\nname: speckit-plan\n---\n")
+        (skill_dir / "SKILL.md").write_text("---\nname: spec-plan\n---\n")
 
         import unittest.mock as mock
         with mock.patch("subprocess.run") as mock_run:
@@ -703,9 +705,14 @@ class TestCopilotSkillsMode:
                 f"Skills mode should not use --agent, got: {call_args}"
             )
             prompt = call_args[call_args.index("-p") + 1]
-            assert "/speckit-plan" in prompt, (
-                f"Skills mode prompt should invoke /speckit-plan, got: {prompt}"
-            )
+            if is_fork:
+                assert "/spec-plan" in prompt, (
+                    f"Skills mode prompt should invoke /spec-plan, got: {prompt}"
+                )
+            else:
+                assert "/speckit-plan" in prompt, (
+                    f"Skills mode prompt should invoke /speckit-plan, got: {prompt}"
+                )
             assert "my args" in prompt, (
                 f"Skills mode prompt should preserve user args, got: {prompt}"
             )
@@ -713,7 +720,7 @@ class TestCopilotSkillsMode:
     # -- Next-steps display for Copilot skills mode -----------------------
 
     def test_init_skills_next_steps_show_skill_syntax(self, tmp_path):
-        """specify init --integration copilot --integration-options='--skills' shows /speckit-plan not /speckit.plan."""
+        """specify init --integration copilot --integration-options='--skills' shows /spec-plan not /spec.plan."""
         from typer.testing import CliRunner
         from specify_cli import app, PKG_NAMES
         project = tmp_path / "copilot-nextsteps"
@@ -743,7 +750,7 @@ class TestCopilotSkillsMode:
             assert "/speckit-plan" in result.output, (
                 f"Expected /speckit-plan in next steps but got:\n{result.output}"
             )
-        # Must NOT show the dotted /speckit.plan form
-        assert "/speckit.plan" not in result.output, (
-            f"Should not show /speckit.plan in skills mode:\n{result.output}"
+        # Must NOT show the dotted /spec.plan form
+        assert "/spec.plan" not in result.output, (
+            f"Should not show /spec.plan in skills mode:\n{result.output}"
         )

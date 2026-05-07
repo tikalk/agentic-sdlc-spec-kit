@@ -104,5 +104,5 @@ class TestCursorAgentAutoPromote:
         result = runner.invoke(app, ["init", str(target), "--ai", "cursor-agent", "--no-git", "--ignore-agent-tools", "--script", "sh"])
 
         assert result.exit_code == 0, f"init --ai cursor-agent failed: {result.output}"
-        assert (target / ".cursor" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".cursor" / "skills" / "spec-plan" / "SKILL.md").exists()
 

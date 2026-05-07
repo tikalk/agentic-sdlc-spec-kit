@@ -72,4 +72,4 @@ class TestDevinAutoPromote:
         )
 
         assert result.exit_code == 0, f"init --ai devin failed: {result.output}"
-        assert (target / ".devin" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".devin" / "skills" / "spec-plan" / "SKILL.md").exists()

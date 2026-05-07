@@ -76,7 +76,7 @@ class SkillsIntegrationTests:
         for f in skill_files:
             assert f.exists()
             assert f.name == "SKILL.md"
-            assert f.parent.name.startswith("speckit-")
+            assert f.parent.name.startswith("spec-")
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
         i = get_integration(self.KEY)
@@ -95,7 +95,7 @@ class SkillsIntegrationTests:
             )
 
     def test_skill_directory_structure(self, tmp_path):
-        """Each command produces speckit-<name>/SKILL.md."""
+        """Each command produces spec-<name>/SKILL.md."""
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -116,9 +116,9 @@ class SkillsIntegrationTests:
         # Derive command names from the skill directory names
         actual_commands = set()
         for f in skill_files:
-            skill_dir_name = f.parent.name  # e.g. "speckit-plan"
-            assert skill_dir_name.startswith("speckit-")
-            actual_commands.add(skill_dir_name.removeprefix("speckit-"))
+            skill_dir_name = f.parent.name  # e.g. "spec-plan"
+            assert skill_dir_name.startswith("spec-")
+            actual_commands.add(skill_dir_name.removeprefix("spec-"))
 
         assert actual_commands == expected_commands
 
@@ -179,10 +179,10 @@ class SkillsIntegrationTests:
         assert len(skill_files) > 0
         for f in skill_files:
             content = f.read_text(encoding="utf-8")
-            # Skills agents must use /speckit-<name>, not /speckit.<name>
-            assert "/speckit." not in content, (
-                f"{f.name} contains dot-notation /speckit. reference; "
-                f"skills agents must use /speckit-<name>"
+            # Skills agents must use /spec-<name>, not /spec.<name>
+            assert "/spec." not in content, (
+                f"{f.name} contains dot-notation /spec. reference; "
+                f"skills agents must use /spec-<name>"
             )
 
     def test_skill_body_has_content(self, tmp_path):
@@ -205,7 +205,7 @@ class SkillsIntegrationTests:
             return
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        plan_file = i.skills_dest(tmp_path) / "speckit-plan" / "SKILL.md"
+        plan_file = i.skills_dest(tmp_path) / "spec-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created"
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -425,9 +425,9 @@ class SkillsIntegrationTests:
         )
 
         files = []
-        # Skill files
+        # Skill files - use spec-* prefix (fork alias form)
         for cmd in self._SKILL_COMMANDS:
-            files.append(f"{skills_prefix}/speckit-{cmd}/SKILL.md")
+            files.append(f"{skills_prefix}/spec-{cmd}/SKILL.md")
         # Integration metadata
         files += [
             ".specify/init-options.json",

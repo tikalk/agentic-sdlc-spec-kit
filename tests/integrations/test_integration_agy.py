@@ -29,7 +29,7 @@ class TestAgyAutoPromote:
         result = runner.invoke(app, ["init", str(target), "--ai", "agy", "--no-git", "--script", "sh"])
 
         assert result.exit_code == 0, f"init --ai agy failed: {result.output}"
-        assert (target / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (target / ".agents" / "skills" / "spec-plan" / "SKILL.md").exists()
 
     def test_agy_setup_warning(self, tmp_path):
         """Agy integration should print a warning about v1.20.5 requirement during setup."""

@@ -41,7 +41,7 @@ class TestKimiLegacyMigration:
         assert migrated == 1
         assert removed == 0
         assert not legacy.exists()
-        assert (skills_dir / "speckit-plan" / "SKILL.md").exists()
+        assert (skills_dir / "spec-plan" / "SKILL.md").exists()
 
     def test_skip_when_target_exists_different_content(self, tmp_path):
         skills_dir = tmp_path / ".kimi" / "skills"
@@ -117,8 +117,8 @@ class TestKimiLegacyMigration:
 
         assert not legacy.exists()
         assert (skills_dir / "speckit-oldcmd" / "SKILL.md").exists()
-        # New skills from templates should also exist
-        assert (skills_dir / "speckit-specify" / "SKILL.md").exists()
+        # New skills from templates should also exist (using spec-* alias form)
+        assert (skills_dir / "spec-specify" / "SKILL.md").exists()
 
 
 class TestKimiNextSteps:
