@@ -122,6 +122,105 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 COMMAND_PREFIX = "spec"
 
 
+def build_alias_map(project_root: Path) -> dict[str, str]:
+    """Build a command name -> first alias map from installed extension/preset manifests.
+    
+    This function scans installed extensions and presets to find commands with aliases,
+    creating a mapping from the full command name to its first alias.
+    
+    Examples:
+        "speckit.git.commit" -> "git.commit"
+        "adlc.spec.constitution" -> "spec.constitution"
+        "adlc.architect.specify" -> "architect.specify"
+    
+    Args:
+        project_root: Path to the project root
+        
+    Returns:
+        Dictionary mapping command names to their first alias
+    """
+    alias_map: dict[str, str] = {}
+    
+    # Scan extensions
+    extensions_dir = project_root / ".specify" / "extensions"
+    if extensions_dir.is_dir():
+        for ext_dir in extensions_dir.iterdir():
+            if not ext_dir.is_dir():
+                continue
+            manifest_path = ext_dir / "extension.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                import yaml
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = yaml.safe_load(f)
+                if not isinstance(manifest, dict):
+                    continue
+                commands = manifest.get("provides", {}).get("commands", [])
+                for cmd in commands:
+                    if not isinstance(cmd, dict):
+                        continue
+                    cmd_name = cmd.get("name")
+                    aliases = cmd.get("aliases", [])
+                    if cmd_name and aliases and isinstance(aliases, list):
+                        alias_map[cmd_name] = aliases[0]
+            except Exception:
+                continue
+    
+    # Scan presets
+    presets_dir = project_root / ".specify" / "presets"
+    if presets_dir.is_dir():
+        for preset_dir in presets_dir.iterdir():
+            if not preset_dir.is_dir():
+                continue
+            manifest_path = preset_dir / "preset.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                import yaml
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = yaml.safe_load(f)
+                if not isinstance(manifest, dict):
+                    continue
+                provides = manifest.get("provides", {})
+                templates = provides.get("templates", [])
+                for tmpl in templates:
+                    if not isinstance(tmpl, dict):
+                        continue
+                    if tmpl.get("type") != "command":
+                        continue
+                    cmd_name = tmpl.get("name")
+                    aliases = tmpl.get("aliases", [])
+                    if cmd_name and aliases and isinstance(aliases, list):
+                        alias_map[cmd_name] = aliases[0]
+            except Exception:
+                continue
+    
+    return alias_map
+
+
+def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> str:
+    """Resolve a command name to its alias if one exists.
+    
+    This is the primary function to use instead of hardcoded prefix stripping.
+    It looks up the command in the alias map and returns the alias if found,
+    otherwise returns the command name unchanged.
+    
+    Args:
+        cmd_name: The command name (e.g., "speckit.git.commit", "adlc.spec.plan")
+        project_root: Optional project root for building alias map. If None,
+                     uses current working directory.
+    
+    Returns:
+        The alias if found, otherwise the original command name
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+    
+    alias_map = build_alias_map(project_root)
+    return alias_map.get(cmd_name, cmd_name)
+
+
 # ============================================================================
 # FORK SELF CHECK - GitHub API endpoint for specify self check command
 # ============================================================================
@@ -141,32 +240,30 @@ FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from 
 FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
 
 
-def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
+def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: Path | None = None) -> str:
     """
     Compute the on-disk skill name for an agent with fork-specific handling.
 
-    This function handles the fork's command naming conventions where:
-    - Commands with "adlc." prefix should become /adlc-{command} (not /speckit-adlc-{command})
-    - Commands with "spec." alias prefix should become /spec-{command} (not /speckit-spec-{command})
-    - Extension commands like "speckit.test-ext.hello" still get the "speckit-" prefix
+    This function uses the alias map to resolve command names to their aliases,
+    ensuring consistent naming across all agent types. For example:
+    - "speckit.git.commit" -> "git-commit" (via alias "git.commit")
+    - "adlc.spec.constitution" -> "spec-constitution" (via alias "spec.constitution")
+    - "adlc.architect.specify" -> "architect-specify" (via alias "architect.specify")
 
     Args:
         cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution", "speckit.test-ext.hello")
         agent_config: Agent configuration dict
+        project_root: Optional project root for building alias map
 
     Returns:
-        The output name for the skill file (e.g., "adlc-spec-constitution", "spec-constitution", or "speckit-test-ext-hello")
+        The output name for the skill file (e.g., "spec-constitution", "architect-specify", or "speckit-test-ext-hello")
     """
     if agent_config.get("extension") != "/SKILL.md":
         return cmd_name
 
-    # Check if command starts with a fork-specific namespace
-    # These should NOT get the "speckit-" prefix
-    for namespace in FORK_COMMAND_NAMESPACES:
-        prefix = f"{namespace}."
-        if cmd_name.startswith(prefix):
-            # Replace dots with dashes directly (e.g., "adlc.spec.constitution" -> "adlc-spec-constitution")
-            return cmd_name.replace(".", "-")
+    # Use alias map to resolve to alias form, then convert to hyphenated skill name
+    resolved = resolve_command_alias(cmd_name, project_root)
+    return resolved.replace(".", "-")
 
     # For non-fork commands (e.g., speckit.test-ext.hello), use upstream behavior
     # Strip "speckit." prefix and add "speckit-" back

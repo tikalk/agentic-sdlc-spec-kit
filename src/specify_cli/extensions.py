@@ -924,17 +924,17 @@ class ExtensionManager:
             else:
                 skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
 
-            # Skip creating primary adlc-* skill when aliases exist (fork alias-only mode)
-            try:
-                import importlib.util
-
-                is_fork = importlib.util.find_spec("specify_cli.cli_customization") is not None
-            except Exception:
-                is_fork = False
+            # Skip creating primary skill when aliases exist (fork alias-only mode)
             has_aliases = bool(cmd_info.get("aliases"))
-            if is_fork and (cmd_name.startswith("adlc.") or cmd_name.startswith("speckit.")) and has_aliases:
-                # Skip primary - alias will be created by register_commands
-                continue
+            if has_aliases:
+                # In fork mode, skip primary - alias will be created by register_commands
+                # Detect fork by checking if cli_customization exists
+                try:
+                    import importlib.util
+                    if importlib.util.find_spec("specify_cli.cli_customization") is not None:
+                        continue
+                except Exception:
+                    pass
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
@@ -2594,6 +2594,14 @@ class HookExecutor:
         if cursor_skill_mode and skill_name:
             return f"/{skill_name}"
 
+        # For non-skill agents in the fork, use alias map to resolve command name
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved = resolve_command_alias(command_id, self.project_root)
+            return f"/{resolved}"
+        except Exception:
+            pass
+
         return f"/{command_id}"
 
     def get_project_config(self) -> Dict[str, Any]:
@@ -2849,11 +2857,16 @@ class HookExecutor:
             extension = hook.get("extension")
             command = hook.get("command")
             invocation = self._render_hook_invocation(command)
-            command_text = (
-                command
-                if isinstance(command, str) and command.strip()
-                else "<missing command>"
-            )
+            # Resolve command to alias for display (fork mode)
+            raw_command = command if isinstance(command, str) and command.strip() else ""
+            if raw_command:
+                try:
+                    from specify_cli.cli_customization import resolve_command_alias
+                    command_text = resolve_command_alias(raw_command, self.project_root)
+                except Exception:
+                    command_text = raw_command
+            else:
+                command_text = "<missing command>"
             display_invocation = invocation or (
                 f"/{command_text}"
                 if command_text != "<missing command>"

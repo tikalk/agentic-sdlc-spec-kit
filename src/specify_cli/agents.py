@@ -413,6 +413,7 @@ class CommandRegistrar:
         if agent_config["extension"] != "/SKILL.md":
             return cmd_name
 
+        # Legacy upstream behavior: speckit-{cmd}
         short_name = cmd_name
         if short_name.startswith("speckit."):
             short_name = short_name[len("speckit.") :]
@@ -529,10 +530,9 @@ class CommandRegistrar:
 
             output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
-            # Skip writing primary adlc.* or speckit.* command when aliases exist.
+            # Skip writing primary command when aliases exist.
             # This prevents duplicate commands (primary and alias) - we only want alias.
             # Applies to ALL agent types (skill and non-skill).
-            is_fork_command = cmd_name.startswith("adlc.") or cmd_name.startswith("speckit.")
             has_aliases = bool(cmd_info.get("aliases"))
 
             # Check if running fork version
@@ -543,7 +543,8 @@ class CommandRegistrar:
                 is_fork = False
 
             # Flag to control whether to write primary command file
-            write_primary = not (is_fork_command and has_aliases and is_fork)
+            # In fork mode with aliases, skip the primary and only write the alias
+            write_primary = not (has_aliases and is_fork)
 
             if agent_config["extension"] == "/SKILL.md":
                 output = self.render_skill_command(
