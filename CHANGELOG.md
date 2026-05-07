@@ -4,6 +4,15 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc8] - 2026-05-07
+
+### Fixed
+
+- **Extended alias-only to speckit.* commands**: Skip primary speckit.* files when aliases exist
+  - Git extension commands now only install alias form (`git.feature.md`) without duplicate primary (`speckit.git.feature.md`)
+  - Applies to all bundled extensions that have aliases defined
+  - Completes the alias-only installation pattern for all command types
+
 # [0.8.7+adlc7] - 2026-05-07
 
 ### Fixed
