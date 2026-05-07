@@ -4,6 +4,32 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc9] - 2026-05-08
+
+### Added
+
+- **Command name resolution to aliases**: Template processing now resolves canonical command names to their alias forms
+  - `adlc.spec.*` commands display as `spec.*` in templates and AI traces
+  - `speckit.git.*` commands display as `git.*` in extension hooks
+  - Handoffs section in command files now uses alias forms (e.g., `agent: spec.tasks` not `adlc.spec.tasks`)
+  - Extension hook display shows `/git.initialize` instead of `/speckit.git.initialize`
+
+### Fixed
+
+- **`resolve_handoff_agents()`**: Fixed to properly handle YAML list items in handoffs section
+  - No longer exits handoffs section prematurely when encountering `- ` list items
+  - Correctly processes all handoff entries including their agent references
+
+### Changed
+
+- **`process_template()`**: Now accepts `project_root` parameter and calls `resolve_command_names()`
+- **All integration `setup()` methods**: Updated to pass `project_root` to `process_template()`
+- **`register_commands()`**: Processes full content (including frontmatter) before parsing to enable resolution
+- **Copilot integration**: 
+  - `command_filename()` now uses `_get_command_prefix()` for correct prefix (spec vs speckit)
+  - `post_process_skill_content()` handles `spec-` prefix for mode field
+  - Prompt files use correct prefix
+
 # [0.8.7+adlc8] - 2026-05-07
 
 ### Fixed
