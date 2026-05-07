@@ -326,6 +326,24 @@ class IntegrationBase(ABC):
         subdir = self.config.get("commands_subdir", "commands")
         return project_root / folder / subdir
 
+    def skills_dest(self, project_root: Path) -> Path:
+        """Return the absolute path to the skills output directory.
+
+        Derived from ``config["folder"]`` and the configured
+        ``commands_subdir`` (defaults to ``"skills"``).
+
+        Raises ``ValueError`` when ``config`` or ``folder`` is missing.
+        """
+        if not self.config:
+            raise ValueError(f"{type(self).__name__}.config is not set.")
+        folder = self.config.get("folder")
+        if not folder:
+            raise ValueError(
+                f"{type(self).__name__}.config is missing required 'folder' entry."
+            )
+        subdir = self.config.get("commands_subdir", "skills")
+        return project_root / folder / subdir
+
     # -- File operations — granular primitives for setup() ----------------
 
     @staticmethod
@@ -1501,24 +1519,6 @@ class SkillsIntegration(IntegrationBase):
         if output_json:
             args.extend(["--output-format", "json"])
         return args
-
-    def skills_dest(self, project_root: Path) -> Path:
-        """Return the absolute path to the skills output directory.
-
-        Derived from ``config["folder"]`` and the configured
-        ``commands_subdir`` (defaults to ``"skills"``).
-
-        Raises ``ValueError`` when ``config`` or ``folder`` is missing.
-        """
-        if not self.config:
-            raise ValueError(f"{type(self).__name__}.config is not set.")
-        folder = self.config.get("folder")
-        if not folder:
-            raise ValueError(
-                f"{type(self).__name__}.config is missing required 'folder' entry."
-            )
-        subdir = self.config.get("commands_subdir", "skills")
-        return project_root / folder / subdir
 
     def build_command_invocation(self, command_name: str, args: str = "") -> str:
         """Skills use ``/<PREFIX>-<stem>`` (hyphenated directory name).
