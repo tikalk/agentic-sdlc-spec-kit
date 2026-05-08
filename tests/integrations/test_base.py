@@ -61,7 +61,8 @@ class TestIntegrationBase:
         assert len(created) > 0
         for f in created:
             assert f.parent == tmp_path / ".stub" / "commands"
-            assert f.name.startswith("speckit.")
+            # Fork uses "spec." prefix (except taskstoissues which keeps "speckit.")
+            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
             assert f.name.endswith(".md")
 
     def test_setup_copies_templates(self, tmp_path, monkeypatch):
@@ -77,8 +78,8 @@ class TestIntegrationBase:
         project.mkdir()
         created = i.setup(project, IntegrationManifest("stub", project))
         assert len(created) == 2
-        assert (project / ".stub" / "commands" / "speckit.plan.md").exists()
-        assert (project / ".stub" / "commands" / "speckit.specify.md").exists()
+        assert (project / ".stub" / "commands" / "spec.plan.md").exists()
+        assert (project / ".stub" / "commands" / "spec.specify.md").exists()
 
     def test_install_delegates_to_setup(self, tmp_path):
         i = StubIntegration()

@@ -303,8 +303,11 @@ class IntegrationBase(ABC):
 
         *template_name* is the stem of the source file (e.g. ``"plan"``).
         Default: ``spec.{template_name}.md`` (fork uses "spec" prefix).
+        Exception: ``taskstoissues`` keeps ``speckit.`` prefix for backwards compatibility.
         Subclasses override to change the extension or naming convention.
         """
+        if template_name == "taskstoissues":
+            return f"speckit.{template_name}.md"
         return f"spec.{template_name}.md"
 
     def commands_dest(self, project_root: Path) -> Path:

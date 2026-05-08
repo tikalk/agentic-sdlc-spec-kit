@@ -70,7 +70,8 @@ class MarkdownIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            assert f.name.startswith("spec.")
+            # Most files use spec. prefix, but taskstoissues uses speckit.
+            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
             assert f.name.endswith(".md")
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
@@ -298,7 +299,7 @@ class MarkdownIntegrationTests:
         "plan",
         "specify",
         "tasks",
-        # "taskstoissues",  # FIXME: created as speckit.taskstoissues.md not spec.taskstoissues.md
+        "taskstoissues",  # Note: created as speckit.taskstoissues.md (special case)
     ]
 
     def _expected_files(self, script_variant: str) -> list[str]:
@@ -311,7 +312,9 @@ class MarkdownIntegrationTests:
 
         # Command files
         for stem in self.COMMAND_STEMS:
-            files.append(f"{cmd_dir}/spec.{stem}.md")
+            # taskstoissues keeps speckit prefix (special case)
+            prefix = "speckit" if stem == "taskstoissues" else "spec"
+            files.append(f"{cmd_dir}/{prefix}.{stem}.md")
 
         # Framework files
         files.append(f".specify/integration.json")
