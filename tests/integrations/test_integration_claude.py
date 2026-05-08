@@ -48,7 +48,7 @@ class TestClaudeIntegration:
         skills_dir = tmp_path / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
+        plan_skill = skills_dir / "spec-plan" / "SKILL.md"
         assert plan_skill.exists()
 
         content = plan_skill.read_text(encoding="utf-8")
@@ -56,11 +56,11 @@ class TestClaudeIntegration:
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
         assert "__SPECKIT_COMMAND_" not in content, "unprocessed __SPECKIT_COMMAND_*__"
-        assert "/speckit." not in content, "skills agent must use /speckit-<name> not /speckit.<name>"
+        assert "/speckit." not in content, "skills agent must use /spec-<name> not /speckit.<name>"
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "speckit-plan"
+        assert parsed["name"] == "spec-plan"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
         assert parsed["metadata"]["source"] == "templates/commands/plan.md"
@@ -145,7 +145,7 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "spec-plan" / "SKILL.md").exists()
         assert not (project / ".claude" / "commands").exists()
 
         init_options = json.loads(
@@ -183,7 +183,7 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "spec-specify" / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
     def test_interactive_claude_selection_uses_integration_path(self, tmp_path):
@@ -219,7 +219,7 @@ class TestClaudeIntegration:
         assert (project / ".specify" / "integration.json").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
-        skill_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        skill_file = project / ".claude" / "skills" / "spec-plan" / "SKILL.md"
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content
@@ -246,7 +246,7 @@ class TestClaudeIntegration:
         )
 
         assert result.exit_code == 0
-        assert (target / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
+        assert (target / ".claude" / "skills" / "spec-specify" / "SKILL.md").exists()
 
     def test_claude_hooks_render_skill_invocation(self, tmp_path):
         from specify_cli.extensions import HookExecutor
@@ -269,6 +269,7 @@ class TestClaudeIntegration:
             ],
         )
 
+        # Hook invocation uses speckit- prefix (command resolution keeps original prefix)
         assert "Executing: `/speckit-plan`" in message
         assert "Execute now: read the command file for `speckit.plan`" in message
         assert "Invocation: `/speckit-plan`" in message
@@ -353,10 +354,12 @@ class TestClaudeArgumentHints:
         created = i.setup(tmp_path, m, script_type="sh")
         skill_files = [f for f in created if f.name == "SKILL.md"]
         for f in skill_files:
-            # Extract stem: speckit-plan -> plan
+            # Extract stem: speckit-plan or spec-plan -> stem
             stem = f.parent.name
             if stem.startswith("speckit-"):
                 stem = stem[len("speckit-"):]
+            elif stem.startswith("spec-"):
+                stem = stem[len("spec-"):]
             expected_hint = ARGUMENT_HINTS.get(stem)
             assert expected_hint is not None, (
                 f"No expected hint defined for skill '{stem}'"
@@ -482,7 +485,7 @@ class TestClaudeDisableModelInvocation:
         from specify_cli.agents import CommandRegistrar
 
         fm = CommandRegistrar.build_skill_frontmatter(
-            "codex", "speckit-plan", "desc", "templates/commands/plan.md"
+            "codex", "spec-plan", "desc", "templates/commands/plan.md"
         )
         assert "disable-model-invocation" not in fm
         assert "user-invocable" not in fm
@@ -504,12 +507,12 @@ class TestClaudeHookCommandNote:
         i = get_integration("claude")
         m = IntegrationManifest("claude", tmp_path)
         created = i.setup(tmp_path, m, script_type="sh")
-        specify_skill = tmp_path / ".claude/skills/speckit-specify/SKILL.md"
+        specify_skill = tmp_path / ".claude/skills/spec-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         # specify.md has hook sections
         assert "replace dots" in content, (
-            "speckit-specify should have dot-to-hyphen hook note"
+            "spec-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self, tmp_path):
