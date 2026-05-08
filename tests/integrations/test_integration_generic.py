@@ -90,7 +90,8 @@ class TestGenericIntegration:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0
         for f in cmd_files:
-            assert f.name.startswith("speckit.")
+            # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+            assert f.name.startswith(("spec.", "speckit.")), f"{f.name} should start with 'spec.' or 'speckit.'"
             assert f.name.endswith(".md")
 
     def test_templates_are_processed(self, tmp_path):
@@ -187,7 +188,8 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        plan_file = tmp_path / ".custom" / "cmds" / "speckit.plan.md"
+        # Fork uses spec.* prefix instead of speckit.*
+        plan_file = tmp_path / ".custom" / "cmds" / "spec.plan.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -200,7 +202,8 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        implement_file = tmp_path / ".custom" / "cmds" / "speckit.implement.md"
+        # Fork uses spec.* prefix instead of speckit.*
+        implement_file = tmp_path / ".custom" / "cmds" / "spec.implement.md"
         assert implement_file.exists()
         content = implement_file.read_text(encoding="utf-8")
         assert ".specify/memory/constitution.md" in content
@@ -292,17 +295,20 @@ class TestGenericIntegration:
         actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
+        # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        cmd_prefix = "spec" if is_fork else "speckit"
         expected = [
             "AGENTS.md",
-            ".myagent/commands/speckit.analyze.md",
-            ".myagent/commands/speckit.checklist.md",
-            ".myagent/commands/speckit.clarify.md",
-            ".myagent/commands/speckit.constitution.md",
-            ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
-            ".myagent/commands/speckit.specify.md",
-            ".myagent/commands/speckit.tasks.md",
-            ".myagent/commands/speckit.taskstoissues.md",
+            f".myagent/commands/{cmd_prefix}.analyze.md",
+            f".myagent/commands/{cmd_prefix}.checklist.md",
+            f".myagent/commands/{cmd_prefix}.clarify.md",
+            f".myagent/commands/{cmd_prefix}.constitution.md",
+            f".myagent/commands/{cmd_prefix}.implement.md",
+            f".myagent/commands/{cmd_prefix}.plan.md",
+            f".myagent/commands/{cmd_prefix}.specify.md",
+            f".myagent/commands/{cmd_prefix}.tasks.md",
+            ".myagent/commands/speckit.taskstoissues.md",  # taskstoissues keeps speckit prefix
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",
@@ -322,7 +328,6 @@ class TestGenericIntegration:
             ".specify/workflows/workflow-registry.json",
         ]
         # Fork adds extra bundled files (shared infrastructure)
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         if is_fork:
             expected.extend([
                 ".specify/scripts/bash/generate-risk-tests.sh",
@@ -367,17 +372,20 @@ class TestGenericIntegration:
         actual = set(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
+        # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        cmd_prefix = "spec" if is_fork else "speckit"
         expected = [
             "AGENTS.md",
-            ".myagent/commands/speckit.analyze.md",
-            ".myagent/commands/speckit.checklist.md",
-            ".myagent/commands/speckit.clarify.md",
-            ".myagent/commands/speckit.constitution.md",
-            ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
-            ".myagent/commands/speckit.specify.md",
-            ".myagent/commands/speckit.tasks.md",
-            ".myagent/commands/speckit.taskstoissues.md",
+            f".myagent/commands/{cmd_prefix}.analyze.md",
+            f".myagent/commands/{cmd_prefix}.checklist.md",
+            f".myagent/commands/{cmd_prefix}.clarify.md",
+            f".myagent/commands/{cmd_prefix}.constitution.md",
+            f".myagent/commands/{cmd_prefix}.implement.md",
+            f".myagent/commands/{cmd_prefix}.plan.md",
+            f".myagent/commands/{cmd_prefix}.specify.md",
+            f".myagent/commands/{cmd_prefix}.tasks.md",
+            ".myagent/commands/speckit.taskstoissues.md",  # taskstoissues keeps speckit prefix
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",
@@ -397,7 +405,6 @@ class TestGenericIntegration:
             ".specify/workflows/workflow-registry.json",
         ]
         # Fork adds extra bundled files (shared infrastructure)
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         if is_fork:
             expected.extend([
                 ".specify/scripts/powershell/implement.ps1",

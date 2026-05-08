@@ -16,6 +16,12 @@ from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import YamlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
 
+# Import PKG_NAMES for fork detection
+try:
+    from specify_cli import PKG_NAMES
+except ImportError:
+    PKG_NAMES = []
+
 
 class YamlIntegrationTests:
     """Mixin — set class-level constants and inherit these tests.
@@ -75,7 +81,8 @@ class YamlIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            assert f.name.startswith("speckit.")
+            # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+            assert f.name.startswith(("speckit.", "spec.")), f"{f.name} should start with 'speckit.' or 'spec.'"
             assert f.name.endswith(".yaml")
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
@@ -332,7 +339,8 @@ class YamlIntegrationTests:
         i = get_integration(self.KEY)
         cmd_dir = i.commands_dest(project)
         assert cmd_dir.is_dir(), f"Commands directory {cmd_dir} not created"
-        commands = sorted(cmd_dir.glob("speckit.*.yaml"))
+        # Fork uses spec.* prefix instead of speckit.*
+        commands = sorted(cmd_dir.glob("speckit.*.yaml")) + sorted(cmd_dir.glob("spec.*.yaml"))
         assert len(commands) > 0, f"No command files in {cmd_dir}"
 
     def test_init_options_includes_context_file(self, tmp_path):
@@ -379,9 +387,16 @@ class YamlIntegrationTests:
         cmd_dir = i.registrar_config["dir"]
         files = []
 
+        # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        cmd_prefix = "spec" if is_fork else "speckit"
+        
         # Command files (.yaml)
         for stem in self.COMMAND_STEMS:
-            files.append(f"{cmd_dir}/speckit.{stem}.yaml")
+            if stem == "taskstoissues":
+                files.append(f"{cmd_dir}/speckit.{stem}.yaml")  # taskstoissues keeps speckit prefix
+            else:
+                files.append(f"{cmd_dir}/{cmd_prefix}.{stem}.yaml")
 
         # Framework files
         files.append(".specify/integration.json")

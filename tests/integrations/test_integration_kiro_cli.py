@@ -36,4 +36,5 @@ class TestKiroAlias:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0
-        assert (target / ".kiro" / "prompts" / "speckit.plan.md").exists()
+        # Fork uses spec.* prefix instead of speckit.*
+        assert (target / ".kiro" / "prompts" / "spec.plan.md").exists()
