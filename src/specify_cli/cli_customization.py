@@ -701,26 +701,88 @@ def pre_init(
                     success, messages, resolved, unresolved = install_mcp_config(
                         directives_path, project_path
                     )
-                    # Build status message
+                    
+                    # Parse messages to extract useful info
+                    installed_servers = []
+                    merged_servers = []
+                    servers_needing_setup = []
+                    
+                    for msg in messages:
+                        if msg.startswith("✓ Installed"):
+                            pass  # General success message
+                        elif msg.startswith("✓ Merged"):
+                            pass  # General success message
+                        elif msg.startswith("  ℹ Resolved"):
+                            pass  # Already tracked in resolved list
+                        elif msg.startswith("  ⚠ Unresolved"):
+                            # Parse unresolved vars and map to servers
+                            pass
+                        elif msg.startswith("    - mcpServers:"):
+                            server_name = msg.replace("    - mcpServers: ", "").strip()
+                            merged_servers.append(server_name)
+                        elif msg.startswith("    - tools:"):
+                            tool_name = msg.replace("    - tools: ", "").strip()
+                            merged_servers.append(tool_name)
+                    
+                    # Read the config to get server names
+                    try:
+                        mcp_path = project_path / ".mcp.json"
+                        if mcp_path.exists():
+                            mcp_config = json.loads(mcp_path.read_text())
+                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
+                            all_tools = list(mcp_config.get("tools", {}).keys())
+                            
+                            # Determine which servers need env vars
+                            for server_name in all_servers + all_tools:
+                                if server_name not in merged_servers:
+                                    installed_servers.append(server_name)
+                    except:
+                        pass
+                    
+                    # Build user-friendly tracker status
+                    total_items = len(installed_servers) + len(merged_servers)
                     status_parts = []
-                    if resolved:
-                        status_parts.append(f"resolved {len(resolved)} env vars")
+                    
+                    if total_items > 0:
+                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
+                    
                     if unresolved:
-                        status_parts.append(f"{len(unresolved)} unresolved")
-                    # Check for conflicts in messages
-                    conflicts = [m for m in messages if "conflict" in m.lower()]
-                    if conflicts:
-                        status_parts.append(f"{len(conflicts)} conflicts")
+                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
+                    
+                    if merged_servers:
+                        status_parts.append(f"{len(merged_servers)} merged")
+                    
                     status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    
                     if success:
                         if tracker:
-                            tracker.complete("team-mcp", status_msg)
+                            if unresolved:
+                                tracker.complete("team-mcp", status_msg)  # Yellow warning style
+                            else:
+                                tracker.complete("team-mcp", status_msg)
+                        
+                        # Print explanatory console output
+                        if installed_servers:
+                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
+                        if merged_servers:
+                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
+                        
+                        # Show env var hints
+                        if unresolved:
+                            for var in unresolved[:3]:  # Show first 3
+                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
+                            if len(unresolved) > 3:
+                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
+                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
                     else:
                         if tracker:
                             tracker.skip("team-mcp", f"validation failed - see warnings")
-                    # Print all messages
-                    for msg in messages:
-                        console.print(f"[dim]{msg}[/dim]")
+                        # Print error messages
+                        for msg in messages:
+                            if msg.startswith("✗"):
+                                console.print(f"[red]{msg}[/red]")
+                            else:
+                                console.print(f"[dim]{msg}[/dim]")
                 except Exception as e:
                     if tracker:
                         tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
@@ -765,20 +827,66 @@ def pre_init(
                     success, messages, resolved, unresolved = install_mcp_config(
                         directives_path, project_path
                     )
-                    # Build status message
+                    
+                    # Parse messages to extract useful info
+                    installed_servers = []
+                    merged_servers = []
+                    
+                    for msg in messages:
+                        if msg.startswith("    - mcpServers:"):
+                            server_name = msg.replace("    - mcpServers: ", "").strip()
+                            merged_servers.append(server_name)
+                        elif msg.startswith("    - tools:"):
+                            tool_name = msg.replace("    - tools: ", "").strip()
+                            merged_servers.append(tool_name)
+                    
+                    # Read the config to get server names
+                    try:
+                        mcp_path = project_path / ".mcp.json"
+                        if mcp_path.exists():
+                            mcp_config = json.loads(mcp_path.read_text())
+                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
+                            all_tools = list(mcp_config.get("tools", {}).keys())
+                            
+                            # Determine which servers need env vars
+                            for server_name in all_servers + all_tools:
+                                if server_name not in merged_servers:
+                                    installed_servers.append(server_name)
+                    except:
+                        pass
+                    
+                    # Build user-friendly tracker status
+                    total_items = len(installed_servers) + len(merged_servers)
                     status_parts = []
-                    if resolved:
-                        status_parts.append(f"resolved {len(resolved)} env vars")
+                    
+                    if total_items > 0:
+                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
+                    
                     if unresolved:
-                        status_parts.append(f"{len(unresolved)} unresolved")
-                    # Check for conflicts in messages
-                    conflicts = [m for m in messages if "conflict" in m.lower()]
-                    if conflicts:
-                        status_parts.append(f"{len(conflicts)} conflicts")
+                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
+                    
+                    if merged_servers:
+                        status_parts.append(f"{len(merged_servers)} merged")
+                    
                     status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    
                     if success:
                         if tracker:
                             tracker.complete("team-mcp", status_msg)
+                        
+                        # Print explanatory console output
+                        if installed_servers:
+                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
+                        if merged_servers:
+                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
+                        
+                        # Show env var hints
+                        if unresolved:
+                            for var in unresolved[:3]:  # Show first 3
+                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
+                            if len(unresolved) > 3:
+                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
+                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
                     else:
                         if tracker:
                             tracker.skip("team-mcp", f"validation failed - see warnings")
