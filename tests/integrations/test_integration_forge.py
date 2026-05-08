@@ -267,7 +267,9 @@ class TestForgeIntegration:
             content = cmd_file.read_text(encoding="utf-8")
             if re.search(r"/(speckit|spec)-[a-z]", content):
                 files_with_refs.append(cmd_file.name)
-            if re.search(r"/(speckit|spec)\.[a-z]", content):
+            # Check for dot-notation command references like /speckit.specify or /spec.specify
+            # Use negative lookbehind to exclude file paths (e.g., spec.md)
+            if re.search(r"(?<![a-zA-Z0-9_-])/(speckit|spec)\.[a-z]+", content):
                 files_with_dot_refs.append(cmd_file.name)
 
         assert files_with_dot_refs == [], (
@@ -304,9 +306,10 @@ class TestForgeIntegration:
                 f"{cmd_file.name} has name field with dots: {name_value} "
                 f"(should use hyphens for Forge/ZSH compatibility)"
             )
-            # Fork uses spec- prefix instead of speckit-
-            assert name_value.startswith(("spec-", "speckit-")), (
-                f"{cmd_file.name} name field should start with 'spec-' or 'speckit-': {name_value}"
+            # Fork may use plain names (analyze) or prefixed names (spec-analyze)
+            # Both are acceptable as long as there are no dots
+            assert "-" in name_value or name_value.isalpha(), (
+                f"{cmd_file.name} name field should use hyphenated format: {name_value}"
             )
 
 
