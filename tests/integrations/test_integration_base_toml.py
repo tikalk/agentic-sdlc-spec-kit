@@ -500,15 +500,18 @@ class TomlIntegrationTests:
         cmd_dir = i.registrar_config["dir"]
         files = []
 
-        # Command files (.toml)
+        # Command files (.toml) - fork uses spec. prefix (except taskstoissues)
         for stem in self.COMMAND_STEMS:
-            files.append(f"{cmd_dir}/speckit.{stem}.toml")
+            if stem == "taskstoissues":
+                files.append(f"{cmd_dir}/speckit.{stem}.toml")
+            else:
+                files.append(f"{cmd_dir}/spec.{stem}.toml")
 
         # Framework files
         files.append(".specify/integration.json")
         files.append(".specify/init-options.json")
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
-        files.append(".specify/integrations/speckit.manifest.json")
+        files.append(".specify/integrations/speckit.manifest.json")  # FIXME: should be spec.manifest.json
 
         if script_variant == "sh":
             for name in [

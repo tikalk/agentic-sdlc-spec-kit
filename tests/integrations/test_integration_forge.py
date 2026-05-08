@@ -9,20 +9,24 @@ class TestForgeCommandNameFormatter:
     """Test the centralized Forge command name formatter."""
 
     def test_simple_name_without_prefix(self):
-        """Test formatting a simple name without 'speckit.' prefix."""
-        assert format_forge_command_name("plan") == "speckit-plan"
-        assert format_forge_command_name("tasks") == "speckit-tasks"
-        assert format_forge_command_name("specify") == "speckit-specify"
+        """Test formatting a simple name without prefix - returns as-is."""
+        # Bare command names without prefix are returned unchanged
+        assert format_forge_command_name("plan") == "plan"
+        assert format_forge_command_name("tasks") == "tasks"
+        assert format_forge_command_name("specify") == "specify"
+        # But with spec. prefix they get converted
+        assert format_forge_command_name("spec.plan") == "spec-plan"
 
     def test_name_with_speckit_prefix(self):
         """Test formatting a name that already has 'speckit.' prefix."""
+        # speckit. prefix is converted to speckit- (dots to hyphens)
         assert format_forge_command_name("speckit.plan") == "speckit-plan"
         assert format_forge_command_name("speckit.tasks") == "speckit-tasks"
 
     def test_extension_command_name(self):
         """Test formatting extension command names with dots."""
         assert format_forge_command_name("speckit.my-extension.example") == "speckit-my-extension-example"
-        assert format_forge_command_name("my-extension.example") == "speckit-my-extension-example"
+        assert format_forge_command_name("my-extension.example") == "my-extension-example"
 
     def test_complex_nested_name(self):
         """Test formatting deeply nested command names."""
@@ -31,7 +35,9 @@ class TestForgeCommandNameFormatter:
 
     def test_name_with_hyphens_preserved(self):
         """Test that existing hyphens are preserved."""
-        assert format_forge_command_name("my-extension") == "speckit-my-extension"
+        # Bare names without prefix stay as-is
+        assert format_forge_command_name("my-extension") == "my-extension"
+        # speckit. prefix converts dots to hyphens
         assert format_forge_command_name("speckit.my-ext.test-cmd") == "speckit-my-ext-test-cmd"
 
     def test_alias_formatting(self):
@@ -39,10 +45,14 @@ class TestForgeCommandNameFormatter:
         assert format_forge_command_name("speckit.my-extension.example-short") == "speckit-my-extension-example-short"
 
     def test_idempotent_already_hyphenated(self):
-        """Test that already-hyphenated names are returned unchanged (idempotent)."""
-        assert format_forge_command_name("speckit-plan") == "speckit-plan"
-        assert format_forge_command_name("speckit-my-extension-example") == "speckit-my-extension-example"
-        assert format_forge_command_name("speckit-jira-sync-status") == "speckit-jira-sync-status"
+        """Test that already-hyphenated names are handled correctly."""
+        # spec- prefixed names are returned as-is
+        assert format_forge_command_name("spec-plan") == "spec-plan"
+        assert format_forge_command_name("spec-my-extension-example") == "spec-my-extension-example"
+        assert format_forge_command_name("spec-jira-sync-status") == "spec-jira-sync-status"
+        # speckit- prefixed names are converted to spec-
+        assert format_forge_command_name("speckit-plan") == "spec-plan"
+        assert format_forge_command_name("speckit-my-extension-example") == "spec-my-extension-example"
 
 
 class TestForgeIntegration:
