@@ -1723,10 +1723,56 @@ def _install_skills_from_path(
                 # Create target directory
                 target_dir.mkdir(parents=True, exist_ok=True)
                 
-                # Copy SKILL.md
+                # Copy SKILL.md with modified name field
                 try:
                     content = skill_md.read_text(encoding="utf-8")
-                    target_file.write_text(content, encoding="utf-8")
+                    
+                    # Update the name field in frontmatter to include team- prefix
+                    # This ensures compliance with agentskills.io specification
+                    # (name field must match parent directory name)
+                    import re
+                    
+                    # Pattern to match name: value in YAML frontmatter
+                    # Matches: name: skill-name or name: "skill-name" or name: 'skill-name'
+                    name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
+                    
+                    lines = content.splitlines()
+                    modified_lines = []
+                    in_frontmatter = False
+                    frontmatter_started = False
+                    
+                    for line in lines:
+                        stripped = line.strip()
+                        
+                        # Track if we're in frontmatter
+                        if stripped == '---':
+                            if not frontmatter_started:
+                                frontmatter_started = True
+                                in_frontmatter = True
+                            else:
+                                in_frontmatter = False
+                            modified_lines.append(line)
+                            continue
+                        
+                        # Update name field while in frontmatter
+                        if in_frontmatter and stripped.startswith('name:'):
+                            match = re.match(name_pattern, stripped)
+                            if match:
+                                original_name = match.group(3).strip()
+                                # Add team- prefix if not already present
+                                if not original_name.startswith('team-'):
+                                    new_name = f"team-{original_name}"
+                                else:
+                                    new_name = original_name
+                                # Preserve original indentation and quotes
+                                indent = line[:len(line) - len(line.lstrip())]
+                                modified_lines.append(f"{indent}name: {new_name}")
+                                continue
+                        
+                        modified_lines.append(line)
+                    
+                    modified_content = '\n'.join(modified_lines)
+                    target_file.write_text(modified_content, encoding="utf-8")
                     installed.append(target_name)
                 except Exception as e:
                     raise Exception(f"Failed to install {target_name}: {e}")

@@ -4,6 +4,21 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+# [0.8.7+adlc13] - 2026-05-08
+
+### Fixed
+
+- **Team skills name field now includes prefix**: During installation of team-ai-directives skills, the `name:` field in SKILL.md frontmatter is now updated to include the `team-` prefix
+  - This ensures compliance with agentskills.io specification (name field must match parent directory name)
+  - Example: skill installed to `team-dbt-template/SKILL.md` now has `name: team-dbt-template` (not `name: dbt-template`)
+  - Fixes mismatch between directory name and frontmatter name field
+
+# [0.8.7+adlc12] - 2026-05-08
+
+### Fixed
+
+- **Version bump**: Updated to 0.8.7+adlc12
+
 # [0.8.7+adlc11] - 2026-05-08
 
 ### Fixed
