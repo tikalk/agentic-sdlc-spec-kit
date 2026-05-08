@@ -186,9 +186,10 @@ class TestSafeRegistration:
             project,
         )
 
-        assert "speckit.myext.hello" in registered
+        # Fork behavior: only alias is registered when aliases exist
+        assert "speckit.myext.hello" not in registered
         assert "speckit.myext.hi" in registered
-        assert (
+        assert not (
             project
             / ".claude"
             / "skills"

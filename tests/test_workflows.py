@@ -565,8 +565,8 @@ class TestCommandStep:
         call_args = mock_run.call_args
         assert call_args[0][0][0] == "claude"
         assert call_args[0][0][1] == "-p"
-        # Claude is a SkillsIntegration so uses /speckit-specify
-        assert "/speckit-specify login" in call_args[0][0][2]
+        # Fork uses /spec-specify instead of /speckit-specify
+        assert "/spec-specify login" in call_args[0][0][2]
 
     def test_dispatch_failure_returns_failed_status(self, tmp_path):
         """When the CLI exits non-zero, the step should fail."""

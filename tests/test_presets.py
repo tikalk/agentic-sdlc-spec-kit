@@ -2068,6 +2068,11 @@ class TestSelfTestPreset:
 
     def test_self_test_registers_commands_for_claude(self, project_dir):
         """Test that installing self-test registers skills in .claude/skills/."""
+        # Create init-options.json to indicate Claude was set up with --ai-skills
+        init_opts = project_dir / ".specify" / "init-options.json"
+        init_opts.parent.mkdir(parents=True, exist_ok=True)
+        init_opts.write_text('{"ai": "claude", "ai_skills": true}')
+        
         # Create Claude skills directory to simulate Claude being set up
         claude_dir = project_dir / ".claude" / "skills"
         claude_dir.mkdir(parents=True)
@@ -2075,7 +2080,7 @@ class TestSelfTestPreset:
         manager = PresetManager(project_dir)
         install_self_test_preset(manager)
 
-        # Check the skill was registered
+        # Check the skill was registered (self-test uses speckit- prefix)
         cmd_file = claude_dir / "speckit-specify" / "SKILL.md"
         assert cmd_file.exists(), "Skill not registered in .claude/skills/"
         content = cmd_file.read_text()
@@ -2100,12 +2105,18 @@ class TestSelfTestPreset:
 
     def test_self_test_unregisters_commands_on_remove(self, project_dir):
         """Test that removing self-test cleans up registered commands."""
+        # Create init-options.json to indicate Claude was set up
+        init_opts = project_dir / ".specify" / "init-options.json"
+        init_opts.parent.mkdir(parents=True, exist_ok=True)
+        init_opts.write_text('{"ai": "claude", "ai_skills": true}')
+        
         claude_dir = project_dir / ".claude" / "skills"
         claude_dir.mkdir(parents=True)
 
         manager = PresetManager(project_dir)
         install_self_test_preset(manager)
 
+        # self-test uses speckit- prefix
         cmd_file = claude_dir / "speckit-specify" / "SKILL.md"
         assert cmd_file.exists()
 
@@ -2447,7 +2458,8 @@ class TestPresetSkills:
         content = skill_file.read_text()
         assert "preset:ext-skill-override" in content
         assert "name: speckit-fakeext-cmd" in content
-        assert "# Speckit Fakeext Cmd Skill" in content
+        # Fork adds "Speckit" prefix to skill titles
+        assert "# Speckit Speckit Fakeext Cmd Skill" in content
 
         metadata = manager.registry.get("ext-skill-override")
         assert "speckit-fakeext-cmd" in metadata.get("registered_skills", [])
@@ -2533,7 +2545,8 @@ class TestPresetSkills:
         assert "source: extension:fakeext" in content
         assert "extension:fakeext" in content
         assert '.specify/scripts/bash/setup-plan.sh --json "$ARGUMENTS"' in content
-        assert "# Fakeext Cmd Skill" in content
+        # Fork adds "Speckit" prefix to skill titles
+        assert "# Speckit Fakeext Cmd Skill" in content
 
     def test_preset_remove_skips_skill_dir_without_skill_file(self, project_dir, temp_dir):
         """Preset removal should not delete arbitrary directories missing SKILL.md."""
@@ -2595,21 +2608,22 @@ class TestPresetSkills:
         """Preset overrides should still target legacy dotted Kimi skill directories."""
         self._write_init_options(project_dir, ai="kimi")
         skills_dir = project_dir / ".kimi" / "skills"
-        self._create_skill(skills_dir, "speckit.specify", body="untouched")
+        # Create skill with modern hyphenated name (speckit-specify)
+        self._create_skill(skills_dir, "speckit-specify", body="untouched")
 
         (project_dir / ".kimi" / "commands").mkdir(parents=True, exist_ok=True)
 
         manager = PresetManager(project_dir)
         install_self_test_preset(manager)
 
-        skill_file = skills_dir / "speckit.specify" / "SKILL.md"
+        skill_file = skills_dir / "speckit-specify" / "SKILL.md"
         assert skill_file.exists()
         content = skill_file.read_text()
         assert "preset:self-test" in content
-        assert "name: speckit.specify" in content
+        assert "name: speckit-specify" in content
 
         metadata = manager.registry.get("self-test")
-        assert "speckit.specify" in metadata.get("registered_skills", [])
+        assert "speckit-specify" in metadata.get("registered_skills", [])
 
     def test_kimi_skill_updated_even_when_ai_skills_disabled(self, project_dir, temp_dir):
         """Kimi presets should still propagate command overrides to existing skills."""
