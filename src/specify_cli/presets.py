@@ -1965,28 +1965,20 @@ class PresetCatalog:
             )
 
     def _make_request(self, url: str):
-        """Build a urllib Request, adding auth header when available.
+        """Build a urllib Request, adding auth headers when a provider matches.
 
-        Supports GitHub and GitLab authentication via environment variables.
+        Delegates to :func:`specify_cli.authentication.http.build_request`.
         """
-        from specify_cli._github_http import build_github_request
-        from specify_cli._gitlab_http import build_gitlab_request, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return build_gitlab_request(url)
-        return build_github_request(url)
+        from specify_cli.authentication.http import build_request
+        return build_request(url)
 
     def _open_url(self, url: str, timeout: int = 10):
-        """Open a URL with auth, stripping the header on cross-host redirects.
+        """Open a URL with provider-based auth, trying each configured provider.
 
-        Supports GitHub and GitLab authentication.
+        Delegates to :func:`specify_cli.authentication.http.open_url`.
         """
-        from specify_cli._github_http import open_github_url
-        from specify_cli._gitlab_http import open_gitlab_url, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return open_gitlab_url(url, timeout)
-        return open_github_url(url, timeout)
+        from specify_cli.authentication.http import open_url
+        return open_url(url, timeout)
 
     def _load_catalog_config(self, config_path: Path) -> Optional[List[PresetCatalogEntry]]:
         """Load catalog stack configuration from a YAML file.

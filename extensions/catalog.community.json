@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-05-06T00:00:00Z",
+  "updated_at": "2026-05-07T15:37:14Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "aide": {
@@ -68,6 +68,75 @@
       "created_at": "2026-03-31T00:00:00Z",
       "updated_at": "2026-03-31T00:00:00Z"
     },
+    "agent-orchestrator": {
+      "name": "Intelligent Agent Orchestrator",
+      "id": "agent-orchestrator",
+      "description": "Cross-catalog agent discovery and intelligent prompt-to-command routing",
+      "author": "pragya247",
+      "version": "0.1.0",
+      "download_url": "https://github.com/pragya247/spec-kit-orchestrator/archive/refs/tags/v0.1.0.zip",
+      "repository": "https://github.com/pragya247/spec-kit-orchestrator",
+      "homepage": "https://github.com/pragya247/spec-kit-orchestrator",
+      "documentation": "https://github.com/pragya247/spec-kit-orchestrator/blob/main/README.md",
+      "changelog": "https://github.com/pragya247/spec-kit-orchestrator/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.6.1"
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 1
+      },
+      "tags": [
+        "orchestrator",
+        "routing",
+        "discovery",
+        "agent",
+        "ai"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-04T00:00:00Z",
+      "updated_at": "2026-05-04T00:00:00Z"
+    },
+    "api-evolve": {
+      "name": "API Evolve",
+      "id": "api-evolve",
+      "description": "Managed API contract evolution — breaking-change detection, semver enforcement, deprecation orchestration, and lifecycle gates across REST, GraphQL, and gRPC.",
+      "author": "Quratulain-bilal",
+      "version": "1.0.0",
+      "download_url": "https://github.com/Quratulain-bilal/spec-kit-api-evolve/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/Quratulain-bilal/spec-kit-api-evolve",
+      "homepage": "https://github.com/Quratulain-bilal/spec-kit-api-evolve",
+      "documentation": "https://github.com/Quratulain-bilal/spec-kit-api-evolve/blob/main/README.md",
+      "changelog": "https://github.com/Quratulain-bilal/spec-kit-api-evolve/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.4.0"
+      },
+      "provides": {
+        "commands": 12,
+        "hooks": 5
+      },
+      "tags": [
+        "api",
+        "contracts",
+        "versioning",
+        "openapi",
+        "graphql",
+        "grpc",
+        "deprecation",
+        "breaking-changes",
+        "semver",
+        "governance"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-07T00:00:00Z",
+      "updated_at": "2026-05-07T00:00:00Z"
+    },
     "architect-preview": {
       "name": "Architect Impact Previewer",
       "id": "architect-preview",
@@ -105,8 +174,8 @@
       "id": "architecture-guard",
       "description": "Continuous architecture governance for AI-assisted development. Reviews specs, plans, and code for architecture drift, producing structured refactor tasks and evolution proposals.",
       "author": "DyanGalih",
-      "version": "1.4.0",
-      "download_url": "https://github.com/DyanGalih/spec-kit-architecture-guard/archive/refs/tags/v1.4.0.zip",
+      "version": "1.6.7",
+      "download_url": "https://github.com/DyanGalih/spec-kit-architecture-guard/archive/refs/tags/v1.6.7.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-architecture-guard",
       "homepage": "https://github.com/DyanGalih/spec-kit-architecture-guard",
       "documentation": "https://github.com/DyanGalih/spec-kit-architecture-guard/blob/main/README.md",
@@ -131,7 +200,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-05-05T07:26:00Z",
-      "updated_at": "2026-05-05T07:26:00Z"
+      "updated_at": "2026-05-06T22:28:55Z"
     },
     "archive": {
       "name": "Archive Extension",
@@ -1383,8 +1452,8 @@
       "id": "memory-md",
       "description": "Spec Kit extension for repository-native Markdown memory that captures durable decisions, bugs, and project context",
       "author": "DyanGalih",
-      "version": "0.7.5",
-      "download_url": "https://github.com/DyanGalih/spec-kit-memory-hub/archive/refs/tags/v0.7.5.zip",
+      "version": "0.7.9",
+      "download_url": "https://github.com/DyanGalih/spec-kit-memory-hub/archive/refs/tags/v0.7.9.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-memory-hub",
       "homepage": "https://github.com/DyanGalih/spec-kit-memory-hub",
       "documentation": "https://github.com/DyanGalih/spec-kit-memory-hub/blob/main/README.md",
@@ -1409,7 +1478,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-04-23T00:00:00Z",
-      "updated_at": "2026-05-03T00:00:00Z"
+      "updated_at": "2026-05-06T22:28:55Z"
     },
     "memorylint": {
       "name": "MemoryLint",
@@ -2085,8 +2154,8 @@
       "id": "security-review",
       "description": "Full-project secure-by-design security audits plus staged, branch/PR, plan, task, follow-up, and apply reviews",
       "author": "DyanGalih",
-      "version": "1.4.2",
-      "download_url": "https://github.com/DyanGalih/spec-kit-security-review/archive/refs/tags/v1.4.2.zip",
+      "version": "1.4.5",
+      "download_url": "https://github.com/DyanGalih/spec-kit-security-review/archive/refs/tags/v1.4.5.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-security-review",
       "homepage": "https://github.com/DyanGalih/spec-kit-security-review",
       "documentation": "https://github.com/DyanGalih/spec-kit-security-review/blob/main/README.md",
@@ -2110,7 +2179,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-04-03T03:24:03Z",
-      "updated_at": "2026-05-03T00:00:00Z"
+      "updated_at": "2026-05-06T22:28:55Z"
     },
     "sf": {
       "name": "SFSpeckit — Salesforce Spec-Driven Development",
