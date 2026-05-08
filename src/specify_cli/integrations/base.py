@@ -302,10 +302,10 @@ class IntegrationBase(ABC):
         """Return the destination filename for a command template.
 
         *template_name* is the stem of the source file (e.g. ``"plan"``).
-        Default: ``speckit.{template_name}.md``.  Subclasses override
-        to change the extension or naming convention.
+        Default: ``spec.{template_name}.md`` (fork uses "spec" prefix).
+        Subclasses override to change the extension or naming convention.
         """
-        return f"speckit.{template_name}.md"
+        return f"spec.{template_name}.md"
 
     def commands_dest(self, project_root: Path) -> Path:
         """Return the absolute path to the commands output directory.
