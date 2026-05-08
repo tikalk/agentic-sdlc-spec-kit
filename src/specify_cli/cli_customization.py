@@ -672,6 +672,8 @@ def pre_init(
     if not team_ai_directives:
         if tracker:
             tracker.skip("team-directives", "not specified")
+            tracker.skip("team-mcp", "no team-ai-directives")
+            tracker.skip("team-skills", "no team-ai-directives")
         return
 
     from . import sync_team_ai_directives
@@ -694,7 +696,6 @@ def pre_init(
             # Install MCP config before team-skills
             if directives_path and (directives_path / ".mcp.json").exists():
                 if tracker:
-                    tracker.add("team-mcp", "Team AI mcp setup")
                     tracker.start("team-mcp")
                 try:
                     success, messages, resolved, unresolved = install_mcp_config(
@@ -724,27 +725,10 @@ def pre_init(
                     if tracker:
                         tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
                     console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
-
-            # Add team-skills to tracker right after team-mcp
-            if tracker:
-                tracker.add("team-skills", "Install Team AI skills")
-                # Reorder: move team-skills to right after team-directives
-                if hasattr(tracker, 'steps'):
-                    steps = tracker.steps
-                    team_skills_idx = None
-                    team_directives_idx = None
-                    for i, step in enumerate(steps):
-                        if step['key'] == 'team-skills':
-                            team_skills_idx = i
-                        elif step['key'] == 'team-directives':
-                            team_directives_idx = i
-                    if team_skills_idx is not None and team_directives_idx is not None:
-                        # Remove team-skills from its current position and insert after team-directives
-                        team_skills_step = steps.pop(team_skills_idx)
-                        # Adjust index if team-directives was after team-skills
-                        if team_directives_idx > team_skills_idx:
-                            team_directives_idx -= 1
-                        steps.insert(team_directives_idx + 1, team_skills_step)
+            else:
+                # Skip team-mcp step if no .mcp.json
+                if tracker:
+                    tracker.skip("team-mcp", "no .mcp.json found")
             if directives_path and selected_ai:
                 try:
                     tracker.start("team-skills")
@@ -776,7 +760,6 @@ def pre_init(
             # Install MCP config after team-directives
             if directives_path and (directives_path / ".mcp.json").exists():
                 if tracker:
-                    tracker.add("team-mcp", "Team AI mcp setup")
                     tracker.start("team-mcp")
                 try:
                     success, messages, resolved, unresolved = install_mcp_config(
@@ -806,12 +789,15 @@ def pre_init(
                     if tracker:
                         tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
                     console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
+            else:
+                # Skip team-mcp step if no .mcp.json
+                if tracker:
+                    tracker.skip("team-mcp", "no .mcp.json found")
             
             # Install skills after MCP config
             if directives_path and selected_ai:
                 try:
                     if tracker:
-                        tracker.add("team-skills", "Install Team AI skills")
                         tracker.start("team-skills")
                     installed = _install_skills_from_path(
                         team_directives_path=directives_path,
