@@ -1788,11 +1788,12 @@ Run {SCRIPT}
             "copilot", manifest, ext_dir, project_dir
         )
 
-        assert len(registered) == 2
+        # Fork behavior: only alias is registered when aliases exist
+        assert len(registered) == 1
 
-        # Both primary and alias get companion .prompt.md
+        # Only alias gets companion .prompt.md in fork mode
         prompts_dir = project_dir / ".github" / "prompts"
-        assert (prompts_dir / "speckit.ext-alias-copilot.cmd.prompt.md").exists()
+        assert not (prompts_dir / "speckit.ext-alias-copilot.cmd.prompt.md").exists()
         assert (prompts_dir / "speckit.ext-alias-copilot.shortcut.prompt.md").exists()
 
     def test_non_copilot_agent_no_companion_file(self, extension_dir, project_dir):
@@ -4240,9 +4241,10 @@ class TestHookInvocationRendering:
             ],
         )
 
-        assert "Executing: `/pre_tasks_test`" in message
+        # kimi is always a skill agent, so it uses /skill: prefix
+        assert "Executing: `/skill:pre_tasks_test`" in message
         assert "Execute now: read the command file for `pre_tasks_test`" in message
-        assert "Invocation: `/pre_tasks_test`" in message
+        assert "Invocation: `/skill:pre_tasks_test`" in message
 
     def test_extension_command_uses_hyphenated_skill_invocation(self, project_dir):
         """Multi-segment extension command ids should map to hyphenated skills."""
