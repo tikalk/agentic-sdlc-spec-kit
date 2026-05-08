@@ -1279,11 +1279,13 @@ $ARGUMENTS
         registrar = CommandRegistrar()
         registered = registrar.register_commands_for_claude(manifest, ext_dir, project_dir)
 
-        assert len(registered) == 2
-        assert "speckit.ext-alias.cmd" in registered
+        # Fork behavior: when aliases exist, only aliases are registered (not primary)
+        assert len(registered) == 1
         assert "speckit.ext-alias.shortcut" in registered
-        assert (claude_dir / "speckit-ext-alias-cmd" / "SKILL.md").exists()
         assert (claude_dir / "speckit-ext-alias-shortcut" / "SKILL.md").exists()
+        # Primary command is not registered in fork mode when aliases exist
+        assert "speckit.ext-alias.cmd" not in registered
+        assert not (claude_dir / "speckit-ext-alias-cmd" / "SKILL.md").exists()
 
     def test_unregister_commands_for_codex_skills_uses_mapped_names(self, project_dir):
         """Codex skill cleanup should use the same mapped names as registration."""
@@ -1513,9 +1515,9 @@ Agent __AGENT__
         primary = skills_dir / "speckit-ext-alias-skill-cmd" / "SKILL.md"
         alias = skills_dir / "speckit-ext-alias-skill-shortcut" / "SKILL.md"
 
-        assert primary.exists()
+        # Fork behavior: only alias is created when aliases exist
+        assert not primary.exists(), "Primary should not exist in fork mode with aliases"
         assert alias.exists()
-        assert "name: speckit-ext-alias-skill-cmd" in primary.read_text()
         assert "name: speckit-ext-alias-skill-shortcut" in alias.read_text()
 
     def test_codex_skill_registration_uses_fallback_script_variant_without_init_options(
