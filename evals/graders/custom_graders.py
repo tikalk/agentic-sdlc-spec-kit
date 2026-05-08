@@ -630,8 +630,8 @@ def check_extension_manifest(output: str, context: dict) -> dict:
 
     score = len(found_fields) / len(required_fields)
 
-    # Check for valid command naming pattern
-    has_valid_commands = bool(re.search(r'speckit\.\w[\w-]*\.\w', output_lower))
+    # Check for valid command naming pattern (fork uses spec.* or speckit.*)
+    has_valid_commands = bool(re.search(r'(speckit|spec)\.\w[\w-]*\.\w', output_lower))
     if has_valid_commands:
         score = min(1.0, score + 0.1)
 
