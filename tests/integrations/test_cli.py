@@ -865,7 +865,7 @@ class TestSharedInfraCommandRefs:
     """Verify _install_shared_infra resolves __SPECKIT_COMMAND_*__ in page templates."""
 
     def test_dot_separator_in_page_templates(self, tmp_path):
-        """Markdown agents get /speckit.<name> in page templates."""
+        """Markdown agents get /spec.<name> in page templates (fork uses 'spec' prefix)."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "dot-test"
@@ -878,15 +878,15 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit.plan" in content
+        assert "/spec.plan" in content
 
         checklist = project / ".specify" / "templates" / "checklist-template.md"
         content = checklist.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/speckit.checklist" in content
+        assert "/spec.checklist" in content
 
     def test_hyphen_separator_in_page_templates(self, tmp_path):
-        """Skills agents get /speckit-<name> in page templates."""
+        """Skills agents get /spec-<name> in page templates (fork uses 'spec' prefix)."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "hyphen-test"
@@ -899,13 +899,13 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit-plan" in content
-        assert "/speckit.plan" not in content, "dot-notation leaked into skills page template"
+        assert "/spec-plan" in content
+        assert "/spec.plan" not in content, "dot-notation leaked into skills page template"
 
         tasks = project / ".specify" / "templates" / "tasks-template.md"
         content = tasks.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/speckit-tasks" in content
+        assert "/spec-tasks" in content
 
     def test_full_init_claude_resolves_page_templates(self, tmp_path):
         """Full CLI init with Claude (skills agent) produces hyphen refs in page templates."""
@@ -931,7 +931,7 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Claude (skills) should use /speckit-plan"
+        assert "/spec-plan" in content, "Claude (skills) should use /spec-plan"
         assert "__SPECKIT_COMMAND_" not in content
 
     def test_full_init_copilot_resolves_page_templates(self, tmp_path):
@@ -958,7 +958,7 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit.plan" in content, "Copilot (markdown) should use /speckit.plan"
+        assert "/spec.plan" in content, "Copilot (markdown) should use /spec.plan"
         assert "__SPECKIT_COMMAND_" not in content
 
     def test_full_init_copilot_skills_resolves_page_templates(self, tmp_path):
@@ -986,8 +986,8 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Copilot --skills should use /speckit-plan"
-        assert "/speckit.plan" not in content, "dot-notation leaked into Copilot skills page template"
+        assert "/spec-plan" in content, "Copilot --skills should use /spec-plan"
+        assert "/spec.plan" not in content, "dot-notation leaked into Copilot skills page template"
         assert "__SPECKIT_COMMAND_" not in content
 
 
