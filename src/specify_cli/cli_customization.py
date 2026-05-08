@@ -320,6 +320,183 @@ TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 
 
 # ============================================================================
+# MCP CONFIGURATION - Install .mcp.json from team-ai-directives
+# ============================================================================
+
+import re
+
+
+def resolve_env_placeholders(content: str) -> tuple[str, list[str], list[str]]:
+    """Replace ${VAR} with environment variable value.
+    
+    Args:
+        content: The MCP config content with ${VAR} placeholders
+        
+    Returns:
+        Tuple of (resolved_content, resolved_vars, unresolved_vars)
+    """
+    pattern = r'\$\{([^}]+)\}'
+    resolved_vars = []
+    unresolved_vars = []
+    
+    def replacer(match):
+        var_name = match.group(1)
+        env_value = os.environ.get(var_name)
+        if env_value is not None:
+            resolved_vars.append(var_name)
+            return env_value
+        else:
+            unresolved_vars.append(var_name)
+            return f"${{{var_name}}}"
+    
+    resolved_content = re.sub(pattern, replacer, content)
+    return resolved_content, resolved_vars, unresolved_vars
+
+
+def validate_mcp_config(content: str) -> tuple[bool, str]:
+    """Validate JSON structure of MCP config.
+    
+    Args:
+        content: The MCP config content as string
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        config = json.loads(content)
+        if not isinstance(config, dict):
+            return False, "MCP config must be a JSON object"
+        
+        # Check for at least one of mcpServers or tools
+        if "mcpServers" not in config and "tools" not in config:
+            return False, "MCP config must contain 'mcpServers' or 'tools'"
+        
+        return True, ""
+    except json.JSONDecodeError as e:
+        return False, f"Invalid JSON: {e}"
+    except Exception as e:
+        return False, f"Validation error: {e}"
+
+
+def merge_mcp_configs_report_conflicts(existing: dict, incoming: dict) -> tuple[dict, list[str]]:
+    """Merge configs but report conflicts instead of overwriting.
+    
+    Args:
+        existing: The existing MCP config dict
+        incoming: The incoming MCP config dict from team-ai-directives
+        
+    Returns:
+        Tuple of (merged_config, conflict_list)
+    """
+    merged = json.loads(json.dumps(existing))  # Deep copy
+    conflicts = []
+    
+    # Merge mcpServers
+    if "mcpServers" in incoming:
+        if "mcpServers" not in merged:
+            merged["mcpServers"] = {}
+        
+        for server_name, server_config in incoming["mcpServers"].items():
+            if server_name in merged.get("mcpServers", {}):
+                conflicts.append(f"mcpServers: {server_name}")
+            else:
+                merged["mcpServers"][server_name] = server_config
+    
+    # Merge tools
+    if "tools" in incoming:
+        if "tools" not in merged:
+            merged["tools"] = {}
+        
+        for tool_name, tool_config in incoming["tools"].items():
+            if tool_name in merged.get("tools", {}):
+                conflicts.append(f"tools: {tool_name}")
+            else:
+                merged["tools"][tool_name] = tool_config
+    
+    return merged, conflicts
+
+
+def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[str], list[str], list[str]]:
+    """Install .mcp.json from team-ai-directives to project root.
+    
+    Args:
+        team_path: Path to team-ai-directives directory
+        project_root: Path to project root
+        
+    Returns:
+        Tuple of (success, messages, resolved_vars, unresolved_vars)
+    """
+    messages = []
+    resolved_vars = []
+    unresolved_vars = []
+    
+    team_mcp_path = team_path / ".mcp.json"
+    project_mcp_path = project_root / ".mcp.json"
+    
+    if not team_mcp_path.exists():
+        messages.append("ℹ No .mcp.json found in team-ai-directives")
+        return True, messages, resolved_vars, unresolved_vars
+    
+    # Read team .mcp.json
+    try:
+        content = team_mcp_path.read_text()
+    except Exception as e:
+        messages.append(f"✗ Failed to read team .mcp.json: {e}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Resolve environment placeholders
+    content, resolved_vars, unresolved_vars = resolve_env_placeholders(content)
+    
+    # Validate JSON
+    is_valid, error_msg = validate_mcp_config(content)
+    if not is_valid:
+        messages.append(f"✗ Invalid MCP config in team-ai-directives/.mcp.json")
+        messages.append(f"  ℹ {error_msg}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Parse the config
+    try:
+        team_config = json.loads(content)
+    except Exception as e:
+        messages.append(f"✗ Failed to parse team .mcp.json: {e}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Check for existing project .mcp.json
+    if project_mcp_path.exists():
+        try:
+            existing_content = project_mcp_path.read_text()
+            existing_config = json.loads(existing_content)
+            
+            # Merge with conflict reporting
+            merged_config, conflicts = merge_mcp_configs_report_conflicts(existing_config, team_config)
+            
+            if conflicts:
+                messages.append(f"⚠ Conflicts detected (skipped, existing preserved):")
+                for conflict in conflicts:
+                    messages.append(f"    - {conflict}")
+            
+            # Write merged config
+            project_mcp_path.write_text(json.dumps(merged_config, indent=2))
+            messages.append("✓ Merged .mcp.json with existing config")
+            
+        except Exception as e:
+            messages.append(f"✗ Failed to merge with existing .mcp.json: {e}")
+            return False, messages, resolved_vars, unresolved_vars
+    else:
+        # Write new config
+        project_mcp_path.write_text(json.dumps(team_config, indent=2))
+        messages.append("✓ Installed .mcp.json")
+    
+    # Report env var resolution
+    if resolved_vars:
+        messages.append(f"  ℹ Resolved env vars: {', '.join(resolved_vars)}")
+    if unresolved_vars:
+        messages.append(f"  ⚠ Unresolved placeholders: {', '.join(f'${{{v}}}' for v in unresolved_vars)}")
+    
+    return True, messages, resolved_vars, unresolved_vars
+
+
+# ============================================================================
 # INIT HOOKS - Tikalk-specific pre/post init callbacks
 # ============================================================================
 
@@ -514,7 +691,41 @@ def pre_init(
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
 
-            # Add team-skills to tracker right after team-directives
+            # Install MCP config before team-skills
+            if directives_path and (directives_path / ".mcp.json").exists():
+                if tracker:
+                    tracker.add("team-mcp", "Team AI mcp setup")
+                    tracker.start("team-mcp")
+                try:
+                    success, messages, resolved, unresolved = install_mcp_config(
+                        directives_path, project_path
+                    )
+                    # Build status message
+                    status_parts = []
+                    if resolved:
+                        status_parts.append(f"resolved {len(resolved)} env vars")
+                    if unresolved:
+                        status_parts.append(f"{len(unresolved)} unresolved")
+                    # Check for conflicts in messages
+                    conflicts = [m for m in messages if "conflict" in m.lower()]
+                    if conflicts:
+                        status_parts.append(f"{len(conflicts)} conflicts")
+                    status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    if success:
+                        if tracker:
+                            tracker.complete("team-mcp", status_msg)
+                    else:
+                        if tracker:
+                            tracker.skip("team-mcp", f"validation failed - see warnings")
+                    # Print all messages
+                    for msg in messages:
+                        console.print(f"[dim]{msg}[/dim]")
+                except Exception as e:
+                    if tracker:
+                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
+                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
+
+            # Add team-skills to tracker right after team-mcp
             if tracker:
                 tracker.add("team-skills", "Install Team AI skills")
                 # Reorder: move team-skills to right after team-directives
@@ -561,18 +772,64 @@ def pre_init(
 
         if status == "installed":
             tracker.complete("team-directives", f"installed to {directives_path}")
-            # Install skills after successful sync
+            
+            # Install MCP config after team-directives
+            if directives_path and (directives_path / ".mcp.json").exists():
+                if tracker:
+                    tracker.add("team-mcp", "Team AI mcp setup")
+                    tracker.start("team-mcp")
+                try:
+                    success, messages, resolved, unresolved = install_mcp_config(
+                        directives_path, project_path
+                    )
+                    # Build status message
+                    status_parts = []
+                    if resolved:
+                        status_parts.append(f"resolved {len(resolved)} env vars")
+                    if unresolved:
+                        status_parts.append(f"{len(unresolved)} unresolved")
+                    # Check for conflicts in messages
+                    conflicts = [m for m in messages if "conflict" in m.lower()]
+                    if conflicts:
+                        status_parts.append(f"{len(conflicts)} conflicts")
+                    status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    if success:
+                        if tracker:
+                            tracker.complete("team-mcp", status_msg)
+                    else:
+                        if tracker:
+                            tracker.skip("team-mcp", f"validation failed - see warnings")
+                    # Print all messages
+                    for msg in messages:
+                        console.print(f"[dim]{msg}[/dim]")
+                except Exception as e:
+                    if tracker:
+                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
+                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
+            
+            # Install skills after MCP config
             if directives_path and selected_ai:
                 try:
-                    _install_skills_from_path(
+                    if tracker:
+                        tracker.add("team-skills", "Install Team AI skills")
+                        tracker.start("team-skills")
+                    installed = _install_skills_from_path(
                         team_directives_path=directives_path,
                         project_path=project_path,
                         selected_ai=selected_ai,
                         force=False,
                     )
-                    console.print("[dim]Installed team-ai-directives skills[/dim]")
+                    if installed:
+                        if tracker:
+                            tracker.complete("team-skills", f"{len(installed)} skills")
+                        console.print("[dim]Installed team-ai-directives skills[/dim]")
+                    else:
+                        if tracker:
+                            tracker.skip("team-skills", "no required skills found")
                 except Exception as e:
                     console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
+                    if tracker:
+                        tracker.error("team-skills", str(e))
             return
 
         if status == "local":
