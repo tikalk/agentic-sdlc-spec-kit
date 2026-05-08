@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import typer
 from packaging import version
@@ -323,8 +324,6 @@ TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 # MCP CONFIGURATION - Install .mcp.json from team-ai-directives
 # ============================================================================
 
-import re
-
 
 def resolve_env_placeholders(content: str) -> tuple[str, list[str], list[str]]:
     """Replace ${VAR} with environment variable value.
@@ -450,7 +449,7 @@ def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[
     # Validate JSON
     is_valid, error_msg = validate_mcp_config(content)
     if not is_valid:
-        messages.append(f"✗ Invalid MCP config in team-ai-directives/.mcp.json")
+        messages.append("✗ Invalid MCP config in team-ai-directives/.mcp.json")
         messages.append(f"  ℹ {error_msg}")
         return False, messages, resolved_vars, unresolved_vars
     
@@ -471,7 +470,7 @@ def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[
             merged_config, conflicts = merge_mcp_configs_report_conflicts(existing_config, team_config)
             
             if conflicts:
-                messages.append(f"⚠ Conflicts detected (skipped, existing preserved):")
+                messages.append("⚠ Conflicts detected (skipped, existing preserved):")
                 for conflict in conflicts:
                     messages.append(f"    - {conflict}")
             
@@ -705,7 +704,6 @@ def pre_init(
                     # Parse messages to extract useful info
                     installed_servers = []
                     merged_servers = []
-                    servers_needing_setup = []
                     
                     for msg in messages:
                         if msg.startswith("✓ Installed"):
@@ -736,7 +734,7 @@ def pre_init(
                             for server_name in all_servers + all_tools:
                                 if server_name not in merged_servers:
                                     installed_servers.append(server_name)
-                    except:
+                    except Exception:
                         pass
                     
                     # Build user-friendly tracker status
@@ -776,7 +774,7 @@ def pre_init(
                             console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
                     else:
                         if tracker:
-                            tracker.skip("team-mcp", f"validation failed - see warnings")
+                            tracker.skip("team-mcp", "validation failed - see warnings")
                         # Print error messages
                         for msg in messages:
                             if msg.startswith("✗"):
@@ -852,7 +850,7 @@ def pre_init(
                             for server_name in all_servers + all_tools:
                                 if server_name not in merged_servers:
                                     installed_servers.append(server_name)
-                    except:
+                    except Exception:
                         pass
                     
                     # Build user-friendly tracker status
@@ -889,7 +887,7 @@ def pre_init(
                             console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
                     else:
                         if tracker:
-                            tracker.skip("team-mcp", f"validation failed - see warnings")
+                            tracker.skip("team-mcp", "validation failed - see warnings")
                     # Print all messages
                     for msg in messages:
                         console.print(f"[dim]{msg}[/dim]")
