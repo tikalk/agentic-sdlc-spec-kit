@@ -124,7 +124,10 @@ class TestBasePrimitives:
 
     def test_command_filename_default(self):
         i = StubIntegration()
-        assert i.command_filename("plan") == "speckit.plan.md"
+        # Fork uses "spec" prefix instead of "speckit"
+        assert i.command_filename("plan") == "spec.plan.md"
+        # taskstoissues keeps speckit prefix (special case)
+        assert i.command_filename("taskstoissues") == "speckit.taskstoissues.md"
 
     def test_commands_dest(self, tmp_path):
         i = StubIntegration()
@@ -141,8 +144,8 @@ class TestBasePrimitives:
         src = tmp_path / "source.md"
         src.write_text("content", encoding="utf-8")
         dest_dir = tmp_path / "output"
-        result = IntegrationBase.copy_command_to_directory(src, dest_dir, "speckit.plan.md")
-        assert result == dest_dir / "speckit.plan.md"
+        result = IntegrationBase.copy_command_to_directory(src, dest_dir, "spec.plan.md")
+        assert result == dest_dir / "spec.plan.md"
         assert result.read_text(encoding="utf-8") == "content"
 
     def test_record_file_in_manifest(self, tmp_path):
@@ -167,7 +170,8 @@ class TestBasePrimitives:
         assert len(created) > 0
         for f in created:
             assert f.parent.name == "commands"
-            assert f.name.startswith("speckit.")
+            # Fork uses "spec." prefix (except taskstoissues which uses "speckit.")
+            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
             assert f.name.endswith(".md")
 
 
