@@ -172,7 +172,7 @@ class TestInitIntegrationFlag:
         assert "--integration-options" in normalized_output
         assert ".myagent/commands" in normalized_output
         assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".myagent" / "commands" / "speckit.plan.md").exists()
+        assert (project / ".myagent" / "commands" / "spec.plan.md").exists()
 
     def test_ai_claude_here_preserves_preexisting_commands(self, tmp_path):
         from typer.testing import CliRunner
@@ -182,7 +182,7 @@ class TestInitIntegrationFlag:
         project.mkdir()
         commands_dir = project / ".claude" / "skills"
         commands_dir.mkdir(parents=True)
-        skill_dir = commands_dir / "speckit-specify"
+        skill_dir = commands_dir / "spec-specify"
         skill_dir.mkdir(parents=True)
         command_file = skill_dir / "SKILL.md"
         command_file.write_text("# preexisting command\n", encoding="utf-8")
@@ -201,8 +201,8 @@ class TestInitIntegrationFlag:
         assert command_file.exists()
         # init replaces skills (not additive); verify the file has valid skill content
         assert command_file.exists()
-        assert "speckit-specify" in command_file.read_text(encoding="utf-8")
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert "spec-specify" in command_file.read_text(encoding="utf-8")
+        assert (project / ".claude" / "skills" / "spec-plan" / "SKILL.md").exists()
 
     def test_shared_infra_skips_existing_files_without_force(self, tmp_path):
         """Pre-existing shared files are not overwritten without --force."""
