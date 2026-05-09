@@ -802,7 +802,7 @@ def sync_team_ai_directives(
                     raise ValueError(
                         f"Authentication failed accessing {repo_url}\n"
                         f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
-                        f"See: https://github.github.io/spec-kit/reference/authentication.html"
+                        f"See: docs/reference/authentication.md"
                     ) from e
                 elif e.code == 404:
                     raise ValueError(
@@ -826,7 +826,7 @@ def sync_team_ai_directives(
                     raise ValueError(
                         f"Repository requires authentication: {repo_url}\n"
                         f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
-                        f"See: https://github.github.io/spec-kit/reference/authentication.html"
+                        f"See: docs/reference/authentication.md"
                     )
                 raise ValueError(
                     f"Downloaded file is not a valid ZIP archive: {repo_url}\n"
