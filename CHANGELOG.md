@@ -4,6 +4,17 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Changed
+
+- **Refactored team-ai-directives code isolation**: Moved 5 fork-specific functions from `__init__.py` to `cli_customization.py`
+  - `sync_team_ai_directives()` - Main installation function for team-ai-directives
+  - `_store_extension_source_url()` - Registry metadata storage helper
+  - `_derive_target_repo_from_url()` - URL parsing for archive URLs
+  - `_register_bundled_catalog()` - Bundled catalog registration
+  - `get_team_directives_path()` - Path resolution for team-ai-directives
+  - Reduces `__init__.py` by ~220 lines for better code organization
+  - Maintains backward compatibility with fallback implementations in ImportError block
+
 # [0.8.7+adlc13] - 2026-05-08
 
 ### Fixed
