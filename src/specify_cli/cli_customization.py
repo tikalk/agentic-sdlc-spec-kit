@@ -610,16 +610,38 @@ def _scaffold_presets_to_project(
     source_dir: Path,
     project_dir: Path,
 ) -> list[str]:
-    """Scaffold preset folders from source to project if missing or empty."""
+    """Scaffold preset folders from source to project if missing or empty.
+    Only scaffolds presets with preinstall: true in the catalog.
+    """
     scaffolded = []
 
     if not source_dir.exists():
         return scaffolded
 
+    # Read catalog to get preinstall flags
+    preinstall_presets = set()
+    catalog_path = source_dir / "catalog.json"
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            presets = catalog_data.get("presets", {})
+            preinstall_presets = {
+                preset_id
+                for preset_id, preset_data in presets.items()
+                if preset_data.get("preinstall", False)
+            }
+        except (json.JSONDecodeError, IOError):
+            pass
+
     project_dir.mkdir(parents=True, exist_ok=True)
 
     for preset_dir in source_dir.iterdir():
         if not preset_dir.is_dir() or preset_dir.name.startswith("."):
+            continue
+
+        # Only scaffold presets with preinstall: true
+        if preinstall_presets and preset_dir.name not in preinstall_presets:
             continue
 
         proj_preset = project_dir / preset_dir.name
@@ -1282,25 +1304,10 @@ def _install_bundled_extensions(
                 if ext_data.get("preinstall", False)
                 and (bundled_extensions_dir / ext_id / "extension.yml").exists()
             ]
-            if not bundled_extensions:
-                bundled_extensions = [
-                    ext_id
-                    for ext_id in extensions.keys()
-                    if (bundled_extensions_dir / ext_id / "extension.yml").exists()
-                ]
         except (json.JSONDecodeError, IOError) as e:
             console.print(
                 f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
             )
-
-    if not bundled_extensions:
-        bundled_extensions = [
-            d.name
-            for d in bundled_extensions_dir.iterdir()
-            if d.is_dir()
-            and not d.name.startswith(".")
-            and (d / "extension.yml").exists()
-        ]
 
     if bundled_extensions:
         from .extensions import ExtensionManager, HookExecutor
@@ -1470,11 +1477,24 @@ def _install_bundled_presets(
 
     bundled_presets_dir = project_presets_dir
 
-    bundled_presets = [
-        d.name
-        for d in bundled_presets_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and (d / "preset.yml").exists()
-    ]
+    # Read catalog.json to filter by preinstall flag
+    catalog_path = bundled_presets_dir / "catalog.json"
+    bundled_presets = []
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            presets = catalog_data.get("presets", {})
+            bundled_presets = [
+                preset_id
+                for preset_id, preset_data in presets.items()
+                if preset_data.get("preinstall", False)
+                and (bundled_presets_dir / preset_id / "preset.yml").exists()
+            ]
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to parse presets catalog.json: {e}"
+            )
 
     if not bundled_presets:
         if tracker:

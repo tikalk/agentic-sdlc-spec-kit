@@ -1609,8 +1609,7 @@ def init(
                             no_git=no_git,
                             force=force,
                         )
-                tracker.complete("extensions", "done")
-                tracker.complete("presets", "done")
+
             except Exception as hook_err:
                 tracker.skip("extensions", f"hook error: {hook_err}")
                 tracker.skip("presets", f"hook error: {hook_err}")
