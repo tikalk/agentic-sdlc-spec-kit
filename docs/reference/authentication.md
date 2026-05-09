@@ -35,7 +35,7 @@ Each entry in the `providers` array has the following fields:
 | Field | Required | Description |
 |---|---|---|
 | `hosts` | Yes | Array of hostnames this entry applies to. Supports exact hostnames, or a leading `*.` wildcard for subdomains only (for example, `*.visualstudio.com`). `*.visualstudio.com` matches `foo.visualstudio.com`, but not `visualstudio.com`. Other glob patterns such as `*github.com` or `gith?b.com` are not supported. |
-| `provider` | Yes | Built-in provider key: `github` or `azure-devops`. |
+| `provider` | Yes | Built-in provider key: `github`, `gitlab`, or `azure-devops`. |
 | `auth` | Yes | Auth scheme (see below). |
 | `token` | No | Token value (inline). Use `token_env` instead when possible. |
 | `token_env` | No | Environment variable name to read the token from. |
@@ -80,7 +80,7 @@ Either `token` or `token_env` must be set for `bearer` and `basic-pat` schemes.
 
 ```json
 {
-  "hosts": ["gitlab.com", "gitlab.tikalk.dev"],
+  "hosts": ["gitlab.com"],
   "provider": "gitlab",
   "auth": "bearer",
   "token_env": "GITLAB_TOKEN"
@@ -161,6 +161,12 @@ You can configure multiple entries for different hosts or organizations:
       "provider": "github",
       "auth": "bearer",
       "token_env": "GH_TOKEN"
+    },
+    {
+      "hosts": ["gitlab.com"],
+      "provider": "gitlab",
+      "auth": "bearer",
+      "token_env": "GITLAB_TOKEN"
     },
     {
       "hosts": ["dev.azure.com"],

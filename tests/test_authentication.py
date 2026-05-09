@@ -226,7 +226,7 @@ class TestLoadAuthConfig:
     def test_unknown_provider_raises(self, tmp_path):
         cfg = tmp_path / "auth.json"
         cfg.write_text(json.dumps({
-            "providers": [{"hosts": ["example.com"], "provider": "gitlab", "auth": "bearer", "token_env": "X"}]
+            "providers": [{"hosts": ["example.com"], "provider": "unknown-provider", "auth": "bearer", "token_env": "X"}]
         }))
         with pytest.raises(ValueError, match="unknown provider"):
             load_auth_config(cfg)

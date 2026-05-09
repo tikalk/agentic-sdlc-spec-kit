@@ -42,9 +42,11 @@ def _register_builtins() -> None:
     """Register all built-in authentication providers (alphabetical)."""
     from .azure_devops import AzureDevOpsAuth
     from .github import GitHubAuth
+    from .gitlab import GitLabAuth
 
     _register(AzureDevOpsAuth())
     _register(GitHubAuth())
+    _register(GitLabAuth())
 
 
 _register_builtins()
