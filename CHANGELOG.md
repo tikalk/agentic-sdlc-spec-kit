@@ -6,6 +6,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Changed
 
+- **Merged upstream/main**: Integrated latest upstream changes (v0.8.8.dev0+)
+  - Updated community catalog with latest extension versions
+  - Bumped GitHub Actions dependencies:
+    - actions/setup-dotnet: 4.3.1 → 5.2.0
+    - actions/github-script: 7 → 9
+    - DavidAnson/markdownlint-cli2-action (latest)
+    - github/codeql-action: 4.35.3 → 4.35.4
+
 - **Refactored team-ai-directives code isolation**: Moved 5 fork-specific functions from `__init__.py` to `cli_customization.py`
   - `sync_team_ai_directives()` - Main installation function for team-ai-directives
   - `_store_extension_source_url()` - Registry metadata storage helper
