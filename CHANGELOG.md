@@ -4,6 +4,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Fixed
+
+- **Improved error message for private repository authentication**: `sync_team_ai_directives()` now detects when a downloaded "ZIP" file is actually an HTML authentication page (common with private GitLab repositories)
+  - Validates downloaded content starts with ZIP magic bytes (`PK`)
+  - Detects HTML content and provides clear error message about authentication requirement
+  - Guides users to configure `~/.specify/auth.json` for private repositories
+  - Fixes cryptic "File is not a zip file" error when accessing private repos without auth
+
 ### Changed
 
 - **Merged upstream/main**: Integrated latest upstream changes (v0.8.8.dev0+)

@@ -818,6 +818,21 @@ def sync_team_ai_directives(
                 ) from e
             zip_path.write_bytes(zip_data)
 
+            # Validate downloaded content is actually a ZIP file
+            # (GitLab may return HTML login page for private repos without auth)
+            if not zip_data.startswith(b'PK'):
+                content_preview = zip_data[:500].decode('utf-8', errors='replace')
+                if '<html' in content_preview.lower():
+                    raise ValueError(
+                        f"Repository requires authentication: {repo_url}\n"
+                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
+                        f"See: https://github.github.io/spec-kit/reference/authentication.html"
+                    )
+                raise ValueError(
+                    f"Downloaded file is not a valid ZIP archive: {repo_url}\n"
+                    f"Expected a ZIP file, but received different content type."
+                )
+
             manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)
             dest_dir = project_root / ".specify" / "extensions" / manifest.id
 
