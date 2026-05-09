@@ -112,7 +112,7 @@ def test_sync_auth_failure_raises_with_auth_json_message(tmp_path, monkeypatch):
     error_msg = str(exc.value)
     assert "Authentication failed" in error_msg
     assert "auth.json" in error_msg
-    assert "github.github.io/spec-kit/reference/authentication.html" in error_msg
+    assert "github.com/tikalk/agentic-sdlc-spec-kit/blob/main/docs/reference/authentication.md" in error_msg
 
 
 def test_sync_404_error_raises_repository_not_found(tmp_path):
