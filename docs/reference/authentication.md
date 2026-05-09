@@ -69,6 +69,41 @@ Either `token` or `token_env` must be set for `bearer` and `basic-pat` schemes.
 }
 ```
 
+### GitLab (`gitlab`)
+
+| Scheme | Header | Use for |
+|---|---|---|
+| `bearer` | `Authorization: Bearer <token>` | Personal Access Tokens, OAuth tokens |
+| `basic-pat` | `Private-Token: <token>` | Personal Access Tokens (GitLab-specific header) |
+
+**Example — PAT via environment variable:**
+
+```json
+{
+  "hosts": ["gitlab.com", "gitlab.tikalk.dev"],
+  "provider": "gitlab",
+  "auth": "bearer",
+  "token_env": "GITLAB_TOKEN"
+}
+```
+
+### Azure DevOps (`azure-devops`)
+
+| Scheme | Header | Use for |
+|---|---|---|
+| `bearer` | `Authorization: Bearer <token>` | PATs, fine-grained PATs, OAuth tokens, GitHub App tokens |
+
+**Example — PAT via environment variable:**
+
+```json
+{
+  "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com", "codeload.github.com"],
+  "provider": "github",
+  "auth": "bearer",
+  "token_env": "GH_TOKEN"
+}
+```
+
 ### Azure DevOps (`azure-devops`)
 
 | Scheme | Header | Use for |
@@ -179,3 +214,57 @@ mkdir -p ~/.specify
 # Copy the JSON above into ~/.specify/auth.json
 chmod 600 ~/.specify/auth.json
 ```
+
+## Team AI Directives Authentication
+
+When using `--team-ai-directives` with a private repository, authentication is required to download the directives. The authentication mechanism is the same as for extensions and catalogs.
+
+### GitHub Private Repository
+
+```json
+{
+  "providers": [
+    {
+      "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com", "codeload.github.com"],
+      "provider": "github",
+      "auth": "bearer",
+      "token_env": "GITHUB_TOKEN"
+    }
+  ]
+}
+```
+
+Then set your token:
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+```
+
+### GitLab Private Repository
+
+```json
+{
+  "providers": [
+    {
+      "hosts": ["gitlab.com"],
+      "provider": "gitlab",
+      "auth": "bearer",
+      "token_env": "GITLAB_TOKEN"
+    }
+  ]
+}
+```
+
+Then set your token:
+```bash
+export GITLAB_TOKEN=glpat_your_token_here
+```
+
+### Error Messages
+
+If authentication fails when downloading team-ai-directives:
+
+- **401/403 errors**: Check that your `auth.json` is properly configured and the token environment variable is set
+- **404 errors**: Verify the repository URL is correct and the repository exists
+- **Network errors**: Check your internet connection and the URL accessibility
+
+For more details on team-ai-directives, see the [Team AI Directives documentation](https://github.com/tikalk/agentic-sdlc-team-ai-directives).

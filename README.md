@@ -405,6 +405,35 @@ specify init <project> --team-ai-directives https://github.com/your-org/team-ai-
 specify init <project> --team-ai-directives ~/workspace/team-ai-directives
 ```
 
+**Private Repositories**: If your team-ai-directives repository is private, configure authentication in `~/.specify/auth.json`:
+
+```json
+{
+  "providers": [
+    {
+      "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com"],
+      "provider": "github",
+      "auth": "bearer",
+      "token_env": "GITHUB_TOKEN"
+    },
+    {
+      "hosts": ["gitlab.com"],
+      "provider": "gitlab",
+      "auth": "bearer",
+      "token_env": "GITLAB_TOKEN"
+    }
+  ]
+}
+```
+
+Then set the appropriate environment variable:
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+# or
+export GITLAB_TOKEN=glpat_your_token_here
+```
+
 The directives are installed to `.specify/extensions/team-ai-directives/` and available to all AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
 
 See [agentic-sdlc-team-ai-directives](https://github.com/tikalk/agentic-sdlc-team-ai-directives) for the full starter kit.

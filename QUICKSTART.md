@@ -89,13 +89,44 @@ specify init . --force --team-ai-directives <DIRECTIVES_URL>
 
 ### Private Repository Access
 
-If your team-ai-directives repository is private, set up a GitHub token:
+If your team-ai-directives repository is private, configure authentication:
+
+**1. Create `~/.specify/auth.json`:**
+
+```bash
+mkdir -p ~/.specify
+cat > ~/.specify/auth.json << 'EOF'
+{
+  "providers": [
+    {
+      "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com"],
+      "provider": "github",
+      "auth": "bearer",
+      "token_env": "GITHUB_TOKEN"
+    }
+  ]
+}
+EOF
+```
+
+**2. Set your token:**
 
 ```bash
 # Generate token at https://github.com/settings/tokens
-export GH_TOKEN=$(gh auth token)
-echo $GH_TOKEN
+export GITHUB_TOKEN=$(gh auth token)
+echo $GITHUB_TOKEN
 ```
+
+**For GitLab:** Replace the provider with:
+```json
+{
+  "hosts": ["gitlab.com"],
+  "provider": "gitlab",
+  "auth": "bearer",
+  "token_env": "GITLAB_TOKEN"
+}
+```
+And use `export GITLAB_TOKEN=your_token_here`
 
 ### Available Team AI Directives
 

@@ -2134,8 +2134,6 @@ def sync_team_ai_directives(
         return ("local", dest_dir)
 
     if repo_url.endswith(".zip") or "/archive/" in repo_url:
-        import urllib.request  # noqa: F401
-
         ext_manager = ExtensionManager(project_root)
         speckit_version = get_speckit_version()
 
@@ -2148,23 +2146,17 @@ def sync_team_ai_directives(
         zip_path = download_dir / "team-ai-directives-download.zip"
 
         try:
-            req = urllib.request.Request(repo_url)
-            for env_var in ("GH_TOKEN", "GITHUB_TOKEN"):
-                token = os.environ.get(env_var)
-                if token:
-                    token = token.strip()
-                    if token:
-                        req.add_header("Authorization", f"Bearer {token}")
-                        break
+            from specify_cli.authentication.http import open_url
+
             try:
-                with urllib.request.urlopen(req, timeout=60) as response:
+                with open_url(repo_url, timeout=60) as response:
                     zip_data = response.read()
             except urllib.error.HTTPError as e:
                 if e.code in (401, 403):
                     raise ValueError(
                         f"Authentication failed accessing {repo_url}\n"
-                        f"The repository may be private. Please set GH_TOKEN or GITHUB_TOKEN environment variable.\n"
-                        f"Example: export GH_TOKEN=ghp_xxxxxxx"
+                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
+                        f"See: https://github.github.io/spec-kit/reference/authentication.html"
                     ) from e
                 elif e.code == 404:
                     raise ValueError(

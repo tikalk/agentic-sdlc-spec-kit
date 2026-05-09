@@ -23,7 +23,7 @@ Before starting, gather this information:
 □ Which AI coding agent will you use? (GitHub Copilot/Cursor/Claude Code/Windsurf/Codex/other)
 □ Is this a new project or existing codebase?
 □ Do you have the team-ai-directives URL from your team lead?
-□ Is the team-ai-directives repository private? (needs GH_TOKEN)
+□ Is the team-ai-directives repository private? (needs auth.json configuration)
 ```
 
 ---
@@ -160,22 +160,63 @@ gh --version
 gh auth login
 ```
 
-4. **Set GH_TOKEN environment variable:**
+4. **Configure authentication for private repositories:**
+
+Create `~/.specify/auth.json` with your GitHub or GitLab token:
+
 ```bash
-export GH_TOKEN=$(gh auth token)
+mkdir -p ~/.specify
+cat > ~/.specify/auth.json << 'EOF'
+{
+  "providers": [
+    {
+      "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com"],
+      "provider": "github",
+      "auth": "bearer",
+      "token_env": "GITHUB_TOKEN"
+    }
+  ]
+}
+EOF
 ```
 
-**Verify token works:**
+**Set the token environment variable:**
 ```bash
-echo $GH_TOKEN
+export GITHUB_TOKEN=$(gh auth token)
 ```
-
-Should display a long string of characters (the token).
 
 **For Windows (PowerShell):**
 ```powershell
-$env:GH_TOKEN = (gh auth token)
+# Create auth.json
+$authConfig = @{
+    providers = @(
+        @{
+            hosts = @("github.com", "api.github.com", "raw.githubusercontent.com")
+            provider = "github"
+            auth = "bearer"
+            token_env = "GITHUB_TOKEN"
+        }
+    )
+} | ConvertTo-Json -Depth 3
+
+New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.specify"
+$authConfig | Set-Content "$env:USERPROFILE\.specify\auth.json"
+
+# Set token
+$env:GITHUB_TOKEN = (gh auth token)
 ```
+
+**For GitLab:**
+Replace the provider configuration with:
+```json
+{
+  "hosts": ["gitlab.com"],
+  "provider": "gitlab",
+  "auth": "bearer",
+  "token_env": "GITLAB_TOKEN"
+}
+```
+And set `export GITLAB_TOKEN=your_token_here`
 
 ---
 
@@ -430,11 +471,16 @@ uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/t
 **Solutions:**
 1. Check internet connection
 2. Verify the URL is correct
-3. For private repos, ensure GH_TOKEN is set:
+3. For private repos, ensure `~/.specify/auth.json` is configured:
    ```bash
-   export GH_TOKEN=$(gh auth token)
+   # Verify auth.json exists
+   cat ~/.specify/auth.json
+   
+   # Verify token is set
+   echo $GITHUB_TOKEN  # or $GITLAB_TOKEN
    ```
-4. Check GitHub token has access to the repository
+4. Check token has access to the repository
+5. See [authentication documentation](https://github.github.io/spec-kit/reference/authentication.html) for more details
 
 ### Issue: "No AI agent detected"
 
@@ -513,7 +559,7 @@ Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
 | "How do I set up a project?" | Guide through Phase 2 (init with team-ai-directives) |
 | "How do I create my first spec?" | Guide through Step 4.1 (constitution) then Step 5.1 (test feature) |
 | "Commands not showing" | Check Step 2.5 (AI agent selection) and troubleshooting |
-| "Private repo access issues" | Guide through Step 2.3 (GH_TOKEN setup) |
+| "Private repo access issues" | Guide through Step 2.3 (auth.json configuration) |
 | "What's next?" | Point to Next Steps section |
 
 ---

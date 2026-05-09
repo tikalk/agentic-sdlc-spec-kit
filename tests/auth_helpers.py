@@ -19,3 +19,19 @@ def inject_github_config(monkeypatch, token_env: str = "GH_TOKEN") -> None:
     """Inject a GitHub auth.json config entry into the auth HTTP module."""
     from specify_cli.authentication import http as _auth_http
     monkeypatch.setattr(_auth_http, "_config_override", [make_github_auth_entry(token_env)])
+
+
+def make_gitlab_auth_entry(token_env: str = "GITLAB_TOKEN") -> AuthConfigEntry:
+    """Build a GitLab ``AuthConfigEntry`` for testing."""
+    return AuthConfigEntry(
+        hosts=("gitlab.com", "gitlab.tikalk.dev"),
+        provider="gitlab",
+        auth="bearer",
+        token_env=token_env,
+    )
+
+
+def inject_gitlab_config(monkeypatch, token_env: str = "GITLAB_TOKEN") -> None:
+    """Inject a GitLab auth.json config entry into the auth HTTP module."""
+    from specify_cli.authentication import http as _auth_http
+    monkeypatch.setattr(_auth_http, "_config_override", [make_gitlab_auth_entry(token_env)])
