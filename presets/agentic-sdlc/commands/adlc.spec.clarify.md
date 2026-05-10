@@ -178,8 +178,10 @@ Execution steps:
 
 4. Sequential questioning loop (interactive):
     - Present EXACTLY ONE question at a time.
+    - **CRITICAL**: You MUST output the actual question text BEFORE showing any options or recommendations. The user should see the question clearly stated first.
     - For multiple‑choice questions:
        - **First, clearly state the question** being asked (e.g., "**Question**: How should the CLI authenticate with the API?")
+       - **You MUST output the question text BEFORE any recommendation or options table**
        - **Analyze all options** and determine the **most suitable option** based on:
          - Best practices for the project type
          - Common patterns in similar implementations
