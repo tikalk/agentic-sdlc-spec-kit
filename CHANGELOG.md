@@ -6,6 +6,8 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Fixed
 
+- **Clarify commands now explicitly state questions**: Fixed all clarify commands (spec, product, architect, levelup) to explicitly output the question text before showing recommendations and options, resolving confusion where only options were shown without context.
+
 - **Improved error message for private repository authentication**: `sync_team_ai_directives()` now detects when a downloaded "ZIP" file is actually an HTML authentication page (common with private GitLab repositories)
   - Validates downloaded content starts with ZIP magic bytes (`PK`)
   - Detects HTML content and provides clear error message about authentication requirement

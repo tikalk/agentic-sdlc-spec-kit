@@ -177,9 +177,10 @@ Execution steps:
    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
 4. Sequential questioning loop (interactive):
-   - Present EXACTLY ONE question at a time.
-   - For multiple‑choice questions:
-      - **Analyze all options** and determine the **most suitable option** based on:
+    - Present EXACTLY ONE question at a time.
+    - For multiple‑choice questions:
+       - **First, clearly state the question** being asked (e.g., "**Question**: How should the CLI authenticate with the API?")
+       - **Analyze all options** and determine the **most suitable option** based on:
          - Best practices for the project type
          - Common patterns in similar implementations
          - Risk reduction (security, performance, maintainability)
@@ -195,9 +196,10 @@ Execution steps:
       | C | <Option C description> (add D/E as needed up to 5) |
       | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
 
-      - After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
-   - For short‑answer style (no meaningful discrete options):
-      - Provide your **suggested answer** based on best practices and context.
+- After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+    - For short‑answer style (no meaningful discrete options):
+       - **First, clearly state the question** being asked (e.g., "**Question**: What naming convention should be used?")
+       - Provide your **suggested answer** based on best practices and context.
       - Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
       - Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
    - After the user answers:

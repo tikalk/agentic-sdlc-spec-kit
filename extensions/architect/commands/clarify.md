@@ -240,6 +240,8 @@ When constitution issues are detected:
 ```markdown
 ## Clarification [N]: Constitution Duplication Detected
 
+**Question**: How should this duplicate ADR be handled?
+
 **ADR**: ADR-XXX - [Title]
 **Constitution Principle**: §[Section] - [Principle Name]
 **Issue**: This ADR documents a decision already mandated by constitution
@@ -259,6 +261,8 @@ Reply with your choice (A/B/C/D).
 
 ```markdown
 ## Clarification [N]: Constitution Violation Detected ⭐
+
+**Question**: How should this constitutional violation be resolved?
 
 **ADR**: ADR-XXX - [Title]
 **Decision**: [What the ADR decides]

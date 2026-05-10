@@ -31,9 +31,9 @@ Examples:
 | Hotfix/patch | Increment adlc suffix | `0.8.2+adlc1` → `0.8.2+adlc2` |
 
 ### Tag Format
-Use `agentic-sdlc-v<version>` with dashes instead of plus:
+Use `agentic-sdlc-v<version>` with plus:
 - Version: `0.8.2+adlc2`
-- Tag: `agentic-sdlc-v0.8.2-adlc2`
+- Tag: `agentic-sdlc-v0.8.2+adlc2`
 
 ## Customization Module
 
