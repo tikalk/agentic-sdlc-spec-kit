@@ -2,6 +2,16 @@
 
 All notable changes to the Quick Extension will be documented in this file.
 
+## [1.0.4] - 2026-05-11
+
+### Fixed
+
+- **Hook execution compliance**: Restructured hook sections in `implement.md` to use "Pre-Execution Checks" pattern
+  - Root cause: Agents were skipping prose hook instructions because they treated them as informational text
+  - Changed from loose prose to numbered steps with explicit MUST/CRITICAL language
+  - Added visual indicators (🔴 MANDATORY, ⚠️ WARNING) to improve visibility
+  - Matches the pattern used in preset commands that have better agent compliance
+
 ## [1.0.3] - 2026-05-11
 
 ### Added

@@ -49,7 +49,7 @@
     "tdd": {
       "id": "tdd",
       "name": "TDD - Test-Driven Development Workflow",
-      "version": "1.0.2",
+      "version": "1.0.4",
       "bundled": true,
       "preinstall": false,
       "description": "Strict RED→GREEN→REFACTOR TDD with increment-based and risk-based testing. Language auto-detection, hybrid test generation, test quality validation.",
@@ -148,7 +148,7 @@
     "quick": {
       "id": "quick",
       "name": "Quick - Session-Based Ad-Hoc Task Execution",
-      "version": "1.0.0",
+      "version": "1.0.4",
       "bundled": true,
       "preinstall": true,
       "description": "One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology: Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution",

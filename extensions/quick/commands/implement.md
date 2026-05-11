@@ -126,34 +126,43 @@ Generate and display a simple task checklist:
 
 ---
 
-## Extension Hooks (before implementation)
+## ⚠️ CRITICAL: Pre-Execution Checks
 
-**Check for extension hooks (before implementation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
-- If it exists, read it and look for entries under the `hooks.before_implement` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
+**MUST complete these checks before proceeding to execution:**
 
-    **Optional Pre-Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
+### Step 1: Extension Hooks (before implementation)
 
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-  - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
-    - If the hook command file cannot be found, log a warning and proceed anyway
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+**🔴 MANDATORY - DO NOT SKIP THIS STEP**
+
+Execute the following steps in order:
+
+1. **Read** `{REPO_ROOT}/.specify/extensions.yml`
+2. **Locate** the `hooks.before_implement` section in the YAML
+3. **Filter** the hooks:
+   - Remove any hooks where `enabled` is explicitly `false`
+   - Keep hooks where `enabled` is `true` or not specified
+4. **For each remaining hook**, execute based on its `optional` flag:
+   - **If `optional: false` (MANDATORY)**:
+     - Read the command file for the hook from the installed extension commands directory
+     - **Execute the instructions in that command file IMMEDIATELY**
+     - Wait for the hook to complete before proceeding
+     - If the command file is not found, log a warning and continue
+   - **If `optional: true` (OPTIONAL)**:
+     - Display the hook details to the user:
+       ```
+       ## Extension Hooks
+
+       **Optional Pre-Hook**: {extension}
+       Command: `/{command}`
+       Description: {description}
+
+       Prompt: {prompt}
+       To execute: `/{command}`
+       ```
+     - Allow the user to decide whether to execute
+5. **If** `{REPO_ROOT}/.specify/extensions.yml` does not exist or has no `hooks.before_implement` entries, **continue silently** - this is normal
+
+**⚠️ WARNING: Skipping mandatory hooks violates the quick.implement contract.**
 
 ---
 
@@ -192,34 +201,37 @@ Display summary:
 
 ---
 
-## Extension Hooks (after implementation)
+## Post-Execution Checks
 
-**Check for extension hooks (after implementation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
-- If it exists, read it and look for entries under the `hooks.after_implement` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
+### Step 2: Extension Hooks (after implementation)
 
-    **Optional Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
+**Execute after all tasks are complete:**
 
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-  - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed
-    - If the hook command file cannot be found or execution fails, log a warning and continue
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
+1. **Read** `{REPO_ROOT}/.specify/extensions.yml`
+2. **Locate** the `hooks.after_implement` section in the YAML
+3. **Filter** the hooks:
+   - Remove any hooks where `enabled` is explicitly `false`
+   - Keep hooks where `enabled` is `true` or not specified
+4. **For each remaining hook**, execute based on its `optional` flag:
+   - **If `optional: false` (MANDATORY)**:
+     - Read the command file for the hook from the installed extension commands directory
+     - **Execute the instructions in that command file IMMEDIATELY**
+     - Wait for the hook to complete before proceeding
+     - If the command file is not found or execution fails, log a warning and continue
+   - **If `optional: true` (OPTIONAL)**:
+     - Display the hook details to the user:
+       ```
+       ## Extension Hooks
+
+       **Optional Hook**: {extension}
+       Command: `/{command}`
+       Description: {description}
+
+       Prompt: {prompt}
+       To execute: `/{command}`
+       ```
+     - Allow the user to decide whether to execute
+5. **If** `{REPO_ROOT}/.specify/extensions.yml` does not exist or has no `hooks.after_implement` entries, **continue silently**
 
 ---
 

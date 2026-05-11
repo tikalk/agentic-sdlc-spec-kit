@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc13] - 2026-05-11
+
+### Fixed
+
+- **Hook execution in quick.implement template**: Restructured hook instructions in `extensions/quick/commands/implement.md` to use "Pre-Execution Checks" pattern with numbered steps, explicit MUST/CRITICAL language, and visual indicators (🔴 MANDATORY, ⚠️ WARNING)
+  - Root cause: Agents were skipping prose hook instructions because they treated them as informational text rather than actionable steps
+  - Applied same framing pattern used in preset commands (adlc.spec.*.md) that have better agent compliance
+  - Updated both before_hooks and after_hooks sections
+
+### Changed
+
+- **Quick extension**: v1.0.3 → v1.0.4 (hook execution template improvement)
+
 # [Unreleased]
 
 ### Added
