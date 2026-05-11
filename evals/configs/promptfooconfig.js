@@ -39,7 +39,7 @@ module.exports = {
   },
 
   // ============================================================
-  // FULL TEST SUITE (27 tests across 6 categories)
+  // FULL TEST SUITE (29 tests across 8 categories)
   // ============================================================
   tests: [
     // ========================================
@@ -540,6 +540,133 @@ module.exports = {
             '4. Are challenges and their resolutions documented?\n' +
             '5. Are lessons learned included?\n' +
             'Return average score 0-1.',
+          threshold: 0.7,
+        },
+      ],
+    },
+
+    // ========================================
+    // QUICK IMPLEMENT HOOK TESTS (2 tests)
+    // ========================================
+
+    // Test 26: Quick Implement Hook Execution
+    {
+      description: 'Quick: Executes before_implement hook before task execution',
+      prompt: 'file://../prompts/quick-implement-prompt.txt',
+      vars: {
+        scenario: 'mandatory_before_hook',
+        user_input: 'Add user authentication to the API',
+        mission_brief_q1: 'Add JWT-based authentication',
+        mission_brief_q2: 'API returns 401 for unauthenticated requests',
+        mission_brief_q3: 'Use existing user model',
+        approval: 'yes',
+        context: 'Look at src/api/users.py',
+      },
+      assert: [
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_quick_implement_hooks' },
+        { type: 'icontains', value: 'Extension Hooks' },
+        { type: 'icontains', value: 'before_implement' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Check if the mandatory before_implement hook is executed correctly:\n' +
+            '1. Does the output mention checking .specify/extensions.yml?\n' +
+            '2. Is the mandatory hook (tdd.implement) executed BEFORE task execution?\n' +
+            '3. Does it NOT ask for user confirmation on the mandatory hook?\n' +
+            '4. Does the workflow proceed to task execution after the hook?\n' +
+            'Return 1.0 if all criteria met, 0.5 if some, 0.0 if critical failure.',
+          threshold: 0.7,
+        },
+      ],
+    },
+
+    // Test 27: Quick Implement Hook Deadlock Prevention
+    {
+      description: 'Quick: No hook deadlock - completes workflow without halting',
+      prompt: 'file://../prompts/quick-implement-prompt.txt',
+      vars: {
+        scenario: 'deadlock_prevention',
+        user_input: 'Add dark mode toggle',
+        mission_brief_q1: 'Add dark mode toggle to settings',
+        mission_brief_q2: 'Button toggles theme, persists preference',
+        mission_brief_q3: 'Use existing theme system',
+        approval: 'yes',
+        context: 'Check settings component',
+      },
+      assert: [
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_hook_execution_flow' },
+        { type: 'icontains', value: 'Quick Implementation Complete' },
+        {
+          type: 'llm-rubric',
+          value:
+            'Check for hook execution deadlock prevention:\n' +
+            '1. Does the hook execute immediately (not suggest running later)?\n' +
+            '2. Is there no "EXECUTE_COMMAND" + "wait for result" pattern?\n' +
+            '3. Does the workflow complete (mission brief → tasks → summary)?\n' +
+            '4. Is there no indefinite waiting for user input after hooks?\n' +
+            'Return 1.0 if no deadlock patterns, 0.0 if deadlocking behavior present.',
+          threshold: 0.8,
+        },
+      ],
+    },
+
+    // ========================================
+    // TDD IMPLEMENT CONTEXT DETECTION TESTS (2 tests)
+    // ========================================
+
+    // Test 28: TDD Quick Mode Detection
+    {
+      description: 'TDD: Detects Quick Mode when no spec artifacts exist',
+      prompt: 'file://../prompts/tdd-implement-prompt.txt',
+      vars: {
+        scenario: 'quick_mode_detection',
+        context: 'Called from /quick.implement "Add JWT auth"',
+        project_type: 'python_pytest',
+        artifacts_present: false,
+      },
+      assert: [
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_tdd_in_session_flow' },
+        { type: 'icontains', value: 'Context Detection' },
+        { type: 'icontains-any', value: ['Quick Mode', 'quick mode', 'in-session', 'In-Session'] },
+        {
+          type: 'llm-rubric',
+          value:
+            'Check Quick Mode detection:\n' +
+            '1. Does output explicitly check for spec artifacts (increment-state.json, tasks.md)?\n' +
+            '2. Does it declare "Quick Mode" or "in-session mode" when artifacts not found?\n' +
+            '3. Does it NOT try to load files that do not exist?\n' +
+            '4. Does it proceed to In-Session TDD Flow section?\n' +
+            'Return 1.0 if all criteria met, 0.5 if partial, 0.0 if fails.',
+          threshold: 0.8,
+        },
+      ],
+    },
+
+    // Test 29: TDD RED→GREEN→REFACTOR in Quick Mode
+    {
+      description: 'TDD: All three RED/GREEN/REFACTOR phases present in Quick Mode',
+      prompt: 'file://../prompts/tdd-implement-prompt.txt',
+      vars: {
+        scenario: 'red_green_refactor_quick',
+        context: 'In Quick Mode processing increments',
+        project_type: 'python_pytest',
+        artifacts_present: false,
+      },
+      assert: [
+        { type: 'python', value: 'file://../graders/custom_graders.py:check_tdd_in_session_flow' },
+        { type: 'icontains-any', value: ['RED', 'Red', '🔴'] },
+        { type: 'icontains-any', value: ['GREEN', 'Green', '🟢'] },
+        { type: 'icontains-any', value: ['REFACTOR', 'Refactor', '🔵'] },
+        {
+          type: 'llm-rubric',
+          value:
+            'Check RED→GREEN→REFACTOR phases in Quick Mode:\n' +
+            '1. Is RED phase present (write failing test)?\n' +
+            '2. Is GREEN phase present (minimal implementation)?\n' +
+            '3. Is REFACTOR phase present (improvements while tests pass)?\n' +
+            '4. Are phases executed for each increment?\n' +
+            '5. Are they in-session (no file persistence mentioned)?\n' +
+            'Return 1.0 if all phases present and in-session, 0.67 if 2 phases, 0.33 if 1, 0.0 if none.',
           threshold: 0.7,
         },
       ],

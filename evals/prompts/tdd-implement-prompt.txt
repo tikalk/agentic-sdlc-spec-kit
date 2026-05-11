@@ -1,0 +1,244 @@
+# Eval: TDD Implement Command - Context Detection and In-Session Flow
+
+You are evaluating an AI agent executing the `/tdd.implement` command in two different contexts:
+1. **Spec Mode**: With existing workflow artifacts
+2. **Quick Mode**: Without artifacts (in-session/ad-hoc)
+
+## Test Scenario A: Quick Mode (No Spec Artifacts)
+
+### Project Context
+
+```
+my-project/
+├── src/
+│   └── auth.py
+├── tests/
+│   └── __init__.py
+├── pyproject.toml  (contains pytest dependency)
+└── .specify/
+    └── extensions/
+        └── tdd/
+            └── (no language-detected.json, no state files)
+```
+
+**NO spec artifacts exist**:
+- No `specs/feature-001/tasks.md`
+- No `increment-state.json` anywhere
+- No `.specify/extensions/tdd/language-detected.json`
+
+### Agent Context
+
+The agent is being called via the `before_implement` hook from `/quick.implement "Add JWT authentication"`.
+
+### Expected Behavior (Quick Mode)
+
+1. **Context Detection**: Detects NO spec artifacts
+2. **Language Detection**: Runs detection script, detects Python/pytest
+3. **Condensed Planning**: Asks 3 questions:
+   - What public interfaces are being added?
+   - What are key behaviors to test?
+   - Any testability concerns?
+4. **Generate Increments**: Creates TDD-001 through TDD-006 increments in-session
+5. **RED→GREEN→REFACTOR**: Executes the full cycle for each increment
+
+### Expected Output Structure
+
+```markdown
+## Context Detection
+
+Checking for spec workflow artifacts...
+- increment-state.json: Not found
+- language-detected.json: Not found
+- tasks.md with TDD entries: Not found
+
+→ Quick Mode activated (in-session TDD flow)
+
+## In-Session TDD Flow
+
+### Step 1: Language Detection
+
+Running language detection...
+Detected: python / pytest
+Test directory: tests/
+Test command: pytest -xvs
+
+### Step 2: Condensed TDD Planning
+
+**1. What public interfaces are being added or modified?**
+[Agent waits for answer or uses context]
+
+**2. What are the key behaviors to test?** (prioritize)
+[Agent waits for answer or uses context]
+
+**3. Any testability concerns?**
+[Agent waits for answer]
+
+### Step 3: Generate Test Increments
+
+### Generated Test Increments
+
+**Degenerate Cases**
+- [ ] TDD-001 Handle empty/null token
+- [ ] TDD-002 Handle malformed token
+
+**Happy Path**
+- [ ] TDD-003 [P] Valid token authentication
+
+**Edge Cases**
+- [ ] TDD-004 Handle expired token
+- [ ] TDD-005 Handle invalid signature
+
+**Error Cases**
+- [ ] TDD-006 Handle missing token
+
+### Step 4: RED→GREEN→REFACTOR
+
+[Cycle execution for each increment...]
+```
+
+---
+
+## Test Scenario B: Spec Mode (With Artifacts)
+
+### Project Context
+
+```
+my-project/
+├── specs/
+│   └── feature-001/
+│       ├── spec.md
+│       ├── plan.md
+│       ├── tasks.md  (contains TDD-001, TDD-R01 entries)
+│       └── increment-state.json
+├── .specify/
+│   └── extensions/
+│       └── tdd/
+│           └── language-detected.json
+└── src/
+    └── ...
+```
+
+### Expected Behavior (Spec Mode)
+
+1. **Context Detection**: Detects spec artifacts
+2. **Load State**: Reads `increment-state.json`
+3. **Load Language Config**: Reads `language-detected.json`
+4. **Get Pending Increments**: Uses existing increments from state
+5. **RED→GREEN→REFACTOR**: Continues from where left off
+6. **Save State**: Persists updated state to `increment-state.json`
+
+### Expected Output Structure
+
+```markdown
+## Context Detection
+
+Checking for spec workflow artifacts...
+- increment-state.json: Found
+- language-detected.json: Found
+
+→ Spec Mode activated (file-based state)
+
+## Load State (Spec Mode)
+
+Loading existing TDD state from increment-state.json...
+Current increment: 2
+
+## Load Language Config
+
+Using: python / pytest
+Test directory: tests/
+Test command: pytest -xvs
+
+## Get Pending Increments
+
+Found pending increments:
+TDD-003: Valid token authentication
+TDD-004: Handle expired token
+...
+
+## Process Each Increment
+
+[RED→GREEN→REFACTOR execution...]
+
+## Save State (Spec Mode Only)
+
+State saved to: increment-state.json
+```
+
+---
+
+## Evaluation Criteria
+
+### MUST HAVE - Quick Mode
+
+1. **Context Detection**: Explicitly checks for spec artifacts and declares "Quick Mode" or "in-session mode"
+2. **Language Detection**: Runs detection script and captures results in session
+3. **Planning Questions**: Asks the 3 condensed planning questions (or notes they were answered)
+4. **Increment Generation**: Generates TDD-XXX numbered increments with categories (degenerate, happy, edge, error)
+5. **RED/GREEN/REFACTOR**: All three phases present and executed
+6. **No File Persistence**: Does NOT mention writing increment-state.json or tasks.md
+
+### MUST HAVE - Spec Mode
+
+7. **Artifact Detection**: Explicitly detects and mentions finding spec artifacts
+8. **State Loading**: Reads from increment-state.json
+9. **Resumption**: Continues from existing state (not starting fresh)
+10. **State Saving**: Saves updated state back to file
+
+### SHOULD HAVE
+
+11. **TDD Naming Convention**: Increments follow TDD-001, TDD-002 pattern
+12. **Priority Marking**: Happy path marked with [P] or similar
+13. **Type Categorization**: Degenerate, Happy, Edge, Error categories
+14. **Session Warning**: In quick mode, warns that progress is session-only
+
+### NICE TO HAVE
+
+15. **Risk Tests**: Includes TDD-R01 style risk-based tests if context suggests it
+16. **Language Specifics**: Test commands appropriate for detected language
+
+## Scoring
+
+- **Pass (1.0)**: All applicable MUST HAVE criteria met
+- **Partial (0.5)**: At least 70% of applicable criteria met
+- **Fail (0.0)**: Fewer than 70% of applicable criteria met
+
+## Common Failure Patterns
+
+1. **Mode Confusion**: Not detecting context, always using file mode
+2. **Missing Planning**: Skipping the 3 planning questions in quick mode
+3. **File Creation in Quick Mode**: Writing increment-state.json in quick mode
+4. **Wrong Increment Source**: In spec mode, regenerating increments instead of using state
+5. **Missing Categories**: Not organizing tests into degenerate/happy/edge/error
+6. **Deadlock**: Waiting for user input indefinitely without prompting
+
+## Input Variations
+
+### Variation 1: Quick Mode (Pytest)
+```
+/tdd.implement (called from quick.implement "Add JWT auth")
+```
+Expected: Quick mode, Python/pytest detection, 3 planning questions
+
+### Variation 2: Quick Mode (Vitest)
+```
+/tdd.implement (called from quick.implement "Add login form")
+```
+Project: TypeScript with vitest
+Expected: Quick mode, TS/vitest detection, same planning flow
+
+### Variation 3: Spec Mode (Resume)
+```
+/tdd.implement
+```
+Context: Running in specs/feature-001/ with existing increment-state.json at increment 3
+Expected: Spec mode, resume from TDD-003, save state on completion
+
+### Variation 4: Spec Mode (Fresh)
+```
+/tdd.implement
+```
+Context: After /spec.tasks just created tasks.md with TDD entries
+Expected: Spec mode, initialize new state, start from TDD-001
+
+Evaluate the agent's output against the criteria for the applicable scenario.

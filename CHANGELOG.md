@@ -4,6 +4,27 @@ All notable changes to the Specify CLI and templates are documented here.
 
 # [Unreleased]
 
+### Added
+
+- **Quick extension hook support**: `quick.implement` now checks `before_implement` and `after_implement` extension hooks
+  - Enables TDD and other extensions to integrate with quick workflow
+  - Supports both mandatory (auto-execute) and optional (display) hooks
+  - Deadlock-free execution pattern - no EXECUTE_COMMAND + "wait" patterns
+  - Maintains quick's session-only philosophy (no file artifacts)
+
+- **TDD extension in-session flow**: `tdd.implement` now detects context and runs appropriate mode
+  - Quick mode: Runs entirely in-session when no spec artifacts exist (from `/quick.implement`)
+  - Spec mode: Loads state from `increment-state.json` when artifacts present
+  - Condensed planning (3 questions vs 5 in full tdd.plan) for quick mode
+  - Full RED→GREEN→REFACTOR cycle in both modes
+  - State tracked in conversation in quick mode, files in spec mode
+
+- **15 new LLM eval tests**: Comprehensive test coverage for hook support and context detection
+  - 7 tests for quick.implement hook execution (mandatory, optional, deadlock prevention)
+  - 8 tests for tdd.implement context detection (quick vs spec mode)
+  - New graders: `check_quick_implement_hooks`, `check_tdd_in_session_flow`
+  - Updated evals README with new test suites
+
 ### Fixed
 
 - **Clarify commands now explicitly state questions**: Fixed all clarify commands (spec, product, architect, levelup) to explicitly output the question text before showing recommendations and options, resolving confusion where only options were shown without context.

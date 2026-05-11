@@ -2,6 +2,24 @@
 
 All notable changes to the TDD Extension will be documented in this file.
 
+## [1.0.4] - 2026-05-11
+
+### Added
+
+- **Context detection and in-session TDD flow**: `tdd.implement` now detects when called
+  without spec workflow artifacts (e.g., from `/quick.implement`) and automatically runs
+  a combined in-session TDD flow: condensed planning → language detection → test increment
+  generation → RED→GREEN→REFACTOR. No file artifacts are created; state is tracked in the
+  conversation context only.
+- **Quick extension integration**: When the TDD extension is installed, `/quick.implement`
+  automatically triggers TDD's full workflow via the `before_implement` hook.
+
+### Changed
+
+- `tdd.implement` now includes a "Context Detection" section at the top to determine
+  whether to run in file-based mode (standard spec workflow) or in-session mode (quick)
+- "Save State" and "Load State" sections now note they only apply to spec mode
+
 ## [1.0.3] - 2026-05-07
 
 ### Fixed

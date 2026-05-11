@@ -8,5 +8,7 @@
   "eval-004": "check_https_validation",
   "eval-005": "check_prompt_injection",
   "eval-006": "check_unit_conversion",
-  "eval-007": "check_hook_execution_flow"
+  "eval-007": "check_hook_execution_flow",
+  "eval-008": "check_quick_implement_hooks",
+  "eval-009": "check_tdd_in_session_flow"
 }

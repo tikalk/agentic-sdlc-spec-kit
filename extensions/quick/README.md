@@ -57,7 +57,17 @@ Quick generates a concrete task checklist:
 
 **No stop** - proceeds directly to execution.
 
-### Phase 4: Execution with Task-Level Commits
+### Phase 4: Extension Hooks (Optional)
+
+If extensions are installed (e.g., TDD), Quick checks for hooks before execution:
+
+**Before execution**: `before_implement` hooks fire (e.g., TDD's RED→GREEN→REFACTOR)
+
+**After execution**: `after_implement` hooks fire (e.g., TDD test validation)
+
+Hooks execute seamlessly without interrupting the quick flow. See [Hook Support](#hook-support) for details.
+
+### Phase 5: Execution with Task-Level Commits
 Quick executes tasks one at a time:
 - Displays task being executed
 - Makes necessary code changes
@@ -121,10 +131,14 @@ Context Discovery (brief input)
   ↓
 Task Breakdown (auto-display)
   ↓
+[before_implement hooks] → Optional: TDD, etc.
+  ↓
 Execution (auto-proceed with commits):
   Task 1 → make changes → git commit "[quick] Task 1: ..."
   Task 2 → make changes → git commit "[quick] Task 2: ..."
   Task 3 → make changes → git commit "[quick] Task 3: ..."
+  ↓
+[after_implement hooks] → Optional: TDD validation, etc.
   ↓
 Summary
 ```
@@ -257,10 +271,46 @@ Quick requires **no configuration** - it's designed to work out-of-the-box for s
 - Task-level commits as checkpoints
 - Session-only workflow (commits for history)
 
+## Hook Support
+
+Quick now supports extension hooks, enabling seamless integration with other Spec Kit extensions:
+
+| Hook Point | When | Example Extension |
+|------------|------|-------------------|
+| `before_implement` | After Task Breakdown, before first task | TDD (RED→GREEN→REFACTOR) |
+| `after_implement` | After all tasks complete | TDD (test validation) |
+
+### TDD Integration Example
+
+When the TDD extension is installed:
+
+```bash
+/quick.implement "add JWT authentication"
+  ↓
+Mission Brief → Context → Task Breakdown
+  ↓
+[before_implement] → TDD runs RED→GREEN→REFACTOR (in-session, no files)
+  ↓
+Execution with commits
+  ↓
+[after_implement] → TDD validation offered
+  ↓
+Summary
+```
+
+TDD runs entirely in-session when triggered from Quick:
+- Condensed planning (3 questions instead of 5)
+- Language auto-detection
+- Test increment generation
+- RED→GREEN→REFACTOR cycles
+
+**No file artifacts** - TDD state is tracked in the conversation, preserving Quick's philosophy.
+
 ## Related Extensions
 
 - **architect** - Architecture decision records and documentation
 - **levelup** - Context module discovery and contribution
+- **tdd** - Test-Driven Development workflow (RED→GREEN→REFACTOR)
 
 ## License
 
