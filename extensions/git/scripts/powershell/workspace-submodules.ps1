@@ -98,7 +98,8 @@ function Discover-ChildRepos {
 $childRepos = Discover-ChildRepos
 
 # Build a pattern of child repo names for exclusion
-$childPatterns = $childRepos | ForEach-Object { "^$_/" }
+# Match both with and without trailing slash (git diff returns just the name for directories)
+$childPatterns = $childRepos | ForEach-Object { "^$_(/|$)" }
 
 # Safety check: Check for uncommitted changes
 # If -Force is used, allow child repos to be "dirty" (they'll be converted)

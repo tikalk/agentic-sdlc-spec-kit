@@ -107,12 +107,13 @@ discover_child_repos() {
 CHILD_REPOS=$(discover_child_repos)
 
 # Build a pattern of child repo names for exclusion
+# Match both with and without trailing slash (git diff returns just the name for directories)
 CHILD_PATTERN=""
 for repo in $CHILD_REPOS; do
   if [[ -z "$CHILD_PATTERN" ]]; then
-    CHILD_PATTERN="^$repo/"
+    CHILD_PATTERN="^$repo(/|$)"
   else
-    CHILD_PATTERN="$CHILD_PATTERN|^$repo/"
+    CHILD_PATTERN="$CHILD_PATTERN|^$repo(/|$)"
   fi
 done
 
