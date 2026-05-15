@@ -231,7 +231,7 @@ module.exports = {
         { type: 'icontains', value: 'Mission Brief' },
         { type: 'icontains', value: 'Task Breakdown' },
         { type: 'icontains', value: 'Quick Implementation Complete' },
-        { type: 'icontains', value: 'git commit' },
+        { type: 'icontains', value: 'after_task_execute' },
         {
           type: 'llm-rubric',
           value:
@@ -239,7 +239,7 @@ module.exports = {
             '1. Does Mission Brief phase complete (questions + approval)?\n' +
             '2. Is Task Breakdown generated?\n' +
             '3. Are before/after hooks handled?\n' +
-            '4. Are tasks executed with commits?\n' +
+            '4. Are per-task hooks (before_task_execute/after_task_execute) dispatched?\n' +
             '5. Is Summary shown at the end?\n' +
             'Return 1.0 if all phases complete, proportional for partial.',
           threshold: 0.8,

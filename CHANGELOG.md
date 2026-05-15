@@ -35,6 +35,14 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Added
 
+- **Git extension workspace submodule management**: New `speckit.git.workspace` command for multi-repo workspace coordination
+  - Discovers child git repositories at depth 1 from the project root
+  - Registers discovered repos as Git submodules for safe git isolation
+  - Prevents accidental commits of child repo files into the parent workspace
+  - Supports `--dry-run` mode to preview changes
+  - Available in both bash and PowerShell scripts
+  - Git extension bumped to v1.2.0
+
 - **Quick extension hook support**: `quick.implement` now checks `before_implement` and `after_implement` extension hooks
   - Enables TDD and other extensions to integrate with quick workflow
   - Supports both mandatory (auto-execute) and optional (display) hooks

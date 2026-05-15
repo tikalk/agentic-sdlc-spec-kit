@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.1.0"
-  description: "Feature branch creation, numbering (sequential/timestamp), validation, and Git remote detection"
+  version: "1.2.0"
+  description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, and multi-repo workspace submodule management"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
   license: MIT
@@ -37,6 +37,10 @@ provides:
       file: commands/speckit.git.commit.md
       aliases: ["git.commit"]
       description: "Auto-commit changes after a Spec Kit command completes"
+    - name: speckit.git.workspace
+      file: commands/speckit.git.workspace.md
+      aliases: ["git.workspace"]
+      description: "Register child repositories as Git submodules for multi-repo workspace coordination"
 
   config:
     - name: "git-config.yml"

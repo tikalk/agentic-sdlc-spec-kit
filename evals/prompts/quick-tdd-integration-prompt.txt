@@ -94,13 +94,26 @@ hooks:
 
 ### Phase 3: Quick Task Execution
 
-After TDD hook completes, quick executes tasks with auto-commits:
+After TDD hook completes, quick executes tasks with per-task hook dispatch:
 
-```bash
-git commit -m "[quick] Task 1: Create JWT token validation utility"
-git commit -m "[quick] Task 2: Add authentication middleware"
-git commit -m "[quick] Task 3: Protect sensitive endpoints"
-git commit -m "[quick] Task 4: Add token refresh mechanism"
+```
+## Task Execution with Hooks
+
+**Task 1**: Create JWT token validation utility
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 2**: Add authentication middleware  
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 3**: Protect sensitive endpoints
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 4**: Add token refresh mechanism
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
 ```
 
 ### Phase 4: after_implement Hook (Optional)
