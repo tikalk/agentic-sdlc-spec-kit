@@ -148,6 +148,7 @@ class TestGitExtensionManifest:
         assert "speckit.git.initialize" in names
         assert "speckit.git.commit" in names
         assert "speckit.git.workspace" in names
+        assert "speckit.git.setup-ignore" in names
 
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""

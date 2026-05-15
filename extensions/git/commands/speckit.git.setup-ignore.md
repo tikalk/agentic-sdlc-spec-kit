@@ -1,6 +1,6 @@
 ---
 description: "Configure .gitignore with proper rules for Spec Kit directories"
-aliases: ["git.setup-ignore", "git.ignore"]
+aliases: ["git.setup-ignore"]
 ---
 
 ## Overview

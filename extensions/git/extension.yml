@@ -43,7 +43,7 @@ provides:
       description: "Register child repositories as Git submodules for multi-repo workspace coordination"
     - name: speckit.git.setup-ignore
       file: commands/speckit.git.setup-ignore.md
-      aliases: ["git.setup-ignore", "git.ignore"]
+      aliases: ["git.setup-ignore"]
       description: "Configure .gitignore with proper rules for Spec Kit directories"
 
   config:
