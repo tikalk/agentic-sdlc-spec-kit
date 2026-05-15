@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc19] - 2026-05-15
+
+### Fixed
+
+- **Git extension workspace brownfield workflow** (v1.2.3):
+  - Fixed safety check to allow `--force` conversion of tracked child repos
+  - When using `--force`, uncommitted changes in child repos are allowed (they'll be converted)
+  - Still blocks if there are uncommitted changes outside child repos (safety preserved)
+  - Makes brownfield conversion truly automated - no manual pre-work needed
+
 # [0.8.8+adlc18] - 2026-05-15
 
 ### Added

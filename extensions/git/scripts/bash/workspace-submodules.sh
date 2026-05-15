@@ -49,20 +49,6 @@ if ! has_git; then
   exit 1
 fi
 
-# Safety check: Parent working tree must be clean
-if ! git diff-index --quiet HEAD -- 2>/dev/null || ! git diff --quiet --cached 2>/dev/null; then
-  if $JSON_MODE; then
-    echo '{"error": "Parent repository has uncommitted changes. Commit or stash before running workspace setup."}'
-  else
-    echo "ERROR: Parent repository has uncommitted changes." >&2
-    echo "Commit or stash changes before running workspace setup." >&2
-    echo "" >&2
-    echo "Uncommitted changes:" >&2
-    git status --short >&2
-  fi
-  exit 1
-fi
-
 # Arrays to track results
 declare -a REGISTERED_REPOS=()
 declare -a SKIPPED_REPOS=()
@@ -117,9 +103,73 @@ discover_child_repos() {
   echo "${discovered[@]}"
 }
 
-# Main processing
+# Discover child repos early (needed for safety check)
 CHILD_REPOS=$(discover_child_repos)
 
+# Build a pattern of child repo names for exclusion
+CHILD_PATTERN=""
+for repo in $CHILD_REPOS; do
+  if [[ -z "$CHILD_PATTERN" ]]; then
+    CHILD_PATTERN="^$repo/"
+  else
+    CHILD_PATTERN="$CHILD_PATTERN|^$repo/"
+  fi
+done
+
+# Safety check: Check for uncommitted changes
+# If --force is used, allow child repos to be "dirty" (they'll be converted)
+has_uncommitted=false
+non_child_changes=""
+
+# Check for staged changes
+if ! git diff --quiet --cached 2>/dev/null; then
+  # Check if staged changes are only child repos
+  if [[ "$FORCE" == true ]]; then
+    non_child_changes=$(git diff --cached --name-only 2>/dev/null | grep -Ev "($CHILD_PATTERN)" || true)
+  else
+    non_child_changes=$(git diff --cached --name-only 2>/dev/null)
+  fi
+  if [[ -n "$non_child_changes" ]]; then
+    has_uncommitted=true
+  fi
+fi
+
+# Check for unstaged changes
+if ! git diff-index --quiet HEAD -- 2>/dev/null; then
+  # Check if unstaged changes are only child repos
+  if [[ "$FORCE" == true ]]; then
+    non_child_changes_unstaged=$(git diff --name-only 2>/dev/null | grep -Ev "($CHILD_PATTERN)" || true)
+  else
+    non_child_changes_unstaged=$(git diff --name-only 2>/dev/null)
+  fi
+  if [[ -n "$non_child_changes_unstaged" ]]; then
+    has_uncommitted=true
+    if [[ -z "$non_child_changes" ]]; then
+      non_child_changes="$non_child_changes_unstaged"
+    else
+      non_child_changes="$non_child_changes
+$non_child_changes_unstaged"
+    fi
+  fi
+fi
+
+# If there are non-child changes, abort
+if [[ "$has_uncommitted" == true ]]; then
+  if $JSON_MODE; then
+    echo '{"error": "Parent repository has uncommitted changes outside child repos. Commit or stash before running workspace setup."}'
+  else
+    echo "ERROR: Parent repository has uncommitted changes outside child repos." >&2
+    echo "Commit or stash these changes before running workspace setup:" >&2
+    echo "" >&2
+    echo "$non_child_changes" | head -20 >&2
+    if [[ $(echo "$non_child_changes" | wc -l) -gt 20 ]]; then
+      echo "... (and more)" >&2
+    fi
+  fi
+  exit 1
+fi
+
+# Main processing
 if [[ "$IGNORE_ONLY" == true ]]; then
   # Ignore-only mode: Add to .gitignore and remove from index
   ensure_gitignore
@@ -161,32 +211,28 @@ else
     
     # Check if tracked in parent index
     if is_tracked_in_parent "$repo_name"; then
-      if [[ "$FORCE" == true ]]; then
-        # Get remote URL first
-        remote_url=$(get_remote_url "$repo_path")
-        
-        if [[ -z "$remote_url" ]]; then
-          ERROR_REPOS+=("$repo_name: no remote URL configured")
-          continue
-        fi
-        
-        # Remove from parent index
-        if [[ "$DRY_RUN" == false ]]; then
-          git rm --cached "$repo_name" >/dev/null 2>&1 || true
-        fi
-        
-        # Register as submodule
-        if [[ "$DRY_RUN" == true ]]; then
-          REGISTERED_REPOS+=("$repo_name → $remote_url [DRY RUN]")
-        else
-          if git submodule add "$remote_url" "$repo_name" 2>/dev/null; then
-            REGISTERED_REPOS+=("$repo_name → $remote_url")
-          else
-            ERROR_REPOS+=("$repo_name: failed to add submodule")
-          fi
-        fi
+      # Get remote URL first
+      remote_url=$(get_remote_url "$repo_path")
+      
+      if [[ -z "$remote_url" ]]; then
+        ERROR_REPOS+=("$repo_name: no remote URL configured")
+        continue
+      fi
+      
+      # Remove from parent index
+      if [[ "$DRY_RUN" == false ]]; then
+        git rm --cached "$repo_name" >/dev/null 2>&1 || true
+      fi
+      
+      # Register as submodule
+      if [[ "$DRY_RUN" == true ]]; then
+        REGISTERED_REPOS+=("$repo_name → $remote_url [DRY RUN]")
       else
-        ERROR_REPOS+=("$repo_name: tracked in parent index (use --force)")
+        if git submodule add "$remote_url" "$repo_name" 2>/dev/null; then
+          REGISTERED_REPOS+=("$repo_name → $remote_url")
+        else
+          ERROR_REPOS+=("$repo_name: failed to add submodule")
+        fi
       fi
       continue
     fi

@@ -29,17 +29,6 @@ if (-not (Has-Git)) {
     exit 1
 }
 
-# Safety check: Parent working tree must be clean
-$uncommitted = git status --porcelain 2>$null
-if ($uncommitted) {
-    if ($Json) {
-        '{"error": "Parent repository has uncommitted changes. Commit or stash before running workspace setup."}'
-    } else {
-        Write-Error "Parent repository has uncommitted changes.`nCommit or stash changes before running workspace setup.`n`nUncommitted changes:`n$uncommitted"
-    }
-    exit 1
-}
-
 # Arrays to track results
 $registeredRepos = @()
 $skippedRepos = @()
@@ -105,9 +94,79 @@ function Discover-ChildRepos {
     return $discovered
 }
 
-# Main processing
+# Discover child repos early (needed for safety check)
 $childRepos = Discover-ChildRepos
 
+# Build a pattern of child repo names for exclusion
+$childPatterns = $childRepos | ForEach-Object { "^$_/" }
+
+# Safety check: Check for uncommitted changes
+# If -Force is used, allow child repos to be "dirty" (they'll be converted)
+$hasUncommitted = $false
+$nonChildChanges = @()
+
+# Check for staged changes
+$stagedChanges = git diff --cached --name-only 2>$null
+if ($stagedChanges) {
+    if ($Force) {
+        $nonChildChanges = $stagedChanges | Where-Object { 
+            $file = $_
+            $isChild = $false
+            foreach ($pattern in $childPatterns) {
+                if ($file -match $pattern) {
+                    $isChild = $true
+                    break
+                }
+            }
+            -not $isChild
+        }
+    } else {
+        $nonChildChanges = $stagedChanges
+    }
+    if ($nonChildChanges) {
+        $hasUncommitted = $true
+    }
+}
+
+# Check for unstaged changes
+$unstagedChanges = git diff --name-only 2>$null
+if ($unstagedChanges) {
+    if ($Force) {
+        $nonChildChangesUnstaged = $unstagedChanges | Where-Object { 
+            $file = $_
+            $isChild = $false
+            foreach ($pattern in $childPatterns) {
+                if ($file -match $pattern) {
+                    $isChild = $true
+                    break
+                }
+            }
+            -not $isChild
+        }
+    } else {
+        $nonChildChangesUnstaged = $unstagedChanges
+    }
+    if ($nonChildChangesUnstaged) {
+        $hasUncommitted = $true
+        if (-not $nonChildChanges) {
+            $nonChildChanges = $nonChildChangesUnstaged
+        } else {
+            $nonChildChanges = $nonChildChanges + $nonChildChangesUnstaged | Select-Object -Unique
+        }
+    }
+}
+
+# If there are non-child changes, abort
+if ($hasUncommitted) {
+    if ($Json) {
+        '{"error": "Parent repository has uncommitted changes outside child repos. Commit or stash before running workspace setup."}'
+    } else {
+        Write-Error "Parent repository has uncommitted changes outside child repos.`nCommit or stash these changes before running workspace setup:`n`n$($nonChildChanges | Select-Object -First 20 | ForEach-Object { $_ } | Out-String)"
+    }
+    exit 1
+}
+
+# Main processing
 if ($IgnoreOnly) {
     # Ignore-only mode: Add to .gitignore and remove from index
     Ensure-Gitignore
@@ -151,33 +210,29 @@ if ($IgnoreOnly) {
         
         # Check if tracked in parent index
         if (Is-TrackedInParent $repoName) {
-            if ($Force) {
-                # Get remote URL first
-                $remoteUrl = Get-RemoteUrl $repoPath
-                
-                if (-not $remoteUrl) {
-                    $errorRepos += "$repoName`: no remote URL configured"
-                    continue
-                }
-                
-                # Remove from parent index
-                if (-not $DryRun) {
-                    git rm --cached $repoName 2>$null | Out-Null
-                }
-                
-                # Register as submodule
-                if ($DryRun) {
-                    $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
-                } else {
-                    try {
-                        git submodule add $remoteUrl $repoName 2>$null | Out-Null
-                        $registeredRepos += "$repoName → $remoteUrl"
-                    } catch {
-                        $errorRepos += "$repoName`: failed to add submodule"
-                    }
-                }
+            # Get remote URL first
+            $remoteUrl = Get-RemoteUrl $repoPath
+            
+            if (-not $remoteUrl) {
+                $errorRepos += "$repoName`: no remote URL configured"
+                continue
+            }
+            
+            # Remove from parent index
+            if (-not $DryRun) {
+                git rm --cached $repoName 2>$null | Out-Null
+            }
+            
+            # Register as submodule
+            if ($DryRun) {
+                $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
             } else {
-                $errorRepos += "$repoName`: tracked in parent index (use --force)"
+                try {
+                    git submodule add $remoteUrl $repoName 2>$null | Out-Null
+                    $registeredRepos += "$repoName → $remoteUrl"
+                } catch {
+                    $errorRepos += "$repoName`: failed to add submodule"
+                }
             }
             continue
         }

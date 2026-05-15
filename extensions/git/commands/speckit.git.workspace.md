@@ -29,10 +29,15 @@ This command sets up a multi-repo workspace by discovering child git repositorie
 ## Safety First
 
 ⚠️ **WARNING**: Before running this command:
-- Parent repository must have a clean working tree (no uncommitted changes)
+- Parent repository should have a clean working tree (no uncommitted changes outside child repos)
 - All child repositories must have a remote `origin` URL configured
 
-If the parent has uncommitted changes, the command will abort with an error. Commit or stash changes first.
+**Brownfield Workspaces (Existing Repos)**:
+If your child repos are already tracked by the parent, use `--force` to convert them. The script will:
+- Allow "dirty" child repo directories (they'll be converted to submodules)
+- Still block if there are uncommitted changes outside child repos (for safety)
+
+If the parent has uncommitted changes outside child repos, the command will abort with an error showing which files need attention.
 
 ## Execution Modes
 
