@@ -2,6 +2,15 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc22] - 2026-05-15
+
+### Fixed
+
+- **Git extension PowerShell common functions** (v1.2.6):
+  - Added missing `Find-SpecifyRoot`, `Get-RepoRoot`, and `Has-Git` functions
+  - These functions are required by `workspace-submodules.ps1` but were missing
+  - Fixed PowerShell compatibility with workspace command
+
 # [0.8.8+adlc21] - 2026-05-15
 
 ### Added
