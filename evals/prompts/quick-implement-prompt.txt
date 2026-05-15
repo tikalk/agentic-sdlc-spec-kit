@@ -54,7 +54,7 @@ The agent should:
    - Check `.specify/extensions.yml`
    - Find mandatory `tdd.implement` hook
    - Execute the TDD command immediately (don't just suggest it)
-5. **Execution**: Run quick tasks with auto-commits
+5. **Execution**: Run quick tasks, dispatching per-task hooks (before_task_execute/after_task_execute)
 6. **Extension Hooks (after_implement)**:
    - Find optional `tdd.validate` hook
    - Display to user with execution option
@@ -112,10 +112,12 @@ Description: Execute RED→GREEN→REFACTOR TDD cycle before implementation
 
 [Hook execution proceeds...]
 
-## Execution: Task-Level Commits
+## Execution: Task-Level Hook Dispatch
 
 Task 1: ...
-[commits proceed]
+- Dispatching before_task_execute hook (if any registered)...
+- Executing task instructions...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
 
 ## Extension Hooks (after implementation)
 

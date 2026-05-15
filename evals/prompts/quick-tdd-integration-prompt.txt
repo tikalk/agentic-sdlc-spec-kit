@@ -173,9 +173,9 @@ To execute: /tdd.validate
    - RED→GREEN→REFACTOR executes
 
 4. **Quick Continuation**:
-   - After TDD hook, quick tasks proceed
-   - Task-level commits happen
-   - No duplicate TDD cycles
+    - After TDD hook, quick tasks proceed
+    - Per-task hooks dispatch (before_task_execute/after_task_execute)
+    - No duplicate TDD cycles
 
 5. **Optional Hook Displayed**:
    - after_implement hook shown after tasks
@@ -185,7 +185,7 @@ To execute: /tdd.validate
 
 6. **No File Artifacts**: No TDD state files created (increment-state.json, language-detected.json)
 7. **Session-Only Warning**: TDD notes that progress is session-only
-8. **Git Commits Present**: Quick's task-level commits shown
+8. **Per-task Hooks Dispatched**: Quick dispatches before_task_execute/after_task_execute hooks around each task
 9. **Increment Categories**: Degenerate, Happy, Edge, Error categories in TDD
 10. **Valid Naming**: TDD-001, TDD-002... naming convention
 
