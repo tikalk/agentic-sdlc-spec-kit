@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc16] - 2026-05-15
+
+### Fixed
+
+- **Git extension workspace command**: Corrected script path in `speckit.git.workspace` command
+  - Removed non-functional `scripts:` frontmatter section that wasn't resolving correctly
+  - Use explicit full paths in command body matching other git extension commands
+
 # [0.8.8+adlc14] - 2026-05-15
 
 ### Added
