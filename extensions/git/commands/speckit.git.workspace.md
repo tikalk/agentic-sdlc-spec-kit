@@ -1,9 +1,6 @@
 ---
 description: Discover child repositories and register them as Git submodules for multi-repo workspace coordination.
 aliases: ["git.workspace"]
-scripts:
-  sh: scripts/bash/workspace-submodules.sh --json
-  ps: scripts/powershell/workspace-submodules.ps1 -Json
 ---
 
 ## User Input
@@ -33,8 +30,10 @@ This command sets up a multi-repo workspace by discovering child git repositorie
 
 ## Outline
 
-1. **Run discovery script**: Execute `{SCRIPT}` from the repo root
-2. **Parse JSON output**: Extract `DISCOVERED_REPOS`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERRORS`
+1. **Run discovery script**:
+   - **Bash**: `.specify/extensions/git/scripts/bash/workspace-submodules.sh --json`
+   - **PowerShell**: `.specify/extensions/git/scripts/powershell/workspace-submodules.ps1 -Json`
+2. **Parse JSON output**: Extract `DISCOVERED_COUNT`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERROR_COUNT`, `REGISTERED_REPOS`, `SKIPPED_REPOS`, `ERROR_REPOS`
 3. **Report results**: Display which repos were registered vs skipped
 4. **Handle errors**: If any repos couldn't be registered (no remote URL, etc.), display warnings
 
@@ -50,6 +49,10 @@ Registered (3):
 
 Skipped (1):
   - local-only-repo (no remote URL configured)
+
+Next steps:
+  - Team members can clone with: git clone --recursive <workspace-url>
+  - Or initialize submodules: git submodule update --init
 ```
 
 ## Key Rules
