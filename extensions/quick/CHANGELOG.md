@@ -2,6 +2,16 @@
 
 All notable changes to the Quick Extension will be documented in this file.
 
+## [1.1.0] - 2026-05-15
+
+### Changed
+
+- **BREAKING: Per-task auto-commits replaced with hook dispatch**: `quick.implement` no longer hardcodes `git add -A && git commit` after each task. Instead, it dispatches `before_task_execute` / `after_task_execute` extension hooks using the standard hook mechanism.
+  - To restore auto-commit behavior: install the git extension and set `after_task_execute.enabled: true` in `.specify/extensions/git/git-config.yml`
+  - This enables any extension to hook into per-task execution (commits, tests, lint, etc.)
+- **WIP commits on error now hook-driven**: Error handling dispatches `after_task_execute` hooks instead of hardcoded git commands, allowing configurable WIP checkpoint behavior
+- Updated Design Principles and Critical Constraints to reflect hook-driven architecture
+
 ## [1.0.4] - 2026-05-11
 
 ### Fixed

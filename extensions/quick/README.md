@@ -7,20 +7,20 @@ A streamlined, session-based workflow for ad-hoc task execution without file art
 Quick follows the 12-factors methodology in a compact, single-command session:
 
 ```
-Mission Brief → Context Discovery → Task Breakdown → Execution (with commits)
+Mission Brief → Context Discovery → Task Breakdown → Execution (with per-task hooks)
 ```
 
 **No file artifacts are created** - everything happens in the conversation with your AI agent.
 
 ### Low-Friction Design
 
-Quick uses **task-level commits** as checkpoints instead of interactive stops:
+Quick uses **per-task extension hooks** for checkpoint behavior:
 - **1 stop**: After Mission Brief (for approval)
-- **Auto-commit**: After each task completes
+- **Per-task hooks**: `before_task_execute` / `after_task_execute` hooks fire around each task (e.g., auto-commit via git extension)
 - **Auto-proceed**: No pauses between tasks
-- **Error commits**: "WIP" commit on failure before asking user
+- **Error hooks**: Hooks fire on failure before asking user
 
-This provides rollback capability while keeping interaction minimal.
+When the git extension is installed with `after_task_execute.enabled: true`, this provides rollback capability via task-level commits while keeping interaction minimal.
 
 ## Quick Start
 
@@ -67,18 +67,20 @@ If extensions are installed (e.g., TDD), Quick checks for hooks before execution
 
 Hooks execute seamlessly without interrupting the quick flow. See [Hook Support](#hook-support) for details.
 
-### Phase 5: Execution with Task-Level Commits
+### Phase 5: Execution with Per-Task Hooks
 Quick executes tasks one at a time:
+- Dispatches `before_task_execute` hooks
 - Displays task being executed
 - Makes necessary code changes
-- **Auto-commits** after each task
+- Dispatches `after_task_execute` hooks (e.g., auto-commit via git extension)
 - Proceeds to next task automatically
 
+When the git extension is configured with `after_task_execute.enabled: true`:
 ```bash
 git commit -m "[quick] Task 1: Add error handling to login API"
 ```
 
-**Error handling**: If a task fails, Quick commits the WIP state and asks what to do next.
+**Error handling**: If a task fails, `after_task_execute` hooks fire (allowing WIP checkpoint commits), then Quick asks what to do next.
 
 ### Phase 5: Summary
 Quick shows completion status:
@@ -133,10 +135,10 @@ Task Breakdown (auto-display)
   ↓
 [before_implement hooks] → Optional: TDD, etc.
   ↓
-Execution (auto-proceed with commits):
-  Task 1 → make changes → git commit "[quick] Task 1: ..."
-  Task 2 → make changes → git commit "[quick] Task 2: ..."
-  Task 3 → make changes → git commit "[quick] Task 3: ..."
+Execution (auto-proceed with per-task hooks):
+  Task 1 → [before_task_execute] → make changes → [after_task_execute]
+  Task 2 → [before_task_execute] → make changes → [after_task_execute]
+  Task 3 → [before_task_execute] → make changes → [after_task_execute]
   ↓
 [after_implement hooks] → Optional: TDD validation, etc.
   ↓
@@ -145,21 +147,22 @@ Summary
 
 ## Checkpoint Strategy
 
-Quick uses **task-level commits** as checkpoints instead of interactive stops:
+Quick uses **per-task extension hooks** for checkpoint behavior:
 
 | Checkpoint Type | Trigger | Purpose |
 |-----------------|---------|---------|
 | Mission Brief | User confirmation | Ensure understanding of goal |
-| Task commit | After each task | Rollback capability |
-| Error commit | On failure | Save WIP state before asking |
+| Per-task hooks | `before_task_execute` / `after_task_execute` | Extensible per-task behavior (commits, tests, lint, etc.) |
+| Error hooks | `after_task_execute` on failure | Save WIP state before asking |
 
-**Benefits**:
+**Benefits** (when git extension `after_task_execute` is enabled):
 - User can `git reset` to any task checkpoint
 - Commit history shows progress
 - No need to wait for user confirmation between tasks
-- Error commits save state before asking what to do
+- Error hooks save state before asking what to do
+- Commits are **opt-in** -- disable by setting `after_task_execute.enabled: false` in git config
 
-## Commit Format
+## Commit Format (when git extension is enabled)
 
 **Successful task**:
 ```
@@ -171,16 +174,16 @@ Quick uses **task-level commits** as checkpoints instead of interactive stops:
 [quick] Task 2: WIP - session validation fix failed
 ```
 
+The `[quick]` prefix and message are configurable via `.specify/extensions/git/git-config.yml`.
+
 ## Error Handling
 
 If a task fails during execution:
 
 ```markdown
-❌ Task Failed: Add error handling to login API
+Task Failed: Add error handling to login API
 
 Error: TypeError: Cannot read property 'token' of undefined
-
-[Committed WIP checkpoint: [quick] Task 1: WIP - login API error]
 
 What would you like to do?
 - Retry this task
@@ -188,7 +191,7 @@ What would you like to do?
 - Stop execution
 ```
 
-Quick **commits the WIP state** before asking your decision, so you can always rollback.
+Quick dispatches `after_task_execute` hooks on failure. When the git extension is configured, this creates a WIP checkpoint commit so you can always rollback.
 
 ## Examples
 
@@ -243,7 +246,20 @@ specify extension add quick
 
 ## Configuration
 
-Quick requires **no configuration** - it's designed to work out-of-the-box for session-based tasks.
+Quick requires **no configuration** for basic operation. Per-task behavior is controlled via extension hooks:
+
+### Enabling Per-Task Auto-Commits
+
+Install the git extension and enable `after_task_execute` in `.specify/extensions/git/git-config.yml`:
+
+```yaml
+auto_commit:
+  after_task_execute:
+    enabled: true
+    message: "[quick] Task checkpoint"  # customize the prefix/message as desired
+```
+
+This restores the classic Quick behavior of committing after each task.
 
 ## Limitations
 
@@ -267,9 +283,9 @@ Quick requires **no configuration** - it's designed to work out-of-the-box for s
 - No documentation files
 - 1 interactive stop only
 - Simple task checklist
-- Sequential execution with auto-commits
-- Task-level commits as checkpoints
-- Session-only workflow (commits for history)
+- Sequential execution with per-task extension hooks
+- Configurable task-level commits via git extension
+- Session-only workflow (commits for history when enabled)
 
 ## Hook Support
 
@@ -278,6 +294,8 @@ Quick now supports extension hooks, enabling seamless integration with other Spe
 | Hook Point | When | Example Extension |
 |------------|------|-------------------|
 | `before_implement` | After Task Breakdown, before first task | TDD (RED→GREEN→REFACTOR) |
+| `before_task_execute` | Before each individual task | Git (save progress) |
+| `after_task_execute` | After each individual task | Git (task checkpoint commit) |
 | `after_implement` | After all tasks complete | TDD (test validation) |
 
 ### TDD Integration Example

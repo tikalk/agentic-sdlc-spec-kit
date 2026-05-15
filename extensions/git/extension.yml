@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.0.2"
+  version: "1.1.0"
   description: "Feature branch creation, numbering (sequential/timestamp), validation, and Git remote detection"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
@@ -133,6 +133,16 @@ hooks:
     optional: true
     prompt: "Commit after syncing issues?"
     description: "Auto-commit after tasks-to-issues conversion"
+  before_task_execute:
+    command: speckit.git.commit
+    optional: true
+    prompt: "Commit outstanding changes before task?"
+    description: "Auto-commit before each individual task execution"
+  after_task_execute:
+    command: speckit.git.commit
+    optional: true
+    prompt: "Commit task changes?"
+    description: "Auto-commit after each individual task execution"
 
 tags:
   - "git"

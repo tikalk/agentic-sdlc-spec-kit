@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc14] - 2026-05-15
+
+### Added
+
+- **Per-task extension hooks**: New `before_task_execute` / `after_task_execute` hook events enable extensions to run before/after each individual task during implementation
+  - Git extension registers for both events with `enabled: false` by default (opt-in)
+  - `quick.implement` now dispatches these hooks instead of hardcoding `git add/commit`
+  - ADLC preset `adlc.spec.implement` also dispatches per-task hooks in its execution loop
+  - Any extension can register for per-task hooks (auto-commit, lint, test, etc.)
+
+### Changed
+
+- **BREAKING: `quick.implement` no longer auto-commits by default**: Per-task commits are now opt-in via the git extension's `after_task_execute.enabled` config. To restore previous behavior, set `after_task_execute.enabled: true` in `.specify/extensions/git/git-config.yml`
+- Git extension bumped to v1.1.0 with new hook events and config keys
+- Quick extension bumped to v1.1.0 with hook-driven per-task architecture
+
 # [0.8.8+adlc13] - 2026-05-11
 
 ### Fixed

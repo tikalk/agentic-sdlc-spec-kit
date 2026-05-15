@@ -44,6 +44,8 @@ This extension provides Git operations as an optional, self-contained module. It
 | `after_checklist` | `speckit.git.commit` | Yes | Auto-commit after checklist |
 | `after_analyze` | `speckit.git.commit` | Yes | Auto-commit after analysis |
 | `after_taskstoissues` | `speckit.git.commit` | Yes | Auto-commit after issue sync |
+| `before_task_execute` | `speckit.git.commit` | Yes | Auto-commit before each individual task execution |
+| `after_task_execute` | `speckit.git.commit` | Yes | Auto-commit after each individual task execution |
 
 ## Configuration
 
@@ -63,6 +65,9 @@ auto_commit:
   after_specify:
     enabled: true
     message: "[Spec Kit] Add specification"
+  after_task_execute:
+    enabled: false
+    message: "[Spec Kit] Task checkpoint"
 ```
 
 ## Installation

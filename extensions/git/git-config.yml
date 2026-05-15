@@ -60,3 +60,9 @@ auto_commit:
   after_taskstoissues:
     enabled: false
     message: "[Spec Kit] Sync tasks to issues"
+  before_task_execute:
+    enabled: false
+    message: "[Spec Kit] Save progress before task"
+  after_task_execute:
+    enabled: false
+    message: "[Spec Kit] Task checkpoint"
