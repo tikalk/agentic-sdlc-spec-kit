@@ -2,6 +2,15 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc17] - 2026-05-15
+
+### Fixed
+
+- **Git extension**: Added missing `find_specify_root()` and `get_repo_root()` functions to `git-common.sh`
+  - These functions are required by `workspace-submodules.sh` but were not included in the git extension
+  - Functions copied from main `scripts/bash/common.sh`
+  - Git extension bumped to v1.2.1
+
 # [0.8.8+adlc16] - 2026-05-15
 
 ### Fixed
