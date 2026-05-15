@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.2.4"
+  version: "1.2.5"
   description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, and multi-repo workspace submodule management"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
@@ -41,6 +41,10 @@ provides:
       file: commands/speckit.git.workspace.md
       aliases: ["git.workspace"]
       description: "Register child repositories as Git submodules for multi-repo workspace coordination"
+    - name: speckit.git.setup-ignore
+      file: commands/speckit.git.setup-ignore.md
+      aliases: ["git.setup-ignore", "git.ignore"]
+      description: "Configure .gitignore with proper rules for Spec Kit directories"
 
   config:
     - name: "git-config.yml"

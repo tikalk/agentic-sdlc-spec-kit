@@ -49,6 +49,11 @@ if ! has_git; then
   exit 1
 fi
 
+# Setup spec-kit .gitignore rules first
+if [[ "$DRY_RUN" == false ]]; then
+  setup_spec_kit_gitignore >/dev/null 2>&1 || true
+fi
+
 # Arrays to track results
 declare -a REGISTERED_REPOS=()
 declare -a SKIPPED_REPOS=()
@@ -69,6 +74,60 @@ is_tracked_in_parent() {
 # Function to ensure .gitignore exists
 ensure_gitignore() {
   [[ -f ".gitignore" ]] || touch .gitignore
+}
+
+# Function to setup spec-kit .gitignore rules
+setup_spec_kit_gitignore() {
+  local rules_added=0
+  
+  # Spec Kit ignore rules
+  local ignore_rules=(
+    ".specify/extensions/.cache/"
+    ".specify/extensions/.backup/"
+    ".specify/extensions/*/*.local.yml"
+    ".specify/extensions/.registry"
+  )
+  
+  # Spec Kit negation rules
+  local negation_rules=(
+    "!.specify/"
+    "!.specify/templates/"
+    "!.specify/scripts/"
+    "!.specify/memory/"
+    "!.opencode/"
+    "!.claude/"
+    "!.cursor/"
+    "!.windsurf/"
+  )
+  
+  # Ensure .gitignore exists
+  [[ -f ".gitignore" ]] || touch .gitignore
+  
+  # Add ignore rules if missing
+  for rule in "${ignore_rules[@]}"; do
+    if ! grep -qx "$rule" .gitignore 2>/dev/null; then
+      if [[ "$DRY_RUN" == false ]]; then
+        echo "$rule" >> .gitignore
+        ((rules_added++))
+      fi
+    fi
+  done
+  
+  # Add negation rules if missing
+  for rule in "${negation_rules[@]}"; do
+    if ! grep -qx "$rule" .gitignore 2>/dev/null; then
+      if [[ "$DRY_RUN" == false ]]; then
+        echo "$rule" >> .gitignore
+        ((rules_added++))
+      fi
+    fi
+  done
+  
+  # Commit changes if rules were added
+  if [[ "$DRY_RUN" == false && $rules_added -gt 0 ]]; then
+    git add .gitignore 2>/dev/null || true
+    git commit -m "[Spec Kit] Configure .gitignore for spec-kit directories" 2>/dev/null || true
+  fi
 }
 
 # Function to get remote URL from a child repo

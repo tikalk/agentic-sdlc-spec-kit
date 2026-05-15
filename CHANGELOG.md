@@ -2,18 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
-# [0.8.8+adlc20] - 2026-05-15
+# [0.8.8+adlc21] - 2026-05-15
 
-### Fixed
+### Added
 
-- **Git extension workspace command** (v1.2.4):
-  - Fixed pattern matching bug in brownfield safety check
-  - Pattern `^$repo/` didn't match `git diff --name-only` output for directories (no trailing slash)
-  - Changed to `^$repo(/|$)` to match both with and without trailing slash
-  - Fixed in both bash and PowerShell scripts
-  - This ensures `--force` flag works correctly for brownfield workspaces
-
-# [0.8.8+adlc19] - 2026-05-15
+- **New command: `speckit.git.setup-ignore`** (Git extension v1.2.5):
+  - Configures `.gitignore` with proper rules for Spec Kit projects
+  - Manages exclusions (cache, backup, local files) and protections (templates, scripts)
+  - Options: `--check`, `--fix` (default), `--dry-run`
+  - Aliases: `git.setup-ignore`, `git.ignore`
+  - Automatically called by `speckit.git.workspace` before submodule setup
+  - Ensures `.specify/` and `.opencode/` directories are properly handled
 
 ### Fixed
 

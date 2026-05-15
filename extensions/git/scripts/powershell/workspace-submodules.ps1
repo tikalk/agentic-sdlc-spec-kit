@@ -29,6 +29,11 @@ if (-not (Has-Git)) {
     exit 1
 }
 
+# Setup spec-kit .gitignore rules first
+if (-not $DryRun) {
+    Setup-SpecKitGitignore 2>$null | Out-Null
+}
+
 # Arrays to track results
 $registeredRepos = @()
 $skippedRepos = @()
@@ -59,6 +64,60 @@ function Is-TrackedInParent($path) {
 function Ensure-Gitignore() {
     if (-not (Test-Path ".gitignore")) {
         New-Item -ItemType File -Name ".gitignore" | Out-Null
+    }
+}
+
+# Function to setup spec-kit .gitignore rules
+function Setup-SpecKitGitignore() {
+    $rulesAdded = 0
+    
+    # Spec Kit ignore rules
+    $ignoreRules = @(
+        ".specify/extensions/.cache/",
+        ".specify/extensions/.backup/",
+        ".specify/extensions/*/*.local.yml",
+        ".specify/extensions/.registry"
+    )
+    
+    # Spec Kit negation rules
+    $negationRules = @(
+        "!.specify/",
+        "!.specify/templates/",
+        "!.specify/scripts/",
+        "!.specify/memory/",
+        "!.opencode/",
+        "!.claude/",
+        "!.cursor/",
+        "!.windsurf/"
+    )
+    
+    # Ensure .gitignore exists
+    if (-not (Test-Path ".gitignore")) {
+        New-Item -ItemType File -Name ".gitignore" | Out-Null
+    }
+    
+    # Add ignore rules if missing
+    foreach ($rule in $ignoreRules) {
+        $gitignoreContent = Get-Content ".gitignore" -ErrorAction SilentlyContinue
+        if ($gitignoreContent -notcontains $rule) {
+            Add-Content -Path ".gitignore" -Value $rule
+            $rulesAdded++
+        }
+    }
+    
+    # Add negation rules if missing
+    foreach ($rule in $negationRules) {
+        $gitignoreContent = Get-Content ".gitignore" -ErrorAction SilentlyContinue
+        if ($gitignoreContent -notcontains $rule) {
+            Add-Content -Path ".gitignore" -Value $rule
+            $rulesAdded++
+        }
+    }
+    
+    # Commit changes if rules were added
+    if ($rulesAdded -gt 0) {
+        git add .gitignore 2>$null | Out-Null
+        git commit -m "[Spec Kit] Configure .gitignore for spec-kit directories" 2>$null | Out-Null
     }
 }
 

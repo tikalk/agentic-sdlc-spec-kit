@@ -96,13 +96,36 @@ Simple isolation without submodule complexity.
 
 ## Outline
 
-1. **Validate safety**: Check parent working tree is clean
-2. **Run discovery script**:
+1. **Setup .gitignore**: Automatically configure `.gitignore` with proper Spec Kit rules (cache/backup exclusions, directory protections)
+2. **Validate safety**: Check parent working tree is clean
+3. **Run discovery script**:
    - **Bash**: `.specify/extensions/git/scripts/bash/workspace-submodules.sh --json $ARGUMENTS`
    - **PowerShell**: `.specify/extensions/git/scripts/powershell/workspace-submodules.ps1 -Json $ARGUMENTS`
-3. **Parse JSON output**: Extract `DISCOVERED_COUNT`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERROR_COUNT`, `IGNORED_COUNT`, `REGISTERED_REPOS`, `SKIPPED_REPOS`, `ERROR_REPOS`, `IGNORED_REPOS`, `MODE`
-4. **Report results**: Display which repos were registered/ignored vs skipped
-5. **Handle errors**: Display any repos that couldn't be processed
+4. **Parse JSON output**: Extract `DISCOVERED_COUNT`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERROR_COUNT`, `IGNORED_COUNT`, `REGISTERED_REPOS`, `SKIPPED_REPOS`, `ERROR_REPOS`, `IGNORED_REPOS`, `MODE`
+5. **Report results**: Display which repos were registered/ignored vs skipped
+6. **Handle errors**: Display any repos that couldn't be processed
+
+## Automatic .gitignore Setup
+
+This command automatically ensures `.gitignore` is properly configured for Spec Kit projects before processing submodules:
+
+**Excluded (not committed):**
+- `.specify/extensions/.cache/` - Catalog cache
+- `.specify/extensions/.backup/` - Config backups
+- `.specify/extensions/*/*.local.yml` - Local overrides
+- `.specify/extensions/.registry` - Installation state
+
+**Protected (ensure not accidentally ignored):**
+- `!.specify/` - Spec Kit directory
+- `!.specify/templates/` - Project templates
+- `!.specify/scripts/` - Project scripts
+- `!.opencode/` - AI agent commands
+- etc.
+
+To manually configure .gitignore without running workspace setup:
+```bash
+/speckit.git.setup-ignore
+```
 
 ## Example Output
 
