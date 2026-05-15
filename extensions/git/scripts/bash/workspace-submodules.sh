@@ -4,6 +4,8 @@ set -e
 
 JSON_MODE=false
 DRY_RUN=false
+FORCE=false
+IGNORE_ONLY=false
 
 # Parse arguments
 while [[ $# -gt 0 ]]; do
@@ -14,6 +16,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --dry-run)
       DRY_RUN=true
+      shift
+      ;;
+    --force)
+      FORCE=true
+      shift
+      ;;
+    --ignore-only)
+      IGNORE_ONLY=true
       shift
       ;;
     *)
@@ -39,15 +49,40 @@ if ! has_git; then
   exit 1
 fi
 
+# Safety check: Parent working tree must be clean
+if ! git diff-index --quiet HEAD -- 2>/dev/null || ! git diff --quiet --cached 2>/dev/null; then
+  if $JSON_MODE; then
+    echo '{"error": "Parent repository has uncommitted changes. Commit or stash before running workspace setup."}'
+  else
+    echo "ERROR: Parent repository has uncommitted changes." >&2
+    echo "Commit or stash changes before running workspace setup." >&2
+    echo "" >&2
+    echo "Uncommitted changes:" >&2
+    git status --short >&2
+  fi
+  exit 1
+fi
+
 # Arrays to track results
 declare -a REGISTERED_REPOS=()
 declare -a SKIPPED_REPOS=()
 declare -a ERROR_REPOS=()
+declare -a IGNORED_REPOS=()
 
 # Function to check if a path is already a submodule
 is_submodule() {
   local path="$1"
   git config --file .gitmodules --get-regexp "^submodule\\..*\\.path$" 2>/dev/null | grep -q "^[^ ]* $path$"
+}
+
+# Function to check if a path is tracked in parent index
+is_tracked_in_parent() {
+  git ls-files --error-unmatch "$1" >/dev/null 2>&1
+}
+
+# Function to ensure .gitignore exists
+ensure_gitignore() {
+  [[ -f ".gitignore" ]] || touch .gitignore
 }
 
 # Function to get remote URL from a child repo
@@ -85,47 +120,110 @@ discover_child_repos() {
 # Main processing
 CHILD_REPOS=$(discover_child_repos)
 
-for repo_name in $CHILD_REPOS; do
-  repo_path="$REPO_ROOT/$repo_name"
+if [[ "$IGNORE_ONLY" == true ]]; then
+  # Ignore-only mode: Add to .gitignore and remove from index
+  ensure_gitignore
   
-  # Check if already a submodule
-  if is_submodule "$repo_name"; then
-    SKIPPED_REPOS+=("$repo_name: already a submodule")
-    continue
-  fi
-  
-  # Get remote URL
-  remote_url=$(get_remote_url "$repo_path")
-  
-  if [[ -z "$remote_url" ]]; then
-    ERROR_REPOS+=("$repo_name: no remote URL configured")
-    continue
-  fi
-  
-  # Register as submodule
-  if [[ "$DRY_RUN" == true ]]; then
-    REGISTERED_REPOS+=("$repo_name → $remote_url [DRY RUN]")
-  else
-    if git submodule add "$remote_url" "$repo_name" 2>/dev/null; then
-      REGISTERED_REPOS+=("$repo_name → $remote_url")
-    else
-      ERROR_REPOS+=("$repo_name: failed to add submodule")
+  for repo_name in $CHILD_REPOS; do
+    # Remove from parent index if tracked
+    if is_tracked_in_parent "$repo_name"; then
+      if [[ "$DRY_RUN" == false ]]; then
+        git rm --cached "$repo_name" >/dev/null 2>&1 || true
+      fi
     fi
+    
+    # Add to .gitignore if not already there
+    if ! grep -qx "$repo_name/" .gitignore 2>/dev/null; then
+      if [[ "$DRY_RUN" == false ]]; then
+        echo "$repo_name/" >> .gitignore
+      fi
+      IGNORED_REPOS+=("$repo_name")
+    else
+      SKIPPED_REPOS+=("$repo_name: already in .gitignore")
+    fi
+  done
+  
+  # Commit .gitignore changes
+  if [[ "$DRY_RUN" == false ]] && [[ ${#IGNORED_REPOS[@]} -gt 0 ]]; then
+    git add .gitignore 2>/dev/null || true
+    git commit -m "[Spec Kit] Add child repos to .gitignore" 2>/dev/null || true
   fi
-done
-
-# Commit changes if not dry run and we registered repos
-if [[ "$DRY_RUN" == false ]] && [[ ${#REGISTERED_REPOS[@]} -gt 0 ]]; then
-  if [[ -f ".gitmodules" ]]; then
-    git add .gitmodules 2>/dev/null || true
-    # Try to commit, but don't fail if nothing to commit
-    git commit -m "[Spec Kit] Register workspace submodules" 2>/dev/null || true
+else
+  # Submodule mode: Register as submodules
+  for repo_name in $CHILD_REPOS; do
+    repo_path="$REPO_ROOT/$repo_name"
+    
+    # Check if already a submodule
+    if is_submodule "$repo_name"; then
+      SKIPPED_REPOS+=("$repo_name: already a submodule")
+      continue
+    fi
+    
+    # Check if tracked in parent index
+    if is_tracked_in_parent "$repo_name"; then
+      if [[ "$FORCE" == true ]]; then
+        # Get remote URL first
+        remote_url=$(get_remote_url "$repo_path")
+        
+        if [[ -z "$remote_url" ]]; then
+          ERROR_REPOS+=("$repo_name: no remote URL configured")
+          continue
+        fi
+        
+        # Remove from parent index
+        if [[ "$DRY_RUN" == false ]]; then
+          git rm --cached "$repo_name" >/dev/null 2>&1 || true
+        fi
+        
+        # Register as submodule
+        if [[ "$DRY_RUN" == true ]]; then
+          REGISTERED_REPOS+=("$repo_name → $remote_url [DRY RUN]")
+        else
+          if git submodule add "$remote_url" "$repo_name" 2>/dev/null; then
+            REGISTERED_REPOS+=("$repo_name → $remote_url")
+          else
+            ERROR_REPOS+=("$repo_name: failed to add submodule")
+          fi
+        fi
+      else
+        ERROR_REPOS+=("$repo_name: tracked in parent index (use --force)")
+      fi
+      continue
+    fi
+    
+    # Get remote URL
+    remote_url=$(get_remote_url "$repo_path")
+    
+    if [[ -z "$remote_url" ]]; then
+      ERROR_REPOS+=("$repo_name: no remote URL configured")
+      continue
+    fi
+    
+    # Register as submodule
+    if [[ "$DRY_RUN" == true ]]; then
+      REGISTERED_REPOS+=("$repo_name → $remote_url [DRY RUN]")
+    else
+      if git submodule add "$remote_url" "$repo_name" 2>/dev/null; then
+        REGISTERED_REPOS+=("$repo_name → $remote_url")
+      else
+        ERROR_REPOS+=("$repo_name: failed to add submodule")
+      fi
+    fi
+  done
+  
+  # Commit changes if not dry run and we registered repos
+  if [[ "$DRY_RUN" == false ]] && [[ ${#REGISTERED_REPOS[@]} -gt 0 ]]; then
+    if [[ -f ".gitmodules" ]]; then
+      git add .gitmodules 2>/dev/null || true
+      # Try to commit, but don't fail if nothing to commit
+      git commit -m "[Spec Kit] Register workspace submodules" 2>/dev/null || true
+    fi
   fi
 fi
 
 # Output results
 if $JSON_MODE; then
-  # Build JSON output
+  # Build JSON arrays
   registered_json="["
   first=1
   for repo in "${REGISTERED_REPOS[@]}"; do
@@ -153,28 +251,52 @@ if $JSON_MODE; then
   done
   errors_json+="]"
   
+  ignored_json="["
+  first=1
+  for repo in "${IGNORED_REPOS[@]}"; do
+    [[ $first -eq 0 ]] && ignored_json+=","
+    ignored_json+=$(printf '"%s"' "$repo")
+    first=0
+  done
+  ignored_json+="]"
+  
   cat <<EOF
 {
   "DISCOVERED_COUNT": $(($(echo "$CHILD_REPOS" | wc -w))),
   "REGISTERED_COUNT": ${#REGISTERED_REPOS[@]},
   "SKIPPED_COUNT": ${#SKIPPED_REPOS[@]},
   "ERROR_COUNT": ${#ERROR_REPOS[@]},
+  "IGNORED_COUNT": ${#IGNORED_REPOS[@]},
   "REGISTERED_REPOS": $registered_json,
   "SKIPPED_REPOS": $skipped_json,
   "ERROR_REPOS": $errors_json,
+  "IGNORED_REPOS": $ignored_json,
+  "MODE": "$([[ "$IGNORE_ONLY" == true ]] && echo "ignore" || echo "submodule")",
   "DRY_RUN": $([[ "$DRY_RUN" == true ]] && echo "true" || echo "false")
 }
 EOF
 else
   # Text output
   echo "=========================================="
-  echo "Workspace Submodule Setup"
+  if [[ "$IGNORE_ONLY" == true ]]; then
+    echo "Workspace Ignore Setup"
+  else
+    echo "Workspace Submodule Setup"
+  fi
   echo "=========================================="
   echo ""
   
   if [[ ${#REGISTERED_REPOS[@]} -gt 0 ]]; then
     echo "Registered (${#REGISTERED_REPOS[@]}):"
     for repo in "${REGISTERED_REPOS[@]}"; do
+      echo "  ✓ $repo"
+    done
+    echo ""
+  fi
+  
+  if [[ ${#IGNORED_REPOS[@]} -gt 0 ]]; then
+    echo "Added to .gitignore (${#IGNORED_REPOS[@]}):"
+    for repo in "${IGNORED_REPOS[@]}"; do
       echo "  ✓ $repo"
     done
     echo ""
@@ -196,14 +318,20 @@ else
     echo ""
   fi
   
-  if [[ ${#REGISTERED_REPOS[@]} -eq 0 ]] && [[ ${#SKIPPED_REPOS[@]} -eq 0 ]] && [[ ${#ERROR_REPOS[@]} -eq 0 ]]; then
+  if [[ ${#REGISTERED_REPOS[@]} -eq 0 ]] && [[ ${#IGNORED_REPOS[@]} -eq 0 ]] && [[ ${#SKIPPED_REPOS[@]} -eq 0 ]] && [[ ${#ERROR_REPOS[@]} -eq 0 ]]; then
     echo "No child repositories found at depth 1."
     echo ""
   fi
   
-  if [[ "$DRY_RUN" == false ]] && [[ ${#REGISTERED_REPOS[@]} -gt 0 ]]; then
-    echo "Next steps:"
-    echo "  - Team members can clone with: git clone --recursive <workspace-url>"
-    echo "  - Or initialize submodules: git submodule update --init"
+  if [[ "$DRY_RUN" == false ]]; then
+    if [[ "$IGNORE_ONLY" == true ]] && [[ ${#IGNORED_REPOS[@]} -gt 0 ]]; then
+      echo "Next steps:"
+      echo "  - Child repos are now ignored by the parent"
+      echo "  - Each child remains an independent git repository"
+    elif [[ ${#REGISTERED_REPOS[@]} -gt 0 ]]; then
+      echo "Next steps:"
+      echo "  - Team members can clone with: git clone --recursive <workspace-url>"
+      echo "  - Or initialize submodules: git submodule update --init"
+    fi
   fi
 fi

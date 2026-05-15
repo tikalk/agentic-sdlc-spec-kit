@@ -2,7 +2,9 @@
 
 param(
     [switch]$Json,
-    [switch]$DryRun
+    [switch]$DryRun,
+    [switch]$Force,
+    [switch]$IgnoreOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,10 +29,22 @@ if (-not (Has-Git)) {
     exit 1
 }
 
+# Safety check: Parent working tree must be clean
+$uncommitted = git status --porcelain 2>$null
+if ($uncommitted) {
+    if ($Json) {
+        '{"error": "Parent repository has uncommitted changes. Commit or stash before running workspace setup."}'
+    } else {
+        Write-Error "Parent repository has uncommitted changes.`nCommit or stash changes before running workspace setup.`n`nUncommitted changes:`n$uncommitted"
+    }
+    exit 1
+}
+
 # Arrays to track results
 $registeredRepos = @()
 $skippedRepos = @()
 $errorRepos = @()
+$ignoredRepos = @()
 
 # Function to check if a path is already a submodule
 function Is-Submodule($path) {
@@ -39,6 +53,23 @@ function Is-Submodule($path) {
         return $submodules -match "^[^ ]* $path$"
     } catch {
         return $false
+    }
+}
+
+# Function to check if a path is tracked in parent index
+function Is-TrackedInParent($path) {
+    try {
+        $null = git ls-files --error-unmatch $path 2>$null
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+# Function to ensure .gitignore exists
+function Ensure-Gitignore() {
+    if (-not (Test-Path ".gitignore")) {
+        New-Item -ItemType File -Name ".gitignore" | Out-Null
     }
 }
 
@@ -77,43 +108,109 @@ function Discover-ChildRepos {
 # Main processing
 $childRepos = Discover-ChildRepos
 
-foreach ($repoName in $childRepos) {
-    $repoPath = Join-Path $repoRoot $repoName
+if ($IgnoreOnly) {
+    # Ignore-only mode: Add to .gitignore and remove from index
+    Ensure-Gitignore
     
-    # Check if already a submodule
-    if (Is-Submodule $repoName) {
-        $skippedRepos += "$repoName`: already a submodule"
-        continue
-    }
-    
-    # Get remote URL
-    $remoteUrl = Get-RemoteUrl $repoPath
-    
-    if (-not $remoteUrl) {
-        $errorRepos += "$repoName`: no remote URL configured"
-        continue
-    }
-    
-    # Register as submodule
-    if ($DryRun) {
-        $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
-    } else {
-        try {
-            git submodule add $remoteUrl $repoName 2>$null | Out-Null
-            $registeredRepos += "$repoName → $remoteUrl"
-        } catch {
-            $errorRepos += "$repoName`: failed to add submodule"
+    foreach ($repoName in $childRepos) {
+        # Remove from parent index if tracked
+        if (Is-TrackedInParent $repoName) {
+            if (-not $DryRun) {
+                git rm --cached $repoName 2>$null | Out-Null
+            }
+        }
+        
+        # Add to .gitignore if not already there
+        $gitignoreContent = Get-Content ".gitignore" -ErrorAction SilentlyContinue
+        $entry = "$repoName/"
+        if ($gitignoreContent -notcontains $entry) {
+            if (-not $DryRun) {
+                Add-Content -Path ".gitignore" -Value $entry
+            }
+            $ignoredRepos += $repoName
+        } else {
+            $skippedRepos += "$repoName`: already in .gitignore"
         }
     }
-}
-
-# Commit changes if not dry run and we registered repos
-if ((-not $DryRun) -and ($registeredRepos.Count -gt 0)) {
-    $gitmodulesPath = Join-Path $repoRoot ".gitmodules"
-    if (Test-Path $gitmodulesPath) {
-        git add .gitmodules 2>$null | Out-Null
-        # Try to commit, but don't fail if nothing to commit
-        git commit -m "[Spec Kit] Register workspace submodules" 2>$null | Out-Null
+    
+    # Commit .gitignore changes
+    if ((-not $DryRun) -and ($ignoredRepos.Count -gt 0)) {
+        git add .gitignore 2>$null | Out-Null
+        git commit -m "[Spec Kit] Add child repos to .gitignore" 2>$null | Out-Null
+    }
+} else {
+    # Submodule mode: Register as submodules
+    foreach ($repoName in $childRepos) {
+        $repoPath = Join-Path $repoRoot $repoName
+        
+        # Check if already a submodule
+        if (Is-Submodule $repoName) {
+            $skippedRepos += "$repoName`: already a submodule"
+            continue
+        }
+        
+        # Check if tracked in parent index
+        if (Is-TrackedInParent $repoName) {
+            if ($Force) {
+                # Get remote URL first
+                $remoteUrl = Get-RemoteUrl $repoPath
+                
+                if (-not $remoteUrl) {
+                    $errorRepos += "$repoName`: no remote URL configured"
+                    continue
+                }
+                
+                # Remove from parent index
+                if (-not $DryRun) {
+                    git rm --cached $repoName 2>$null | Out-Null
+                }
+                
+                # Register as submodule
+                if ($DryRun) {
+                    $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
+                } else {
+                    try {
+                        git submodule add $remoteUrl $repoName 2>$null | Out-Null
+                        $registeredRepos += "$repoName → $remoteUrl"
+                    } catch {
+                        $errorRepos += "$repoName`: failed to add submodule"
+                    }
+                }
+            } else {
+                $errorRepos += "$repoName`: tracked in parent index (use --force)"
+            }
+            continue
+        }
+        
+        # Get remote URL
+        $remoteUrl = Get-RemoteUrl $repoPath
+        
+        if (-not $remoteUrl) {
+            $errorRepos += "$repoName`: no remote URL configured"
+            continue
+        }
+        
+        # Register as submodule
+        if ($DryRun) {
+            $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
+        } else {
+            try {
+                git submodule add $remoteUrl $repoName 2>$null | Out-Null
+                $registeredRepos += "$repoName → $remoteUrl"
+            } catch {
+                $errorRepos += "$repoName`: failed to add submodule"
+            }
+        }
+    }
+    
+    # Commit changes if not dry run and we registered repos
+    if ((-not $DryRun) -and ($registeredRepos.Count -gt 0)) {
+        $gitmodulesPath = Join-Path $repoRoot ".gitmodules"
+        if (Test-Path $gitmodulesPath) {
+            git add .gitmodules 2>$null | Out-Null
+            # Try to commit, but don't fail if nothing to commit
+            git commit -m "[Spec Kit] Register workspace submodules" 2>$null | Out-Null
+        }
     }
 }
 
@@ -122,6 +219,10 @@ if ($Json) {
     $registeredJson = $registeredRepos | ForEach-Object { '"' + $_ + '"' }
     $skippedJson = $skippedRepos | ForEach-Object { '"' + $_ + '"' }
     $errorsJson = $errorRepos | ForEach-Object { '"' + $_ + '"' }
+    $ignoredJson = $ignoredRepos | ForEach-Object { '"' + $_ + '"' }
+    
+    $mode = if ($IgnoreOnly) { "ignore" } else { "submodule" }
+    $dryRunValue = if ($DryRun) { "true" } else { "false" }
     
     @"
 {
@@ -129,22 +230,37 @@ if ($Json) {
   "REGISTERED_COUNT": $($registeredRepos.Count),
   "SKIPPED_COUNT": $($skippedRepos.Count),
   "ERROR_COUNT": $($errorRepos.Count),
+  "IGNORED_COUNT": $($ignoredRepos.Count),
   "REGISTERED_REPOS": [$($registeredJson -join ',')],
   "SKIPPED_REPOS": [$($skippedJson -join ',')],
   "ERROR_REPOS": [$($errorsJson -join ',')],
-  "DRY_RUN": $(if ($DryRun) { "true" } else { "false" })
+  "IGNORED_REPOS": [$($ignoredJson -join ',')],
+  "MODE": "$mode",
+  "DRY_RUN": $dryRunValue
 }
 "@
 } else {
     # Text output
     Write-Host "=========================================="
-    Write-Host "Workspace Submodule Setup"
+    if ($IgnoreOnly) {
+        Write-Host "Workspace Ignore Setup"
+    } else {
+        Write-Host "Workspace Submodule Setup"
+    }
     Write-Host "=========================================="
     Write-Host ""
     
     if ($registeredRepos.Count -gt 0) {
         Write-Host "Registered ($($registeredRepos.Count)):"
         foreach ($repo in $registeredRepos) {
+            Write-Host "  ✓ $repo"
+        }
+        Write-Host ""
+    }
+    
+    if ($ignoredRepos.Count -gt 0) {
+        Write-Host "Added to .gitignore ($($ignoredRepos.Count)):"
+        foreach ($repo in $ignoredRepos) {
             Write-Host "  ✓ $repo"
         }
         Write-Host ""
@@ -166,14 +282,20 @@ if ($Json) {
         Write-Host ""
     }
     
-    if (($registeredRepos.Count -eq 0) -and ($skippedRepos.Count -eq 0) -and ($errorRepos.Count -eq 0)) {
+    if (($registeredRepos.Count -eq 0) -and ($ignoredRepos.Count -eq 0) -and ($skippedRepos.Count -eq 0) -and ($errorRepos.Count -eq 0)) {
         Write-Host "No child repositories found at depth 1."
         Write-Host ""
     }
     
-    if ((-not $DryRun) -and ($registeredRepos.Count -gt 0)) {
-        Write-Host "Next steps:"
-        Write-Host "  - Team members can clone with: git clone --recursive <workspace-url>"
-        Write-Host "  - Or initialize submodules: git submodule update --init"
+    if (-not $DryRun) {
+        if ($IgnoreOnly -and ($ignoredRepos.Count -gt 0)) {
+            Write-Host "Next steps:"
+            Write-Host "  - Child repos are now ignored by the parent"
+            Write-Host "  - Each child remains an independent git repository"
+        } elseif ($registeredRepos.Count -gt 0) {
+            Write-Host "Next steps:"
+            Write-Host "  - Team members can clone with: git clone --recursive <workspace-url>"
+            Write-Host "  - Or initialize submodules: git submodule update --init"
+        }
     }
 }

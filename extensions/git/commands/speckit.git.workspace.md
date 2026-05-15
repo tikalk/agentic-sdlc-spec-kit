@@ -9,8 +9,6 @@ aliases: ["git.workspace"]
 $ARGUMENTS
 ```
 
-Optional: `--dry-run` to preview changes without executing them.
-
 ## Overview
 
 This command sets up a multi-repo workspace by discovering child git repositories at depth 1 from the project root and registering them as Git submodules.
@@ -28,19 +26,87 @@ This command sets up a multi-repo workspace by discovering child git repositorie
 4. **Register as submodules**: Run `git submodule add <url> <path>` for each
 5. **Commit changes**: Create a commit with the updated `.gitmodules` file
 
+## Safety First
+
+⚠️ **WARNING**: Before running this command:
+- Parent repository must have a clean working tree (no uncommitted changes)
+- All child repositories must have a remote `origin` URL configured
+
+If the parent has uncommitted changes, the command will abort with an error. Commit or stash changes first.
+
+## Execution Modes
+
+### Mode 1: Submodule Conversion (Default)
+
+Converts child repos to Git submodules for full workspace integration.
+
+**Features:**
+- Creates `.gitmodules` file with all child repo URLs
+- Registers each child as a proper Git submodule
+- Child repos remain editable and independently committable
+- Team members can clone entire workspace with `git clone --recursive`
+
+**For brownfield workspaces** (repos already exist and are tracked):
+
+If child repos are already tracked by the parent git index, you'll see an error:
+```
+⚠ dms-addin: tracked in parent index (use --force)
+```
+
+Use `--force` to convert them:
+```bash
+/speckit.git.workspace --force
+```
+
+⚠️ **WARNING with --force:**
+- Requires clean working tree (no uncommitted changes)
+- Removes child directories from parent index with `git rm --cached`
+- Converts to submodule references
+- Cannot be undone without manual git operations
+
+### Mode 2: Ignore Only (`--ignore-only`)
+
+Simple isolation without submodule complexity.
+
+**Features:**
+- Adds each child repo to `.gitignore`
+- Removes from parent index if already tracked (`git rm --cached`)
+- Child repos remain completely independent
+- Parent won't track any child files
+
+**Use when:**
+- You want quick isolation without submodule overhead
+- Children are truly independent projects
+- Team members manage child repos separately
+
+```bash
+/speckit.git.workspace --ignore-only
+```
+
+## Options
+
+- `--force` - Convert directories already tracked by parent (requires clean working tree)
+- `--ignore-only` - Add to .gitignore instead of creating submodules
+- `--dry-run` - Preview changes without executing
+
 ## Outline
 
-1. **Run discovery script**:
-   - **Bash**: `.specify/extensions/git/scripts/bash/workspace-submodules.sh --json`
-   - **PowerShell**: `.specify/extensions/git/scripts/powershell/workspace-submodules.ps1 -Json`
-2. **Parse JSON output**: Extract `DISCOVERED_COUNT`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERROR_COUNT`, `REGISTERED_REPOS`, `SKIPPED_REPOS`, `ERROR_REPOS`
-3. **Report results**: Display which repos were registered vs skipped
-4. **Handle errors**: If any repos couldn't be registered (no remote URL, etc.), display warnings
+1. **Validate safety**: Check parent working tree is clean
+2. **Run discovery script**:
+   - **Bash**: `.specify/extensions/git/scripts/bash/workspace-submodules.sh --json $ARGUMENTS`
+   - **PowerShell**: `.specify/extensions/git/scripts/powershell/workspace-submodules.ps1 -Json $ARGUMENTS`
+3. **Parse JSON output**: Extract `DISCOVERED_COUNT`, `REGISTERED_COUNT`, `SKIPPED_COUNT`, `ERROR_COUNT`, `IGNORED_COUNT`, `REGISTERED_REPOS`, `SKIPPED_REPOS`, `ERROR_REPOS`, `IGNORED_REPOS`, `MODE`
+4. **Report results**: Display which repos were registered/ignored vs skipped
+5. **Handle errors**: Display any repos that couldn't be processed
 
 ## Example Output
 
+### Submodule Mode (Default)
+
 ```
-Workspace Submodule Setup Complete
+==========================================
+Workspace Submodule Setup
+==========================================
 
 Registered (3):
   ✓ frontend → git@github.com:org/frontend.git
@@ -55,11 +121,51 @@ Next steps:
   - Or initialize submodules: git submodule update --init
 ```
 
+### Ignore-Only Mode
+
+```
+==========================================
+Workspace Ignore Setup
+==========================================
+
+Added to .gitignore (5):
+  ✓ dms-addin
+  ✓ dms-be
+  ✓ dms-client
+  ✓ dms-fe
+  ✓ shared-libs
+
+Next steps:
+  - Child repos are now ignored by the parent
+  - Each child remains an independent git repository
+```
+
+### Brownfield Conversion with --force
+
+```
+==========================================
+Workspace Submodule Setup
+==========================================
+
+Registered (5):
+  ✓ dms-addin → git@github.com:org/dms-addin.git
+  ✓ dms-be → git@github.com:org/dms-be.git
+  ✓ dms-client → git@github.com:org/dms-client.git
+  ✓ dms-fe → git@github.com:org/dms-fe.git
+  ✓ shared-libs → git@github.com:org/shared-libs.git
+
+Next steps:
+  - Team members can clone with: git clone --recursive <workspace-url>
+  - Or initialize submodules: git submodule update --init
+```
+
 ## Key Rules
 
 - Child repos must have a remote `origin` URL configured
 - Already-registered submodules are skipped (idempotent)
+- Already-ignored repos are skipped (idempotent)
 - Requires git to be initialized in the workspace root
+- Parent working tree must be clean (no uncommitted changes)
 - Only discovers repos at depth 1 (direct subdirectories)
 - Directories named `.specify`, `node_modules`, `.venv`, etc. are ignored
 
@@ -70,3 +176,4 @@ This command is safe to run multiple times. It will:
 - Not unregister existing submodules
 - Skip repos without remote URLs (with a warning)
 - Skip common development directories (node_modules, etc.)
+- Abort if parent has uncommitted changes

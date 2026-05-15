@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.8+adlc18] - 2026-05-15
+
+### Added
+
+- **Git extension workspace command enhancements** (v1.2.2):
+  - New `--force` flag for brownfield conversion of already-tracked directories
+  - New `--ignore-only` flag to add repos to `.gitignore` instead of submodules
+  - Safety check: Aborts if parent working tree has uncommitted changes
+  - `--ignore-only` removes from parent index and appends to `.gitignore`
+  - Consistent JSON output across all modes with `MODE` and `IGNORED_COUNT` fields
+
 # [0.8.8+adlc17] - 2026-05-15
 
 ### Fixed
