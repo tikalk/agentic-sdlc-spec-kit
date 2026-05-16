@@ -1,6 +1,6 @@
 <div align="center">
-    <img src="./media/logo_large.webp" alt="Spec Kit Logo" width="200" height="200"/>
-    <h1>🌱 Spec Kit</h1>
+    <img src="./media/timi_small.png" alt="Agentic SDLC Spec Kit Logo" width="200" height="200"/>
+    <h1>🐙 Agentic SDLC Spec Kit</h1>
     <h3><em>Build high-quality software faster.</em></h3>
 </div>
 
@@ -8,10 +8,34 @@
     <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
 </p>
 
+## 🎯 Project Vision
+
+This fork combines the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology with Spec-Driven Development to create a comprehensive framework for AI-assisted software development. The 12 Factors provide the strategic foundation and operational principles, while Spec-Driven Development delivers the practical implementation workflow.
+
+### Why This Combination?
+
+**Agentic SDLC 12 Factors** establish the philosophical and strategic principles for building software with AI coding agents, covering aspects like strategic mindset, context scaffolding, dual execution loops, and team capability.
+
+**Spec-Driven Development** provides the concrete, actionable process for implementing these principles through structured specification, planning, task breakdown, and iterative implementation phases.
+
+Together, they form a complete methodology that transforms how organizations approach AI-assisted development, moving from ad-hoc AI usage to systematic, high-quality software production.
+
+### Why This Fork?
+
+The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
+
+- **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
+- **Adding enterprise-grade features** like team AI directives integration
+- **Enhancing tooling** with dual execution loop support (SYNC/ASYNC task classification)
+- **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
+- **Providing team templates** and best practices for scaling AI-assisted development across teams
+
+This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
+
 <p align="center">
-    <a href="https://github.com/github/spec-kit/releases/latest"><img src="https://img.shields.io/github/v/release/github/spec-kit" alt="Latest Release"/></a>
-    <a href="https://github.com/github/spec-kit/stargazers"><img src="https://img.shields.io/github/stars/github/spec-kit?style=social" alt="GitHub stars"/></a>
-    <a href="https://github.com/github/spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/spec-kit" alt="License"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/stargazers"><img src="https://img.shields.io/github/stars/tikalk/agentic-sdlc-spec-kit?style=social" alt="GitHub stars"/></a>
+    <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/tikalk/agentic-sdlc-spec-kit" alt="License"/></a>
     <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
@@ -19,14 +43,21 @@
 
 ## Table of Contents
 
+- [🎯 Project Vision](#-project-vision)
 - [🤔 What is Spec-Driven Development?](#-what-is-spec-driven-development)
 - [⚡ Get Started](#-get-started)
+- [🚀 Quick Start Guide](./QUICKSTART.md) — Complete team onboarding with team-ai-directives
+- [🛠️ Installation Guide (AI Assistants)](./INSTALL.md) — Guide for AI agents helping team members
 - [📽️ Video Overview](#️-video-overview)
 - [🧩 Community Extensions](#-community-extensions)
 - [🎨 Community Presets](#-community-presets)
 - [🚶 Community Walkthroughs](#-community-walkthroughs)
+- [🎯 Core Features](#-core-features)
+- [📦 Bundled Extensions](#-bundled-extensions)
+- [🔧 Team AI Directives Integration](#-team-ai-directives-integration)
 - [🛠️ Community Friends](#️-community-friends)
-- [🤖 Supported AI Coding Agent Integrations](#-supported-ai-coding-agent-integrations)
+- [🤖 Supported AI Agents](#-supported-ai-agents)
+- [📦 Skills Package Manager](#-skills-package-manager)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [🧩 Making Spec Kit Your Own: Extensions & Presets](#-making-spec-kit-your-own-extensions--presets)
 - [📚 Core Philosophy](#-core-philosophy)
@@ -35,7 +66,9 @@
 - [🔧 Prerequisites](#-prerequisites)
 - [📖 Learn More](#-learn-more)
 - [📋 Detailed Process](#-detailed-process)
-- [ Support](#-support)
+- [🔍 Troubleshooting](#-troubleshooting)
+- [👥 Maintainers](#-maintainers)
+- [💬 Support](#-support)
 - [🙏 Acknowledgements](#-acknowledgements)
 - [📄 License](#-license)
 
@@ -45,15 +78,45 @@ Spec-Driven Development **flips the script** on traditional software development
 
 ## ⚡ Get Started
 
+> **New Team Members:** For a comprehensive onboarding guide including team-ai-directives setup, see [QUICKSTART.md](./QUICKSTART.md). AI assistants helping with setup should refer to [INSTALL.md](./INSTALL.md).
+
 ### 1. Install Specify CLI
 
-Requires **[uv](https://docs.astral.sh/uv/)** ([install uv](./docs/install/uv.md)). Replace `vX.Y.Z` with the latest tag from [Releases](https://github.com/github/spec-kit/releases):
+Choose your preferred installation method:
+
+> **Important:** The only official, maintained packages for Spec Kit are published from this GitHub repository. Any packages with the same name on PyPI are **not** affiliated with this project and are not maintained by the Spec Kit maintainers. Always install directly from GitHub as shown below.
+
+#### Option 1: Persistent Installation (Recommended)
+
+Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest):
+
+> [!NOTE]
+> The `uv tool install` commands below require **[uv](https://docs.astral.sh/uv/)** — a fast Python package manager. If you see `command not found: uv`, [install uv first](./docs/install/uv.md). The `pipx` alternative does not require uv.
 
 ```bash
-uv tool install specify-cli --from git+https://github.com/github/spec-kit.git@vX.Y.Z
+# Install a specific stable release (recommended — replace agentic-sdlc-vX.Y.Z with the latest tag)
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-vX.Y.Z
+
+# Or install latest from main (may include unreleased changes)
+uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git
 ```
 
-See the [Installation Guide](./docs/installation.md) for alternative methods, verification, upgrade, and troubleshooting.
+Then verify the correct version is installed:
+
+```bash
+specify version
+```
+
+#### Option 2: One-Time Installation
+
+Use `uvx` to run specify without installing it permanently. This is great for trying it out:
+
+```bash
+# Run once without installing
+uvx --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git specify init my-project
+```
+
+For detailed installation options, verification, and troubleshooting, see the [Installation Guide](./docs/installation.md).
 
 ### 2. Initialize a project
 
@@ -64,44 +127,44 @@ cd my-project
 
 ### 3. Establish project principles
 
-Launch your coding agent in the project directory. Most agents expose spec-kit as `/speckit.*` slash commands; Codex CLI in skills mode uses `$speckit-*` instead.
+Launch your coding agent in the project directory. Most agents expose spec-kit as `/spec.*` slash commands; Codex CLI in skills mode uses `$speckit-*` instead.
 
-Use the **`/speckit.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
+Use the **`/spec.constitution`** command to create your project's governing principles and development guidelines that will guide all subsequent development.
 
 ```bash
-/speckit.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
+/spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
 ```
 
 ### 4. Create the spec
 
-Use the **`/speckit.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
+Use the **`/spec.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
 ```bash
-/speckit.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
+/spec.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
 ### 5. Create a technical implementation plan
 
-Use the **`/speckit.plan`** command to provide your tech stack and architecture choices.
+Use the **`/spec.plan`** command to provide your tech stack and architecture choices.
 
 ```bash
-/speckit.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
+/spec.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
 ### 6. Break down into tasks
 
-Use **`/speckit.tasks`** to create an actionable task list from your implementation plan.
+Use **`/spec.tasks`** to create an actionable task list from your implementation plan.
 
 ```bash
-/speckit.tasks
+/spec.tasks
 ```
 
 ### 7. Execute implementation
 
-Use **`/speckit.implement`** to execute all tasks and build your feature according to the plan.
+Use **`/spec.implement`** to execute all tasks and build your feature according to the plan.
 
 ```bash
-/speckit.implement
+/spec.implement
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -134,9 +197,120 @@ To submit your own preset, see the [Presets Publishing Guide](presets/PUBLISHING
 
 See Spec-Driven Development in action across different scenarios with community-contributed walkthroughs; find the full list on the [Community Walkthroughs](https://github.github.io/spec-kit/community/walkthroughs.html) page.
 
+## 🎯 Core Features
+
+This fork provides additional features beyond the upstream Spec Kit:
+
+- **Team AI Directives Integration** — Synchronize team-level AI instructions and context across projects
+- **Dual Execution Loop** — Classify tasks as SYNC (immediate) or ASYNC (deferred) for better workflow management
+- **Levelup Command** — Analyze and improve session context with reusable knowledge packets
+- **Enhanced Extensions** — Built-in extensions for product thinking, architecture analysis, and TDD workflows
+
+## 📦 Bundled Extensions
+
+This fork includes pre-installed extensions:
+
+| Extension | Purpose |
+|-----------|---------|
+| architect | Architecture impact analysis and decision guidance |
+| evals | Evaluation criteria and test generation |
+| levelup | Session context improvement and knowledge management |
+| product | Product thinking and user story refinement |
+| quick | Quick start workflows for small tasks |
+| tdd | Test-driven development workflows |
+| git | Git workflow automation |
+
+## 🔧 Team AI Directives Integration
+
+This fork supports team-ai-directives — a foundation for version-controlled AI agent behavior. Install during project initialization:
+
+```bash
+# Install from GitHub archive (ZIP download)
+specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/heads/main.zip
+
+# Or from a specific release tag
+specify init <project> --team-ai-directives https://github.com/your-org/team-ai-directives/archive/refs/tags/v1.0.0.zip
+
+# Or use a local directory
+specify init <project> --team-ai-directives ~/workspace/team-ai-directives
+```
+
+**Private Repositories**: If your team-ai-directives repository is private, configure authentication in `~/.specify/auth.json`:
+
+```json
+{
+  "providers": [
+    {
+      "hosts": ["github.com", "api.github.com", "raw.githubusercontent.com"],
+      "provider": "github",
+      "auth": "bearer",
+      "token_env": "GITHUB_TOKEN"
+    },
+    {
+      "hosts": ["gitlab.com"],
+      "provider": "gitlab",
+      "auth": "bearer",
+      "token_env": "GITLAB_TOKEN"
+    }
+  ]
+}
+```
+
+Then set the appropriate environment variable:
+
+```bash
+export GITHUB_TOKEN=ghp_your_token_here
+# or
+export GITLAB_TOKEN=glpat_your_token_here
+```
+
+The directives are installed to `.specify/extensions/team-ai-directives/` and available to all AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
+
+See [agentic-sdlc-team-ai-directives](https://github.com/tikalk/agentic-sdlc-team-ai-directives) for the full starter kit.
+
 ## 🛠️ Community Friends
 
 Community projects that extend, visualize, or build on Spec Kit. See the full list on the [Community Friends](https://github.github.io/spec-kit/community/friends.html) page.
+
+## 🤖 Supported AI Agents
+
+This fork supports the following AI coding agents:
+
+| Agent | CLI | Skills | Setup |
+|-------|-----|--------|-------|
+| Claude Code | `claude` | ✓ | `--ai claude --ai-skills` |
+| GitHub Copilot | — | IDE | `--ai copilot` |
+| Cursor | `cursor-agent` | IDE | `--ai cursor-agent` |
+| Gemini CLI | `gemini` | ✓ | `--ai gemini --ai-skills` |
+| opencode | `opencode` | ✓ | `--ai opencode` |
+| Qwen | `qwen` | ✓ | `--ai qwen --ai-skills` |
+| Codex | `codex` | ✓ | `--ai codex --ai-skills` |
+| Windsurf | — | IDE | `--ai windsurf` |
+| Junie | `junie` | ✓ | `--ai junie --ai-skills` |
+| And more... |
+
+## 📦 Skills Package Manager
+
+The fork includes a skills package manager for managing reusable AI session context:
+
+```bash
+# List installed skills
+specify skills list
+
+# Install a skill package
+specify skills install <package>
+
+# Update skills
+specify skills update
+```
+
+## Relevant Skills (Auto-Detected)
+
+When you initialize a project, the following skills are auto-detected based on your AI assistant selection:
+
+- **Claude Code**: `.claude/skills/` — Skills installed from the specification
+- **Codex**: `.agents/skills/` — Skills installed via Codex CLI
+- **Custom**: Based on your selected integration
 
 ## 🤖 Supported AI Coding Agent Integrations
 
@@ -154,12 +328,12 @@ Essential commands for the Spec-Driven Development workflow:
 
 | Command                  | Agent Skill            | Description                                                                |
 | ------------------------ | ---------------------- | -------------------------------------------------------------------------- |
-| `/speckit.constitution`  | `speckit-constitution` | Create or update project governing principles and development guidelines   |
-| `/speckit.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)              |
-| `/speckit.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack          |
-| `/speckit.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                          |
-| `/speckit.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution |
-| `/speckit.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan               |
+| `/spec.constitution`  | `speckit-constitution` | Create or update project governing principles and development guidelines   |
+| `/spec.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)              |
+| `/spec.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack          |
+| `/spec.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                          |
+| `/spec.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution |
+| `/spec.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan               |
 
 #### Optional Commands
 
@@ -167,9 +341,9 @@ Additional commands for enhanced quality and validation:
 
 | Command              | Agent Skill            | Description                                                                                                                          |
 | -------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `/speckit.clarify`   | `speckit-clarify`      | Clarify underspecified areas (recommended before `/speckit.plan`; formerly `/quizme`)                                                |
-| `/speckit.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/speckit.tasks`, before `/speckit.implement`)                             |
-| `/speckit.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+| `/spec.clarify`   | `speckit-clarify`      | Clarify underspecified areas (recommended before `/spec.plan`; formerly `/quizme`)                                                |
+| `/spec.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
+| `/spec.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 
 ## 🔧 Specify CLI Reference
 
@@ -353,19 +527,19 @@ Go to the project folder and run your coding agent. In our example, we're using 
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/speckit.constitution`, `/speckit.specify`, `/speckit.plan`, `/speckit.tasks`, and `/speckit.implement` commands available.
+You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, and `/spec.implement` commands available.
 
-The first step should be establishing your project's governing principles using the `/speckit.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
+The first step should be establishing your project's governing principles using the `/spec.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
 ```text
-/speckit.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
+/spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements. Include governance for how these principles should guide technical decisions and implementation choices.
 ```
 
 This step creates or updates the `.specify/memory/constitution.md` file with your project's foundational guidelines that the coding agent will reference during specification, planning, and implementation phases.
 
 ### **STEP 2:** Create project specifications
 
-With your project principles established, you can now create the functional specifications. Use the `/speckit.specify` command and then provide the concrete requirements for the project you want to develop.
+With your project principles established, you can now create the functional specifications. Use the `/spec.specify` command and then provide the concrete requirements for the project you want to develop.
 
 > [!IMPORTANT]
 > Be as explicit as possible about *what* you are trying to build and *why*. **Do not focus on the tech stack at this point**.
@@ -427,12 +601,12 @@ You should run the structured clarification workflow **before** creating a techn
 
 Preferred order:
 
-1. Use `/speckit.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
+1. Use `/spec.clarify` (structured) – sequential, coverage-based questioning that records answers in a Clarifications section.
 2. Optionally follow up with ad-hoc free-form refinement if something still feels vague.
 
 If you intentionally want to skip clarification (e.g., spike or exploratory prototype), explicitly state that so the agent doesn't block on missing clarifications.
 
-Example free-form refinement prompt (after `/speckit.clarify` if still needed):
+Example free-form refinement prompt (after `/spec.clarify` if still needed):
 
 ```text
 For each sample project or project that you create there should be a variable number of tasks between 5 and 15
@@ -450,7 +624,7 @@ It's important to use the interaction with Claude Code as an opportunity to clar
 
 ### **STEP 4:** Generate a plan
 
-You can now be specific about the tech stack and other technical requirements. You can use the `/speckit.plan` command that is built into the project template with a prompt like this:
+You can now be specific about the tech stack and other technical requirements. You can use the `/spec.plan` command that is built into the project template with a prompt like this:
 
 ```text
 We are going to generate this using .NET Aspire, using Postgres as the database. The frontend should use
@@ -535,12 +709,12 @@ You can also ask Claude Code (if you have the [GitHub CLI](https://docs.github.c
 > [!NOTE]
 > Before you have the agent implement it, it's also worth prompting Claude Code to cross-check the details to see if there are any over-engineered pieces (remember - it can be over-eager). If over-engineered components or decisions exist, you can ask Claude Code to resolve them. Ensure that Claude Code follows the constitution in `.specify/memory/constitution.md` as the foundational piece that it must adhere to when establishing the plan.
 
-### **STEP 6:** Generate task breakdown with /speckit.tasks
+### **STEP 6:** Generate task breakdown with /spec.tasks
 
-With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/speckit.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
+With the implementation plan validated, you can now break down the plan into specific, actionable tasks that can be executed in the correct order. Use the `/spec.tasks` command to automatically generate a detailed task breakdown from your implementation plan:
 
 ```text
-/speckit.tasks
+/spec.tasks
 ```
 
 This step creates a `tasks.md` file in your feature specification directory that contains:
@@ -552,17 +726,17 @@ This step creates a `tasks.md` file in your feature specification directory that
 - **Test-driven development structure** - If tests are requested, test tasks are included and ordered to be written before implementation
 - **Checkpoint validation** - Each user story phase includes checkpoints to validate independent functionality
 
-The generated tasks.md provides a clear roadmap for the `/speckit.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
+The generated tasks.md provides a clear roadmap for the `/spec.implement` command, ensuring systematic implementation that maintains code quality and allows for incremental delivery of user stories.
 
 ### **STEP 7:** Implementation
 
-Once ready, use the `/speckit.implement` command to execute your implementation plan:
+Once ready, use the `/spec.implement` command to execute your implementation plan:
 
 ```text
-/speckit.implement
+/spec.implement
 ```
 
-The `/speckit.implement` command will:
+The `/spec.implement` command will:
 
 - Validate that all prerequisites are in place (constitution, spec, plan, and tasks)
 - Parse the task breakdown from `tasks.md`
@@ -579,13 +753,43 @@ Once the implementation is complete, test the application and resolve any runtim
 
 ---
 
-##  Support
+## 🔍 Troubleshooting
 
-For support, please open a [GitHub issue](https://github.com/github/spec-kit/issues/new). We welcome bug reports, feature requests, and questions about using Spec-Driven Development.
+### Common Issues
+
+**Issue**: `specify` command not found after installation
+- **Solution**: Ensure your shell PATH includes `~/.local/bin` (uv) or `~/.cargo/bin` (pipx). Restart your terminal or run `source ~/.bashrc` (or `~/.zshrc`).
+
+**Issue**: Permission denied when running scripts
+- **Solution**: Run `chmod +x scripts/bash/*.sh` or re-run `specify init` which auto-fixes permissions.
+
+**Issue**: Team AI Directives authentication fails
+- **Solution**: Check that `GITHUB_TOKEN` or `GITLAB_TOKEN` environment variable is set with a valid token that has access to the private repository.
+
+**Issue**: Extension commands not appearing in agent
+- **Solution**: Run `specify extension list` to verify extensions are enabled. Some agents require restarting the IDE or CLI.
+
+For more troubleshooting, see the [FORK.md](./FORK.md) file.
+
+## 👥 Maintainers
+
+This fork is maintained by the **Tikal** engineering team:
+
+- **Tikal Knowledge Center** — [tikalk.com](https://www.tikalk.com)
+- **GitHub**: [@tikalk](https://github.com/tikalk)
+- **Repository**: [tikalk/agentic-sdlc-spec-kit](https://github.com/tikalk/agentic-sdlc-spec-kit)
+
+## 💬 Support
+
+For support on this fork:
+- **Issues**: [Open a GitHub issue](https://github.com/tikalk/agentic-sdlc-spec-kit/issues/new)
+- **Upstream Issues**: For upstream spec-kit issues, see [github/spec-kit](https://github.com/github/spec-kit/issues)
+
+We welcome bug reports, feature requests, and questions about using Agentic SDLC Spec Kit.
 
 ## 🙏 Acknowledgements
 
-This project is heavily influenced by and based on the work and research of [John Lam](https://github.com/jflam).
+This project is heavily influenced by and based on the work and research of [John Lam](https://github.com/jflam) and the original [Spec Kit](https://github.com/github/spec-kit) project.
 
 ## 📄 License
 

@@ -74,6 +74,29 @@ Community extensions like CI Guard and Architecture Guard add compliance gates a
 
 ---
 
+<div class="twelve-factors-section">
+
+## Alignment with Agentic SDLC 12 Factors
+
+Spec-Driven Development is built upon the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) methodology, a comprehensive framework for software development with AI coding agents. The 12 factors provide the foundational principles that guide our approach:
+
+- **[I. Strategic Mindset](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-mindset.html)**: Developer as Orchestrator, AI as Intern
+- **[II. Context Scaffolding](https://tikalk.github.io/agentic-sdlc-12-factors/content/context-scaffolding.html)**: Treat Context as a Dependency
+- **[III. Mission Definition](https://tikalk.github.io/agentic-sdlc-12-factors/content/mission-definition.html)**: From Intent to Specification
+- **[IV. Structured Planning](https://tikalk.github.io/agentic-sdlc-12-factors/content/structured-planning.html)**: Decompose and Triage Tasks
+- **[V. Dual Execution Loops](https://tikalk.github.io/agentic-sdlc-12-factors/content/dual-execution-loops.html)**: Pair Program or Delegate Toil
+- **[VI. The Great Filter](https://tikalk.github.io/agentic-sdlc-12-factors/content/great-filter.html)**: Apply Irreplaceable Human Judgment
+- **[VII. Adaptive Quality Gates](https://tikalk.github.io/agentic-sdlc-12-factors/content/adaptive-quality-gates.html)**: Review Appropriately for Each Workflow
+- **[VIII. AI-Augmented, Risk-Based Testing](https://tikalk.github.io/agentic-sdlc-12-factors/content/ai-augmented-testing.html)**: AI-Augmented, Risk-Based Testing
+- **[IX. Traceability](https://tikalk.github.io/agentic-sdlc-12-factors/content/traceability.html)**: Linking the 'Why' to the 'How'
+- **[X. Strategic Tooling](https://tikalk.github.io/agentic-sdlc-12-factors/content/strategic-tooling.html)**: Manage a Federated, Governed Stack
+- **[XI. Directives as Code](https://tikalk.github.io/agentic-sdlc-12-factors/content/directives-as-code.html)**: Version and Share AI Behavior
+- **[XII. Team Capability](https://tikalk.github.io/agentic-sdlc-12-factors/content/team-capability.html)**: Systematize Learning and Improvement
+
+</div>
+
+---
+
 <div class="community-section">
 
 ## Built by the community
