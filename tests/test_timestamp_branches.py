@@ -135,6 +135,8 @@ def ps_git_repo(tmp_path: Path) -> Path:
     shutil.copy(CREATE_FEATURE_PS, ps_dir / "create-new-feature.ps1")
     common_ps = PROJECT_ROOT / "scripts" / "powershell" / "common.ps1"
     shutil.copy(common_ps, ps_dir / "common.ps1")
+    discovery_ps = PROJECT_ROOT / "scripts" / "powershell" / "discovery-functions.ps1"
+    shutil.copy(discovery_ps, ps_dir / "discovery-functions.ps1")
     templates_dir = tmp_path / ".specify" / "templates"
     templates_dir.mkdir(parents=True)
     # Write a BOM-prefixed template to ensure the WriteAllText fix is actually exercised.
