@@ -78,7 +78,7 @@ from ._assets import (
     _locate_bundled_workflow,
     _locate_core_pack,
     _repo_root,
-    get_speckit_version as get_speckit_version,
+    get_speckit_version as _upstream_get_speckit_version,
 )
 from ._utils import (
     CLAUDE_LOCAL_PATH as CLAUDE_LOCAL_PATH,
@@ -92,7 +92,7 @@ from ._utils import (
     run_command as run_command,
 )
 from ._version import (
-    GITHUB_API_LATEST as GITHUB_API_LATEST,
+    GITHUB_API_LATEST as _upstream_github_api_latest,
     self_app as _self_app,
     self_check as self_check,
     self_upgrade as self_upgrade,
@@ -114,6 +114,8 @@ try:
         compute_skill_output_name,
         get_team_directives_path,
         sync_team_ai_directives,
+        get_speckit_version,
+        GITHUB_API_LATEST,
     )
 except ImportError:
     from pathlib import Path
@@ -154,6 +156,10 @@ except ImportError:
     def sync_team_ai_directives(repo_url: str, project_root: Path, *, install: bool = True, force: bool = False):
         """Fallback - team-ai-directives not supported in upstream."""
         raise NotImplementedError("team-ai-directives requires the fork CLI")
+
+    # Fall back to upstream version functions
+    get_speckit_version = _upstream_get_speckit_version
+    GITHUB_API_LATEST = _upstream_github_api_latest
 
 def _build_agent_config() -> dict[str, dict[str, Any]]:
     """Derive AGENT_CONFIG from INTEGRATION_REGISTRY."""
@@ -258,6 +264,17 @@ def show_banner():
     console.print(Align.center(styled_banner))
     console.print(Align.center(Text(TAGLINE, style=f"italic {accent_style()}")))
     console.print()
+
+
+# Monkey-patch _console.show_banner to use fork theming
+import specify_cli._console as _console_module  # noqa: E402
+
+_console_module.show_banner = show_banner
+
+# Monkey-patch _version.GITHUB_API_LATEST to use fork value
+import specify_cli._version as _version_module  # noqa: E402
+
+_version_module.GITHUB_API_LATEST = GITHUB_API_LATEST
 
 
 def _version_callback(value: bool):

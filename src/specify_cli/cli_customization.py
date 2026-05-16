@@ -40,6 +40,9 @@ ACCENT_COLOR = "#f47721"
 # Banner gradient colors for the CLI header
 BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]
 
+# GitHub API URL for fork releases (overrides upstream)
+GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
+
 
 def accent(
     text: str,
