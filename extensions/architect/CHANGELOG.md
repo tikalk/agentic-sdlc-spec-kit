@@ -2,6 +2,25 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.7] - 2026-05-16
+
+### Fixed
+
+- **Sub-System Detection Hardening** for `/architect.init` and `/architect.specify`:
+  - Added **Detection Source Reconciliation** rules to handle script vs AI detection mismatches
+  - Made **Step 4 (Sub-System Proposal) MANDATORY** when sub-systems are identified through ANY method
+  - Added **Critical Enforcement Note**: Cannot skip to monolithic if sub-systems exist
+  - Strengthened **Threshold Logic Enforcement** with mandatory user confirmation for 4+ sub-systems
+  - Added **Self-Check Requirements** before proceeding to Phase 1
+  - Prevents agents from ignoring AI-identified sub-systems when script reports "none detected"
+
+### Changed
+
+- Step 4 headers now explicitly marked as "MANDATORY if sub-systems identified"
+- Threshold logic now presented as enforcement table with "Can Skip?" column
+- Clear rules for when user confirmation is required vs optional
+- Added explicit prohibition on proceeding as monolithic when sub-systems detected
+
 ## [2.0.6] - 2026-05-16
 
 ### Fixed
