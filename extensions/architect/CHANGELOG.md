@@ -2,6 +2,26 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.6] - 2026-05-16
+
+### Fixed
+
+- **Hardened `/architect.implement`** with mandatory execution constraints to prevent phase skipping:
+  - Added pre-flight validation: Check ADRs exist with "Accepted" status before starting
+  - Added Phase 2→3 verification gate: All view files must exist on disk before aggregation
+  - Enforced disk-read requirement: Phase 3 MUST read views from disk, not memory
+  - Added completion verification: 7-point checklist before marking state "completed"
+- **Strengthened `/architect.init`**: Enforce "Discovered" status (never "Accepted")
+- **Strengthened `/architect.specify`**: Enforce "Proposed" status (never "Accepted")
+- **Strengthened `/architect.clarify`**: Made Phase 5.5 approval gateway explicit with verification
+- **Added empty views detection** to `/architect.analyze` to catch state.json/views mismatches
+
+### Changed
+
+- All architect commands now have stricter enforcement of workflow boundaries
+- Added mandatory constraints blocks with bright-line rules
+- Enhanced verification gates between phases
+
 ## [2.0.4] - 2026-04-30
 
 ### Fixed

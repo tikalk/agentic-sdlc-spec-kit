@@ -2,6 +2,25 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc2] - 2026-05-16
+
+### Fixed
+
+- **Architect extension command hardening** (v2.0.6):
+  - Hardened `/architect.implement` with mandatory constraints to prevent phase skipping:
+    - Pre-flight ADR validation (must have "Accepted" status)
+    - Phase 2→3 verification gate (all view files must exist on disk)
+    - Disk-read enforcement for Phase 3 (no memory shortcuts)
+    - Final completion verification (7-point checklist)
+  - Hardened `/architect.init` and `/architect.specify`:
+    - Enforce correct ADR status ("Discovered"/"Proposed", never "Accepted")
+    - Prevent skipping the approval workflow
+  - Hardened `/architect.clarify`:
+    - Made Phase 5.5 approval gateway explicit
+    - Added post-approval verification with status distribution report
+  - Enhanced `/architect.analyze`:
+    - Added detection for empty/missing view files (catches state.json inconsistency)
+
 # [0.8.8+adlc22] - 2026-05-15
 
 ### Fixed

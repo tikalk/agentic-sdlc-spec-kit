@@ -35,6 +35,13 @@ Use `agentic-sdlc-v<version>` with plus:
 - Version: `0.8.2+adlc2`
 - Tag: `agentic-sdlc-v0.8.2+adlc2`
 
+### Version History
+
+| Version | Date | Base Upstream | Changes |
+|---------|------|---------------|---------|
+| 0.8.12+adlc2 | 2026-05-16 | 0.8.12 | Hardened architect extension commands (prevent phase skipping, enforce view file generation) |
+| 0.8.12+adlc1 | 2026-05-15 | 0.8.12 | Git extension enhancements (workspace command with force flag, setup-ignore command) |
+
 ## Customization Module
 
 **File**: `src/specify_cli/cli_customization.py`
