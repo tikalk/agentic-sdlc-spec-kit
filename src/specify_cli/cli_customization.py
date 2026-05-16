@@ -111,6 +111,25 @@ def accent_style() -> str:
     return ACCENT_COLOR
 
 
+# ACCENT_STYLE for _console.py theming (used by Rich style attributes)
+# This is the string representation used by Rich, not the hex code
+ACCENT_STYLE = ACCENT_COLOR
+
+
+def apply_theming_patches(_console_module) -> None:
+    """Apply fork theming patches to _console.py module.
+
+    This function patches ACCENT_STYLE in _console.py to use the fork's
+    accent color instead of the upstream default "cyan".
+
+    Called from __init__.py after importing cli_customization.
+
+    Args:
+        _console_module: The specify_cli._console module instance
+    """
+    _console_module.ACCENT_STYLE = ACCENT_STYLE
+
+
 # ============================================================================
 # EXTENSION NAMESPACES
 # ============================================================================

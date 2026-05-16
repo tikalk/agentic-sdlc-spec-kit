@@ -116,6 +116,7 @@ try:
         sync_team_ai_directives,
         get_speckit_version,
         GITHUB_API_LATEST,
+        apply_theming_patches,
     )
 except ImportError:
     from pathlib import Path
@@ -124,6 +125,10 @@ except ImportError:
     TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
     PKG_NAMES = ["specify-cli"]
     skill_app = None
+
+    def apply_theming_patches(_console_module):
+        """Fallback: no theming patches applied."""
+        pass
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -275,6 +280,9 @@ _console_module.show_banner = show_banner
 import specify_cli._version as _version_module  # noqa: E402
 
 _version_module.GITHUB_API_LATEST = GITHUB_API_LATEST
+
+# Apply fork theming patches to _console.py
+apply_theming_patches(_console_module)
 
 
 def _version_callback(value: bool):

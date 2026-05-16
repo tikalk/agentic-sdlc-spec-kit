@@ -31,6 +31,9 @@ BANNER = """
 
 TAGLINE = "GitHub Spec Kit - Spec-Driven Development Toolkit"
 
+# Style constant for theming (fork override supported)
+ACCENT_STYLE = "cyan"
+
 console = Console(highlight=False)
 
 class StepTracker:
@@ -83,7 +86,7 @@ class StepTracker:
                 pass
 
     def render(self):
-        tree = Tree(f"[cyan]{self.title}[/cyan]", guide_style="grey50")
+        tree = Tree(f"[{ACCENT_STYLE}]{self.title}[/{ACCENT_STYLE}]", guide_style="grey50")
         for step in self.steps:
             label = step["label"]
             detail_text = step["detail"].strip() if step["detail"] else ""
@@ -184,7 +187,7 @@ def select_with_arrows(
         return Panel(
             table,
             title=f"[bold]{prompt_text}[/bold]",
-            border_style="cyan",
+            border_style=ACCENT_STYLE,
             padding=(1, 2)
         )
 
