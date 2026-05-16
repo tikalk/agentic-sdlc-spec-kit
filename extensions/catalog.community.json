@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-05-07T15:37:14Z",
+  "updated_at": "2026-05-15T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "aide": {
@@ -67,6 +67,43 @@
       "stars": 0,
       "created_at": "2026-03-31T00:00:00Z",
       "updated_at": "2026-03-31T00:00:00Z"
+    },
+    "agent-governance": {
+      "name": "Agent Governance",
+      "id": "agent-governance",
+      "description": "Project-local agent governance memory and context projection.",
+      "author": "bigben",
+      "version": "1.1.0",
+      "download_url": "https://github.com/bigsmartben/spec-kit-agent-governance/archive/refs/tags/v1.1.0.zip",
+      "repository": "https://github.com/bigsmartben/spec-kit-agent-governance",
+      "homepage": "https://github.com/bigsmartben/spec-kit-agent-governance",
+      "documentation": "https://github.com/bigsmartben/spec-kit-agent-governance/blob/main/README.md",
+      "changelog": "https://github.com/bigsmartben/spec-kit-agent-governance/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.8.0",
+        "tools": [
+          {
+            "name": "python3",
+            "required": false
+          }
+        ]
+      },
+      "provides": {
+        "commands": 1,
+        "hooks": 3
+      },
+      "tags": [
+        "governance",
+        "agents",
+        "memory",
+        "context"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-14T00:00:00Z",
+      "updated_at": "2026-05-15T00:00:00Z"
     },
     "agent-orchestrator": {
       "name": "Intelligent Agent Orchestrator",
@@ -137,6 +174,37 @@
       "created_at": "2026-05-07T00:00:00Z",
       "updated_at": "2026-05-07T00:00:00Z"
     },
+    "arch": {
+      "name": "Architecture Workflow",
+      "id": "arch",
+      "description": "Generate or reverse project-level 4+1 architecture view artifacts and synthesis",
+      "author": "bigsmartben",
+      "version": "1.1.0",
+      "download_url": "https://github.com/bigsmartben/spec-kit-arch/archive/refs/tags/v1.1.0.zip",
+      "repository": "https://github.com/bigsmartben/spec-kit-arch",
+      "homepage": "https://github.com/bigsmartben/spec-kit-arch",
+      "documentation": "https://github.com/bigsmartben/spec-kit-arch/blob/main/README.md",
+      "changelog": "https://github.com/bigsmartben/spec-kit-arch/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.8.10.dev0"
+      },
+      "provides": {
+        "commands": 2,
+        "hooks": 0
+      },
+      "tags": [
+        "architecture",
+        "4plus1",
+        "workflow",
+        "design"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-14T00:00:00Z",
+      "updated_at": "2026-05-15T00:00:00Z"
+    },
     "architect-preview": {
       "name": "Architect Impact Previewer",
       "id": "architect-preview",
@@ -174,8 +242,8 @@
       "id": "architecture-guard",
       "description": "Continuous architecture governance for AI-assisted development. Reviews specs, plans, and code for architecture drift, producing structured refactor tasks and evolution proposals.",
       "author": "DyanGalih",
-      "version": "1.8.0",
-      "download_url": "https://github.com/DyanGalih/spec-kit-architecture-guard/archive/refs/tags/v1.8.0.zip",
+      "version": "1.8.4",
+      "download_url": "https://github.com/DyanGalih/spec-kit-architecture-guard/archive/refs/tags/v1.8.4.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-architecture-guard",
       "homepage": "https://github.com/DyanGalih/spec-kit-architecture-guard",
       "documentation": "https://github.com/DyanGalih/spec-kit-architecture-guard/blob/main/README.md",
@@ -185,8 +253,8 @@
         "speckit_version": ">=0.1.0"
       },
       "provides": {
-        "commands": 6,
-        "hooks": 0
+        "commands": 10,
+        "hooks": 3
       },
       "tags": [
         "architecture",
@@ -200,7 +268,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-05-05T07:26:00Z",
-      "updated_at": "2026-05-07T15:37:14Z"
+      "updated_at": "2026-05-11T14:58:00Z"
     },
     "archive": {
       "name": "Archive Extension",
@@ -368,6 +436,38 @@
       "created_at": "2026-04-10T00:00:00Z",
       "updated_at": "2026-04-10T00:00:00Z"
     },
+    "brownkit": {
+      "name": "BrownKit \u2014 Brownfield Discovery for Spec-Kit",
+      "id": "brownkit",
+      "description": "Evidence-driven capability discovery, security and QA risk assessment for existing codebases.",
+      "author": "Maksim Shautsou",
+      "version": "1.0.1",
+      "download_url": "https://github.com/MaksimShevtsov/BrownKit/archive/refs/tags/v1.0.1.zip",
+      "repository": "https://github.com/MaksimShevtsov/BrownKit",
+      "homepage": "https://github.com/MaksimShevtsov/BrownKit",
+      "documentation": "https://github.com/MaksimShevtsov/BrownKit/blob/main/README.md",
+      "changelog": "https://github.com/MaksimShevtsov/BrownKit/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 10,
+        "hooks": 5
+      },
+      "tags": [
+        "brownfield",
+        "discovery",
+        "security",
+        "qa",
+        "capabilities"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-10T00:00:00Z",
+      "updated_at": "2026-05-10T00:00:00Z"
+    },
     "bugfix": {
       "name": "Bugfix Workflow",
       "id": "bugfix",
@@ -466,6 +566,38 @@
       "stars": 0,
       "created_at": "2026-04-16T00:00:00Z",
       "updated_at": "2026-04-16T00:00:00Z"
+    },
+    "changelog": {
+      "name": "Spec Changelog",
+      "id": "changelog",
+      "description": "Auto-generate changelogs and release notes from spec git history and requirement diffs.",
+      "author": "Quratulain-bilal",
+      "version": "1.0.0",
+      "download_url": "https://github.com/Quratulain-bilal/spec-kit-changelog/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/Quratulain-bilal/spec-kit-changelog",
+      "homepage": "https://github.com/Quratulain-bilal/spec-kit-changelog",
+      "documentation": "https://github.com/Quratulain-bilal/spec-kit-changelog/blob/main/README.md",
+      "changelog": "https://github.com/Quratulain-bilal/spec-kit-changelog/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.4.0"
+      },
+      "provides": {
+        "commands": 4,
+        "hooks": 1
+      },
+      "tags": [
+        "changelog",
+        "release-notes",
+        "documentation",
+        "git-history",
+        "notifications"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-04-11T18:00:00Z",
+      "updated_at": "2026-04-11T18:00:00Z"
     },
     "ci-guard": {
       "name": "CI Guard",
@@ -1416,6 +1548,35 @@
       "created_at": "2026-04-28T00:00:00Z",
       "updated_at": "2026-04-28T00:00:00Z"
     },
+    "mde": {
+      "name": "MDE",
+      "id": "mde",
+      "description": "A Spec Kit extension that exposes a minimal model-driven engineering workflow with setup, next, and status commands.",
+      "author": "AI-MDE",
+      "version": "0.5.1",
+      "download_url": "https://github.com/AI-MDE/spec-kit-mde/archive/refs/tags/v0.5.1.zip",
+      "repository": "https://github.com/AI-MDE/spec-kit-mde",
+      "homepage": "https://github.com/AI-MDE/spec-kit-mde",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0"
+      },
+      "provides": {
+        "commands": 4,
+        "hooks": 1
+      },
+      "tags": [
+        "mde",
+        "model-driven-engineering",
+        "workflow",
+        "process"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-08T00:00:00Z",
+      "updated_at": "2026-05-08T00:00:00Z"
+    },
     "memory-loader": {
       "name": "Memory Loader",
       "id": "memory-loader",
@@ -1452,8 +1613,8 @@
       "id": "memory-md",
       "description": "Spec Kit extension for repository-native Markdown memory that captures durable decisions, bugs, and project context",
       "author": "DyanGalih",
-      "version": "0.8.0",
-      "download_url": "https://github.com/DyanGalih/spec-kit-memory-hub/archive/refs/tags/v0.8.0.zip",
+      "version": "0.8.5",
+      "download_url": "https://github.com/DyanGalih/spec-kit-memory-hub/archive/refs/tags/v0.8.5.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-memory-hub",
       "homepage": "https://github.com/DyanGalih/spec-kit-memory-hub",
       "documentation": "https://github.com/DyanGalih/spec-kit-memory-hub/blob/main/README.md",
@@ -1463,8 +1624,8 @@
         "speckit_version": ">=0.2.0"
       },
       "provides": {
-        "commands": 6,
-        "hooks": 0
+        "commands": 7,
+        "hooks": 2
       },
       "tags": [
         "memory",
@@ -1478,7 +1639,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-04-23T00:00:00Z",
-      "updated_at": "2026-05-07T15:37:14Z"
+      "updated_at": "2026-05-11T14:58:00Z"
     },
     "memorylint": {
       "name": "MemoryLint",
@@ -1753,6 +1914,37 @@
       "created_at": "2026-03-18T00:00:00Z",
       "updated_at": "2026-03-18T00:00:00Z"
     },
+    "preview": {
+      "name": "Interactive HTML Preview",
+      "id": "preview",
+      "description": "Generate self-contained interactive HTML prototypes from Spec Kit artifacts",
+      "author": "bigsmartben",
+      "version": "1.0.0",
+      "download_url": "https://github.com/bigsmartben/spec-kit-preview/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/bigsmartben/spec-kit-preview",
+      "homepage": "https://github.com/bigsmartben/spec-kit-preview",
+      "documentation": "https://github.com/bigsmartben/spec-kit-preview/blob/main/README.md",
+      "changelog": "https://github.com/bigsmartben/spec-kit-preview/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.8.10.dev0"
+      },
+      "provides": {
+        "commands": 1,
+        "hooks": 0
+      },
+      "tags": [
+        "preview",
+        "prototype",
+        "html",
+        "ux"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-15T00:00:00Z",
+      "updated_at": "2026-05-15T00:00:00Z"
+    },
     "product-forge": {
       "name": "Product Forge",
       "id": "product-forge",
@@ -1988,6 +2180,44 @@
       "created_at": "2026-03-23T13:30:00Z",
       "updated_at": "2026-03-23T13:30:00Z"
     },
+    "reqnroll-bdd": {
+      "name": "Reqnroll BDD",
+      "id": "reqnroll-bdd",
+      "description": "Adds Reqnroll BDD planning, Gherkin generation, traceability, safe task injection, handoff, and verification to Spec Kit.",
+      "author": "LoogaCY Studio",
+      "version": "1.0.0",
+      "download_url": "https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd",
+      "homepage": "https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd",
+      "documentation": "https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd#readme",
+      "changelog": "https://github.com/LoogacyStudio/spec-kit-reqnroll-bdd/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.8.0",
+        "tools": [
+          {
+            "name": "dotnet",
+            "required": false
+          }
+        ]
+      },
+      "provides": {
+        "commands": 4,
+        "hooks": 1
+      },
+      "tags": [
+        "bdd",
+        "reqnroll",
+        "dotnet",
+        "gherkin",
+        "acceptance-testing"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-13T00:00:00Z",
+      "updated_at": "2026-05-13T00:00:00Z"
+    },
     "retro": {
       "name": "Retro Extension",
       "id": "retro",
@@ -2116,6 +2346,38 @@
       "created_at": "2026-04-20T00:00:00Z",
       "updated_at": "2026-04-20T00:00:00Z"
     },
+    "schedule": {
+      "name": "Spec Kit Schedule — CP-SAT Agent Orchestrator",
+      "id": "schedule",
+      "description": "Optimal multi-agent task scheduling via CP-SAT solver with DAG precedence, hallucination-aware caps, file-conflict avoidance, stochastic durations, replanning, and interactive HTML output",
+      "author": "Julio César Franco Ardila",
+      "version": "0.6.2",
+      "download_url": "https://github.com/jfranc38/spec-kit-schedule/archive/refs/tags/v0.6.2.zip",
+      "repository": "https://github.com/jfranc38/spec-kit-schedule",
+      "homepage": "https://github.com/jfranc38/spec-kit-schedule",
+      "documentation": "https://github.com/jfranc38/spec-kit-schedule/blob/main/README.md",
+      "changelog": "https://github.com/jfranc38/spec-kit-schedule/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.4.0"
+      },
+      "provides": {
+        "commands": 5,
+        "hooks": 1
+      },
+      "tags": [
+        "scheduling",
+        "optimization",
+        "multi-agent",
+        "cp-sat",
+        "operations-research"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-06T22:35:00Z",
+      "updated_at": "2026-05-07T17:25:00Z"
+    },
     "scope": {
       "name": "Spec Scope",
       "id": "scope",
@@ -2154,8 +2416,8 @@
       "id": "security-review",
       "description": "Full-project secure-by-design security audits plus staged, branch/PR, plan, task, follow-up, and apply reviews",
       "author": "DyanGalih",
-      "version": "1.4.5",
-      "download_url": "https://github.com/DyanGalih/spec-kit-security-review/archive/refs/tags/v1.4.5.zip",
+      "version": "1.5.0",
+      "download_url": "https://github.com/DyanGalih/spec-kit-security-review/archive/refs/tags/v1.5.0.zip",
       "repository": "https://github.com/DyanGalih/spec-kit-security-review",
       "homepage": "https://github.com/DyanGalih/spec-kit-security-review",
       "documentation": "https://github.com/DyanGalih/spec-kit-security-review/blob/main/README.md",
@@ -2165,8 +2427,8 @@
         "speckit_version": ">=0.1.0"
       },
       "provides": {
-        "commands": 7,
-        "hooks": 0
+        "commands": 9,
+        "hooks": 3
       },
       "tags": [
         "security",
@@ -2179,7 +2441,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-04-03T03:24:03Z",
-      "updated_at": "2026-05-06T22:28:55Z"
+      "updated_at": "2026-05-11T14:58:00Z"
     },
     "sf": {
       "name": "SFSpeckit — Salesforce Spec-Driven Development",
@@ -2349,6 +2611,55 @@
       "stars": 0,
       "created_at": "2026-04-30T00:00:00Z",
       "updated_at": "2026-04-30T00:00:00Z"
+    },
+    "speckit-superpowers-bridge": {
+      "name": "Superpowers Implementation Bridge",
+      "id": "speckit-superpowers-bridge",
+      "description": "Thin orchestrator between Spec Kit (design) and Superpowers (implementation). Cross-agent.",
+      "author": "lihan3238",
+      "version": "0.4.1",
+      "download_url": "https://github.com/lihan3238/speckit-superpowers-bridge/releases/download/v0.4.1/speckit-superpowers-bridge-v0.4.1.zip",
+      "repository": "https://github.com/lihan3238/speckit-superpowers-bridge",
+      "homepage": "https://github.com/lihan3238/speckit-superpowers-bridge",
+      "documentation": "https://github.com/lihan3238/speckit-superpowers-bridge#readme",
+      "changelog": "https://github.com/lihan3238/speckit-superpowers-bridge/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.8.10",
+        "tools": [
+          {
+            "name": "powershell",
+            "version": ">=5.1",
+            "required": false
+          },
+          {
+            "name": "bash",
+            "version": ">=4.0",
+            "required": false
+          },
+          {
+            "name": "jq",
+            "version": ">=1.6",
+            "required": false
+          }
+        ]
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 5
+      },
+      "tags": [
+        "bridge",
+        "superpowers",
+        "cross-agent",
+        "tdd",
+        "workflow"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-15T00:00:00Z",
+      "updated_at": "2026-05-15T00:00:00Z"
     },
     "speckit-utils": {
       "name": "SDD Utilities",
@@ -2653,6 +2964,43 @@
       "stars": 0,
       "created_at": "2026-03-02T00:00:00Z",
       "updated_at": "2026-03-02T00:00:00Z"
+    },
+    "time-machine": {
+      "name": "Time Machine",
+      "id": "time-machine",
+      "description": "Retroactively apply the full SDD workflow to existing codebases — analyse, spec, and ship feature-by-feature",
+      "author": "te3yo",
+      "version": "1.1.0",
+      "download_url": "https://github.com/teeyo/spec-kit-time-machine/archive/refs/tags/v1.1.0.zip",
+      "repository": "https://github.com/teeyo/spec-kit-time-machine",
+      "homepage": "https://github.com/teeyo/spec-kit-time-machine",
+      "documentation": "https://github.com/teeyo/spec-kit-time-machine",
+      "changelog": "https://github.com/teeyo/spec-kit-time-machine/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.1.0",
+        "tools": [
+          {
+            "name": "git",
+            "required": true
+          }
+        ]
+      },
+      "provides": {
+        "commands": 3,
+        "hooks": 1
+      },
+      "tags": [
+        "brownfield",
+        "automation",
+        "workflow",
+        "process"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-05-15T00:00:00Z",
+      "updated_at": "2026-05-15T00:00:00Z"
     },
     "tinyspec": {
       "name": "TinySpec",

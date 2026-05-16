@@ -174,7 +174,30 @@ class TestIntegrationInstall:
         assert "already installed" in result.output
         normalized = " ".join(result.output.split())
         assert "specify integration upgrade copilot" in normalized
-        assert "specify integration uninstall copilot" in normalized
+        assert "already the default integration" in normalized
+        assert "No files were changed" in normalized
+        assert "specify integration uninstall copilot" not in normalized
+
+    def test_install_already_installed_non_default_guides_use(self, tmp_path):
+        project = _init_project(tmp_path, "claude")
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            install = runner.invoke(app, [
+                "integration", "install", "codex",
+                "--script", "sh",
+            ], catch_exceptions=False)
+            assert install.exit_code == 0, install.output
+
+            result = runner.invoke(app, ["integration", "install", "codex"])
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        normalized = " ".join(result.output.split())
+        assert "already installed" in normalized
+        assert "specify integration use codex" in normalized
+        assert "specify integration upgrade codex" in normalized
+        assert "specify integration uninstall codex" not in normalized
 
     def test_install_different_when_one_exists(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
@@ -187,7 +210,11 @@ class TestIntegrationInstall:
         assert result.exit_code != 0
         assert "Installed integrations: copilot" in result.output
         assert "Default integration: copilot" in result.output
-        assert "--force" in result.output
+        normalized = " ".join(result.output.split())
+        assert "To replace the default integration" in normalized
+        assert "specify integration switch claude" in normalized
+        assert "To install 'claude' alongside" in normalized
+        assert "retry the same install command with --force" in normalized
 
     def test_install_multi_safe_integration(self, tmp_path):
         project = _init_project(tmp_path, "claude")
@@ -272,7 +299,11 @@ class TestIntegrationInstall:
         assert result.exit_code != 0
         assert "Installed integrations: copilot" in result.output
         assert "multi-install safe" in result.output
-        assert "--force" in result.output
+        normalized = " ".join(result.output.split())
+        assert "To replace the default integration" in normalized
+        assert "specify integration switch claude" in normalized
+        assert "To install 'claude' alongside" in normalized
+        assert "retry the same install command with --force" in normalized
 
     def test_install_multi_unsafe_allowed_with_force(self, tmp_path):
         project = _init_project(tmp_path, "copilot")
@@ -810,7 +841,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
 
         # Git extension commands should exist for opencode
-        opencode_git_feature = project / ".opencode" / "command" / "git.feature.md"
+        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
         assert opencode_git_feature.exists(), "Git extension command should exist for opencode"
 
         # Old kimi extension skills should be removed
@@ -885,7 +916,7 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        opencode_git_feature = project / ".opencode" / "command" / "git.feature.md"
+        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
         assert opencode_git_feature.exists(), "Git extension command should exist for opencode"
         assert not copilot_git_feature.exists(), "Old Copilot extension skill should be removed"
 
@@ -906,7 +937,7 @@ class TestIntegrationSwitch:
         result = _run_in_project(project, ["extension", "disable", "git"])
         assert result.exit_code == 0, result.output
 
-        opencode_git_feature = project / ".opencode" / "command" / "git.feature.md"
+        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
         assert opencode_git_feature.exists(), "Disabled extension command remains until integration switch"
 
         result = _run_in_project(project, [
@@ -955,6 +986,152 @@ class TestIntegrationSwitch:
         # Shared infra untouched
         assert shared_script.exists()
         assert shared_script.read_text(encoding="utf-8") == shared_content
+
+    def test_switch_refreshes_stale_managed_shared_infra(self, tmp_path):
+        """Regression for #2293: stale managed shared scripts get refreshed on switch."""
+        import hashlib
+
+        project = _init_project(tmp_path, "claude")
+        shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
+        bundled_bytes = shared_script.read_bytes()
+
+        # Simulate a stale vendored script: write truncated content as bytes
+        # (write_text would translate \n→\r\n on Windows and break the hash)
+        # and update the speckit manifest hash so the stale copy is treated
+        # as "managed" (installed by spec-kit, not a user customization).
+        stale_bytes = b"#!/usr/bin/env bash\n# stale vendored copy\n"
+        shared_script.write_bytes(stale_bytes)
+
+        manifest_path = project / ".specify" / "integrations" / "speckit.manifest.json"
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        manifest_data["files"][".specify/scripts/bash/common.sh"] = (
+            hashlib.sha256(stale_bytes).hexdigest()
+        )
+        manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, [
+                "integration", "switch", "copilot",
+                "--script", "sh",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+
+        # Stale managed file should be replaced by the bundled version
+        assert shared_script.read_bytes() == bundled_bytes
+
+    def test_switch_preserves_user_customized_shared_infra(self, tmp_path):
+        """User customizations (hash divergence from manifest) survive switch without --refresh-shared-infra."""
+        project = _init_project(tmp_path, "claude")
+        shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
+
+        # User customization: append bytes but do NOT update manifest hash,
+        # so on-disk hash diverges from the recorded one.
+        original = shared_script.read_bytes()
+        custom_bytes = original + b"\n# user customization\n"
+        shared_script.write_bytes(custom_bytes)
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, [
+                "integration", "switch", "copilot",
+                "--script", "sh",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        assert shared_script.read_bytes() == custom_bytes
+        assert "Preserved" in result.output
+
+    def test_switch_refresh_shared_infra_overwrites_customizations(self, tmp_path):
+        """--refresh-shared-infra explicitly overwrites user customizations on switch."""
+        project = _init_project(tmp_path, "claude")
+        shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
+        bundled_bytes = shared_script.read_bytes()
+
+        # User customization (hash diverges from manifest)
+        custom_bytes = bundled_bytes + b"\n# user customization\n"
+        shared_script.write_bytes(custom_bytes)
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, [
+                "integration", "switch", "copilot",
+                "--script", "sh",
+                "--refresh-shared-infra",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        # Customization is overwritten with the bundled version
+        assert shared_script.read_bytes() == bundled_bytes
+
+    def test_switch_skips_symlinked_parent_directory(self, tmp_path):
+        """Regression: if .specify/scripts/bash is a symlink, switch must not write through it.
+
+        Copilot follow-up on #2375: leaf-only symlink check let writes escape
+        when an *ancestor* directory was symlinked outside the project root.
+        """
+        import sys
+        if sys.platform.startswith("win"):
+            import pytest as _pytest
+            _pytest.skip("Symlink creation typically requires admin on Windows")
+
+        project = _init_project(tmp_path, "claude")
+        bash_dir = project / ".specify" / "scripts" / "bash"
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        for child in bash_dir.iterdir():
+            child.rename(outside / child.name)
+        bash_dir.rmdir()
+        bash_dir.symlink_to(outside, target_is_directory=True)
+        sentinel = (outside / "common.sh").read_bytes()
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, [
+                "integration", "switch", "copilot",
+                "--script", "sh",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        # Symlinked tree reported, not written through.
+        assert "symlink" in result.output.lower()
+        # Outside dir contents unchanged.
+        assert (outside / "common.sh").read_bytes() == sentinel
+
+    def test_switch_force_alone_does_not_overwrite_shared_customizations(self, tmp_path):
+        """--force (uninstall semantics) must NOT overwrite shared-infra customizations.
+
+        Regression: ensures the decoupling of --force and --refresh-shared-infra.
+        """
+        project = _init_project(tmp_path, "claude")
+        shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
+        bundled_bytes = shared_script.read_bytes()
+
+        custom_bytes = bundled_bytes + b"\n# user customization\n"
+        shared_script.write_bytes(custom_bytes)
+
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, [
+                "integration", "switch", "copilot",
+                "--script", "sh",
+                "--force",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        assert result.exit_code == 0
+        # --force alone preserves the customization
+        assert shared_script.read_bytes() == custom_bytes
 
     def test_switch_from_nothing(self, tmp_path):
         """Switch when no integration is installed should just install the target."""
@@ -1085,6 +1262,49 @@ class TestIntegrationUpgrade:
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "gemini"
         assert "/spec.plan" in template.read_text(encoding="utf-8")
+
+    def test_upgrade_migrates_opencode_legacy_dir(self, tmp_path):
+        """Upgrade moves OpenCode commands from .opencode/command/ to .opencode/commands/."""
+        project = _init_project(tmp_path, "opencode")
+
+        # Simulate a legacy project: rename commands/ back to command/
+        canonical = project / ".opencode" / "commands"
+        legacy = project / ".opencode" / "command"
+        assert canonical.is_dir(), "init should have created .opencode/commands/"
+        canonical.rename(legacy)
+        assert legacy.is_dir()
+        assert not canonical.exists()
+
+        # Patch the manifest to reflect old paths (command/ not commands/)
+        manifest_path = project / ".specify" / "integrations" / "opencode.manifest.json"
+        manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        patched_files = {}
+        for path, info in manifest_data.get("files", {}).items():
+            patched_files[path.replace(".opencode/commands/", ".opencode/command/")] = info
+        manifest_data["files"] = patched_files
+        manifest_path.write_text(json.dumps(manifest_data), encoding="utf-8")
+
+        old_commands = sorted(legacy.glob("speckit.*.md"))
+        assert len(old_commands) > 0, "Legacy dir should have speckit command files"
+
+        result = _run_in_project(project, [
+            "integration", "upgrade", "opencode",
+            "--script", "sh",
+            "--force",
+        ])
+        assert result.exit_code == 0, f"upgrade failed: {result.output}"
+
+        # New commands in canonical dir
+        assert canonical.is_dir(), ".opencode/commands/ should exist after upgrade"
+        new_commands = sorted(canonical.glob("speckit.*.md"))
+        assert len(new_commands) > 0, "Commands should exist in .opencode/commands/"
+
+        # Stale files removed from legacy dir
+        remaining = list(legacy.glob("speckit.*.md"))
+        assert len(remaining) == 0, (
+            f"Legacy .opencode/command/ should have no speckit files after upgrade, "
+            f"found: {[f.name for f in remaining]}"
+        )
 
 
 # ── Full lifecycle ───────────────────────────────────────────────────

@@ -16,12 +16,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli import (
-    _get_installed_version,
+from specify_cli import app
+from specify_cli._version import (
     _fetch_latest_release_tag,
+    _get_installed_version,
     _is_newer,
     _normalize_tag,
-    app,
 )
 from tests.conftest import strip_ansi
 
@@ -149,7 +149,7 @@ class TestNormalizeTag:
 
 class TestUserStory1:
     def test_newer_available_prints_update_and_install_command(self):
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen",
             return_value=_mock_urlopen_response({"tag_name": "v0.9.0"}),
         ):
@@ -164,7 +164,7 @@ class TestUserStory1:
         assert "spec-kit.git@" in output
 
     def test_up_to_date_prints_current_only(self):
-        with patch("specify_cli._get_installed_version", return_value="0.9.0"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.9.0"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen",
             return_value=_mock_urlopen_response({"tag_name": "v0.9.0"}),
         ):
@@ -176,7 +176,7 @@ class TestUserStory1:
         assert "git+https://" not in output
 
     def test_dev_build_ahead_of_release_is_up_to_date(self):
-        with patch("specify_cli._get_installed_version", return_value="0.7.5.dev0"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.5.dev0"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen",
             return_value=_mock_urlopen_response({"tag_name": "v0.7.4"}),
         ):
@@ -187,7 +187,7 @@ class TestUserStory1:
         assert "Up to date" in output
 
     def test_unknown_installed_still_prints_latest_and_reinstall(self):
-        with patch("specify_cli._get_installed_version", return_value="unknown"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="unknown"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen",
             return_value=_mock_urlopen_response({"tag_name": "v0.7.4"}),
         ):
@@ -201,7 +201,7 @@ class TestUserStory1:
         assert "spec-kit.git@" in output
 
     def test_unparseable_tag_routes_to_indeterminate(self):
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen",
             return_value=_mock_urlopen_response({"tag_name": "not-a-version"}),
         ):
@@ -273,7 +273,7 @@ class TestUserStory2:
     def test_failure_prints_installed_plus_one_line_reason(
         self, expected_reason, side_effect
     ):
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen", side_effect=side_effect
         ):
             result = runner.invoke(app, ["self", "check"])
@@ -287,7 +287,7 @@ class TestUserStory2:
 
     @pytest.mark.parametrize("_expected_reason, side_effect", _FAILURE_CASES)
     def test_failure_exits_zero(self, _expected_reason, side_effect):
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen", side_effect=side_effect
         ):
             result = runner.invoke(app, ["self", "check"])
@@ -297,7 +297,7 @@ class TestUserStory2:
     def test_failure_output_contains_no_traceback_no_url(
         self, _expected_reason, side_effect
     ):
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen", side_effect=side_effect
         ):
             result = runner.invoke(app, ["self", "check"])
@@ -394,7 +394,7 @@ class TestUserStory3:
     ):
         monkeypatch.setenv("GH_TOKEN", SENTINEL_GH_TOKEN)
         monkeypatch.delenv("GITHUB_TOKEN", raising=False)
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen", side_effect=side_effect
         ):
             result = runner.invoke(app, ["self", "check"])
@@ -407,7 +407,7 @@ class TestUserStory3:
     ):
         monkeypatch.delenv("GH_TOKEN", raising=False)
         monkeypatch.setenv("GITHUB_TOKEN", SENTINEL_GITHUB_TOKEN)
-        with patch("specify_cli._get_installed_version", return_value="0.7.4"), patch(
+        with patch("specify_cli._version._get_installed_version", return_value="0.7.4"), patch(
             "specify_cli.authentication.http.urllib.request.urlopen", side_effect=side_effect
         ):
             result = runner.invoke(app, ["self", "check"])
