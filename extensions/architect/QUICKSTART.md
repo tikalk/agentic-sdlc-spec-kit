@@ -11,10 +11,12 @@ The Architect extension helps you document and maintain software architecture th
 
 ## Quick Start
 
-### Brownfield (Existing Codebase)
+### Brownfield (Existing Codebase) - Run Once
+
+> **Note**: Use `.init` only once for initial project setup. For ongoing work, use `.specify`.
 
 ```bash
-# 1. Discover ADRs from existing code
+# 1. Discover ADRs from existing code (ONE-TIME setup)
 /architect.init "E-commerce platform with microservices"
 
 # 2. Validate discovered ADRs
@@ -24,6 +26,18 @@ The Architect extension helps you document and maintain software architecture th
 /architect.implement
 
 # 4. Verify consistency
+/architect.analyze
+```
+
+### Ongoing Architecture Work
+
+After initial setup, use `.specify` for new architectural decisions:
+
+```bash
+# Add new architectural decisions
+/architect.specify "Add caching layer for API responses"
+/architect.clarify
+/architect.implement
 /architect.analyze
 ```
 

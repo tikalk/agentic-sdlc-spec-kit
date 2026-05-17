@@ -11,10 +11,12 @@ The Product extension parallels the Architect extension but focuses on product m
 
 ## Quick Start
 
-### Brownfield (Existing Product)
+### Brownfield (Existing Product) - Run Once
+
+> **Note**: Use `.init` only once for initial product setup. For ongoing work, use `.specify`.
 
 ```bash
-# 1. Discover PDRs from existing product
+# 1. Discover PDRs from existing product (ONE-TIME setup)
 /product.init "B2B SaaS analytics platform"
 
 # 2. Auto-clarification runs
@@ -24,6 +26,18 @@ The Product extension parallels the Architect extension but focuses on product m
 /product.implement
 
 # 4. Validate consistency
+/product.analyze
+```
+
+### Ongoing Product Work
+
+After initial setup, use `.specify` for new product decisions:
+
+```bash
+# Add new product decisions
+/product.specify "Add enterprise tier pricing"
+/product.clarify
+/product.implement
 /product.analyze
 ```
 
