@@ -2,6 +2,25 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.8] - 2026-05-17
+
+### Fixed
+
+- **P1-Critical**: Fixed setup-architect.sh clarify action to check drafts/adr.md (not memory) with fallback
+- **P1-Critical**: Removed duplicate ADR_FILE variable definition in setup-architect.sh
+- **P2-High**: Hardened implement.md pre-flight validation with hard enforcement and --force flag
+- **P2-High**: Added workflow state tracking for clarify → implement pipeline enforcement
+- **P3-Medium**: Added placeholder validation to catch unfilled [TBD], [STAKEHOLDER_*] patterns
+- **P4-Low**: Added missing 3.1.2 Stakeholders subsection to context view template
+- **P4-Low**: Clarified stakeholder vs external entities distinction in AD-template.md
+
+### Added
+
+- `--force` flag for emergency bypass of workflow validation (with clear warnings)
+- Workflow state tracking in state.json (`workflow.clarify_completed`, etc.)
+- Placeholder validation report template
+- ADR fallback logic in clarify action (drafts → memory)
+
 ## [2.0.7] - 2026-05-16
 
 ### Fixed
