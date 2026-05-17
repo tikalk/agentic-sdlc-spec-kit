@@ -4524,6 +4524,9 @@ def extension_update(
 
                     # 7. Install new version from bundle
                     extension_dir = manager.extensions_dir / extension_id
+                    # Ensure target directory doesn't exist (remove() may leave it)
+                    if extension_dir.exists():
+                        shutil.rmtree(extension_dir)
                     extension_dir.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copytree(bundled_path, extension_dir)
 
