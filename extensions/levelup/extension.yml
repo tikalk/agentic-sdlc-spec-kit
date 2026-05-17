@@ -125,7 +125,5 @@ defaults:
     drafts_location: ".specify/drafts/skills"
   team_directives:
     # Resolved from SPECIFY_TEAM_DIRECTIVES env var
-    # Fallback paths (in order):
-    # 1. .specify/team-ai-directives (submodule)
-    # 2. .specify/memory/team-ai-directives (clone)
+    # Fallback path: .specify/team-ai-directives (submodule)
     env_var: "SPECIFY_TEAM_DIRECTIVES"

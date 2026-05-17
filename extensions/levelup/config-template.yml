@@ -7,7 +7,6 @@ team_directives:
   # Resolution order:
   # 1. SPECIFY_TEAM_DIRECTIVES environment variable
   # 2. .specify/team-ai-directives (submodule - recommended)
-  # 3. .specify/memory/team-ai-directives (clone - legacy)
   #
   # Uncomment to override with explicit path:
   # path: "/path/to/team-ai-directives"

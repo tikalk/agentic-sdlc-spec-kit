@@ -128,7 +128,6 @@ The extension resolves the team-ai-directives path in this order:
 
 1. `SPECIFY_TEAM_DIRECTIVES` environment variable
 2. `.specify/team-ai-directives` (submodule - recommended)
-3. `.specify/memory/team-ai-directives` (clone - legacy)
 
 ### Extension Config
 
