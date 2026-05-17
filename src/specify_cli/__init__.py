@@ -4273,7 +4273,11 @@ def _print_extension_info(ext_info: dict, manager):
 def extension_update(
     extension: str = typer.Argument(None, help="Extension ID or name to update (or all)"),
 ):
-    """Update extension(s) to latest version."""
+    """Update extension(s) to latest version.
+
+    Checks both bundled CLI extensions and remote catalog for updates.
+    Compares versions and picks the highest available.
+    """
     from .extensions import (
         ExtensionManager,
         ExtensionCatalog,
@@ -4285,6 +4289,7 @@ def extension_update(
     )
     from packaging import version as pkg_version
     import shutil
+    from ._assets import get_bundled_extension_version, get_bundled_extension_path
 
     project_root = _require_specify_project()
     manager = ExtensionManager(project_root)
@@ -4324,35 +4329,59 @@ def extension_update(
                 )
                 continue
 
-            # Get catalog info
+            # Track best update source
+            update_source = None  # 'bundled' or 'remote'
+            update_version = None
+            update_info = {}
+
+            # 1. Check bundled version first
+            bundled_version_str = get_bundled_extension_version(ext_id)
+            bundled_path = get_bundled_extension_path(ext_id)
+            if bundled_version_str and bundled_path:
+                try:
+                    bundled_version = pkg_version.Version(bundled_version_str)
+                    if bundled_version > installed_version:
+                        update_source = "bundled"
+                        update_version = bundled_version
+                        update_info = {
+                            "bundled_path": bundled_path,
+                            "bundled_version": bundled_version_str,
+                        }
+                except pkg_version.InvalidVersion:
+                    console.print(f"⚠  {ext_id}: Invalid bundled version '{bundled_version_str}' (skipping bundled)")
+
+            # 2. Check remote catalog
             ext_info = catalog.get_extension_info(ext_id)
-            if not ext_info:
-                console.print(f"⚠  {ext_id}: Not found in catalog (skipping)")
-                continue
+            if ext_info and ext_info.get("_install_allowed", True):
+                try:
+                    catalog_version = pkg_version.Version(ext_info["version"])
+                    # Compare with current best (bundled or installed)
+                    current_best = update_version if update_version else installed_version
+                    if catalog_version > current_best:
+                        update_source = "remote"
+                        update_version = catalog_version
+                        update_info = {
+                            "download_url": ext_info.get("download_url"),
+                            "catalog_name": ext_info.get("_catalog_name", "catalog"),
+                            "ext_info": ext_info,
+                        }
+                except pkg_version.InvalidVersion:
+                    console.print(f"⚠  {ext_id}: Invalid catalog version '{ext_info.get('version')}' (skipping catalog)")
 
-            # Check if installation is allowed from this catalog
-            if not ext_info.get("_install_allowed", True):
-                console.print(f"⚠  {ext_id}: Updates not allowed from '{ext_info.get('_catalog_name', 'catalog')}' (skipping)")
-                continue
-
-            try:
-                catalog_version = pkg_version.Version(ext_info["version"])
-            except pkg_version.InvalidVersion:
-                console.print(
-                    f"⚠  {ext_id}: Invalid catalog version '{ext_info.get('version')}' (skipping)"
-                )
-                continue
-
-            if catalog_version > installed_version:
+            # 3. Determine final action
+            if update_source:
                 updates_available.append(
                     {
                         "id": ext_id,
-                        "name": ext_info.get("name", ext_id),  # Display name for status messages
+                        "name": ext_info.get("name", ext_id) if ext_info else ext_id,
                         "installed": str(installed_version),
-                        "available": str(catalog_version),
-                        "download_url": ext_info.get("download_url"),
+                        "available": str(update_version),
+                        "source": update_source,
+                        **update_info,
                     }
                 )
+                source_label = "bundled" if update_source == "bundled" else update_info.get("catalog_name", "remote")
+                console.print(f"📦 {ext_id}: Update available (v{installed_version} → v{update_version} from {source_label})")
             else:
                 console.print(f"✓ {ext_id}: Up to date (v{installed_version})")
 
@@ -4465,90 +4494,140 @@ def extension_update(
                         if ext_hooks:
                             backup_hooks[hook_name] = ext_hooks
 
-                # 5. Download new version
-                zip_path = catalog.download_extension(extension_id)
-                try:
-                    # 6. Validate extension ID from ZIP BEFORE modifying installation
-                    # Handle both root-level and nested extension.yml (GitHub auto-generated ZIPs)
-                    with zipfile.ZipFile(zip_path, "r") as zf:
-                        import yaml
-                        manifest_data = None
-                        namelist = zf.namelist()
+                # 5. Get new version based on source
+                update_source = update.get("source", "remote")
+                zip_path = None
 
-                        # First try root-level extension.yml
-                        if "extension.yml" in namelist:
-                            with zf.open("extension.yml") as f:
-                                manifest_data = yaml.safe_load(f) or {}
-                        else:
-                            # Look for extension.yml in a single top-level subdirectory
-                            # (e.g., "repo-name-branch/extension.yml")
-                            manifest_paths = [n for n in namelist if n.endswith("/extension.yml") and n.count("/") == 1]
-                            if len(manifest_paths) == 1:
-                                with zf.open(manifest_paths[0]) as f:
-                                    manifest_data = yaml.safe_load(f) or {}
+                if update_source == "bundled":
+                    # Update from CLI bundle
+                    bundled_path = update.get("bundled_path")
+                    if not bundled_path or not bundled_path.exists():
+                        raise ExtensionError(f"Bundled extension path not found for '{extension_id}'")
 
-                        if manifest_data is None:
-                            raise ValueError("Downloaded extension archive is missing 'extension.yml'")
+                    # Validate extension ID from bundled extension.yml
+                    bundled_ext_yml = bundled_path / "extension.yml"
+                    if not bundled_ext_yml.exists():
+                        raise ExtensionError(f"Bundled extension missing 'extension.yml': {extension_id}")
 
-                    zip_extension_id = manifest_data.get("extension", {}).get("id")
-                    if zip_extension_id != extension_id:
+                    import yaml
+                    with open(bundled_ext_yml, encoding="utf-8") as f:
+                        manifest_data = yaml.safe_load(f) or {}
+
+                    bundled_extension_id = manifest_data.get("extension", {}).get("id")
+                    if bundled_extension_id != extension_id:
                         raise ValueError(
-                            f"Extension ID mismatch: expected '{extension_id}', got '{zip_extension_id}'"
+                            f"Extension ID mismatch: expected '{extension_id}', got '{bundled_extension_id}'"
                         )
 
-                    # 7. Remove old extension (handles command file cleanup and registry removal)
+                    # 6. Remove old extension (handles command file cleanup and registry removal)
                     manager.remove(extension_id, keep_config=True)
 
-                    # 8. Install new version
-                    _ = manager.install_from_zip(zip_path, speckit_version)
+                    # 7. Install new version from bundle
+                    extension_dir = manager.extensions_dir / extension_id
+                    extension_dir.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copytree(bundled_path, extension_dir)
 
-                    # Restore user config files from backup after successful install.
-                    new_extension_dir = manager.extensions_dir / extension_id
-                    if backup_config_dir.exists() and new_extension_dir.exists():
-                        for cfg_file in backup_config_dir.iterdir():
-                            if cfg_file.is_file():
-                                shutil.copy2(cfg_file, new_extension_dir / cfg_file.name)
+                    # Register the extension with bundled source marker
+                    _ = manager.install_from_directory(extension_dir, speckit_version)
 
-                    # 9. Restore metadata from backup (installed_at, enabled state)
-                    if backup_registry_entry and isinstance(backup_registry_entry, dict):
-                        # Copy current registry entry to avoid mutating internal
-                        # registry state before explicit restore().
-                        current_metadata = manager.registry.get(extension_id)
-                        if current_metadata is None or not isinstance(current_metadata, dict):
-                            raise RuntimeError(
-                                f"Registry entry for '{extension_id}' missing or corrupted after install — update incomplete"
+                    # Mark as bundled source in registry
+                    current_metadata = manager.registry.get(extension_id)
+                    if current_metadata and isinstance(current_metadata, dict):
+                        current_metadata["source"] = "bundled"
+                        manager.registry.update(extension_id, current_metadata)
+
+                else:
+                    # Update from remote catalog (original logic)
+                    zip_path = catalog.download_extension(extension_id)
+                    try:
+                        # 6. Validate extension ID from ZIP BEFORE modifying installation
+                        # Handle both root-level and nested extension.yml (GitHub auto-generated ZIPs)
+                        with zipfile.ZipFile(zip_path, "r") as zf:
+                            import yaml
+                            manifest_data = None
+                            namelist = zf.namelist()
+
+                            # First try root-level extension.yml
+                            if "extension.yml" in namelist:
+                                with zf.open("extension.yml") as f:
+                                    manifest_data = yaml.safe_load(f) or {}
+                            else:
+                                # Look for extension.yml in a single top-level subdirectory
+                                # (e.g., "repo-name-branch/extension.yml")
+                                manifest_paths = [n for n in namelist if n.endswith("/extension.yml") and n.count("/") == 1]
+                                if len(manifest_paths) == 1:
+                                    with zf.open(manifest_paths[0]) as f:
+                                        manifest_data = yaml.safe_load(f) or {}
+
+                            if manifest_data is None:
+                                raise ValueError("Downloaded extension archive is missing 'extension.yml'")
+
+                        zip_extension_id = manifest_data.get("extension", {}).get("id")
+                        if zip_extension_id != extension_id:
+                            raise ValueError(
+                                f"Extension ID mismatch: expected '{extension_id}', got '{zip_extension_id}'"
                             )
-                        new_metadata = dict(current_metadata)
 
-                        # Preserve the original installation timestamp
-                        if "installed_at" in backup_registry_entry:
-                            new_metadata["installed_at"] = backup_registry_entry["installed_at"]
+                        # 7. Remove old extension (handles command file cleanup and registry removal)
+                        manager.remove(extension_id, keep_config=True)
 
-                        # Preserve the original priority (normalized to handle corruption)
-                        if "priority" in backup_registry_entry:
-                            new_metadata["priority"] = normalize_priority(backup_registry_entry["priority"])
+                        # 8. Install new version
+                        _ = manager.install_from_zip(zip_path, speckit_version)
 
-                        # If extension was disabled before update, disable it again
-                        if not backup_registry_entry.get("enabled", True):
-                            new_metadata["enabled"] = False
+                        # Mark as remote source in registry
+                        current_metadata = manager.registry.get(extension_id)
+                        if current_metadata and isinstance(current_metadata, dict):
+                            current_metadata["source"] = "remote"
+                            manager.registry.update(extension_id, current_metadata)
 
-                        # Use restore() instead of update() because update() always
-                        # preserves the existing installed_at, ignoring our override
-                        manager.registry.restore(extension_id, new_metadata)
+                    finally:
+                        # Clean up downloaded ZIP
+                        if zip_path and zip_path.exists():
+                            zip_path.unlink()
 
-                        # Also disable hooks in extensions.yml if extension was disabled
-                        if not backup_registry_entry.get("enabled", True):
-                            config = hook_executor.get_project_config()
-                            if "hooks" in config:
-                                for hook_name in config["hooks"]:
-                                    for hook in config["hooks"][hook_name]:
-                                        if hook.get("extension") == extension_id:
-                                            hook["enabled"] = False
-                                hook_executor.save_project_config(config)
-                finally:
-                    # Clean up downloaded ZIP
-                    if zip_path.exists():
-                        zip_path.unlink()
+                # Restore user config files from backup after successful install.
+                new_extension_dir = manager.extensions_dir / extension_id
+                if backup_config_dir.exists() and new_extension_dir.exists():
+                    for cfg_file in backup_config_dir.iterdir():
+                        if cfg_file.is_file():
+                            shutil.copy2(cfg_file, new_extension_dir / cfg_file.name)
+
+                # 9. Restore metadata from backup (installed_at, enabled state)
+                if backup_registry_entry and isinstance(backup_registry_entry, dict):
+                    # Copy current registry entry to avoid mutating internal
+                    # registry state before explicit restore().
+                    current_metadata = manager.registry.get(extension_id)
+                    if current_metadata is None or not isinstance(current_metadata, dict):
+                        raise RuntimeError(
+                            f"Registry entry for '{extension_id}' missing or corrupted after install — update incomplete"
+                        )
+                    new_metadata = dict(current_metadata)
+
+                    # Preserve the original installation timestamp
+                    if "installed_at" in backup_registry_entry:
+                        new_metadata["installed_at"] = backup_registry_entry["installed_at"]
+
+                    # Preserve the original priority (normalized to handle corruption)
+                    if "priority" in backup_registry_entry:
+                        new_metadata["priority"] = normalize_priority(backup_registry_entry["priority"])
+
+                    # If extension was disabled before update, disable it again
+                    if not backup_registry_entry.get("enabled", True):
+                        new_metadata["enabled"] = False
+
+                    # Use restore() instead of update() because update() always
+                    # preserves the existing installed_at, ignoring our override
+                    manager.registry.restore(extension_id, new_metadata)
+
+                    # Also disable hooks in extensions.yml if extension was disabled
+                    if not backup_registry_entry.get("enabled", True):
+                        config = hook_executor.get_project_config()
+                        if "hooks" in config:
+                            for hook_name in config["hooks"]:
+                                for hook in config["hooks"][hook_name]:
+                                    if hook.get("extension") == extension_id:
+                                        hook["enabled"] = False
+                            hook_executor.save_project_config(config)
 
                 # 10. Clean up backup on success
                 if backup_base.exists():
