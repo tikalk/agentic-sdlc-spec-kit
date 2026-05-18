@@ -123,6 +123,54 @@ No accepted CDRs found.
 Run /levelup.clarify to review and accept CDRs first.
 ```
 
+### Phase 1.5: Signal Gate Validation
+
+**Objective**: Apply signal gate to filter high-signal CDRs (strict mode - skip if no concrete evidence)
+
+For each Accepted CDR, validate against signal gate criteria:
+
+| Check | Description | Strict Mode Action |
+|-------|-------------|-------------------|
+| **Team-wide** | Pattern applicable across projects, not project-specific | SKIP if fails |
+| **High Value** | Will save >30min per future use | SKIP if fails |
+| **Unique** | Not duplicate of existing team-ai-directives content | SKIP if fails |
+| **Evidence** | Has concrete commits and/or file references | **SKIP** (strict) |
+
+**Evidence Parsing**:
+Parse CDR Evidence section for:
+- Commit references (SHA patterns: `abc123`, `[a-f0-9]{7,40}`)
+- File paths (patterns: `src/`, `lib/`, `*.py`, `*.js`, etc.)
+- Code snippets or URLs
+
+**Signal Gate Results**:
+
+```markdown
+## Signal Gate Validation
+
+**CDRs Passing Signal Gate**: {N} | **Skipped**: {M}
+
+### Skipped CDRs (No-Op is Valid)
+
+| CDR | Reason | Details |
+|-----|--------|---------|
+| CDR-003 | No evidence | No commits or files referenced |
+| CDR-005 | Project-specific | Only applies to single project |
+| CDR-007 | Duplicate | Overlaps with existing rule X |
+
+> ℹ️ Skipped CDRs remain in local drafts. Run `/levelup.clarify` to improve and retry.
+```
+
+**Extract Metadata for Passing CDRs**:
+
+For each passing CDR, extract:
+- `created`: Oldest commit date from evidence (or CDR acceptance date if no commits)
+- `modified`: Current date (publication date)
+- `verified`: Current date (initial verification)
+- `age_days`: Days between created and modified
+- `evidence`: Structured list of commits and files
+
+Store metadata for use in file generation.
+
 ### Phase 2: Prepare Changes
 
 **Objective**: Create context module files from CDRs
@@ -145,12 +193,42 @@ git checkout -b "$BRANCH_NAME" main
 
 If branch exists, check if it was created in this session or reuse.
 
-#### Step 3: Process Each CDR
+#### Step 3: Process Each CDR (with Memory Engineering)
 
-For each accepted CDR, create/update the target file:
+For each CDR that passed signal gate, create/update the target file with YAML frontmatter and verification metadata.
+
+**Metadata Variables**:
+- `{id}`: Unique identifier (e.g., `rule-python-error-handling`)
+- `{cdr_ref}`: Original CDR ID (e.g., `CDR-2026-001`)
+- `{created}`: Evidence date (YYYY-MM-DD)
+- `{modified}`: Today (YYYY-MM-DD)
+- `{verified}`: Today (YYYY-MM-DD)
+- `{age_days}`: Computed age
+- `{evidence}`: YAML list of commits/files
+- `{warning_threshold}`: From config (default: 30 days)
 
 **Rules** (`context_modules/rules/{domain}/{file}.md`):
 ```markdown
+---
+id: {id}
+cdr_ref: {cdr_ref}
+created: {created}
+modified: {modified}
+verified: {verified}
+age_days: {age_days}
+evidence:
+{evidence}
+---
+
+> ⚠️ **Memory Verification**
+> This directive is {age_days} days old. Before applying:
+> - [ ] Pattern still exists in current codebase
+> - [ ] Rule is actively followed by team
+> - [ ] No conflicting rules introduced
+> 
+> **Verification Date**: {verified}
+> **Verify Again After**: {verify_after_date} (30 days)
+
 # {Rule Title}
 
 {Content from CDR proposed content}
@@ -158,12 +236,39 @@ For each accepted CDR, create/update the target file:
 ## Source
 
 Contributed from: {project-name}
-CDR: {CDR-ID}
-Date: {date}
+CDR: {cdr_ref}
+Date: {modified}
+
+## Evidence
+
+{Evidence section from CDR}
+
+## Verification Log
+
+| Date | Verified By | Notes |
+|------|-------------|-------|
+| {verified} | {project-name} | Initial publication via /levelup.implement |
 ```
 
 **Personas** (`context_modules/personas/{file}.md`):
 ```markdown
+---
+id: {id}
+cdr_ref: {cdr_ref}
+created: {created}
+modified: {modified}
+verified: {verified}
+age_days: {age_days}
+evidence:
+{evidence}
+---
+
+> ⚠️ **Memory Verification**
+> This persona is {age_days} days old. Verify before use:
+> - [ ] Role definition still accurate
+> - [ ] Expertise areas current
+> - [ ] Communication style still applies
+
 # {Persona Name}
 
 {Content from CDR proposed content}
@@ -171,18 +276,37 @@ Date: {date}
 ## Source
 
 Contributed from: {project-name}
-CDR: {CDR-ID}
+CDR: {cdr_ref}
+Date: {modified}
 ```
 
 **Examples** (`context_modules/examples/{category}/{file}.md`):
 ```markdown
+---
+id: {id}
+cdr_ref: {cdr_ref}
+created: {created}
+modified: {modified}
+verified: {verified}
+age_days: {age_days}
+evidence:
+{evidence}
+---
+
+> ⚠️ **Memory Verification**
+> This example is {age_days} days old. Verify before use:
+> - [ ] Code still compiles/runs
+> - [ ] API signatures unchanged
+> - [ ] Best practices still current
+
 # {Example Title}
 
 {Content from CDR proposed content}
 
 ## Source
 
-CDR: {CDR-ID}
+CDR: {cdr_ref}
+Date: {modified}
 ```
 
 **Constitution Amendments** (append to `context_modules/constitution.md`):
@@ -190,9 +314,14 @@ CDR: {CDR-ID}
 
 ## {Amendment Title}
 
+> **CDR Reference**: {cdr_ref}
+> **Published**: {modified}
+> **Age**: {age_days} days
+> **Verification**: Check if principle still aligns with team values
+
 {Content from CDR proposed content}
 
-<!-- CDR: {CDR-ID}, Date: {date} -->
+<!-- CDR: {cdr_ref}, Date: {modified}, ID: {id} -->
 ```
 
 #### ⚠️ Step 4: VERIFY Context Modules Created
@@ -243,24 +372,28 @@ echo "Skills: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
 
 **If skills should exist but count is 0, you MUST go back and copy them.**
 
-#### Step 7: Extract Accepted CDRs to context_modules/CDR.md
+#### Step 7: Extract Accepted CDRs to CDR.md (with Memory Tracking)
 
-Extract only CDRs with status "Accepted" from `{REPO_ROOT}/.specify/drafts/cdr.md` and create `{TEAM_DIRECTIVES}/context_modules/CDR.md`:
+Extract only CDRs that **passed signal gate** from `{REPO_ROOT}/.specify/drafts/cdr.md` and create `{TEAM_DIRECTIVES}/CDR.md`:
 
 1. Parse the source cdr.md file
-2. Filter to only include CDRs with status "Accepted"
-3. Generate new context_modules/CDR.md with the accepted CDRs only
+2. Filter to only include CDRs that passed signal gate validation
+3. Generate new CDR.md with the published CDRs and memory metadata
 
 ```markdown
 # Context Directive Records
 
 Context Directive Records tracking approved contributions to team-ai-directives.
 
+> **Memory Engineering**: This index tracks directive freshness. Run `/levelup.validate` to update verification timestamps.
+
 ## CDR Index
 
-| ID | Target Module | Context Type | Status | Date | Source |
-|----|---------------|--------------|--------|------|--------|
-| CDR-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-03-12 | {project-name} |
+| ID | Target Module | Type | Status | Created | Verified | Age |
+|----|---------------|------|--------|---------|----------|-----|
+| CDR-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-04-15 | 2026-05-18 | 33d |
+
+**Stats**: {N} CDRs | Last Updated: {date}
 
 ---
 
@@ -270,9 +403,12 @@ Context Directive Records tracking approved contributions to team-ai-directives.
 
 **Accepted** | Proposed | Rejected
 
-### Date
+### Dates
 
-YYYY-MM-DD
+- **Created**: {created} (from evidence)
+- **Modified**: {modified} (publication date)
+- **Verified**: {verified} (initial verification)
+- **Age**: {age_days} days
 
 ### Source
 
@@ -286,6 +422,10 @@ YYYY-MM-DD
 
 Rule | Persona | Example | Constitution Amendment
 
+### Signal Gate
+
+✓ Team-wide applicable | ✓ High value | ✓ Unique | ✓ Concrete evidence
+
 ### Context
 
 {Content from CDR}
@@ -294,7 +434,11 @@ Rule | Persona | Example | Constitution Amendment
 
 {Decision from CDR}
 
-...
+### Evidence
+
+{Evidence from CDR}
+
+---
 
 ```
 
@@ -468,6 +612,14 @@ MCP tools not available. Create PR manually:
 | CDR-001 | rules/python/error-handling.md | Implemented |
 | CDR-002 | examples/testing/fixtures.md | Implemented |
 
+### Signal Gate Results
+
+**Passing**: 2 | **Skipped**: 1
+
+| Skipped CDR | Reason |
+|-------------|--------|
+| CDR-003 | No concrete evidence |
+
 ### Skills Published
 
 | Skill | Location |
@@ -525,11 +677,25 @@ MCP tools not available. Create PR manually:
 
 - Creates draft PR by default for review before merge
 - Only implements CDRs with status "Accepted" from `{REPO_ROOT}/.specify/drafts/cdr.md`
-- When TD configured: Copies only accepted CDRs to `{TEAM_DIRECTIVES}/context_modules/CDR.md`
+- **Signal Gate (Strict Mode)**: Skips CDRs without concrete evidence (commits/files)
+- **Memory Engineering**: Published files include YAML frontmatter with `created`, `verified`, `age_days`
+- **Verification**: Run `/levelup.validate` to refresh `verified` timestamps
+- When TD configured: Copies only signal-gate-passing CDRs to `{TEAM_DIRECTIVES}/CDR.md`
 - When NOT configured: Copies accepted CDRs to `{REPO_ROOT}/.specify/memory/cdr.md` and cleans up drafts
 - Skills from `{REPO_ROOT}/.specify/drafts/skills/` are included unless `--skip-skills`
 - If MCP unavailable, provides manual instructions
 - Working tree must be clean before running
+
+## Memory Engineering
+
+This command applies agent memory engineering principles:
+
+1. **Signal Gate**: Filters noisy CDRs (strict mode - no evidence = skip)
+2. **Verification Metadata**: YAML frontmatter tracks freshness (`created`, `verified`, `age_days`)
+3. **Freshness Warnings**: Published files include verification checklists
+4. **Age Tracking**: CDR index shows age in days; warnings at 30+ days
+
+Run `/levelup.validate` to update verification timestamps and check directive freshness.
 
 ## Related Commands
 

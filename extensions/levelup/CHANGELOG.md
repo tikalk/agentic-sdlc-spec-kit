@@ -5,6 +5,54 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-18
+
+### Added
+
+- **Agent Memory Engineering**: Applied principles from production agent memory systems (Claude Code, Codex CLI, Hermes)
+  - Signal Gate: Filters CDRs before publishing (strict mode - skips without evidence)
+  - Verification Metadata: YAML frontmatter with `created`, `verified`, `age_days`
+  - Freshness Tracking: Warnings for directives >30 days old
+  - Verification Workflow: `/levelup.validate` updates timestamps for valid directives
+  
+- **New Templates with Memory Metadata**:
+  - `rule-team-template.md`: Rule with YAML frontmatter and verification banner
+  - `persona-team-template.md`: Persona with memory metadata
+  - `example-team-template.md`: Example with freshness warnings
+  - `skill-team-template.md`: Skill with verification log
+
+- **Configuration Options**:
+  - `memory_engineering.signal_gate`: Configure strict mode and criteria
+  - `memory_engineering.verification`: Set age threshold (default: 30 days)
+  - `memory_engineering.metadata`: Control frontmatter and banner inclusion
+
+### Changed
+
+- `/levelup.implement`:
+  - Added Signal Gate phase (Phase 1.5) that filters CDRs without concrete evidence
+  - Generates YAML frontmatter with `id`, `cdr_ref`, `created`, `modified`, `verified`, `age_days`
+  - Adds freshness warning banner to published directives
+  - Creates verification log table in directive files
+  - Updated CDR.md index format with Created, Verified, Age columns
+
+- `/levelup.validate`:
+  - Added Phase 6: Verification Update (updates `verified` timestamps)
+  - Resets `age_days` to 0 for valid directives
+  - Reports stale directives (>30 days without verification)
+  - Creates verification log entries
+
+- `extension.yml`:
+  - Version bump to 1.3.0
+  - Added tags: `memory-engineering`, `signal-gate`, `verification`
+  - Updated command descriptions
+  - Added memory engineering defaults
+
+- `config-template.yml`:
+  - Added `[memory_engineering]` section with signal gate and verification settings
+
+- `README.md`:
+  - Added "Memory Engineering (v1.3.0)" section explaining signal gate and verification
+
 ## [1.2.0] - 2026-05-18
 
 ### Added
