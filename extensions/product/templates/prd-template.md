@@ -8,6 +8,23 @@
 
 ---
 
+## 📊 Visual Summary
+
+> This PRD includes interactive visual diagrams for easier exploration:
+> 
+> | Diagram | Purpose | Link |
+> |---------|---------|------|
+> | 📈 Feature Hierarchy | Product structure & organization | [View](visuals/feature-hierarchy.md) |
+> | 👥 User Flows | Persona journey maps | [View](sections/user-flows.md) |
+> | 🔗 Feature Dependencies | Requirement relationships & blockers | [View](visuals/feature-deps.md) |
+> | 🗺️ Cross-Feature-Area Map | Inter-area interactions | [View](visuals/cross-area-map.md) |
+> | 📅 Roadmap Timeline | Milestone Gantt chart | [View](visuals/roadmap-timeline.md) |
+> | 💡 Impact Analysis | Decision impact visualization | [View](visuals/impact-map.md) |
+> 
+> *Diagrams are auto-generated from requirements. Run `/product.implement --refresh-diagrams` to update.*
+
+---
+
 ## 1. Overview
 
 [High-level description of the product - what it is and why it exists]
@@ -77,6 +94,8 @@
 
 ## 5. Personas
 
+> **👥 Visual User Flows**: [View detailed journey maps](sections/user-flows.md) for each persona.
+
 - **Primary Persona:** [Persona Name]
   - **Role:** [Job title/function]
   - **Needs:** [What they need from this product]
@@ -92,6 +111,9 @@
 ---
 
 ## 6. Functional Requirements
+
+> **📈 Visual Hierarchy**: [View feature structure diagram](visuals/feature-hierarchy.md)  
+> **🔗 Dependencies**: [View requirement dependencies & blockers](visuals/feature-deps.md)
 
 ### User Stories
 
@@ -216,6 +238,9 @@
 ---
 
 ## 10. Roadmap & Milestones
+
+> **📅 Visual Timeline**: [View Gantt chart](visuals/roadmap-timeline.md)  
+> **Sync with external tools**: Run `/product.roadmap --sync` to pull milestones from GitHub/GitLab/Jira/Linear
 
 <!-- Generated from Milestone PDRs -->
 

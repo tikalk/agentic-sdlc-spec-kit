@@ -308,6 +308,31 @@ The Requirements section has been generated for "{feature-area}".
 - Re-generate Problem → Goals → Metrics → Personas → Requirements
 - Present checkpoint again
 
+### Step X: Generate Visual Diagrams
+
+**After completing section generation for a feature-area, generate/update visual diagrams:**
+
+1. **Feature Hierarchy Update**:
+   - Update `visuals/feature-hierarchy.md` with current structure
+   - Update completion percentages
+
+2. **Feature Dependencies Update**:
+   - Update `visuals/feature-deps.md` with new requirements
+   - Update status indicators (✅🟡🔴⬜)
+
+3. **Cross-Area Map Update** (if multiple areas):
+   - Update `visuals/cross-area-map.md` with interactions
+   - Flag any detected inconsistencies
+
+4. **Mermaid Validation** (⚠️ Warning only):
+   - Check Mermaid syntax is valid
+   - Check all referenced nodes exist
+   - ⚠️ Warn if issues found (don't block completion)
+
+5. **Write to visuals/**:
+   - Ensure all diagram files are updated
+   - Files should be standalone and readable
+
 ### Placeholder Validation (MANDATORY)
 
 **Before finalizing any section, validate placeholders:**

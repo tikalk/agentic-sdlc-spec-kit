@@ -107,6 +107,25 @@ Comparison against existing team-product-directives content:
 **Rationale:**
 [Why this option was chosen over alternatives]
 
+### Decision Flow
+
+```mermaid
+flowchart LR
+    Problem[Problem:<br/>[Problem Statement]] --> Options{Options}
+    Options --> A[Option A:<br/>[Alternative A]]
+    Options --> B[Option B:<br/>[Chosen Option]]
+    Options --> C[Option C:<br/>[Alternative C]]
+    
+    A -->|Rejected| WhyA[Reason:<br/>[Why not]]
+    C -->|Rejected| WhyC[Reason:<br/>[Why not]]
+    B -->|Selected| Decision[Decision:<br/>[Decision Statement]]
+    
+    style B fill:#4a9eff,color:#fff,stroke:#333,stroke-width:2px
+    style Decision fill:#f47721,color:#fff,stroke:#333,stroke-width:2px
+```
+
+> 💡 **Visual Impact Analysis**: [View detailed impact map](visuals/impact-map.md) for this decision.
+
 ### Consequences
 
 #### Positive

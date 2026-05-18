@@ -393,6 +393,35 @@ Reply with your choice (A/B/C), or provide additional context.
 - Skip decisions that are **already determined** by product context or constitution
 - Limit to **5-7 key decisions** (defer less critical decisions)
 
+#### Cross-Feature-Area Pre-Analysis
+
+**During exploration**, watch for potential cross-area conflicts:
+
+| Pattern | Detection | Action |
+|---------|-----------|--------|
+| **Shared Personas** | Same user type in multiple areas | Note for cross-area metadata |
+| **Priority Tensions** | Areas prioritize different things | ⚠️ Flag potential conflict |
+| **Feature Overlap** | Similar features in different areas | ⚠️ Flag for consolidation |
+| **Metric Conflicts** | Same metric, different targets | ⚠️ Flag for alignment |
+
+**Early Warning Example**:
+
+```markdown
+⚠️ **Cross-Feature-Area Alert**: 
+
+During exploration, I've identified potential issues:
+
+1. **Priority Tension**: Core area emphasizes "ease of use" while Business emphasizes "revenue"
+   - **Impact**: May create UX conflicts
+   - **Action**: Will be flagged in cross-area-map.md for clarify resolution
+
+2. **Persona Overlap**: "Admin" appears in both Auth and Operations areas
+   - **Impact**: Risk of inconsistent admin experience
+   - **Action**: Will document unified admin persona in PDR
+
+These will be visualized in the cross-feature-area map for resolution.
+```
+
 ### Phase 3: Decision Documentation
 
 **Objective**: Convert exploration outcomes into formal PDRs

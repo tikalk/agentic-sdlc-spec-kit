@@ -286,6 +286,28 @@ Discovery Agent: business feature-area
 
 Continue to next feature-area.
 
+### Phase 5.5: Discovery Visualization
+
+**Objective**: Generate preliminary visualizations from discovery results
+
+After all feature-areas have been scanned by the Discovery Agent:
+
+1. **Generate Feature-Area Map**:
+   ```mermaid
+   graph TD
+       subgraph "Detected Feature-Areas"
+           A["Feature-Area 1"] --> B["Feature-Area 2"]
+           B --> C["Feature-Area 3"]
+       end
+   ```
+
+2. **Document in Summary**:
+   - Visual representation of detected areas
+   - Evidence sources for each area
+   - Preliminary monetization model (if detected)
+
+These preliminary visualizations will be refined during the Pattern and Synthesis phases.
+
 ### Phase 6: Pattern Agent (Per Feature-Area, Sequential)
 
 **Objective**: Classify and score patterns
