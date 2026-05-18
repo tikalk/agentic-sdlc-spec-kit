@@ -2,6 +2,31 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc6] - 2026-05-18
+
+### Added
+
+- **LevelUp extension v1.4.0**: Multi-agent sub-system analysis with cross-system pattern detection
+  - Three-phase agent pipeline: Discovery → Pattern Analysis → Synthesis
+  - Sequential sub-agent execution per sub-system
+  - Cross-sub-system pattern detection (patterns in ≥50% of sub-systems)
+  - Automatic inconsistency detection and CDR generation
+  - Team-directives comparison for gap analysis
+  - State persistence with checkpoint support (`--resume` flag)
+  - Cross-sub-system conflict validation in `/levelup.implement`
+  
+- **New Sub-Agent Templates**:
+  - `discovery-prompt.md`: Scans sub-systems for raw patterns
+  - `pattern-prompt.md`: Classifies and scores patterns for reusability  
+  - `synthesis-prompt.md`: Performs cross-sub-system analysis
+  
+- **Enhanced CDR Template**:
+  - Cross-System Metadata section (appears_in, cross_system_score, consistency)
+  - Cross-System Analysis table per sub-system
+  - Team-Directives Comparison section
+  - Inconsistency Resolution workflow
+  - New "Inconsistency" context type
+
 # [0.8.12+adlc5] - 2026-05-18
 
 ### Added

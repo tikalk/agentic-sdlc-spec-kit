@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.3.0"
-  description: "Discover and contribute context modules to team-ai-directives using CDRs. Features agent memory engineering: signal gate filtering, verification metadata, and freshness tracking."
+  version: "1.4.0"
+  description: "Discover and contribute context modules to team-ai-directives using CDRs. Features multi-agent sub-system analysis with cross-system pattern detection, inconsistency tracking, signal gate filtering, verification metadata, and freshness tracking."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -118,6 +118,9 @@ tags:
   - "memory-engineering"
   - "signal-gate"
   - "verification"
+  - "subagents"
+  - "cross-system-analysis"
+  - "inconsistency-detection"
 
 defaults:
   cdr:
@@ -136,3 +139,23 @@ defaults:
     verification:
       age_warning_days: 30
       auto_update_on_validate: true
+  state:
+    enabled: true
+    location: ".specify/levelup/state.json"
+    version: "1.1.0"
+  subagents:
+    enabled: true
+    sequential: true
+    phases:
+      - discovery
+      - pattern_analysis
+      - synthesis
+  cross_system:
+    enabled: true
+    threshold: 0.5
+    detect_inconsistencies: true
+    create_inconsistency_cdrs: true
+  team_directives_comparison:
+    enabled: true
+    check_similarity: true
+    flag_gaps: true

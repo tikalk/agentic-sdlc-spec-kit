@@ -171,6 +171,128 @@ For each passing CDR, extract:
 
 Store metadata for use in file generation.
 
+### Phase 1.8: Cross-Sub-System Validation
+
+**Objective**: Detect conflicts across sub-system CDRs before implementation
+
+#### Load CDRs with Cross-System Metadata
+
+Read `{REPO_ROOT}/.specify/drafts/cdr.md` and parse cross-system data for all accepted CDRs:
+
+```json
+{
+  "cdr_id": "CDR-001",
+  "target_module": "context_modules/rules/python/error-handling.md",
+  "cross_system_metadata": {
+    "appears_in": ["auth", "payments"],
+    "cross_system_score": 0.67,
+    "is_cross_cutting": true
+  }
+}
+```
+
+#### Check for Conflicts
+
+**1. Duplicate Targets**:
+Multiple CDRs targeting the same file path.
+
+| Target Module | CDRs | Conflict Type |
+|---------------|------|---------------|
+| `rules/python/logging.md` | CDR-002, CDR-007 | Duplicate target |
+
+**2. Rule Conflicts**:
+Same concern, different implementations in different sub-systems.
+
+| Concern | Conflicting CDRs | Sub-Systems | Issue |
+|---------|------------------|-------------|-------|
+| Authentication | CDR-001 (JWT), CDR-005 (OAuth2) | auth, api | Inconsistent approach |
+| Error Handling | CDR-003 (exceptions), CDR-008 (result types) | payments, users | Different patterns |
+
+**3. Inconsistency CDRs**:
+CDRs with type "Inconsistency" need resolution before implementation.
+
+| CDR | Type | Issue | Status |
+|-----|------|-------|--------|
+| CDR-INC-001 | Inconsistency | Auth pattern divergence | **Unresolved** |
+
+#### Conflict Detection Algorithm
+
+For each pair of CDRs:
+
+```python
+# Duplicate Target Check
+if cdr1.target_module == cdr2.target_module:
+    flag_duplicate_target(cdr1, cdr2)
+
+# Rule Conflict Check
+if similar_concern(cdr1, cdr2) and different_implementation(cdr1, cdr2):
+    flag_rule_conflict(cdr1, cdr2)
+
+# Inconsistency Check
+if cdr.type == "Inconsistency" and cdr.status != "Resolved":
+    flag_unresolved_inconsistency(cdr)
+```
+
+#### Cross-System Conflict Report
+
+If any conflicts detected, output:
+
+```markdown
+## Cross-Sub-System Conflict Report ⚠️
+
+**Status**: BLOCKED - Conflicts must be resolved before proceeding
+
+### Duplicate Targets
+| Target Module | CDRs | Resolution Required |
+|---------------|------|---------------------|
+| rules/python/logging.md | CDR-002, CDR-007 | Merge or choose one |
+
+### Rule Conflicts
+| Concern | Conflicting CDRs | Sub-Systems Involved | Recommended Action |
+|---------|------------------|---------------------|-------------------|
+| Authentication | CDR-001 (JWT), CDR-005 (OAuth2) | auth, api | Run /levelup.clarify |
+| Error Handling | CDR-003, CDR-008 | payments, users | Run /levelup.clarify |
+
+### Unresolved Inconsistencies
+| CDR | Issue | Blocking |
+|-----|-------|----------|
+| CDR-INC-001 | Authentication pattern inconsistency | YES |
+
+### Resolution Steps
+
+1. **For Duplicate Targets**:
+   - Edit CDRs to target different modules, OR
+   - Merge content into single CDR
+
+2. **For Rule Conflicts**:
+   - Run `/levelup.clarify` to resolve which approach to standardize on
+   - Update CDRs to reflect team decision
+   - Mark rejected CDRs as "Rejected"
+
+3. **For Inconsistencies**:
+   - Run `/levelup.clarify` to make decision
+   - Update inconsistency CDR with resolution
+   - Mark as "Resolved" in CDR content
+
+### Next Steps
+```
+STOP and prompt user to resolve conflicts before proceeding.
+
+**If no conflicts detected**:
+```markdown
+## Cross-Sub-System Validation ✓
+
+- **Duplicate targets**: None
+- **Rule conflicts**: None  
+- **Unresolved inconsistencies**: None
+- **Status**: PASSED - Proceeding to implementation
+```
+
+#### Gate Decision
+
+- **If conflicts found**: STOP, output conflict report, suggest running clarify
+- **If no conflicts**: Proceed to Phase 2
+
 ### Phase 2: Prepare Changes
 
 **Objective**: Create context module files from CDRs
