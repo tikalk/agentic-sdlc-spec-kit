@@ -5,6 +5,16 @@
 **Generated**: [DATE]
 **Dependencies**: Personas, Goals
 
+> 🛑 **CHECKPOINT SECTION**: This is the **cornerstone** section that shapes NFRs, Out-of-Scope, Risks, and Roadmap. After generating this section, execution MUST pause for user approval before continuing.
+>
+> **Why?** Requirements define what gets built, what doesn't (Out-of-Scope), associated risks, and roadmap priority. User approval ensures alignment.
+>
+> **Checkpoint Options**:
+> - **A) Approve**: Continue to NFRs, Out-of-Scope, Risks, Roadmap
+> - **B) Modify**: Edit requirements now, then continue
+> - **C) Restart**: Regenerate from Problem phase
+> - **D) Cancel**: Stop execution
+
 ---
 
 ## 6. Functional Requirements

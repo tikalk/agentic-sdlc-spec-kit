@@ -2,6 +2,31 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc7] - 2026-05-18
+
+### Added
+
+- **Product extension v1.5.0**: Multi-agent feature-area analysis with cross-area pattern detection
+  - Three-phase agent pipeline: Discovery → Pattern Analysis → Synthesis
+  - Comprehensive feature-area detection (directory + docs + pricing)
+  - Cross-feature-area pattern detection (≥2 areas)
+  - Inconsistency flagging for clarify resolution
+  - State persistence with `--resume` support
+  - **Mandatory Requirements checkpoint** in implement (cornerstone section)
+  - Pre-flight validation with hard enforcement
+  - Placeholder validation per section
+  - 7-point final verification checklist
+  
+- **New Sub-Agent Templates** (Product):
+  - `discovery-prompt.md`: Comprehensive scanning (3 sources)
+  - `pattern-prompt.md`: Strategic scoring and TPD comparison
+  - `synthesis-prompt.md`: Cross-feature-area analysis
+  
+- **Enhanced PDR Template**:
+  - Cross-Feature-Area Metadata section
+  - Inconsistency Flags section
+  - Team-Product-Directives Comparison
+
 # [0.8.12+adlc6] - 2026-05-18
 
 ### Added

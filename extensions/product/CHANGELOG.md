@@ -2,6 +2,92 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.0] - 2026-05-18
+
+### Added
+
+- **Multi-Agent Feature-Area Analysis**: Complete refactor of `/product.init` with three-phase pipeline
+  - **Discovery Agent** (Phase 5): Comprehensive scanning (directory + docs + pricing)
+  - **Pattern Agent** (Phase 6): Classifies signals, scores strategic importance
+  - **Synthesis Agent** (Phase 7): Cross-feature-area analysis with inconsistency flagging
+  
+- **Cross-Feature-Area Pattern Detection**:
+  - Detects patterns appearing in ≥2 feature-areas
+  - Comprehensive detection from 3 sources: directory, documentation, pricing tiers
+  - Cross-area metadata in all PDRs
+  
+- **Inconsistency Flagging**:
+  - Automatic detection of conflicts across feature-areas
+  - Flags embedded in PDRs (not separate records)
+  - Flags for clarify resolution (priority conflicts, metric inconsistencies, etc.)
+  
+- **State Management & Resumability**:
+  - State persisted to `.specify/product/state.json`
+  - Resume interrupted scans with `--resume` flag
+  - Per-feature-area checkpoint tracking
+  
+- **Mandatory Requirements Checkpoint in Implement**:
+  - Execution pauses after Requirements section
+  - User approval required before continuing
+  - Requirements is the cornerstone (shapes NFRs, Out-of-Scope, Risks, Roadmap)
+  
+- **Enhanced Pre-Flight Validation**:
+  - Verify PDRs are Accepted before implement
+  - Check clarify completion
+  - Hard enforcement (can bypass with `--force`)
+  
+- **Placeholder Validation**:
+  - Mandatory checking for unfilled placeholders
+  - Critical placeholders block completion
+  
+- **Phase Gate Verification**:
+  - 7-point verification checklist before marking complete
+  - Verify all section files exist on disk
+  - Validate PRD.md content
+
+### Changed
+
+- `/product.init`: Complete rewrite with sub-agent architecture
+  - Sequential execution per feature-area
+  - Comprehensive detection (3 sources)
+  - State-based resumability
+  - Cross-area metadata in PDRs
+  
+- `/product.implement`: Major enhancement (~900 lines added)
+  - Pre-flight validation
+  - Mandatory checkpoint after Requirements
+  - Placeholder validation
+  - Phase gate verification
+  - 7-point final checklist
+  
+- `/product.specify`: Consistency updates
+  - Comprehensive feature-area detection
+  - Early inconsistency flagging
+  - Cross-area pre-analysis
+
+- `pdr-template.md`: Added sections
+  - Cross-Feature-Area Metadata
+  - Cross-Feature-Area Analysis table
+  - Inconsistency Flags section
+  - Team-Product-Directives Comparison
+
+- `requirements.md`: Added checkpoint note
+  - Reminder that this is the cornerstone section
+  - Checkpoint options documented
+
+- `extension.yml`:
+  - Version bump to 1.5.0
+  - Added state, subagents, cross_feature_area config
+  - New tags: subagents, cross-feature-area-analysis, inconsistency-detection
+  - Checkpoint configuration
+
+### Technical Details
+
+- **New Files**: 3 sub-agent prompt templates
+- **Modified Files**: init.md, implement.md, specify.md, pdr-template.md, requirements.md, extension.yml
+- **Breaking Changes**: None (backward compatible)
+- **Minimum speckit_version**: >=0.0.80 (unchanged)
+
 ## [1.1.11] - 2026-04-30
 
 ### Fixed
