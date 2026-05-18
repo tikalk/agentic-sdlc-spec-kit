@@ -5,6 +5,35 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-18
+
+### Added
+
+- **Skill Command Improvements** (6 patterns from best practices):
+  - Pattern 1: Enhanced description with trigger keywords for better AI agent routing
+  - Pattern 2: Converted all instructions to imperative verbs for clarity
+  - Pattern 3: Added explicit output format specification in summary phase
+  - Pattern 4: Added "Read Existing Skills" phase to match project patterns
+  - Pattern 5: Added "Out of Scope" section for clear boundaries
+  - Pattern 6: Merged SKILL.md templates and condensed content to <500 lines
+
+### Changed
+
+- `skills.md`: Complete rewrite following best practices from "Anatomy of a Perfect Skill"
+- Reduced from 529 to 422 lines while adding 3 new sections
+- Examples now in table format (3 examples instead of 4)
+- Validation checklist condensed from 7 to 5 items
+
+### Fixed
+
+- Missing CHANGELOG entry for v1.1.9 (now documented)
+
+## [1.1.9] - 2026-05-15
+
+### Fixed
+
+- **Path consistency**: Fixed template paths to use `{REPO_ROOT}` placeholder consistently
+
 ## [1.1.8] - 2026-04-30
 
 ### Fixed

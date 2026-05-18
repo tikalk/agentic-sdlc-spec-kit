@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.1.9"
+  version: "1.2.0"
   description: "Discover and contribute context modules (rules, personas, examples, skills) to team-ai-directives using Context Directive Records (CDRs)"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -40,7 +40,7 @@ provides:
     # Build single skill from user input
     - name: "adlc.levelup.skills"
       file: "commands/skills.md"
-      description: "Build a single skill from accepted CDRs based on user input"
+      description: "Build a single skill from accepted CDRs. Use when user says 'build skill', 'create skill from CDR', or 'package as skill'."
       aliases: ["levelup.skills"]
 
     # Compile CDRs to PR

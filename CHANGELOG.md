@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc5] - 2026-05-18
+
+### Added
+
+- **LevelUp extension v1.2.0**: Complete rewrite of `/levelup.skills` command following 6 patterns from best practices:
+  - Enhanced description with trigger keywords for better AI agent routing
+  - Imperative verb instructions throughout
+  - Explicit output format specification
+  - "Read Existing Skills" phase for pattern matching
+  - "Out of Scope" section for clear boundaries
+  - Merged templates and condensed to <500 lines (422 lines)
+
 # [0.8.12+adlc2] - 2026-05-16
 
 ### Fixed
