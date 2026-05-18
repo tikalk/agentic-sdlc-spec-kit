@@ -2,6 +2,34 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc8] - 2026-05-18
+
+### Added
+
+- **Product extension v1.5.0**: Comprehensive Mermaid diagram support
+  - **8 diagram types**: Feature hierarchy, user flows, dependencies, cross-area map, roadmap Gantt, impact map, decision flow, state machine
+  - **Visual Summary section** in PRD with quick navigation to all diagrams
+  - **Separate diagram files** in `visuals/` and `sections/` directories
+  - **Cross-feature-area visualization** showing inter-area interactions
+  - **Prompt-based MCP/CLI integration** for roadmap sync (GitHub/GitLab/Jira/Linear)
+  - **Warning-level validation** (non-blocking) for diagram quality
+  - Diagram generation during implement phase
+  - Diagram quality checks in analyze command
+  
+- **New Visual Templates**:
+  - `visuals/feature-hierarchy.md`: Product structure tree diagram
+  - `visuals/feature-deps.md`: Requirement dependencies with status indicators
+  - `visuals/cross-area-map.md`: Inter-feature-area interactions
+  - `visuals/roadmap-timeline.md`: Gantt chart with MCP sync instructions
+  - `visuals/impact-map.md`: Decision impact mind map
+  - `sections/user-flows.md`: Persona journey flowcharts
+  - `sections/state-machine.md`: Feature state diagrams
+  
+- **Template Enhancements**:
+  - PRD template: Visual Summary section with diagram links
+  - PDR template: Inline decision flow diagram and impact map reference
+  - Requirements section: Checkpoint note for cornerstone validation
+
 # [0.8.12+adlc7] - 2026-05-18
 
 ### Added
