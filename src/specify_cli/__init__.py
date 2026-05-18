@@ -4522,16 +4522,14 @@ def extension_update(
                     # 6. Remove old extension (handles command file cleanup and registry removal)
                     manager.remove(extension_id, keep_config=True)
 
-                    # 7. Install new version from bundle
-                    extension_dir = manager.extensions_dir / extension_id
-                    # Ensure target directory doesn't exist (remove() may leave it)
-                    if extension_dir.exists():
-                        shutil.rmtree(extension_dir)
-                    extension_dir.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copytree(bundled_path, extension_dir)
+                    # 7. Create temp copy and install (matches remote flow with ZIP extraction)
+                    import tempfile
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        temp_path = Path(tmpdir) / extension_id
+                        shutil.copytree(bundled_path, temp_path)
 
-                    # Register the extension with bundled source marker
-                    _ = manager.install_from_directory(extension_dir, speckit_version)
+                        # Install from temp directory (directory won't exist yet, so no conflict)
+                        _ = manager.install_from_directory(temp_path, speckit_version)
 
                     # Mark as bundled source in registry
                     current_metadata = manager.registry.get(extension_id)
