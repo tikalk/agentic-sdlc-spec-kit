@@ -2,6 +2,36 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.6] - 2026-05-19
+
+### Changed
+
+- **In-Section Diagrams**: Diagrams are now embedded directly in their home sections, not in a separate Visual Summary
+  - Section 2 (Overview): Feature Hierarchy (2.4), Architecture (2.5), Cross-Area Map (2.6, conditional)
+  - Section 6 (Personas): User Journey (6.4)
+  - Section 7 (Requirements): Req Dependencies (7.4), Feature Dependencies (7.5), State Machine (7.6, conditional)
+  - Section 11 (Roadmap): Gantt Chart (11.1)
+
+- **Visual Summary Removed**: Section 1 is now Document Information (with Quick Stats). No separate Visual Summary section.
+
+- **Section Renumbering**: All sections renumbered (old 1-13 -> new 1-12):
+  - 1: Document Information (was 2) | 1.5: Executive Summary (was 2.5)
+  - 2: Overview (was 3) | 3: Problem (was 4) | 3.5: Market Opportunity (was 4.5)
+  - 4: Goals (was 5) | 5: Metrics (was 6) | 6: Personas (was 7)
+  - 7: Requirements (was 8) | 8: NFRs (was 9) | 9: Out of Scope (was 10)
+  - 10: Risks (was 11) | 10.5: Investment (was 11.5) | 11: Roadmap (was 12)
+  - 11.5: GTM (was 12.5) | 12: PDR Summary (was 13)
+
+- **No Visual Files Generated**: Step 2.8 (visual file generation) removed. No `.specify/product/visuals/` directory created. Diagrams are generated directly in section content during Phase 2.
+
+### Removed
+
+- **Visual Summary section** (was Section 1) - diagrams moved to their home sections
+- **Visual template files**: `templates/visuals/` directory deleted (feature-hierarchy.md, feature-deps.md, roadmap-timeline.md, cross-area-map.md, impact-map.md)
+- **Section template files**: `sections/user-flows.md` and `sections/state-machine.md` absorbed into personas and requirements templates
+- **Step 2.8** (Generate Visual Diagrams) - replaced by In-Section Diagram Rules
+- **Step 3.2.5** (Embed Visual Summary) - no longer needed
+
 ## [1.5.5] - 2026-05-19
 
 ### Fixed

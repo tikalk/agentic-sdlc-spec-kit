@@ -4,7 +4,7 @@ TEMPLATE COMPLIANCE v1.5.3 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Trace content to source PDRs
 ✓ Budget estimates must include risk-adjusted scenarios
 ✓ Team composition must map to roadmap phases
-NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
+NOTE: In final PRD, this becomes Section 10.5 (after Risks, before Roadmap)
 -->
 
 # Investment & Resources: [FEATURE_AREA_NAME]
@@ -13,15 +13,15 @@ NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Requirements, Risks
-**Section Number**: 11.5 (in final PRD)
+**Section Number**: 10.5 (in final PRD)
 
 ---
 
-## 11.5 Investment & Resources
+## 10.5 Investment & Resources
 
 **Purpose**: Define team, budget, and resource requirements for stakeholder resource allocation decisions
 
-### 11.5.1 Team Composition
+### 10.5.1 Team Composition
 
 | Role | FTEs | Phase | Duration | Responsibility |
 |------|------|-------|----------|----------------|
@@ -32,7 +32,7 @@ NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
 
 **Total:** [N] FTEs average, [N] FTEs peak
 
-### 11.5.2 Budget Estimate
+### 10.5.2 Budget Estimate
 
 | Category | Phase 1 | Phase 2 | Phase 3 | Annual Run Rate |
 |----------|---------|---------|---------|-----------------|
@@ -42,7 +42,7 @@ NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
 | **Tools & Licenses** | $[N]K | $[N]K | $[N]K | $[N]K |
 | **Total** | **$[N]K** | **$[N]K** | **$[N]K** | **$[N]M** |
 
-### 11.5.3 Risk-Adjusted ROI
+### 10.5.3 Risk-Adjusted ROI
 
 | Scenario | Probability | 12-Month ROI | NPV (3-year) | Payback Period |
 |----------|-------------|--------------|--------------|----------------|
@@ -51,7 +51,7 @@ NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
 | **Pessimistic** | [N]% | [N]% | $[N]M | [N] months |
 | **Weighted Average** | 100% | **[N]%** | **$[N]M** | **[N] months** |
 
-### 11.5.4 Key Assumptions
+### 10.5.4 Key Assumptions
 
 | Assumption | Basis | Risk if Wrong |
 |------------|-------|---------------|
@@ -59,7 +59,7 @@ NOTE: In final PRD, this becomes Section 11.5 (after Risks, before Roadmap)
 | [Assumption 2] | [Data source or reasoning] | [Impact] |
 | [Assumption 3] | [Data source or reasoning] | [Impact] |
 
-### 11.5.5 Go/No-Go Criteria
+### 10.5.5 Go/No-Go Criteria
 
 | Checkpoint | Date | Criteria | Decision |
 |------------|------|----------|----------|

@@ -4,7 +4,7 @@ TEMPLATE COMPLIANCE v1.5.3 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Trace content to source PDRs
 ✓ Pricing must include at least Free + Paid tiers
 ✓ Launch phases must align with Roadmap milestones
-NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary)
+NOTE: In final PRD, this becomes Section 11.5 (after Roadmap, before PDR Summary)
 -->
 
 # Go-to-Market Strategy: [FEATURE_AREA_NAME]
@@ -13,15 +13,15 @@ NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Roadmap, Personas, Market Opportunity
-**Section Number**: 12.5 (in final PRD)
+**Section Number**: 11.5 (in final PRD)
 
 ---
 
-## 12.5 Go-to-Market Strategy
+## 11.5 Go-to-Market Strategy
 
 **Purpose**: Define how the product reaches customers, including launch phases, pricing, and messaging
 
-### 12.5.1 Launch Phases
+### 11.5.1 Launch Phases
 
 #### Phase 1: [Phase Name] ([Timeline])
 
@@ -61,7 +61,7 @@ NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary
 | **Goal** | [Revenue generation target] |
 | **Success Metrics** | [Revenue, adoption, engagement targets] |
 
-### 12.5.2 Pricing Strategy
+### 11.5.2 Pricing Strategy
 
 | Tier | Price | Includes | Target Segment |
 |------|-------|----------|----------------|
@@ -69,7 +69,7 @@ NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary
 | **[Paid Tier]** | $[N]/[unit]/[period] | [What's included] | [Who this serves] |
 | **Enterprise** | Custom | [What's included] | [Who this serves] |
 
-### 12.5.3 Key Messaging
+### 11.5.3 Key Messaging
 
 **For [Audience 1]:** "[Value proposition in their language]"
 
@@ -77,7 +77,7 @@ NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary
 
 **For [Audience 3]:** "[Value proposition in their language]"
 
-### 12.5.4 Success Metrics by Phase
+### 11.5.4 Success Metrics by Phase
 
 | Phase | Adoption Target | Engagement Target | Revenue Target |
 |-------|----------------|-------------------|----------------|
@@ -86,7 +86,7 @@ NOTE: In final PRD, this becomes Section 12.5 (after Roadmap, before PDR Summary
 | [Phase 3] | [Target] | [Target] | [Target] |
 | [Phase 4] | [Target] | [Target] | [Target] |
 
-### 12.5.5 Channel Strategy
+### 11.5.5 Channel Strategy
 
 | Channel | Purpose | Target | Investment |
 |---------|---------|--------|------------|

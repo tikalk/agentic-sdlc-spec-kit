@@ -1,72 +1,24 @@
 <!-- 
-TEMPLATE COMPLIANCE REQUIREMENTS (v1.5.3):
+TEMPLATE COMPLIANCE REQUIREMENTS (v1.5.6):
 - MUST use Mermaid diagrams (```mermaid) - NOT ASCII art
 - MUST fill ALL [PLACEHOLDERS] with actual content
-- MUST use this exact section structure (1-13, with sub-sections 2.5, 4.5, 6.5, 11.5, 12.5)
+- MUST use this exact section structure (1-12, with sub-sections 1.5, 3.5, 5.5, 10.5, 11.5)
 - MUST trace all requirements to PDRs
 - MUST embed ALL content inline - PRD.md must be self-contained (no reader-facing external links)
+- MUST embed Mermaid diagrams IN-SECTION (near the content they describe)
 - MUST run validation: ./scripts/validate-prd.sh --strict
 VIOLATION = Non-compliant PRD
 
 SELF-CONTAINED RULE: The final PRD.md must be readable without opening any other file.
 Section files in .specify/product/sections/ are intermediate build artifacts only.
-Visual diagrams are embedded inline via Mermaid blocks.
+Diagrams are embedded inline within their relevant sections — NOT in a separate Visual Summary.
 -->
 
 # Product Requirements Document: [PRODUCT_NAME]
 
 ---
 
-## 1. Visual Summary
-
-> This PRD is **self-contained** - all diagrams and content are embedded inline below.
-> No external files are required to read this document.
-
-### 1.1 Feature Hierarchy
-
-```mermaid
-flowchart TD
-    subgraph Product["[PRODUCT_NAME]"]
-        direction TB
-        F1["[Feature 1]<br/>[Status]"]
-        F2["[Feature 2]<br/>[Status]"]
-        F3["[Feature 3]<br/>[Status]"]
-    end
-    F1 --> F2
-    F2 --> F3
-```
-
-### 1.2 Feature Dependencies
-
-```mermaid
-flowchart LR
-    subgraph "Foundation"
-        R1["REQ-001"]
-        R2["REQ-002"]
-    end
-    subgraph "Business"
-        R3["REQ-003"]
-    end
-    R1 --> R2
-    R2 --> R3
-```
-
-### 1.3 Roadmap Timeline
-
-```mermaid
-gantt
-    title [PRODUCT_NAME] Roadmap
-    dateFormat YYYY-MM-DD
-    axisFormat %b %Y
-    section [Phase 1]
-    [Feature] :done, f1, [START], [DURATION]
-    section [Phase 2]
-    [Feature] :f2, after f1, [DURATION]
-    section Milestones
-    [Milestone 1] :milestone, m1, [DATE], 0d
-```
-
-*Diagrams are auto-generated from requirements. Run `/product.implement` to regenerate.*
+## 1. Document Information
 
 ### Quick Stats
 
@@ -78,26 +30,21 @@ gantt
 | **Requirements** | [N] Must / [N] Should / [N] Could |
 | **Last Updated** | [YYYY-MM-DD] |
 
----
-
-## 2. Document Information
-
-### 2.1 Revision History
+### 1.1 Revision History
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | [X.X] | [YYYY-MM-DD] | [Author] | [Description of changes] |
 
-### 2.2 Related Documents
+### 1.2 Related Documents
 
 | Document | Description |
 |----------|-------------|
-| Product Decision Records | Source PDRs with decision rationale (see [Section 13](#13-pdr-summary)) |
+| Product Decision Records | Source PDRs with decision rationale (see [Section 12](#12-pdr-summary)) |
 | Architecture Description | System architecture and ADRs |
 | Constitution | Project principles and constraints |
-| Visual Diagrams | Embedded inline in [Section 1](#1-visual-summary) |
 
-### 2.3 Approval
+### 1.3 Approval
 
 | Role | Name | Date | Signature |
 |------|------|------|-----------|
@@ -107,7 +54,7 @@ gantt
 
 ---
 
-## 2.5 Executive Summary
+## 1.5 Executive Summary
 
 > **For executive decision-makers.** This section summarizes the business case in 60 seconds.
 
@@ -147,13 +94,13 @@ gantt
 
 ---
 
-## 3. Overview
+## 2. Overview
 
 [High-level description of the product - what it is and why it exists]
 
 [Derived from Problem PDRs and Vision/Constitution]
 
-### 3.1 Product Description
+### 2.1 Product Description
 
 [2-3 sentences describing the product's core purpose and value proposition]
 
@@ -162,13 +109,13 @@ gantt
 - [Differentiator 2]
 - [Differentiator 3]
 
-### 3.2 Purpose
+### 2.2 Purpose
 
 [Describe the business/technical problem this product solves]
 
 **Target Outcome:** [What success looks like]
 
-### 3.3 Scope
+### 2.3 Scope
 
 **In Scope:**
 
@@ -181,7 +128,21 @@ gantt
 - [Explicitly excluded capability 1 - with rationale]
 - [Explicitly excluded capability 2 - with rationale]
 
-### 3.4 Architecture Overview
+### 2.4 Feature Hierarchy
+
+```mermaid
+flowchart TD
+    subgraph Product["[PRODUCT_NAME]"]
+        direction TB
+        F1["[Feature 1]<br/>[Status]"]
+        F2["[Feature 2]<br/>[Status]"]
+        F3["[Feature 3]<br/>[Status]"]
+    end
+    F1 --> F2
+    F2 --> F3
+```
+
+### 2.5 Architecture Overview
 
 ```mermaid
 flowchart TB
@@ -254,9 +215,16 @@ flowchart TB
 - Data layer provides persistence and messaging
 - External integrations are abstracted behind service layer
 
+**PDR Traceability:**
+
+| PDR | Category | Impact on Overview |
+|-----|----------|-------------------|
+| [PDR-XXX] | Problem | [How it affects this section] |
+| [PDR-XXX] | Business Model | [How it affects this section] |
+
 ---
 
-## 4. The Problem
+## 3. The Problem
 
 [Problem statement - what pain point or opportunity this product addresses]
 
@@ -266,14 +234,14 @@ flowchart TB
 - [Pain points experienced by users - be specific]
 - [Impact of not solving this problem - quantitative if possible]
 
-### 4.1 Evidence
+### 3.1 Evidence
 
 > "[Direct quote from user research or market analysis]"
 > — [Source]
 
 [Supporting data: user research, market analysis, competitive analysis]
 
-### 4.2 Stakeholder Impact
+### 3.2 Stakeholder Impact
 
 | Stakeholder | Current Pain | Desired State |
 |-------------|--------------|---------------|
@@ -284,9 +252,9 @@ flowchart TB
 
 ---
 
-## 4.5 Market Opportunity
+## 3.5 Market Opportunity
 
-### 4.5.1 Market Size
+### 3.5.1 Market Size
 
 | Segment | Size | Description |
 |---------|------|-------------|
@@ -294,14 +262,14 @@ flowchart TB
 | **SAM** | $[N]B | [Serviceable addressable market] |
 | **SOM** | $[N]M | [Serviceable obtainable market - year 1-2 target] |
 
-### 4.5.2 Competitive Landscape
+### 3.5.2 Competitive Landscape
 
 | Competitor | Approach | Strength | Our Differentiation |
 |------------|----------|----------|---------------------|
 | [Competitor 1] | [Approach] | [Strength] | [How we differ] |
 | [Competitor 2] | [Approach] | [Strength] | [How we differ] |
 
-### 4.5.3 Market Timing
+### 3.5.3 Market Timing
 
 | Timeframe | Signal | Implication |
 |-----------|--------|-------------|
@@ -309,28 +277,28 @@ flowchart TB
 | **6 months** | [Trend] | [Opportunity/risk] |
 | **12 months** | [Trend] | [Expected shift] |
 
-### 4.5.4 Target Customers (ICP)
+### 3.5.4 Target Customers (ICP)
 
 **Primary:** [Role] at [Company type]
 - **Pain:** [What drives the purchase]
 - **Budget:** $[Range]/year
 - **Decision Cycle:** [Timeline]
 
-### 4.5.5 Positioning Statement
+### 3.5.5 Positioning Statement
 
 **For** [target customer] **who** [need], **[product]** is a [category] **that** [key benefit]. **Unlike** [competitor], **our product** [differentiation].
 
 ---
 
-## 5. Goals & Objectives
+## 4. Goals & Objectives
 
-### 5.1 Primary Goal
+### 4.1 Primary Goal
 
 **[Main product objective - what success looks like]**
 
 [Detailed description of the primary goal with measurable outcomes]
 
-### 5.2 Technical Goals
+### 4.2 Technical Goals
 
 - **[Goal 1]:** [Technical outcome required]
   - Target: [Metric]
@@ -340,7 +308,7 @@ flowchart TB
   - Target: [Metric]
   - Measurement: [How measured]
 
-### 5.3 Business Goals
+### 4.3 Business Goals
 
 - **[Goal 1]:** [Business value delivered]
   - Target: [Metric]
@@ -354,22 +322,22 @@ flowchart TB
 
 ---
 
-## 6. Success Metrics
+## 5. Success Metrics
 
-### 6.1 Adoption Metrics
+### 5.1 Adoption Metrics
 
 | Metric | Target | Timeframe | Measurement Method |
 |--------|--------|-----------|-------------------|
 | [Metric 1] | [Target] | [Timeframe] | [Method] |
 | [Metric 2] | [Target] | [Timeframe] | [Method] |
 
-### 6.2 Engagement Metrics
+### 5.2 Engagement Metrics
 
 | Metric | Target | Timeframe | Measurement Method |
 |--------|--------|-----------|-------------------|
 | [Metric 1] | [Target] | [Timeframe] | [Method] |
 
-### 6.3 Quality Metrics
+### 5.3 Quality Metrics
 
 | Metric | Target | Timeframe | Measurement Method |
 |--------|--------|-----------|-------------------|
@@ -381,7 +349,7 @@ flowchart TB
 |--------|--------|-----|
 | [Metric] | [Target] | PDR-XXX |
 
-### 6.5 Business Outcome Metrics
+### 5.5 Business Outcome Metrics
 
 | Metric | Target | Business Impact | Measurement |
 |--------|--------|-----------------|-------------|
@@ -389,7 +357,7 @@ flowchart TB
 | [Quality metric] | [Target] | [% reduction] in [cost] | [How measured] |
 | [Time metric] | [Target] | [% improvement] | [How measured] |
 
-### 6.6 Financial Metrics
+### 5.6 Financial Metrics
 
 | Metric | Target | Measurement |
 |--------|--------|-------------|
@@ -399,11 +367,9 @@ flowchart TB
 
 ---
 
-## 7. Personas
+## 6. Personas
 
-> **👥 User Flows**: See [Section 1.2](#12-feature-dependencies) for visual journey maps.
-
-### 7.1 Primary Persona: [Persona Name]
+### 6.1 Primary Persona: [Persona Name]
 
 **Role:** [Job title/function]
 
@@ -426,7 +392,7 @@ flowchart TB
 
 **PDR Reference:** PDR-XXX
 
-### 7.2 Secondary Persona: [Persona Name]
+### 6.2 Secondary Persona: [Persona Name]
 
 **Role:** [Job title/function]
 
@@ -441,14 +407,40 @@ flowchart TB
 
 **PDR Reference:** PDR-XXX
 
+### 6.3 Anti-Personas (Who This Is NOT For)
+
+| Anti-Persona | Why Not Targeted |
+|--------------|------------------|
+| [Role/Type] | [Reason for exclusion] |
+
+### 6.4 User Journey
+
+```mermaid
+journey
+    title Primary Persona Journey: [PERSONA_NAME]
+    section Discovery
+      Visit Website: 5: User
+      Read Product Info: 4: User
+      View Pricing: 3: User
+    section Onboarding
+      Sign Up: 4: User, System
+      Verify Email: 5: System
+      Complete Profile: 3: User
+    section Core Usage
+      First Feature Use: 4: User
+      Achieve Goal: 5: User
+      Get Support: 4: Support Team
+    section Retention
+      Regular Usage: 5: User
+      Upgrade Plan: 3: User
+      Recommend Product: 5: User
+```
+
 ---
 
-## 8. Functional Requirements
+## 7. Functional Requirements
 
-> **📈 Visual Hierarchy**: See [Section 1.1](#11-feature-hierarchy) for feature structure diagram
-> **🔗 Dependencies**: See [Section 1.2](#12-feature-dependencies) for requirement dependency map
-
-### 8.1 User Stories
+### 7.1 User Stories
 
 | ID | Story | Persona | Priority | PDR |
 |----|-------|---------|----------|-----|
@@ -456,7 +448,7 @@ flowchart TB
 | US-002 | As a [persona], I want to [action] so that [benefit] | [Persona] | Should | PDR-XXX |
 | US-003 | As a [persona], I want to [action] so that [benefit] | [Persona] | Could | PDR-XXX |
 
-### 8.2 Feature Requirements
+### 7.2 Feature Requirements
 
 #### Feature 1: [Feature Name]
 
@@ -498,7 +490,7 @@ flowchart TB
 
 **Traced to:** PDR-XXX (Scope/Feature category)
 
-### 8.3 Requirements Priority Matrix
+### 7.3 Requirements Priority Matrix
 
 | Priority | Count | Description |
 |----------|-------|-------------|
@@ -509,7 +501,7 @@ flowchart TB
 
 **Total:** [N] requirements
 
-### 8.4 Requirement Dependencies
+### 7.4 Requirement Dependencies
 
 ```mermaid
 flowchart LR
@@ -551,7 +543,23 @@ flowchart LR
 - Foundation layer requirements must be completed first
 - Business layer builds on foundation
 - Growth layer features can proceed in parallel after foundation
-- Critical path: REQ-001 → REQ-002 → REQ-003 → REQ-004
+- Critical path: REQ-001 -> REQ-002 -> REQ-003 -> REQ-004
+
+### 7.5 Feature Dependencies
+
+```mermaid
+flowchart LR
+    subgraph "Foundation"
+        FA["[Feature A]<br/>[Status]"]
+        FB["[Feature B]<br/>[Status]"]
+    end
+    subgraph "Business"
+        FC["[Feature C]<br/>[Status]"]
+    end
+    FA --> FB
+    FB --> FC
+    FA -.->|"soft"| FC
+```
 
 **PDR Traceability:**
 
@@ -559,38 +567,36 @@ flowchart LR
 |-----|----------|------------------------|
 | [PDR-XXX] | [Decision] | [How it defines requirements] |
 
-> 📋 **State Transitions**: Detailed state machine diagrams are embedded in the Visual Summary ([Section 1](#1-visual-summary)).
-
 ---
 
-## 9. Non-Functional Requirements (NFRs)
+## 8. Non-Functional Requirements (NFRs)
 
-### 9.1 Performance
+### 8.1 Performance
 
 | Requirement | Target | Measurement | PDR |
 |-------------|--------|-------------|-----|
 | [Requirement 1] | [Target] | [Method] | PDR-XXX |
 | [Requirement 2] | [Target] | [Method] | PDR-XXX |
 
-### 9.2 Security
+### 8.2 Security
 
 | Requirement | Target | Measurement | PDR |
 |-------------|--------|-------------|-----|
 | [Requirement 1] | [Target] | [Method] | PDR-XXX |
 
-### 9.3 Reliability
+### 8.3 Reliability
 
 | Requirement | Target | Measurement | PDR |
 |-------------|--------|-------------|-----|
 | [Requirement 1] | [Target] | [Method] | PDR-XXX |
 
-### 9.4 Usability
+### 8.4 Usability
 
 | Requirement | Target | Measurement | PDR |
 |-------------|--------|-------------|-----|
 | [Requirement 1] | [Target] | [Method] | PDR-XXX |
 
-### 9.5 Scalability
+### 8.5 Scalability
 
 | Requirement | Target | Measurement | PDR |
 |-------------|--------|-------------|-----|
@@ -604,9 +610,9 @@ flowchart LR
 
 ---
 
-## 10. Out of Scope
+## 9. Out of Scope
 
-### 10.1 Features
+### 9.1 Features
 
 - **[Feature 1]:** [Explicitly excluded feature with rationale]
   - **Rationale:** [Why excluded]
@@ -615,12 +621,12 @@ flowchart LR
 - **[Feature 2]:** [Explicitly excluded feature with rationale]
   - **Rationale:** [Why excluded]
 
-### 10.2 Technical
+### 9.2 Technical
 
 - **[Technical exclusion 1]:** [What is excluded]
   - **Rationale:** [Why excluded]
 
-### 10.3 Markets
+### 9.3 Markets
 
 - **[Market exclusion 1]:** [Which markets/users are not targeted]
   - **Rationale:** [Why excluded]
@@ -633,28 +639,28 @@ flowchart LR
 
 ---
 
-## 11. Risks & Mitigation
+## 10. Risks & Mitigation
 
 | Risk | Likelihood | Impact | Mitigation Strategy | PDR |
 |------|------------|--------|---------------------|-----|
 | [Risk description] | H/M/L | H/M/L | [Mitigation approach] | PDR-XXX |
 
-### 11.1 Technical Risks
+### 10.1 Technical Risks
 
 - **[Risk 1]:** [Technical risk description]
   - **Mitigation:** [How to mitigate]
 
-### 11.2 Market Risks
+### 10.2 Market Risks
 
 - **[Risk 1]:** [Market risk description]
   - **Mitigation:** [How to mitigate]
 
-### 11.3 Operational Risks
+### 10.3 Operational Risks
 
 - **[Risk 1]:** [Operational risk description]
   - **Mitigation:** [How to mitigate]
 
-### 11.4 Business Risks
+### 10.4 Business Risks
 
 | Risk | Likelihood | Impact | Mitigation | PDR |
 |------|------------|--------|------------|-----|
@@ -666,7 +672,7 @@ flowchart LR
 
 ---
 
-## 11.5 Investment & Resources
+## 10.5 Investment & Resources
 
 ### Team Composition
 
@@ -703,14 +709,34 @@ flowchart LR
 
 ---
 
-## 12. Roadmap & Milestones
+## 11. Roadmap & Milestones
 
-> **📅 Visual Timeline**: See [Section 1.3](#13-roadmap-timeline) for the Gantt chart
+### 11.1 Roadmap Overview
+
+```mermaid
+gantt
+    title [PRODUCT_NAME] Roadmap
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    
+    section [Phase 1]
+    [Feature] :done, f1, [START], [DURATION]
+    [Feature] :done, f2, after f1, [DURATION]
+    
+    section [Phase 2]
+    [Feature] :f3, after f2, [DURATION]
+    [Feature] :f4, after f3, [DURATION]
+    
+    section Milestones
+    [Milestone 1] :milestone, m1, [DATE], 0d
+    [Milestone 2] :milestone, m2, [DATE], 0d
+```
+
 > **Sync with external tools**: Run `/product.roadmap --sync` to pull milestones from GitHub/GitLab/Jira/Linear
 
 <!-- Generated from Milestone PDRs -->
 
-### 12.1 Milestone 1: [Name] - [Target Date]
+### 11.2 Milestone 1: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -730,7 +756,7 @@ flowchart LR
 |--------|--------|-------------|
 | [Metric] | [Target] | [Method] |
 
-### 12.2 Milestone 2: [Name] - [Target Date]
+### 11.3 Milestone 2: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -747,7 +773,7 @@ flowchart LR
 
 - [Feature] - deferred to this milestone
 
-### 12.3 Milestone 3: [Name] - [Target Date]
+### 11.4 Milestone 3: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -769,9 +795,9 @@ flowchart LR
 
 ---
 
-## 12.5 Go-to-Market Strategy
+## 11.5 Go-to-Market Strategy
 
-### 12.5.1 Launch Phases
+### 11.5.1 Launch Phases
 
 | Phase | Timeline | Audience | Goal | Success Metric |
 |-------|----------|----------|------|----------------|
@@ -780,7 +806,7 @@ flowchart LR
 | [Phase 3] | [Date] | [Who] | [Goal] | [Metric] |
 | [GA] | [Date] | [Public] | [Revenue target] | [Metric] |
 
-### 12.5.2 Pricing Strategy
+### 11.5.2 Pricing Strategy
 
 | Tier | Price | Includes | Target |
 |------|-------|----------|--------|
@@ -788,7 +814,7 @@ flowchart LR
 | **[Paid]** | $[N]/[unit]/[period] | [What's included] | [Who] |
 | **Enterprise** | Custom | [What's included] | [Who] |
 
-### 12.5.3 Key Messaging
+### 11.5.3 Key Messaging
 
 | Audience | Message |
 |----------|---------|
@@ -796,7 +822,7 @@ flowchart LR
 | **Engineering Leaders** | "[Value prop for eng managers]" |
 | **Developers** | "[Value prop for ICs]" |
 
-### 12.5.4 Success Metrics by Phase
+### 11.5.4 Success Metrics by Phase
 
 | Phase | Adoption | Engagement | Revenue |
 |-------|----------|------------|---------|
@@ -806,25 +832,25 @@ flowchart LR
 
 ---
 
-## 13. PDR Summary
+## 12. PDR Summary
 
 Detailed Product Decision Records are summarized below. Full PDR documents are maintained in the project's `.specify/` directory.
 
-### 13.1 Key Decisions
+### 12.1 Key Decisions
 
 | ID | Category | Decision | Status | Impact |
 |----|----------|----------|--------|--------|
 | PDR-001 | [Category] | [Title] | Accepted | High/Med/Low |
 | PDR-002 | [Category] | [Title] | Accepted | High/Med/Low |
 
-### 13.2 Constitution Alignment
+### 12.2 Constitution Alignment
 
 This PRD aligns with the constitutional principles:
 
 | Principle | Alignment | PDRs |
 |-----------|-----------|------|
-| [Principle 1] | ✓ Aligned | PDR-XXX, PDR-XXX |
-| [Principle 2] | ✓ Aligned | PDR-XXX |
+| [Principle 1] | Aligned | PDR-XXX, PDR-XXX |
+| [Principle 2] | Aligned | PDR-XXX |
 
 ---
 
@@ -859,16 +885,19 @@ This PRD aligns with the constitutional principles:
 ---
 
 <!-- 
-VALIDATION CHECKLIST (v1.5.3):
+VALIDATION CHECKLIST (v1.5.6):
 Before marking this PRD complete, verify:
 - [ ] All [PLACEHOLDERS] filled with actual content
 - [ ] Mermaid diagrams render correctly (NOT ASCII)
-- [ ] Section 1 is Visual Summary with inline Mermaid diagrams
-- [ ] Section 2.5 Executive Summary present with business impact table
-- [ ] Section 4.5 Market Opportunity present with TAM/SAM/SOM
-- [ ] Section 6.5 Business Outcome Metrics present
-- [ ] Section 11.5 Investment & Resources present with ROI
-- [ ] Section 12.5 Go-to-Market Strategy present with pricing
+- [ ] Section 2 (Overview) contains Feature Hierarchy and Architecture diagrams
+- [ ] Section 6 (Personas) contains User Journey diagram
+- [ ] Section 7 (Requirements) contains Requirement Dependencies and Feature Dependencies diagrams
+- [ ] Section 11 (Roadmap) contains Gantt chart
+- [ ] Section 1.5 Executive Summary present with business impact table
+- [ ] Section 3.5 Market Opportunity present with TAM/SAM/SOM
+- [ ] Section 5.5 Business Outcome Metrics present
+- [ ] Section 10.5 Investment & Resources present with ROI
+- [ ] Section 11.5 Go-to-Market Strategy present with pricing
 - [ ] All requirements trace to PDRs
 - [ ] PRD is SELF-CONTAINED - no reader-facing links to .specify/ files
 - [ ] Validation script passes: ./scripts/validate-prd.sh --strict

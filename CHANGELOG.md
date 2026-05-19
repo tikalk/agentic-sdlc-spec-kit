@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc14] - 2026-05-19
+
+### Changed
+
+- **Product extension v1.5.6**: In-section diagrams, remove Visual Summary
+  - Diagrams embedded directly in their home sections (Overview, Personas, Requirements, Roadmap)
+  - Visual Summary section removed -- Section 1 is now Document Information
+  - All sections renumbered (old 1-13 -> new 1-12)
+  - Visual template files deleted (`templates/visuals/` directory)
+  - `user-flows.md` and `state-machine.md` section templates absorbed
+  - Step 2.8 (visual generation) and Step 3.2.5 (embed Visual Summary) removed
+  - No `.specify/product/visuals/` directory generated
+
 # [0.8.12+adlc13] - 2026-05-19
 
 ### Fixed

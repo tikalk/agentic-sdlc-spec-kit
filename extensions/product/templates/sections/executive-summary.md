@@ -4,7 +4,7 @@ TEMPLATE COMPLIANCE v1.5.3 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Trace content to source PDRs
 ✓ Quantify business impact with dollar values where possible
 ✓ Keep to ONE PAGE - executives read in 60 seconds
-NOTE: In final PRD, this becomes Section 2.5 (after Document Info, before Overview)
+NOTE: In final PRD, this becomes Section 1.5 (after Document Info, before Overview)
 -->
 
 # Executive Summary: [FEATURE_AREA_NAME]
@@ -13,11 +13,11 @@ NOTE: In final PRD, this becomes Section 2.5 (after Document Info, before Overvi
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Overview, Problem, Goals, Metrics
-**Section Number**: 2.5 (in final PRD)
+**Section Number**: 1.5 (in final PRD)
 
 ---
 
-## 2.5 Executive Summary
+## 1.5 Executive Summary
 
 **Purpose**: One-page business case for executive decision-makers. Must be readable in 60 seconds.
 

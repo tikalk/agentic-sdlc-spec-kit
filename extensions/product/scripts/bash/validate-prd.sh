@@ -1,7 +1,7 @@
 #!/bin/bash
-# PRD Validation Script v1.5.3
+# PRD Validation Script v1.5.6
 # Validates PRD compliance with product extension standards
-# Checks: Visual Summary, Mermaid, business sections, self-contained links, PDR traceability
+# Checks: Section 1 = Doc Info, in-section diagrams, Mermaid, business sections, self-contained, PDR traceability
 # Usage: validate-prd.sh [PRD_FILE] [--strict|--warn]
 #
 # Exit codes:
@@ -39,7 +39,7 @@ for arg in "$@"; do
         --help|-h)
             echo "Usage: $0 [PRD_FILE] [--strict|--warn]"
             echo ""
-            echo "Validates PRD compliance with product extension v1.5.3 standards"
+            echo "Validates PRD compliance with product extension v1.5.6 standards"
             echo ""
             echo "Options:"
             echo "  --strict    Exit with error on any issue (default: warn only)"
@@ -62,7 +62,7 @@ if [[ ! -f "$PRD_FILE" ]]; then
 fi
 
 echo -e "${BLUE}🔍 Validating PRD: $PRD_FILE${NC}"
-echo -e "${BLUE}Extension Version: 1.5.3 | Mode: $([ "$STRICT_MODE" == true ] && echo "STRICT" || echo "WARN")${NC}"
+echo -e "${BLUE}Extension Version: 1.5.6 | Mode: $([ "$STRICT_MODE" == true ] && echo "STRICT" || echo "WARN")${NC}"
 echo "================================================"
 
 # Function to report success
@@ -87,10 +87,10 @@ fail() {
 }
 
 # ============================================
-# CHECK 1: Visual Summary Section at Section 1
+# CHECK 1: Section 1 is Document Information (v1.5.6)
 # ============================================
 echo ""
-echo -e "${BLUE}[1/9] Checking Visual Summary placement...${NC}"
+echo -e "${BLUE}[1/9] Checking Section 1 is Document Information...${NC}"
 
 # Get the first section header
 FIRST_SECTION=$(grep -E '^## [0-9]+\.?\s' "$PRD_FILE" | head -1 || echo "")
@@ -98,39 +98,21 @@ FIRST_SECTION=$(grep -E '^## [0-9]+\.?\s' "$PRD_FILE" | head -1 || echo "")
 if [[ -z "$FIRST_SECTION" ]]; then
     fail "No numbered sections found (## 1. format required)"
 else
-    # Check if first section is "1. Visual Summary"
-    if echo "$FIRST_SECTION" | grep -qiE '^## 1\.\s*Visual Summary'; then
-        pass "Section 1 is 'Visual Summary' (numbered correctly)"
-    elif echo "$FIRST_SECTION" | grep -qiE '^## 1\.\s*Document Information'; then
-        warn "Section 1 is 'Document Information' - should be 'Visual Summary' per v1.5.2"
-        echo "  Expected: ## 1. Visual Summary"
-        echo "  Found: $FIRST_SECTION"
-    elif echo "$FIRST_SECTION" | grep -qiE 'Visual Summary'; then
-        warn "Visual Summary found but not as Section 1: $FIRST_SECTION"
+    if echo "$FIRST_SECTION" | grep -qiE '^## 1\.\s*Document Information'; then
+        pass "Section 1 is 'Document Information' (v1.5.6 compliant)"
+    elif echo "$FIRST_SECTION" | grep -qiE '^## 1\.\s*Visual Summary'; then
+        warn "Section 1 is 'Visual Summary' - v1.5.6 requires 'Document Information' as Section 1 (diagrams are now in-section)"
     else
         warn "Section 1 is: $FIRST_SECTION"
-        warn "Expected Section 1 to be 'Visual Summary' per v1.5.2 template"
+        warn "Expected Section 1 to be 'Document Information' per v1.5.6 template"
     fi
 fi
 
-# Check if Visual Summary exists anywhere
+# Check that Visual Summary does NOT exist as a separate section
 if grep -qiE "^## [0-9]*\.?\s*Visual Summary" "$PRD_FILE"; then
-    pass "Visual Summary section exists"
-    
-    # Check if it has diagram links
-    VISUAL_SUMMARY_START=$(grep -n "^## [0-9]*\.?\s*Visual Summary" "$PRD_FILE" | head -1 | cut -d: -f1)
-    NEXT_SECTION=$(grep -n "^## [0-9]" "$PRD_FILE" | grep -A1 "^$VISUAL_SUMMARY_START:" | tail -1 | cut -d: -f1)
-    
-    if [[ -n "$NEXT_SECTION" && "$NEXT_SECTION" != "$VISUAL_SUMMARY_START" ]]; then
-        VISUAL_SUMMARY_CONTENT=$(sed -n "${VISUAL_SUMMARY_START},${NEXT_SECTION}p" "$PRD_FILE")
-        if echo "$VISUAL_SUMMARY_CONTENT" | grep -qE '\[.*\]\(.*visuals.*\)'; then
-            pass "Visual Summary contains diagram links"
-        else
-            warn "Visual Summary missing diagram links to visuals/ directory"
-        fi
-    fi
+    warn "Found 'Visual Summary' as a separate section - v1.5.6 embeds diagrams in-section instead"
 else
-    fail "No 'Visual Summary' section found - REQUIRED per extension v1.5.2"
+    pass "No separate Visual Summary section (diagrams are embedded in-section per v1.5.6)"
 fi
 
 # ============================================
@@ -275,19 +257,18 @@ echo ""
 echo -e "${BLUE}[6/9] Checking required sections...${NC}"
 
 REQUIRED_SECTIONS=(
-    "1.*Visual Summary"
-    "2.*Document Information"
-    "Overview"
-    "Problem\|The Problem"
-    "Goals\|Goals/Objectives"
-    "Metrics\|Success Metrics"
-    "Personas"
-    "Functional Requirements\|Requirements"
-    "Non-Functional\|NFRs"
-    "Out of Scope\|Out of Scope"
-    "Risks\|Risks & Mitigation"
-    "Roadmap\|Milestones"
-    "PDR Summary\|Product Decision"
+    "1.*Document Information"
+    "2.*Overview"
+    "3.*Problem\|3.*The Problem"
+    "4.*Goals\|4.*Objectives"
+    "5.*Metrics\|5.*Success Metrics"
+    "6.*Personas"
+    "7.*Functional Requirements\|7.*Requirements"
+    "8.*Non-Functional\|8.*NFRs"
+    "9.*Out of Scope"
+    "10.*Risks\|10.*Mitigation"
+    "11.*Roadmap\|11.*Milestones"
+    "12.*PDR Summary\|12.*Product Decision"
 )
 
 MISSING_SECTIONS=0
@@ -306,13 +287,13 @@ fi
 # CHECK 6.5: Business Sections (v1.5.3)
 # ============================================
 echo ""
-echo -e "${BLUE}[6.5/9] Checking business stakeholder sections (v1.5.3)...${NC}"
+echo -e "${BLUE}[6.5/9] Checking business stakeholder sections (v1.5.6)...${NC}"
 
 BUSINESS_SECTIONS=(
-    "2\.5.*Executive Summary"
-    "4\.5.*Market Opportunity"
-    "11\.5.*Investment"
-    "12\.5.*Go-to-Market"
+    "1\.5.*Executive Summary"
+    "3\.5.*Market Opportunity"
+    "10\.5.*Investment"
+    "11\.5.*Go-to-Market"
 )
 
 MISSING_BUSINESS=0
@@ -333,7 +314,7 @@ fi
 # CHECK 6.6: Self-Contained PRD (v1.5.3)
 # ============================================
 echo ""
-echo -e "${BLUE}[6.6/9] Checking self-contained PRD (no external .specify/ links)...${NC}"
+echo -e "${BLUE}[6.6/9] Checking self-contained PRD (v1.5.6 - no external .specify/ links)...${NC}"
 
 # Check for reader-facing links to .specify/ paths
 EXTERNAL_LINKS=$(grep -nE '\]\(\.specify/' "$PRD_FILE" 2>/dev/null || true)
@@ -393,7 +374,7 @@ echo -e "${BLUE}Validation Summary${NC}"
 echo "================================================"
 
 if [[ $ERRORS -eq 0 && $WARNINGS -eq 0 ]]; then
-    echo -e "${GREEN}✓ All checks passed! PRD is compliant with v1.5.3${NC}"
+    echo -e "${GREEN}✓ All checks passed! PRD is compliant with v1.5.6${NC}"
     echo ""
     echo "You may proceed to mark sections as 'completed'"
     exit 0
@@ -413,7 +394,7 @@ elif [[ $ERRORS -eq 0 ]]; then
 else
     echo -e "${RED}✗ $ERRORS error(s) and $WARNINGS warning(s) found${NC}"
     echo ""
-    echo "PRD is NON-COMPLIANT with v1.5.3 standards"
+    echo "PRD is NON-COMPLIANT with v1.5.6 standards"
     echo "Fix all errors before proceeding"
     exit 1
 fi

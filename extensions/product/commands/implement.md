@@ -1,6 +1,6 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
-version: 1.5.5
+version: 1.5.6
 compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
@@ -9,7 +9,7 @@ scripts:
 
 ---
 
-## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.5)
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.6)
 
 **READ THIS FIRST - MANDATORY REQUIREMENTS**
 
@@ -17,15 +17,16 @@ Before generating ANY content, you MUST verify:
 
 - [ ] **MUST** read and use templates from `templates/sections/{section}.md` - **DO NOT generate from scratch**
 - [ ] **MUST** use Mermaid syntax (```mermaid) for ALL diagrams - **ASCII art is STRICTLY PROHIBITED**
-- [ ] **MUST** place "Visual Summary" as **Section 1** (numbered) - right after header
-- [ ] **MUST** include "Document Information" as **Section 2**
-- [ ] **MUST** include "Executive Summary" as **Section 2.5** with business impact metrics
-- [ ] **MUST** include "Market Opportunity" as **Section 4.5** with TAM/SAM/SOM
-- [ ] **MUST** include "Investment & Resources" as **Section 11.5** with ROI
-- [ ] **MUST** include "Go-to-Market Strategy" as **Section 12.5** with pricing
+- [ ] **MUST** embed Mermaid diagrams **IN-SECTION** (near the content they describe) - **NO separate Visual Summary**
+- [ ] **MUST** include "Document Information" as **Section 1** with Quick Stats
+- [ ] **MUST** include "Executive Summary" as **Section 1.5** with business impact metrics
+- [ ] **MUST** include "Market Opportunity" as **Section 3.5** with TAM/SAM/SOM
+- [ ] **MUST** include "Investment & Resources" as **Section 10.5** with ROI
+- [ ] **MUST** include "Go-to-Market Strategy" as **Section 11.5** with pricing
 - [ ] **MUST** fill or remove ALL template placeholders like `[PRODUCT_NAME]`, `[DATE]`
 - [ ] **MUST** trace all requirements to source PDRs with ID references
 - [ ] **MUST** produce a **SELF-CONTAINED** PRD.md - no reader-facing links to `.specify/` files
+- [ ] **MUST NOT** generate separate visual files - all diagrams go directly into section content
 - [ ] **MUST** validate output with `./scripts/validate-prd.sh --strict` after each section
 
 ### STRICT ENFORCEMENT RULES:
@@ -43,19 +44,23 @@ Before generating ANY content, you MUST verify:
    - **VIOLATION = Convert to Mermaid immediately**
 
 3. **Section Numbering is FIXED**
-   - Section 1: Visual Summary (MUST be numbered, inline Mermaid)
-   - Section 2: Document Information
-   - Section 2.5: Executive Summary (business case, ROI)
-   - Section 3: Overview
-   - Section 4: The Problem
-   - Section 4.5: Market Opportunity (TAM/SAM/SOM, competitive)
-   - Section 5-6: Goals, Metrics (+ 6.5 Business Outcome Metrics)
-   - Section 7-10: Personas, Requirements, NFRs, Out of Scope
-   - Section 11: Risks (+ 11.4 Business Risks)
-   - Section 11.5: Investment & Resources (team, budget, ROI)
-   - Section 12: Roadmap
-   - Section 12.5: Go-to-Market Strategy (launch, pricing, messaging)
-   - Section 13: PDR Summary
+   - Section 1: Document Information (Quick Stats, revision history, approval)
+   - Section 1.5: Executive Summary (business case, ROI)
+   - Section 2: Overview (+ 2.4 Feature Hierarchy diagram, 2.5 Architecture diagram)
+   - Section 3: The Problem
+   - Section 3.5: Market Opportunity (TAM/SAM/SOM, competitive)
+   - Section 4: Goals & Objectives
+   - Section 5: Success Metrics (+ 5.5 Business Outcome Metrics, 5.6 Financial)
+   - Section 6: Personas (+ 6.4 User Journey diagram)
+   - Section 7: Functional Requirements (+ 7.4 Req Dependencies diagram, 7.5 Feature Dependencies diagram)
+   - Section 8: Non-Functional Requirements
+   - Section 9: Out of Scope
+   - Section 10: Risks (+ 10.4 Business Risks)
+   - Section 10.5: Investment & Resources (team, budget, ROI)
+   - Section 11: Roadmap (+ 11.1 Roadmap Gantt diagram)
+   - Section 11.5: Go-to-Market Strategy (launch, pricing, messaging)
+   - Section 12: PDR Summary
+   - **NO separate Visual Summary section — diagrams are embedded in-section**
    - **VIOLATION = Renumber to match template**
 
 4. **Validation is REQUIRED**
@@ -86,9 +91,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Flags
 
 - `--sections SECTIONS`: PRD sections to generate
-  - `all` (default): All 15 sections (11 core + 4 business)
+  - `all` (default): All 15 sections (11 core + 4 business), diagrams embedded in-section
   - Custom: comma-separated (e.g., `problem,scope,requirements`)
   - Business sections: `executive-summary,market-opportunity,investment,gtm`
+  - Note: No separate visual files are generated — diagrams are part of section content
 
 - `--no-checkpoint`: Skip Requirements section checkpoint
   - **Warning**: Requirements is the cornerstone that shapes NFRs, Out-of-Scope, Risks, and Roadmap
@@ -273,25 +279,27 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 
 **DAG Dependency Rules**:
 
-| Section | Slug | Dependencies | Can Parallelize |
-|---------|------|--------------|-----------------|
-| Overview | `overview` | None | Yes |
-| Problem | `problem` | Overview | Yes |
-| Market Opportunity | `market-opportunity` | Overview, Problem | Yes |
-| Goals | `goals` | Problem | Yes |
-| Metrics | `metrics` | Goals | Yes |
-| Personas | `personas` | Problem, Goals | Yes |
-| Executive Summary | `executive-summary` | Overview, Problem, Goals, Metrics | Yes |
-| **Requirements** | `requirements` | Goals, Personas | **No - CHECKPOINT** |
-| NFRs | `nfrs` | Requirements | No |
-| Out-of-Scope | `out-of-scope` | Requirements | No |
-| Risks | `risks` | Requirements, Out-of-Scope | No |
-| Investment | `investment` | Requirements, Risks | No |
-| Roadmap | `roadmap` | Requirements, Goals | No |
-| Go-to-Market | `gtm` | Roadmap, Personas, Market Opportunity | No |
-| PDR-Summary | `pdr-summary` | All above | No |
+| PRD Section | Slug | Dependencies | Diagrams | Can Parallelize |
+|-------------|------|--------------|----------|-----------------|
+| 2. Overview | `overview` | None | Feature Hierarchy, Architecture, Cross-Area (conditional) | Yes |
+| 3. Problem | `problem` | Overview | None | Yes |
+| 3.5 Market Opportunity | `market-opportunity` | Overview, Problem | None | Yes |
+| 4. Goals | `goals` | Problem | None | Yes |
+| 5. Metrics | `metrics` | Goals | None | Yes |
+| 6. Personas | `personas` | Problem, Goals | User Journey | Yes |
+| 1.5 Executive Summary | `executive-summary` | Overview, Problem, Goals, Metrics | None | Yes |
+| **7. Requirements** | `requirements` | Goals, Personas | Req Dependencies, Feature Dependencies, State Machine (conditional) | **No - CHECKPOINT** |
+| 8. NFRs | `nfrs` | Requirements | None | No |
+| 9. Out-of-Scope | `out-of-scope` | Requirements | None | No |
+| 10. Risks | `risks` | Requirements, Out-of-Scope | None | No |
+| 10.5 Investment | `investment` | Requirements, Risks | None | No |
+| 11. Roadmap | `roadmap` | Requirements, Goals | Roadmap Gantt | No |
+| 11.5 Go-to-Market | `gtm` | Roadmap, Personas, Market Opportunity | None | No |
+| 12. PDR-Summary | `pdr-summary` | All above | None | No |
 
-**Business sections** (marked with sub-numbers 2.5, 4.5, 11.5, 12.5) are generated alongside their adjacent sections. They provide the business context that stakeholders and product managers need for decision-making.
+**Diagrams are embedded directly in their section content** — no separate visual files are generated. Each section template includes Mermaid placeholders where diagrams belong.
+
+**Business sections** (sub-numbered 1.5, 3.5, 5.5, 10.5, 11.5) provide business context for stakeholders and product managers.
 
 ### Step 1.4: Present Plan for User Approval
 
@@ -304,7 +312,7 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 ### Feature-Area: Core
 **PDRs**: PDR-001, PDR-005, PDR-008
 **Characteristics**: B2B SaaS, Platform
-**DAG**: Overview → Problem → Market Opportunity → Goals → Metrics → Personas → Executive Summary → [Requirements Checkpoint] → NFRs → Out-of-Scope → Risks → Investment → Roadmap → GTM → PDR-Summary
+**DAG**: Overview (w/ diagrams) → Problem → Market Opportunity → Goals → Metrics → Personas (w/ journey) → Executive Summary → [Requirements Checkpoint (w/ diagrams)] → NFRs → Out-of-Scope → Risks → Investment → Roadmap (w/ gantt) → GTM → PDR-Summary
 
 **Checkpoint**: After Requirements section, execution will pause for approval.
 
@@ -384,178 +392,39 @@ The Requirements section has been generated for "{feature-area}".
 - Re-generate Problem → Goals → Metrics → Personas → Requirements
 - Present checkpoint again
 
-### Step 2.8: Generate Visual Diagrams (MANDATORY)
+### In-Section Diagram Rules (v1.5.6)
 
-**MANDATORY: After completing section generation for a feature-area, you MUST create and populate the visuals/ directory.**
+> **Diagrams are embedded directly in section content — NO separate visual files.**
 
-Failure to generate visual diagrams results in incomplete PRD documentation. This step is NOT optional.
+Each section template includes Mermaid placeholders. When generating section content, fill these placeholders with actual data from PDRs.
 
-#### Step 2.8.1: Create visuals/ Directory Structure
+#### Diagram Placement
 
-Create the following directory structure:
-```
-{REPO_ROOT}/.specify/product/visuals/
-├── feature-hierarchy.md    (MANDATORY)
-├── feature-deps.md         (MANDATORY)
-├── cross-area-map.md       (if multiple feature-areas)
-├── user-flows.md           (if personas defined)
-└── state-machine.md        (if stateful features exist)
-```
+| Section | Diagram Type | Subsection | When to Include |
+|---------|-------------|------------|-----------------|
+| 2. Overview | Feature Hierarchy (`flowchart TD`) | 2.4 | Always |
+| 2. Overview | Architecture (`flowchart TB`) | 2.5 | Always |
+| 2. Overview | Cross-Area Map (`flowchart TB`) | 2.6 | Only if multiple feature-areas |
+| 6. Personas | User Journey (`journey`) | 6.4 | Always |
+| 7. Requirements | Req Dependencies (`flowchart LR`) | 7.4 | Always |
+| 7. Requirements | Feature Dependencies (`flowchart LR`) | 7.5 | Always |
+| 7. Requirements | State Machine (`stateDiagram-v2`) | 7.6 | Only if stateful features |
+| 11. Roadmap | Gantt Chart (`gantt`) | 11.1 | Always |
 
-#### Step 2.8.2: Populate Feature Hierarchy
+#### Mermaid Syntax Rules
 
-**Source Template**: Copy from `extensions/product/templates/visuals/feature-hierarchy.md`
+1. Use `flowchart` keyword (NOT deprecated `graph`)
+2. All node IDs must be unique
+3. Use status indicators: `✅` Complete, `🟡` In Progress, `🔴` Blocked, `⬜` Planned
+4. ASCII box-drawing characters are PROHIBITED — use Mermaid only
+5. If Mermaid fails to render, include ASCII fallback in `<details>` block
 
-**Required Replacements**:
-- `[PRODUCT_NAME]` → Actual product name from PDR
-- Replace all feature node labels with actual features from requirements
-- Update completion status based on requirements priority
+#### Node ID Sanitization
 
-**Node ID Sanitization Rules**:
 1. Remove special characters: `!@#$%^&*()+-=[]{}|;':",./<>?`
 2. Replace spaces with underscores: `User Profile` → `User_Profile`
 3. Prefix with PDR ID for uniqueness: `Auth_001`, `Billing_002`
-4. Keep node labels human-readable in brackets: `Auth_001["🔐 Authentication"]`
-
-**Example Transformation**:
-```mermaid
-flowchart TD
-    Auth_001["🔐 Authentication<br/>✅ Complete"]
-    Profile_002["👤 User Profile<br/>🟡 In Progress"]
-    Billing_003["💳 Billing<br/>⬜ Planned"]
-    
-    Auth_001 --> Profile_002
-    Profile_002 --> Billing_003
-```
-
-#### Step 2.8.3: Populate Feature Dependencies
-
-**Source Template**: Copy from `extensions/product/templates/visuals/feature-deps.md`
-
-**Required Replacements**:
-- List ALL features from Functional Requirements section
-- Map dependencies based on requirements traceability
-- Use correct status indicators:
-  - `✅` Complete (already implemented)
-  - `🟡` In Progress (active development)
-  - `🔴` Blocked (dependency not met)
-  - `⬜` Not Started (planned)
-
-**Edge Styling Rules**:
-- `-->` Hard dependency (must complete first)
-  - Example: `Auth --> Profile` (cannot profile without auth)
-- `-.->` Soft dependency (can proceed in parallel)
-  - Example: `Core -.-> Analytics` (analytics can use mocks)
-- `-.->|planned|` Future dependency
-  - Example: `V1 -.->|planned| V2`
-
-#### Step 2.8.4: Populate Cross-Area Map (Multi-Area Products)
-
-**Source Template**: Copy from `extensions/product/templates/visuals/cross-area-map.md`
-
-**Required Actions**:
-1. Create subgraphs for each feature-area
-2. Map interactions between areas using actual PDR data
-3. Flag inconsistencies using warning callouts:
-   ```markdown
-   > ⚠️ **Cross-Area Inconsistency**: Core requires real-time updates,
-   > but Growth batch analytics may cause delays. Consider event sourcing.
-   ```
-
-#### Step 2.8.5: Validate Mermaid Syntax (MANDATORY)
-
-**Before writing files, validate Mermaid syntax:**
-
-1. **Keyword Check**: Verify use of `flowchart` not deprecated `graph`
-2. **Node Definition**: Ensure all nodes are defined before referenced
-3. **Subgraph Syntax**: Check proper nesting and closing
-4. **Class Definitions**: Verify class names match node assignments
-
-**Validation Checklist**:
-- [ ] Uses `flowchart TB/LR/TD` (not `graph`)
-- [ ] All node IDs are unique
-- [ ] All referenced nodes are defined
-- [ ] Subgraphs properly closed
-- [ ] No trailing spaces after node definitions
-- [ ] Arrow syntax correct (`-->`, `-.->`, `==>`)
-
-**If Validation Fails**:
-1. Fix syntax errors
-2. Generate ASCII fallback in `<details>` block
-3. Log error for user review
-
-#### Step 2.8.5b: ASCII to Mermaid Conversion (MANDATORY)
-
-**If PDRs or source content contain ASCII diagrams (box-drawing characters), you MUST convert them to Mermaid:**
-
-**Detection:**
-```bash
-# Detect ASCII box-drawing characters
-grep -P '[\x{2500}-\x{257F}]' content.md
-```
-
-**Conversion Process:**
-1. **Analyze the ASCII diagram** - Understand what it represents
-2. **Choose appropriate Mermaid type:**
-   - Flowchart: For processes, architectures, dependencies
-   - State diagram: For state machines
-   - Journey: For user flows
-   - Gantt: For roadmaps/timelines
-3. **Create Mermaid equivalent** using proper syntax
-4. **Remove or hide ASCII** - Only keep in `<details>` block as fallback
-
-**Example Conversion:**
-```markdown
-<!-- BEFORE: ASCII (PROHIBITED in main content) -->
-┌──────────────┐
-│  Component   │
-└──────────────┘
-       │
-       ▼
-┌──────────────┐
-│  Next Step   │
-└──────────────┘
-
-<!-- AFTER: Mermaid (REQUIRED) -->
-```mermaid
-flowchart TD
-    A["Component"] --> B["Next Step"]
-```
-
-**IMPORTANT:** ASCII diagrams are **ONLY** allowed in `<details>` blocks as fallbacks, NEVER as primary diagrams.
-
-#### Step 2.8.6: Generate ASCII Fallback (Required for Complex Diagrams)
-
-For diagrams that may fail Mermaid rendering, include ASCII fallback:
-
-```markdown
-<details>
-<summary>📊 ASCII Fallback</summary>
-
-```
-[ASCII art representation]
-```
-
-</details>
-```
-
-#### Step 2.8.7: Write Files to Disk (MANDATORY)
-
-**Each visual diagram file MUST:**
-- Be written to `{REPO_ROOT}/.specify/product/visuals/`
-- Contain ≥30 lines
-- Include proper frontmatter with generation metadata
-- Have working navigation links
-- Be standalone readable
-
-**Verification Before Proceeding**:
-```bash
-# Check files exist and have content
-ls -la {REPO_ROOT}/.specify/product/visuals/
-wc -l {REPO_ROOT}/.specify/product/visuals/*.md
-```
-
-**STOP if files are missing or under 30 lines.**
+4. Keep labels readable: `Auth_001["Authentication"]`
 
 ### Placeholder Validation (MANDATORY)
 
@@ -624,151 +493,104 @@ Compare sections across feature-areas:
 | Priority mismatch | Same feature, different priority | Defer to PDR |
 | Metric inconsistency | Same metric, different definition | Use PDR definition |
 
-### Step 3.2.5: Embed Visual Summary INLINE (MANDATORY)
+### Step 3.2.5: Verify In-Section Diagrams (v1.5.6)
 
-**MANDATORY: Section 1 (Visual Summary) must contain ALL diagrams as inline Mermaid blocks.**
-
-> **SELF-CONTAINED RULE (v1.5.3):** The final PRD.md must be readable WITHOUT opening any other file.
+> **v1.5.6: No separate Visual Summary section. Diagrams are embedded in their home sections.**
 > Section files in `.specify/product/sections/` are intermediate build artifacts.
-> Visual files in `.specify/product/visuals/` are supplementary only.
+> **NO separate visual files are generated. NO `.specify/product/visuals/` directory.**
 > **NO reader-facing links to `.specify/` paths in the final PRD.md.**
 
-#### How to Embed Visuals
+**Verify each section's diagrams are present:**
 
-1. Extract the Mermaid code blocks from each visual file (`.specify/product/visuals/*.md`)
-2. Embed them directly into **Section 1 (Visual Summary)** of PRD.md
-3. Use in-document anchor links (e.g., `[Section 1.1](#11-feature-hierarchy)`) for cross-references
-4. Do NOT use external file links like `[View](visuals/feature-hierarchy.md)`
+| Section | Required Diagram | Check |
+|---------|-----------------|-------|
+| 2. Overview | Feature Hierarchy (`### 2.4`) | `grep "flowchart TD" sections/overview.md` |
+| 2. Overview | Architecture (`### 2.5`) | `grep "flowchart TB" sections/overview.md` |
+| 6. Personas | User Journey (`### 6.4`) | `grep "journey" sections/personas.md` |
+| 7. Requirements | Req Dependencies (`### 7.4`) | `grep "flowchart LR" sections/requirements.md` |
+| 7. Requirements | Feature Dependencies (`### 7.5`) | `grep "flowchart LR" sections/requirements.md` |
+| 11. Roadmap | Gantt Chart (`### 11.1`) | `grep "gantt" sections/roadmap.md` |
 
-#### Section 1 Structure (inline)
+**If any diagram is missing from its section file, regenerate that section before proceeding.**
 
-```markdown
-## 1. Visual Summary
+### Step 3.2.6: Self-Contained Verification
 
-### 1.1 Feature Hierarchy
-[Embed Mermaid flowchart from visuals/feature-hierarchy.md]
-
-### 1.2 Feature Dependencies
-[Embed Mermaid flowchart from visuals/feature-deps.md]
-
-### 1.3 Roadmap Timeline
-[Embed Mermaid gantt from visuals/roadmap-timeline.md]
-```
-
-#### Cross-Reference Pattern
-
-When other sections reference visuals, use in-document anchors:
-- `See [Section 1.1](#11-feature-hierarchy)` (NOT `[View](visuals/feature-hierarchy.md)`)
-- `See [Visual Summary](#1-visual-summary)` (NOT external file links)
-
-### Step 3.2.6: Embed Business Sections (MANDATORY)
-
-**All 4 business sections must be embedded inline in PRD.md:**
-
-1. **Section 2.5 (Executive Summary)**: After Document Info, before Overview
-2. **Section 4.5 (Market Opportunity)**: After Problem, before Goals  
-3. **Section 11.5 (Investment & Resources)**: After Risks, before Roadmap
-4. **Section 12.5 (Go-to-Market Strategy)**: After Roadmap, before PDR Summary
-
-These sections derive content from:
-- PDR consequence sections (business impact)
-- PDR metrics sections (financial targets)
-- Cross-feature-area analysis (market positioning)
-
-### Step 3.2.7: ASCII Fallback Diagrams (Complex Only)
-
-If Mermaid rendering fails, ASCII diagrams are available in the full visual files linked above.
-```
-
-#### Embedding Rules (v1.5.3 — Self-Contained)
-
-1. **Extract Mermaid Blocks**: Copy the mermaid code block from each visual file into Section 1 of PRD.md
-2. **Preserve Node IDs**: Do NOT modify node IDs (already sanitized in Step 2.8)
-3. **Use In-Document Anchors**: All cross-references use `[Section 1.1](#11-feature-hierarchy)` format — **NO external file links**
-4. **No External Navigation**: Do NOT link to visual files or section files — everything is inline
-5. **ASCII Fallback Inline**: If needed, include ASCII fallback in `<details>` blocks **within PRD.md itself** — do NOT reference external source files
-
-#### Verification Checklist
-
-- [ ] Visual Summary (Section 1) contains inline Mermaid diagrams
-- [ ] All diagram types embedded (hierarchy, deps, roadmap gantt)
-- [ ] Mermaid blocks are complete and valid
-- [ ] **ZERO** `.specify/` paths in reader-facing content
+- [ ] **ZERO** `.specify/` paths in reader-facing content across all section files
 - [ ] All cross-references use in-document anchors (`#section-id`)
+- [ ] Mermaid blocks are complete and valid (use `flowchart`, not `graph`)
 
 ### Step 3.3: Aggregate into Unified PRD.md
 
-> **CRITICAL (v1.5.3): The PRD.md MUST be SELF-CONTAINED.**
-> - ALL Mermaid diagrams embedded inline in Section 1 (Visual Summary)
-> - ALL business sections (2.5, 4.5, 6.5, 11.4, 11.5, 12.5) included
+> **CRITICAL (v1.5.6): The PRD.md MUST be SELF-CONTAINED.**
+> - ALL Mermaid diagrams embedded IN-SECTION (near the content they describe)
+> - ALL business sections (1.5, 3.5, 5.5, 10.4, 10.5, 11.5) included
 > - **ZERO reader-facing links to `.specify/` paths** — use in-document anchors only
-> - Section files and visual files are build artifacts only — do NOT reference them
+> - Section files are build artifacts only — do NOT reference them
+> - **NO separate Visual Summary section** — diagrams live in their home sections
 
 **Structure** (must match `prd-template.md` exactly):
 
 ```markdown
 # Product Requirements Document: [Product Name]
 
-## 1. Visual Summary
-[Inline Mermaid diagrams: feature hierarchy, dependencies, roadmap gantt]
-[Quick Stats table: version, status, PDR count, requirements count]
+## 1. Document Information
+[Quick Stats table, revision history, related docs (NO .specify/ links), approval]
 
-## 2. Document Information
-[Revision history, related documents (NO clickable .specify/ links), approval table]
-
-## 2.5 Executive Summary
+## 1.5 Executive Summary
 [One-page business case: opportunity, problem, solution, business impact, investment, ROI, recommendation]
 
-## 3. Overview
-[Product description, purpose, scope, architecture (inline Mermaid)]
+## 2. Overview
+[Product description, purpose, scope]
+### 2.4 Feature Hierarchy [MERMAID flowchart TD]
+### 2.5 Architecture Overview [MERMAID flowchart TB]
+### 2.6 Cross-Area Interactions [MERMAID flowchart TB — only if multi-feature-area]
 
-## 4. The Problem
+## 3. The Problem
 [Problem statement, context, validation evidence]
 
-## 4.5 Market Opportunity
+## 3.5 Market Opportunity
 [TAM/SAM/SOM, competitive landscape, market timing, ICP, positioning]
 
-## 5. Goals & Objectives
+## 4. Goals & Objectives
 [Primary, technical, and business goals traced to PDRs]
 
-## 6. Success Metrics
+## 5. Success Metrics
 [Adoption, engagement, quality metrics]
+### 5.5 Business Outcome Metrics [efficiency, quality, time with $ values]
+### 5.6 Financial Metrics [cost per user, ROI, payback period]
 
-### 6.5 Business Outcome Metrics
-[Efficiency, quality, time metrics with $ values]
+## 6. Personas
+[Primary, secondary personas, anti-personas]
+### 6.4 User Journey [MERMAID journey]
 
-### 6.6 Financial Metrics
-[Cost per user, ROI, payback period]
+## 7. Functional Requirements [CHECKPOINT]
+[User stories, REQ-XXX IDs, priority matrix]
+### 7.4 Requirement Dependencies [MERMAID flowchart LR]
+### 7.5 Feature Dependencies [MERMAID flowchart LR]
+### 7.6 State Transitions [MERMAID stateDiagram-v2 — only if stateful features]
 
-## 7. Personas
-[Primary and secondary personas, anti-personas]
-
-## 8. Functional Requirements [CHECKPOINT]
-[User stories, feature requirements with REQ-XXX IDs, priority matrix, dependency diagram (inline Mermaid)]
-
-## 9. Non-Functional Requirements
+## 8. Non-Functional Requirements
 [Performance, security, reliability, usability, scalability]
 
-## 10. Out of Scope
+## 9. Out of Scope
 [Feature, technical, market exclusions with rationale]
 
-## 11. Risks & Mitigation
-[Risk summary table, technical risks, market risks]
+## 10. Risks & Mitigation
+[Risk summary, technical, market, operational risks]
+### 10.4 Business Risks [adoption, competitive, financial]
 
-### 11.4 Business Risks
-[Adoption, competitive, financial risks]
+## 10.5 Investment & Resources
+[Team, budget, risk-adjusted ROI, go/no-go criteria]
 
-## 11.5 Investment & Resources
-[Team composition, budget estimate, risk-adjusted ROI, go/no-go criteria]
+## 11. Roadmap & Milestones
+### 11.1 Roadmap Overview [MERMAID gantt]
+[Milestone details with demo sentences]
 
-## 12. Roadmap & Milestones
-[Gantt chart (inline Mermaid), milestone details with demo sentences]
+## 11.5 Go-to-Market Strategy
+[Launch phases, pricing, messaging, success metrics by phase]
 
-## 12.5 Go-to-Market Strategy
-[Launch phases, pricing tiers, key messaging, success metrics by phase]
-
-## 13. PDR Summary
-[Key decisions table, constitution alignment — NO external links]
+## 12. PDR Summary
+[Key decisions, constitution alignment — NO external links]
 
 ## Appendix A: Glossary
 ## Appendix B: References
@@ -776,10 +598,11 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 ```
 
 **Self-Contained Cross-Reference Rules:**
-- Visual references: `See [Section 1.1](#11-feature-hierarchy)` (NOT `[View](visuals/...)`)
+- Diagram references: `See [Section 2.4](#24-feature-hierarchy)` (in-document anchors only)
 - PDR references: `PDR-078` as text (NOT `[PDR-078](.specify/drafts/pdr.md#pdr-078)`)
 - Constitution references: "as defined in the project constitution" (NOT `[constitution](.specify/memory/constitution.md)`)
-- Section cross-refs: `See [Section 8](#8-functional-requirements)` (in-document anchors only)
+- Section cross-refs: `See [Section 7](#7-functional-requirements)` (in-document anchors only)
+- **NO** references to `.specify/product/visuals/` — that directory no longer exists
 
 ### Step 3.4: PDR Lifecycle Management (MANDATORY — DO NOT SKIP)
 
@@ -873,15 +696,16 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 | 1 | Section files on disk | N files | `ls .specify/product/sections/` | ☐ |
 | 2 | PRD.md exists | Yes | `ls PRD.md` | ☐ |
 | 3 | PRD.md content size | >200 lines | `wc -l PRD.md` | ☐ |
-| 4 | PRD.md has all sections | Sections 1-13 + sub-sections | `grep "^## " PRD.md` | ☐ |
+| 4 | PRD.md has all sections | Sections 1-12 + sub-sections | `grep "^## " PRD.md` | ☐ |
 | 5 | PRD.md is self-contained | 0 `.specify/` links | `grep -c '](.specify/' PRD.md` = 0 | ☐ |
-| 6 | **Memory PDRs written** | `memory/pdr.md` exists | `ls .specify/memory/pdr.md` | ☐ |
-| 7 | **`pdr_lifecycle.memory_pdr_written`** | `true` | Check state.json | ☐ |
-| 8 | Drafts status documented | `pdr_lifecycle` in state.json | Check state.json has `pdr_lifecycle` object | ☐ |
-| 9 | state.json consistent | All sections "completed" | Verify progress | ☐ |
+| 6 | Diagrams embedded in-section | Overview has Mermaid, Requirements has Mermaid, Roadmap has Mermaid | `grep -c "mermaid" PRD.md` >= 4 | ☐ |
+| 7 | **No** `.specify/product/visuals/` dir | Should not exist | `! ls .specify/product/visuals/ 2>/dev/null` | ☐ |
+| 8 | **Memory PDRs written** | `memory/pdr.md` exists | `ls .specify/memory/pdr.md` | ☐ |
+| 9 | **`pdr_lifecycle.memory_pdr_written`** | `true` | Check state.json | ☐ |
+| 10 | state.json consistent | All sections "completed" | Verify progress | ☐ |
 
 **Gate Rule:**
-- If **ALL 9 checks pass**: Mark `phase: "completed"` and `pdr_lifecycle.memory_pdr_written: true`
+- If **ALL 10 checks pass**: Mark `phase: "completed"` and `pdr_lifecycle.memory_pdr_written: true`
 - If **ANY check fails**: Do NOT mark as completed. Report which check(s) failed.
 - **Check 6 is the most commonly skipped** — verify `memory/pdr.md` actually exists on disk.
 

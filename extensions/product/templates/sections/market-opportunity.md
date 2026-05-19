@@ -4,7 +4,7 @@ TEMPLATE COMPLIANCE v1.5.3 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Trace content to source PDRs
 ✓ Include TAM/SAM/SOM with sources
 ✓ Competitive landscape must be neutral (trade-offs, not dismissals)
-NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
+NOTE: In final PRD, this becomes Section 3.5 (after Problem, before Goals)
 -->
 
 # Market Opportunity: [FEATURE_AREA_NAME]
@@ -13,15 +13,15 @@ NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Overview, Problem
-**Section Number**: 4.5 (in final PRD)
+**Section Number**: 3.5 (in final PRD)
 
 ---
 
-## 4.5 Market Opportunity
+## 3.5 Market Opportunity
 
 **Purpose**: Validate market size, competitive positioning, and timing for stakeholder confidence
 
-### 4.5.1 Market Size (TAM/SAM/SOM)
+### 3.5.1 Market Size (TAM/SAM/SOM)
 
 | Segment | Size | Description | Source |
 |---------|------|-------------|--------|
@@ -29,7 +29,7 @@ NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
 | **SAM** | $[N]B | [Serviceable addressable market - who we CAN reach] | [Source/year] |
 | **SOM** | $[N]M | [Serviceable obtainable market - realistic year 1-2 target] | [Derived from SAM] |
 
-### 4.5.2 Competitive Landscape
+### 3.5.2 Competitive Landscape
 
 | Competitor | Approach | Strength | Our Differentiation |
 |------------|----------|----------|---------------------|
@@ -38,7 +38,7 @@ NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
 | [Competitor 3] | [Their approach] | [What they do well] | [How we differ] |
 | [Internal tools] | [Current approach] | [Familiarity] | [Why switch] |
 
-### 4.5.3 Market Timing
+### 3.5.3 Market Timing
 
 | Timeframe | Market Signal | Implication |
 |-----------|---------------|-------------|
@@ -47,7 +47,7 @@ NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
 | **12 months** | [Medium-term trend] | [Expected market shift] |
 | **Risk of delay** | [What happens if we wait] | [Competitive risk] |
 
-### 4.5.4 Target Customers (ICP)
+### 3.5.4 Target Customers (ICP)
 
 #### Primary ICP
 
@@ -73,7 +73,7 @@ NOTE: In final PRD, this becomes Section 4.5 (after Problem, before Goals)
 | **Decision Cycle** | [Timeline] |
 | **Success Criteria** | [What they need to see] |
 
-### 4.5.5 Positioning Statement
+### 3.5.5 Positioning Statement
 
 **For** [target customer] **who** [statement of need], **[product name]** is a [product category] **that** [key benefit]. **Unlike** [primary competitor], **our product** [primary differentiation].
 

@@ -5,7 +5,7 @@ TEMPLATE COMPLIANCE v1.5.2 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Trace ALL requirements to source PDRs
 ✓ Use REQ-XXX format for requirements
 ✓ Validate with: ./scripts/validate-prd.sh --strict
-NOTE: In final PRD, this becomes Section 8 (Requirements)
+NOTE: In final PRD, this becomes Section 7 (Requirements)
 -->
 
 # Functional Requirements: [FEATURE_AREA_NAME]
@@ -14,7 +14,7 @@ NOTE: In final PRD, this becomes Section 8 (Requirements)
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Personas, Goals
-**Section Number**: 8 (in final PRD)
+**Section Number**: 7 (in final PRD)
 
 > 🛑 **CHECKPOINT SECTION v1.5.2**: This is the **cornerstone** section that shapes NFRs, Out-of-Scope, Risks, and Roadmap. After generating this section, execution MUST pause for user approval before continuing.
 >
@@ -28,11 +28,11 @@ NOTE: In final PRD, this becomes Section 8 (Requirements)
 
 ---
 
-## 6. Functional Requirements
+## 7. Functional Requirements
 
 **Purpose**: Define what the product must do
 
-### 6.1 User Stories
+### 7.1 User Stories
 
 | ID | Story | Persona | Priority | PDR |
 |----|-------|---------|----------|-----|
@@ -40,7 +40,7 @@ NOTE: In final PRD, this becomes Section 8 (Requirements)
 | US-002 | As a [persona], I want to [action] so that [benefit] | [Persona] | Should | PDR-XXX |
 | US-003 | As a [persona], I want to [action] so that [benefit] | [Persona] | Could | PDR-XXX |
 
-### 6.2 Feature Requirements
+### 7.2 Feature Requirements
 
 #### Feature 1: [Feature Name]
 
@@ -75,7 +75,7 @@ NOTE: In final PRD, this becomes Section 8 (Requirements)
 
 **Traced to:** PDR-XXX (Scope/Feature category)
 
-### 6.3 Requirements Priority Matrix
+### 7.3 Requirements Priority Matrix
 
 | Priority | Count | Description |
 |----------|-------|-------------|
@@ -92,7 +92,7 @@ NOTE: In final PRD, this becomes Section 8 (Requirements)
 |-----|----------|------------------------|
 | [PDR-XXX] | [Decision] | [How it defines requirements] |
 
-### 6.4 Requirement Dependencies
+### 7.4 Requirement Dependencies
 
 Visual representation of dependencies between requirements:
 
@@ -137,5 +137,46 @@ flowchart LR
 - Business layer builds on foundation
 - Growth layer features can proceed in parallel after foundation
 - Critical path: REQ-001 → REQ-002 → REQ-003 → REQ-004
+
+### 7.5 Feature Dependencies
+
+Cross-feature dependency map showing how features relate to each other:
+
+```mermaid
+flowchart LR
+    F1["Feature 1:<br/>[Feature Name]"]
+    F2["Feature 2:<br/>[Feature Name]"]
+    F3["Feature 3:<br/>[Feature Name]"]
+    F4["Feature 4:<br/>[Feature Name]"]
+
+    F1 -->|"required by"| F2
+    F1 -->|"enables"| F3
+    F2 -->|"feeds into"| F4
+    F3 -->|"optional for"| F4
+
+    classDef core fill:#4a9eff,stroke:#333,stroke-width:2px,color:#fff
+    classDef dependent fill:#66c2a5,stroke:#333,stroke-width:2px,color:#fff
+
+    class F1,F2 core
+    class F3,F4 dependent
+```
+
+### 7.6 State Transitions
+
+> **Note**: Include state diagrams only when the feature involves stateful entities (e.g., orders, subscriptions, workflows). Omit this subsection if all requirements are stateless operations.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft
+    Draft --> Submitted : submit()
+    Submitted --> InReview : assign_reviewer()
+    InReview --> Approved : approve()
+    InReview --> Rejected : reject()
+    Rejected --> Draft : revise()
+    Approved --> Active : activate()
+    Active --> Suspended : suspend()
+    Suspended --> Active : reactivate()
+    Active --> [*] : complete()
+```
 
 > 📋 **Related Visuals**: See [State Machine](../../visuals/state-machine.md) for detailed state transitions.
