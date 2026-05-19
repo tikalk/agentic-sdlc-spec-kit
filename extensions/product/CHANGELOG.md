@@ -2,6 +2,22 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.5] - 2026-05-19
+
+### Fixed
+
+- **PDR Lifecycle Management Enforcement**: Step 3.4 was being skipped by AI agents
+  - Added `⚠️ MANDATORY — DO NOT SKIP` warning with explanation of gate consequences
+  - Added Step 4 (Update state.json with lifecycle fields) and Step 5 (Report)
+  - Added `pdr_lifecycle` object to state.json schema: `pdrs_promoted`, `memory_pdr_written`, `memory_pdr_location`, `drafts_retained`, `drafts_reason`
+  - State schema version bumped to 1.2.0 with updated DAG slugs including business sections
+
+- **Final Completion Verification Hardened**: 7 checks → 9 checks
+  - Added Check 5: PRD.md is self-contained (0 `.specify/` links)
+  - Added Check 7: `pdr_lifecycle.memory_pdr_written === true`
+  - Added Check 8: `pdr_lifecycle` object exists in state.json
+  - Added note: "Check 6 is the most commonly skipped"
+
 ## [1.5.4] - 2026-05-19
 
 ### Fixed

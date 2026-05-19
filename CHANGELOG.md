@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc13] - 2026-05-19
+
+### Fixed
+
+- **Product extension v1.5.5**: PDR lifecycle management enforcement
+  - Step 3.4 hardened with DO NOT SKIP warning and gate failure explanation
+  - `pdr_lifecycle` object added to state.json schema (pdrs_promoted, memory_pdr_written, etc.)
+  - Final Completion Verification: 7 → 9 checks (self-contained check, memory written check, lifecycle object check)
+  - State schema version 1.2.0 with business section slugs in DAG
+
 # [0.8.12+adlc12] - 2026-05-19
 
 ### Fixed

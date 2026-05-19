@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc13 | 2026-05-19 | 0.8.12 | Product extension v1.5.5: PDR lifecycle enforcement - mandatory memory promotion, state schema lifecycle fields, 9-check final gate |
 | 0.8.12+adlc12 | 2026-05-19 | 0.8.12 | Product extension v1.5.4: Fix self-contained PRD enforcement - Step 3.3 structure, embedding rules, prd-template .specify/ references |
 | 0.8.12+adlc11 | 2026-05-19 | 0.8.12 | Product extension v1.5.3: Business stakeholder sections (Executive Summary, Market Opportunity, Investment, GTM), self-contained PRD generation, enhanced validation |
 | 0.8.12+adlc10 | 2026-05-19 | 0.8.12 | Product extension v1.5.2: Hardened implement command with compliance checklist, validation scripts, strict template enforcement, ASCII→Mermaid conversion |

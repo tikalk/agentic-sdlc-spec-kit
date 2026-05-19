@@ -1,6 +1,6 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
-version: 1.5.4
+version: 1.5.5
 compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
@@ -9,7 +9,7 @@ scripts:
 
 ---
 
-## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.4)
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.5)
 
 **READ THIS FIRST - MANDATORY REQUIREMENTS**
 
@@ -781,27 +781,47 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 - Constitution references: "as defined in the project constitution" (NOT `[constitution](.specify/memory/constitution.md)`)
 - Section cross-refs: `See [Section 8](#8-functional-requirements)` (in-document anchors only)
 
-### Step 3.4: PDR Lifecycle Management (MANDATORY)
+### Step 3.4: PDR Lifecycle Management (MANDATORY — DO NOT SKIP)
+
+> **⚠️ THIS STEP IS MANDATORY.** The implement command CANNOT be marked "completed" without executing PDR lifecycle management. Skipping this step means the Final Completion Verification (checks 5 and 6) will FAIL, and `state.json` phase MUST NOT be set to "completed".
 
 **Step 1: Filter Accepted PDRs**
-- Identify PDRs with status "Accepted"
-- Skip Discovered/Proposed PDRs
+- Read `{REPO_ROOT}/.specify/drafts/pdr.md`
+- Count PDRs with status "Accepted"
+- Count PDRs with status "Proposed" or "Discovered"
 
-**Step 2: Copy to Canonical Location**
+**Step 2: Copy Accepted PDRs to Memory (MANDATORY)**
 - Write Accepted PDRs to `{REPO_ROOT}/.specify/memory/pdr.md`
-- Merge with existing content
+- If `memory/pdr.md` already exists, merge (append new PDRs, update existing)
+- **Verify file was written**: `ls -la {REPO_ROOT}/.specify/memory/pdr.md`
+- **If write fails → STOP and report error**
 
 **Step 3: Clean Up Drafts**
-- Remove promoted PDRs from drafts
-- If no PDRs remain → DELETE drafts file
+- If ALL PDRs are Accepted → drafts file may be retained for cross-reference analysis
+- If some PDRs remain Proposed/Discovered → keep only those in drafts
+- Set `pdr_lifecycle.drafts_retained` and `pdr_lifecycle.drafts_reason` in state.json
 
-**Step 4: Report Lifecycle Changes**
+**Step 4: Update state.json with Lifecycle Fields**
+```json
+"pdr_lifecycle": {
+  "pdrs_promoted": [N],
+  "memory_pdr_written": true,
+  "memory_pdr_location": ".specify/memory/pdr.md",
+  "drafts_retained": true|false,
+  "drafts_reason": "[reason if retained]"
+}
+```
+
+**Step 5: Report Lifecycle Changes**
 ```
 📋 PDR Lifecycle Summary:
 ├── Promoted to memory: [N] Accepted PDRs
+├── Memory file: .specify/memory/pdr.md ✓
 ├── Remaining in drafts: [M] PDRs (Proposed/Discovered)
 └── Cleanup verified: ✓
 ```
+
+**Failure Mode**: If Step 2 (copy to memory) is not executed, the Final Completion Verification checks 5 and 6 will fail, blocking the "completed" state.
 
 ### Step 3.5: Generate Final Report
 
@@ -842,23 +862,28 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 4. Begin feature development with `/spec.specify`
 ```
 
-## Final Completion Verification (MANDATORY)
+## Final Completion Verification (MANDATORY — ALL CHECKS MUST PASS)
+
+> **⚠️ DO NOT set `phase: "completed"` until ALL checks pass.** This is a hard gate.
 
 **Before marking state.json phase as "completed", verify:**
 
-| Check | Expected | Verification | Status |
-|-------|----------|--------------|--------|
-| 1. Section files on disk | N files | List sections directory | ☐ |
-| 2. PRD.md exists | Yes | Check file existence | ☐ |
-| 3. PRD.md content size | >200 lines | Count lines | ☐ |
-| 4. PRD.md has all sections | N headers | Parse headers | ☐ |
-| 5. Memory PDRs promoted | N Accepted | Count in memory | ☐ |
-| 6. Drafts cleaned | No duplicates | Compare drafts vs memory | ☐ |
-| 7. state.json consistent | All sections "completed" | Verify progress | ☐ |
+| # | Check | Expected | Verification | Status |
+|---|-------|----------|--------------|--------|
+| 1 | Section files on disk | N files | `ls .specify/product/sections/` | ☐ |
+| 2 | PRD.md exists | Yes | `ls PRD.md` | ☐ |
+| 3 | PRD.md content size | >200 lines | `wc -l PRD.md` | ☐ |
+| 4 | PRD.md has all sections | Sections 1-13 + sub-sections | `grep "^## " PRD.md` | ☐ |
+| 5 | PRD.md is self-contained | 0 `.specify/` links | `grep -c '](.specify/' PRD.md` = 0 | ☐ |
+| 6 | **Memory PDRs written** | `memory/pdr.md` exists | `ls .specify/memory/pdr.md` | ☐ |
+| 7 | **`pdr_lifecycle.memory_pdr_written`** | `true` | Check state.json | ☐ |
+| 8 | Drafts status documented | `pdr_lifecycle` in state.json | Check state.json has `pdr_lifecycle` object | ☐ |
+| 9 | state.json consistent | All sections "completed" | Verify progress | ☐ |
 
 **Gate Rule:**
-- If **ALL checks pass**: Mark phase as "completed"
-- If **ANY check fails**: Do NOT mark as completed
+- If **ALL 9 checks pass**: Mark `phase: "completed"` and `pdr_lifecycle.memory_pdr_written: true`
+- If **ANY check fails**: Do NOT mark as completed. Report which check(s) failed.
+- **Check 6 is the most commonly skipped** — verify `memory/pdr.md` actually exists on disk.
 
 ## State File Schema
 
@@ -866,7 +891,7 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 
 ```json
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "created_at": "ISO8601 timestamp",
   "updated_at": "ISO8601 timestamp",
   "phase": "planning | plan_approved | executing | summarizing | completed",
@@ -882,7 +907,7 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
       "name": "Core",
       "pdrs": ["PDR-001"],
       "characteristics": ["b2b", "saas"],
-      "dag": ["overview", "problem", "goals", "metrics", "personas", "requirements", "nfrs", "out-of-scope", "risks", "roadmap", "pdr-summary"],
+      "dag": ["overview", "problem", "market-opportunity", "goals", "metrics", "personas", "executive-summary", "requirements", "nfrs", "out-of-scope", "risks", "investment", "roadmap", "gtm", "pdr-summary"],
       "progress": {
         "overview": "completed",
         "problem": "completed",
@@ -891,11 +916,20 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
       }
     }
   ],
+  "pdr_lifecycle": {
+    "pdrs_promoted": 0,
+    "memory_pdr_written": false,
+    "memory_pdr_location": ".specify/memory/pdr.md",
+    "drafts_retained": false,
+    "drafts_reason": ""
+  },
   "conflicts_detected": [],
   "conflicts_resolved": [],
   "output_file": "PRD.md"
 }
 ```
+
+> **IMPORTANT**: The `pdr_lifecycle` object is MANDATORY. The Final Completion Verification checks `memory_pdr_written === true` before allowing phase "completed". If this field is `false`, the gate MUST fail.
 
 ## Key Rules
 
