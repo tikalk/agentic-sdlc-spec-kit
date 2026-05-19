@@ -2,6 +2,58 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.2] - 2026-05-19
+
+### Added
+
+- **CRITICAL COMPLIANCE CHECKLIST**: Added strict compliance requirements to `commands/implement.md`
+  - MUST use templates (not generate from scratch)
+  - MUST use Mermaid diagrams (ASCII art prohibited in main content)
+  - MUST place Visual Summary as Section 1 (numbered)
+  - MUST validate output with validation scripts
+  
+- **Validation Scripts**: New bash scripts in `scripts/bash/`
+  - `validate-prd.sh`: Validates PRD compliance with v1.5.2 standards
+    - Checks Visual Summary is Section 1
+    - Detects ASCII diagrams in main content
+    - Validates Mermaid syntax
+    - Checks unfilled placeholders
+    - Verifies PDR traceability
+    - Supports `--strict` and `--warn` modes
+  - `validate-pdr.sh`: Validates PDR completeness
+    - Checks constitution is populated (not template)
+    - Validates required sections
+    - Reports inconsistency flags
+
+- **Template Compliance Banners**: Added to all section templates
+  - HTML comment banners at top of each template
+  - Reminds to use Mermaid (not ASCII)
+  - Notes section numbering in final PRD
+  - References validation script
+
+### Changed
+
+- **PRD Template Restructure** (`templates/prd-template.md`):
+  - Section 1: Visual Summary (now **numbered**)
+  - Section 2: Document Information (**new section**)
+  - Sections 3-13: Renumbered content sections
+  - Added compliance banner at top
+  - Added validation checklist at bottom
+  
+- **Hardened implement.md Command**:
+  - Added CRITICAL COMPLIANCE CHECKLIST at top
+  - Added STRICT ENFORCEMENT RULES section
+  - Enhanced template loading instructions (MUST read template first)
+  - Added ASCII to Mermaid conversion instructions
+  - Added validation step to section generation workflow
+
+### Fixed
+
+- **ASCII Diagram Detection**: Added explicit detection and conversion instructions
+  - ASCII diagrams only allowed in `<details>` blocks as fallbacks
+  - Main content MUST use Mermaid
+  - Added validation check for box-drawing characters
+
 ## [1.5.1] - 2026-05-19
 
 ### Fixed

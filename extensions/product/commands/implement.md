@@ -1,9 +1,55 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
+version: 1.5.2
+compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
   ps: .specify/extensions/product/scripts/powershell/setup-product.ps1 "implement {ARGS}"
 ---
+
+---
+
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.2)
+
+**READ THIS FIRST - MANDATORY REQUIREMENTS**
+
+Before generating ANY content, you MUST verify:
+
+- [ ] **MUST** read and use templates from `templates/sections/{section}.md` - **DO NOT generate from scratch**
+- [ ] **MUST** use Mermaid syntax (```mermaid) for ALL diagrams - **ASCII art is STRICTLY PROHIBITED**
+- [ ] **MUST** place "Visual Summary" as **Section 1** (numbered) - right after header
+- [ ] **MUST** include "Document Information" as **Section 2**
+- [ ] **MUST** fill or remove ALL template placeholders like `[PRODUCT_NAME]`, `[DATE]`
+- [ ] **MUST** trace all requirements to source PDRs with ID references
+- [ ] **MUST** validate output with `./scripts/validate-prd.sh --strict` after each section
+
+### STRICT ENFORCEMENT RULES:
+
+1. **Template Usage is MANDATORY**
+   - Read the section template FIRST: `cat templates/sections/{section}.md`
+   - Fill in the [PLACEHOLDERS] with actual content
+   - **NEVER** generate sections from scratch
+   - **VIOLATION = Section is INVALID, must regenerate**
+
+2. **Mermaid Diagrams ONLY**
+   - Use ` ```mermaid ` code blocks
+   - Use `flowchart` keyword (NOT deprecated `graph`)
+   - **ASCII box-drawing characters (┌─┐│) are PROHIBITED**
+   - **VIOLATION = Convert to Mermaid immediately**
+
+3. **Section Numbering is FIXED**
+   - Section 1: Visual Summary (MUST be numbered)
+   - Section 2: Document Information
+   - Section 3: Overview
+   - ... and so on per prd-template.md
+   - **VIOLATION = Renumber to match template**
+
+4. **Validation is REQUIRED**
+   - Run validation script after EACH section
+   - Fix ALL errors before marking "completed"
+   - **VIOLATION = Do not proceed to next section**
+
+**Failure to comply = Regenerate until compliant**
 
 ---
 
@@ -258,10 +304,19 @@ For each section in the DAG:
 
 1. **Check Dependencies**: Ensure all dependencies completed
 2. **Load Dependency Context**: Read completed section files
-3. **Load Section Template**: Read from `templates/sections/{section}.md`
+3. **LOAD SECTION TEMPLATE (STRICT - MUST DO)**: 
+   - **MUST** read: `cat templates/sections/{section}.md`
+   - **MUST** use the template structure exactly as provided
+   - **MUST** fill all [PLACEHOLDERS] with actual content
+   - **MUST NOT** generate content from scratch
+   - **VIOLATION = Section is INVALID**
 4. **Generate Section Content**: Fill template with PDR-derived content
 5. **Write Section File**: Save to disk
-6. **Update State**: Mark section as "completed"
+6. **VALIDATE SECTION (STRICT - MUST DO)**:
+   - Run: `.specify/extensions/product/scripts/validate-prd.sh {section}.md`
+   - Fix ALL errors before proceeding
+   - **VIOLATION = Do not mark "completed"**
+7. **Update State**: Mark section as "completed" ONLY after validation passes
 
 ### Requirements Section Checkpoint (MANDATORY)
 
@@ -407,6 +462,46 @@ flowchart TD
 1. Fix syntax errors
 2. Generate ASCII fallback in `<details>` block
 3. Log error for user review
+
+#### Step 2.8.5b: ASCII to Mermaid Conversion (MANDATORY)
+
+**If PDRs or source content contain ASCII diagrams (box-drawing characters), you MUST convert them to Mermaid:**
+
+**Detection:**
+```bash
+# Detect ASCII box-drawing characters
+grep -P '[\x{2500}-\x{257F}]' content.md
+```
+
+**Conversion Process:**
+1. **Analyze the ASCII diagram** - Understand what it represents
+2. **Choose appropriate Mermaid type:**
+   - Flowchart: For processes, architectures, dependencies
+   - State diagram: For state machines
+   - Journey: For user flows
+   - Gantt: For roadmaps/timelines
+3. **Create Mermaid equivalent** using proper syntax
+4. **Remove or hide ASCII** - Only keep in `<details>` block as fallback
+
+**Example Conversion:**
+```markdown
+<!-- BEFORE: ASCII (PROHIBITED in main content) -->
+┌──────────────┐
+│  Component   │
+└──────────────┘
+       │
+       ▼
+┌──────────────┐
+│  Next Step   │
+└──────────────┘
+
+<!-- AFTER: Mermaid (REQUIRED) -->
+```mermaid
+flowchart TD
+    A["Component"] --> B["Next Step"]
+```
+
+**IMPORTANT:** ASCII diagrams are **ONLY** allowed in `<details>` blocks as fallbacks, NEVER as primary diagrams.
 
 #### Step 2.8.6: Generate ASCII Fallback (Required for Complex Diagrams)
 
