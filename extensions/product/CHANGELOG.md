@@ -2,6 +2,17 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.4] - 2026-05-19
+
+### Fixed
+
+- **Self-Contained PRD Enforcement**: Fixed gaps where the implement command still produced external `.specify/` links
+  - **Step 3.3**: Replaced stale 1-12 structure template with correct v1.5.3 numbering (1, 2, 2.5, 3, 4, 4.5, 5-13) including all business sections
+  - **Step 3.3**: Added explicit self-contained cross-reference rules (PDR refs as text, constitution as text, visuals as in-document anchors)
+  - **Embedding Rules**: Removed contradicting instructions that told agent to "link to full diagram file" and "use relative paths" — now says "in-document anchors" and "no external navigation"
+  - **prd-template.md**: Removed 3 reader-facing `.specify/` references (Visual Summary supplementary note, Related Documents table paths, PDR Summary clickable link)
+  - **Verification Checklist**: Updated to check for ZERO `.specify/` paths in reader-facing content
+
 ## [1.5.3] - 2026-05-19
 
 ### Added

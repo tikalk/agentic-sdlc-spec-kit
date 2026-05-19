@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc12] - 2026-05-19
+
+### Fixed
+
+- **Product extension v1.5.4**: Self-contained PRD enforcement
+  - Step 3.3 structure template updated from stale 1-12 to v1.5.3 numbering with all business sections
+  - Embedding Rules rewritten to use in-document anchors (removed contradicting "link to file" instructions)
+  - prd-template.md: removed 3 reader-facing `.specify/` references
+  - Self-contained cross-reference rules added (PDR as text, visuals as anchors, constitution as text)
+
 # [0.8.12+adlc11] - 2026-05-19
 
 ### Added

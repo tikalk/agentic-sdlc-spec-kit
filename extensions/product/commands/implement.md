@@ -1,6 +1,6 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
-version: 1.5.3
+version: 1.5.4
 compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
@@ -9,7 +9,7 @@ scripts:
 
 ---
 
-## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.3)
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.4)
 
 **READ THIS FIRST - MANDATORY REQUIREMENTS**
 
@@ -680,71 +680,106 @@ These sections derive content from:
 If Mermaid rendering fails, ASCII diagrams are available in the full visual files linked above.
 ```
 
-#### Embedding Rules
+#### Embedding Rules (v1.5.3 — Self-Contained)
 
-1. **Extract Mermaid Blocks**: Copy the mermaid code block from each visual file
+1. **Extract Mermaid Blocks**: Copy the mermaid code block from each visual file into Section 1 of PRD.md
 2. **Preserve Node IDs**: Do NOT modify node IDs (already sanitized in Step 2.8)
-3. **Update Cross-References**: Ensure links use correct relative paths
-4. **Add Navigation**: Each subsection links to full diagram file
-5. **Include Fallback Note**: Mention ASCII fallbacks exist in source files
+3. **Use In-Document Anchors**: All cross-references use `[Section 1.1](#11-feature-hierarchy)` format — **NO external file links**
+4. **No External Navigation**: Do NOT link to visual files or section files — everything is inline
+5. **ASCII Fallback Inline**: If needed, include ASCII fallback in `<details>` blocks **within PRD.md itself** — do NOT reference external source files
 
 #### Verification Checklist
 
-- [ ] Visual Summary section added to PRD.md
-- [ ] All 4 diagram types included (hierarchy, deps, flows, state)
+- [ ] Visual Summary (Section 1) contains inline Mermaid diagrams
+- [ ] All diagram types embedded (hierarchy, deps, roadmap gantt)
 - [ ] Mermaid blocks are complete and valid
-- [ ] Navigation links work (test by clicking)
-- [ ] References from other sections point to Visual Summary
+- [ ] **ZERO** `.specify/` paths in reader-facing content
+- [ ] All cross-references use in-document anchors (`#section-id`)
 
 ### Step 3.3: Aggregate into Unified PRD.md
 
-**Structure**:
+> **CRITICAL (v1.5.3): The PRD.md MUST be SELF-CONTAINED.**
+> - ALL Mermaid diagrams embedded inline in Section 1 (Visual Summary)
+> - ALL business sections (2.5, 4.5, 6.5, 11.4, 11.5, 12.5) included
+> - **ZERO reader-facing links to `.specify/` paths** — use in-document anchors only
+> - Section files and visual files are build artifacts only — do NOT reference them
+
+**Structure** (must match `prd-template.md` exactly):
 
 ```markdown
 # Product Requirements Document: [Product Name]
 
-## 1. Document Information
-[Version, date, status]
+## 1. Visual Summary
+[Inline Mermaid diagrams: feature hierarchy, dependencies, roadmap gantt]
+[Quick Stats table: version, status, PDR count, requirements count]
 
-## 2. Product Overview
-[Unified overview]
+## 2. Document Information
+[Revision history, related documents (NO clickable .specify/ links), approval table]
 
-## 3. Problem Statement
-[Consolidated from all feature-areas]
+## 2.5 Executive Summary
+[One-page business case: opportunity, problem, solution, business impact, investment, ROI, recommendation]
 
-## 4. Goals & Objectives
-[Merged goals]
+## 3. Overview
+[Product description, purpose, scope, architecture (inline Mermaid)]
 
-## 5. Success Metrics
-[Unified metrics]
+## 4. The Problem
+[Problem statement, context, validation evidence]
 
-## 6. Target Personas
-[Consolidated personas]
+## 4.5 Market Opportunity
+[TAM/SAM/SOM, competitive landscape, market timing, ICP, positioning]
 
-## 7. Functional Requirements
-[Merged requirements by feature-area]
+## 5. Goals & Objectives
+[Primary, technical, and business goals traced to PDRs]
 
-### 7.1 Core Requirements
-[Core feature-area requirements]
+## 6. Success Metrics
+[Adoption, engagement, quality metrics]
 
-### 7.2 Business Requirements
-[Business feature-area requirements]
+### 6.5 Business Outcome Metrics
+[Efficiency, quality, time metrics with $ values]
 
-## 8. Non-Functional Requirements
-[Consolidated NFRs]
+### 6.6 Financial Metrics
+[Cost per user, ROI, payback period]
 
-## 9. Out of Scope
-[Unified exclusions]
+## 7. Personas
+[Primary and secondary personas, anti-personas]
 
-## 10. Risks & Mitigation
-[Consolidated risks]
+## 8. Functional Requirements [CHECKPOINT]
+[User stories, feature requirements with REQ-XXX IDs, priority matrix, dependency diagram (inline Mermaid)]
 
-## 11. Roadmap
-[Unified timeline]
+## 9. Non-Functional Requirements
+[Performance, security, reliability, usability, scalability]
 
-## 12. Product Decision Records Summary
-[Index linking to PDRs]
+## 10. Out of Scope
+[Feature, technical, market exclusions with rationale]
+
+## 11. Risks & Mitigation
+[Risk summary table, technical risks, market risks]
+
+### 11.4 Business Risks
+[Adoption, competitive, financial risks]
+
+## 11.5 Investment & Resources
+[Team composition, budget estimate, risk-adjusted ROI, go/no-go criteria]
+
+## 12. Roadmap & Milestones
+[Gantt chart (inline Mermaid), milestone details with demo sentences]
+
+## 12.5 Go-to-Market Strategy
+[Launch phases, pricing tiers, key messaging, success metrics by phase]
+
+## 13. PDR Summary
+[Key decisions table, constitution alignment — NO external links]
+
+## Appendix A: Glossary
+## Appendix B: References
+## Appendix C: Change History
 ```
+
+**Self-Contained Cross-Reference Rules:**
+- Visual references: `See [Section 1.1](#11-feature-hierarchy)` (NOT `[View](visuals/...)`)
+- PDR references: `PDR-078` as text (NOT `[PDR-078](.specify/drafts/pdr.md#pdr-078)`)
+- Constitution references: "as defined in the project constitution" (NOT `[constitution](.specify/memory/constitution.md)`)
+- Section cross-refs: `See [Section 8](#8-functional-requirements)` (in-document anchors only)
 
 ### Step 3.4: PDR Lifecycle Management (MANDATORY)
 

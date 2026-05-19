@@ -19,8 +19,8 @@ Visual diagrams are embedded inline via Mermaid blocks.
 
 ## 1. Visual Summary
 
-> This PRD is **self-contained** - all diagrams are embedded inline below.
-> Supplementary visual files are available in `.specify/product/visuals/` for detailed exploration.
+> This PRD is **self-contained** - all diagrams and content are embedded inline below.
+> No external files are required to read this document.
 
 ### 1.1 Feature Hierarchy
 
@@ -90,12 +90,12 @@ gantt
 
 ### 2.2 Related Documents
 
-| Document | Location | Description |
-|----------|----------|-------------|
-| Product Decision Records | `.specify/drafts/pdr.md` | Source PDRs with decision rationale |
-| Architecture Description | `AD.md` | System architecture and ADRs |
-| Constitution | `.specify/memory/constitution.md` | Project principles and constraints |
-| Visual Diagrams | `.specify/product/visuals/` | Generated diagrams and charts |
+| Document | Description |
+|----------|-------------|
+| Product Decision Records | Source PDRs with decision rationale (see [Section 13](#13-pdr-summary)) |
+| Architecture Description | System architecture and ADRs |
+| Constitution | Project principles and constraints |
+| Visual Diagrams | Embedded inline in [Section 1](#1-visual-summary) |
 
 ### 2.3 Approval
 
@@ -808,7 +808,7 @@ flowchart LR
 
 ## 13. PDR Summary
 
-Detailed Product Decision Records are maintained in [.specify/drafts/pdr.md](.specify/drafts/pdr.md).
+Detailed Product Decision Records are summarized below. Full PDR documents are maintained in the project's `.specify/` directory.
 
 ### 13.1 Key Decisions
 
