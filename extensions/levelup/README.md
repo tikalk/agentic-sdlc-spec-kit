@@ -6,6 +6,55 @@ Discover and contribute context modules (rules, personas, examples, skills) to t
 
 The LevelUp extension helps brownfield projects analyze their codebase and contribute reusable context modules back to the team's shared AI directives repository. It introduces **Context Directive Records (CDRs)** - similar to Architecture Decision Records (ADRs) - for tracking what, why, and how context is being contributed.
 
+## Memory Engineering (v1.3.0)
+
+LevelUp applies **agent memory engineering principles** inspired by production agent memory systems (Claude Code, Codex CLI, Hermes). This ensures directives remain high-quality, fresh, and trustworthy over time.
+
+### Signal Gate
+
+Before publishing to team-ai-directives, CDRs must pass a **signal gate** (strict mode):
+
+| Check | Description | Fail Action |
+|-------|-------------|-------------|
+| **Team-wide** | Pattern applicable across projects | **Skip** |
+| **High Value** | Saves >30min per future use | **Skip** |
+| **Unique** | Not duplicate of existing directive | **Skip** |
+| **Evidence** | Has concrete commits and/or files | **Skip** |
+
+**No-op is valid** - CDRs without evidence remain in local drafts for refinement.
+
+### Verification Metadata
+
+Published directives include YAML frontmatter tracking freshness:
+
+```yaml
+---
+id: rule-python-error-handling
+cdr_ref: CDR-2026-001
+created: 2026-04-15
+modified: 2026-05-18
+verified: 2026-05-18
+age_days: 33
+evidence:
+  - commit: abc123
+    file: src/error_handler.py
+---
+
+> ⚠️ **Memory Verification**
+> This directive is 33 days old. Before applying:
+> - [ ] Pattern still exists in current codebase
+> - [ ] Rule is actively followed by team
+> - [ ] No conflicting rules introduced
+```
+
+### Verification Workflow
+
+Run `/levelup.validate` to:
+1. Scan all directives for conflicts
+2. Update `verified` timestamps for valid directives
+3. Report stale directives (>30 days without verification)
+4. Create CDRs for detected conflicts
+
 ## Commands
 
 | Command | Purpose |
@@ -128,7 +177,6 @@ The extension resolves the team-ai-directives path in this order:
 
 1. `SPECIFY_TEAM_DIRECTIVES` environment variable
 2. `.specify/team-ai-directives` (submodule - recommended)
-3. `.specify/memory/team-ai-directives` (clone - legacy)
 
 ### Extension Config
 

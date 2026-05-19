@@ -237,6 +237,8 @@ When constitution issues are detected:
 ```markdown
 ## Clarification [N]: Constitution Duplication Detected
 
+**Question**: How should this duplicate PDR be handled?
+
 **PDR**: PDR-XXX - [Title]
 **Constitution Principle**: §[Section] - [Principle Name]
 **Issue**: This PDR documents a decision already mandated by constitution
@@ -256,6 +258,8 @@ Reply with your choice (A/B/C/D).
 
 ```markdown
 ## Clarification [N]: Constitution Violation Detected ⭐
+
+**Question**: How should this constitutional violation be resolved?
 
 **PDR**: PDR-XXX - [Title]
 **Decision**: [What the PDR decides]

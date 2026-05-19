@@ -1,5 +1,5 @@
 ---
-description: Session-based ad-hoc task execution with task-level commits (LOW-FRICTION MODE)
+description: Session-based ad-hoc task execution with per-task extension hooks (LOW-FRICTION MODE)
 mode: quick
 scripts:
   sh: |
@@ -29,9 +29,9 @@ scripts:
 ### Design Principles
 
 1. **Minimal stops** - Only one stop (after Mission Brief)
-2. **Task-level commits** - Auto-commit after each task as checkpoints
+2. **Per-task hooks** - Extension hooks fire before/after each task (e.g., auto-commit via git extension)
 3. **Auto-proceed** - No pauses between tasks
-4. **Error commits** - Commit "WIP" on failure before asking user
+4. **Error hooks** - Extension hooks fire on failure before asking user
 
 ---
 
@@ -126,28 +126,80 @@ Generate and display a simple task checklist:
 
 ---
 
-## Execution: Task-Level Commits
+## ⚠️ CRITICAL: Pre-Execution Checks
+
+**MUST complete these checks before proceeding to execution:**
+
+### Step 1: Extension Hooks (before implementation)
+
+**🔴 MANDATORY - DO NOT SKIP THIS STEP**
+
+Execute the following steps in order:
+
+1. **Read** `{REPO_ROOT}/.specify/extensions.yml`
+2. **Locate** the `hooks.before_implement` section in the YAML
+3. **Filter** the hooks:
+   - Remove any hooks where `enabled` is explicitly `false`
+   - Keep hooks where `enabled` is `true` or not specified
+4. **For each remaining hook**, execute based on its `optional` flag:
+   - **If `optional: false` (MANDATORY)**:
+     - Read the command file for the hook from the installed extension commands directory
+     - **Execute the instructions in that command file IMMEDIATELY**
+     - Wait for the hook to complete before proceeding
+     - If the command file is not found, log a warning and continue
+   - **If `optional: true` (OPTIONAL)**:
+     - Display the hook details to the user:
+       ```
+       ## Extension Hooks
+
+       **Optional Pre-Hook**: {extension}
+       Command: `/{command}`
+       Description: {description}
+
+       Prompt: {prompt}
+       To execute: `/{command}`
+       ```
+     - Allow the user to decide whether to execute
+5. **If** `{REPO_ROOT}/.specify/extensions.yml` does not exist or has no `hooks.before_implement` entries, **continue silently** - this is normal
+
+**⚠️ WARNING: Skipping mandatory hooks violates the quick.implement contract.**
+
+---
+
+## Execution: Per-Task Hook Dispatch
 
 ### For Each Task (IN ORDER):
 
 1. **Display task**: `## Task {N}: {description}`
 
-2. **Execute**: Read files if needed, make changes
+2. **Dispatch `before_task_execute` hooks**:
+   - Read `{REPO_ROOT}/.specify/extensions.yml`
+   - Locate the `hooks.before_task_execute` section
+   - Filter out hooks where `enabled` is explicitly `false`
+   - For each remaining hook, execute based on its `optional` flag:
+     - **Mandatory** (`optional: false`): Read and execute the command file immediately
+     - **Optional** (`optional: true`): Skip silently (do not prompt -- maintain low-friction flow)
+   - If no hooks registered or file does not exist, continue silently
 
-3. **Commit after completion**:
-   ```bash
-   git add -A
-   git commit -m "[quick] Task {N}: {task description}"
-   ```
+3. **Execute**: Read files if needed, make changes
 
-4. **Auto-proceed** to next task (no pause)
+4. **Dispatch `after_task_execute` hooks**:
+   - Read `{REPO_ROOT}/.specify/extensions.yml`
+   - Locate the `hooks.after_task_execute` section
+   - Filter out hooks where `enabled` is explicitly `false`
+   - For each remaining hook, execute based on its `optional` flag:
+     - **Mandatory** (`optional: false`): Read and execute the command file immediately
+     - **Optional** (`optional: true`): Skip silently (do not prompt -- maintain low-friction flow)
+   - If no hooks registered or file does not exist, continue silently
+
+5. **Auto-proceed** to next task (no pause)
 
 ### After All Tasks Complete
 
 Display summary:
 
 ```markdown
-## Quick Implementation Complete ✅
+## Quick Implementation Complete
 
 **Tasks completed**:
 - [x] Task 1: ...
@@ -161,23 +213,53 @@ Display summary:
 
 ---
 
+## Post-Execution Checks
+
+### Step 2: Extension Hooks (after implementation)
+
+**Execute after all tasks are complete:**
+
+1. **Read** `{REPO_ROOT}/.specify/extensions.yml`
+2. **Locate** the `hooks.after_implement` section in the YAML
+3. **Filter** the hooks:
+   - Remove any hooks where `enabled` is explicitly `false`
+   - Keep hooks where `enabled` is `true` or not specified
+4. **For each remaining hook**, execute based on its `optional` flag:
+   - **If `optional: false` (MANDATORY)**:
+     - Read the command file for the hook from the installed extension commands directory
+     - **Execute the instructions in that command file IMMEDIATELY**
+     - Wait for the hook to complete before proceeding
+     - If the command file is not found or execution fails, log a warning and continue
+   - **If `optional: true` (OPTIONAL)**:
+     - Display the hook details to the user:
+       ```
+       ## Extension Hooks
+
+       **Optional Hook**: {extension}
+       Command: `/{command}`
+       Description: {description}
+
+       Prompt: {prompt}
+       To execute: `/{command}`
+       ```
+     - Allow the user to decide whether to execute
+5. **If** `{REPO_ROOT}/.specify/extensions.yml` does not exist or has no `hooks.after_implement` entries, **continue silently**
+
+---
+
 ## Error Handling
 
 If a task fails:
 
-1. **Commit WIP state**:
-   ```bash
-   git add -A
-   git commit -m "[quick] Task {N}: WIP - {brief error description}"
-   ```
+1. **Dispatch `after_task_execute` hooks** (allows WIP checkpoint if git extension is configured):
+   - Same dispatch logic as step 4 above
+   - Hooks that auto-commit will capture the WIP state
 
 2. **Display error**:
    ```markdown
-   ❌ **Task Failed**: {task description}
+   **Task Failed**: {task description}
 
    Error: {error message}
-
-   Committed WIP checkpoint.
 
    What would you like to do?
    - (1) Retry this task
@@ -192,25 +274,29 @@ If a task fails:
 ## Critical Constraints
 
 1. **1 stop only** - Mission Brief confirmation is the only interactive stop
-2. **Auto-commit after each task** - Provides rollback/checkpoint capability
-3. **No pauses between tasks** - Auto-proceed after commit
-4. **WIP commit on error** - Always commit before asking user what to do
+2. **Per-task hooks** - `before_task_execute` / `after_task_execute` hooks dispatch around each task (configurable via extensions)
+3. **No pauses between tasks** - Auto-proceed after hooks complete
+4. **Hooks on error** - `after_task_execute` hooks fire on failure before asking user what to do
 5. **No file artifacts** - No PLAN.md, TASKS.md, or other workflow files
 6. **Session-only** - All interaction in conversation
 7. **Manual final commit** - User decides when to push/merge
 
 ---
 
-## Commit Message Format
+## Per-Task Commit Messages (when git extension is enabled)
 
-**Successful task**:
+When the git extension is installed with `after_task_execute.enabled: true` in `.specify/extensions/git/git-config.yml`, the commit message is controlled by the `auto_commit.after_task_execute.message` setting. For example, users can configure:
+
+```yaml
+auto_commit:
+  after_task_execute:
+    enabled: true
+    message: "[quick] Task checkpoint"
+```
+
+Which produces commits like:
 ```
 [quick] Task 1: Add error handling to login API
-```
-
-**Failed task (WIP)**:
-```
-[quick] Task 2: WIP - session validation fix failed
 ```
 
 ---
@@ -219,6 +305,6 @@ If a task fails:
 
 - Task execution happens in actual codebase
 - No workflow/documentation files created
-- Commits provide checkpoint history
-- User can `git reset` to any task if needed
+- Per-task commits provide checkpoint history (when git extension is configured)
+- User can `git reset` to any task if needed (when commits are enabled)
 - User manages final push/merge manually

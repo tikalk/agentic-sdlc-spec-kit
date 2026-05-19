@@ -630,8 +630,8 @@ def check_extension_manifest(output: str, context: dict) -> dict:
 
     score = len(found_fields) / len(required_fields)
 
-    # Check for valid command naming pattern
-    has_valid_commands = bool(re.search(r'speckit\.\w[\w-]*\.\w', output_lower))
+    # Check for valid command naming pattern (fork uses spec.* or speckit.*)
+    has_valid_commands = bool(re.search(r'(speckit|spec)\.\w[\w-]*\.\w', output_lower))
     if has_valid_commands:
         score = min(1.0, score + 0.1)
 
@@ -1396,4 +1396,230 @@ def check_completeness(output: str, context: dict) -> dict:
         'pass': avg_score >= 0.6,
         'score': avg_score,
         'reason': f'Completeness: {avg_score:.0%} ({", ".join(details)})'
+    }
+
+
+def check_hook_execution_flow(output: str, context: dict) -> dict:
+    """
+    Check that the LLM output doesn't contain hook deadlock signals and
+    completes the expected workflow.
+
+    Args:
+        output: The LLM-generated response text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass' (bool), 'score' (0.0-1.0), 'reason' (str)
+    """
+    output_lower = output.lower()
+
+    # Check for deadlock signals - these should NOT be present
+    deadlock_signals = [
+        'execute_command',
+        'wait for the result',
+        'waiting for hook',
+        'waiting for the hook'
+    ]
+    has_deadlock = any(signal in output_lower for signal in deadlock_signals)
+
+    # Check for workflow completion signals
+    completion_signals = [
+        'version',
+        'sync impact',
+        'commit message',
+        'summary',
+        'outline'
+    ]
+    completion_count = sum(1 for sig in completion_signals if sig in output_lower)
+
+    # Check for graceful hook handling (mentions hooks but doesn't block)
+    graceful_mentions = [
+        'read the command file',
+        'execute the instructions',
+        'proceed to',
+        'hook completes'
+    ]
+    graceful_count = sum(1 for sig in graceful_mentions if sig in output_lower)
+
+    # Calculate score
+    # Heavy penalty for deadlock signals
+    if has_deadlock:
+        return {
+            'pass': False,
+            'score': 0.0,
+            'reason': 'DEADLOCK: Contains EXECUTE_COMMAND or "wait for result" - agent likely halted'
+        }
+
+    # Score based on completion signals and graceful handling
+    score = (completion_count / len(completion_signals)) * 0.6 + (graceful_count / len(graceful_mentions)) * 0.4
+
+    missing = []
+    if completion_count < 3:
+        missing.append('workflow completion')
+    if graceful_count < 2:
+        missing.append('graceful hook handling')
+
+    return {
+        'pass': score >= 0.6,
+        'score': score,
+        'reason': f'Score: {score:.0%}. Completion: {completion_count}/{len(completion_signals)}, Graceful: {graceful_count}/{len(graceful_mentions)}. Missing: {", ".join(missing) or "none"}'
+    }
+
+
+def check_quick_implement_hooks(output: str, context: dict) -> dict:
+    """
+    Check that the quick.implement command correctly discovers and executes
+    before_implement and after_implement hooks.
+
+    Args:
+        output: The LLM-generated response text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass' (bool), 'score' (0.0-1.0), 'reason' (str)
+    """
+    output_lower = output.lower()
+
+    # Check for hook discovery
+    hook_discovery = [
+        'extensions.yml',
+        '.specify/extensions',
+        'hooks.before_implement',
+        'hooks.after_implement'
+    ]
+    discovery_count = sum(1 for sig in hook_discovery if sig in output_lower)
+
+    # Check for before_implement hook execution
+    before_signals = [
+        'before_implement',
+        'extension hooks (before implementation)',
+        'mandatory hook',
+        'tdd.implement'
+    ]
+    before_count = sum(1 for sig in before_signals if sig in output_lower)
+
+    # Check for after_implement hook display
+    after_signals = [
+        'after_implement',
+        'extension hooks (after implementation)',
+        'optional hook',
+        'tdd.validate'
+    ]
+    after_count = sum(1 for sig in after_signals if sig in output_lower)
+
+    # Check for workflow phases
+    workflow_signals = [
+        'mission brief',
+        'task breakdown',
+        'execution',
+        'quick implementation complete'
+    ]
+    workflow_count = sum(1 for sig in workflow_signals if sig in output_lower)
+
+    # Calculate score
+    discovery_score = discovery_count / len(hook_discovery) * 0.25
+    before_score = before_count / len(before_signals) * 0.30
+    after_score = after_count / len(after_signals) * 0.25
+    workflow_score = workflow_count / len(workflow_signals) * 0.20
+
+    score = discovery_score + before_score + after_score + workflow_score
+
+    missing = []
+    if discovery_count < 2:
+        missing.append('hook discovery')
+    if before_count < 2:
+        missing.append('before_implement execution')
+    if after_count < 2:
+        missing.append('after_implement display')
+    if workflow_count < 3:
+        missing.append('workflow completion')
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': f'Score: {score:.0%}. Discovery: {discovery_count}/{len(hook_discovery)}, Before: {before_count}/{len(before_signals)}, After: {after_count}/{len(after_signals)}, Workflow: {workflow_count}/{len(workflow_signals)}. Missing: {", ".join(missing) or "none"}'
+    }
+
+
+def check_tdd_in_session_flow(output: str, context: dict) -> dict:
+    """
+    Check that tdd.implement correctly detects context (quick vs spec mode)
+    and runs the appropriate flow.
+
+    Args:
+        output: The LLM-generated response text
+        context: Additional context (unused but required by PromptFoo)
+
+    Returns:
+        dict with 'pass' (bool), 'score' (0.0-1.0), 'reason' (str)
+    """
+    output_lower = output.lower()
+
+    # Check for context detection
+    context_signals = [
+        'context detection',
+        'increment-state.json',
+        'language-detected.json',
+        'quick mode',
+        'spec mode',
+        'in-session',
+        'file-based'
+    ]
+    context_count = sum(1 for sig in context_signals if sig in output_lower)
+
+    # Check for quick mode elements
+    quick_signals = [
+        'language detection',
+        'detect-language',
+        'planning',
+        'public interfaces',
+        'behaviors to test',
+        'testability'
+    ]
+    quick_count = sum(1 for sig in quick_signals if sig in output_lower)
+
+    # Check for TDD phases
+    tdd_signals = [
+        'tdd-001',
+        'degenerate',
+        'happy path',
+        'edge',
+        'red phase',
+        'green phase',
+        'refactor'
+    ]
+    tdd_count = sum(1 for sig in tdd_signals if sig in output_lower)
+
+    # Check for file persistence handling
+    file_signals = [
+        'save state',
+        'load state',
+        'session-only',
+        'not persisted',
+        'tracked in conversation'
+    ]
+    file_count = sum(1 for sig in file_signals if sig in output_lower)
+
+    # Calculate score
+    context_score = min(context_count / 4, 1.0) * 0.30
+    quick_score = min(quick_count / 4, 1.0) * 0.25
+    tdd_score = min(tdd_count / 5, 1.0) * 0.30
+    file_score = min(file_count / 2, 1.0) * 0.15
+
+    score = context_score + quick_score + tdd_score + file_score
+
+    missing = []
+    if context_count < 3:
+        missing.append('context detection')
+    if quick_count < 3:
+        missing.append('quick mode elements')
+    if tdd_count < 4:
+        missing.append('TDD phases')
+    if file_count < 1:
+        missing.append('file persistence handling')
+
+    return {
+        'pass': score >= 0.7,
+        'score': score,
+        'reason': f'Score: {score:.0%}. Context: {context_count}/{len(context_signals)}, Quick: {quick_count}/{len(quick_signals)}, TDD: {tdd_count}/{len(tdd_signals)}, Files: {file_count}/{len(file_signals)}. Missing: {", ".join(missing) or "none"}'
     }

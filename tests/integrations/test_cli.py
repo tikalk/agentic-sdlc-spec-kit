@@ -58,8 +58,8 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
-        assert (project / ".github" / "prompts" / "speckit.plan.prompt.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
+        assert (project / ".github" / "prompts" / "spec.plan.prompt.md").exists()
         assert (project / ".specify" / "scripts" / "bash" / "common.sh").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -99,7 +99,7 @@ class TestInitIntegrationFlag:
 
         assert result.exit_code == 0, result.output
         assert f"defaulting to '{specify_cli.DEFAULT_INIT_INTEGRATION}'" in result.output
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == specify_cli.DEFAULT_INIT_INTEGRATION
@@ -119,7 +119,7 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
     def test_ai_emits_deprecation_warning_with_integration_replacement(self, tmp_path):
         from typer.testing import CliRunner
@@ -146,7 +146,7 @@ class TestInitIntegrationFlag:
         assert "0.10.0" in normalized_output
         assert "--integration copilot" in normalized_output
         assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
+        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
 
     def test_ai_generic_warning_suggests_integration_options_equivalent(self, tmp_path):
         from typer.testing import CliRunner
@@ -172,7 +172,7 @@ class TestInitIntegrationFlag:
         assert "--integration-options" in normalized_output
         assert ".myagent/commands" in normalized_output
         assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".myagent" / "commands" / "speckit.plan.md").exists()
+        assert (project / ".myagent" / "commands" / "spec.plan.md").exists()
 
     def test_ai_claude_here_preserves_preexisting_commands(self, tmp_path):
         from typer.testing import CliRunner
@@ -182,7 +182,7 @@ class TestInitIntegrationFlag:
         project.mkdir()
         commands_dir = project / ".claude" / "skills"
         commands_dir.mkdir(parents=True)
-        skill_dir = commands_dir / "speckit-specify"
+        skill_dir = commands_dir / "spec-specify"
         skill_dir.mkdir(parents=True)
         command_file = skill_dir / "SKILL.md"
         command_file.write_text("# preexisting command\n", encoding="utf-8")
@@ -201,8 +201,8 @@ class TestInitIntegrationFlag:
         assert command_file.exists()
         # init replaces skills (not additive); verify the file has valid skill content
         assert command_file.exists()
-        assert "speckit-specify" in command_file.read_text(encoding="utf-8")
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert "spec-specify" in command_file.read_text(encoding="utf-8")
+        assert (project / ".claude" / "skills" / "spec-plan" / "SKILL.md").exists()
 
     def test_shared_infra_skips_existing_files_without_force(self, tmp_path):
         """Pre-existing shared files are not overwritten without --force."""
@@ -320,8 +320,8 @@ class TestInitIntegrationFlag:
         assert "A new shared manifest will be created" in captured.out
 
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
-    def test_shared_infra_refuses_symlinked_script_destination(self, tmp_path):
-        """Shared script refreshes must not follow destination symlinks."""
+    def test_shared_infra_buckets_symlinked_script_destination(self, tmp_path, capsys):
+        """Symlinked script destinations are bucketed with a warning; the symlink target is preserved."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "symlink-script-test"
@@ -334,14 +334,15 @@ class TestInitIntegrationFlag:
         scripts_dir.mkdir(parents=True)
         os.symlink(outside, scripts_dir / "common.sh")
 
-        with pytest.raises(ValueError, match="Refusing to overwrite symlinked"):
-            _install_shared_infra(project, "sh", force=True)
+        _install_shared_infra(project, "sh", force=True)
 
+        captured = capsys.readouterr()
+        assert "symlinked shared infrastructure" in captured.out
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
-    def test_shared_infra_refuses_symlinked_template_destination(self, tmp_path):
-        """Shared template installs must not follow destination symlinks."""
+    def test_shared_infra_buckets_symlinked_template_destination(self, tmp_path, capsys):
+        """Symlinked template destinations are bucketed with a warning; the symlink target is preserved."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "symlink-template-test"
@@ -354,9 +355,10 @@ class TestInitIntegrationFlag:
         templates_dir.mkdir(parents=True)
         os.symlink(outside, templates_dir / "plan-template.md")
 
-        with pytest.raises(ValueError, match="Refusing to overwrite symlinked"):
-            _install_shared_infra(project, "sh", force=True)
+        _install_shared_infra(project, "sh", force=True)
 
+        captured = capsys.readouterr()
+        assert "symlinked shared infrastructure" in captured.out
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
@@ -381,7 +383,7 @@ class TestInitIntegrationFlag:
 
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_shared_infra_refuses_symlinked_specify_directory_before_mkdir(self, tmp_path):
-        """Shared infra directory creation must not follow a symlinked .specify."""
+        """Shared infra installs must not follow a symlinked .specify directory."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "symlink-dir-test"
@@ -390,8 +392,10 @@ class TestInitIntegrationFlag:
         outside.mkdir()
         os.symlink(outside, project / ".specify")
 
-        with pytest.raises(ValueError, match="symlinked shared infrastructure directory"):
+        with pytest.raises(ValueError, match="symlinked"):
             _install_shared_infra(project, "sh", force=True)
+        # Nothing should have been written under the symlinked .specify target.
+        assert list(outside.iterdir()) == []
 
         assert not (outside / "scripts").exists()
         assert not (outside / "templates").exists()
@@ -465,8 +469,8 @@ class TestInitIntegrationFlag:
         assert outside.read_text(encoding="utf-8") == "# outside\n"
 
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
-    def test_shared_infra_install_preflights_before_writing(self, tmp_path):
-        """Full shared infra installs validate destinations before writing any file."""
+    def test_shared_infra_install_buckets_unsafe_destinations_and_continues(self, tmp_path):
+        """Symlinked destinations are bucketed with a warning; safe destinations in the same install still complete."""
         from specify_cli.shared_infra import install_shared_infra
 
         project = tmp_path / "preflight-install-test"
@@ -486,19 +490,19 @@ class TestInitIntegrationFlag:
         outside.write_text("# outside\n", encoding="utf-8")
         os.symlink(outside, scripts_dir / "z.sh")
 
-        with pytest.raises(ValueError, match="Refusing to overwrite symlinked"):
-            install_shared_infra(
-                project,
-                "sh",
-                version="test",
-                core_pack=core_pack,
-                repo_root=tmp_path / "unused",
-                console=_NoopConsole(),
-                force=True,
-            )
+        install_shared_infra(
+            project,
+            "sh",
+            version="test",
+            core_pack=core_pack,
+            repo_root=tmp_path / "unused",
+            console=_NoopConsole(),
+            force=True,
+        )
 
-        assert existing.read_text(encoding="utf-8") == "# old a\n"
+        # Symlinked z.sh is preserved (bucketed); regular a.sh is overwritten.
         assert outside.read_text(encoding="utf-8") == "# outside\n"
+        assert existing.read_text(encoding="utf-8") == "# new a\n"
 
     def test_shared_infra_install_supports_nested_script_sources(self, tmp_path):
         """Nested script source files create safe destination parents at write time."""
@@ -857,7 +861,7 @@ class TestGitExtensionAutoInstall:
         # Git extension commands should be registered with the agent
         claude_skills = project / ".claude" / "skills"
         assert claude_skills.exists(), "Claude skills directory was not created"
-        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("speckit-git-")]
+        git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("git-")]
         assert len(git_skills) > 0, "no git extension commands registered"
 
 
@@ -865,7 +869,7 @@ class TestSharedInfraCommandRefs:
     """Verify _install_shared_infra resolves __SPECKIT_COMMAND_*__ in page templates."""
 
     def test_dot_separator_in_page_templates(self, tmp_path):
-        """Markdown agents get /speckit.<name> in page templates."""
+        """Markdown agents get /spec.<name> in page templates (fork uses 'spec' prefix)."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "dot-test"
@@ -878,15 +882,15 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit.plan" in content
+        assert "/spec.plan" in content
 
         checklist = project / ".specify" / "templates" / "checklist-template.md"
         content = checklist.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/speckit.checklist" in content
+        assert "/spec.checklist" in content
 
     def test_hyphen_separator_in_page_templates(self, tmp_path):
-        """Skills agents get /speckit-<name> in page templates."""
+        """Skills agents get /spec-<name> in page templates (fork uses 'spec' prefix)."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "hyphen-test"
@@ -899,13 +903,13 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/speckit-plan" in content
-        assert "/speckit.plan" not in content, "dot-notation leaked into skills page template"
+        assert "/spec-plan" in content
+        assert "/spec.plan" not in content, "dot-notation leaked into skills page template"
 
         tasks = project / ".specify" / "templates" / "tasks-template.md"
         content = tasks.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/speckit-tasks" in content
+        assert "/spec-tasks" in content
 
     def test_full_init_claude_resolves_page_templates(self, tmp_path):
         """Full CLI init with Claude (skills agent) produces hyphen refs in page templates."""
@@ -931,7 +935,7 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Claude (skills) should use /speckit-plan"
+        assert "/spec-plan" in content, "Claude (skills) should use /spec-plan"
         assert "__SPECKIT_COMMAND_" not in content
 
     def test_full_init_copilot_resolves_page_templates(self, tmp_path):
@@ -958,7 +962,7 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit.plan" in content, "Copilot (markdown) should use /speckit.plan"
+        assert "/spec.plan" in content, "Copilot (markdown) should use /spec.plan"
         assert "__SPECKIT_COMMAND_" not in content
 
     def test_full_init_copilot_skills_resolves_page_templates(self, tmp_path):
@@ -986,8 +990,8 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/speckit-plan" in content, "Copilot --skills should use /speckit-plan"
-        assert "/speckit.plan" not in content, "dot-notation leaked into Copilot skills page template"
+        assert "/spec-plan" in content, "Copilot --skills should use /spec-plan"
+        assert "/spec.plan" not in content, "dot-notation leaked into Copilot skills page template"
         assert "__SPECKIT_COMMAND_" not in content
 
 
@@ -1213,6 +1217,30 @@ class TestIntegrationCatalogDiscoveryCLI:
         normalized_output = _normalize_cli_output(result.output)
         assert result.exit_code == 1
         assert "contains invalid JSON" in normalized_output
+        assert "integration.json" in normalized_output
+
+    def test_search_rejects_non_utf8_integration_json_before_catalog_lookup(
+        self, tmp_path, monkeypatch
+    ):
+        """A non-UTF8 ``integration.json`` must surface a clear error and
+        avoid falling through to the catalog lookup, mirroring the malformed-JSON
+        case but for the ``UnicodeDecodeError`` branch in ``_read_integration_json``."""
+        project = self._make_project(tmp_path)
+        # 0xFF is invalid as the leading byte of any UTF-8 sequence, so
+        # ``Path.read_text(encoding="utf-8")`` raises ``UnicodeDecodeError``.
+        (project / ".specify" / "integration.json").write_bytes(b"\xff\xfe\x00\x00")
+
+        from specify_cli.integrations.catalog import IntegrationCatalog
+
+        def fail_search(self, **kwargs):
+            raise AssertionError("catalog search should not be called")
+
+        monkeypatch.setattr(IntegrationCatalog, "search", fail_search)
+
+        result = self._invoke(["integration", "search"], project)
+        normalized_output = _normalize_cli_output(result.output)
+        assert result.exit_code == 1
+        assert "not valid UTF-8" in normalized_output
         assert "integration.json" in normalized_output
 
     def test_search_filters_by_tag(self, tmp_path, monkeypatch):

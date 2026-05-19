@@ -906,12 +906,27 @@ class ExtensionManager:
             if not source_file.is_file():
                 continue
 
-            # Derive skill name from command name using the same hyphenated
-            # convention as hook rendering and preset skill registration.
-            short_name_raw = cmd_name
-            if short_name_raw.startswith("speckit."):
-                short_name_raw = short_name_raw[len("speckit.") :]
-            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+            # Derive skill name from command name using alias map
+            # Alias map returns the alias form (e.g., "spec.constitution"),
+            # which we convert to hyphenated skill name (e.g., "spec-constitution")
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved_name = resolve_command_alias(cmd_name, self.project_root)
+            except Exception:
+                resolved_name = cmd_name
+            skill_name = resolved_name.replace(".", "-")
+
+            # Skip creating primary skill when aliases exist (fork alias-only mode)
+            has_aliases = bool(cmd_info.get("aliases"))
+            if has_aliases:
+                # In fork mode, skip primary - alias will be created by register_commands
+                # Detect fork by checking if cli_customization exists
+                try:
+                    import importlib.util
+                    if importlib.util.find_spec("specify_cli.cli_customization") is not None:
+                        continue
+                except Exception:
+                    pass
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
@@ -952,11 +967,13 @@ class ExtensionManager:
             )
             frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
 
-            # Derive a human-friendly title from the command name
-            short_name = cmd_name
-            if short_name.startswith("speckit."):
-                short_name = short_name[len("speckit.") :]
-            title_name = short_name.replace(".", " ").replace("-", " ").title()
+            # Derive a human-friendly title from the command name using alias map
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved_name = resolve_command_alias(cmd_name, self.project_root)
+            except Exception:
+                resolved_name = cmd_name
+            title_name = resolved_name.replace(".", " ").replace("-", " ").title()
 
             skill_content = (
                 f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
@@ -1207,7 +1224,7 @@ class ExtensionManager:
         # was used during project initialisation (feature parity).
         registered_skills = self._register_extension_skills(manifest, dest_dir)
 
-        # Register hooks
+        # Register hooks and update installed list in extensions.yml
         hook_executor = HookExecutor(self.project_root)
         hook_executor.register_hooks(manifest)
 
@@ -1747,28 +1764,20 @@ class ExtensionCatalog:
             raise ValidationError("Catalog URL must be a valid URL with a host.")
 
     def _make_request(self, url: str):
-        """Build a urllib Request, adding auth header when available.
+        """Build a urllib Request, adding auth headers when a provider matches.
 
-        Supports GitHub and GitLab authentication via environment variables.
+        Delegates to :func:`specify_cli.authentication.http.build_request`.
         """
-        from specify_cli._github_http import build_github_request
-        from specify_cli._gitlab_http import build_gitlab_request, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return build_gitlab_request(url)
-        return build_github_request(url)
+        from specify_cli.authentication.http import build_request
+        return build_request(url)
 
     def _open_url(self, url: str, timeout: int = 10):
-        """Open a URL with auth, stripping the header on cross-host redirects.
+        """Open a URL with provider-based auth, trying each configured provider.
 
-        Supports GitHub and GitLab authentication.
+        Delegates to :func:`specify_cli.authentication.http.open_url`.
         """
-        from specify_cli._github_http import open_github_url
-        from specify_cli._gitlab_http import open_gitlab_url, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return open_gitlab_url(url, timeout)
-        return open_github_url(url, timeout)
+        from specify_cli.authentication.http import open_url
+        return open_url(url, timeout)
 
     def _load_catalog_config(self, config_path: Path) -> Optional[List[CatalogEntry]]:
         """Load catalog stack configuration from a YAML file.
@@ -2517,15 +2526,24 @@ class HookExecutor:
             self._init_options_cache = payload if isinstance(payload, dict) else {}
         return self._init_options_cache
 
-    @staticmethod
-    def _skill_name_from_command(command: Any) -> str:
-        """Map a command id like speckit.plan to speckit-plan skill name."""
+    def _skill_name_from_command(self, command: Any) -> str:
+        """Map a command id to skill name (e.g., speckit.plan -> speckit-plan).
+
+        Handles fork prefixes: adlc.* -> adlc-*, spec.* -> spec-*, git.* -> git-*
+        """
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
-        if not command_id.startswith("speckit."):
-            return ""
-        return f"speckit-{command_id[len('speckit.') :].replace('.', '-')}"
+
+        # Use alias map to resolve to alias form, then convert to hyphenated skill name
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(command_id, self.project_root)
+        except Exception:
+            resolved_name = command_id
+        skill_name = resolved_name.replace(".", "-")
+
+        return skill_name
 
     def _render_hook_invocation(self, command: Any) -> str:
         """Render an agent-specific invocation string for a hook command."""
@@ -2559,6 +2577,14 @@ class HookExecutor:
         if cursor_skill_mode and skill_name:
             return f"/{skill_name}"
 
+        # For non-skill agents in the fork, use alias map to resolve command name
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved = resolve_command_alias(command_id, self.project_root)
+            return f"/{resolved}"
+        except Exception:
+            pass
+
         return f"/{command_id}"
 
     def get_project_config(self) -> Dict[str, Any]:
@@ -2575,7 +2601,32 @@ class HookExecutor:
             }
 
         try:
-            return yaml.safe_load(self.config_file.read_text(encoding="utf-8")) or {}
+            result = yaml.safe_load(self.config_file.read_text(encoding="utf-8"))
+            # Coerce non-dict root (including None for an empty file) to the
+            # fully-normalized default so callers always get guaranteed fields.
+            if not isinstance(result, dict):
+                return {
+                    "installed": [],
+                    "settings": {"auto_execute_hooks": True},
+                    "hooks": {},
+                }
+            # Normalize nested fields so read-only callers like get_hooks_for_event()
+            # never see non-dict hooks or non-list installed (Feedback)
+            if not isinstance(result.get("hooks"), dict):
+                result["hooks"] = {}
+            if not isinstance(result.get("installed"), list):
+                result["installed"] = []
+            if not isinstance(result.get("settings"), dict):
+                result["settings"] = {"auto_execute_hooks": True}
+            # Sanitize hook event values: coerce non-list values to [] and filter
+            # non-dict items so get_hooks_for_event() can safely call .get() (Feedback)
+            for event_key in list(result["hooks"]):
+                event_val = result["hooks"][event_key]
+                if not isinstance(event_val, list):
+                    result["hooks"][event_key] = []
+                else:
+                    result["hooks"][event_key] = [h for h in event_val if isinstance(h, dict)]
+            return result
         except (yaml.YAMLError, OSError, UnicodeError):
             return {
                 "installed": [],
@@ -2597,25 +2648,141 @@ class HookExecutor:
             encoding="utf-8",
         )
 
+    def register_extension(self, extension_id: str):
+        """Add extension to the installed list in project config.
+
+        Args:
+            extension_id: ID of extension to register
+        """
+        config = self.get_project_config()
+
+        # Ensure config is a dict (defensive)
+        if not isinstance(config, dict):
+            config = {}
+
+        raw_installed = config.get("installed")
+        sanitized = self._sanitize_installed_list(raw_installed, add_id=extension_id)
+
+        if sanitized != raw_installed:
+            config["installed"] = sanitized
+            self.save_project_config(config)
+
+    def unregister_extension(self, extension_id: str):
+        """Remove extension from the installed list in project config.
+
+        Args:
+            extension_id: ID of extension to unregister
+        """
+        config = self.get_project_config()
+
+        if not isinstance(config, dict):
+            config = {}
+
+        raw_installed = config.get("installed")
+        sanitized = self._sanitize_installed_list(raw_installed, remove_id=extension_id)
+
+        # Always persist if sanitized state differs from raw config (ensures normalization)
+        if sanitized != raw_installed:
+            config["installed"] = sanitized
+            self.save_project_config(config)
+
+    @staticmethod
+    def _sanitize_installed_list(
+        raw: object,
+        *,
+        add_id: str = "",
+        remove_id: str = "",
+    ) -> list:
+        """Normalize, deduplicate, and optionally add/remove an extension id.
+
+        Shared by register_extension() and unregister_extension() to prevent
+        the two paths from drifting.
+
+        Args:
+            raw: The raw value from config["installed"] (may be non-list).
+            add_id: If non-empty, ensure this id is present (plain-string fallback).
+            remove_id: If non-empty, remove this id from the list.
+
+        Returns:
+            A sanitized, deduplicated, alphabetically-sorted list.
+        """
+        _VALID_ID = re.compile(r'^[a-z0-9-]+$')
+
+        installed = raw if isinstance(raw, list) else []
+
+        # Keep only entries whose resolved id is a non-empty string matching
+        # the extension-id format (^[a-z0-9-]+$), same rule ExtensionManifest enforces.
+        def _valid_entry(x: object) -> bool:
+            if isinstance(x, str):
+                return bool(_VALID_ID.match(x.strip()))
+            if isinstance(x, dict):
+                eid = x.get("id")
+                return isinstance(eid, str) and bool(_VALID_ID.match(eid.strip()))
+            return False
+
+        valid = [x for x in installed if _valid_entry(x)]
+
+        # Deduplicate by id: prefer dict (richer metadata) over plain string
+        seen: dict = {}  # id -> entry (dict preferred over str)
+        for x in valid:
+            eid = x.strip() if isinstance(x, str) else x.get("id", "").strip()
+            if eid not in seen or isinstance(x, dict):
+                seen[eid] = x
+
+        # Validate add_id against the same regex before inserting
+        if add_id and _VALID_ID.match(add_id.strip()) and add_id not in seen:
+            seen[add_id] = add_id
+
+        if remove_id:
+            seen.pop(remove_id, None)
+
+        def _sort_key(x: object) -> str:
+            return x if isinstance(x, str) else x.get("id", "")  # type: ignore[return-value]
+
+        return sorted(seen.values(), key=_sort_key)
+
     def register_hooks(self, manifest: ExtensionManifest):
         """Register extension hooks in project config.
 
         Args:
             manifest: Extension manifest with hooks to register
         """
+        # Always ensure the extension is in the installed list
+        self.register_extension(manifest.id)
+
         if not hasattr(manifest, "hooks") or not manifest.hooks:
             return
 
         config = self.get_project_config()
 
-        # Ensure hooks dict exists
-        if "hooks" not in config:
+        # Ensure config is a dict (defensive)
+        changed = False
+        if not isinstance(config, dict):
+            config = {}
+            changed = True
+
+        # Ensure hooks dict exists and is a mapping
+        if "hooks" not in config or not isinstance(config["hooks"], dict):
             config["hooks"] = {}
+            changed = True
+        else:
+            # Sanitize existing hook lists to prevent crashes in downstream code (Feedback)
+            for h_name in list(config["hooks"].keys()):
+                h_list = config["hooks"][h_name]
+                if not isinstance(h_list, list):
+                    config["hooks"][h_name] = []
+                    changed = True
+                else:
+                    sanitized_h_list = [h for h in h_list if isinstance(h, dict)]
+                    if len(sanitized_h_list) != len(h_list):
+                        config["hooks"][h_name] = sanitized_h_list
+                        changed = True
 
         # Register each hook
         for hook_name, hook_config in manifest.hooks.items():
-            if hook_name not in config["hooks"]:
+            if hook_name not in config["hooks"] or not isinstance(config["hooks"][hook_name], list):
                 config["hooks"][hook_name] = []
+                changed = True
 
             # Add hook entry
             hook_entry = {
@@ -2630,22 +2797,22 @@ class HookExecutor:
                 "condition": hook_config.get("condition"),
             }
 
-            # Check if already registered
-            existing = [
-                h
-                for h in config["hooks"][hook_name]
-                if h.get("extension") == manifest.id
+            # Deduplicate: remove all existing entries for this extension on this
+            # hook event, then append the single canonical entry. This prevents
+            # multiple hooks firing when hand-edited or older versions leave
+            # duplicate entries behind. (Feedback from review)
+            original_list = config["hooks"][hook_name]
+            deduped = [
+                h for h in original_list
+                if not (isinstance(h, dict) and h.get("extension") == manifest.id)
             ]
+            deduped.append(hook_entry)
+            if deduped != original_list:
+                config["hooks"][hook_name] = deduped
+                changed = True
 
-            if not existing:
-                config["hooks"][hook_name].append(hook_entry)
-            else:
-                # Update existing
-                for i, h in enumerate(config["hooks"][hook_name]):
-                    if h.get("extension") == manifest.id:
-                        config["hooks"][hook_name][i] = hook_entry
-
-        self.save_project_config(config)
+        if changed:
+            self.save_project_config(config)
 
     def unregister_hooks(self, extension_id: str):
         """Remove extension hooks from project config.
@@ -2653,17 +2820,30 @@ class HookExecutor:
         Args:
             extension_id: ID of extension to unregister
         """
+        # Always remove from installed list (Feedback from review)
+        self.unregister_extension(extension_id)
+
         config = self.get_project_config()
 
-        if "hooks" not in config:
+        if not isinstance(config, dict):
+            config = {}
+            # We don't save yet, as there are no hooks to unregister, 
+            # but unregister_extension above might have already saved a normalized config.
+            return
+
+        if "hooks" not in config or not isinstance(config["hooks"], dict):
             return
 
         # Remove hooks for this extension
-        for hook_name in config["hooks"]:
+        for hook_name in list(config["hooks"].keys()):
+            hook_list = config["hooks"][hook_name]
+            if not isinstance(hook_list, list):
+                config["hooks"][hook_name] = []
+                continue
             config["hooks"][hook_name] = [
                 h
-                for h in config["hooks"][hook_name]
-                if h.get("extension") != extension_id
+                for h in hook_list
+                if isinstance(h, dict) and h.get("extension") != extension_id
             ]
 
         # Clean up empty hook arrays
@@ -2814,11 +2994,16 @@ class HookExecutor:
             extension = hook.get("extension")
             command = hook.get("command")
             invocation = self._render_hook_invocation(command)
-            command_text = (
-                command
-                if isinstance(command, str) and command.strip()
-                else "<missing command>"
-            )
+            # Resolve command to alias for display (fork mode)
+            raw_command = command if isinstance(command, str) and command.strip() else ""
+            if raw_command:
+                try:
+                    from specify_cli.cli_customization import resolve_command_alias
+                    command_text = resolve_command_alias(raw_command, self.project_root)
+                except Exception:
+                    command_text = raw_command
+            else:
+                command_text = "<missing command>"
             display_invocation = invocation or (
                 f"/{command_text}"
                 if command_text != "<missing command>"
@@ -2838,8 +3023,9 @@ class HookExecutor:
             else:
                 lines.append(f"\n**Automatic Hook**: {extension}")
                 lines.append(f"Executing: `{display_invocation}`")
-                lines.append(f"EXECUTE_COMMAND: {command_text}")
-                lines.append(f"EXECUTE_COMMAND_INVOCATION: {display_invocation}")
+                lines.append(f"Execute now: read the command file for `{command_text}` and run its instructions.")
+                lines.append(f"Invocation: `{display_invocation}`")
+                lines.append("If the command file is not found or execution fails, log a warning and continue.")
 
         return "\n".join(lines)
 

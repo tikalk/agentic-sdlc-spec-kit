@@ -2,6 +2,64 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.0.8] - 2026-05-17
+
+### Fixed
+
+- **P1-Critical**: Fixed setup-architect.sh clarify action to check drafts/adr.md (not memory) with fallback
+- **P1-Critical**: Removed duplicate ADR_FILE variable definition in setup-architect.sh
+- **P2-High**: Hardened implement.md pre-flight validation with hard enforcement and --force flag
+- **P2-High**: Added workflow state tracking for clarify → implement pipeline enforcement
+- **P3-Medium**: Added placeholder validation to catch unfilled [TBD], [STAKEHOLDER_*] patterns
+- **P4-Low**: Added missing 3.1.2 Stakeholders subsection to context view template
+- **P4-Low**: Clarified stakeholder vs external entities distinction in AD-template.md
+
+### Added
+
+- `--force` flag for emergency bypass of workflow validation (with clear warnings)
+- Workflow state tracking in state.json (`workflow.clarify_completed`, etc.)
+- Placeholder validation report template
+- ADR fallback logic in clarify action (drafts → memory)
+
+## [2.0.7] - 2026-05-16
+
+### Fixed
+
+- **Sub-System Detection Hardening** for `/architect.init` and `/architect.specify`:
+  - Added **Detection Source Reconciliation** rules to handle script vs AI detection mismatches
+  - Made **Step 4 (Sub-System Proposal) MANDATORY** when sub-systems are identified through ANY method
+  - Added **Critical Enforcement Note**: Cannot skip to monolithic if sub-systems exist
+  - Strengthened **Threshold Logic Enforcement** with mandatory user confirmation for 4+ sub-systems
+  - Added **Self-Check Requirements** before proceeding to Phase 1
+  - Prevents agents from ignoring AI-identified sub-systems when script reports "none detected"
+
+### Changed
+
+- Step 4 headers now explicitly marked as "MANDATORY if sub-systems identified"
+- Threshold logic now presented as enforcement table with "Can Skip?" column
+- Clear rules for when user confirmation is required vs optional
+- Added explicit prohibition on proceeding as monolithic when sub-systems detected
+
+## [2.0.6] - 2026-05-16
+
+### Fixed
+
+- **Hardened `/architect.implement`** with mandatory execution constraints to prevent phase skipping:
+  - Added pre-flight validation: Check ADRs exist with "Accepted" status before starting
+  - Added Phase 2→3 verification gate: All view files must exist on disk before aggregation
+  - Enforced disk-read requirement: Phase 3 MUST read views from disk, not memory
+  - Added completion verification: 7-point checklist before marking state "completed"
+- **Strengthened `/architect.init`**: Enforce "Discovered" status (never "Accepted")
+- **Strengthened `/architect.specify`**: Enforce "Proposed" status (never "Accepted")
+- **Strengthened `/architect.clarify`**: Made Phase 5.5 approval gateway explicit with verification
+- **Added empty views detection** to `/architect.analyze` to catch state.json/views mismatches
+
+### Changed
+
+- All architect commands now have stricter enforcement of workflow boundaries
+- Added mandatory constraints blocks with bright-line rules
+- Enhanced verification gates between phases
+
 ## [2.0.4] - 2026-04-30
 
 ### Fixed

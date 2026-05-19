@@ -1,0 +1,248 @@
+# Eval: Quick Implement + TDD Extension Integration
+
+You are evaluating the end-to-end integration of `/quick.implement` with the TDD extension via hooks.
+
+## Scenario
+
+A developer runs `/quick.implement` in a project where the TDD extension is installed and registered as a `before_implement` hook. This tests the complete flow from quick command invocation through TDD execution to task completion.
+
+## Project Setup
+
+```
+my-project/
+├── src/
+│   ├── api/
+│   │   └── __init__.py
+│   └── auth.py
+├── tests/
+│   └── __init__.py
+├── pyproject.toml
+└── .specify/
+    └── extensions.yml
+```
+
+### Extensions Configuration (.specify/extensions.yml)
+
+```yaml
+installed:
+  - tdd
+  - git
+
+settings:
+  auto_execute_hooks: true
+
+hooks:
+  before_implement:
+    - extension: tdd
+      command: tdd.implement
+      enabled: true
+      optional: false
+      description: "Execute RED→GREEN→REFACTOR TDD cycle before implementation"
+      
+  after_implement:
+    - extension: tdd
+      command: tdd.validate
+      enabled: true
+      optional: true
+      description: "Validate test quality after implementation"
+```
+
+## Complete Expected Flow
+
+### Phase 1: Quick Command Initialization
+
+```
+/quick.implement "Add JWT authentication to API endpoints"
+```
+
+**Mission Brief**:
+- Q1: "Add JWT-based auth middleware" → User: "Add JWT authentication"
+- Q2: "Protected endpoints return 401 without valid token, 200 with token" → User: "API validates JWT tokens"
+- Q3: "Use existing middleware pattern, Python 3.11+" → User: "Keep it simple, use PyJWT"
+- Approval: "yes"
+
+**Context Discovery**:
+- User: "Check src/auth.py and the existing middleware in src/api/"
+
+**Task Breakdown** (auto-generated):
+```markdown
+- [ ] Create JWT token validation utility
+- [ ] Add authentication middleware
+- [ ] Protect sensitive endpoints
+- [ ] Add token refresh mechanism
+```
+
+### Phase 2: before_implement Hook (TDD)
+
+**Quick checks hooks.before_implement**, finds mandatory TDD hook, and executes it.
+
+**TDD runs in-session** (no spec artifacts exist):
+1. **Context Detection**: "No spec artifacts → Quick Mode"
+2. **Language Detection**: Python/pytest detected
+3. **Condensed Planning** (may skip questions if context is clear):
+   - Interfaces: JWT validation functions, middleware decorator
+   - Behaviors: Valid token → allow, invalid → 401, missing → 401
+   - Concerns: None (pure functions)
+4. **Generate Increments**:
+   - TDD-001: Handle missing Authorization header
+   - TDD-002: Handle malformed JWT format
+   - TDD-003 [P]: Valid token allows request
+   - TDD-004: Handle expired token
+   - TDD-005: Handle invalid signature
+   - TDD-006: Handle refresh token flow
+5. **RED→GREEN→REFACTOR**: Executes for each increment
+
+### Phase 3: Quick Task Execution
+
+After TDD hook completes, quick executes tasks with per-task hook dispatch:
+
+```
+## Task Execution with Hooks
+
+**Task 1**: Create JWT token validation utility
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 2**: Add authentication middleware  
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 3**: Protect sensitive endpoints
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+**Task 4**: Add token refresh mechanism
+- Dispatching before_task_execute hook...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+```
+
+### Phase 4: after_implement Hook (Optional)
+
+**Quick checks hooks.after_implement**, finds optional TDD hook, displays it:
+
+```
+## Extension Hooks (after implementation)
+
+**Optional Hook**: tdd
+Command: /tdd.validate
+Description: Validate test quality after implementation
+
+Prompt: Run /tdd.validate to check test quality
+To execute: /tdd.validate
+```
+
+### Phase 5: Summary
+
+```markdown
+## Quick Implementation Complete ✅
+
+**TDD Results**:
+- 6 increments completed (RED→GREEN→REFACTOR)
+- Test files: tests/test_jwt.py, tests/test_middleware.py
+
+**Tasks completed**:
+- [x] Task 1: Create JWT token validation utility
+- [x] Task 2: Add authentication middleware
+- [x] Task 3: Protect sensitive endpoints
+- [x] Task 4: Add token refresh mechanism
+
+**Files modified**: 5
+
+**Next steps**: Run /tdd.validate to check test quality
+```
+
+## Evaluation Criteria
+
+### MUST HAVE (Critical)
+
+1. **Hook Chain Works**: 
+   - Quick checks hooks before execution
+   - Mandatory hook (tdd.implement) fires before task execution
+   - TDD runs completely in-session
+   - Quick tasks execute after TDD completes
+
+2. **TDD Context Detection**:
+   - TDD detects NO spec artifacts
+   - Enters in-session/quick mode (not file-based mode)
+   - Does NOT create increment-state.json or tasks.md
+
+3. **Complete TDD Flow in Session**:
+   - Language detection runs
+   - Planning happens (questions asked or noted as answered)
+   - Increments generated (TDD-001+ format)
+   - RED→GREEN→REFACTOR executes
+
+4. **Quick Continuation**:
+    - After TDD hook, quick tasks proceed
+    - Per-task hooks dispatch (before_task_execute/after_task_execute)
+    - No duplicate TDD cycles
+
+5. **Optional Hook Displayed**:
+   - after_implement hook shown after tasks
+   - Presented as optional (not mandatory execution)
+
+### SHOULD HAVE (Important)
+
+6. **No File Artifacts**: No TDD state files created (increment-state.json, language-detected.json)
+7. **Session-Only Warning**: TDD notes that progress is session-only
+8. **Per-task Hooks Dispatched**: Quick dispatches before_task_execute/after_task_execute hooks around each task
+9. **Increment Categories**: Degenerate, Happy, Edge, Error categories in TDD
+10. **Valid Naming**: TDD-001, TDD-002... naming convention
+
+### NICE TO HAVE (Minor)
+
+11. **Clear Phase Separation**: Visual distinction between TDD phase and Quick execution
+12. **Hook Description**: Shows TDD hook description
+13. **Test File Creation**: TDD creates actual test files (not just in-session)
+14. **Validation Offer**: Clear prompt to run tdd.validate
+
+## Scoring
+
+- **Pass (1.0)**: All 5 MUST HAVE criteria met
+- **Partial (0.5)**: At least 3 of 5 MUST HAVE criteria met
+- **Fail (0.0)**: Fewer than 3 MUST HAVE criteria met
+
+## Common Failure Patterns
+
+1. **Deadlock**: TDD hook waits for user confirmation in a way that blocks
+2. **Mode Confusion**: TDD tries to read/write files in quick mode
+3. **Missing Hook**: Quick doesn't check for hooks at all
+4. **Wrong Hook Timing**: TDD runs after quick tasks instead of before
+5. **No Quick Continuation**: TDD hook runs but quick tasks don't proceed
+6. **Duplicate Execution**: Both TDD and quick try to implement the same code
+7. **Artifact Creation**: TDD writes files despite being in quick mode
+
+## Success Indicators
+
+A passing output should clearly show this progression:
+
+```
+[Quick Mission Brief]
+   ↓
+[Quick Context + Tasks]
+   ↓
+[before_implement hook check] → Executes TDD
+   ↓
+[TDD: Context Detection → Language → Planning → Increments → RED/GREEN/REFACTOR]
+   ↓
+[Quick Task Execution with commits]
+   ↓
+[after_implement hook check] → Shows optional TDD validation
+   ↓
+[Quick Summary with both TDD and Task results]
+```
+
+## Input to Agent
+
+```
+/quick.implement "Add JWT authentication to API endpoints"
+```
+
+User responses:
+- Q1: "Add JWT authentication"  
+- Q2: "API validates tokens, returns 401 for invalid/missing"
+- Q3: "Use PyJWT, keep middleware pattern consistent"
+- Approval: "yes"
+- Context: "Check src/auth.py and src/api/"
+
+Evaluate the complete output against the criteria.

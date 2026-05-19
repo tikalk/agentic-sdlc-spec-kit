@@ -234,6 +234,23 @@ For each ADR:
    - Mermaid syntax valid (no broken diagrams)
    - Consistent styling across diagrams
 
+5. **View File Consistency** (DAG State Validation):
+   - Check if `.specify/architect/state.json` exists and reports views as "completed"
+   - Check if `.specify/architect/views/` directory exists
+   - Verify that for each "completed" view in state.json, a corresponding file exists on disk
+   - **Flag as HIGH severity if**:
+     - state.json reports views "completed" but views/ directory is empty
+     - View files exist but are under 20 lines (placeholder/skeleton content)
+     - View files cannot be read (corrupted/missing permissions)
+   - **Report format**:
+     ```
+     DAG State Inconsistency Detected:
+     - State reports: [N] views completed
+     - Files on disk: [M] view files found
+     - Missing files: [list of missing views]
+     - Recommendation: Regenerate views or reset state.json
+     ```
+
 #### Pass F: Staleness Detection
 
 **Objective**: Identify outdated references and placeholders

@@ -5,6 +5,140 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-18
+
+### Added
+
+- **Multi-Agent Sub-System Analysis**: Complete refactor of `/levelup.init` with three-phase pipeline
+  - **Discovery Agent** (Phase 5): Scans each sub-system for raw patterns with evidence
+  - **Pattern Agent** (Phase 6): Classifies patterns, scores reusability (0.0-1.0), checks team-directives
+  - **Synthesis Agent** (Phase 7): Cross-sub-system analysis generating final CDRs
+  
+- **Cross-Sub-System Pattern Detection**:
+  - Detects patterns appearing in ≥50% of sub-systems (cross-cutting)
+  - Calculates cross-system score per pattern
+  - Flags high-priority cross-cutting concerns
+  
+- **Inconsistency Detection**:
+  - Automatic detection of same concern with different implementations
+  - Creates special "Inconsistency" CDRs requiring team decision
+  - Tracks resolution status and implementation plan
+  
+- **State Management & Resumability**:
+  - State persisted to `.specify/levelup/state.json`
+  - Resume interrupted scans with `--resume` flag
+  - Per-sub-system checkpoint tracking
+  
+- **Team-Directives Comparison**:
+  - Pattern Agent checks for existing similar patterns
+  - Similarity scoring (0.0-1.0)
+  - Gap identification for missing patterns
+  
+- **Cross-Sub-System Validation in Implement**:
+  - Phase 1.8: Detects duplicate targets, rule conflicts, unresolved inconsistencies
+  - Blocks implementation until conflicts resolved
+  - Recommends `/levelup.clarify` for resolution
+
+### Changed
+
+- `/levelup.init`: Complete rewrite with multi-agent architecture
+  - Sequential execution per sub-system
+  - State-based resumability
+  - Cross-system metadata in all CDRs
+  
+- `/levelup.implement`: Added Phase 1.8 for cross-sub-system conflict detection
+
+- `cdr-template.md`: Added cross-system metadata and inconsistency resolution sections
+
+- `extension.yml`: 
+  - Version bump to 1.4.0
+  - Added state, subagents, cross_system configuration
+  - New tags: subagents, cross-system-analysis, inconsistency-detection
+
+### Technical Details
+
+- **New Files**: 3 sub-agent prompt templates (discovery-prompt.md, pattern-prompt.md, synthesis-prompt.md)
+- **Modified Files**: init.md, implement.md, cdr-template.md, extension.yml
+- **Breaking Changes**: None (backward compatible)
+- **Minimum speckit_version**: >=0.0.80 (unchanged)
+
+## [1.3.0] - 2026-05-18
+
+### Added
+
+- **Agent Memory Engineering**: Applied principles from production agent memory systems (Claude Code, Codex CLI, Hermes)
+  - Signal Gate: Filters CDRs before publishing (strict mode - skips without evidence)
+  - Verification Metadata: YAML frontmatter with `created`, `verified`, `age_days`
+  - Freshness Tracking: Warnings for directives >30 days old
+  - Verification Workflow: `/levelup.validate` updates timestamps for valid directives
+  
+- **New Templates with Memory Metadata**:
+  - `rule-team-template.md`: Rule with YAML frontmatter and verification banner
+  - `persona-team-template.md`: Persona with memory metadata
+  - `example-team-template.md`: Example with freshness warnings
+  - `skill-team-template.md`: Skill with verification log
+
+- **Configuration Options**:
+  - `memory_engineering.signal_gate`: Configure strict mode and criteria
+  - `memory_engineering.verification`: Set age threshold (default: 30 days)
+  - `memory_engineering.metadata`: Control frontmatter and banner inclusion
+
+### Changed
+
+- `/levelup.implement`:
+  - Added Signal Gate phase (Phase 1.5) that filters CDRs without concrete evidence
+  - Generates YAML frontmatter with `id`, `cdr_ref`, `created`, `modified`, `verified`, `age_days`
+  - Adds freshness warning banner to published directives
+  - Creates verification log table in directive files
+  - Updated CDR.md index format with Created, Verified, Age columns
+
+- `/levelup.validate`:
+  - Added Phase 6: Verification Update (updates `verified` timestamps)
+  - Resets `age_days` to 0 for valid directives
+  - Reports stale directives (>30 days without verification)
+  - Creates verification log entries
+
+- `extension.yml`:
+  - Version bump to 1.3.0
+  - Added tags: `memory-engineering`, `signal-gate`, `verification`
+  - Updated command descriptions
+  - Added memory engineering defaults
+
+- `config-template.yml`:
+  - Added `[memory_engineering]` section with signal gate and verification settings
+
+- `README.md`:
+  - Added "Memory Engineering (v1.3.0)" section explaining signal gate and verification
+
+## [1.2.0] - 2026-05-18
+
+### Added
+
+- **Skill Command Improvements** (6 patterns from best practices):
+  - Pattern 1: Enhanced description with trigger keywords for better AI agent routing
+  - Pattern 2: Converted all instructions to imperative verbs for clarity
+  - Pattern 3: Added explicit output format specification in summary phase
+  - Pattern 4: Added "Read Existing Skills" phase to match project patterns
+  - Pattern 5: Added "Out of Scope" section for clear boundaries
+  - Pattern 6: Merged SKILL.md templates and condensed content to <500 lines
+
+### Changed
+
+- `skills.md`: Complete rewrite following best practices from "Anatomy of a Perfect Skill"
+- Reduced from 529 to 422 lines while adding 3 new sections
+- Examples now in table format (3 examples instead of 4)
+- Validation checklist condensed from 7 to 5 items
+
+### Fixed
+
+- Missing CHANGELOG entry for v1.1.9 (now documented)
+
+## [1.1.9] - 2026-05-15
+
+### Fixed
+
+- **Path consistency**: Fixed template paths to use `{REPO_ROOT}` placeholder consistently
+
 ## [1.1.8] - 2026-04-30
 
 ### Fixed

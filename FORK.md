@@ -31,9 +31,19 @@ Examples:
 | Hotfix/patch | Increment adlc suffix | `0.8.2+adlc1` → `0.8.2+adlc2` |
 
 ### Tag Format
-Use `agentic-sdlc-v<version>` with dashes instead of plus:
+Use `agentic-sdlc-v<version>` with plus:
 - Version: `0.8.2+adlc2`
-- Tag: `agentic-sdlc-v0.8.2-adlc2`
+- Tag: `agentic-sdlc-v0.8.2+adlc2`
+
+### Version History
+
+| Version | Date | Base Upstream | Changes |
+|---------|------|---------------|---------|
+| 0.8.12+adlc9 | 2026-05-19 | 0.8.12 | Product extension v1.5.1: Mermaid v10 syntax fixes, new diagram types (architecture, journey, gantt), mandatory visual generation |
+| 0.8.12+adlc4 | 2026-05-17 | 0.8.12 | CLI bundled extension update support: specify extension update now checks CLI wheel for bundled extension updates |
+| 0.8.12+adlc3 | 2026-05-17 | 0.8.12 | Architect extension v2.0.8 hardening: clarify→implement workflow enforcement, placeholder validation, --force flag |
+| 0.8.12+adlc2 | 2026-05-16 | 0.8.12 | Architect extension comprehensive hardening: Phase execution enforcement, view file generation, sub-system detection with mandatory interactive proposal |
+| 0.8.12+adlc1 | 2026-05-15 | 0.8.12 | Git extension enhancements (workspace command with force flag, setup-ignore command) |
 
 ## Customization Module
 
@@ -165,28 +175,46 @@ git merge upstream/main
 
 **Correct Strategy**: Use upstream as clean base, then ADD fork customizations on top.
 
-1. **For `__init__.py`**: Merge upstream cleanly (no --theirs). Then manually add fork functions AFTER merge:
-   - `TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"`
-   - `_run_git_command()`
-   - `sync_team_ai_directives()`
-   - `compute_skill_output_name()` (delegates to cli_customization)
-   - `TAGLINE` (fork version)
+##### New Upstream Module Structure (v0.8.9+)
 
-2. **For `pyproject.toml`**: NEVER use `--theirs`. The file will be in conflict - manually edit to preserve fork values:
-   - `name = "agentic-sdlc-specify-cli"`
-   - `version = "0.5.X"` (fork version)
-   - `description` (fork description)
-   - Wheel paths: update to root directories (see below)
-   - Add `httpx>=0.27.0` dependency
+Upstream has extracted code from `__init__.py` into separate modules:
 
-3. **For test files**: Accept upstream versions to avoid massive diffs:
-   ```bash
-   git checkout --theirs tests/
-   ```
+| Module | Contents | Fork Action |
+|--------|----------|-------------|
+| `_console.py` | BANNER, TAGLINE, StepTracker, console | Keep upstream, fork theming overrides in `show_banner()` |
+| `_version.py` | Version checking, self-update | Override GITHUB_API_LATEST via cli_customization |
+| `_assets.py` | Bundled asset location | Accept as-is |
+| `_utils.py` | Utility functions | Accept as-is |
+| `catalogs.py` | Catalog config loading | Accept as-is |
+| `integration_state.py` | Integration state management | Accept as-is |
+
+##### __init__.py Resolution
+
+1. Keep upstream imports from extracted modules (`_console`, `_assets`, `_utils`, `_version`)
+2. Keep fork's cli_customization import block AFTER upstream imports
+3. Keep fork's custom functions that depend on cli_customization:
+   - `show_banner()` (overrides upstream to apply theming)
+   - `TEAM_DIRECTIVES_DIRNAME` (from cli_customization)
+   - `sync_team_ai_directives()` (imported from cli_customization)
+   - `get_team_directives_path()` (imported from cli_customization)
+
+##### pyproject.toml Resolution
+
+NEVER use `--theirs`. Manually edit to preserve fork values:
+- `name = "agentic-sdlc-specify-cli"`
+- `version = "0.8.X+adlcN"` (fork version)
+- `description` (fork description)
+- Wheel paths: keep bundled extensions/presets paths
+- Keep `httpx>=0.27.0` dependency
+
+##### Test Files Resolution
+
+See [Test Merge Strategy](#test-merge-strategy) section. Do NOT use `git checkout --theirs tests/`.
 
 **Why this works**:
-- No merge conflicts in __init__.py because we're using upstream as base
-- Fork functions are small additions (~50 lines) - easy to add from backup
+- Upstream refactoring isolates code into stable modules
+- Fork customizations stay in cli_customization.py and import block
+- Clear separation of concerns reduces future conflicts
 - pyproject.toml needs manual edit to preserve fork version (never use --theirs)
 
 #### Step 4: Verify
@@ -275,6 +303,54 @@ The following tikalk-specific features are implemented directly in `__init__.py`
 
 These functions are called during init but don't conflict with upstream because they use conditional checks (e.g., `if skip_bundled:`).
 
+## Fork-Only Files and Directories
+
+The following files and directories exist **only in the fork** and were never present in upstream. During merges, git will show these as "deleted by them" — always reject the deletion.
+
+### `src/specify_cli/skills/` — Skills Package Manager
+
+**Directory**: `src/specify_cli/skills/`
+
+A developer-grade package manager for agent skills treating them as versioned software dependencies with evaluation, lifecycle management, and dual registry integration.
+
+**Files**:
+- `__init__.py` — Package exports (SkillsManifest, SkillInstaller, SkillEvaluator, etc.)
+- `discovery.py` — SkillAutoDiscovery, feature-based skill matching
+- `evaluator.py` — SkillEvaluator for quality assessment
+- `installer.py` — SkillInstaller with dual registry support
+- `manifest.py` — SkillsManifest, TeamSkillsManifest
+- `registry.py` — SkillsRegistryClient (skills.sh integration)
+
+**Total**: ~2048 lines of fork-only code
+
+**Referenced from**: `cli_customization.py` (skill commands CLI)
+
+### `src/specify_cli/cli_customization.py` — Fork Customization Module
+
+**File**: `src/specify_cli/cli_customization.py`
+
+The central customization module providing theming, team directives, skill commands, and fork-specific features. This is the single source of truth for fork identity.
+
+**Key exports**:
+- Theming: `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`
+- Package Identity: `PKG_NAMES`
+- Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`
+- Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`
+- Skills CLI: `skill_app`, skill command handlers
+
+**Total**: ~2500 lines of fork-only code
+
+### Test Files
+
+The following test files are fork-only:
+- `tests/test_fork_inventory.py` — Fork inventory tests
+- `tests/integrations/test_fork_inventory.py` — Integration inventory tests
+- `tests/test_bundled_extension_hooks.py` — Bundled extension hook tests
+- `tests/test_check_prerequisites_risks.py` — Prerequisite risk tests
+- `tests/test_create_new_feature.py` — Feature creation tests
+- `tests/auth_helpers.py` — Authentication test helpers
+- `tests/test_team_directives.py` — Team AI directives tests
+
 ## Testing
 
 Run tests to verify customization module works correctly:
@@ -338,6 +414,46 @@ Or delete multiple at once:
 ```bash
 git push origin --delete v0.0.1 v0.1.0 v0.2.0 v0.5.0
 ```
+
+## Test Merge Strategy
+
+Tests should be **manually merged** (NOT `git checkout --theirs tests/`):
+
+1. **Accept upstream test refactoring** for new extracted modules (`test_console_imports.py`, `test_version_imports.py`, `test_utils_assets_imports.py`)
+2. **Keep fork-only test files** that upstream shows as "deleted" (they were never upstream):
+   - `tests/test_fork_inventory.py`
+   - `tests/integrations/test_fork_inventory.py`
+   - `tests/test_bundled_extension_hooks.py`
+   - `tests/test_check_prerequisites_risks.py`
+   - `tests/test_create_new_feature.py`
+   - `tests/auth_helpers.py`
+   - `tests/test_team_directives.py`
+3. **Merge and re-apply** `PKG_NAMES` skip guards to upstream tests that expect upstream-only behavior
+4. **New fork tests are additive** — they should not conflict with upstream tests
+
+### Skip Guard Pattern
+
+```python
+def test_complete_file_inventory_sh(self, tmp_path):
+    """Every file produced by specify init --integration <key> --script sh."""
+    from specify_cli import PKG_NAMES
+    if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+        import pytest
+        pytest.skip("Fork has bundled extensions/presets with different file counts")
+    # ... rest of test
+```
+
+## _version.py Override
+
+Upstream `_version.py` hardcodes GitHub API URLs pointing to `github/spec-kit`:
+
+```python
+GITHUB_API_LATEST = "https://api.github.com/repos/github/spec-kit/releases/latest"
+```
+
+The fork should override these via `cli_customization.py`:
+- `GITHUB_API_LATEST` → point to `tikalk/agentic-sdlc-spec-kit` releases
+- Install instructions → reference fork's repo URL
 
 ## CI Troubleshooting
 

@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.8.7+adlc4"
+version = "0.8.12+adlc9"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
@@ -37,6 +37,7 @@ packages = ["src/specify_cli"]
 "extensions/tdd" = "specify_cli/core_pack/extensions/tdd"
 # Tikalk bundled presets
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
+"presets/catalog.json" = "specify_cli/bundled_presets/catalog.json"
 # Core pack assets for offline/air-gapped scaffolding
 "templates/agent-file-template.md" = "specify_cli/core_pack/templates/agent-file-template.md"
 "templates/checklist-template.md" = "specify_cli/core_pack/templates/checklist-template.md"
@@ -50,6 +51,7 @@ packages = ["src/specify_cli"]
 "scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
 # Bundled extensions (installable via `specify extension add <name>`)
 "extensions/git" = "specify_cli/core_pack/extensions/git"
+"extensions/catalog.json" = "specify_cli/core_pack/extensions/catalog.json"
 # Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
 "presets/lean" = "specify_cli/core_pack/presets/lean"
 # OpenCode Docker templates

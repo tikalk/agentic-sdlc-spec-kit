@@ -20,8 +20,10 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import typer
+import urllib.error
 from packaging import version
 from pathlib import Path
 from typing import Any, Optional
@@ -37,6 +39,9 @@ ACCENT_COLOR = "#f47721"
 
 # Banner gradient colors for the CLI header
 BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]
+
+# GitHub API URL for fork releases (overrides upstream)
+GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
 
 
 def accent(
@@ -106,6 +111,25 @@ def accent_style() -> str:
     return ACCENT_COLOR
 
 
+# ACCENT_STYLE for _console.py theming (used by Rich style attributes)
+# This is the string representation used by Rich, not the hex code
+ACCENT_STYLE = ACCENT_COLOR
+
+
+def apply_theming_patches(_console_module) -> None:
+    """Apply fork theming patches to _console.py module.
+
+    This function patches ACCENT_STYLE in _console.py to use the fork's
+    accent color instead of the upstream default "cyan".
+
+    Called from __init__.py after importing cli_customization.
+
+    Args:
+        _console_module: The specify_cli._console module instance
+    """
+    _console_module.ACCENT_STYLE = ACCENT_STYLE
+
+
 # ============================================================================
 # EXTENSION NAMESPACES
 # ============================================================================
@@ -116,6 +140,109 @@ EXTENSION_NAMESPACES = ["speckit", "adlc"]
 
 # Enable short alias format: {extension}.{command} (e.g., architect.init)
 EXTENSION_ALIAS_PATTERN_ENABLED = True
+
+# Command prefix for __SPECKIT_COMMAND_*__ placeholder resolution
+# Upstream uses "speckit", fork uses "spec"
+COMMAND_PREFIX = "spec"
+
+
+def build_alias_map(project_root: Path) -> dict[str, str]:
+    """Build a command name -> first alias map from installed extension/preset manifests.
+    
+    This function scans installed extensions and presets to find commands with aliases,
+    creating a mapping from the full command name to its first alias.
+    
+    Examples:
+        "speckit.git.commit" -> "git.commit"
+        "adlc.spec.constitution" -> "spec.constitution"
+        "adlc.architect.specify" -> "architect.specify"
+    
+    Args:
+        project_root: Path to the project root
+        
+    Returns:
+        Dictionary mapping command names to their first alias
+    """
+    alias_map: dict[str, str] = {}
+    
+    # Scan extensions
+    extensions_dir = project_root / ".specify" / "extensions"
+    if extensions_dir.is_dir():
+        for ext_dir in extensions_dir.iterdir():
+            if not ext_dir.is_dir():
+                continue
+            manifest_path = ext_dir / "extension.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                import yaml
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = yaml.safe_load(f)
+                if not isinstance(manifest, dict):
+                    continue
+                commands = manifest.get("provides", {}).get("commands", [])
+                for cmd in commands:
+                    if not isinstance(cmd, dict):
+                        continue
+                    cmd_name = cmd.get("name")
+                    aliases = cmd.get("aliases", [])
+                    if cmd_name and aliases and isinstance(aliases, list):
+                        alias_map[cmd_name] = aliases[0]
+            except Exception:
+                continue
+    
+    # Scan presets
+    presets_dir = project_root / ".specify" / "presets"
+    if presets_dir.is_dir():
+        for preset_dir in presets_dir.iterdir():
+            if not preset_dir.is_dir():
+                continue
+            manifest_path = preset_dir / "preset.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                import yaml
+                with open(manifest_path, 'r', encoding='utf-8') as f:
+                    manifest = yaml.safe_load(f)
+                if not isinstance(manifest, dict):
+                    continue
+                provides = manifest.get("provides", {})
+                templates = provides.get("templates", [])
+                for tmpl in templates:
+                    if not isinstance(tmpl, dict):
+                        continue
+                    if tmpl.get("type") != "command":
+                        continue
+                    cmd_name = tmpl.get("name")
+                    aliases = tmpl.get("aliases", [])
+                    if cmd_name and aliases and isinstance(aliases, list):
+                        alias_map[cmd_name] = aliases[0]
+            except Exception:
+                continue
+    
+    return alias_map
+
+
+def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> str:
+    """Resolve a command name to its alias if one exists.
+    
+    This is the primary function to use instead of hardcoded prefix stripping.
+    It looks up the command in the alias map and returns the alias if found,
+    otherwise returns the command name unchanged.
+    
+    Args:
+        cmd_name: The command name (e.g., "speckit.git.commit", "adlc.spec.plan")
+        project_root: Optional project root for building alias map. If None,
+                     uses current working directory.
+    
+    Returns:
+        The alias if found, otherwise the original command name
+    """
+    if project_root is None:
+        project_root = Path.cwd()
+    
+    alias_map = build_alias_map(project_root)
+    return alias_map.get(cmd_name, cmd_name)
 
 
 # ============================================================================
@@ -137,41 +264,30 @@ FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from 
 FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
 
 
-def compute_skill_output_name(cmd_name: str, agent_config: dict) -> str:
+def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: Path | None = None) -> str:
     """
     Compute the on-disk skill name for an agent with fork-specific handling.
 
-    This function handles the fork's command naming conventions where:
-    - Commands with "adlc." prefix should become /adlc-{command} (not /speckit-adlc-{command})
-    - Commands with "spec." alias prefix should become /spec-{command} (not /speckit-spec-{command})
-    - Extension commands like "speckit.test-ext.hello" still get the "speckit-" prefix
+    This function uses the alias map to resolve command names to their aliases,
+    ensuring consistent naming across all agent types. For example:
+    - "speckit.git.commit" -> "git-commit" (via alias "git.commit")
+    - "adlc.spec.constitution" -> "spec-constitution" (via alias "spec.constitution")
+    - "adlc.architect.specify" -> "architect-specify" (via alias "architect.specify")
 
     Args:
         cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution", "speckit.test-ext.hello")
         agent_config: Agent configuration dict
+        project_root: Optional project root for building alias map
 
     Returns:
-        The output name for the skill file (e.g., "adlc-spec-constitution", "spec-constitution", or "speckit-test-ext-hello")
+        The output name for the skill file (e.g., "spec-constitution", "architect-specify", or "speckit-test-ext-hello")
     """
     if agent_config.get("extension") != "/SKILL.md":
         return cmd_name
 
-    # Check if command starts with a fork-specific namespace
-    # These should NOT get the "speckit-" prefix
-    for namespace in FORK_COMMAND_NAMESPACES:
-        prefix = f"{namespace}."
-        if cmd_name.startswith(prefix):
-            # Replace dots with dashes directly (e.g., "adlc.spec.constitution" -> "adlc-spec-constitution")
-            return cmd_name.replace(".", "-")
-
-    # For non-fork commands (e.g., speckit.test-ext.hello), use upstream behavior
-    # Strip "speckit." prefix and add "speckit-" back
-    if cmd_name.startswith("speckit."):
-        short_name = cmd_name[len("speckit.") :]
-        return f"speckit-{short_name.replace('.', '-')}"
-
-    # Fallback for any other commands (shouldn't normally hit this)
-    return cmd_name.replace(".", "-")
+    # Use alias map to resolve to alias form, then convert to hyphenated skill name
+    resolved = resolve_command_alias(cmd_name, project_root)
+    return resolved.replace(".", "-")
 
 
 # ============================================================================
@@ -225,6 +341,181 @@ def get_speckit_version() -> str:
 
 # Directory name for team directives repository
 TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
+
+
+# ============================================================================
+# MCP CONFIGURATION - Install .mcp.json from team-ai-directives
+# ============================================================================
+
+
+def resolve_env_placeholders(content: str) -> tuple[str, list[str], list[str]]:
+    """Replace ${VAR} with environment variable value.
+    
+    Args:
+        content: The MCP config content with ${VAR} placeholders
+        
+    Returns:
+        Tuple of (resolved_content, resolved_vars, unresolved_vars)
+    """
+    pattern = r'\$\{([^}]+)\}'
+    resolved_vars = []
+    unresolved_vars = []
+    
+    def replacer(match):
+        var_name = match.group(1)
+        env_value = os.environ.get(var_name)
+        if env_value is not None:
+            resolved_vars.append(var_name)
+            return env_value
+        else:
+            unresolved_vars.append(var_name)
+            return f"${{{var_name}}}"
+    
+    resolved_content = re.sub(pattern, replacer, content)
+    return resolved_content, resolved_vars, unresolved_vars
+
+
+def validate_mcp_config(content: str) -> tuple[bool, str]:
+    """Validate JSON structure of MCP config.
+    
+    Args:
+        content: The MCP config content as string
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    try:
+        config = json.loads(content)
+        if not isinstance(config, dict):
+            return False, "MCP config must be a JSON object"
+        
+        # Check for at least one of mcpServers or tools
+        if "mcpServers" not in config and "tools" not in config:
+            return False, "MCP config must contain 'mcpServers' or 'tools'"
+        
+        return True, ""
+    except json.JSONDecodeError as e:
+        return False, f"Invalid JSON: {e}"
+    except Exception as e:
+        return False, f"Validation error: {e}"
+
+
+def merge_mcp_configs_report_conflicts(existing: dict, incoming: dict) -> tuple[dict, list[str]]:
+    """Merge configs but report conflicts instead of overwriting.
+    
+    Args:
+        existing: The existing MCP config dict
+        incoming: The incoming MCP config dict from team-ai-directives
+        
+    Returns:
+        Tuple of (merged_config, conflict_list)
+    """
+    merged = json.loads(json.dumps(existing))  # Deep copy
+    conflicts = []
+    
+    # Merge mcpServers
+    if "mcpServers" in incoming:
+        if "mcpServers" not in merged:
+            merged["mcpServers"] = {}
+        
+        for server_name, server_config in incoming["mcpServers"].items():
+            if server_name in merged.get("mcpServers", {}):
+                conflicts.append(f"mcpServers: {server_name}")
+            else:
+                merged["mcpServers"][server_name] = server_config
+    
+    # Merge tools
+    if "tools" in incoming:
+        if "tools" not in merged:
+            merged["tools"] = {}
+        
+        for tool_name, tool_config in incoming["tools"].items():
+            if tool_name in merged.get("tools", {}):
+                conflicts.append(f"tools: {tool_name}")
+            else:
+                merged["tools"][tool_name] = tool_config
+    
+    return merged, conflicts
+
+
+def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[str], list[str], list[str]]:
+    """Install .mcp.json from team-ai-directives to project root.
+    
+    Args:
+        team_path: Path to team-ai-directives directory
+        project_root: Path to project root
+        
+    Returns:
+        Tuple of (success, messages, resolved_vars, unresolved_vars)
+    """
+    messages = []
+    resolved_vars = []
+    unresolved_vars = []
+    
+    team_mcp_path = team_path / ".mcp.json"
+    project_mcp_path = project_root / ".mcp.json"
+    
+    if not team_mcp_path.exists():
+        messages.append("ℹ No .mcp.json found in team-ai-directives")
+        return True, messages, resolved_vars, unresolved_vars
+    
+    # Read team .mcp.json
+    try:
+        content = team_mcp_path.read_text()
+    except Exception as e:
+        messages.append(f"✗ Failed to read team .mcp.json: {e}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Resolve environment placeholders
+    content, resolved_vars, unresolved_vars = resolve_env_placeholders(content)
+    
+    # Validate JSON
+    is_valid, error_msg = validate_mcp_config(content)
+    if not is_valid:
+        messages.append("✗ Invalid MCP config in team-ai-directives/.mcp.json")
+        messages.append(f"  ℹ {error_msg}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Parse the config
+    try:
+        team_config = json.loads(content)
+    except Exception as e:
+        messages.append(f"✗ Failed to parse team .mcp.json: {e}")
+        return False, messages, resolved_vars, unresolved_vars
+    
+    # Check for existing project .mcp.json
+    if project_mcp_path.exists():
+        try:
+            existing_content = project_mcp_path.read_text()
+            existing_config = json.loads(existing_content)
+            
+            # Merge with conflict reporting
+            merged_config, conflicts = merge_mcp_configs_report_conflicts(existing_config, team_config)
+            
+            if conflicts:
+                messages.append("⚠ Conflicts detected (skipped, existing preserved):")
+                for conflict in conflicts:
+                    messages.append(f"    - {conflict}")
+            
+            # Write merged config
+            project_mcp_path.write_text(json.dumps(merged_config, indent=2))
+            messages.append("✓ Merged .mcp.json with existing config")
+            
+        except Exception as e:
+            messages.append(f"✗ Failed to merge with existing .mcp.json: {e}")
+            return False, messages, resolved_vars, unresolved_vars
+    else:
+        # Write new config
+        project_mcp_path.write_text(json.dumps(team_config, indent=2))
+        messages.append("✓ Installed .mcp.json")
+    
+    # Report env var resolution
+    if resolved_vars:
+        messages.append(f"  ℹ Resolved env vars: {', '.join(resolved_vars)}")
+    if unresolved_vars:
+        messages.append(f"  ⚠ Unresolved placeholders: {', '.join(f'${{{v}}}' for v in unresolved_vars)}")
+    
+    return True, messages, resolved_vars, unresolved_vars
 
 
 # ============================================================================
@@ -341,16 +632,38 @@ def _scaffold_presets_to_project(
     source_dir: Path,
     project_dir: Path,
 ) -> list[str]:
-    """Scaffold preset folders from source to project if missing or empty."""
+    """Scaffold preset folders from source to project if missing or empty.
+    Only scaffolds presets with preinstall: true in the catalog.
+    """
     scaffolded = []
 
     if not source_dir.exists():
         return scaffolded
 
+    # Read catalog to get preinstall flags
+    preinstall_presets = set()
+    catalog_path = source_dir / "catalog.json"
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            presets = catalog_data.get("presets", {})
+            preinstall_presets = {
+                preset_id
+                for preset_id, preset_data in presets.items()
+                if preset_data.get("preinstall", False)
+            }
+        except (json.JSONDecodeError, IOError):
+            pass
+
     project_dir.mkdir(parents=True, exist_ok=True)
 
     for preset_dir in source_dir.iterdir():
         if not preset_dir.is_dir() or preset_dir.name.startswith("."):
+            continue
+
+        # Only scaffold presets with preinstall: true
+        if preinstall_presets and preset_dir.name not in preinstall_presets:
             continue
 
         proj_preset = project_dir / preset_dir.name
@@ -390,6 +703,228 @@ def _scaffold_presets_to_project(
     return scaffolded
 
 
+def _store_extension_source_url(
+    project_root: Path, extension_id: str, source_url: str, target_repo: str | None = None
+) -> None:
+    """Store extension source URL in registry for later reference."""
+    registry_path = project_root / ".specify" / "extensions" / "registry.json"
+    registry = {}
+    if registry_path.exists():
+        try:
+            registry = json.loads(registry_path.read_text())
+        except json.JSONDecodeError:
+            pass
+    if extension_id not in registry:
+        registry[extension_id] = {}
+    registry[extension_id]["source_url"] = source_url
+    if target_repo:
+        registry[extension_id]["target_repo"] = target_repo
+    registry_path.write_text(json.dumps(registry, indent=2))
+
+
+def _derive_target_repo_from_url(url: str) -> str | None:
+    """Derive target repository URL from archive URL.
+
+    Converts GitHub archive URLs to repository URLs.
+    """
+    if "github.com" in url:
+        # Handle archive URLs like: https://github.com/org/repo/archive/refs/tags/v1.0.0.zip
+        if "/archive/" in url:
+            parts = url.split("/archive/")[0].split("/")
+            if len(parts) >= 2:
+                return f"https://github.com/{parts[-2]}/{parts[-1]}"
+        # Handle direct zip URLs
+        elif url.endswith(".zip"):
+            parts = url.replace(".zip", "").split("/")
+            if len(parts) >= 2:
+                return f"https://github.com/{parts[-2]}/{parts[-1]}"
+    return None
+
+
+def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
+    """Register bundled catalog from team-ai-directives repository.
+
+    Failures are non-fatal (the bundled catalog is an optional enhancement),
+    but we should not silently swallow exceptions during `specify init`.
+    """
+    try:
+        import urllib.request
+
+        req = urllib.request.Request(catalog_url)
+        with urllib.request.urlopen(req, timeout=30) as response:
+            catalog_data = json.loads(response.read().decode("utf-8"))
+
+        # Save to project's catalog.bundled.json
+        bundled_catalog_path = project_root / ".specify" / "extensions" / "catalog.bundled.json"
+        bundled_catalog_path.write_text(json.dumps(catalog_data, indent=2))
+    except Exception as e:
+        # Non-fatal, but surfaced so users can diagnose failures.
+        sanitized = str(e).replace("\n", " ").strip()
+        console.print(
+            f"[yellow]Warning:[/yellow] Failed to register bundled extension catalog: {sanitized[:200]}"
+        )
+
+
+def sync_team_ai_directives(
+    repo_url: str, project_root: Path, *, install: bool = True, force: bool = False
+) -> tuple[str, Path]:
+    """Install team-ai-directives as extension from ZIP URL or local path.
+
+    Args:
+        repo_url: URL or local path to team-ai-directives
+        project_root: Project root directory
+        install: If True, copy local directories to .specify/extensions/.
+                 If False, use local directories in-place (reference mode).
+        force: If True, remove existing team-ai-directives before reinstalling.
+              If False (default), raise error if already installed.
+
+    Returns:
+        Tuple of (status, path) where status is "installed", "local", or "reference"
+    """
+    from .extensions import ExtensionManager, ExtensionManifest  # noqa: F401
+
+    repo_url = (repo_url or "").strip()
+    if not repo_url:
+        raise ValueError("Team AI directives repository URL cannot be empty")
+
+    potential_path = Path(repo_url).expanduser()
+
+    if potential_path.exists() and potential_path.is_dir():
+        # Validate it's a proper extension
+        manifest_path = potential_path / "extension.yml"
+        if not manifest_path.exists():
+            raise ValueError(
+                f"Invalid team-ai-directives directory: {potential_path}\n"
+                f"Missing extension.yml manifest file"
+            )
+
+        if not install:
+            # Reference mode: use directory in-place without copying
+            manifest = ExtensionManifest(manifest_path)
+            if manifest.id != TEAM_DIRECTIVES_DIRNAME:
+                raise ValueError(
+                    f"Extension ID mismatch: expected '{TEAM_DIRECTIVES_DIRNAME}', "
+                    f"got '{manifest.id}'"
+                )
+            return ("reference", potential_path)
+
+        # Install mode: copy to .specify/extensions/
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+        manifest = ext_manager.install_from_directory(
+            potential_path, speckit_version, priority=1
+        )
+        dest_dir = project_root / ".specify" / "extensions" / manifest.id
+        _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
+        return ("local", dest_dir)
+
+    if repo_url.endswith(".zip") or "/archive/" in repo_url:
+        ext_manager = ExtensionManager(project_root)
+        speckit_version = get_speckit_version()
+
+        # Force override: remove existing team-ai-directives before reinstalling
+        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+        download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+        download_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = download_dir / "team-ai-directives-download.zip"
+
+        try:
+            from specify_cli.authentication.http import open_url
+
+            try:
+                with open_url(repo_url, timeout=60) as response:
+                    zip_data = response.read()
+            except urllib.error.HTTPError as e:
+                if e.code in (401, 403):
+                    raise ValueError(
+                        f"Authentication failed accessing {repo_url}\n"
+                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
+                        f"See: https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/docs/reference/authentication.md"
+                    ) from e
+                elif e.code == 404:
+                    raise ValueError(
+                        f"Repository not found: {repo_url}\n"
+                        f"Please verify the URL is correct and the repository exists."
+                    ) from e
+                else:
+                    raise
+            except urllib.error.URLError as e:
+                raise ValueError(
+                    f"Failed to download team-ai-directives: {e.reason}\n"
+                    f"Check your network connection and the URL."
+                ) from e
+            zip_path.write_bytes(zip_data)
+
+            # Validate downloaded content is actually a ZIP file
+            # (GitLab may return HTML login page for private repos without auth)
+            if not zip_data.startswith(b'PK'):
+                content_preview = zip_data[:500].decode('utf-8', errors='replace')
+                if '<html' in content_preview.lower():
+                    raise ValueError(
+                        f"Repository requires authentication: {repo_url}\n"
+                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
+                        f"See: https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/docs/reference/authentication.md"
+                    )
+                raise ValueError(
+                    f"Downloaded file is not a valid ZIP archive: {repo_url}\n"
+                    f"Expected a ZIP file, but received different content type."
+                )
+
+            manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)
+            dest_dir = project_root / ".specify" / "extensions" / manifest.id
+
+            target_repo = _derive_target_repo_from_url(repo_url)
+            _store_extension_source_url(project_root, manifest.id, repo_url, target_repo)
+
+            # Register bundled catalog if exists
+            if target_repo:
+                catalog_url = target_repo.replace(
+                    "github.com",
+                    "raw.githubusercontent.com"
+                ) + "/main/extensions/catalog.json"
+                _register_bundled_catalog(project_root, catalog_url)
+
+            return ("installed", dest_dir)
+        finally:
+            if zip_path.exists():
+                zip_path.unlink()
+    else:
+        raise ValueError(
+            "Invalid team-ai-directives URL. Expected:\n"
+            "  - Local directory path\n"
+            "  - ZIP file URL (ending in .zip)\n"
+            "  - GitHub archive URL (e.g., https://github.com/org/repo/archive/refs/tags/v1.0.0.zip)"
+        )
+
+
+def get_team_directives_path(project_path: Path) -> Path | None:
+    """Get team-ai-directives path from init-options or fallback to extensions dir.
+
+    Checks init-options.json first for external/override path, then falls back
+    to the standard .specify/extensions/team-ai-directives location.
+
+    Returns None if neither location exists.
+    """
+    # Import here to avoid circular imports
+    from specify_cli import load_init_options
+
+    init_opts = load_init_options(project_path)
+    if "team_ai_directives" in init_opts:
+        path = Path(init_opts["team_ai_directives"])
+        if path.exists():
+            return path
+    # Fallback to installed extension
+    fallback = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+    return fallback if fallback.exists() else None
+
+
 def pre_init(
     project_path: Path,
     selected_ai: str,
@@ -403,9 +938,9 @@ def pre_init(
     if not team_ai_directives:
         if tracker:
             tracker.skip("team-directives", "not specified")
+            tracker.skip("team-mcp", "no team-ai-directives")
+            tracker.skip("team-skills", "no team-ai-directives")
         return
-
-    from . import sync_team_ai_directives
 
     tracker.start("team-directives")
     directives_path: Path | None = None
@@ -421,6 +956,122 @@ def pre_init(
                 team_ai_directives, project_path, install=False
             )
             tracker.complete("team-directives", f"referenced: {directives_path}")
+
+            # Install MCP config before team-skills
+            if directives_path and (directives_path / ".mcp.json").exists():
+                if tracker:
+                    tracker.start("team-mcp")
+                try:
+                    success, messages, resolved, unresolved = install_mcp_config(
+                        directives_path, project_path
+                    )
+                    
+                    # Parse messages to extract useful info
+                    installed_servers = []
+                    merged_servers = []
+                    
+                    for msg in messages:
+                        if msg.startswith("✓ Installed"):
+                            pass  # General success message
+                        elif msg.startswith("✓ Merged"):
+                            pass  # General success message
+                        elif msg.startswith("  ℹ Resolved"):
+                            pass  # Already tracked in resolved list
+                        elif msg.startswith("  ⚠ Unresolved"):
+                            # Parse unresolved vars and map to servers
+                            pass
+                        elif msg.startswith("    - mcpServers:"):
+                            server_name = msg.replace("    - mcpServers: ", "").strip()
+                            merged_servers.append(server_name)
+                        elif msg.startswith("    - tools:"):
+                            tool_name = msg.replace("    - tools: ", "").strip()
+                            merged_servers.append(tool_name)
+                    
+                    # Read the config to get server names
+                    try:
+                        mcp_path = project_path / ".mcp.json"
+                        if mcp_path.exists():
+                            mcp_config = json.loads(mcp_path.read_text())
+                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
+                            all_tools = list(mcp_config.get("tools", {}).keys())
+                            
+                            # Determine which servers need env vars
+                            for server_name in all_servers + all_tools:
+                                if server_name not in merged_servers:
+                                    installed_servers.append(server_name)
+                    except Exception:
+                        pass
+                    
+                    # Build user-friendly tracker status
+                    total_items = len(installed_servers) + len(merged_servers)
+                    status_parts = []
+                    
+                    if total_items > 0:
+                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
+                    
+                    if unresolved:
+                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
+                    
+                    if merged_servers:
+                        status_parts.append(f"{len(merged_servers)} merged")
+                    
+                    status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    
+                    if success:
+                        if tracker:
+                            if unresolved:
+                                tracker.complete("team-mcp", status_msg)  # Yellow warning style
+                            else:
+                                tracker.complete("team-mcp", status_msg)
+                        
+                        # Print explanatory console output
+                        if installed_servers:
+                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
+                        if merged_servers:
+                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
+                        
+                        # Show env var hints
+                        if unresolved:
+                            for var in unresolved[:3]:  # Show first 3
+                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
+                            if len(unresolved) > 3:
+                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
+                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
+                    else:
+                        if tracker:
+                            tracker.skip("team-mcp", "validation failed - see warnings")
+                        # Print error messages
+                        for msg in messages:
+                            if msg.startswith("✗"):
+                                console.print(f"[red]{msg}[/red]")
+                            else:
+                                console.print(f"[dim]{msg}[/dim]")
+                except Exception as e:
+                    if tracker:
+                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
+                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
+            else:
+                # Skip team-mcp step if no .mcp.json
+                if tracker:
+                    tracker.skip("team-mcp", "no .mcp.json found")
+            if directives_path and selected_ai:
+                try:
+                    tracker.start("team-skills")
+                    installed = _install_skills_from_path(
+                        team_directives_path=directives_path,
+                        project_path=project_path,
+                        selected_ai=selected_ai,
+                        force=False,
+                    )
+                    if installed:
+                        console.print(f"[dim]Installed team-ai-directives skills: {installed}[/dim]")
+                        tracker.complete("team-skills", f"{len(installed)} skills")
+                    else:
+                        tracker.skip("team-skills", "no required skills found")
+                except Exception as e:
+                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
+                    if tracker:
+                        tracker.error("team-skills", str(e))
             return
 
         # ZIP URL: install to .specify/extensions/ (auto-override existing)
@@ -430,6 +1081,112 @@ def pre_init(
 
         if status == "installed":
             tracker.complete("team-directives", f"installed to {directives_path}")
+            
+            # Install MCP config after team-directives
+            if directives_path and (directives_path / ".mcp.json").exists():
+                if tracker:
+                    tracker.start("team-mcp")
+                try:
+                    success, messages, resolved, unresolved = install_mcp_config(
+                        directives_path, project_path
+                    )
+                    
+                    # Parse messages to extract useful info
+                    installed_servers = []
+                    merged_servers = []
+                    
+                    for msg in messages:
+                        if msg.startswith("    - mcpServers:"):
+                            server_name = msg.replace("    - mcpServers: ", "").strip()
+                            merged_servers.append(server_name)
+                        elif msg.startswith("    - tools:"):
+                            tool_name = msg.replace("    - tools: ", "").strip()
+                            merged_servers.append(tool_name)
+                    
+                    # Read the config to get server names
+                    try:
+                        mcp_path = project_path / ".mcp.json"
+                        if mcp_path.exists():
+                            mcp_config = json.loads(mcp_path.read_text())
+                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
+                            all_tools = list(mcp_config.get("tools", {}).keys())
+                            
+                            # Determine which servers need env vars
+                            for server_name in all_servers + all_tools:
+                                if server_name not in merged_servers:
+                                    installed_servers.append(server_name)
+                    except Exception:
+                        pass
+                    
+                    # Build user-friendly tracker status
+                    total_items = len(installed_servers) + len(merged_servers)
+                    status_parts = []
+                    
+                    if total_items > 0:
+                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
+                    
+                    if unresolved:
+                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
+                    
+                    if merged_servers:
+                        status_parts.append(f"{len(merged_servers)} merged")
+                    
+                    status_msg = ", ".join(status_parts) if status_parts else "installed"
+                    
+                    if success:
+                        if tracker:
+                            tracker.complete("team-mcp", status_msg)
+                        
+                        # Print explanatory console output
+                        if installed_servers:
+                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
+                        if merged_servers:
+                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
+                        
+                        # Show env var hints
+                        if unresolved:
+                            for var in unresolved[:3]:  # Show first 3
+                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
+                            if len(unresolved) > 3:
+                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
+                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
+                    else:
+                        if tracker:
+                            tracker.skip("team-mcp", "validation failed - see warnings")
+                    # Print all messages
+                    for msg in messages:
+                        console.print(f"[dim]{msg}[/dim]")
+                except Exception as e:
+                    if tracker:
+                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
+                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
+            else:
+                # Skip team-mcp step if no .mcp.json
+                if tracker:
+                    tracker.skip("team-mcp", "no .mcp.json found")
+            
+            # Install skills after MCP config
+            if directives_path and selected_ai:
+                try:
+                    if tracker:
+                        tracker.start("team-skills")
+                    installed = _install_skills_from_path(
+                        team_directives_path=directives_path,
+                        project_path=project_path,
+                        selected_ai=selected_ai,
+                        force=False,
+                    )
+                    if installed:
+                        if tracker:
+                            tracker.complete("team-skills", f"{len(installed)} skills")
+                        console.print("[dim]Installed team-ai-directives skills[/dim]")
+                    else:
+                        if tracker:
+                            tracker.skip("team-skills", "no required skills found")
+                except Exception as e:
+                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
+                    if tracker:
+                        tracker.error("team-skills", str(e))
             return
 
         if status == "local":
@@ -569,25 +1326,10 @@ def _install_bundled_extensions(
                 if ext_data.get("preinstall", False)
                 and (bundled_extensions_dir / ext_id / "extension.yml").exists()
             ]
-            if not bundled_extensions:
-                bundled_extensions = [
-                    ext_id
-                    for ext_id in extensions.keys()
-                    if (bundled_extensions_dir / ext_id / "extension.yml").exists()
-                ]
         except (json.JSONDecodeError, IOError) as e:
             console.print(
                 f"[yellow]Warning:[/yellow] Failed to parse catalog.json: {e}"
             )
-
-    if not bundled_extensions:
-        bundled_extensions = [
-            d.name
-            for d in bundled_extensions_dir.iterdir()
-            if d.is_dir()
-            and not d.name.startswith(".")
-            and (d / "extension.yml").exists()
-        ]
 
     if bundled_extensions:
         from .extensions import ExtensionManager, HookExecutor
@@ -757,11 +1499,24 @@ def _install_bundled_presets(
 
     bundled_presets_dir = project_presets_dir
 
-    bundled_presets = [
-        d.name
-        for d in bundled_presets_dir.iterdir()
-        if d.is_dir() and not d.name.startswith(".") and (d / "preset.yml").exists()
-    ]
+    # Read catalog.json to filter by preinstall flag
+    catalog_path = bundled_presets_dir / "catalog.json"
+    bundled_presets = []
+    if catalog_path.exists():
+        try:
+            with open(catalog_path) as f:
+                catalog_data = json.load(f)
+            presets = catalog_data.get("presets", {})
+            bundled_presets = [
+                preset_id
+                for preset_id, preset_data in presets.items()
+                if preset_data.get("preinstall", False)
+                and (bundled_presets_dir / preset_id / "preset.yml").exists()
+            ]
+        except (json.JSONDecodeError, IOError) as e:
+            console.print(
+                f"[yellow]Warning:[/yellow] Failed to parse presets catalog.json: {e}"
+            )
 
     if not bundled_presets:
         if tracker:
@@ -1033,9 +1788,9 @@ def skill_search(
 
 @skill_app.command("install")
 def skill_install(
-    skill_ref: str = typer.Argument(
-        ...,
-        help="Skill reference (github:org/repo/skill, local:./path, or registry:name)",
+    skill_ref: Optional[str] = typer.Argument(
+        None,
+        help="Skill reference (github:org/repo/skill, local:./path, or registry:name). Omit to inject local skills.",
     ),
     version: Optional[str] = typer.Option(
         None, "--version", "-v", help="Specific version to install"
@@ -1053,7 +1808,57 @@ def skill_install(
         False, "--skip-blocked-check", help="Skip team blocked skills check"
     ),
 ):
-    """Install a skill from various sources."""
+    """Install a skill or inject local skills into agent integration.
+    
+    With argument: Install a skill from external sources (GitHub, registry, etc.)
+    Without argument: Inject local skills from team-ai-directives and .specify/skills/
+    
+    Examples:
+        specify skill install                           # Inject local skills
+        specify skill install github:org/repo/skill     # Install external skill
+    """
+    # If no argument, inject local skills
+    if skill_ref is None:
+        project_path = Path.cwd()
+        
+        # Get selected AI from init-options
+        from . import load_init_options
+        init_opts = load_init_options(project_path)
+        selected_ai = init_opts.get("ai")
+        
+        if not selected_ai:
+            console.print("[red]No AI assistant configured.[/red]")
+            console.print("Run 'specify init --ai <agent>' first.")
+            raise typer.Exit(1)
+        
+        # Get team-ai-directives path
+        team_directives_path = None
+        team_ai_directives = init_opts.get("team_ai_directives")
+        if team_ai_directives:
+            team_directives_path = Path(team_ai_directives)
+        
+        try:
+            installed = _install_skills_from_path(
+                team_directives_path=team_directives_path,
+                project_path=project_path,
+                selected_ai=selected_ai,
+                force=force,
+            )
+            
+            if installed:
+                console.print(f"\n[green]✓[/green] Installed {len(installed)} skills:")
+                for skill in installed:
+                    console.print(f"  - {skill}")
+            else:
+                console.print("\n[yellow]No skills to install.[/yellow]")
+                
+        except Exception as e:
+            console.print(f"[red]✗[/red] Failed to inject skills: {e}")
+            raise typer.Exit(1)
+        
+        return
+    
+    # Otherwise, install external skill (existing logic)
     if not SKILLS_AVAILABLE:
         console.print("[red]Skills module not available[/red]")
         raise typer.Exit(1)
@@ -1452,6 +2257,170 @@ def skill_sync_team(
         console.print("[bold]Blocked Skills (will be rejected on install):[/bold]")
         for skill_id in blocked:
             console.print(f"  [red]✗[/red] {skill_id}")
+
+
+def _install_skills_from_path(
+    team_directives_path: Path | None,
+    project_path: Path,
+    selected_ai: str,
+    force: bool = False,
+) -> list[str]:
+    """Install team-ai-directives skills to agent integration directory.
+    
+    Reads skills from:
+    - team-ai-directives (if configured): .specify/extensions/team-ai-directives/skills/
+    - local skills: .specify/skills/
+    
+    Args:
+        team_directives_path: Path to team-ai-directives extension (or None)
+        project_path: Project root
+        selected_ai: Agent type (claude, windsurf, etc.)
+        force: Force re-install even if skill already exists
+    
+    Returns:
+        List of installed skill names
+    
+    Raises:
+        Exception: If skill installation fails
+    """
+    from .integrations import INTEGRATION_REGISTRY
+    
+    if selected_ai not in INTEGRATION_REGISTRY:
+        raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
+    
+    integration = INTEGRATION_REGISTRY[selected_ai]
+    skills_dest = integration.skills_dest(project_path)
+    
+    installed = []
+    
+    # 1. Install team-ai-directives skills (with team- prefix)
+    if team_directives_path and team_directives_path.exists():
+        team_skills_dir = team_directives_path / "skills"
+        if team_skills_dir.exists():
+            # Parse .skills.json to get required skills
+            skills_json_path = team_directives_path / ".skills.json"
+            required_skills = []
+            if skills_json_path.exists():
+                try:
+                    import json
+                    with open(skills_json_path) as f:
+                        skills_data = json.load(f)
+                    required_skills = skills_data.get("skills", {}).get("required", {})
+                except Exception:
+                    pass
+            
+            # Get list of skill directories
+            for skill_dir in team_skills_dir.iterdir():
+                if not skill_dir.is_dir():
+                    continue
+                
+                skill_name = skill_dir.name
+                skill_md = skill_dir / "SKILL.md"
+                if not skill_md.exists():
+                    continue
+                
+                # Check if skill is in required list (only install required)
+                skill_ref = f"local:./skills/{skill_name}"
+                if skill_ref not in required_skills and required_skills:
+                    continue
+                
+                # Install with team- prefix
+                target_name = f"team-{skill_name}"
+                target_dir = skills_dest / target_name
+                target_file = target_dir / "SKILL.md"
+                
+                if target_file.exists() and not force:
+                    continue
+                
+                # Create target directory
+                target_dir.mkdir(parents=True, exist_ok=True)
+                
+                # Copy SKILL.md with modified name field
+                try:
+                    content = skill_md.read_text(encoding="utf-8")
+                    
+                    # Update the name field in frontmatter to include team- prefix
+                    # This ensures compliance with agentskills.io specification
+                    # (name field must match parent directory name)
+                    import re
+                    
+                    # Pattern to match name: value in YAML frontmatter
+                    # Matches: name: skill-name or name: "skill-name" or name: 'skill-name'
+                    name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
+                    
+                    lines = content.splitlines()
+                    modified_lines = []
+                    in_frontmatter = False
+                    frontmatter_started = False
+                    
+                    for line in lines:
+                        stripped = line.strip()
+                        
+                        # Track if we're in frontmatter
+                        if stripped == '---':
+                            if not frontmatter_started:
+                                frontmatter_started = True
+                                in_frontmatter = True
+                            else:
+                                in_frontmatter = False
+                            modified_lines.append(line)
+                            continue
+                        
+                        # Update name field while in frontmatter
+                        if in_frontmatter and stripped.startswith('name:'):
+                            match = re.match(name_pattern, stripped)
+                            if match:
+                                original_name = match.group(3).strip()
+                                # Add team- prefix if not already present
+                                if not original_name.startswith('team-'):
+                                    new_name = f"team-{original_name}"
+                                else:
+                                    new_name = original_name
+                                # Preserve original indentation and quotes
+                                indent = line[:len(line) - len(line.lstrip())]
+                                modified_lines.append(f"{indent}name: {new_name}")
+                                continue
+                        
+                        modified_lines.append(line)
+                    
+                    modified_content = '\n'.join(modified_lines)
+                    target_file.write_text(modified_content, encoding="utf-8")
+                    installed.append(target_name)
+                except Exception as e:
+                    raise Exception(f"Failed to install {target_name}: {e}")
+    
+    # 2. Install local skills (without prefix)
+    local_skills_dir = project_path / ".specify" / "skills"
+    if local_skills_dir.exists():
+        for skill_dir in local_skills_dir.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            
+            skill_name = skill_dir.name
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.exists():
+                continue
+            
+            # Skip if it's a team-prefixed skill (already installed above)
+            if skill_name.startswith("team-"):
+                continue
+            
+            target_dir = skills_dest / skill_name
+            target_file = target_dir / "SKILL.md"
+            
+            if target_file.exists() and not force:
+                continue
+            
+            target_dir.mkdir(parents=True, exist_ok=True)
+            
+            try:
+                content = skill_md.read_text(encoding="utf-8")
+                target_file.write_text(content, encoding="utf-8")
+                installed.append(skill_name)
+            except Exception as e:
+                raise Exception(f"Failed to install {skill_name}: {e}")
+    
+    return installed
 
 
 @skill_app.command("check-updates")

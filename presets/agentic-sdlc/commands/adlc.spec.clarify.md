@@ -40,22 +40,17 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Outline.
-    ```
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
+    - If the hook command file cannot be found, log a warning and proceed anyway
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.
 
-Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `/spec.plan`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
+Note: This clarification workflow is expected to run (and be completed) BEFORE invoking `__SPECKIT_COMMAND_PLAN__`. If the user explicitly states they are skipping clarification (e.g., exploratory spike), you may proceed, but must warn that downstream rework risk increases.
 
 ## Mission Brief Validation
 
@@ -111,7 +106,7 @@ Execution steps:
 1. Run `{SCRIPT}` from repo root **once** (combined `--json --paths-only` mode / `-Json -PathsOnly`). Parse minimal JSON payload fields:
    - `FEATURE_DIR`
    - `FEATURE_SPEC`
-   - If JSON parsing fails, abort and instruct user to re-run `/spec.specify` or verify feature branch environment.
+   - If JSON parsing fails, abort and instruct user to re-run `__SPECKIT_COMMAND_SPECIFY__` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot'.
 
 2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
@@ -182,9 +177,12 @@ Execution steps:
    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
 4. Sequential questioning loop (interactive):
-   - Present EXACTLY ONE question at a time.
-   - For multiple‑choice questions:
-      - **Analyze all options** and determine the **most suitable option** based on:
+    - Present EXACTLY ONE question at a time.
+    - **CRITICAL**: You MUST output the actual question text BEFORE showing any options or recommendations. The user should see the question clearly stated first.
+    - For multiple‑choice questions:
+       - **First, clearly state the question** being asked (e.g., "**Question**: How should the CLI authenticate with the API?")
+       - **You MUST output the question text BEFORE any recommendation or options table**
+       - **Analyze all options** and determine the **most suitable option** based on:
          - Best practices for the project type
          - Common patterns in similar implementations
          - Risk reduction (security, performance, maintainability)
@@ -200,9 +198,10 @@ Execution steps:
       | C | <Option C description> (add D/E as needed up to 5) |
       | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
 
-      - After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
-   - For short‑answer style (no meaningful discrete options):
-      - Provide your **suggested answer** based on best practices and context.
+- After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
+    - For short‑answer style (no meaningful discrete options):
+       - **First, clearly state the question** being asked (e.g., "**Question**: What naming convention should be used?")
+       - Provide your **suggested answer** based on best practices and context.
       - Format as: `**Suggested:** <your proposed answer> - <brief reasoning>`
       - Then output: `Format: Short answer (<=5 words). You can accept the suggestion by saying "yes" or "suggested", or provide your own answer.`
    - After the user answers:
@@ -251,13 +250,13 @@ Execution steps:
    - Sections touched (list names).
    - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
    - **Mission Brief Status**: Complete / Required (if still needed)
-   - If any Outstanding or Deferred remain, recommend whether to proceed to `/spec.plan` or run `/spec.clarify` again later post-plan.
+   - If any Outstanding or Deferred remain, recommend whether to proceed to `__SPECKIT_COMMAND_PLAN__` or run `__SPECKIT_COMMAND_CLARIFY__` again later post-plan.
    - Suggested next command.
 
 Behavior rules:
 
 - If no meaningful ambiguities found (or all potential questions would be low-impact), respond: "No critical ambiguities detected worth formal clarification." and suggest proceeding.
-- If spec file missing, instruct user to run `/spec.specify` first (do not create a new spec here).
+- If spec file missing, instruct user to run `__SPECKIT_COMMAND_SPECIFY__` first (do not create a new spec here).
 - Never exceed 5 total asked questions (clarification retries for a single question do not count as new questions).
 - Avoid speculative tech stack questions unless the absence blocks functional clarity.
 - Respect user early termination signals ("stop", "done", "proceed").
@@ -289,11 +288,8 @@ Check if `.specify/extensions.yml` exists in the project root.
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-    ```
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed
+    - If the hook command file cannot be found or execution fails, log a warning and continue
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently

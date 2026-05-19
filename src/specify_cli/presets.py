@@ -679,9 +679,90 @@ class PresetManager:
             return {}
 
         registrar = CommandRegistrar()
-        return registrar.register_commands_for_all_agents(
+        registered = registrar.register_commands_for_all_agents(
             commands_to_register, manifest.id, preset_dir, self.project_root
         )
+
+        # Clean up replaced commands (core speckit-* skills that the preset overrides)
+        self._cleanup_replaced_commands(manifest, command_templates)
+
+        return registered
+
+    def _cleanup_replaced_commands(
+        self,
+        manifest: "PresetManifest",
+        command_templates: List[Dict[str, Any]],
+    ) -> None:
+        """Remove core command skill directories that the preset replaces.
+
+        When a preset command declares 'replaces: speckit.X', this removes the
+        corresponding core skill directory (e.g., speckit-X) from skill-based
+        agent directories to prevent duplicate commands.
+
+        Args:
+            manifest: Preset manifest
+            command_templates: List of command template dicts from the manifest
+        """
+        # Collect all replaced command names (e.g., "speckit.constitution")
+        replaced_commands = set()
+        for cmd in command_templates:
+            replaces = cmd.get("replaces")
+            if replaces:
+                replaced_commands.add(replaces)
+
+        if not replaced_commands:
+            return
+
+        # Compute skill directory names for replaced commands
+        # "speckit.constitution" -> "speckit-constitution"
+        replaced_skill_dirs = set()
+        for cmd_name in replaced_commands:
+            skill_dir = cmd_name.replace(".", "-")
+            replaced_skill_dirs.add(skill_dir)
+
+        # Find skill-based agent directories and remove replaced skills
+        try:
+            from .agents import CommandRegistrar
+
+            agent_configs = CommandRegistrar.AGENT_CONFIGS
+        except (ImportError, AttributeError):
+            return
+
+        # For each agent, check and remove replaced skills/command files
+        for agent_name, agent_config in agent_configs.items():
+            # AGENT_CONFIGS uses "dir" key for the full path (e.g., ".claude/skills" or ".opencode/command")
+            agent_dir = self.project_root / agent_config.get("dir", f".{agent_name}/skills")
+
+            if not agent_dir.exists():
+                continue
+
+            # Check if this is a skill agent or non-skill agent
+            is_skill_agent = agent_config.get("extension") == "/SKILL.md"
+
+            if is_skill_agent:
+                # Remove speckit-* directories for replaced commands
+                # Note: We intentionally do NOT delete spec-* (fork alias) directories here.
+                # Fork skills (spec-*) are managed by the presets that create them.
+                for skill_dir in replaced_skill_dirs:
+                    skill_path = agent_dir / skill_dir
+                    if skill_path.exists():
+                        try:
+                            shutil.rmtree(skill_path)
+                        except OSError:
+                            pass  # best-effort cleanup
+            else:
+                # For non-skill agents (markdown, toml, yaml), remove command files
+                # e.g., speckit.constitution.md, speckit.plan.md
+                extension = agent_config.get("extension", ".md")
+                for cmd_name in replaced_commands:
+                    # Replace dots with the appropriate separator for the file naming convention
+                    # Most non-skill agents use the command name as-is with dots
+                    cmd_file = agent_dir / f"{cmd_name}{extension}"
+                    if cmd_file.exists():
+                        try:
+                            cmd_file.unlink()
+                        except OSError:
+                            pass  # best-effort cleanup
 
     def _unregister_commands(self, registered_commands: Dict[str, List[str]]) -> None:
         """Remove previously registered command files from agent directories.
@@ -1048,9 +1129,9 @@ class PresetManager:
                     short_name = cmd_name
                     if short_name.startswith("speckit."):
                         short_name = short_name[len("speckit."):]
-                    desc = SKILL_DESCRIPTIONS.get(
+                    desc = fm.get("description", "") or SKILL_DESCRIPTIONS.get(
                         short_name.replace(".", "-"),
-                        fm.get("description", f"Command: {short_name}"),
+                        f"Command: {short_name}",
                     )
                     init_opts = load_init_options(self.project_root)
                     selected_ai = init_opts.get("ai") if isinstance(init_opts, dict) else ""
@@ -1128,24 +1209,32 @@ class PresetManager:
 
         return skills_dir
 
-    @staticmethod
-    def _skill_names_for_command(cmd_name: str) -> tuple[str, str]:
-        """Return the modern and legacy skill directory names for a command."""
-        raw_short_name = cmd_name
-        if raw_short_name.startswith("speckit."):
-            raw_short_name = raw_short_name[len("speckit."):]
+    def _skill_names_for_command(self, cmd_name: str) -> tuple[str, str]:
+        """Return the modern and legacy skill directory names for a command.
 
-        modern_skill_name = f"speckit-{raw_short_name.replace('.', '-')}"
-        legacy_skill_name = f"speckit.{raw_short_name}"
+        Handles both upstream (speckit.X) and fork (adlc.*, spec.*) command names.
+        Fork commands use 'adlc-' or 'spec-' prefix instead of 'speckit-'.
+        """
+        # Use alias map to resolve command to its alias form, then convert to skill names
+        try:
+            from .cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(cmd_name, self.project_root)
+        except Exception:
+            resolved_name = cmd_name
+        
+        modern_skill_name = resolved_name.replace(".", "-")
+        legacy_skill_name = f"speckit.{resolved_name.replace('.', '-')}"
         return modern_skill_name, legacy_skill_name
 
-    @staticmethod
-    def _skill_title_from_command(cmd_name: str) -> str:
+    def _skill_title_from_command(self, cmd_name: str) -> str:
         """Return a human-friendly title for a skill command name."""
-        title_name = cmd_name
-        if title_name.startswith("speckit."):
-            title_name = title_name[len("speckit."):]
-        return title_name.replace(".", " ").replace("-", " ").title()
+        # Use alias map to get the canonical short form, then convert to title
+        try:
+            from .cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(cmd_name, self.project_root)
+        except Exception:
+            resolved_name = cmd_name
+        return resolved_name.replace(".", " ").replace("-", " ").title()
 
     def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
         """Index extension-backed skill restore data by skill directory name."""
@@ -1210,7 +1299,7 @@ class PresetManager:
         directory.  If so, the skill is overwritten with content derived
         from the preset's command file.  This ensures that presets that
         override commands also propagate to the agentskills.io skill
-        layer when ``--ai-skills`` was used during project initialisation.
+        layer when ``--ai-skills`` was previously used during project initialisation.
 
         Args:
             manifest: Preset manifest.
@@ -1266,6 +1355,14 @@ class PresetManager:
 
         written: List[str] = []
 
+        # Build a set of command names that have 'replaces' directives
+        # These should create skills even if create_missing_skills is False
+        replaced_commands = {
+            t.get("replaces") for t in filtered if t.get("replaces")
+        }
+
+        written: List[str] = []
+
         for cmd_tmpl in filtered:
             cmd_name = cmd_tmpl["name"]
             cmd_file_rel = cmd_tmpl["file"]
@@ -1295,10 +1392,23 @@ class PresetManager:
                 target_skill_names.append(skill_name)
             if legacy_skill_name != skill_name and (skills_dir / legacy_skill_name).is_dir():
                 target_skill_names.append(legacy_skill_name)
-            if not target_skill_names and create_missing_skills:
+            # For fork commands (adlc.spec.*), also check for speckit-* skills
+            # that were created during initial scaffolding
+            if not target_skill_names and skill_name.startswith("spec-"):
+                speckit_skill_name = skill_name.replace("spec-", "speckit-", 1)
+                if (skills_dir / speckit_skill_name).is_dir():
+                    target_skill_names.append(speckit_skill_name)
+
+            # Check if this command replaces a core command (indicated by 'replaces' directive)
+            # If so, we should create the skill even if create_missing_skills is False
+            # because the preset is explicitly replacing a core command
+            is_replacing_core = cmd_name in replaced_commands or cmd_tmpl.get("replaces")
+
+            if not target_skill_names and (create_missing_skills or is_replacing_core):
                 missing_skill_dir = skills_dir / skill_name
                 if not missing_skill_dir.exists():
                     target_skill_names.append(skill_name)
+
             if not target_skill_names:
                 continue
 
@@ -1314,15 +1424,25 @@ class PresetManager:
                         frontmatter[key] = core_frontmatter[key]
 
             original_desc = frontmatter.get("description", "")
-            enhanced_desc = SKILL_DESCRIPTIONS.get(
+            enhanced_desc = original_desc or SKILL_DESCRIPTIONS.get(
                 short_name,
-                original_desc or f"Spec-kit workflow command: {short_name}",
+                f"Spec-kit workflow command: {short_name}",
             )
             frontmatter = dict(frontmatter)
             frontmatter["description"] = enhanced_desc
             body = registrar.resolve_skill_placeholders(
                 selected_ai, frontmatter, body, self.project_root
             )
+
+            # Resolve __SPECKIT_COMMAND_*__ placeholders and handoff agents
+            from .integrations.base import IntegrationBase
+
+            _sep = agent_config.get("invoke_separator", ".")
+            body = IntegrationBase.resolve_command_refs(body, _sep)
+            body = IntegrationBase.resolve_handoff_agents(body, _sep)
+
+            # Resolve canonical command names to alias forms
+            body = IntegrationBase.resolve_command_names(body, self.project_root)
 
             for target_skill_name in target_skill_names:
                 skill_subdir = skills_dir / target_skill_name
@@ -1417,9 +1537,9 @@ class PresetManager:
                     )
 
                 original_desc = frontmatter.get("description", "")
-                enhanced_desc = SKILL_DESCRIPTIONS.get(
+                enhanced_desc = original_desc or SKILL_DESCRIPTIONS.get(
                     short_name,
-                    original_desc or f"Spec-kit workflow command: {short_name}",
+                    f"Spec-kit workflow command: {short_name}",
                 )
 
                 frontmatter_data = registrar.build_skill_frontmatter(
@@ -1845,28 +1965,20 @@ class PresetCatalog:
             )
 
     def _make_request(self, url: str):
-        """Build a urllib Request, adding auth header when available.
+        """Build a urllib Request, adding auth headers when a provider matches.
 
-        Supports GitHub and GitLab authentication via environment variables.
+        Delegates to :func:`specify_cli.authentication.http.build_request`.
         """
-        from specify_cli._github_http import build_github_request
-        from specify_cli._gitlab_http import build_gitlab_request, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return build_gitlab_request(url)
-        return build_github_request(url)
+        from specify_cli.authentication.http import build_request
+        return build_request(url)
 
     def _open_url(self, url: str, timeout: int = 10):
-        """Open a URL with auth, stripping the header on cross-host redirects.
+        """Open a URL with provider-based auth, trying each configured provider.
 
-        Supports GitHub and GitLab authentication.
+        Delegates to :func:`specify_cli.authentication.http.open_url`.
         """
-        from specify_cli._github_http import open_github_url
-        from specify_cli._gitlab_http import open_gitlab_url, is_gitlab_host
-
-        if is_gitlab_host(url):
-            return open_gitlab_url(url, timeout)
-        return open_github_url(url, timeout)
+        from specify_cli.authentication.http import open_url
+        return open_url(url, timeout)
 
     def _load_catalog_config(self, config_path: Path) -> Optional[List[PresetCatalogEntry]]:
         """Load catalog stack configuration from a YAML file.

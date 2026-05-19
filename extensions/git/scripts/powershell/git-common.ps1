@@ -3,6 +3,57 @@
 # Extracted from scripts/powershell/common.ps1 — contains only git-specific
 # branch validation and detection logic.
 
+# Find the project root by looking for .specify directory
+function Find-SpecifyRoot {
+    param([string]$Dir = (Get-Location))
+    $Dir = (Resolve-Path $Dir -ErrorAction SilentlyContinue).Path
+    if (-not $Dir) { return $null }
+
+    while ($true) {
+        $specifyPath = Join-Path $Dir ".specify"
+        if (Test-Path $specifyPath -PathType Container) {
+            return $Dir
+        }
+        $parent = Split-Path $Dir -Parent
+        if (-not $parent -or $parent -eq $Dir) { break }
+        $Dir = $parent
+    }
+    return $null
+}
+
+# Get repository root, prioritizing .specify directory over git
+function Get-RepoRoot {
+    $specifyRoot = Find-SpecifyRoot
+    if ($specifyRoot) {
+        return $specifyRoot
+    }
+
+    try {
+        $gitRoot = git rev-parse --show-toplevel 2>$null
+        if ($gitRoot) { return $gitRoot }
+    } catch { }
+
+    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    $extensionDir = Split-Path -Parent $scriptDir
+    $projectDir = Split-Path -Parent $extensionDir
+    return $projectDir
+}
+
+# Check if we have git available at the repo root
+function Has-Git {
+    param([string]$RepoRoot = (Get-Location))
+    try {
+        $gitDir = Join-Path $RepoRoot ".git"
+        if (-not (Test-Path $gitDir)) { return $false }
+        if (-not (Get-Command git -ErrorAction SilentlyContinue)) { return $false }
+        $null = git -C $RepoRoot rev-parse --is-inside-work-tree 2>$null
+        return $LASTEXITCODE -eq 0
+    } catch {
+        return $false
+    }
+}
+
+# Alias for compatibility
 function Test-HasGit {
     param([string]$RepoRoot = (Get-Location))
     try {

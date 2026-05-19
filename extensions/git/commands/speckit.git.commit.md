@@ -24,7 +24,7 @@ Determine the event name from the hook that triggered this command, then run the
 - **Bash**: `.specify/extensions/git/scripts/bash/auto-commit.sh <event_name>`
 - **PowerShell**: `.specify/extensions/git/scripts/powershell/auto-commit.ps1 <event_name>`
 
-Replace `<event_name>` with the actual hook event (e.g., `after_specify`, `before_plan`, `after_implement`).
+Replace `<event_name>` with the actual hook event (e.g., `after_specify`, `before_plan`, `after_implement`, `before_task_execute`, `after_task_execute`).
 
 ## Configuration
 
@@ -39,6 +39,9 @@ auto_commit:
   after_plan:
     enabled: false
     message: "[Spec Kit] Add implementation plan"
+  after_task_execute:
+    enabled: false         # Per-task commits (used by quick.implement and adlc.spec.implement)
+    message: "[Spec Kit] Task checkpoint"
 ```
 
 ## Graceful Degradation

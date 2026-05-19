@@ -44,15 +44,10 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Outline.
-    ```
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
+    - If the hook command file cannot be found, log a warning and proceed anyway
 - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
@@ -91,14 +86,11 @@ You **MUST** consider the user input before proceeding (if not empty).
        Prompt: {prompt}
        To execute: `/{command}`
        ```
-     - **Mandatory hook** (`optional: false`):
-       ```
-       ## Extension Hooks
-
-       **Automatic Hook**: {extension}
-       Executing: `/{command}`
-       EXECUTE_COMMAND: {command}
-       ```
+- **Mandatory hook** (`optional: false`):
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed
+    - If the hook command file cannot be found or execution fails, log a warning and continue
     - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
 
 ## Phases

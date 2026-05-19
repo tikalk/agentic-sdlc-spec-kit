@@ -20,8 +20,23 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+import yaml
+
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
+
+
+def _get_command_prefix() -> str:
+    """Get the command prefix for __SPECKIT_COMMAND_*__ placeholder resolution.
+
+    Fork uses 'spec', upstream uses 'speckit'.
+    Lazily imported to avoid issues when cli_customization isn't available at module load time.
+    """
+    try:
+        from ..cli_customization import COMMAND_PREFIX
+        return COMMAND_PREFIX
+    except ImportError:
+        return "speckit"
 
 
 # ---------------------------------------------------------------------------
@@ -141,18 +156,22 @@ class IntegrationBase(ABC):
 
         The CLI tools discover and execute commands from installed files
         on disk.  This method builds the invocation string the CLI
-        expects — e.g. ``"/speckit.specify my-feature"`` for markdown
-        agents or ``"/speckit-specify my-feature"`` for skills agents.
+        expects — e.g. ``"/spec.specify my-feature"`` (fork) or ``"/speckit.specify my-feature"`` (upstream)
+        for markdown agents or ``"/spec-specify my-feature"`` (fork) or ``"/speckit-specify my-feature"`` (upstream)
+        for skills agents.
 
         *command_name* may be a full dotted name like
-        ``"speckit.specify"``, an extension command like
+        ``"speckit.specify"``, ``"spec.specify"``, ``"adlc.specify"``, an extension command like
         ``"speckit.git.commit"``, or a bare stem like ``"specify"``.
         """
         stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        # Handle fork-specific prefixes
+        for prefix in ("adlc.", "spec.", "speckit."):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+                break
 
-        invocation = f"/speckit.{stem}"
+        invocation = f"/{_get_command_prefix()}.{stem}"
         if args:
             invocation = f"{invocation} {args}"
         return invocation
@@ -285,10 +304,13 @@ class IntegrationBase(ABC):
         """Return the destination filename for a command template.
 
         *template_name* is the stem of the source file (e.g. ``"plan"``).
-        Default: ``speckit.{template_name}.md``.  Subclasses override
-        to change the extension or naming convention.
+        Default: ``spec.{template_name}.md`` (fork uses "spec" prefix).
+        Exception: ``taskstoissues`` keeps ``speckit.`` prefix for backwards compatibility.
+        Subclasses override to change the extension or naming convention.
         """
-        return f"speckit.{template_name}.md"
+        if template_name == "taskstoissues":
+            return f"speckit.{template_name}.md"
+        return f"spec.{template_name}.md"
 
     def commands_dest(self, project_root: Path) -> Path:
         """Return the absolute path to the commands output directory.
@@ -307,6 +329,24 @@ class IntegrationBase(ABC):
                 f"{type(self).__name__}.config is missing required 'folder' entry."
             )
         subdir = self.config.get("commands_subdir", "commands")
+        return project_root / folder / subdir
+
+    def skills_dest(self, project_root: Path) -> Path:
+        """Return the absolute path to the skills output directory.
+
+        Derived from ``config["folder"]`` and the configured
+        ``commands_subdir`` (defaults to ``"skills"``).
+
+        Raises ``ValueError`` when ``config`` or ``folder`` is missing.
+        """
+        if not self.config:
+            raise ValueError(f"{type(self).__name__}.config is not set.")
+        folder = self.config.get("folder")
+        if not folder:
+            raise ValueError(
+                f"{type(self).__name__}.config is missing required 'folder' entry."
+            )
+        subdir = self.config.get("commands_subdir", "skills")
         return project_root / folder / subdir
 
     # -- File operations — granular primitives for setup() ----------------
@@ -606,6 +646,7 @@ class IntegrationBase(ABC):
         # For .mdc files, treat Speckit-generated frontmatter-only content as empty
         if ctx_path.suffix == ".mdc":
             import re
+
             # Delete the file if only YAML frontmatter remains (no body content)
             frontmatter_only = re.match(
                 r"^---\n.*?\n---\s*$", normalized, re.DOTALL
@@ -630,14 +671,100 @@ class IntegrationBase(ABC):
         ``__SPECKIT_COMMAND_GIT_COMMIT__``).  The replacement uses
         *separator* to join the segments:
 
-        * ``separator="."`` → ``/speckit.plan``, ``/speckit.git.commit``
-        * ``separator="-"`` → ``/speckit-plan``, ``/speckit-git-commit``
+        * ``separator="."`` → ``/spec.plan`` (fork) or ``/speckit.plan`` (upstream)
+        * ``separator="-"`` → ``/spec-plan`` (fork) or ``/speckit-plan`` (upstream)
         """
         return re.sub(
             r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__",
-            lambda m: "/speckit" + separator + m.group(1).lower().replace("_", separator),
+            lambda m: "/" + _get_command_prefix() + separator + m.group(1).lower().replace("_", separator),
             content,
         )
+
+    @staticmethod
+    def resolve_handoff_agents(content: str, separator: str = ".") -> str:
+        """Replace agent references in handoffs YAML with the correct format.
+
+        The handoffs section uses 'agent:' to specify which command/skill to hand off to.
+        The format differs by agent type:
+        - For skills (separator='-'): use directory name, e.g., 'spec-plan'
+        - For non-skills (separator='.'): use command name, e.g., 'spec.plan'
+
+        Also transforms adlc.spec.X → spec.X/spec-X and speckit.X → spec.X/spec-X
+        for fork compatibility.
+        """
+        lines = content.splitlines()
+        result = []
+        in_handoffs = False
+        handoffs_base_indent = None
+        in_list_item = False
+
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            current_indent = len(line) - len(line.lstrip())
+
+            # Detect handoffs section
+            if stripped == "handoffs:" or stripped.startswith("handoffs:"):
+                in_handoffs = True
+                handoffs_base_indent = current_indent
+                in_list_item = False
+                result.append(line)
+                continue
+
+            if not in_handoffs:
+                result.append(line)
+                continue
+
+            # Check for list item start (line starts with '- ')
+            if stripped.startswith("- "):
+                in_list_item = True
+
+            # Check for end of handoffs section
+            # Exit if we hit the closing '---' of frontmatter
+            if stripped == "---" and i > 0:
+                in_handoffs = False
+                in_list_item = False
+
+            # Also exit if we're at same or lower indentation as handoffs key
+            # AND we're not inside a list item
+            if in_handoffs and stripped:
+                if (
+                    not stripped.startswith("- ")
+                    and not stripped.startswith("handoffs")
+                    and not in_list_item
+                    and current_indent <= handoffs_base_indent
+                ):
+                    in_handoffs = False
+                    in_list_item = False
+
+            if in_handoffs and stripped.startswith("agent:"):
+                # Extract the agent value
+                agent_value = stripped[6:].strip()  # Skip "agent:"
+
+                # Transform agent names:
+                # - adlc.spec.X → spec-X (skills) or spec.X (non-skills)
+                # - spec.X → spec-X (skills) or spec.X (non-skills)
+                # - speckit.X → spec-X (skills) or spec.X (non-skills)
+                new_agent = agent_value
+
+                # Handle adlc.spec.* prefix
+                if agent_value.startswith("adlc.spec."):
+                    cmd = agent_value[len("adlc.spec."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+                # Handle spec.* prefix (shouldn't happen but handle anyway)
+                elif agent_value.startswith("spec."):
+                    cmd = agent_value[len("spec."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+                # Handle speckit.* prefix
+                elif agent_value.startswith("speckit."):
+                    cmd = agent_value[len("speckit."):]
+                    new_agent = f"spec-{cmd}" if separator == "-" else f"spec.{cmd}"
+
+                # Replace in the line
+                result.append(line.replace(f"agent: {agent_value}", f"agent: {new_agent}"))
+            else:
+                result.append(line)
+
+        return "\n".join(result)
 
     @staticmethod
     def process_template(
@@ -647,6 +774,7 @@ class IntegrationBase(ABC):
         arg_placeholder: str = "$ARGUMENTS",
         context_file: str = "",
         invoke_separator: str = ".",
+        project_root: Path | None = None,
     ) -> str:
         """Process a raw command template into agent-ready content.
 
@@ -659,6 +787,8 @@ class IntegrationBase(ABC):
         6. Replace ``__CONTEXT_FILE__`` with *context_file*
         7. Rewrite paths: ``scripts/`` → ``.specify/scripts/`` etc.
         8. Replace ``__SPECKIT_COMMAND_<NAME>__`` with invocation strings
+        9. Resolve handoff agent references in frontmatter
+        10. Resolve canonical command names to alias forms
         """
         # 1. Extract script command from frontmatter
         script_command = ""
@@ -731,7 +861,61 @@ class IntegrationBase(ABC):
         # 8. Replace __SPECKIT_COMMAND_<NAME>__ with invocation strings
         content = IntegrationBase.resolve_command_refs(content, invoke_separator)
 
+        # 9. Resolve handoff agent references in frontmatter
+        content = IntegrationBase.resolve_handoff_agents(content, invoke_separator)
+
+        # 10. Resolve canonical command names to alias forms
+        # This transforms 'speckit.git.initialize' -> 'git.initialize'
+        content = IntegrationBase.resolve_command_names(content, project_root)
+
         return content
+
+    @staticmethod
+    def resolve_command_names(content: str, project_root: Path | None = None) -> str:
+        """Resolve canonical command names to alias forms in template content.
+
+        Scans content for command name patterns (e.g., 'speckit.git.initialize',
+        'adlc.spec.constitution') and replaces them with their alias forms
+        (e.g., 'git.initialize', 'spec.constitution').
+
+        This ensures AI command templates display the user-friendly alias form
+        rather than the internal canonical name.
+
+        Args:
+            content: Template content to process
+            project_root: Project root for building alias map
+
+        Returns:
+            Content with command names resolved to alias forms
+        """
+        if project_root is None:
+            project_root = Path.cwd()
+
+        try:
+            from ..cli_customization import build_alias_map
+
+            alias_map = build_alias_map(project_root)
+        except Exception:
+            return content
+
+        if not alias_map:
+            return content
+
+        # Sort by longest command name first to avoid partial matches
+        # e.g., resolve 'adlc.spec.constitution' before 'adlc.spec.plan'
+        sorted_commands = sorted(
+            alias_map.items(), key=lambda x: len(x[0]), reverse=True
+        )
+
+        result = content
+        for canonical_name, alias in sorted_commands:
+            # Replace exact command name references
+            # Use word boundaries to avoid partial matches
+            # Match command name not preceded by alphanumeric or dot, not followed by alphanumeric
+            pattern = r"(?<![\w.])" + re.escape(canonical_name) + r"(?![\w])"
+            result = re.sub(pattern, alias, result)
+
+        return result
 
     def setup(
         self,
@@ -895,6 +1079,7 @@ class MarkdownIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(
@@ -953,7 +1138,6 @@ class TomlIntegration(IntegrationBase):
         and ``>``) keep their YAML semantics instead of being treated as
         raw text.
         """
-        import yaml
 
         frontmatter_text, _ = TomlIntegration._split_frontmatter(content)
         if not frontmatter_text:
@@ -1101,6 +1285,7 @@ class TomlIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
             toml_content = self._render_toml(description, body)
@@ -1140,7 +1325,6 @@ class YamlIntegration(IntegrationBase):
     @staticmethod
     def _extract_frontmatter(content: str) -> dict[str, Any]:
         """Extract frontmatter as a dict from YAML frontmatter block."""
-        import yaml
 
         if not content.startswith("---"):
             return {}
@@ -1201,24 +1385,38 @@ class YamlIntegration(IntegrationBase):
             text = text[len("speckit.") :]
         return text.replace(".", " ").replace("-", " ").replace("_", " ").title()
 
-    @staticmethod
-    def _render_yaml(title: str, description: str, body: str, source_id: str) -> str:
+
+    @classmethod
+    def _build_yaml_header(cls, title: str, description: str) -> dict[str, Any]:
+        """Build the base YAML header."""
+        header = {
+            "version": "1.0.0",
+            "title": title,
+            "description": description,
+            "author": {"contact": "spec-kit"},
+            "parameters": [
+                {
+                    "key": "args",
+                    "input_type": "string",
+                    "requirement": "optional",
+                    "default": "",
+                    "description": "User input passed to the command.",
+                }
+            ],
+            "extensions": [{"type": "builtin", "name": "developer"}],
+            "activities": ["Spec-Driven Development"],
+        }
+        return header
+
+    @classmethod
+    def _render_yaml(cls, title: str, description: str, body: str, source_id: str) -> str:
         """Render a YAML recipe file from title, description, and body.
 
         Produces a Goose-compatible recipe with a literal block scalar
         for the prompt content.  Uses ``yaml.safe_dump()`` for the
         header fields to ensure proper escaping.
         """
-        import yaml
-
-        header = {
-            "version": "1.0.0",
-            "title": title,
-            "description": description,
-            "author": {"contact": "spec-kit"},
-            "extensions": [{"type": "builtin", "name": "developer"}],
-            "activities": ["Spec-Driven Development"],
-        }
+        header = cls._build_yaml_header(title, description)
 
         header_yaml = yaml.safe_dump(
             header,
@@ -1227,11 +1425,19 @@ class YamlIntegration(IntegrationBase):
             default_flow_style=False,
         ).strip()
 
-        # Indent each line for YAML block scalar
+        # Indent the body for YAML block scalar
         indented = "\n".join(f"  {line}" for line in body.split("\n"))
 
-        lines = [header_yaml, "prompt: |", indented, "", f"# Source: {source_id}"]
+        lines = [
+            header_yaml,
+            "prompt: |",
+            indented,
+            "",
+            f"# Source: {source_id}",
+        ]
+
         return "\n".join(lines) + "\n"
+
 
     def setup(
         self,
@@ -1284,6 +1490,7 @@ class YamlIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             _, body = self._split_frontmatter(processed)
             yaml_content = self._render_yaml(
@@ -1339,31 +1546,19 @@ class SkillsIntegration(IntegrationBase):
             args.extend(["--output-format", "json"])
         return args
 
-    def skills_dest(self, project_root: Path) -> Path:
-        """Return the absolute path to the skills output directory.
-
-        Derived from ``config["folder"]`` and the configured
-        ``commands_subdir`` (defaults to ``"skills"``).
-
-        Raises ``ValueError`` when ``config`` or ``folder`` is missing.
-        """
-        if not self.config:
-            raise ValueError(f"{type(self).__name__}.config is not set.")
-        folder = self.config.get("folder")
-        if not folder:
-            raise ValueError(
-                f"{type(self).__name__}.config is missing required 'folder' entry."
-            )
-        subdir = self.config.get("commands_subdir", "skills")
-        return project_root / folder / subdir
-
     def build_command_invocation(self, command_name: str, args: str = "") -> str:
-        """Skills use ``/speckit-<stem>`` (hyphenated directory name)."""
-        stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        """Skills use ``/<PREFIX>-<stem>`` (hyphenated directory name).
 
-        invocation = "/speckit-" + stem.replace(".", "-")
+        Uses COMMAND_PREFIX: /spec- for fork, /speckit- for upstream.
+        """
+        stem = command_name
+        # Handle fork-specific prefixes
+        for prefix in ("adlc.", "spec.", "speckit."):
+            if stem.startswith(prefix):
+                stem = stem[len(prefix):]
+                break
+
+        invocation = f"/{_get_command_prefix()}-" + stem.replace(".", "-")
         if args:
             invocation = f"{invocation} {args}"
         return invocation
@@ -1391,7 +1586,6 @@ class SkillsIntegration(IntegrationBase):
         template.  Each SKILL.md has normalised frontmatter containing
         ``name``, ``description``, ``compatibility``, and ``metadata``.
         """
-        import yaml
 
         templates = self.list_command_templates()
         if not templates:
@@ -1426,7 +1620,7 @@ class SkillsIntegration(IntegrationBase):
 
             # Derive the skill name from the template stem
             command_name = src_file.stem  # e.g. "plan"
-            skill_name = f"speckit-{command_name.replace('.', '-')}"
+            skill_name = f"{_get_command_prefix()}-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description
             frontmatter: dict[str, Any] = {}
@@ -1445,6 +1639,7 @@ class SkillsIntegration(IntegrationBase):
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
                 invoke_separator=self.invoke_separator,
+                project_root=project_root,
             )
             # Strip the processed frontmatter — we rebuild it for skills.
             # Preserve leading whitespace in the body to match release ZIP

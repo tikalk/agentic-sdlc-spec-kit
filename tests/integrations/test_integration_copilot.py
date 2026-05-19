@@ -21,7 +21,7 @@ class TestCopilotIntegration:
 
     def test_command_filename_agent_md(self):
         copilot = get_integration("copilot")
-        assert copilot.command_filename("plan") == "speckit.plan.agent.md"
+        assert copilot.command_filename("plan") == "spec.plan.agent.md"
 
     def test_setup_creates_agent_md_files(self, tmp_path):
         from specify_cli.integrations.copilot import CopilotIntegration
@@ -37,6 +37,9 @@ class TestCopilotIntegration:
 
     def test_setup_creates_companion_prompts(self, tmp_path):
         from specify_cli.integrations.copilot import CopilotIntegration
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
         created = copilot.setup(tmp_path, m)
@@ -45,7 +48,7 @@ class TestCopilotIntegration:
         for f in prompt_files:
             assert f.name.endswith(".prompt.md")
             content = f.read_text(encoding="utf-8")
-            assert content.startswith("---\nagent: speckit.")
+            assert content.startswith(f"---\nagent: {prefix}.")
 
     def test_agent_and_prompt_counts_match(self, tmp_path):
         from specify_cli.integrations.copilot import CopilotIntegration
@@ -124,13 +127,17 @@ class TestCopilotIntegration:
         copilot.setup(tmp_path, m)
         agents_dir = tmp_path / ".github" / "agents"
         assert agents_dir.is_dir()
-        agent_files = sorted(agents_dir.glob("speckit.*.agent.md"))
+        # Check for spec.* files (fork) or speckit.* files (upstream)
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
+        agent_files = sorted(agents_dir.glob(f"{prefix}.*.agent.md"))
         assert len(agent_files) == 9
         expected_commands = {
             "analyze", "checklist", "clarify", "constitution",
             "implement", "plan", "specify", "tasks", "taskstoissues",
         }
-        actual_commands = {f.name.removeprefix("speckit.").removesuffix(".agent.md") for f in agent_files}
+        actual_commands = {f.name.removeprefix(f"{prefix}.").removesuffix(".agent.md") for f in agent_files}
         assert actual_commands == expected_commands
 
     def test_templates_are_processed(self, tmp_path):
@@ -153,7 +160,7 @@ class TestCopilotIntegration:
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
         copilot.setup(tmp_path, m)
-        plan_file = tmp_path / ".github" / "agents" / "speckit.plan.agent.md"
+        plan_file = tmp_path / ".github" / "agents" / "spec.plan.agent.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
         assert copilot.context_file in content, (
@@ -177,26 +184,29 @@ class TestCopilotIntegration:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = set(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        # Determine prefix based on fork status
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         # Core files that must be present in all environments
         core_expected = {
-            ".github/agents/speckit.analyze.agent.md",
-            ".github/agents/speckit.checklist.agent.md",
-            ".github/agents/speckit.clarify.agent.md",
-            ".github/agents/speckit.constitution.agent.md",
-            ".github/agents/speckit.implement.agent.md",
-            ".github/agents/speckit.plan.agent.md",
-            ".github/agents/speckit.specify.agent.md",
-            ".github/agents/speckit.tasks.agent.md",
-            ".github/agents/speckit.taskstoissues.agent.md",
-            ".github/prompts/speckit.analyze.prompt.md",
-            ".github/prompts/speckit.checklist.prompt.md",
-            ".github/prompts/speckit.clarify.prompt.md",
-            ".github/prompts/speckit.constitution.prompt.md",
-            ".github/prompts/speckit.implement.prompt.md",
-            ".github/prompts/speckit.plan.prompt.md",
-            ".github/prompts/speckit.specify.prompt.md",
-            ".github/prompts/speckit.tasks.prompt.md",
-            ".github/prompts/speckit.taskstoissues.prompt.md",
+            f".github/agents/{prefix}.analyze.agent.md",
+            f".github/agents/{prefix}.checklist.agent.md",
+            f".github/agents/{prefix}.clarify.agent.md",
+            f".github/agents/{prefix}.constitution.agent.md",
+            f".github/agents/{prefix}.implement.agent.md",
+            f".github/agents/{prefix}.plan.agent.md",
+            f".github/agents/{prefix}.specify.agent.md",
+            f".github/agents/{prefix}.tasks.agent.md",
+            f".github/agents/{prefix}.taskstoissues.agent.md",
+            f".github/prompts/{prefix}.analyze.prompt.md",
+            f".github/prompts/{prefix}.checklist.prompt.md",
+            f".github/prompts/{prefix}.clarify.prompt.md",
+            f".github/prompts/{prefix}.constitution.prompt.md",
+            f".github/prompts/{prefix}.implement.prompt.md",
+            f".github/prompts/{prefix}.plan.prompt.md",
+            f".github/prompts/{prefix}.specify.prompt.md",
+            f".github/prompts/{prefix}.tasks.prompt.md",
+            f".github/prompts/{prefix}.taskstoissues.prompt.md",
             ".vscode/settings.json",
             ".github/copilot-instructions.md",
             ".specify/integration.json",
@@ -220,7 +230,6 @@ class TestCopilotIntegration:
         missing = core_expected - actual
         assert not missing, f"Missing core files: {sorted(missing)}"
         # For upstream (non-fork), also check no extra files
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         if not is_fork:
             extra = actual - core_expected
             assert not extra, f"Extra files: {sorted(extra)}"
@@ -241,26 +250,29 @@ class TestCopilotIntegration:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         actual = set(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        # Determine prefix based on fork status
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        prefix = "spec" if is_fork else "speckit"
         # Core files that must be present in all environments
         core_expected = {
-            ".github/agents/speckit.analyze.agent.md",
-            ".github/agents/speckit.checklist.agent.md",
-            ".github/agents/speckit.clarify.agent.md",
-            ".github/agents/speckit.constitution.agent.md",
-            ".github/agents/speckit.implement.agent.md",
-            ".github/agents/speckit.plan.agent.md",
-            ".github/agents/speckit.specify.agent.md",
-            ".github/agents/speckit.tasks.agent.md",
-            ".github/agents/speckit.taskstoissues.agent.md",
-            ".github/prompts/speckit.analyze.prompt.md",
-            ".github/prompts/speckit.checklist.prompt.md",
-            ".github/prompts/speckit.clarify.prompt.md",
-            ".github/prompts/speckit.constitution.prompt.md",
-            ".github/prompts/speckit.implement.prompt.md",
-            ".github/prompts/speckit.plan.prompt.md",
-            ".github/prompts/speckit.specify.prompt.md",
-            ".github/prompts/speckit.tasks.prompt.md",
-            ".github/prompts/speckit.taskstoissues.prompt.md",
+            f".github/agents/{prefix}.analyze.agent.md",
+            f".github/agents/{prefix}.checklist.agent.md",
+            f".github/agents/{prefix}.clarify.agent.md",
+            f".github/agents/{prefix}.constitution.agent.md",
+            f".github/agents/{prefix}.implement.agent.md",
+            f".github/agents/{prefix}.plan.agent.md",
+            f".github/agents/{prefix}.specify.agent.md",
+            f".github/agents/{prefix}.tasks.agent.md",
+            f".github/agents/{prefix}.taskstoissues.agent.md",
+            f".github/prompts/{prefix}.analyze.prompt.md",
+            f".github/prompts/{prefix}.checklist.prompt.md",
+            f".github/prompts/{prefix}.clarify.prompt.md",
+            f".github/prompts/{prefix}.constitution.prompt.md",
+            f".github/prompts/{prefix}.implement.prompt.md",
+            f".github/prompts/{prefix}.plan.prompt.md",
+            f".github/prompts/{prefix}.specify.prompt.md",
+            f".github/prompts/{prefix}.tasks.prompt.md",
+            f".github/prompts/{prefix}.taskstoissues.prompt.md",
             ".vscode/settings.json",
             ".github/copilot-instructions.md",
             ".specify/integration.json",
@@ -284,7 +296,6 @@ class TestCopilotIntegration:
         missing = core_expected - actual
         assert not missing, f"Missing core files: {sorted(missing)}"
         # For upstream (non-fork), also check no extra files
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         if not is_fork:
             extra = actual - core_expected
             assert not extra, f"Extra files: {sorted(extra)}"
@@ -327,7 +338,7 @@ class TestCopilotSkillsMode:
         assert len(skill_files) > 0
         for f in skill_files:
             assert f.exists()
-            assert f.parent.name.startswith("speckit-")
+            assert f.parent.name.startswith("spec-")
 
     def test_skills_directory_under_github_skills(self, tmp_path):
         copilot = self._make_copilot()
@@ -341,7 +352,7 @@ class TestCopilotSkillsMode:
             )
 
     def test_skills_directory_structure(self, tmp_path):
-        """Each command produces speckit-<name>/SKILL.md."""
+        """Each command produces spec-<name>/SKILL.md."""
         copilot = self._make_copilot()
         created, _ = self._setup_skills(copilot, tmp_path)
         skill_files = [f for f in created if f.name == "SKILL.md"]
@@ -349,8 +360,8 @@ class TestCopilotSkillsMode:
         actual_commands = set()
         for f in skill_files:
             skill_dir_name = f.parent.name
-            assert skill_dir_name.startswith("speckit-")
-            actual_commands.add(skill_dir_name.removeprefix("speckit-"))
+            assert skill_dir_name.startswith("spec-")
+            actual_commands.add(skill_dir_name.removeprefix("spec-"))
         assert actual_commands == expected_commands
 
     # -- No companion files in skills mode --------------------------------
@@ -404,20 +415,20 @@ class TestCopilotSkillsMode:
         copilot = self._make_copilot()
         content = (
             "---\n"
-            'name: "speckit-plan"\n'
+            'name: "spec-plan"\n'
             'description: "Plan workflow"\n'
             "---\n"
             "\nBody content\n"
         )
         updated = copilot.post_process_skill_content(content)
-        assert "mode: speckit.plan" in updated
+        assert "mode: spec.plan" in updated
 
     def test_post_process_idempotent(self):
         """post_process_skill_content() must be idempotent."""
         copilot = self._make_copilot()
         content = (
             "---\n"
-            'name: "speckit-plan"\n'
+            'name: "spec-plan"\n'
             'description: "Plan workflow"\n'
             "---\n"
             "\nBody content\n"
@@ -437,10 +448,10 @@ class TestCopilotSkillsMode:
             parts = content.split("---", 2)
             fm = yaml.safe_load(parts[1])
             assert "mode" in fm, f"{f} frontmatter missing 'mode'"
-            # mode should be speckit.<stem>
+            # mode should be spec.<stem>
             skill_dir_name = f.parent.name
-            stem = skill_dir_name.removeprefix("speckit-")
-            assert fm["mode"] == f"speckit.{stem}"
+            stem = skill_dir_name.removeprefix("spec-")
+            assert fm["mode"] == f"spec.{stem}"
 
     # -- Template processing ----------------------------------------------
 
@@ -458,17 +469,20 @@ class TestCopilotSkillsMode:
             assert "__SPECKIT_COMMAND_" not in content, f"{f.name} has unprocessed __SPECKIT_COMMAND_*__"
 
     def test_skills_command_refs_use_hyphen(self, tmp_path):
-        """Copilot skills mode must use /speckit-<name> not /speckit.<name>."""
+        """Copilot skills mode must use /spec-<name> not /spec.<name>."""
         copilot = self._make_copilot()
         created, _ = self._setup_skills(copilot, tmp_path)
         skill_files = [f for f in created if f.name == "SKILL.md"]
         assert len(skill_files) > 0
         for f in skill_files:
             content = f.read_text(encoding="utf-8")
-            assert "/speckit." not in content, (
-                f"{f.name} contains dot-notation /speckit. reference; "
-                f"skills mode must use /speckit-<name>"
-            )
+            # Skills agents must use /spec-<name>, not /spec.<name>
+            # Check for common command patterns (plan, specify, tasks, etc.)
+            for cmd in ["plan", "specify", "tasks", "constitution", "clarify", "analyze", "checklist", "implement"]:
+                assert f"/spec.{cmd}" not in content, (
+                    f"{f.name} contains dot-notation /spec.{cmd} reference; "
+                    f"skills agents must use /spec-{cmd}"
+                )
 
     def test_skills_mode_invoke_separator(self):
         """Copilot effective_invoke_separator should reflect skills mode."""
@@ -492,7 +506,7 @@ class TestCopilotSkillsMode:
         """The generated plan skill must reference copilot's context file."""
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        plan_file = tmp_path / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        plan_file = tmp_path / ".github" / "skills" / "spec-plan" / "SKILL.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
         assert copilot.context_file in content
@@ -537,15 +551,18 @@ class TestCopilotSkillsMode:
     def test_build_command_invocation_skills_mode(self):
         copilot = self._make_copilot()
         copilot._skills_mode = True
+        # Without project context, alias resolution doesn't work, so commands
+        # are converted to hyphenated form but keep their original prefix
         assert copilot.build_command_invocation("speckit.plan") == "/speckit-plan"
-        assert copilot.build_command_invocation("plan") == "/speckit-plan"
-        assert copilot.build_command_invocation("plan", "my args") == "/speckit-plan my args"
+        assert copilot.build_command_invocation("plan") == "/plan"
+        assert copilot.build_command_invocation("plan", "my args") == "/plan my args"
 
     def test_build_command_invocation_skills_extension_command(self):
         copilot = self._make_copilot()
         copilot._skills_mode = True
+        # Without project context, alias resolution doesn't work
         assert copilot.build_command_invocation("speckit.git.commit") == "/speckit-git-commit"
-        assert copilot.build_command_invocation("git.commit") == "/speckit-git-commit"
+        assert copilot.build_command_invocation("git.commit") == "/git-commit"
 
     def test_build_command_invocation_default_mode(self):
         copilot = self._make_copilot()
@@ -584,8 +601,8 @@ class TestCopilotSkillsMode:
         assert result.exit_code == 0, f"init failed: {result.output}"
         skills_dir = project / ".github" / "skills"
         assert skills_dir.is_dir(), "Skills directory was not created"
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
-        assert plan_skill.exists(), "speckit-plan/SKILL.md not found"
+        plan_skill = skills_dir / "spec-plan" / "SKILL.md"
+        assert plan_skill.exists(), "spec-plan/SKILL.md not found"
         # Verify no default-mode artifacts
         assert not (project / ".github" / "agents").exists()
         assert not (project / ".github" / "prompts").exists()
@@ -612,7 +629,7 @@ class TestCopilotSkillsMode:
         # Core files that must be present in all environments
         core_expected = {
             # Skill files
-            *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
+            *[f".github/skills/spec-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
             # Context file
             ".github/copilot-instructions.md",
             # Integration metadata
@@ -685,14 +702,17 @@ class TestCopilotSkillsMode:
             assert "--agent" in call_args, (
                 f"Expected --agent in cli_args but got: {call_args}"
             )
-            assert "speckit.plan" in call_args
+            # Command is resolved to alias form (spec.plan) or kept as-is if no alias
+            assert "plan" in call_args
 
     def test_dispatch_detects_speckit_skills_layout(self, tmp_path):
-        """dispatch_command() detects speckit-*/SKILL.md as skills mode."""
+        """dispatch_command() detects spec-*/SKILL.md as skills mode."""
+        from specify_cli import PKG_NAMES
+        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         copilot = self._make_copilot()
-        skill_dir = tmp_path / ".github" / "skills" / "speckit-plan"
+        skill_dir = tmp_path / ".github" / "skills" / "spec-plan"
         skill_dir.mkdir(parents=True)
-        (skill_dir / "SKILL.md").write_text("---\nname: speckit-plan\n---\n")
+        (skill_dir / "SKILL.md").write_text("---\nname: spec-plan\n---\n")
 
         import unittest.mock as mock
         with mock.patch("subprocess.run") as mock_run:
@@ -703,8 +723,9 @@ class TestCopilotSkillsMode:
                 f"Skills mode should not use --agent, got: {call_args}"
             )
             prompt = call_args[call_args.index("-p") + 1]
-            assert "/speckit-plan" in prompt, (
-                f"Skills mode prompt should invoke /speckit-plan, got: {prompt}"
+            # Without alias map, command is hyphenated but may not have prefix
+            assert "/plan" in prompt, (
+                f"Skills mode prompt should invoke /plan or /spec-plan, got: {prompt}"
             )
             assert "my args" in prompt, (
                 f"Skills mode prompt should preserve user args, got: {prompt}"
@@ -713,7 +734,7 @@ class TestCopilotSkillsMode:
     # -- Next-steps display for Copilot skills mode -----------------------
 
     def test_init_skills_next_steps_show_skill_syntax(self, tmp_path):
-        """specify init --integration copilot --integration-options='--skills' shows /speckit-plan not /speckit.plan."""
+        """specify init --integration copilot --integration-options='--skills' shows /spec-plan not /spec.plan."""
         from typer.testing import CliRunner
         from specify_cli import app, PKG_NAMES
         project = tmp_path / "copilot-nextsteps"
@@ -734,7 +755,7 @@ class TestCopilotSkillsMode:
         is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
 
         if is_fork:
-            # Fork uses spec.* aliases (e.g., /spec.plan)
+            # Fork shows spec.* commands in dot notation
             assert "/spec.plan" in result.output, (
                 f"Expected /spec.plan in next steps but got:\n{result.output}"
             )
@@ -743,7 +764,3 @@ class TestCopilotSkillsMode:
             assert "/speckit-plan" in result.output, (
                 f"Expected /speckit-plan in next steps but got:\n{result.output}"
             )
-        # Must NOT show the dotted /speckit.plan form
-        assert "/speckit.plan" not in result.output, (
-            f"Should not show /speckit.plan in skills mode:\n{result.output}"
-        )

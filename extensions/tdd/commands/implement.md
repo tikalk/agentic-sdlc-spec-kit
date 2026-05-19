@@ -14,6 +14,117 @@ This command executes the TDD workflow for each test increment:
 2. **GREEN Phase**: Write minimal implementation, confirm tests pass
 3. **REFACTOR Phase**: Apply improvements, confirm tests still pass
 
+## Context Detection
+
+Determine the execution context by checking for spec workflow artifacts.
+
+### Check for Spec Workflow Artifacts
+
+Look for TDD state files in the project:
+- `increment-state.json` (persisted TDD state from previous runs)
+- `.specify/extensions/tdd/language-detected.json` (language detection already ran)
+- `tasks.md` with TDD increment entries (e.g., `TDD-001`, `TDD-R01`)
+
+### Context Decision
+
+**If spec artifacts exist** (any of the above files are found):
+→ Proceed to "Load State" section below (standard file-based mode)
+
+**If NO spec artifacts exist** (quick/ad-hoc mode, e.g., from `/quick.implement`):
+→ Run the "In-Session TDD Flow" below
+
+---
+
+## In-Session TDD Flow (Quick Mode)
+
+When called without prior `tdd.tasks` execution and no spec artifacts exist.
+
+### Step 1: Language Detection
+
+Run the language detection script (results captured in-session):
+
+```bash
+{.specify/extensions/tdd/scripts/bash/detect-language.sh}
+```
+
+Capture the detected configuration without requiring the JSON file to persist:
+- Language (python, typescript, go, rust, java, csharp)
+- Framework (pytest, vitest, jest, testing, cargo, junit, xunit)
+- Test directory
+- Binary and flags
+
+### Step 2: Condensed TDD Planning
+
+Ask the user these quick planning questions:
+
+**1. What public interfaces are being added or modified?**
+- Functions, methods, or APIs being created or changed
+- Focus on what's testable through the public API
+
+**2. What are the key behaviors to test?** (prioritize)
+- Critical business logic first
+- Happy paths
+- Edge cases (empty, null, boundary values)
+- Error cases
+
+**3. Any testability concerns?**
+- External dependencies that need mocking?
+- Side effects to avoid?
+- Complex setup required?
+
+### Step 3: Generate Test Increments
+
+Based on the planning answers and detected language/framework, generate test increments:
+
+```bash
+# Determine pattern from planning context
+FEATURE_TYPE="generic"
+
+# Generate increments (no file writing - in-session only)
+echo "### Generated Test Increments"
+echo ""
+echo "**Degenerate Cases**"
+echo "- [ ] TDD-001 Handle empty/null input"
+echo "- [ ] TDD-002 Handle single item"
+echo ""
+echo "**Happy Path**"
+echo "- [ ] TDD-003 [P] Valid input processing"
+echo ""
+echo "**Edge Cases**"
+echo "- [ ] TDD-004 Handle boundary values"
+echo "- [ ] TDD-005 Handle invalid input"
+echo ""
+echo "**Error Cases**"
+echo "- [ ] TDD-006 Handle error conditions"
+```
+
+### Step 4: Track State In-Session
+
+Initialize state tracking without writing to disk:
+
+```bash
+STATE='{"current_increment": 0, "increments": [
+  {"id": "TDD-001", "type": "degenerate", "description": "Handle empty/null input", "status": "pending"},
+  {"id": "TDD-002", "type": "degenerate", "description": "Handle single item", "status": "pending"},
+  {"id": "TDD-003", "type": "happy", "description": "Valid input processing", "status": "pending", "priority": "high"},
+  {"id": "TDD-004", "type": "edge", "description": "Handle boundary values", "status": "pending"},
+  {"id": "TDD-005", "type": "edge", "description": "Handle invalid input", "status": "pending"},
+  {"id": "TDD-006", "type": "error", "description": "Handle error conditions", "status": "pending"}
+]}'
+
+echo "TDD state initialized in-session (not persisted to disk)"
+echo "If the session ends, TDD progress will be lost."
+echo "The code changes made during RED→GREEN→REFACTOR are saved via git commits."
+```
+
+### Step 5: Proceed to RED→GREEN→REFACTOR
+
+Continue to "Process Each Increment" section below.
+
+**Note**: State is tracked in the conversation only. No `increment-state.json` file is written.
+
+---
+
 ## Core Principles (TDD + TDD best practices)
 
 ### Vertical Slicing
@@ -56,15 +167,15 @@ This constraint prevents:
 - Writing tests that are too loose
 - Faking test passes instead of real implementation
 
-## Load State
+## Load State (Spec Mode)
 
-Load or initialize increment state:
+Load or initialize increment state from file (for spec workflow with persisted state):
 
 ```bash
 FEATURE_DIR=$(pwd)
 STATE_FILE="$FEATURE_DIR/increment-state.json"
 
-# Load existing state or create new
+# Load existing state or create new (file-based mode)
 if [ -f "$STATE_FILE" ]; then
   echo "Loading existing TDD state..."
   STATE=$(cat "$STATE_FILE")
@@ -76,6 +187,8 @@ fi
 CURRENT=$(echo "$STATE" | jq -r '.current_increment')
 echo "Current increment: $CURRENT"
 ```
+
+**Note**: In quick/in-session mode, state is tracked in the conversation context instead of this file.
 
 ## Load Language Config
 
@@ -261,13 +374,20 @@ Offer refactoring:
   fi
 ```
 
-## Save State
+## Save State (Spec Mode Only)
 
-Save updated increment state:
+In spec workflow with file artifacts, save state to disk:
 
 ```bash
-echo "$STATE" > "$STATE_FILE"
-echo "State saved to: $STATE_FILE"
+# Only execute this in spec mode (when increment-state.json exists or should be created)
+# In quick/in-session mode, state is tracked in conversation context only
+
+if [ -n "$STATE_FILE" ] && [ -f "$STATE_FILE" ]; then
+  echo "$STATE" > "$STATE_FILE"
+  echo "State saved to: $STATE_FILE"
+else
+  echo "In-session mode: state tracked in conversation (not persisted to disk)"
+fi
 ```
 
 ## Continue or Complete
@@ -297,7 +417,7 @@ else
   echo "🎉 All TDD increments complete!"
   echo ""
   echo "Run tdd.validate to check test quality:"
-  echo "EXECUTE_COMMAND: tdd.validate"
+  echo "/tdd.validate"
 fi
 ```
 
@@ -332,5 +452,5 @@ After execution, it can trigger follow-up hooks:
 ```bash
 echo ""
 echo "📦 Post-implementation hooks available:"
-echo "EXECUTE_COMMAND: tdd.validate"
+echo "Run /tdd.validate to check test quality"
 ```

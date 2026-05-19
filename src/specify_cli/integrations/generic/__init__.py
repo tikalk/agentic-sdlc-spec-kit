@@ -125,6 +125,7 @@ class GenericIntegration(MarkdownIntegration):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(

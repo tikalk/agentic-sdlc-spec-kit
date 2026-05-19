@@ -2,7 +2,383 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc8] - 2026-05-18
+
+### Added
+
+- **Product extension v1.5.0**: Comprehensive Mermaid diagram support
+  - **8 diagram types**: Feature hierarchy, user flows, dependencies, cross-area map, roadmap Gantt, impact map, decision flow, state machine
+  - **Visual Summary section** in PRD with quick navigation to all diagrams
+  - **Separate diagram files** in `visuals/` and `sections/` directories
+  - **Cross-feature-area visualization** showing inter-area interactions
+  - **Prompt-based MCP/CLI integration** for roadmap sync (GitHub/GitLab/Jira/Linear)
+  - **Warning-level validation** (non-blocking) for diagram quality
+  - Diagram generation during implement phase
+  - Diagram quality checks in analyze command
+  
+- **New Visual Templates**:
+  - `visuals/feature-hierarchy.md`: Product structure tree diagram
+  - `visuals/feature-deps.md`: Requirement dependencies with status indicators
+  - `visuals/cross-area-map.md`: Inter-feature-area interactions
+  - `visuals/roadmap-timeline.md`: Gantt chart with MCP sync instructions
+  - `visuals/impact-map.md`: Decision impact mind map
+  - `sections/user-flows.md`: Persona journey flowcharts
+  - `sections/state-machine.md`: Feature state diagrams
+  
+- **Template Enhancements**:
+  - PRD template: Visual Summary section with diagram links
+  - PDR template: Inline decision flow diagram and impact map reference
+  - Requirements section: Checkpoint note for cornerstone validation
+
+# [0.8.12+adlc7] - 2026-05-18
+
+### Added
+
+- **Product extension v1.5.0**: Multi-agent feature-area analysis with cross-area pattern detection
+  - Three-phase agent pipeline: Discovery → Pattern Analysis → Synthesis
+  - Comprehensive feature-area detection (directory + docs + pricing)
+  - Cross-feature-area pattern detection (≥2 areas)
+  - Inconsistency flagging for clarify resolution
+  - State persistence with `--resume` support
+  - **Mandatory Requirements checkpoint** in implement (cornerstone section)
+  - Pre-flight validation with hard enforcement
+  - Placeholder validation per section
+  - 7-point final verification checklist
+  
+- **New Sub-Agent Templates** (Product):
+  - `discovery-prompt.md`: Comprehensive scanning (3 sources)
+  - `pattern-prompt.md`: Strategic scoring and TPD comparison
+  - `synthesis-prompt.md`: Cross-feature-area analysis
+  
+- **Enhanced PDR Template**:
+  - Cross-Feature-Area Metadata section
+  - Inconsistency Flags section
+  - Team-Product-Directives Comparison
+
+# [0.8.12+adlc6] - 2026-05-18
+
+### Added
+
+- **LevelUp extension v1.4.0**: Multi-agent sub-system analysis with cross-system pattern detection
+  - Three-phase agent pipeline: Discovery → Pattern Analysis → Synthesis
+  - Sequential sub-agent execution per sub-system
+  - Cross-sub-system pattern detection (patterns in ≥50% of sub-systems)
+  - Automatic inconsistency detection and CDR generation
+  - Team-directives comparison for gap analysis
+  - State persistence with checkpoint support (`--resume` flag)
+  - Cross-sub-system conflict validation in `/levelup.implement`
+  
+- **New Sub-Agent Templates**:
+  - `discovery-prompt.md`: Scans sub-systems for raw patterns
+  - `pattern-prompt.md`: Classifies and scores patterns for reusability  
+  - `synthesis-prompt.md`: Performs cross-sub-system analysis
+  
+- **Enhanced CDR Template**:
+  - Cross-System Metadata section (appears_in, cross_system_score, consistency)
+  - Cross-System Analysis table per sub-system
+  - Team-Directives Comparison section
+  - Inconsistency Resolution workflow
+  - New "Inconsistency" context type
+
+# [0.8.12+adlc5] - 2026-05-18
+
+### Added
+
+- **LevelUp extension v1.2.0**: Complete rewrite of `/levelup.skills` command following 6 patterns from best practices:
+  - Enhanced description with trigger keywords for better AI agent routing
+  - Imperative verb instructions throughout
+  - Explicit output format specification
+  - "Read Existing Skills" phase for pattern matching
+  - "Out of Scope" section for clear boundaries
+  - Merged templates and condensed to <500 lines (422 lines)
+
+# [0.8.12+adlc2] - 2026-05-16
+
+### Fixed
+
+- **Architect extension command hardening** (v2.0.6):
+  - Hardened `/architect.implement` with mandatory constraints to prevent phase skipping:
+    - Pre-flight ADR validation (must have "Accepted" status)
+    - Phase 2→3 verification gate (all view files must exist on disk)
+    - Disk-read enforcement for Phase 3 (no memory shortcuts)
+    - Final completion verification (7-point checklist)
+  - Hardened `/architect.init` and `/architect.specify`:
+    - Enforce correct ADR status ("Discovered"/"Proposed", never "Accepted")
+    - Prevent skipping the approval workflow
+  - Hardened `/architect.clarify`:
+    - Made Phase 5.5 approval gateway explicit
+    - Added post-approval verification with status distribution report
+  - Enhanced `/architect.analyze`:
+    - Added detection for empty/missing view files (catches state.json inconsistency)
+
+# [0.8.8+adlc22] - 2026-05-15
+
+### Fixed
+
+- **Git extension PowerShell common functions** (v1.2.6):
+  - Added missing `Find-SpecifyRoot`, `Get-RepoRoot`, and `Has-Git` functions
+  - These functions are required by `workspace-submodules.ps1` but were missing
+  - Fixed PowerShell compatibility with workspace command
+
+# [0.8.8+adlc21] - 2026-05-15
+
+### Added
+
+- **New command: `speckit.git.setup-ignore`** (Git extension v1.2.5):
+  - Configures `.gitignore` with proper rules for Spec Kit projects
+  - Manages exclusions (cache, backup, local files) and protections (templates, scripts)
+  - Options: `--check`, `--fix` (default), `--dry-run`
+  - Aliases: `git.setup-ignore`, `git.ignore`
+  - Automatically called by `speckit.git.workspace` before submodule setup
+  - Ensures `.specify/` and `.opencode/` directories are properly handled
+
+### Fixed
+
+- **Git extension workspace brownfield workflow** (v1.2.3):
+  - Fixed safety check to allow `--force` conversion of tracked child repos
+  - When using `--force`, uncommitted changes in child repos are allowed (they'll be converted)
+  - Still blocks if there are uncommitted changes outside child repos (safety preserved)
+  - Makes brownfield conversion truly automated - no manual pre-work needed
+
+# [0.8.8+adlc18] - 2026-05-15
+
+### Added
+
+- **Git extension workspace command enhancements** (v1.2.2):
+  - New `--force` flag for brownfield conversion of already-tracked directories
+  - New `--ignore-only` flag to add repos to `.gitignore` instead of submodules
+  - Safety check: Aborts if parent working tree has uncommitted changes
+  - `--ignore-only` removes from parent index and appends to `.gitignore`
+  - Consistent JSON output across all modes with `MODE` and `IGNORED_COUNT` fields
+
+# [0.8.8+adlc17] - 2026-05-15
+
+### Fixed
+
+- **Git extension**: Added missing `find_specify_root()` and `get_repo_root()` functions to `git-common.sh`
+  - These functions are required by `workspace-submodules.sh` but were not included in the git extension
+  - Functions copied from main `scripts/bash/common.sh`
+  - Git extension bumped to v1.2.1
+
+# [0.8.8+adlc16] - 2026-05-15
+
+### Fixed
+
+- **Git extension workspace command**: Corrected script path in `speckit.git.workspace` command
+  - Removed non-functional `scripts:` frontmatter section that wasn't resolving correctly
+  - Use explicit full paths in command body matching other git extension commands
+
+# [0.8.8+adlc14] - 2026-05-15
+
+### Added
+
+- **Per-task extension hooks**: New `before_task_execute` / `after_task_execute` hook events enable extensions to run before/after each individual task during implementation
+  - Git extension registers for both events with `enabled: false` by default (opt-in)
+  - `quick.implement` now dispatches these hooks instead of hardcoding `git add/commit`
+  - ADLC preset `adlc.spec.implement` also dispatches per-task hooks in its execution loop
+  - Any extension can register for per-task hooks (auto-commit, lint, test, etc.)
+
+### Changed
+
+- **BREAKING: `quick.implement` no longer auto-commits by default**: Per-task commits are now opt-in via the git extension's `after_task_execute.enabled` config. To restore previous behavior, set `after_task_execute.enabled: true` in `.specify/extensions/git/git-config.yml`
+- Git extension bumped to v1.1.0 with new hook events and config keys
+- Quick extension bumped to v1.1.0 with hook-driven per-task architecture
+
+# [0.8.8+adlc13] - 2026-05-11
+
+### Fixed
+
+- **Hook execution in quick.implement template**: Restructured hook instructions in `extensions/quick/commands/implement.md` to use "Pre-Execution Checks" pattern with numbered steps, explicit MUST/CRITICAL language, and visual indicators (🔴 MANDATORY, ⚠️ WARNING)
+  - Root cause: Agents were skipping prose hook instructions because they treated them as informational text rather than actionable steps
+  - Applied same framing pattern used in preset commands (adlc.spec.*.md) that have better agent compliance
+  - Updated both before_hooks and after_hooks sections
+
+### Changed
+
+- **Quick extension**: v1.0.3 → v1.0.4 (hook execution template improvement)
+
 # [Unreleased]
+
+### Added
+
+- **Git extension workspace submodule management**: New `speckit.git.workspace` command for multi-repo workspace coordination
+  - Discovers child git repositories at depth 1 from the project root
+  - Registers discovered repos as Git submodules for safe git isolation
+  - Prevents accidental commits of child repo files into the parent workspace
+  - Supports `--dry-run` mode to preview changes
+  - Available in both bash and PowerShell scripts
+  - Git extension bumped to v1.2.0
+
+- **Quick extension hook support**: `quick.implement` now checks `before_implement` and `after_implement` extension hooks
+  - Enables TDD and other extensions to integrate with quick workflow
+  - Supports both mandatory (auto-execute) and optional (display) hooks
+  - Deadlock-free execution pattern - no EXECUTE_COMMAND + "wait" patterns
+  - Maintains quick's session-only philosophy (no file artifacts)
+
+- **TDD extension in-session flow**: `tdd.implement` now detects context and runs appropriate mode
+  - Quick mode: Runs entirely in-session when no spec artifacts exist (from `/quick.implement`)
+  - Spec mode: Loads state from `increment-state.json` when artifacts present
+  - Condensed planning (3 questions vs 5 in full tdd.plan) for quick mode
+  - Full RED→GREEN→REFACTOR cycle in both modes
+  - State tracked in conversation in quick mode, files in spec mode
+
+- **15 new LLM eval tests**: Comprehensive test coverage for hook support and context detection
+  - 7 tests for quick.implement hook execution (mandatory, optional, deadlock prevention)
+  - 8 tests for tdd.implement context detection (quick vs spec mode)
+  - New graders: `check_quick_implement_hooks`, `check_tdd_in_session_flow`
+  - Updated evals README with new test suites
+
+### Fixed
+
+- **Clarify commands now explicitly state questions**: Fixed all clarify commands (spec, product, architect, levelup) to explicitly output the question text before showing recommendations and options, resolving confusion where only options were shown without context.
+
+- **Improved error message for private repository authentication**: `sync_team_ai_directives()` now detects when a downloaded "ZIP" file is actually an HTML authentication page (common with private GitLab repositories)
+  - Validates downloaded content starts with ZIP magic bytes (`PK`)
+  - Detects HTML content and provides clear error message about authentication requirement
+  - Guides users to configure `~/.specify/auth.json` for private repositories
+  - Fixes cryptic "File is not a zip file" error when accessing private repos without auth
+
+### Changed
+
+- **Merged upstream/main**: Integrated latest upstream changes (v0.8.8.dev0+)
+  - Updated community catalog with latest extension versions
+  - Bumped GitHub Actions dependencies:
+    - actions/setup-dotnet: 4.3.1 → 5.2.0
+    - actions/github-script: 7 → 9
+    - DavidAnson/markdownlint-cli2-action (latest)
+    - github/codeql-action: 4.35.3 → 4.35.4
+
+- **Refactored team-ai-directives code isolation**: Moved 5 fork-specific functions from `__init__.py` to `cli_customization.py`
+  - `sync_team_ai_directives()` - Main installation function for team-ai-directives
+  - `_store_extension_source_url()` - Registry metadata storage helper
+  - `_derive_target_repo_from_url()` - URL parsing for archive URLs
+  - `_register_bundled_catalog()` - Bundled catalog registration
+  - `get_team_directives_path()` - Path resolution for team-ai-directives
+  - Reduces `__init__.py` by ~220 lines for better code organization
+  - Maintains backward compatibility with fallback implementations in ImportError block
+
+# [0.8.7+adlc13] - 2026-05-08
+
+### Fixed
+
+- **Team skills name field now includes prefix**: During installation of team-ai-directives skills, the `name:` field in SKILL.md frontmatter is now updated to include the `team-` prefix
+  - This ensures compliance with agentskills.io specification (name field must match parent directory name)
+  - Example: skill installed to `team-dbt-template/SKILL.md` now has `name: team-dbt-template` (not `name: dbt-template`)
+  - Fixes mismatch between directory name and frontmatter name field
+
+# [0.8.7+adlc12] - 2026-05-08
+
+### Fixed
+
+- **Version bump**: Updated to 0.8.7+adlc12
+
+# [0.8.7+adlc11] - 2026-05-08
+
+### Fixed
+
+- **Extension catalog not bundled in wheel**: Added `extensions/catalog.json` to `pyproject.toml` force-include section
+  - The catalog.json file was missing from the Python wheel package, causing a fallback that installed ALL bundled extensions
+  - Now properly respects the `preinstall` flags in catalog.json
+  - Architect, evals, product, and tdd extensions are correctly excluded from auto-installation
+
+# [0.8.7+adlc10] - 2026-05-08
+
+### Changed
+
+- **Disabled auto-install for selected extensions**: The following extensions are no longer auto-installed during `specify init`:
+  - `architect` - Can be installed manually via `specify extension install architect`
+  - `evals` - Can be installed manually via `specify extension install evals`
+  - `product` - Can be installed manually via `specify extension install product`
+  - `tdd` - Can be installed manually via `specify extension install tdd`
+  
+  Extensions that remain auto-installed:
+  - `levelup` - Team AI Directives contributor
+  - `quick` - Quick implementation shortcuts
+
+# [0.8.7+adlc9] - 2026-05-08
+
+### Added
+
+- **Command name resolution to aliases**: Template processing now resolves canonical command names to their alias forms
+  - `adlc.spec.*` commands display as `spec.*` in templates and AI traces
+  - `speckit.git.*` commands display as `git.*` in extension hooks
+  - Handoffs section in command files now uses alias forms (e.g., `agent: spec.tasks` not `adlc.spec.tasks`)
+  - Extension hook display shows `/git.initialize` instead of `/speckit.git.initialize`
+
+### Fixed
+
+- **`resolve_handoff_agents()`**: Fixed to properly handle YAML list items in handoffs section
+  - No longer exits handoffs section prematurely when encountering `- ` list items
+  - Correctly processes all handoff entries including their agent references
+
+### Changed
+
+- **`process_template()`**: Now accepts `project_root` parameter and calls `resolve_command_names()`
+- **All integration `setup()` methods**: Updated to pass `project_root` to `process_template()`
+- **`register_commands()`**: Processes full content (including frontmatter) before parsing to enable resolution
+- **Copilot integration**: 
+  - `command_filename()` now uses `_get_command_prefix()` for correct prefix (spec vs speckit)
+  - `post_process_skill_content()` handles `spec-` prefix for mode field
+  - Prompt files use correct prefix
+
+# [0.8.7+adlc8] - 2026-05-07
+
+### Fixed
+
+- **Extended alias-only to speckit.* commands**: Skip primary speckit.* files when aliases exist
+  - Git extension commands now only install alias form (`git.feature.md`) without duplicate primary (`speckit.git.feature.md`)
+  - Applies to all bundled extensions that have aliases defined
+  - Completes the alias-only installation pattern for all command types
+
+# [0.8.7+adlc7] - 2026-05-07
+
+### Fixed
+
+- **Alias-only installation for non-skill agents**: Extended the skip-primary logic to ALL agent types (not just skill agents)
+  - Non-skill agents (opencode, cursor, etc.) now only install alias form (`spec.constitution.md`) without duplicate primary (`adlc.spec.constitution.md`)
+  - Cleanup function now removes `speckit.*.md` files for non-skill agents when preset declares `replaces`
+  - Fixes issue where opencode/cursor showed both `adlc.spec.*` and `spec.*` command files
+
+# [0.8.7+adlc6] - 2026-05-07
+
+### Fixed
+
+- **Unified `spec` command prefix**: Fork now uses consistent `spec` prefix for all agents instead of `speckit`
+  - Display shows `/spec-constitution`, `/spec.specify` etc. (skill and non-skill agents)
+  - Preset commands use `__SPECKIT_COMMAND_*__` placeholders, resolved dynamically per agent type
+  - Handoff agent references resolved automatically for skill vs non-skill agents
+  - `_display_cmd()`, `resolve_command_refs()`, `build_command_invocation()` all fork-aware
+- **Preset `replaces` field now functional**: Core `speckit-*` skill directories are removed when a preset declares `replaces`
+- **Alias-only skill installation**: Fork skill agents only install the `spec-*` alias form (no duplicate `adlc-spec-*` primary)
+- **Extension skill naming**: `adlc.*` extension commands create `adlc-*` skill directories (not `speckit-adlc-*`)
+- **Placeholder resolution in preset skills**: `_register_skills()` now resolves `__SPECKIT_COMMAND_*__` and handoff agents
+- **ARGUMENT_HINTS injection**: Claude skill argument hints now work with fork-prefixed skills (`spec-*`, `adlc-spec-*`)
+- **`_skill_names_for_command()`**: Handles all `adlc.*` prefixes (not just `adlc.spec.*`)
+
+### Changed
+
+- Added `COMMAND_PREFIX = "spec"` to `cli_customization.py`
+- Replaced 15 hardcoded `/spec.*` references in preset commands with `__SPECKIT_COMMAND_*__` placeholders
+
+# [0.8.7+adlc5] - 2026-05-07
+
+### Fixed
+
+- **Hook execution deadlock**: Replace `EXECUTE_COMMAND` + "wait for the result" pattern with self-executing hook instructions. The old pattern caused non-deterministic agent deadlocks when mandatory hooks were present. Now uses explicit instructions to read and execute the hook command immediately, with graceful fallback on failure.
+- **Graceful hook failure**: Mandatory hooks now warn and proceed if the hook command file is not found or execution fails, preventing workflow blockage.
+
+### Changed
+
+- Updated 9 command templates in `templates/commands/` with new hook execution semantics
+- Updated 8 preset commands in `presets/agentic-sdlc/commands/` with new hook execution semantics and aligned paths (`{REPO_ROOT}/` prefix removal)
+- Updated `format_hook_message()` in `extensions.py` to emit actionable instructions instead of `EXECUTE_COMMAND` tokens
+- Updated TDD extension command files with same hook pattern fix
+- Added behavioral trace eval for hook deadlock detection
+
+### Added
+
+- **Behavioral eval**: New PromptFoo eval suite (`evals/configs/promptfooconfig-hook.js`) to detect hook deadlock regression
+- **Grader**: `check_hook_execution_flow()` in `evals/graders/custom_graders.py` to verify LLM output doesn't contain deadlock signals
 
 # [0.8.7+adlc4] - 2026-05-07
 
@@ -1594,6 +1970,86 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.8.11] - 2026-05-15
+
+### Changed
+
+- refactor: extract _version.py from __init__.py (PR-3/8) (#2550)
+- Add Time Machine extension to community catalog (#2580)
+- fix(powershell): ensure UTF-8 templates are written without BOM (#2280)
+- docs: document high-assurance spec workflow (#2518)
+- docs: fix script name in directory tree examples (#2555)
+- Fix preset skill description precedence (#2538)
+- fix(integration): clarify multi-install guidance (#2549)
+- feat: add version feature reporting (#2548)
+- Add Architecture Workflow extension to community catalog (#2565)
+- chore: release 0.8.10, begin 0.8.11.dev0 development (#2562)
+
+## [0.8.10] - 2026-05-14
+
+### Changed
+
+- docs: streamline install section and add community overview (#2561)
+- Move community extensions table from README to docs site (#2560)
+- Add Agent Governance extension to community catalog (#2559)
+- Add Reqnroll BDD extension to community catalog (#2545)
+- fix(cli): harden extension registration and discovery workflows (#2499)
+- refactor: extract _assets.py and _utils.py from __init__.py (PR-2/8) (#2543)
+- fix(opencode): use commands/ directory (plural) to match OpenCode docs (#2453)
+- refactor: extract _console.py from __init__.py (PR-1/8) (#2474)
+- Fix constitution reference in README (#2491)
+- chore: release 0.8.9, begin 0.8.10.dev0 development (#2532)
+
+## [0.8.9] - 2026-05-12
+
+### Changed
+
+- docs: revamp landing page with four-pillar card layout (#2531)
+- feat(extensions): update governance ecosystem extensions to latest versions (#2514)
+- Add changelog extension (#2177)
+- Add install directory to docfx.json file references (#2522)
+- feat(catalog): add BrownKit (brownkit) community extension (#2510) (#2520)
+- fix(kiro-cli): replace literal $ARGUMENTS with prose fallback (#2482)
+- Preset: Add game-narrative-writing  preset to community catalog (#2454)
+- docs: clarify CLI upgrade discovery (#2519)
+- fix: make template metadata line breaks markdownlint-safe (#2505)
+- refactor(catalogs): extract integration catalog config loading (#2497)
+- test(presets): silence expected UserWarnings in self-test composition… (#2373)
+- chore: release 0.8.8, begin 0.8.9.dev0 development (#2516)
+
+## [0.8.8] - 2026-05-11
+
+### Changed
+
+- chore(deps): bump actions/checkout from 4.3.1 to 6.0.2 (#2486)
+- feat(catalog): add Spec Kit Schedule (schedule) community extension (#2473)
+- fix(integration): refresh shared infra on `integration switch` (#2375)
+- Add MDE preset to community catalog (#2513)
+- Add MDE extension to community catalog (#2512)
+- chore: update community catalog with latest extension versions (#2490)
+- chore(deps): bump actions/setup-dotnet from 4.3.1 to 5.2.0 (#2489)
+- chore(deps): bump actions/github-script from 7 to 9 (#2488)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#2487)
+- chore(deps): bump github/codeql-action from 4.35.3 to 4.35.4 (#2485)
+- feat(catalog): add API Evolve (api-evolve) community extension (#2479)
+- feat: Config-driven opt-in authentication registry with multi-platform support (#2393)
+- chore: release 0.8.7, begin 0.8.8.dev0 development (#2480)
+
+## [0.8.7] - 2026-05-07
+
+### Changed
+
+- feat: add agent-orchestrator to community extension catalog (#2236)
+- chore: update extension versions in community catalog (#2468)
+- fix(goose): Declare args parameter in generated recipes (#2402)
+- feat: Add lingma support (#2348)
+- docs: Add uv installation guide and inline callouts (#2465)
+- Add fx-to-dotnet to community extension catalog (#2471)
+- fix: default non-interactive init to copilot integration (#2414)
+- fix(forge): use hyphen notation for command refs in Forge integration (#2462)
+- feat(catalog): add Cost Tracker (cost) community extension (#2448)
+- chore: release 0.8.6, begin 0.8.7.dev0 development (#2463)
 
 ## [0.8.6] - 2026-05-06
 

@@ -6,7 +6,7 @@ Comprehensive evaluation infrastructure for testing spec-kit template quality us
 
 ## 📊 Current Evaluation Results (Updated: 2026-03-14)
 
-**Overall: 29 LLM eval tests + 39 unit tests across 7 suites** ✅
+**Overall: 31 LLM eval tests + 39 unit tests across 9 suites** ✅
 
 | Test Suite | Tests | What It Checks |
 |------------|-------|----------------|
@@ -17,9 +17,11 @@ Comprehensive evaluation infrastructure for testing spec-kit template quality us
 | **Clarify Command** | 2 | Ambiguity identification, architectural focus |
 | **Trace Validation** | 2 | Structure completeness, decision quality |
 | **Mission Brief** | 4 | Completeness, quality, constraint extraction, approval flow |
+| **Quick Implement Hooks** | 2 | Hook discovery, mandatory/optional execution, deadlock prevention |
+| **TDD Implement Context** | 2 | Quick vs Spec mode detection, in-session RED/GREEN/REFACTOR |
 | **Security (all suites)** | +4 per test | PII, prompt injection, hallucinations, misinformation |
 | **Unit tests (pytest)** | 39 | Grader logic, extension system |
-| **Total** | **68** | |
+| **Total** | **72** | |
 
 ## Quick Start
 
@@ -132,6 +134,19 @@ Each suite sends a prompt to the LLM and evaluates the output against structured
 - **Constraint Extraction** — technical, business, regulatory constraints captured
 - **Approval Flow** — includes "Proceed with this Mission Brief?" prompt
 
+#### Quick Implement Hooks (2 tests)
+- **Hook Discovery** — checks `.specify/extensions.yml` for `before_implement` and `after_implement` hooks
+- **Mandatory Hook Execution** — executes `tdd.implement` before task execution without user confirmation
+- **Optional Hook Display** — shows `tdd.validate` after tasks with clear execution path
+- **Deadlock Prevention** — no EXECUTE_COMMAND + "wait for result" patterns that halt the agent
+
+#### TDD Implement Context Detection (2 tests)
+- **Quick Mode Detection** — detects no spec artifacts and enters in-session TDD flow
+- **Spec Mode Detection** — loads state from `increment-state.json` when artifacts exist
+- **Language Detection** — runs detection script and captures results in-session (no file persistence)
+- **Condensed Planning** — asks 3 planning questions in quick mode (vs 5 in full tdd.plan)
+- **RED→GREEN→REFACTOR** — all three phases present and executed for each test increment
+
 ### Security Graders (run on every LLM test)
 
 Four graders apply automatically to every test output via `defaultTest.assert`:
@@ -145,6 +160,8 @@ Four graders apply automatically to every test output via `defaultTest.assert`:
 | **`check_mission_brief_completeness`** | Mission Brief has Goal, Success Criteria, Constraints, Demo Sentence |
 | **`check_mission_brief_quality`** | Goal is concise, criteria are measurable, demo is observable |
 | **`check_fork_spec_sections`** | Spec includes fork-specific sections (Goal, Demo Sentence, Boundary Map) |
+| **`check_quick_implement_hooks`** | Hook discovery, mandatory/optional execution, workflow completion |
+| **`check_tdd_in_session_flow`** | Context detection (quick vs spec), RED/GREEN/REFACTOR phases, file persistence handling |
 
 ### Unit Tests (pytest)
 

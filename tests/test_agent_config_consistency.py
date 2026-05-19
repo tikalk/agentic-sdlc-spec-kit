@@ -272,14 +272,16 @@ class TestAgentConfigConsistency:
             f"Expected Claude skill file not found at {skill_file}"
         )
         content = skill_file.read_text(encoding="utf-8")
-        assert "/speckit-specify" in content, (
-            "Expected '/speckit-specify' (hyphen) in generated Claude skill for git.feature; "
+        # Fork uses spec- prefix instead of speckit-
+        assert "/spec-specify" in content, (
+            "Expected '/spec-specify' (hyphen) in generated Claude skill for git.feature; "
             "__SPECKIT_COMMAND_SPECIFY__ was not resolved with the correct separator."
         )
         # Negative lookbehind (?<![a-zA-Z0-9_]) excludes file-path occurrences
         # such as 'source: git:commands/speckit.git.feature.md' in frontmatter,
         # where the '/' is a path separator preceded by a word character.
-        assert not re.search(r"(?<![a-zA-Z0-9_])/speckit\.[a-z]", content), (
-            "Found dot-notation command ref (/speckit.<cmd>) in generated Claude skill. "
+        # Check for either speckit. or spec. dot-notation (both should be converted)
+        assert not re.search(r"(?<![a-zA-Z0-9_])/(speckit|spec)\.[a-z]", content), (
+            "Found dot-notation command ref (/<prefix>.<cmd>) in generated Claude skill. "
             "Skills agents must use hyphen notation."
         )

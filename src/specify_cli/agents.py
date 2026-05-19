@@ -413,6 +413,7 @@ class CommandRegistrar:
         if agent_config["extension"] != "/SKILL.md":
             return cmd_name
 
+        # Legacy upstream behavior: speckit-{cmd}
         short_name = cmd_name
         if short_name.startswith("speckit."):
             short_name = short_name[len("speckit.") :]
@@ -448,6 +449,7 @@ class CommandRegistrar:
         source_dir: Path,
         project_root: Path,
         context_note: str = None,
+        _resolved_dir: Path = None,
     ) -> List[str]:
         """Register commands for a specific agent.
 
@@ -458,6 +460,10 @@ class CommandRegistrar:
             source_dir: Directory containing command source files
             project_root: Path to project root
             context_note: Custom context comment for markdown output
+            _resolved_dir: Pre-resolved command directory (internal use
+                only — avoids a second ``_resolve_agent_dir`` call and
+                duplicate deprecation warnings when invoked from
+                ``register_commands_for_all_agents``).
 
         Returns:
             List of registered command names
@@ -470,7 +476,9 @@ class CommandRegistrar:
             raise ValueError(f"Unsupported agent: {agent_name}")
 
         agent_config = self.AGENT_CONFIGS[agent_name]
-        commands_dir = project_root / agent_config["dir"]
+        commands_dir = _resolved_dir or self._resolve_agent_dir(
+            agent_name, agent_config, project_root,
+        )
         commands_dir.mkdir(parents=True, exist_ok=True)
 
         registered = []
@@ -484,6 +492,16 @@ class CommandRegistrar:
                 continue
 
             content = source_file.read_text(encoding="utf-8")
+
+            # Resolve handoff agent references and command names in full content
+            # (including frontmatter) before parsing. This ensures handoffs section
+            # gets processed correctly.
+            from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
+
+            _sep = agent_config.get("invoke_separator", ".")
+            content = IntegrationBase.resolve_handoff_agents(content, _sep)
+            content = IntegrationBase.resolve_command_names(content, project_root)
+
             frontmatter, body = self.parse_frontmatter(content)
 
             if frontmatter.get("strategy") == "wrap":
@@ -529,6 +547,22 @@ class CommandRegistrar:
 
             output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
+            # Skip writing primary command when aliases exist.
+            # This prevents duplicate commands (primary and alias) - we only want alias.
+            # Applies to ALL agent types (skill and non-skill).
+            has_aliases = bool(cmd_info.get("aliases"))
+
+            # Check if running fork version
+            try:
+                import importlib.util
+                is_fork = importlib.util.find_spec("specify_cli.cli_customization") is not None
+            except Exception:
+                is_fork = False
+
+            # Flag to control whether to write primary command file
+            # In fork mode with aliases, skip the primary and only write the alias
+            write_primary = not (has_aliases and is_fork)
+
             if agent_config["extension"] == "/SKILL.md":
                 output = self.render_skill_command(
                     agent_name,
@@ -564,15 +598,17 @@ class CommandRegistrar:
             else:
                 raise ValueError(f"Unsupported format: {agent_config['format']}")
 
-            dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
-            self._ensure_inside(dest_file, commands_dir)
-            dest_file.parent.mkdir(parents=True, exist_ok=True)
-            dest_file.write_text(output, encoding="utf-8")
+            # Only write primary command file if not skipping (fork skill agents with aliases)
+            if write_primary:
+                dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
+                self._ensure_inside(dest_file, commands_dir)
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                dest_file.write_text(output, encoding="utf-8")
 
-            if agent_name == "copilot":
-                self.write_copilot_prompt(project_root, cmd_name)
+                if agent_name == "copilot":
+                    self.write_copilot_prompt(project_root, cmd_name)
 
-            registered.append(cmd_name)
+                registered.append(cmd_name)
 
             for alias in cmd_info.get("aliases", []):
                 alias_output_name = self._compute_output_name(
@@ -654,6 +690,40 @@ class CommandRegistrar:
         CommandRegistrar._ensure_inside(prompt_file, prompts_dir)
         prompt_file.write_text(f"---\nagent: {cmd_name}\n---\n", encoding="utf-8")
 
+    @staticmethod
+    def _resolve_agent_dir(
+        agent_name: str,
+        agent_config: dict[str, Any],
+        project_root: Path,
+    ) -> Path:
+        """Return the agent command directory, falling back to legacy_dir.
+
+        When the canonical directory (``agent_config["dir"]``) does not
+        exist but a ``legacy_dir`` is configured and present on disk,
+        returns the legacy path and emits a deprecation warning advising
+        the user to upgrade.
+
+        Integrations that do not declare ``legacy_dir`` get the canonical
+        path unconditionally — no fallback, no warning.
+        """
+        agent_dir = project_root / agent_config["dir"]
+        if not agent_dir.exists():
+            legacy = agent_config.get("legacy_dir")
+            if legacy:
+                legacy_dir = project_root / legacy
+                if legacy_dir.exists():
+                    import warnings
+
+                    warnings.warn(
+                        f"Found legacy '{legacy}' directory for "
+                        f"{agent_name}. Run 'specify integration "
+                        f"upgrade {agent_name}' to migrate to "
+                        f"'{agent_config['dir']}'.",
+                        stacklevel=3,
+                    )
+                    return legacy_dir
+        return agent_dir
+
     def register_commands_for_all_agents(
         self,
         commands: List[Dict[str, Any]],
@@ -678,7 +748,9 @@ class CommandRegistrar:
 
         self._ensure_configs()
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
-            agent_dir = project_root / agent_config["dir"]
+            agent_dir = self._resolve_agent_dir(
+                agent_name, agent_config, project_root,
+            )
 
             if agent_dir.exists():
                 try:
@@ -689,6 +761,7 @@ class CommandRegistrar:
                         source_dir,
                         project_root,
                         context_note=context_note,
+                        _resolved_dir=agent_dir,
                     )
                     if registered:
                         results[agent_name] = registered
@@ -726,7 +799,9 @@ class CommandRegistrar:
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
             if agent_config.get("extension") == "/SKILL.md":
                 continue
-            agent_dir = project_root / agent_config["dir"]
+            agent_dir = self._resolve_agent_dir(
+                agent_name, agent_config, project_root,
+            )
             if agent_dir.exists():
                 try:
                     registered = self.register_commands(
@@ -736,6 +811,7 @@ class CommandRegistrar:
                         source_dir,
                         project_root,
                         context_note=context_note,
+                        _resolved_dir=agent_dir,
                     )
                     if registered:
                         results[agent_name] = registered
@@ -748,6 +824,11 @@ class CommandRegistrar:
     ) -> None:
         """Remove previously registered command files from agent directories.
 
+        When a ``legacy_dir`` is configured, files are removed from
+        *both* the canonical and the legacy directory so that orphaned
+        commands left behind after an ``integration upgrade`` are
+        cleaned up as well.
+
         Args:
             registered_commands: Dict mapping agent names to command name lists
             project_root: Path to project root
@@ -758,24 +839,39 @@ class CommandRegistrar:
                 continue
 
             agent_config = self.AGENT_CONFIGS[agent_name]
-            commands_dir = project_root / agent_config["dir"]
+            commands_dir = self._resolve_agent_dir(
+                agent_name, agent_config, project_root,
+            )
+
+            # Collect all directories to clean: canonical (or resolved
+            # legacy) plus the legacy dir if it exists separately.
+            dirs_to_clean = [commands_dir]
+            legacy = agent_config.get("legacy_dir")
+            if legacy:
+                legacy_dir = project_root / legacy
+                if legacy_dir.exists() and legacy_dir != commands_dir:
+                    dirs_to_clean.append(legacy_dir)
 
             for cmd_name in cmd_names:
                 output_name = self._compute_output_name(
                     agent_name, cmd_name, agent_config
                 )
-                cmd_file = commands_dir / f"{output_name}{agent_config['extension']}"
-                if cmd_file.exists():
-                    cmd_file.unlink()
-                    # For SKILL.md agents each command lives in its own subdirectory
-                    # (e.g. .agents/skills/speckit-ext-cmd/SKILL.md). Remove the
-                    # parent dir when it becomes empty to avoid orphaned directories.
-                    parent = cmd_file.parent
-                    if parent != commands_dir and parent.exists():
-                        try:
-                            parent.rmdir()  # no-op if dir still has other files
-                        except OSError:
-                            pass
+                for target_dir in dirs_to_clean:
+                    cmd_file = (
+                        target_dir / f"{output_name}{agent_config['extension']}"
+                    )
+                    if cmd_file.exists():
+                        cmd_file.unlink()
+                        # For SKILL.md agents each command lives in its own
+                        # subdirectory (e.g. .agents/skills/speckit-ext-cmd/
+                        # SKILL.md).  Remove the parent dir when it becomes
+                        # empty to avoid orphaned directories.
+                        parent = cmd_file.parent
+                        if parent != target_dir and parent.exists():
+                            try:
+                                parent.rmdir()
+                            except OSError:
+                                pass
 
                 if agent_name == "copilot":
                     prompt_file = (

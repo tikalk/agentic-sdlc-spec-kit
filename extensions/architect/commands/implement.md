@@ -37,6 +37,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 - `--no-checkpoint`: Skip Functional view checkpoint (not recommended)
   - Warning: Functional view is the "cornerstone" that shapes all others
 
+- `--force`: Bypass workflow state validation (emergency use only)
+  - **WARNING**: Use only when you understand the risks
+  - Skips clarify Phase 5.5 completion check
+  - Skips pre-flight ADR status validation
+  - May result in incomplete or inconsistent architecture
+
 **Important**: When `--views` is `core` (default), **skip** Concurrency View (3.4) and Operational View (3.7) entirely. Only generate them when explicitly requested via `--views all` or `--views concurrency,operational`.
 
 ## Rozanski & Woods Methodology Alignment
@@ -240,6 +246,96 @@ Located in the extension's `templates/` directory:
 
 ---
 
+## Pre-Flight Validation (MANDATORY - Hard Enforcement)
+
+> **CRITICAL**: These validations are ENFORCED. Execution will HALT if checks fail.
+> Use `--force` flag only in emergency situations with full understanding of risks.
+
+**Before starting Phase 1, you MUST validate prerequisites:**
+
+### Workflow State Check (unless --force)
+
+1. **Check clarify completion in state.json**:
+   - Load `{REPO_ROOT}/.specify/architect/state.json`
+   - Check `workflow.clarify_completed` field
+   - If `false` or missing:
+     ```
+     ❌ WORKFLOW VALIDATION FAILED
+
+     The implement command requires ADRs to be approved via /architect.clarify first.
+
+     Current workflow state: clarify_completed = false
+
+     Required: Run /architect.clarify and complete Phase 5.5 (ADR Approval)
+
+     Options:
+     1. Run /architect.clarify to approve ADRs
+     2. Use --force to bypass (NOT RECOMMENDED - may cause inconsistent architecture)
+
+     ⚠️  Using --force skips important validation steps and may result in:
+        - Processing unapproved ADRs
+        - Missing critical architectural decisions
+        - Incomplete architecture documentation
+     ```
+     - **HALT execution** (unless `--force` flag provided)
+
+### ADR Status Check
+
+2. **Check ADRs exist**: Verify `{REPO_ROOT}/.specify/drafts/adr.md` or `{REPO_ROOT}/.specify/memory/adr.md` exists
+3. **Check for Accepted ADRs**: Count ADRs with status "Accepted"
+   - If **zero Accepted ADRs**: **STOP** and output:
+     ```
+     ❌ Cannot proceed: No Accepted ADRs found
+
+     The implement command requires ADRs with "Accepted" status.
+     Current ADRs are: [list statuses found]
+
+     Run /architect.clarify to review and approve ADRs first.
+     ```
+   - If **≥1 Accepted ADR**: Proceed and report: "✓ Found N Accepted ADRs"
+
+## Mandatory Execution Constraints
+
+> **CRITICAL -- READ THIS BEFORE PROCEEDING**
+>
+> The following constraints are MANDATORY. Violation of any constraint
+> invalidates the output and requires restart.
+>
+> ### Constraint 1: View Files MUST Be Written to Disk
+> You **MUST** write each view to disk as a separate file before proceeding
+> to the next view. Location: `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
+> - Do NOT hold views in memory and write only AD.md
+> - Do NOT combine multiple views into a single write operation
+> - Each file MUST be readable and standalone
+> - Minimum content: 20 lines with proper section headers
+>
+> ### Constraint 2: State MUST Be Updated After EACH View
+> You **MUST** update state.json after EACH view completion -- not at the end.
+> Mark each view's progress as "completed" only AFTER the file exists on disk
+> and you've verified it by reading it back.
+>
+> ### Constraint 3: Functional View Checkpoint is MANDATORY
+> You **MUST** pause after Functional view for user checkpoint (unless `--no-checkpoint`).
+> Do NOT silently continue. Present checkpoint options A/B/C/D and WAIT for response.
+> The Functional view is the "cornerstone" -- user approval is required.
+>
+> ### Constraint 4: Phase "completed" Requires Verification
+> You **MUST NOT** mark phase as "completed" in state.json until:
+> - All view files exist on disk (verify by reading each file)
+> - AD.md has been written with content aggregated from view files
+> - Drafts cleanup has been performed and verified
+> - The final verification table (7 checks) has been output
+>
+> ### Constraint 5: AD.md Content MUST Come From View Files
+> You **MUST NOT** write AD.md directly from ADRs. AD.md content MUST come from
+> reading the generated view files. The flow is strictly:
+> ADRs → Views (files on disk) → AD.md (aggregated from views)
+>
+> ### Constraint 6: Phase 3 MUST Read From Disk
+> You **MUST** read view files from disk in Phase 3, not from memory.
+> Use file read operations. This ensures resumability and auditability.
+> If a view file cannot be read, STOP and report the error.
+
 ## PHASE 1: PLAN (Plan Agent)
 
 **Objective**: Analyze ADRs, detect sub-systems, generate customized DAG, get user approval
@@ -248,9 +344,21 @@ Located in the extension's `templates/` directory:
 
 ### Step 1.1: Load and Analyze ADRs
 
-1. **Read ADR File**: Load `{REPO_ROOT}/.specify/drafts/adr.md`
+1. **Read ADR File**: Load `{REPO_ROOT}/.specify/drafts/adr.md` (and check `{REPO_ROOT}/.specify/memory/adr.md` if drafts is empty)
 2. **Parse ADR Index**: Extract sub-systems from the ADR index table
 3. **Group ADRs by Sub-system**: Create mapping of sub-system → ADRs
+4. **Validate ADR Status** (MANDATORY):
+   - Count ADRs by status: Accepted / Proposed / Discovered
+   - If **zero Accepted ADRs**: **STOP execution** and output error:
+     ```
+     ❌ PHASE 1 BLOCKED: No Accepted ADRs
+     
+     Found: [N] Proposed, [M] Discovered, [0] Accepted
+     
+     The implement command ONLY processes "Accepted" ADRs.
+     Run /architect.clarify to approve ADRs before implementation.
+     ```
+   - Report to user: "✓ Found [N] Accepted ADRs ready for implementation"
 
 **ADR Index Table Format**:
 
@@ -340,6 +448,13 @@ After user approval, write the execution plan to `{REPO_ROOT}/.specify/architect
   "updated_at": "2024-01-20T10:30:00Z",
   "phase": "plan_approved",
   "views_mode": "core",
+  "workflow": {
+    "clarify_completed": false,
+    "clarify_completed_at": null,
+    "adrs_approved_count": 0,
+    "implement_started": false,
+    "implement_started_at": null
+  },
   "subsystems": [
     {
       "id": "core",
@@ -549,17 +664,122 @@ If the agent session is interrupted:
 
 ---
 
+### Phase 2→3 Gate: Verify View Files Exist (MANDATORY)
+
+**Before proceeding to Phase 3, you MUST verify that all expected view files exist on disk:**
+
+1. For each subsystem in state.json, check every view with status "completed"
+2. Verify the file exists: `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
+3. Verify each file is readable and has minimum content (≥20 lines)
+
+**Verification Checklist** (output this table):
+
+| Subsystem | View | File Path | Exists | Readable | Lines |
+|-----------|------|-----------|--------|----------|-------|
+| {subsystem} | {view} | {path} | ✓/✗ | ✓/✗ | {N} |
+
+**Gate Decision:**
+- If **ALL checks pass** → Proceed to Phase 3
+- If **ANY check fails** → STOP and report:
+  ```
+  ❌ PHASE 2→3 GATE BLOCKED
+  
+  Missing or invalid view files detected:
+  - {subsystem}/{view}: [reason]
+  
+  Regenerate missing views before proceeding to Phase 3.
+  ```
+
+---
+
+## Placeholder Validation (MANDATORY)
+
+**Before finalizing any view file, you MUST validate that all placeholders are filled:**
+
+### Placeholder Patterns to Check
+
+| Pattern | Example | Severity | Action Required |
+|---------|---------|----------|-----------------|
+| `[TBD]` | `[TBD]` | CRITICAL | Must be filled before completion |
+| `[STAKEHOLDER_*]` | `[STAKEHOLDER_1]` | CRITICAL | Must be replaced with actual stakeholder names |
+| `[ENTITY_*]` | `[ENTITY_1]` | CRITICAL | Must be replaced with actual entity names |
+| `[COMPONENT_*]` | `[COMPONENT_1]` | CRITICAL | Must be replaced with actual component names |
+| `[SUB_SYSTEM_NAME]` | `[SUB_SYSTEM_NAME]` | CRITICAL | Must be replaced with actual sub-system name |
+| `[ADR_IDS]` | `[ADR_IDS]` | HIGH | Must be replaced with actual ADR references |
+| `[DATE]` | `[DATE]` | MEDIUM | Must be replaced with actual date |
+
+### Validation Process
+
+1. **Scan each view file** after generation for unfilled placeholders
+2. **Count occurrences** of each pattern
+3. **Severity Assessment**:
+   - **CRITICAL**: Blocks completion - view cannot be marked "completed"
+   - **HIGH**: Should be filled but non-blocking if context is clear
+   - **MEDIUM**: Nice to have but not required
+
+### Validation Report Template
+
+```markdown
+## Placeholder Validation Report
+
+| View | Placeholder | Count | Severity | Status |
+|------|-------------|-------|----------|--------|
+| context | [STAKEHOLDER_1] | 3 | CRITICAL | ❌ UNFILLED |
+| functional | [COMPONENT_1] | 5 | CRITICAL | ❌ UNFILLED |
+
+### Critical Placeholders Unfilled
+
+**❌ VALIDATION FAILED**: Cannot mark views as "completed" with unfilled critical placeholders.
+
+**Required Actions**:
+1. Review ADRs for stakeholder names → fill [STAKEHOLDER_*] placeholders
+2. Review ADRs for component names → fill [COMPONENT_*] placeholders
+3. Re-run view generation with complete information
+```
+
+### Enforcement
+
+- Views with unfilled CRITICAL placeholders **CANNOT** be marked "completed" in state.json
+- Phase 2→3 gate **WILL FAIL** if any view has unfilled critical placeholders
+- Use `--force` to bypass (emergency only - document all unfilled placeholders)
+
+---
+
 ## PHASE 3: SUMMARIZE (Summarize Agent)
 
 **Objective**: Aggregate all views, resolve conflicts, generate unified AD.md
 
 **Script Action**: Run `summarize` action
 
-### Step 3.1: Read All View Files
+### Step 3.1: Read All View Files FROM DISK (MANDATORY)
 
-1. Scan `{REPO_ROOT}/.specify/architect/views/` directory
-2. Load all view files for all sub-systems
-3. Organize by view type across sub-systems
+> **CRITICAL**: You MUST read each view file from the filesystem using actual file read operations. 
+> Do NOT use content from memory or from the ADRs directly. The view files are the SOLE source of truth.
+
+1. **Scan Directory**: List `{REPO_ROOT}/.specify/architect/views/` directory
+2. **Read Each File** (MANDATORY - file by file):
+   - For each subsystem/view combination in state.json
+   - Read the file: `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
+   - If file cannot be read → **STOP** and report error:
+     ```
+     ❌ PHASE 3 ERROR: Cannot read view file
+     File: {path}
+     Error: {error details}
+     
+     View files must exist and be readable before AD.md generation.
+     ```
+3. **Validate Content** (MANDATORY):
+   - Each view file MUST contain ≥20 lines
+   - Each view MUST contain proper section headers (## or ###)
+   - If content validation fails → **STOP** and report:
+     ```
+     ❌ PHASE 3 ERROR: Invalid view file content
+     File: {path}
+     Lines: {count} (minimum 20 required)
+     
+     View files must have substantial content before AD.md generation.
+     ```
+4. **Organize**: Group content by view type across all sub-systems
 
 **Directory Structure**:
 
@@ -684,16 +904,38 @@ Load perspective templates and apply across all views:
 - Scalability model
 - Capacity planning
 
-### Step 3.6: ADR Lifecycle Management
+### Step 3.6: ADR Lifecycle Management (MANDATORY)
 
-After generating AD.md:
+After generating AD.md, perform ALL of the following steps:
 
-1. **Filter for Accepted Only**: Only process ADRs with "Accepted" status
-   - **Skip Discovered/Proposed ADRs** - these need approval via `/architect.clarify` first
-   - If no Accepted ADRs exist, warn: "No Accepted ADRs found. Run `/architect.clarify` to approve ADRs before generating AD.md"
-2. **Determine Canonical Location**: `{REPO_ROOT}/.specify/memory/adr.md`
-3. **Copy Accepted ADRs** to canonical location
-4. **Update Drafts**: Remove accepted ADRs from `{REPO_ROOT}/.specify/drafts/adr.md` (or delete if empty)
+**Step 1: Filter Accepted ADRs**
+- Identify ADRs with status "Accepted" (already validated in Phase 1)
+- **Skip** Discovered/Proposed ADRs - these remain in drafts for future approval
+
+**Step 2: Copy to Canonical Location (MANDATORY)**
+- Write Accepted ADRs to `{REPO_ROOT}/.specify/memory/adr.md`
+- Create the file if it doesn't exist, or merge with existing content
+- **VERIFY**: Read the file back and confirm ADRs are present
+
+**Step 3: Clean Up Drafts (MANDATORY)**
+- Edit `{REPO_ROOT}/.specify/drafts/adr.md`
+- Remove each ADR that was promoted to memory
+- If no ADRs remain → **DELETE** the drafts file entirely
+- **VERIFY**: Re-read the drafts file and confirm:
+  - No duplicate ADRs exist (same ID in both locations)
+  - Remaining ADRs (if any) are Proposed/Discovered only
+
+**Step 4: Report Lifecycle Changes (MANDATORY)**
+Output this summary to the user:
+```
+📋 ADR Lifecycle Summary:
+├── Promoted to memory: [N] Accepted ADRs
+├── Remaining in drafts: [M] ADRs (Proposed/Discovered)
+├── Duplicates found: [0] ✓
+└── Cleanup verified: ✓
+```
+
+**If ANY step fails**: STOP and fix before marking Phase 3 complete.
 
 ### Step 3.7: Generate Final Report
 
@@ -727,6 +969,42 @@ After generating AD.md:
 2. Run `/architect.analyze` for consistency validation
 3. Share with stakeholders for review
 4. Begin feature development with `/product.specify`
+```
+
+---
+
+### Final Completion Verification (MANDATORY)
+
+**Before marking state.json phase as "completed", verify ALL outputs:**
+
+Run this 7-point verification checklist:
+
+| Check | Expected | Verification Method | Status |
+|-------|----------|---------------------|--------|
+| 1. View files on disk | N files (one per view per subsystem) | List `{REPO_ROOT}/.specify/architect/views/` | ☐ |
+| 2. AD.md exists | Yes, at project root | Check file existence | ☐ |
+| 3. AD.md content size | >200 lines | Count lines in AD.md | ☐ |
+| 4. AD.md has all views | N sections (## 3.x headers) | Parse AD.md headers | ☐ |
+| 5. Memory ADRs promoted | N Accepted ADRs | Count in `{REPO_ROOT}/.specify/memory/adr.md` | ☐ |
+| 6. Drafts cleaned | No duplicates | Compare drafts vs memory | ☐ |
+| 7. state.json consistent | All views "completed" | Verify progress field | ☐ |
+
+**Gate Rule:**
+- If **ALL checks pass** (☑): Mark phase as "completed" in state.json
+- If **ANY check fails** (☒): Do NOT mark as completed. Fix the issue and re-verify.
+
+**Output to User:**
+```
+✅ Architecture Description Generation Complete
+
+Verification Results:
+├── View files: [N] generated ✓
+├── AD.md: [lines] lines, [sections] views ✓
+├── ADRs promoted: [N] to memory ✓
+├── Drafts cleaned: [N] remaining ✓
+└── State consistent: ✓
+
+Status: READY FOR USE
 ```
 
 ---

@@ -22,7 +22,34 @@ The TDD extension provides comprehensive Test-Driven Development workflow:
 
 ## Quick Start
 
-### Step 1: Create Feature Specification
+### Option A: Full Spec Workflow (with artifacts)
+
+```bash
+# Create feature spec with Risk Register
+specify create "Add JWT authentication"
+
+# Generate tasks (TDD hooks trigger automatically)
+/spec.tasks
+
+# Implement (TDD cycle runs before code)
+/spec.implement
+```
+
+### Option B: Quick Workflow (session-only, no artifacts)
+
+```bash
+# Quick session with automatic TDD
+/quick.implement "Add JWT authentication"
+```
+
+TDD runs entirely in-session:
+- Condensed planning (3 questions)
+- Language auto-detection
+- Test increment generation
+- RED→GREEN→REFACTOR cycles
+- No files created
+
+### Step 1: Create Feature Specification (Full Workflow)
 
 ```bash
 # Create feature spec with Risk Register
@@ -119,7 +146,32 @@ Overall score: 85/100
 Good test quality
 ```
 
+## Context Detection
+
+`tdd.implement` automatically detects which workflow mode to use:
+
+### Spec Mode (File-Based)
+
+Triggered when spec workflow artifacts exist:
+- `tasks.md` with TDD increments
+- `increment-state.json`
+- `.specify/extensions/tdd/language-detected.json`
+
+Uses file-based state persistence. Resume anytime by running commands.
+
+### Quick Mode (In-Session)
+
+Triggered when **no artifacts exist** (e.g., from `/quick.implement`):
+- State tracked in conversation only
+- Condensed planning (3 questions)
+- No files created
+- Progress lost if session ends (but git commits preserve code changes)
+
+**Benefits**: Seamless TDD integration without breaking Quick's philosophy.
+
 ## Detailed Workflow
+
+### Full Spec Workflow
 
 ```
 /spec.specify "Add feature"
@@ -140,6 +192,30 @@ Good test quality
          │
          └─ [after_implement hook] → tdd.validate (optional)
               ↓ Quality validation + recommendations
+```
+
+### Quick Workflow (Session-Only)
+
+```
+/quick.implement "Add feature"
+         ↓
+ Mission Brief (3 questions)
+         ↓
+ Task Breakdown
+         ↓
+    [before_implement hook] → tdd.implement
+         ↓ Context Detection: No artifacts → Quick Mode
+         ↓
+         ├─ In-session language detection
+         ├─ Condensed planning (3 questions)
+         ├─ Test increment generation
+         └─ RED→GREEN→REFACTOR (all in-session)
+         ↓
+ Execution (quick tasks with auto-commits)
+         ↓
+    [after_implement hook] → tdd.validate (optional)
+         ↓
+ Summary
 ```
 /s specify "Add feature"
          ↓

@@ -211,11 +211,15 @@ def test_extension_without_hooks_doesnt_create_yml(temp_project):
     manager = ExtensionManager(temp_project)
     manager.install_from_directory(ext_source, "0.3.0", register_commands=False)
 
-    # extensions.yml should NOT be created if extension has no hooks
-    # (HookExecutor.register_hooks returns early if no hooks defined)
-    assert not extensions_yml.exists(), (
-        "extensions.yml should not be created for extensions without hooks"
+    # extensions.yml IS created even if extension has no hooks
+    # (to track installed extensions in the installed list)
+    assert extensions_yml.exists(), (
+        "extensions.yml should be created to track installed extensions"
     )
+    
+    # But hooks section should be empty/missing
+    config = yaml.safe_load(extensions_yml.read_text())
+    assert not config.get("hooks"), "hooks section should be empty for extensions without hooks"
 
 
 def test_hook_update_replaces_existing_hook(temp_project, extension_with_hooks):

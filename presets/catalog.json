@@ -12,6 +12,7 @@
       "repository": "https://github.com/github/spec-kit",
       "license": "MIT",
       "bundled": true,
+      "preinstall": false,
       "requires": {
         "speckit_version": ">=0.6.0"
       },
@@ -24,6 +25,31 @@
         "minimal",
         "workflow",
         "core"
+      ]
+    },
+    "agentic-sdlc": {
+      "name": "Agentic SDLC",
+      "id": "agentic-sdlc",
+      "version": "1.0.0",
+      "description": "Full Agentic SDLC workflow with architecture, product, and TDD extensions",
+      "author": "Tikal",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "license": "MIT",
+      "bundled": true,
+      "preinstall": true,
+      "requires": {
+        "speckit_version": ">=0.6.0"
+      },
+      "provides": {
+        "commands": 10,
+        "templates": 5
+      },
+      "tags": [
+        "agentic-sdlc",
+        "workflow",
+        "architecture",
+        "product",
+        "tdd"
       ]
     }
   }

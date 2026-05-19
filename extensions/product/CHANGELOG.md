@@ -2,6 +2,164 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.1] - 2026-05-19
+
+### Fixed
+
+- **Mermaid v10 Syntax Compliance**: Updated deprecated `graph` keyword to `flowchart` in visual templates
+  - `visuals/cross-area-map.md`: `graph TB` → `flowchart TB`
+  - `visuals/feature-deps.md`: `graph LR` → `flowchart LR`
+  - `visuals/feature-hierarchy.md`: `graph TD` → `flowchart TD`
+
+### Added
+
+- **New Mermaid Diagrams in Section Templates**:
+  - `sections/overview.md`: Architecture flowchart with 5-layer system diagram (Frontend → Gateway → Backend → Data → External)
+  - `sections/personas.md`: User journey diagram (`journey` type) showing touchpoints across Discovery, Onboarding, Core Usage, Retention
+  - `sections/requirements.md`: Dependency flowchart with layer-based organization (Foundation → Business → Growth)
+  - `sections/roadmap.md`: Gantt chart with milestone markers and ASCII fallback in `<details>` block
+
+- **Enhanced Command Logic** (`commands/implement.md`):
+  - **Step 2.8**: Mandatory visual diagram generation with 7 substeps
+    - Directory structure creation (feature-hierarchy, feature-deps, cross-area-map, user-flows, state-machine)
+    - Node ID sanitization rules (remove special chars, replace spaces with underscores, prefix with PDR ID)
+    - Edge styling conventions (hard deps `-->`, soft deps `-.->`, future `-.->|planned|`)
+    - Mermaid syntax validation checklist
+    - ASCII fallback generation for complex diagrams
+  - **Step 3.2.5**: Visual Summary section generation for PRD embed
+    - Embeds all 4 diagram types inline in PRD
+    - Navigation links to full visual files
+    - References from other PRD sections
+
+## [1.5.0] - 2026-05-18
+
+### Added
+
+- **Multi-Agent Feature-Area Analysis**: Complete refactor of `/product.init` with three-phase pipeline
+  - **Discovery Agent** (Phase 5): Comprehensive scanning (directory + docs + pricing)
+  - **Pattern Agent** (Phase 6): Classifies signals, scores reusability (0.0-1.0), checks team-directives
+  - **Synthesis Agent** (Phase 7): Cross-feature-area analysis generating final PDRs
+  
+- **Cross-Feature-Area Pattern Detection**:
+  - Detects patterns appearing in ≥2 feature-areas
+  - Comprehensive detection from 3 sources: directory, documentation, pricing tiers
+  - Cross-area metadata in all PDRs
+  
+- **Inconsistency Flagging**:
+  - Automatic detection of conflicts across feature-areas
+  - Flags embedded in PDRs (not separate records)
+  - Flags for clarify resolution
+  
+- **State Management & Resumability**:
+  - State persisted to `.specify/product/state.json`
+  - Resume interrupted scans with `--resume` flag
+  - Per-feature-area checkpoint tracking
+  
+- **Mandatory Requirements Checkpoint in Implement**:
+  - Execution pauses after Requirements section
+  - User approval required before continuing
+  - Requirements is the cornerstone (shapes NFRs, Out-of-Scope, Risks, Roadmap)
+  
+- **Enhanced Pre-Flight Validation**:
+  - Verify PDRs are Accepted before implement
+  - Check clarify completion
+  - Hard enforcement (can bypass with `--force`)
+  
+- **Placeholder Validation**:
+  - Mandatory checking for unfilled placeholders
+  - Critical placeholders block completion
+  
+- **Phase Gate Verification**:
+  - 7-point verification checklist before marking complete
+  - Verify all section files exist on disk
+  - Validate PRD.md content
+
+### Added (Mermaid Diagram Support)
+
+- **Comprehensive Mermaid Diagram Suite** (8 diagram types):
+  - `visuals/feature-hierarchy.md`: Product structure tree diagram
+  - `visuals/feature-deps.md`: Requirement dependencies with status indicators
+  - `visuals/cross-area-map.md`: Inter-feature-area interactions
+  - `visuals/roadmap-timeline.md`: Gantt chart with milestone tracking
+  - `visuals/impact-map.md`: Decision impact mind map
+  - `sections/user-flows.md`: Persona journey flowcharts
+  - `sections/state-machine.md`: Feature state diagrams
+  - Inline decision flow diagram in PDR template
+
+- **Visual Summary Integration**:
+  - New "Visual Summary" section in PRD with quick navigation
+  - Cross-references from PRD sections to visual diagrams
+  - Auto-generated during implement phase
+
+- **Prompt-Based MCP/CLI Integration**:
+  - `/product.roadmap --sync` pulls from GitHub/GitLab/Jira/Linear
+  - Agent detects available tools (MCP preferred, CLI fallback)
+  - Warning on failure (non-blocking)
+  - Updates roadmap-timeline.md automatically
+
+- **Diagram Quality Validation**:
+  - Pass H in analyze command (warning only)
+  - Checks Mermaid syntax, consistency, cross-references
+  - Non-blocking but flagged for attention
+
+### Changed
+
+- `/product.init`: Complete rewrite with multi-agent architecture
+  - Sequential execution per feature-area
+  - Comprehensive detection (3 sources)
+  - State-based resumability
+  - Cross-area metadata in PDRs
+  - Discovery visualization phase added
+  
+- `/product.implement`: Major enhancement (~900 lines added)
+  - Pre-flight validation
+  - Mandatory checkpoint after Requirements
+  - Placeholder validation
+  - Phase gate verification
+  - 7-point final checklist
+  - Diagram generation steps added
+  
+- `/product.specify`: Consistency updates
+  - Comprehensive feature-area detection
+  - Early inconsistency flagging
+  - Cross-area pre-analysis with alerts
+
+- `/product.roadmap`: MCP sync support
+  - `--sync` flag for external tool integration
+  - Prompt-based tool detection and usage
+  - Updates roadmap-timeline.md
+
+- `/product.analyze`: Diagram validation
+  - Pass H: Visual diagram quality check
+  - Warning-level (non-blocking)
+
+- `prd-template.md`: Visual enhancements
+  - Visual Summary section with diagram links
+  - References in Personas and Requirements sections
+  - Roadmap sync instructions
+
+- `pdr-template.md`: Decision visualization
+  - Inline decision flow Mermaid diagram
+  - Impact map reference
+  - Cross-area metadata sections
+
+- `requirements.md`: Checkpoint documentation
+  - Reminder that this is the cornerstone section
+  - Checkpoint options documented
+
+- `extension.yml`:
+  - Version bump to 1.5.0
+  - Added state, subagents, cross_feature_area config
+  - New tags: subagents, cross-feature-area-analysis, inconsistency-detection
+  - Checkpoint configuration
+
+### Technical Details
+
+- **New Files**: 3 sub-agent prompt templates, 7 diagram templates
+- **Modified Files**: init.md, implement.md, specify.md, roadmap.md, analyze.md, pdr-template.md, prd-template.md, requirements.md, extension.yml
+- **Breaking Changes**: None (backward compatible)
+- **Minimum speckit_version**: >=0.0.80 (unchanged)
+
 ## [1.1.11] - 2026-04-30
 
 ### Fixed

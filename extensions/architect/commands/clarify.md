@@ -240,6 +240,8 @@ When constitution issues are detected:
 ```markdown
 ## Clarification [N]: Constitution Duplication Detected
 
+**Question**: How should this duplicate ADR be handled?
+
 **ADR**: ADR-XXX - [Title]
 **Constitution Principle**: §[Section] - [Principle Name]
 **Issue**: This ADR documents a decision already mandated by constitution
@@ -259,6 +261,8 @@ Reply with your choice (A/B/C/D).
 
 ```markdown
 ## Clarification [N]: Constitution Violation Detected ⭐
+
+**Question**: How should this constitutional violation be resolved?
 
 **ADR**: ADR-XXX - [Title]
 **Decision**: [What the ADR decides]
@@ -405,6 +409,25 @@ After approval (or if user chooses C to defer):
 
 Run `/architect.implement` to generate AD.md from accepted ADRs.
 ```
+
+#### Post-Approval State Update
+
+After approval, update workflow state in `{REPO_ROOT}/.specify/architect/state.json`:
+
+```json
+{
+  "workflow": {
+    "clarify_completed": true,
+    "clarify_completed_at": "2024-01-20T10:30:00Z",
+    "adrs_approved_count": [N],
+    "implement_started": false,
+    "implement_started_at": null
+  }
+}
+```
+
+**IMPORTANT**: This workflow state is REQUIRED before `/architect.implement` will execute.
+The implement command checks this state during pre-flight validation.
 
 ## Key Rules
 

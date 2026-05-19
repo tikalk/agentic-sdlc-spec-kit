@@ -559,6 +559,8 @@ Standard events (defined by core):
 - `after_tasks` - After task generation
 - `before_implement` - Before implementation
 - `after_implement` - After implementation
+- `before_task_execute` - Before each individual task execution (within implement)
+- `after_task_execute` - After each individual task execution (within implement)
 - `before_analyze` - Before cross-artifact analysis
 - `after_analyze` - After cross-artifact analysis
 - `before_checklist` - Before checklist generation

@@ -1,0 +1,149 @@
+# Eval: Quick Implement Command with Hook Support
+
+You are evaluating an AI agent executing the `/quick.implement` command with extension hook support.
+
+## Command Context
+
+The agent is running `/quick.implement "Add user authentication to the API"` in a project with the following state:
+
+### Project Structure
+```
+my-project/
+├── src/
+│   └── api/
+│       └── users.py
+├── tests/
+│   └── test_users.py
+└── .specify/
+    └── extensions.yml  (see below)
+```
+
+### Extensions Configuration (.specify/extensions.yml)
+```yaml
+installed:
+  - tdd
+  - git
+
+settings:
+  auto_execute_hooks: true
+
+hooks:
+  before_implement:
+    - extension: tdd
+      command: tdd.implement
+      enabled: true
+      optional: false
+      description: "Execute RED→GREEN→REFACTOR TDD cycle before implementation"
+      
+  after_implement:
+    - extension: tdd
+      command: tdd.validate
+      enabled: true
+      optional: true
+      description: "Validate test quality after implementation"
+```
+
+### Expected Workflow
+
+The agent should:
+
+1. **Mission Brief Phase**: Ask 3 questions and wait for approval
+2. **Context Discovery**: Brief input gathering
+3. **Task Breakdown**: Generate task checklist
+4. **Extension Hooks (before_implement)**: 
+   - Check `.specify/extensions.yml`
+   - Find mandatory `tdd.implement` hook
+   - Execute the TDD command immediately (don't just suggest it)
+5. **Execution**: Run quick tasks, dispatching per-task hooks (before_task_execute/after_task_execute)
+6. **Extension Hooks (after_implement)**:
+   - Find optional `tdd.validate` hook
+   - Display to user with execution option
+7. **Summary**: Show completion status
+
+## Evaluation Criteria
+
+### MUST HAVE (Critical)
+
+1. **Hook Discovery**: The output must mention checking `.specify/extensions.yml` or discovering hooks
+2. **before_implement Hook Execution**: 
+   - Must execute the mandatory hook (tdd.implement) before starting task execution
+   - Must not suggest running it later or wait for user confirmation on mandatory hooks
+3. **after_implement Hook Display**:
+   - Must show the optional hook (tdd.validate) after task completion
+   - Must present it as optional with clear execution path
+4. **Workflow Completion**: 
+   - Must complete the full quick workflow (Mission Brief → Context → Tasks → Execution → Summary)
+   - Must not get stuck waiting indefinitely (no EXECUTE_COMMAND + "wait" pattern)
+
+### SHOULD HAVE (Important)
+
+5. **Hook Filtering**: Should filter out hooks with `enabled: false` if such hooks exist in the config
+6. **Condition Handling**: Should skip hooks with non-empty `condition` fields (leave to HookExecutor)
+7. **Error Handling**: Should log warning and continue if hook command file not found
+8. **Silent Skip**: Should skip silently if no `.specify/extensions.yml` exists
+
+### NICE TO HAVE (Minor)
+
+9. **Hook Description Display**: Shows hook description to user
+10. **Clear Separation**: Visually separates hook execution from main workflow
+
+## Scoring
+
+- **Pass (1.0)**: All MUST HAVE criteria met
+- **Partial (0.5)**: At least 3 of 4 MUST HAVE criteria met
+- **Fail (0.0)**: Fewer than 3 MUST HAVE criteria met
+
+## Common Failure Patterns
+
+1. **Deadlock**: Using EXECUTE_COMMAND pattern and waiting for result
+2. **Skipping hooks**: Not checking extensions.yml at all
+3. **Wrong timing**: Running hooks at wrong phase (e.g., after_plan instead of before_implement)
+4. **Missing optional hooks**: Not displaying after_implement optional hooks
+5. **Stalling on mandatory hooks**: Asking user to confirm mandatory hook execution
+
+## Example Good Output Snippet
+
+```
+## Extension Hooks (before implementation)
+
+Executing mandatory hook: tdd
+Command: /tdd.implement
+Description: Execute RED→GREEN→REFACTOR TDD cycle before implementation
+
+[Hook execution proceeds...]
+
+## Execution: Task-Level Hook Dispatch
+
+Task 1: ...
+- Dispatching before_task_execute hook (if any registered)...
+- Executing task instructions...
+- Dispatching after_task_execute hook (commits if git extension enabled)...
+
+## Extension Hooks (after implementation)
+
+**Optional Hook**: tdd
+Command: /tdd.validate
+Description: Validate test quality after implementation
+
+Prompt: Run /tdd.validate to check test quality
+To execute: /tdd.validate
+
+## Summary
+...
+```
+
+## Input to Agent
+
+```
+/quick.implement "Add user authentication to the API"
+```
+
+User responses:
+- Mission Brief Q1: "Add JWT-based authentication"
+- Mission Brief Q2: "API returns 401 for unauthenticated requests, 200 with valid token"
+- Mission Brief Q3: "Use existing user model, must work with current middleware"
+- Approval: "yes"
+- Context: "Look at src/api/users.py and tests/test_users.py"
+```
+
+Evaluate the agent's output against the criteria above.

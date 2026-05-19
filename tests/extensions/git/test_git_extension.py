@@ -134,7 +134,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.0.0"
+        assert m.version == "1.2.6"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -147,6 +147,8 @@ class TestGitExtensionManifest:
         assert "speckit.git.remote" in names
         assert "speckit.git.initialize" in names
         assert "speckit.git.commit" in names
+        assert "speckit.git.workspace" in names
+        assert "speckit.git.setup-ignore" in names
 
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""

@@ -154,10 +154,13 @@ class CopilotIntegration(IntegrationBase):
         Skills mode: ``/speckit-<stem>`` slash-command dispatch.
         """
         if self._skills_mode:
-            stem = command_name
-            if stem.startswith("speckit."):
-                stem = stem[len("speckit."):]
-            invocation = "/speckit-" + stem.replace(".", "-")
+            # Use alias map to resolve to canonical form
+            try:
+                from ...cli_customization import resolve_command_alias
+                resolved = resolve_command_alias(command_name)
+            except Exception:
+                resolved = command_name
+            invocation = "/" + resolved.replace(".", "-")
             if args:
                 invocation = f"{invocation} {args}"
             return invocation
@@ -180,30 +183,37 @@ class CopilotIntegration(IntegrationBase):
         the user's arguments.
 
         In skills mode, the prompt includes the skill invocation
-        (``/speckit-<stem>``).
+        (``/spec-<stem>``).
         """
         import subprocess
 
-        stem = command_name
-        if stem.startswith("speckit."):
-            stem = stem[len("speckit."):]
+        # Use alias map to resolve to canonical form
+        try:
+            from ...cli_customization import resolve_command_alias
+            resolved = resolve_command_alias(command_name)
+        except Exception:
+            resolved = command_name
 
         # Detect skills mode from project layout when not set via setup()
         skills_mode = self._skills_mode
         if not skills_mode and project_root:
             skills_dir = project_root / ".github" / "skills"
             if skills_dir.is_dir():
+                # Check for spec-* skills (fork format)
                 skills_mode = any(
+                    d.is_dir() and (d / "SKILL.md").is_file()
+                    for d in skills_dir.glob("spec-*")
+                ) or any(
                     d.is_dir() and (d / "SKILL.md").is_file()
                     for d in skills_dir.glob("speckit-*")
                 )
 
         if skills_mode:
-            prompt = "/speckit-" + stem.replace(".", "-")
+            prompt = "/" + resolved.replace(".", "-")
             if args:
                 prompt = f"{prompt} {args}"
         else:
-            agent_name = f"speckit.{stem}"
+            agent_name = resolved
             prompt = args or ""
 
         cli_args = ["copilot", "-p", prompt]
@@ -252,7 +262,13 @@ class CopilotIntegration(IntegrationBase):
 
     def command_filename(self, template_name: str) -> str:
         """Copilot commands use ``.agent.md`` extension."""
-        return f"speckit.{template_name}.agent.md"
+        # Use spec prefix for fork, speckit for upstream
+        try:
+            from specify_cli.integrations.base import _get_command_prefix
+            prefix = _get_command_prefix()
+        except Exception:
+            prefix = "speckit"
+        return f"{prefix}.{template_name}.agent.md"
 
     def post_process_skill_content(self, content: str) -> str:
         """Inject Copilot-specific ``mode:`` field into SKILL.md frontmatter.
@@ -278,9 +294,11 @@ class CopilotIntegration(IntegrationBase):
                 if stripped.startswith("name:"):
                     # Parse: name: "speckit-plan" → speckit.plan
                     val = stripped.split(":", 1)[1].strip().strip('"').strip("'")
-                    # Convert speckit-plan → speckit.plan
+                    # Convert speckit-plan → speckit.plan or spec-plan → spec.plan
                     if val.startswith("speckit-"):
                         skill_name = "speckit." + val[len("speckit-"):]
+                    elif val.startswith("spec-"):
+                        skill_name = "spec." + val[len("spec-"):]
                     else:
                         skill_name = val
 
@@ -366,6 +384,7 @@ class CopilotIntegration(IntegrationBase):
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
                 context_file=self.context_file or "",
+                project_root=project_root,
             )
             dst_name = self.command_filename(src_file.stem)
             dst_file = self.write_file_and_record(
@@ -375,8 +394,14 @@ class CopilotIntegration(IntegrationBase):
 
         # 2. Generate companion .prompt.md files from the templates we just wrote
         prompts_dir = project_root / ".github" / "prompts"
+        # Get command prefix (spec for fork, speckit for upstream)
+        try:
+            from specify_cli.integrations.base import _get_command_prefix
+            prefix = _get_command_prefix()
+        except Exception:
+            prefix = "speckit"
         for src_file in templates:
-            cmd_name = f"speckit.{src_file.stem}"
+            cmd_name = f"{prefix}.{src_file.stem}"
             prompt_content = f"---\nagent: {cmd_name}\n---\n"
             prompt_file = self.write_file_and_record(
                 prompt_content,

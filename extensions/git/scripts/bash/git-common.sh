@@ -3,6 +3,50 @@
 # Extracted from scripts/bash/common.sh — contains only git-specific
 # branch validation and detection logic.
 
+# Find the project root by looking for .specify directory
+find_specify_root() {
+    local dir="${1:-$(pwd)}"
+    # Normalize to absolute path to prevent infinite loop with relative paths
+    # Use -- to handle paths starting with - (e.g., -P, -L)
+    dir="$(cd -- "$dir" 2>/dev/null && pwd)" || return 1
+    local prev_dir=""
+    while true; do
+        if [ -d "$dir/.specify" ]; then
+            echo "$dir"
+            return 0
+        fi
+
+        # Stop if we've reached filesystem root or dirname stops changing
+        if [ "$dir" = "/" ] || [ "$dir" = "$prev_dir" ]; then
+            break
+        fi
+        prev_dir="$dir"
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+# Get repository root, prioritizing .specify directory over git
+# This prevents using a parent git repo when spec-kit is initialized in a subdirectory
+get_repo_root() {
+    # First, look for .specify directory (spec-kit's own marker)
+    local specify_root
+    if specify_root=$(find_specify_root); then
+        echo "$specify_root"
+        return
+    fi
+
+    # Fallback to git if no .specify found
+    if git rev-parse --show-toplevel >/dev/null 2>&1; then
+        git rev-parse --show-toplevel
+        return
+    fi
+
+    # Final fallback to script location for non-git repos
+    local script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    (cd "$script_dir/../../.." && pwd)
+}
+
 # Check if we have git available at the repo root
 has_git() {
     local repo_root="${1:-$(pwd)}"

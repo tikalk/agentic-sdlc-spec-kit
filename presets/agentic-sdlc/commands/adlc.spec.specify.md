@@ -66,7 +66,7 @@ After collecting/extracting answers, display:
 
 **DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
 
-**Failure to follow these rules violates the /spec.specify contract.**
+**Failure to follow these rules violates the __SPECKIT_COMMAND_SPECIFY__ contract.**
 
 ---
 
@@ -81,7 +81,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before specification)**:
-- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+- Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_specify` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -101,20 +101,15 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    ```
-    ## Extension Hooks
-
-    **Automatic Pre-Hook**: {extension}
-    Executing: `/{command}`
-    EXECUTE_COMMAND: {command}
-
-    Wait for the result of the hook command before proceeding to the Outline.
-    ```
-- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
+    - If the hook command file cannot be found, log a warning and proceed anyway
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
-The text the user typed after `/spec.specify` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
+The text the user typed after `__SPECKIT_COMMAND_SPECIFY__` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `{ARGS}` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -132,7 +127,7 @@ Given that feature description, do this:
 
 2. **Branch creation** (optional, via hook):
 
-   **Branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value.
+   **Branch numbering mode**: Before running the script, check if `.specify/init-options.json` exists and read the `branch_numbering` value.
    - If `"timestamp"`, add `--timestamp` (Bash) or `-Timestamp` (PowerShell) to the script invocation
    - If `"sequential"` or absent, do not add any extra flag (default behavior)
 
@@ -170,10 +165,10 @@ Given that feature description, do this:
      }
      ```
      Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`/spec.plan`, `/spec.tasks`, etc.) to locate the feature directory without relying on git branch name conventions.
+     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
 
    **IMPORTANT**:
-   - You must only create one feature per `/spec.specify` invocation
+   - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
 
@@ -244,7 +239,7 @@ Given that feature description, do this:
 
       ## Notes
 
-      - Items marked incomplete require spec updates before `/spec.clarify` or `/spec.plan`
+      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
       ```
 
    b. **Run Validation Check**: Review the spec against each checklist item:
@@ -302,9 +297,9 @@ Given that feature description, do this:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary
-   - Readiness for the next phase (`/spec.clarify` or `/spec.plan`)
+   - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
-9. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+9. **Check for extension hooks**: After reporting completion, check if `.specify/extensions.yml` exists in the project root.
     - If it exists, read it and look for entries under the `hooks.after_specify` key
     - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
     - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -324,14 +319,11 @@ Given that feature description, do this:
         To execute: `/{command}`
         ```
       - **Mandatory hook** (`optional: false`):
-        ```
-        ## Extension Hooks
-
-        **Automatic Hook**: {extension}
-        Executing: `/{command}`
-        EXECUTE_COMMAND: {command}
-        ```
-    - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+    - Read the command file for `{command}` from the installed extension commands directory
+    - Execute the instructions in that command file immediately (run any referenced scripts)
+    - Once the hook completes (successfully or with a graceful skip), proceed
+    - If the hook command file cannot be found or execution fails, log a warning and continue
+    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 
