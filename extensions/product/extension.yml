@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "product"
   name: "Product - PRD & PDR Management"
-  version: "1.5.1"
+  version: "1.5.2"
   description: "Create and manage Product Requirements Documents (PRD) and Product Decision Records (PDR) using multi-agent feature-area analysis with cross-area pattern detection and inconsistency flagging"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

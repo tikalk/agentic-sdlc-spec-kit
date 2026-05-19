@@ -1,11 +1,22 @@
+<!-- 
+TEMPLATE COMPLIANCE v1.5.2 - THIS IS A TEMPLATE, MUST BE FILLED:
+✓ Use Mermaid diagrams (NOT ASCII art) - flowchart for dependencies
+✓ Fill ALL [PLACEHOLDERS] with actual content
+✓ Trace ALL requirements to source PDRs
+✓ Use REQ-XXX format for requirements
+✓ Validate with: ./scripts/validate-prd.sh --strict
+NOTE: In final PRD, this becomes Section 8 (Requirements)
+-->
+
 # Functional Requirements: [FEATURE_AREA_NAME]
 
 **Feature Area**: [FEATURE_AREA_NAME]
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
 **Dependencies**: Personas, Goals
+**Section Number**: 8 (in final PRD)
 
-> 🛑 **CHECKPOINT SECTION**: This is the **cornerstone** section that shapes NFRs, Out-of-Scope, Risks, and Roadmap. After generating this section, execution MUST pause for user approval before continuing.
+> 🛑 **CHECKPOINT SECTION v1.5.2**: This is the **cornerstone** section that shapes NFRs, Out-of-Scope, Risks, and Roadmap. After generating this section, execution MUST pause for user approval before continuing.
 >
 > **Why?** Requirements define what gets built, what doesn't (Out-of-Scope), associated risks, and roadmap priority. User approval ensures alignment.
 >

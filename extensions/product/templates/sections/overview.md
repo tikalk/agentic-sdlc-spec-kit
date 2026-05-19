@@ -1,12 +1,22 @@
+<!-- 
+TEMPLATE COMPLIANCE v1.5.2 - THIS IS A TEMPLATE, MUST BE FILLED:
+✓ Use Mermaid diagrams (NOT ASCII art)
+✓ Fill ALL [PLACEHOLDERS] with actual content
+✓ Trace content to source PDRs
+✓ Validate with: ./scripts/validate-prd.sh --strict
+NOTE: In final PRD, this becomes Section 3 (after Visual Summary and Document Info)
+-->
+
 # Overview: [FEATURE_AREA_NAME]
 
 **Feature Area**: [FEATURE_AREA_NAME]
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
+**Section Number**: 3 (in final PRD)
 
 ---
 
-## 1. Overview
+## 3. Overview
 
 **Purpose**: High-level description of the product - what it is and why it exists
 
