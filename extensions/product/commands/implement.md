@@ -1,6 +1,6 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
-version: 1.5.2
+version: 1.5.3
 compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
@@ -9,7 +9,7 @@ scripts:
 
 ---
 
-## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.2)
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.3)
 
 **READ THIS FIRST - MANDATORY REQUIREMENTS**
 
@@ -19,8 +19,13 @@ Before generating ANY content, you MUST verify:
 - [ ] **MUST** use Mermaid syntax (```mermaid) for ALL diagrams - **ASCII art is STRICTLY PROHIBITED**
 - [ ] **MUST** place "Visual Summary" as **Section 1** (numbered) - right after header
 - [ ] **MUST** include "Document Information" as **Section 2**
+- [ ] **MUST** include "Executive Summary" as **Section 2.5** with business impact metrics
+- [ ] **MUST** include "Market Opportunity" as **Section 4.5** with TAM/SAM/SOM
+- [ ] **MUST** include "Investment & Resources" as **Section 11.5** with ROI
+- [ ] **MUST** include "Go-to-Market Strategy" as **Section 12.5** with pricing
 - [ ] **MUST** fill or remove ALL template placeholders like `[PRODUCT_NAME]`, `[DATE]`
 - [ ] **MUST** trace all requirements to source PDRs with ID references
+- [ ] **MUST** produce a **SELF-CONTAINED** PRD.md - no reader-facing links to `.specify/` files
 - [ ] **MUST** validate output with `./scripts/validate-prd.sh --strict` after each section
 
 ### STRICT ENFORCEMENT RULES:
@@ -38,10 +43,19 @@ Before generating ANY content, you MUST verify:
    - **VIOLATION = Convert to Mermaid immediately**
 
 3. **Section Numbering is FIXED**
-   - Section 1: Visual Summary (MUST be numbered)
+   - Section 1: Visual Summary (MUST be numbered, inline Mermaid)
    - Section 2: Document Information
+   - Section 2.5: Executive Summary (business case, ROI)
    - Section 3: Overview
-   - ... and so on per prd-template.md
+   - Section 4: The Problem
+   - Section 4.5: Market Opportunity (TAM/SAM/SOM, competitive)
+   - Section 5-6: Goals, Metrics (+ 6.5 Business Outcome Metrics)
+   - Section 7-10: Personas, Requirements, NFRs, Out of Scope
+   - Section 11: Risks (+ 11.4 Business Risks)
+   - Section 11.5: Investment & Resources (team, budget, ROI)
+   - Section 12: Roadmap
+   - Section 12.5: Go-to-Market Strategy (launch, pricing, messaging)
+   - Section 13: PDR Summary
    - **VIOLATION = Renumber to match template**
 
 4. **Validation is REQUIRED**
@@ -72,8 +86,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Flags
 
 - `--sections SECTIONS`: PRD sections to generate
-  - `all` (default): All 11 sections
+  - `all` (default): All 15 sections (11 core + 4 business)
   - Custom: comma-separated (e.g., `problem,scope,requirements`)
+  - Business sections: `executive-summary,market-opportunity,investment,gtm`
 
 - `--no-checkpoint`: Skip Requirements section checkpoint
   - **Warning**: Requirements is the cornerstone that shapes NFRs, Out-of-Scope, Risks, and Roadmap
@@ -258,19 +273,25 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 
 **DAG Dependency Rules**:
 
-| Section | Dependencies | Can Parallelize |
-|---------|--------------|-----------------|
-| Overview | None | Yes |
-| Problem | Overview | Yes |
-| Goals | Problem | Yes |
-| Metrics | Goals | Yes |
-| Personas | Problem, Goals | Yes |
-| **Requirements** | Goals, Personas | **No - CHECKPOINT** |
-| NFRs | Requirements | No |
-| Out-of-Scope | Requirements | No |
-| Risks | Requirements, Out-of-Scope | No |
-| Roadmap | Requirements, Goals | No |
-| PDR-Summary | All above | No |
+| Section | Slug | Dependencies | Can Parallelize |
+|---------|------|--------------|-----------------|
+| Overview | `overview` | None | Yes |
+| Problem | `problem` | Overview | Yes |
+| Market Opportunity | `market-opportunity` | Overview, Problem | Yes |
+| Goals | `goals` | Problem | Yes |
+| Metrics | `metrics` | Goals | Yes |
+| Personas | `personas` | Problem, Goals | Yes |
+| Executive Summary | `executive-summary` | Overview, Problem, Goals, Metrics | Yes |
+| **Requirements** | `requirements` | Goals, Personas | **No - CHECKPOINT** |
+| NFRs | `nfrs` | Requirements | No |
+| Out-of-Scope | `out-of-scope` | Requirements | No |
+| Risks | `risks` | Requirements, Out-of-Scope | No |
+| Investment | `investment` | Requirements, Risks | No |
+| Roadmap | `roadmap` | Requirements, Goals | No |
+| Go-to-Market | `gtm` | Roadmap, Personas, Market Opportunity | No |
+| PDR-Summary | `pdr-summary` | All above | No |
+
+**Business sections** (marked with sub-numbers 2.5, 4.5, 11.5, 12.5) are generated alongside their adjacent sections. They provide the business context that stakeholders and product managers need for decision-making.
 
 ### Step 1.4: Present Plan for User Approval
 
@@ -283,7 +304,7 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 ### Feature-Area: Core
 **PDRs**: PDR-001, PDR-005, PDR-008
 **Characteristics**: B2B SaaS, Platform
-**DAG**: Overview → Problem → Goals → Metrics → Personas → [Requirements Checkpoint] → NFRs → Out-of-Scope → Risks → Roadmap → PDR-Summary
+**DAG**: Overview → Problem → Market Opportunity → Goals → Metrics → Personas → Executive Summary → [Requirements Checkpoint] → NFRs → Out-of-Scope → Risks → Investment → Roadmap → GTM → PDR-Summary
 
 **Checkpoint**: After Requirements section, execution will pause for approval.
 
@@ -603,58 +624,58 @@ Compare sections across feature-areas:
 | Priority mismatch | Same feature, different priority | Defer to PDR |
 | Metric inconsistency | Same metric, different definition | Use PDR definition |
 
-### Step 3.2.5: Generate Visual Summary Section (MANDATORY)
+### Step 3.2.5: Embed Visual Summary INLINE (MANDATORY)
 
-**MANDATORY: Create a Visual Summary section that embeds all diagrams into the PRD.**
+**MANDATORY: Section 1 (Visual Summary) must contain ALL diagrams as inline Mermaid blocks.**
 
-This step ensures PRD consumers can view diagrams inline without navigating separate files.
+> **SELF-CONTAINED RULE (v1.5.3):** The final PRD.md must be readable WITHOUT opening any other file.
+> Section files in `.specify/product/sections/` are intermediate build artifacts.
+> Visual files in `.specify/product/visuals/` are supplementary only.
+> **NO reader-facing links to `.specify/` paths in the final PRD.md.**
 
-#### Visual Summary Section Structure
+#### How to Embed Visuals
 
-Add the following section to PRD.md (typically Section 12 or Appendix):
+1. Extract the Mermaid code blocks from each visual file (`.specify/product/visuals/*.md`)
+2. Embed them directly into **Section 1 (Visual Summary)** of PRD.md
+3. Use in-document anchor links (e.g., `[Section 1.1](#11-feature-hierarchy)`) for cross-references
+4. Do NOT use external file links like `[View](visuals/feature-hierarchy.md)`
+
+#### Section 1 Structure (inline)
 
 ```markdown
-## 12. Visual Summary
+## 1. Visual Summary
 
-This section provides inline visualizations referenced throughout the PRD.
+### 1.1 Feature Hierarchy
+[Embed Mermaid flowchart from visuals/feature-hierarchy.md]
 
-### 12.1 Feature Hierarchy
+### 1.2 Feature Dependencies
+[Embed Mermaid flowchart from visuals/feature-deps.md]
 
-```mermaid
-flowchart TD
-    [Embed content from visuals/feature-hierarchy.md]
+### 1.3 Roadmap Timeline
+[Embed Mermaid gantt from visuals/roadmap-timeline.md]
 ```
 
-> 📄 **Full Diagram**: See [visuals/feature-hierarchy.md](.specify/product/visuals/feature-hierarchy.md)
+#### Cross-Reference Pattern
 
-### 12.2 Feature Dependencies
+When other sections reference visuals, use in-document anchors:
+- `See [Section 1.1](#11-feature-hierarchy)` (NOT `[View](visuals/feature-hierarchy.md)`)
+- `See [Visual Summary](#1-visual-summary)` (NOT external file links)
 
-```mermaid
-flowchart LR
-    [Embed content from visuals/feature-deps.md]
-```
+### Step 3.2.6: Embed Business Sections (MANDATORY)
 
-> 📄 **Full Diagram**: See [visuals/feature-deps.md](.specify/product/visuals/feature-deps.md)
+**All 4 business sections must be embedded inline in PRD.md:**
 
-### 12.3 User Flows
+1. **Section 2.5 (Executive Summary)**: After Document Info, before Overview
+2. **Section 4.5 (Market Opportunity)**: After Problem, before Goals  
+3. **Section 11.5 (Investment & Resources)**: After Risks, before Roadmap
+4. **Section 12.5 (Go-to-Market Strategy)**: After Roadmap, before PDR Summary
 
-```mermaid
-flowchart TB
-    [Embed content from visuals/user-flows.md]
-```
+These sections derive content from:
+- PDR consequence sections (business impact)
+- PDR metrics sections (financial targets)
+- Cross-feature-area analysis (market positioning)
 
-> 📄 **Full Diagram**: See [visuals/user-flows.md](.specify/product/visuals/user-flows.md)
-
-### 12.4 State Machine
-
-```mermaid
-stateDiagram-v2
-    [Embed content from visuals/state-machine.md]
-```
-
-> 📄 **Full Diagram**: See [visuals/state-machine.md](.specify/product/visuals/state-machine.md)
-
-### 12.5 ASCII Fallback Diagrams
+### Step 3.2.7: ASCII Fallback Diagrams (Complex Only)
 
 If Mermaid rendering fails, ASCII diagrams are available in the full visual files linked above.
 ```

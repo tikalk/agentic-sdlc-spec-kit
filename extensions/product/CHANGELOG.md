@@ -2,6 +2,43 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.3] - 2026-05-19
+
+### Added
+
+- **Business Stakeholder Sections**: 4 new section templates for business decision-makers
+  - `sections/executive-summary.md` (Section 2.5): One-page business case with ROI, investment, and recommendation
+  - `sections/market-opportunity.md` (Section 4.5): TAM/SAM/SOM, competitive landscape, ICP, positioning
+  - `sections/investment.md` (Section 11.5): Team composition, budget estimate, risk-adjusted ROI, go/no-go criteria
+  - `sections/gtm.md` (Section 12.5): Launch phases, pricing strategy, messaging, channel strategy
+
+- **Business Outcome Metrics** (Section 6.5): Added to metrics template with efficiency, quality, and financial metrics
+- **Business Risks** (Section 11.4): Added to risks template with adoption, competitive, and financial risks
+- **Financial Metrics** (Section 6.6): Cost per user, ROI, payback period
+
+### Changed
+
+- **Self-Contained PRD Rule**: PRD.md must now be fully self-contained
+  - All Mermaid diagrams embedded inline in Visual Summary (Section 1)
+  - No reader-facing links to `.specify/product/sections/` or `.specify/product/visuals/`
+  - Section files remain as intermediate build artifacts only
+  - Cross-references use in-document anchors (e.g., `[Section 1.1](#11-feature-hierarchy)`)
+
+- **PRD Template** (`prd-template.md`): Updated to v1.5.3
+  - Visual Summary now uses inline Mermaid (no external links)
+  - Added Section 2.5, 4.5, 6.5, 6.6, 11.4, 11.5, 12.5 placeholders
+  - Updated validation checklist for new sections
+
+- **Implement Command** (`commands/implement.md`): Updated DAG
+  - Added 4 new section slugs to dependency graph: `executive-summary`, `market-opportunity`, `investment`, `gtm`
+  - Updated compliance checklist with business section requirements
+  - Added self-contained PRD generation rules to Phase 3
+
+- **Extension Config** (`extension.yml`): v1.5.3
+  - Added `self_contained: true` configuration
+  - Updated state version to 1.2.0
+  - Updated description with business section keywords
+
 ## [1.5.2] - 2026-05-19
 
 ### Added

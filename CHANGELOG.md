@@ -2,6 +2,31 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc11] - 2026-05-19
+
+### Added
+
+- **Product extension v1.5.3**: Business stakeholder sections and self-contained PRD
+  - **4 new section templates** for business decision-makers:
+    - `executive-summary.md` (Section 2.5): One-page business case with ROI and recommendation
+    - `market-opportunity.md` (Section 4.5): TAM/SAM/SOM, competitive landscape, ICP, positioning
+    - `investment.md` (Section 11.5): Team composition, budget, risk-adjusted ROI, go/no-go criteria
+    - `gtm.md` (Section 12.5): Launch phases, pricing tiers, messaging, channel strategy
+  - **Business Outcome Metrics** (Section 6.5): Efficiency, quality, and financial metrics
+  - **Business Risks** (Section 11.4): Adoption, competitive, and financial risk categories
+  - **Financial Metrics** (Section 6.6): Cost per user, ROI, payback period
+
+### Changed
+
+- **Self-Contained PRD Rule**: PRD.md now fully self-contained
+  - All Mermaid diagrams embedded inline in Visual Summary (Section 1)
+  - No reader-facing links to `.specify/` files
+  - Section files remain as build artifacts only
+  - Cross-references use in-document anchors
+- **DAG expanded**: 11 → 15 sections (4 business sections added to dependency graph)
+- **Validation script v1.5.3**: 7 → 9 checks (business sections, self-contained links)
+- **Sub-numbering**: Business sections use 2.5, 4.5, 11.5, 12.5 to preserve existing numbering
+
 # [0.8.12+adlc8] - 2026-05-18
 
 ### Added

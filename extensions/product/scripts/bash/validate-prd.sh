@@ -1,6 +1,7 @@
 #!/bin/bash
-# PRD Validation Script v1.5.2
+# PRD Validation Script v1.5.3
 # Validates PRD compliance with product extension standards
+# Checks: Visual Summary, Mermaid, business sections, self-contained links, PDR traceability
 # Usage: validate-prd.sh [PRD_FILE] [--strict|--warn]
 #
 # Exit codes:
@@ -38,7 +39,7 @@ for arg in "$@"; do
         --help|-h)
             echo "Usage: $0 [PRD_FILE] [--strict|--warn]"
             echo ""
-            echo "Validates PRD compliance with product extension v1.5.2 standards"
+            echo "Validates PRD compliance with product extension v1.5.3 standards"
             echo ""
             echo "Options:"
             echo "  --strict    Exit with error on any issue (default: warn only)"
@@ -61,7 +62,7 @@ if [[ ! -f "$PRD_FILE" ]]; then
 fi
 
 echo -e "${BLUE}🔍 Validating PRD: $PRD_FILE${NC}"
-echo -e "${BLUE}Extension Version: 1.5.2 | Mode: $([ "$STRICT_MODE" == true ] && echo "STRICT" || echo "WARN")${NC}"
+echo -e "${BLUE}Extension Version: 1.5.3 | Mode: $([ "$STRICT_MODE" == true ] && echo "STRICT" || echo "WARN")${NC}"
 echo "================================================"
 
 # Function to report success
@@ -89,7 +90,7 @@ fail() {
 # CHECK 1: Visual Summary Section at Section 1
 # ============================================
 echo ""
-echo -e "${BLUE}[1/7] Checking Visual Summary placement...${NC}"
+echo -e "${BLUE}[1/9] Checking Visual Summary placement...${NC}"
 
 # Get the first section header
 FIRST_SECTION=$(grep -E '^## [0-9]+\.?\s' "$PRD_FILE" | head -1 || echo "")
@@ -136,7 +137,7 @@ fi
 # CHECK 2: No ASCII Diagrams in Main Content
 # ============================================
 echo ""
-echo -e "${BLUE}[2/7] Checking for ASCII diagrams...${NC}"
+echo -e "${BLUE}[2/9] Checking for ASCII diagrams...${NC}"
 
 # Box-drawing characters (Unicode range U+2500 to U+257F)
 ASCII_LINES=$(grep -n -P '[─━│┃┄┅┆┇┈┉┊┋┌┍┎┏┐┑┒┓└┕┖┗┘┙┚┛├┝┞┟┠┡┢┣┤┥┦┧┨┩┪┫┬┭┮┯┰┱┲┳┴┵┶┷┸┹┺┻┼┽┾┿╀╁╂╃╄╅╆╇╈╉╊╋╌╍╎╏═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧╨╩╪╫╬╭╮╯╰╱╲╳╴╵╶╷╸╹╺╻╼╽╾╿]' "$PRD_FILE" 2>/dev/null || true)
@@ -179,7 +180,7 @@ fi
 # CHECK 3: Mermaid Diagrams Present
 # ============================================
 echo ""
-echo -e "${BLUE}[3/7] Checking Mermaid diagrams...${NC}"
+echo -e "${BLUE}[3/9] Checking Mermaid diagrams...${NC}"
 
 MERMAID_COUNT=$(grep -c "^\s*\`\`\`mermaid" "$PRD_FILE" || true)
 
@@ -202,7 +203,7 @@ fi
 # CHECK 4: No Unfilled Placeholders
 # ============================================
 echo ""
-echo -e "${BLUE}[4/7] Checking for unfilled placeholders...${NC}"
+echo -e "${BLUE}[4/9] Checking for unfilled placeholders...${NC}"
 
 PLACEHOLDER_PATTERNS=(
     '\[PRODUCT_NAME\]'
@@ -235,7 +236,7 @@ fi
 # CHECK 5: PDR Traceability
 # ============================================
 echo ""
-echo -e "${BLUE}[5/7] Checking PDR traceability...${NC}"
+echo -e "${BLUE}[5/9] Checking PDR traceability...${NC}"
 
 # Count requirements
 REQ_COUNT=$(grep -cE '^\s*\*\*REQ-[0-9]+\*\*' "$PRD_FILE" || true)
@@ -271,7 +272,7 @@ fi
 # CHECK 6: Required Sections Present
 # ============================================
 echo ""
-echo -e "${BLUE}[6/7] Checking required sections...${NC}"
+echo -e "${BLUE}[6/9] Checking required sections...${NC}"
 
 REQUIRED_SECTIONS=(
     "1.*Visual Summary"
@@ -302,10 +303,68 @@ if [[ $MISSING_SECTIONS -eq 0 ]]; then
 fi
 
 # ============================================
+# CHECK 6.5: Business Sections (v1.5.3)
+# ============================================
+echo ""
+echo -e "${BLUE}[6.5/9] Checking business stakeholder sections (v1.5.3)...${NC}"
+
+BUSINESS_SECTIONS=(
+    "2\.5.*Executive Summary"
+    "4\.5.*Market Opportunity"
+    "11\.5.*Investment"
+    "12\.5.*Go-to-Market"
+)
+
+MISSING_BUSINESS=0
+for biz_pattern in "${BUSINESS_SECTIONS[@]}"; do
+    if grep -qiE "^## $biz_pattern" "$PRD_FILE"; then
+        pass "Found business section: $biz_pattern"
+    else
+        warn "Missing business section: $biz_pattern (recommended for stakeholder PRDs)"
+        ((MISSING_BUSINESS++))
+    fi
+done
+
+if [[ $MISSING_BUSINESS -eq 0 ]]; then
+    pass "All 4 business stakeholder sections present"
+fi
+
+# ============================================
+# CHECK 6.6: Self-Contained PRD (v1.5.3)
+# ============================================
+echo ""
+echo -e "${BLUE}[6.6/9] Checking self-contained PRD (no external .specify/ links)...${NC}"
+
+# Check for reader-facing links to .specify/ paths
+EXTERNAL_LINKS=$(grep -nE '\]\(\.specify/' "$PRD_FILE" 2>/dev/null || true)
+# Exclude links inside HTML comments
+EXTERNAL_LINKS_FILTERED=""
+if [[ -n "$EXTERNAL_LINKS" ]]; then
+    while IFS= read -r line; do
+        LINE_NUM=$(echo "$line" | cut -d: -f1)
+        LINE_CONTENT=$(sed -n "${LINE_NUM}p" "$PRD_FILE")
+        # Skip if inside HTML comment
+        if ! echo "$LINE_CONTENT" | grep -q '<!--'; then
+            EXTERNAL_LINKS_FILTERED="${EXTERNAL_LINKS_FILTERED}${line}\n"
+        fi
+    done <<< "$EXTERNAL_LINKS"
+fi
+
+if [[ -n "$EXTERNAL_LINKS_FILTERED" ]]; then
+    warn "PRD contains reader-facing links to .specify/ files (should be self-contained)"
+    echo -e "$EXTERNAL_LINKS_FILTERED" | head -5 | while read line; do
+        [[ -n "$line" ]] && echo "  $line"
+    done
+    echo "  Use in-document anchors instead: [Section 1.1](#11-feature-hierarchy)"
+else
+    pass "PRD is self-contained (no reader-facing .specify/ links)"
+fi
+
+# ============================================
 # CHECK 7: Constitution Alignment Claims
 # ============================================
 echo ""
-echo -e "${BLUE}[7/7] Checking constitution alignment...${NC}"
+echo -e "${BLUE}[7/9] Checking constitution alignment...${NC}"
 
 if grep -qi "Constitution Alignment\|Aligns with Constitution" "$PRD_FILE"; then
     pass "Constitution alignment section found"
@@ -334,7 +393,7 @@ echo -e "${BLUE}Validation Summary${NC}"
 echo "================================================"
 
 if [[ $ERRORS -eq 0 && $WARNINGS -eq 0 ]]; then
-    echo -e "${GREEN}✓ All checks passed! PRD is compliant with v1.5.2${NC}"
+    echo -e "${GREEN}✓ All checks passed! PRD is compliant with v1.5.3${NC}"
     echo ""
     echo "You may proceed to mark sections as 'completed'"
     exit 0
@@ -354,7 +413,7 @@ elif [[ $ERRORS -eq 0 ]]; then
 else
     echo -e "${RED}✗ $ERRORS error(s) and $WARNINGS warning(s) found${NC}"
     echo ""
-    echo "PRD is NON-COMPLIANT with v1.5.2 standards"
+    echo "PRD is NON-COMPLIANT with v1.5.3 standards"
     echo "Fix all errors before proceeding"
     exit 1
 fi

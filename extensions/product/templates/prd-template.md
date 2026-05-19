@@ -1,11 +1,16 @@
 <!-- 
-TEMPLATE COMPLIANCE REQUIREMENTS (v1.5.2):
+TEMPLATE COMPLIANCE REQUIREMENTS (v1.5.3):
 - MUST use Mermaid diagrams (```mermaid) - NOT ASCII art
 - MUST fill ALL [PLACEHOLDERS] with actual content
-- MUST use this exact section structure (1-11)
+- MUST use this exact section structure (1-13, with sub-sections 2.5, 4.5, 6.5, 11.5, 12.5)
 - MUST trace all requirements to PDRs
+- MUST embed ALL content inline - PRD.md must be self-contained (no reader-facing external links)
 - MUST run validation: ./scripts/validate-prd.sh --strict
 VIOLATION = Non-compliant PRD
+
+SELF-CONTAINED RULE: The final PRD.md must be readable without opening any other file.
+Section files in .specify/product/sections/ are intermediate build artifacts only.
+Visual diagrams are embedded inline via Mermaid blocks.
 -->
 
 # Product Requirements Document: [PRODUCT_NAME]
@@ -14,18 +19,54 @@ VIOLATION = Non-compliant PRD
 
 ## 1. Visual Summary
 
-> This PRD includes interactive visual diagrams for easier exploration:
-> 
-> | Diagram | Purpose | Link |
-> |---------|---------|------|
-> | 📈 Feature Hierarchy | Product structure & organization | [View](visuals/feature-hierarchy.md) |
-> | 👥 User Flows | Persona journey maps | [View](sections/user-flows.md) |
-> | 🔗 Feature Dependencies | Requirement relationships & blockers | [View](visuals/feature-deps.md) |
-> | 🗺️ Cross-Feature-Area Map | Inter-area interactions | [View](visuals/cross-area-map.md) |
-> | 📅 Roadmap Timeline | Milestone Gantt chart | [View](visuals/roadmap-timeline.md) |
-> | 💡 Impact Analysis | Decision impact visualization | [View](visuals/impact-map.md) |
-> 
-> *Diagrams are auto-generated from requirements. Run `/product.implement --refresh-diagrams` to update.*
+> This PRD is **self-contained** - all diagrams are embedded inline below.
+> Supplementary visual files are available in `.specify/product/visuals/` for detailed exploration.
+
+### 1.1 Feature Hierarchy
+
+```mermaid
+flowchart TD
+    subgraph Product["[PRODUCT_NAME]"]
+        direction TB
+        F1["[Feature 1]<br/>[Status]"]
+        F2["[Feature 2]<br/>[Status]"]
+        F3["[Feature 3]<br/>[Status]"]
+    end
+    F1 --> F2
+    F2 --> F3
+```
+
+### 1.2 Feature Dependencies
+
+```mermaid
+flowchart LR
+    subgraph "Foundation"
+        R1["REQ-001"]
+        R2["REQ-002"]
+    end
+    subgraph "Business"
+        R3["REQ-003"]
+    end
+    R1 --> R2
+    R2 --> R3
+```
+
+### 1.3 Roadmap Timeline
+
+```mermaid
+gantt
+    title [PRODUCT_NAME] Roadmap
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    section [Phase 1]
+    [Feature] :done, f1, [START], [DURATION]
+    section [Phase 2]
+    [Feature] :f2, after f1, [DURATION]
+    section Milestones
+    [Milestone 1] :milestone, m1, [DATE], 0d
+```
+
+*Diagrams are auto-generated from requirements. Run `/product.implement` to regenerate.*
 
 ### Quick Stats
 
@@ -63,6 +104,46 @@ VIOLATION = Non-compliant PRD
 | Product Owner | [Name] | [Date] | [✓] |
 | Tech Lead | [Name] | [Date] | [✓] |
 | Stakeholder | [Name] | [Date] | [✓] |
+
+---
+
+## 2.5 Executive Summary
+
+> **For executive decision-makers.** This section summarizes the business case in 60 seconds.
+
+### The Opportunity
+
+[1-2 sentences: What market opportunity does this product address?]
+
+### The Problem (Business Impact)
+
+- [Pain point 1 with quantified business impact]
+- [Pain point 2 with quantified business impact]
+- [Pain point 3 with quantified business impact]
+
+### The Solution
+
+[2-3 sentences: What the product delivers. Focus on business outcomes.]
+
+### Business Impact
+
+| Metric | Current State | Target (12 months) | Value |
+|--------|--------------|-------------------|-------|
+| [Efficiency metric] | [Baseline] | [Target] | [$ value] |
+| [Quality metric] | [Baseline] | [Target] | [% value] |
+| [Adoption metric] | [Baseline] | [Target] | [Multiplier] |
+
+### Investment & ROI
+
+| | Amount |
+|---|--------|
+| **Annual Investment** | $[N] |
+| **Expected ROI (12-month)** | [N]% |
+| **Payback Period** | [N] months |
+
+### Recommendation
+
+**[APPROVE / CONDITIONAL / DEFER]** - [1-2 sentence justification]
 
 ---
 
@@ -203,6 +284,44 @@ flowchart TB
 
 ---
 
+## 4.5 Market Opportunity
+
+### 4.5.1 Market Size
+
+| Segment | Size | Description |
+|---------|------|-------------|
+| **TAM** | $[N]B | [Total addressable market] |
+| **SAM** | $[N]B | [Serviceable addressable market] |
+| **SOM** | $[N]M | [Serviceable obtainable market - year 1-2 target] |
+
+### 4.5.2 Competitive Landscape
+
+| Competitor | Approach | Strength | Our Differentiation |
+|------------|----------|----------|---------------------|
+| [Competitor 1] | [Approach] | [Strength] | [How we differ] |
+| [Competitor 2] | [Approach] | [Strength] | [How we differ] |
+
+### 4.5.3 Market Timing
+
+| Timeframe | Signal | Implication |
+|-----------|--------|-------------|
+| **Now** | [Current state] | [Why act now] |
+| **6 months** | [Trend] | [Opportunity/risk] |
+| **12 months** | [Trend] | [Expected shift] |
+
+### 4.5.4 Target Customers (ICP)
+
+**Primary:** [Role] at [Company type]
+- **Pain:** [What drives the purchase]
+- **Budget:** $[Range]/year
+- **Decision Cycle:** [Timeline]
+
+### 4.5.5 Positioning Statement
+
+**For** [target customer] **who** [need], **[product]** is a [category] **that** [key benefit]. **Unlike** [competitor], **our product** [differentiation].
+
+---
+
 ## 5. Goals & Objectives
 
 ### 5.1 Primary Goal
@@ -262,11 +381,27 @@ flowchart TB
 |--------|--------|-----|
 | [Metric] | [Target] | PDR-XXX |
 
+### 6.5 Business Outcome Metrics
+
+| Metric | Target | Business Impact | Measurement |
+|--------|--------|-----------------|-------------|
+| [Efficiency metric] | [Target] | $[Value]/year | [How measured] |
+| [Quality metric] | [Target] | [% reduction] in [cost] | [How measured] |
+| [Time metric] | [Target] | [% improvement] | [How measured] |
+
+### 6.6 Financial Metrics
+
+| Metric | Target | Measurement |
+|--------|--------|-------------|
+| **Cost per User** | <$[N]/month | Total cost / active users |
+| **ROI** | >[N]% (12-month) | (Value delivered - Cost) / Cost |
+| **Payback Period** | <[N] months | Time to positive ROI |
+
 ---
 
 ## 7. Personas
 
-> **👥 Visual User Flows**: [View detailed journey maps](sections/user-flows.md) for each persona.
+> **👥 User Flows**: See [Section 1.2](#12-feature-dependencies) for visual journey maps.
 
 ### 7.1 Primary Persona: [Persona Name]
 
@@ -310,8 +445,8 @@ flowchart TB
 
 ## 8. Functional Requirements
 
-> **📈 Visual Hierarchy**: [View feature structure diagram](visuals/feature-hierarchy.md)  
-> **🔗 Dependencies**: [View requirement dependencies & blockers](visuals/feature-deps.md)
+> **📈 Visual Hierarchy**: See [Section 1.1](#11-feature-hierarchy) for feature structure diagram
+> **🔗 Dependencies**: See [Section 1.2](#12-feature-dependencies) for requirement dependency map
 
 ### 8.1 User Stories
 
@@ -424,7 +559,7 @@ flowchart LR
 |-----|----------|------------------------|
 | [PDR-XXX] | [Decision] | [How it defines requirements] |
 
-> 📋 **Related Visuals**: See [State Machine](../../visuals/state-machine.md) for detailed state transitions.
+> 📋 **State Transitions**: Detailed state machine diagrams are embedded in the Visual Summary ([Section 1](#1-visual-summary)).
 
 ---
 
@@ -519,13 +654,58 @@ flowchart LR
 - **[Risk 1]:** [Operational risk description]
   - **Mitigation:** [How to mitigate]
 
+### 11.4 Business Risks
+
+| Risk | Likelihood | Impact | Mitigation | PDR |
+|------|------------|--------|------------|-----|
+| [Adoption risk] | H/M/L | H/M/L | [Mitigation] | PDR-XXX |
+| [Competitive risk] | H/M/L | H/M/L | [Mitigation] | PDR-XXX |
+| [Financial risk] | H/M/L | H/M/L | [Mitigation] | PDR-XXX |
+
 *Risks traced to PDR consequence sections*
+
+---
+
+## 11.5 Investment & Resources
+
+### Team Composition
+
+| Role | FTEs | Phase | Responsibility |
+|------|------|-------|----------------|
+| [Role 1] | [N] | [Phase] | [Responsibility] |
+| [Role 2] | [N] | [Phase] | [Responsibility] |
+
+**Total:** [N] FTEs average, [N] FTEs peak
+
+### Budget Estimate
+
+| Category | Phase 1 | Phase 2 | Phase 3 | Annual |
+|----------|---------|---------|---------|--------|
+| **Personnel** | $[N]K | $[N]K | $[N]K | $[N]M |
+| **Infrastructure** | $[N]K | $[N]K | $[N]K | $[N]K |
+| **Total** | **$[N]K** | **$[N]K** | **$[N]K** | **$[N]M** |
+
+### Risk-Adjusted ROI
+
+| Scenario | Probability | 12-Month ROI | NPV (3-year) |
+|----------|-------------|--------------|--------------|
+| Optimistic | [N]% | [N]% | $[N]M |
+| Base Case | [N]% | [N]% | $[N]M |
+| Pessimistic | [N]% | [N]% | $[N]M |
+| **Weighted** | 100% | **[N]%** | **$[N]M** |
+
+### Go/No-Go Criteria
+
+| Checkpoint | Date | Criteria | Decision |
+|------------|------|----------|----------|
+| Phase 1 Review | [Date] | [What must be true] | Go / No-Go |
+| Phase 2 Review | [Date] | [What must be true] | Go / No-Go |
 
 ---
 
 ## 12. Roadmap & Milestones
 
-> **📅 Visual Timeline**: [View Gantt chart](visuals/roadmap-timeline.md)  
+> **📅 Visual Timeline**: See [Section 1.3](#13-roadmap-timeline) for the Gantt chart
 > **Sync with external tools**: Run `/product.roadmap --sync` to pull milestones from GitHub/GitLab/Jira/Linear
 
 <!-- Generated from Milestone PDRs -->
@@ -589,6 +769,43 @@ flowchart LR
 
 ---
 
+## 12.5 Go-to-Market Strategy
+
+### 12.5.1 Launch Phases
+
+| Phase | Timeline | Audience | Goal | Success Metric |
+|-------|----------|----------|------|----------------|
+| [Phase 1] | [Date] | [Who] | [Goal] | [Metric] |
+| [Phase 2] | [Date] | [Who] | [Goal] | [Metric] |
+| [Phase 3] | [Date] | [Who] | [Goal] | [Metric] |
+| [GA] | [Date] | [Public] | [Revenue target] | [Metric] |
+
+### 12.5.2 Pricing Strategy
+
+| Tier | Price | Includes | Target |
+|------|-------|----------|--------|
+| **Free** | $0 | [What's included] | [Who] |
+| **[Paid]** | $[N]/[unit]/[period] | [What's included] | [Who] |
+| **Enterprise** | Custom | [What's included] | [Who] |
+
+### 12.5.3 Key Messaging
+
+| Audience | Message |
+|----------|---------|
+| **Executives** | "[Value prop for C-level]" |
+| **Engineering Leaders** | "[Value prop for eng managers]" |
+| **Developers** | "[Value prop for ICs]" |
+
+### 12.5.4 Success Metrics by Phase
+
+| Phase | Adoption | Engagement | Revenue |
+|-------|----------|------------|---------|
+| [Phase 1] | [Target] | [Target] | [Target] |
+| [Phase 2] | [Target] | [Target] | [Target] |
+| [GA] | [Target] | [Target] | [Target] |
+
+---
+
 ## 13. PDR Summary
 
 Detailed Product Decision Records are maintained in [.specify/drafts/pdr.md](.specify/drafts/pdr.md).
@@ -642,11 +859,17 @@ This PRD aligns with the constitutional principles:
 ---
 
 <!-- 
-VALIDATION CHECKLIST (v1.5.2):
+VALIDATION CHECKLIST (v1.5.3):
 Before marking this PRD complete, verify:
 - [ ] All [PLACEHOLDERS] filled with actual content
 - [ ] Mermaid diagrams render correctly (NOT ASCII)
-- [ ] Section 1 is Visual Summary
+- [ ] Section 1 is Visual Summary with inline Mermaid diagrams
+- [ ] Section 2.5 Executive Summary present with business impact table
+- [ ] Section 4.5 Market Opportunity present with TAM/SAM/SOM
+- [ ] Section 6.5 Business Outcome Metrics present
+- [ ] Section 11.5 Investment & Resources present with ROI
+- [ ] Section 12.5 Go-to-Market Strategy present with pricing
 - [ ] All requirements trace to PDRs
+- [ ] PRD is SELF-CONTAINED - no reader-facing links to .specify/ files
 - [ ] Validation script passes: ./scripts/validate-prd.sh --strict
 -->
