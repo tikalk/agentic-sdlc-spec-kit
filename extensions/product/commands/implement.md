@@ -308,30 +308,138 @@ The Requirements section has been generated for "{feature-area}".
 - Re-generate Problem → Goals → Metrics → Personas → Requirements
 - Present checkpoint again
 
-### Step X: Generate Visual Diagrams
+### Step 2.8: Generate Visual Diagrams (MANDATORY)
 
-**After completing section generation for a feature-area, generate/update visual diagrams:**
+**MANDATORY: After completing section generation for a feature-area, you MUST create and populate the visuals/ directory.**
 
-1. **Feature Hierarchy Update**:
-   - Update `visuals/feature-hierarchy.md` with current structure
-   - Update completion percentages
+Failure to generate visual diagrams results in incomplete PRD documentation. This step is NOT optional.
 
-2. **Feature Dependencies Update**:
-   - Update `visuals/feature-deps.md` with new requirements
-   - Update status indicators (✅🟡🔴⬜)
+#### Step 2.8.1: Create visuals/ Directory Structure
 
-3. **Cross-Area Map Update** (if multiple areas):
-   - Update `visuals/cross-area-map.md` with interactions
-   - Flag any detected inconsistencies
+Create the following directory structure:
+```
+{REPO_ROOT}/.specify/product/visuals/
+├── feature-hierarchy.md    (MANDATORY)
+├── feature-deps.md         (MANDATORY)
+├── cross-area-map.md       (if multiple feature-areas)
+├── user-flows.md           (if personas defined)
+└── state-machine.md        (if stateful features exist)
+```
 
-4. **Mermaid Validation** (⚠️ Warning only):
-   - Check Mermaid syntax is valid
-   - Check all referenced nodes exist
-   - ⚠️ Warn if issues found (don't block completion)
+#### Step 2.8.2: Populate Feature Hierarchy
 
-5. **Write to visuals/**:
-   - Ensure all diagram files are updated
-   - Files should be standalone and readable
+**Source Template**: Copy from `extensions/product/templates/visuals/feature-hierarchy.md`
+
+**Required Replacements**:
+- `[PRODUCT_NAME]` → Actual product name from PDR
+- Replace all feature node labels with actual features from requirements
+- Update completion status based on requirements priority
+
+**Node ID Sanitization Rules**:
+1. Remove special characters: `!@#$%^&*()+-=[]{}|;':",./<>?`
+2. Replace spaces with underscores: `User Profile` → `User_Profile`
+3. Prefix with PDR ID for uniqueness: `Auth_001`, `Billing_002`
+4. Keep node labels human-readable in brackets: `Auth_001["🔐 Authentication"]`
+
+**Example Transformation**:
+```mermaid
+flowchart TD
+    Auth_001["🔐 Authentication<br/>✅ Complete"]
+    Profile_002["👤 User Profile<br/>🟡 In Progress"]
+    Billing_003["💳 Billing<br/>⬜ Planned"]
+    
+    Auth_001 --> Profile_002
+    Profile_002 --> Billing_003
+```
+
+#### Step 2.8.3: Populate Feature Dependencies
+
+**Source Template**: Copy from `extensions/product/templates/visuals/feature-deps.md`
+
+**Required Replacements**:
+- List ALL features from Functional Requirements section
+- Map dependencies based on requirements traceability
+- Use correct status indicators:
+  - `✅` Complete (already implemented)
+  - `🟡` In Progress (active development)
+  - `🔴` Blocked (dependency not met)
+  - `⬜` Not Started (planned)
+
+**Edge Styling Rules**:
+- `-->` Hard dependency (must complete first)
+  - Example: `Auth --> Profile` (cannot profile without auth)
+- `-.->` Soft dependency (can proceed in parallel)
+  - Example: `Core -.-> Analytics` (analytics can use mocks)
+- `-.->|planned|` Future dependency
+  - Example: `V1 -.->|planned| V2`
+
+#### Step 2.8.4: Populate Cross-Area Map (Multi-Area Products)
+
+**Source Template**: Copy from `extensions/product/templates/visuals/cross-area-map.md`
+
+**Required Actions**:
+1. Create subgraphs for each feature-area
+2. Map interactions between areas using actual PDR data
+3. Flag inconsistencies using warning callouts:
+   ```markdown
+   > ⚠️ **Cross-Area Inconsistency**: Core requires real-time updates,
+   > but Growth batch analytics may cause delays. Consider event sourcing.
+   ```
+
+#### Step 2.8.5: Validate Mermaid Syntax (MANDATORY)
+
+**Before writing files, validate Mermaid syntax:**
+
+1. **Keyword Check**: Verify use of `flowchart` not deprecated `graph`
+2. **Node Definition**: Ensure all nodes are defined before referenced
+3. **Subgraph Syntax**: Check proper nesting and closing
+4. **Class Definitions**: Verify class names match node assignments
+
+**Validation Checklist**:
+- [ ] Uses `flowchart TB/LR/TD` (not `graph`)
+- [ ] All node IDs are unique
+- [ ] All referenced nodes are defined
+- [ ] Subgraphs properly closed
+- [ ] No trailing spaces after node definitions
+- [ ] Arrow syntax correct (`-->`, `-.->`, `==>`)
+
+**If Validation Fails**:
+1. Fix syntax errors
+2. Generate ASCII fallback in `<details>` block
+3. Log error for user review
+
+#### Step 2.8.6: Generate ASCII Fallback (Required for Complex Diagrams)
+
+For diagrams that may fail Mermaid rendering, include ASCII fallback:
+
+```markdown
+<details>
+<summary>📊 ASCII Fallback</summary>
+
+```
+[ASCII art representation]
+```
+
+</details>
+```
+
+#### Step 2.8.7: Write Files to Disk (MANDATORY)
+
+**Each visual diagram file MUST:**
+- Be written to `{REPO_ROOT}/.specify/product/visuals/`
+- Contain ≥30 lines
+- Include proper frontmatter with generation metadata
+- Have working navigation links
+- Be standalone readable
+
+**Verification Before Proceeding**:
+```bash
+# Check files exist and have content
+ls -la {REPO_ROOT}/.specify/product/visuals/
+wc -l {REPO_ROOT}/.specify/product/visuals/*.md
+```
+
+**STOP if files are missing or under 30 lines.**
 
 ### Placeholder Validation (MANDATORY)
 
@@ -399,6 +507,78 @@ Compare sections across feature-areas:
 | Duplicate requirements | Same requirement, different wording | Standardize to PDR terminology |
 | Priority mismatch | Same feature, different priority | Defer to PDR |
 | Metric inconsistency | Same metric, different definition | Use PDR definition |
+
+### Step 3.2.5: Generate Visual Summary Section (MANDATORY)
+
+**MANDATORY: Create a Visual Summary section that embeds all diagrams into the PRD.**
+
+This step ensures PRD consumers can view diagrams inline without navigating separate files.
+
+#### Visual Summary Section Structure
+
+Add the following section to PRD.md (typically Section 12 or Appendix):
+
+```markdown
+## 12. Visual Summary
+
+This section provides inline visualizations referenced throughout the PRD.
+
+### 12.1 Feature Hierarchy
+
+```mermaid
+flowchart TD
+    [Embed content from visuals/feature-hierarchy.md]
+```
+
+> 📄 **Full Diagram**: See [visuals/feature-hierarchy.md](.specify/product/visuals/feature-hierarchy.md)
+
+### 12.2 Feature Dependencies
+
+```mermaid
+flowchart LR
+    [Embed content from visuals/feature-deps.md]
+```
+
+> 📄 **Full Diagram**: See [visuals/feature-deps.md](.specify/product/visuals/feature-deps.md)
+
+### 12.3 User Flows
+
+```mermaid
+flowchart TB
+    [Embed content from visuals/user-flows.md]
+```
+
+> 📄 **Full Diagram**: See [visuals/user-flows.md](.specify/product/visuals/user-flows.md)
+
+### 12.4 State Machine
+
+```mermaid
+stateDiagram-v2
+    [Embed content from visuals/state-machine.md]
+```
+
+> 📄 **Full Diagram**: See [visuals/state-machine.md](.specify/product/visuals/state-machine.md)
+
+### 12.5 ASCII Fallback Diagrams
+
+If Mermaid rendering fails, ASCII diagrams are available in the full visual files linked above.
+```
+
+#### Embedding Rules
+
+1. **Extract Mermaid Blocks**: Copy the mermaid code block from each visual file
+2. **Preserve Node IDs**: Do NOT modify node IDs (already sanitized in Step 2.8)
+3. **Update Cross-References**: Ensure links use correct relative paths
+4. **Add Navigation**: Each subsection links to full diagram file
+5. **Include Fallback Note**: Mention ASCII fallbacks exist in source files
+
+#### Verification Checklist
+
+- [ ] Visual Summary section added to PRD.md
+- [ ] All 4 diagram types included (hierarchy, deps, flows, state)
+- [ ] Mermaid blocks are complete and valid
+- [ ] Navigation links work (test by clicking)
+- [ ] References from other sections point to Visual Summary
 
 ### Step 3.3: Aggregate into Unified PRD.md
 

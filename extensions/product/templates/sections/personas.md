@@ -54,3 +54,30 @@
 | PDR | Decision | Impact on Personas |
 |-----|----------|-------------------|
 | [PDR-XXX] | [Decision] | [How it defines target users] |
+
+### 5.4 User Journey Visualization
+
+User experience flow across key touchpoints:
+
+```mermaid
+journey
+    title Primary Persona Journey: [PERSONA_NAME]
+    section Discovery
+      Visit Website: 5: User
+      Read Product Info: 4: User
+      View Pricing: 3: User
+    section Onboarding
+      Sign Up: 4: User, System
+      Verify Email: 5: System
+      Complete Profile: 3: User
+    section Core Usage
+      First Feature Use: 4: User
+      Achieve Goal: 5: User
+      Get Support: 4: Support Team
+    section Retention
+      Regular Usage: 5: User
+      Upgrade Plan: 3: User
+      Recommend Product: 5: User
+```
+
+> 📋 **Related Visuals**: See [User Flows](../../visuals/user-flows.md) for detailed interaction diagrams.

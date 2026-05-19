@@ -12,7 +12,7 @@
 ## Feature Structure
 
 ```mermaid
-graph TD
+flowchart TD
     subgraph "Product: [PRODUCT_NAME]"
         direction TB
         

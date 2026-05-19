@@ -9,7 +9,7 @@
 ## Dependency Graph
 
 ```mermaid
-graph LR
+flowchart LR
     %% Define nodes with status indicators
     Auth["✅ Authentication<br/>Complete"]
     Profile["🟡 User Profile<br/>In Progress"]

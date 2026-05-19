@@ -2,6 +2,35 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.1] - 2026-05-19
+
+### Fixed
+
+- **Mermaid v10 Syntax Compliance**: Updated deprecated `graph` keyword to `flowchart` in visual templates
+  - `visuals/cross-area-map.md`: `graph TB` → `flowchart TB`
+  - `visuals/feature-deps.md`: `graph LR` → `flowchart LR`
+  - `visuals/feature-hierarchy.md`: `graph TD` → `flowchart TD`
+
+### Added
+
+- **New Mermaid Diagrams in Section Templates**:
+  - `sections/overview.md`: Architecture flowchart with 5-layer system diagram (Frontend → Gateway → Backend → Data → External)
+  - `sections/personas.md`: User journey diagram (`journey` type) showing touchpoints across Discovery, Onboarding, Core Usage, Retention
+  - `sections/requirements.md`: Dependency flowchart with layer-based organization (Foundation → Business → Growth)
+  - `sections/roadmap.md`: Gantt chart with milestone markers and ASCII fallback in `<details>` block
+
+- **Enhanced Command Logic** (`commands/implement.md`):
+  - **Step 2.8**: Mandatory visual diagram generation with 7 substeps
+    - Directory structure creation (feature-hierarchy, feature-deps, cross-area-map, user-flows, state-machine)
+    - Node ID sanitization rules (remove special chars, replace spaces with underscores, prefix with PDR ID)
+    - Edge styling conventions (hard deps `-->`, soft deps `-.->`, future `-.->|planned|`)
+    - Mermaid syntax validation checklist
+    - ASCII fallback generation for complex diagrams
+  - **Step 3.2.5**: Visual Summary section generation for PRD embed
+    - Embeds all 4 diagram types inline in PRD
+    - Navigation links to full visual files
+    - References from other PRD sections
+
 ## [1.5.0] - 2026-05-18
 
 ### Added

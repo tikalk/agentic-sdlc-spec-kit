@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc9 | 2026-05-19 | 0.8.12 | Product extension v1.5.1: Mermaid v10 syntax fixes, new diagram types (architecture, journey, gantt), mandatory visual generation |
 | 0.8.12+adlc4 | 2026-05-17 | 0.8.12 | CLI bundled extension update support: specify extension update now checks CLI wheel for bundled extension updates |
 | 0.8.12+adlc3 | 2026-05-17 | 0.8.12 | Architect extension v2.0.8 hardening: clarify→implement workflow enforcement, placeholder validation, --force flag |
 | 0.8.12+adlc2 | 2026-05-16 | 0.8.12 | Architect extension comprehensive hardening: Phase execution enforcement, view file generation, sub-system detection with mandatory interactive proposal |

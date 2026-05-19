@@ -9,7 +9,7 @@
 ## Feature-Area Interactions
 
 ```mermaid
-graph TB
+flowchart TB
     subgraph "Feature Areas"
         Auth["🔐 Auth"]
         Core["👤 Core"]

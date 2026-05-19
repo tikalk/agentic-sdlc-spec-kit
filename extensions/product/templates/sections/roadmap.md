@@ -25,6 +25,68 @@ Timeline
   [Date]      [Date]      [Date]
 ```
 
+#### Gantt Chart View
+
+```mermaid
+gantt
+    title Product Development Roadmap
+    dateFormat YYYY-MM-DD
+    axisFormat %b %Y
+    
+    section Foundation
+    Authentication       :done, auth, 2024-01-01, 30d
+    User Profile         :done, profile, after auth, 20d
+    Core Infrastructure  :active, infra, after profile, 25d
+    
+    section Business
+    Billing Setup        :billing, after infra, 20d
+    Payment Processing   :payment, after billing, 25d
+    Subscription Mgmt    :sub, after payment, 15d
+    
+    section Growth
+    Analytics Dashboard  :analytics, after payment, 30d
+    API Access           :api, after infra, 20d
+    Developer Portal     :portal, after api, 25d
+    
+    section Milestones
+    Alpha Release        :milestone, m1, 2024-02-15, 0d
+    Beta Release         :milestone, m2, 2024-04-01, 0d
+    GA Release           :milestone, m3, 2024-05-15, 0d
+```
+
+<details>
+<summary>📊 ASCII Fallback (if Mermaid fails)</summary>
+
+```
+Roadmap Timeline
+═══════════════════════════════════════════════════════════════════════
+
+Phase 1: Foundation (Q1 2024)
+├─ Authentication     [████████░░] 30 days  ✅ Complete
+├─ User Profile       [██████░░░░] 20 days  ✅ Complete
+└─ Core Infrastructure  [███████░░░] 25 days  🔄 Active
+                       ▼
+                  Alpha Milestone
+
+Phase 2: Business (Q1-Q2 2024)
+├─ Billing Setup      [█████░░░░░] 20 days
+├─ Payment Processing   [██████░░░░] 25 days
+└─ Subscription Mgmt    [███░░░░░░░] 15 days
+                       ▼
+                  Beta Milestone
+
+Phase 3: Growth (Q2 2024)
+├─ Analytics          [████████░░] 30 days
+├─ API Access         [█████░░░░░] 20 days
+└─ Developer Portal   [██████░░░░] 25 days
+                       ▼
+                  GA Milestone
+
+Legend: ✅ Complete | 🔄 Active | ⬜ Planned
+```
+
+</details>
+
 ### 10.2 Milestone 1: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"

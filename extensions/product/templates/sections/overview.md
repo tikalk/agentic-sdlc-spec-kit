@@ -38,3 +38,78 @@
 |-----|----------|-------------------|
 | [PDR-XXX] | Problem | [How it affects this section] |
 | [PDR-XXX] | Business Model | [How it affects this section] |
+
+### 1.4 Architecture Overview
+
+Visual representation of the system architecture:
+
+```mermaid
+flowchart TB
+    subgraph "Frontend Layer"
+        Web["🌐 Web App"]
+        Mobile["📱 Mobile App"]
+        Admin["🔧 Admin Panel"]
+    end
+    
+    subgraph "API Gateway"
+        Gateway["🔀 API Gateway<br/>Auth/Rate Limiting"]
+    end
+    
+    subgraph "Backend Services"
+        AuthSvc["🔐 Auth Service"]
+        CoreSvc["👤 Core Service"]
+        BusinessSvc["💳 Business Service"]
+        GrowthSvc["📈 Growth Service"]
+    end
+    
+    subgraph "Data Layer"
+        DB[("📦 Primary DB")]
+        Cache[("⚡ Cache")]
+        Queue[("📨 Message Queue")]
+    end
+    
+    subgraph "External"
+        ThirdParty["🔗 Third-Party APIs"]
+        CDN["🚀 CDN"]
+    end
+    
+    Web --> Gateway
+    Mobile --> Gateway
+    Admin --> Gateway
+    
+    Gateway --> AuthSvc
+    Gateway --> CoreSvc
+    Gateway --> BusinessSvc
+    Gateway --> GrowthSvc
+    
+    AuthSvc --> DB
+    CoreSvc --> DB
+    CoreSvc --> Cache
+    BusinessSvc --> DB
+    BusinessSvc --> Queue
+    GrowthSvc --> DB
+    GrowthSvc --> Queue
+    
+    BusinessSvc --> ThirdParty
+    Web --> CDN
+    Mobile --> CDN
+    
+    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef gateway fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef backend fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef data fill:#f3e5f5,stroke:#6a1b9a,stroke-width:2px
+    classDef external fill:#fce4ec,stroke:#c2185b,stroke-width:2px
+    
+    class Web,Mobile,Admin frontend
+    class Gateway gateway
+    class AuthSvc,CoreSvc,BusinessSvc,GrowthSvc backend
+    class DB,Cache,Queue data
+    class ThirdParty,CDN external
+```
+
+**Architecture Notes**:
+- Frontend layer serves multiple client types
+- API Gateway handles cross-cutting concerns
+- Backend services are organized by feature area
+- Data layer provides persistence and messaging
+- External integrations are abstracted behind service layer
