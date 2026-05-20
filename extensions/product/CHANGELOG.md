@@ -2,6 +2,100 @@
 
 All notable changes to the Product extension will be documented in this file.
 
+## [1.5.6] - 2026-05-19
+
+### Changed
+
+- **In-Section Diagrams**: Diagrams are now embedded directly in their home sections, not in a separate Visual Summary
+  - Section 2 (Overview): Feature Hierarchy (2.4), Architecture (2.5), Cross-Area Map (2.6, conditional)
+  - Section 6 (Personas): User Journey (6.4)
+  - Section 7 (Requirements): Req Dependencies (7.4), Feature Dependencies (7.5), State Machine (7.6, conditional)
+  - Section 11 (Roadmap): Gantt Chart (11.1)
+
+- **Visual Summary Removed**: Section 1 is now Document Information (with Quick Stats). No separate Visual Summary section.
+
+- **Section Renumbering**: All sections renumbered (old 1-13 -> new 1-12):
+  - 1: Document Information (was 2) | 1.5: Executive Summary (was 2.5)
+  - 2: Overview (was 3) | 3: Problem (was 4) | 3.5: Market Opportunity (was 4.5)
+  - 4: Goals (was 5) | 5: Metrics (was 6) | 6: Personas (was 7)
+  - 7: Requirements (was 8) | 8: NFRs (was 9) | 9: Out of Scope (was 10)
+  - 10: Risks (was 11) | 10.5: Investment (was 11.5) | 11: Roadmap (was 12)
+  - 11.5: GTM (was 12.5) | 12: PDR Summary (was 13)
+
+- **No Visual Files Generated**: Step 2.8 (visual file generation) removed. No `.specify/product/visuals/` directory created. Diagrams are generated directly in section content during Phase 2.
+
+### Removed
+
+- **Visual Summary section** (was Section 1) - diagrams moved to their home sections
+- **Visual template files**: `templates/visuals/` directory deleted (feature-hierarchy.md, feature-deps.md, roadmap-timeline.md, cross-area-map.md, impact-map.md)
+- **Section template files**: `sections/user-flows.md` and `sections/state-machine.md` absorbed into personas and requirements templates
+- **Step 2.8** (Generate Visual Diagrams) - replaced by In-Section Diagram Rules
+- **Step 3.2.5** (Embed Visual Summary) - no longer needed
+
+## [1.5.5] - 2026-05-19
+
+### Fixed
+
+- **PDR Lifecycle Management Enforcement**: Step 3.4 was being skipped by AI agents
+  - Added `⚠️ MANDATORY — DO NOT SKIP` warning with explanation of gate consequences
+  - Added Step 4 (Update state.json with lifecycle fields) and Step 5 (Report)
+  - Added `pdr_lifecycle` object to state.json schema: `pdrs_promoted`, `memory_pdr_written`, `memory_pdr_location`, `drafts_retained`, `drafts_reason`
+  - State schema version bumped to 1.2.0 with updated DAG slugs including business sections
+
+- **Final Completion Verification Hardened**: 7 checks → 9 checks
+  - Added Check 5: PRD.md is self-contained (0 `.specify/` links)
+  - Added Check 7: `pdr_lifecycle.memory_pdr_written === true`
+  - Added Check 8: `pdr_lifecycle` object exists in state.json
+  - Added note: "Check 6 is the most commonly skipped"
+
+## [1.5.4] - 2026-05-19
+
+### Fixed
+
+- **Self-Contained PRD Enforcement**: Fixed gaps where the implement command still produced external `.specify/` links
+  - **Step 3.3**: Replaced stale 1-12 structure template with correct v1.5.3 numbering (1, 2, 2.5, 3, 4, 4.5, 5-13) including all business sections
+  - **Step 3.3**: Added explicit self-contained cross-reference rules (PDR refs as text, constitution as text, visuals as in-document anchors)
+  - **Embedding Rules**: Removed contradicting instructions that told agent to "link to full diagram file" and "use relative paths" — now says "in-document anchors" and "no external navigation"
+  - **prd-template.md**: Removed 3 reader-facing `.specify/` references (Visual Summary supplementary note, Related Documents table paths, PDR Summary clickable link)
+  - **Verification Checklist**: Updated to check for ZERO `.specify/` paths in reader-facing content
+
+## [1.5.3] - 2026-05-19
+
+### Added
+
+- **Business Stakeholder Sections**: 4 new section templates for business decision-makers
+  - `sections/executive-summary.md` (Section 2.5): One-page business case with ROI, investment, and recommendation
+  - `sections/market-opportunity.md` (Section 4.5): TAM/SAM/SOM, competitive landscape, ICP, positioning
+  - `sections/investment.md` (Section 11.5): Team composition, budget estimate, risk-adjusted ROI, go/no-go criteria
+  - `sections/gtm.md` (Section 12.5): Launch phases, pricing strategy, messaging, channel strategy
+
+- **Business Outcome Metrics** (Section 6.5): Added to metrics template with efficiency, quality, and financial metrics
+- **Business Risks** (Section 11.4): Added to risks template with adoption, competitive, and financial risks
+- **Financial Metrics** (Section 6.6): Cost per user, ROI, payback period
+
+### Changed
+
+- **Self-Contained PRD Rule**: PRD.md must now be fully self-contained
+  - All Mermaid diagrams embedded inline in Visual Summary (Section 1)
+  - No reader-facing links to `.specify/product/sections/` or `.specify/product/visuals/`
+  - Section files remain as intermediate build artifacts only
+  - Cross-references use in-document anchors (e.g., `[Section 1.1](#11-feature-hierarchy)`)
+
+- **PRD Template** (`prd-template.md`): Updated to v1.5.3
+  - Visual Summary now uses inline Mermaid (no external links)
+  - Added Section 2.5, 4.5, 6.5, 6.6, 11.4, 11.5, 12.5 placeholders
+  - Updated validation checklist for new sections
+
+- **Implement Command** (`commands/implement.md`): Updated DAG
+  - Added 4 new section slugs to dependency graph: `executive-summary`, `market-opportunity`, `investment`, `gtm`
+  - Updated compliance checklist with business section requirements
+  - Added self-contained PRD generation rules to Phase 3
+
+- **Extension Config** (`extension.yml`): v1.5.3
+  - Added `self_contained: true` configuration
+  - Updated state version to 1.2.0
+  - Updated description with business section keywords
+
 ## [1.5.2] - 2026-05-19
 
 ### Added

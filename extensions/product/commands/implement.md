@@ -1,6 +1,6 @@
 ---
 description: Generate full Product Requirements Document (PRD) from PDRs using multi-agent DAG orchestration with mandatory checkpoint after Requirements
-version: 1.5.2
+version: 1.5.6
 compliance: strict
 scripts:
   sh: .specify/extensions/product/scripts/bash/setup-product.sh "implement {ARGS}"
@@ -9,7 +9,7 @@ scripts:
 
 ---
 
-## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.2)
+## ⚠️ CRITICAL COMPLIANCE CHECKLIST (v1.5.6)
 
 **READ THIS FIRST - MANDATORY REQUIREMENTS**
 
@@ -17,10 +17,16 @@ Before generating ANY content, you MUST verify:
 
 - [ ] **MUST** read and use templates from `templates/sections/{section}.md` - **DO NOT generate from scratch**
 - [ ] **MUST** use Mermaid syntax (```mermaid) for ALL diagrams - **ASCII art is STRICTLY PROHIBITED**
-- [ ] **MUST** place "Visual Summary" as **Section 1** (numbered) - right after header
-- [ ] **MUST** include "Document Information" as **Section 2**
+- [ ] **MUST** embed Mermaid diagrams **IN-SECTION** (near the content they describe) - **NO separate Visual Summary**
+- [ ] **MUST** include "Document Information" as **Section 1** with Quick Stats
+- [ ] **MUST** include "Executive Summary" as **Section 1.5** with business impact metrics
+- [ ] **MUST** include "Market Opportunity" as **Section 3.5** with TAM/SAM/SOM
+- [ ] **MUST** include "Investment & Resources" as **Section 10.5** with ROI
+- [ ] **MUST** include "Go-to-Market Strategy" as **Section 11.5** with pricing
 - [ ] **MUST** fill or remove ALL template placeholders like `[PRODUCT_NAME]`, `[DATE]`
 - [ ] **MUST** trace all requirements to source PDRs with ID references
+- [ ] **MUST** produce a **SELF-CONTAINED** PRD.md - no reader-facing links to `.specify/` files
+- [ ] **MUST NOT** generate separate visual files - all diagrams go directly into section content
 - [ ] **MUST** validate output with `./scripts/validate-prd.sh --strict` after each section
 
 ### STRICT ENFORCEMENT RULES:
@@ -38,10 +44,23 @@ Before generating ANY content, you MUST verify:
    - **VIOLATION = Convert to Mermaid immediately**
 
 3. **Section Numbering is FIXED**
-   - Section 1: Visual Summary (MUST be numbered)
-   - Section 2: Document Information
-   - Section 3: Overview
-   - ... and so on per prd-template.md
+   - Section 1: Document Information (Quick Stats, revision history, approval)
+   - Section 1.5: Executive Summary (business case, ROI)
+   - Section 2: Overview (+ 2.4 Feature Hierarchy diagram, 2.5 Architecture diagram)
+   - Section 3: The Problem
+   - Section 3.5: Market Opportunity (TAM/SAM/SOM, competitive)
+   - Section 4: Goals & Objectives
+   - Section 5: Success Metrics (+ 5.5 Business Outcome Metrics, 5.6 Financial)
+   - Section 6: Personas (+ 6.4 User Journey diagram)
+   - Section 7: Functional Requirements (+ 7.4 Req Dependencies diagram, 7.5 Feature Dependencies diagram)
+   - Section 8: Non-Functional Requirements
+   - Section 9: Out of Scope
+   - Section 10: Risks (+ 10.4 Business Risks)
+   - Section 10.5: Investment & Resources (team, budget, ROI)
+   - Section 11: Roadmap (+ 11.1 Roadmap Gantt diagram)
+   - Section 11.5: Go-to-Market Strategy (launch, pricing, messaging)
+   - Section 12: PDR Summary
+   - **NO separate Visual Summary section — diagrams are embedded in-section**
    - **VIOLATION = Renumber to match template**
 
 4. **Validation is REQUIRED**
@@ -72,8 +91,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 ### Flags
 
 - `--sections SECTIONS`: PRD sections to generate
-  - `all` (default): All 11 sections
+  - `all` (default): All 15 sections (11 core + 4 business), diagrams embedded in-section
   - Custom: comma-separated (e.g., `problem,scope,requirements`)
+  - Business sections: `executive-summary,market-opportunity,investment,gtm`
+  - Note: No separate visual files are generated — diagrams are part of section content
 
 - `--no-checkpoint`: Skip Requirements section checkpoint
   - **Warning**: Requirements is the cornerstone that shapes NFRs, Out-of-Scope, Risks, and Roadmap
@@ -258,19 +279,27 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 
 **DAG Dependency Rules**:
 
-| Section | Dependencies | Can Parallelize |
-|---------|--------------|-----------------|
-| Overview | None | Yes |
-| Problem | Overview | Yes |
-| Goals | Problem | Yes |
-| Metrics | Goals | Yes |
-| Personas | Problem, Goals | Yes |
-| **Requirements** | Goals, Personas | **No - CHECKPOINT** |
-| NFRs | Requirements | No |
-| Out-of-Scope | Requirements | No |
-| Risks | Requirements, Out-of-Scope | No |
-| Roadmap | Requirements, Goals | No |
-| PDR-Summary | All above | No |
+| PRD Section | Slug | Dependencies | Diagrams | Can Parallelize |
+|-------------|------|--------------|----------|-----------------|
+| 2. Overview | `overview` | None | Feature Hierarchy, Architecture, Cross-Area (conditional) | Yes |
+| 3. Problem | `problem` | Overview | None | Yes |
+| 3.5 Market Opportunity | `market-opportunity` | Overview, Problem | None | Yes |
+| 4. Goals | `goals` | Problem | None | Yes |
+| 5. Metrics | `metrics` | Goals | None | Yes |
+| 6. Personas | `personas` | Problem, Goals | User Journey | Yes |
+| 1.5 Executive Summary | `executive-summary` | Overview, Problem, Goals, Metrics | None | Yes |
+| **7. Requirements** | `requirements` | Goals, Personas | Req Dependencies, Feature Dependencies, State Machine (conditional) | **No - CHECKPOINT** |
+| 8. NFRs | `nfrs` | Requirements | None | No |
+| 9. Out-of-Scope | `out-of-scope` | Requirements | None | No |
+| 10. Risks | `risks` | Requirements, Out-of-Scope | None | No |
+| 10.5 Investment | `investment` | Requirements, Risks | None | No |
+| 11. Roadmap | `roadmap` | Requirements, Goals | Roadmap Gantt | No |
+| 11.5 Go-to-Market | `gtm` | Roadmap, Personas, Market Opportunity | None | No |
+| 12. PDR-Summary | `pdr-summary` | All above | None | No |
+
+**Diagrams are embedded directly in their section content** — no separate visual files are generated. Each section template includes Mermaid placeholders where diagrams belong.
+
+**Business sections** (sub-numbered 1.5, 3.5, 5.5, 10.5, 11.5) provide business context for stakeholders and product managers.
 
 ### Step 1.4: Present Plan for User Approval
 
@@ -283,7 +312,7 @@ Overview → Problem → Goals → Metrics → Personas → Requirements
 ### Feature-Area: Core
 **PDRs**: PDR-001, PDR-005, PDR-008
 **Characteristics**: B2B SaaS, Platform
-**DAG**: Overview → Problem → Goals → Metrics → Personas → [Requirements Checkpoint] → NFRs → Out-of-Scope → Risks → Roadmap → PDR-Summary
+**DAG**: Overview (w/ diagrams) → Problem → Market Opportunity → Goals → Metrics → Personas (w/ journey) → Executive Summary → [Requirements Checkpoint (w/ diagrams)] → NFRs → Out-of-Scope → Risks → Investment → Roadmap (w/ gantt) → GTM → PDR-Summary
 
 **Checkpoint**: After Requirements section, execution will pause for approval.
 
@@ -363,178 +392,39 @@ The Requirements section has been generated for "{feature-area}".
 - Re-generate Problem → Goals → Metrics → Personas → Requirements
 - Present checkpoint again
 
-### Step 2.8: Generate Visual Diagrams (MANDATORY)
+### In-Section Diagram Rules (v1.5.6)
 
-**MANDATORY: After completing section generation for a feature-area, you MUST create and populate the visuals/ directory.**
+> **Diagrams are embedded directly in section content — NO separate visual files.**
 
-Failure to generate visual diagrams results in incomplete PRD documentation. This step is NOT optional.
+Each section template includes Mermaid placeholders. When generating section content, fill these placeholders with actual data from PDRs.
 
-#### Step 2.8.1: Create visuals/ Directory Structure
+#### Diagram Placement
 
-Create the following directory structure:
-```
-{REPO_ROOT}/.specify/product/visuals/
-├── feature-hierarchy.md    (MANDATORY)
-├── feature-deps.md         (MANDATORY)
-├── cross-area-map.md       (if multiple feature-areas)
-├── user-flows.md           (if personas defined)
-└── state-machine.md        (if stateful features exist)
-```
+| Section | Diagram Type | Subsection | When to Include |
+|---------|-------------|------------|-----------------|
+| 2. Overview | Feature Hierarchy (`flowchart TD`) | 2.4 | Always |
+| 2. Overview | Architecture (`flowchart TB`) | 2.5 | Always |
+| 2. Overview | Cross-Area Map (`flowchart TB`) | 2.6 | Only if multiple feature-areas |
+| 6. Personas | User Journey (`journey`) | 6.4 | Always |
+| 7. Requirements | Req Dependencies (`flowchart LR`) | 7.4 | Always |
+| 7. Requirements | Feature Dependencies (`flowchart LR`) | 7.5 | Always |
+| 7. Requirements | State Machine (`stateDiagram-v2`) | 7.6 | Only if stateful features |
+| 11. Roadmap | Gantt Chart (`gantt`) | 11.1 | Always |
 
-#### Step 2.8.2: Populate Feature Hierarchy
+#### Mermaid Syntax Rules
 
-**Source Template**: Copy from `extensions/product/templates/visuals/feature-hierarchy.md`
+1. Use `flowchart` keyword (NOT deprecated `graph`)
+2. All node IDs must be unique
+3. Use status indicators: `✅` Complete, `🟡` In Progress, `🔴` Blocked, `⬜` Planned
+4. ASCII box-drawing characters are PROHIBITED — use Mermaid only
+5. If Mermaid fails to render, include ASCII fallback in `<details>` block
 
-**Required Replacements**:
-- `[PRODUCT_NAME]` → Actual product name from PDR
-- Replace all feature node labels with actual features from requirements
-- Update completion status based on requirements priority
+#### Node ID Sanitization
 
-**Node ID Sanitization Rules**:
 1. Remove special characters: `!@#$%^&*()+-=[]{}|;':",./<>?`
 2. Replace spaces with underscores: `User Profile` → `User_Profile`
 3. Prefix with PDR ID for uniqueness: `Auth_001`, `Billing_002`
-4. Keep node labels human-readable in brackets: `Auth_001["🔐 Authentication"]`
-
-**Example Transformation**:
-```mermaid
-flowchart TD
-    Auth_001["🔐 Authentication<br/>✅ Complete"]
-    Profile_002["👤 User Profile<br/>🟡 In Progress"]
-    Billing_003["💳 Billing<br/>⬜ Planned"]
-    
-    Auth_001 --> Profile_002
-    Profile_002 --> Billing_003
-```
-
-#### Step 2.8.3: Populate Feature Dependencies
-
-**Source Template**: Copy from `extensions/product/templates/visuals/feature-deps.md`
-
-**Required Replacements**:
-- List ALL features from Functional Requirements section
-- Map dependencies based on requirements traceability
-- Use correct status indicators:
-  - `✅` Complete (already implemented)
-  - `🟡` In Progress (active development)
-  - `🔴` Blocked (dependency not met)
-  - `⬜` Not Started (planned)
-
-**Edge Styling Rules**:
-- `-->` Hard dependency (must complete first)
-  - Example: `Auth --> Profile` (cannot profile without auth)
-- `-.->` Soft dependency (can proceed in parallel)
-  - Example: `Core -.-> Analytics` (analytics can use mocks)
-- `-.->|planned|` Future dependency
-  - Example: `V1 -.->|planned| V2`
-
-#### Step 2.8.4: Populate Cross-Area Map (Multi-Area Products)
-
-**Source Template**: Copy from `extensions/product/templates/visuals/cross-area-map.md`
-
-**Required Actions**:
-1. Create subgraphs for each feature-area
-2. Map interactions between areas using actual PDR data
-3. Flag inconsistencies using warning callouts:
-   ```markdown
-   > ⚠️ **Cross-Area Inconsistency**: Core requires real-time updates,
-   > but Growth batch analytics may cause delays. Consider event sourcing.
-   ```
-
-#### Step 2.8.5: Validate Mermaid Syntax (MANDATORY)
-
-**Before writing files, validate Mermaid syntax:**
-
-1. **Keyword Check**: Verify use of `flowchart` not deprecated `graph`
-2. **Node Definition**: Ensure all nodes are defined before referenced
-3. **Subgraph Syntax**: Check proper nesting and closing
-4. **Class Definitions**: Verify class names match node assignments
-
-**Validation Checklist**:
-- [ ] Uses `flowchart TB/LR/TD` (not `graph`)
-- [ ] All node IDs are unique
-- [ ] All referenced nodes are defined
-- [ ] Subgraphs properly closed
-- [ ] No trailing spaces after node definitions
-- [ ] Arrow syntax correct (`-->`, `-.->`, `==>`)
-
-**If Validation Fails**:
-1. Fix syntax errors
-2. Generate ASCII fallback in `<details>` block
-3. Log error for user review
-
-#### Step 2.8.5b: ASCII to Mermaid Conversion (MANDATORY)
-
-**If PDRs or source content contain ASCII diagrams (box-drawing characters), you MUST convert them to Mermaid:**
-
-**Detection:**
-```bash
-# Detect ASCII box-drawing characters
-grep -P '[\x{2500}-\x{257F}]' content.md
-```
-
-**Conversion Process:**
-1. **Analyze the ASCII diagram** - Understand what it represents
-2. **Choose appropriate Mermaid type:**
-   - Flowchart: For processes, architectures, dependencies
-   - State diagram: For state machines
-   - Journey: For user flows
-   - Gantt: For roadmaps/timelines
-3. **Create Mermaid equivalent** using proper syntax
-4. **Remove or hide ASCII** - Only keep in `<details>` block as fallback
-
-**Example Conversion:**
-```markdown
-<!-- BEFORE: ASCII (PROHIBITED in main content) -->
-┌──────────────┐
-│  Component   │
-└──────────────┘
-       │
-       ▼
-┌──────────────┐
-│  Next Step   │
-└──────────────┘
-
-<!-- AFTER: Mermaid (REQUIRED) -->
-```mermaid
-flowchart TD
-    A["Component"] --> B["Next Step"]
-```
-
-**IMPORTANT:** ASCII diagrams are **ONLY** allowed in `<details>` blocks as fallbacks, NEVER as primary diagrams.
-
-#### Step 2.8.6: Generate ASCII Fallback (Required for Complex Diagrams)
-
-For diagrams that may fail Mermaid rendering, include ASCII fallback:
-
-```markdown
-<details>
-<summary>📊 ASCII Fallback</summary>
-
-```
-[ASCII art representation]
-```
-
-</details>
-```
-
-#### Step 2.8.7: Write Files to Disk (MANDATORY)
-
-**Each visual diagram file MUST:**
-- Be written to `{REPO_ROOT}/.specify/product/visuals/`
-- Contain ≥30 lines
-- Include proper frontmatter with generation metadata
-- Have working navigation links
-- Be standalone readable
-
-**Verification Before Proceeding**:
-```bash
-# Check files exist and have content
-ls -la {REPO_ROOT}/.specify/product/visuals/
-wc -l {REPO_ROOT}/.specify/product/visuals/*.md
-```
-
-**STOP if files are missing or under 30 lines.**
+4. Keep labels readable: `Auth_001["Authentication"]`
 
 ### Placeholder Validation (MANDATORY)
 
@@ -603,149 +493,158 @@ Compare sections across feature-areas:
 | Priority mismatch | Same feature, different priority | Defer to PDR |
 | Metric inconsistency | Same metric, different definition | Use PDR definition |
 
-### Step 3.2.5: Generate Visual Summary Section (MANDATORY)
+### Step 3.2.5: Verify In-Section Diagrams (v1.5.6)
 
-**MANDATORY: Create a Visual Summary section that embeds all diagrams into the PRD.**
+> **v1.5.6: No separate Visual Summary section. Diagrams are embedded in their home sections.**
+> Section files in `.specify/product/sections/` are intermediate build artifacts.
+> **NO separate visual files are generated. NO `.specify/product/visuals/` directory.**
+> **NO reader-facing links to `.specify/` paths in the final PRD.md.**
 
-This step ensures PRD consumers can view diagrams inline without navigating separate files.
+**Verify each section's diagrams are present:**
 
-#### Visual Summary Section Structure
+| Section | Required Diagram | Check |
+|---------|-----------------|-------|
+| 2. Overview | Feature Hierarchy (`### 2.4`) | `grep "flowchart TD" sections/overview.md` |
+| 2. Overview | Architecture (`### 2.5`) | `grep "flowchart TB" sections/overview.md` |
+| 6. Personas | User Journey (`### 6.4`) | `grep "journey" sections/personas.md` |
+| 7. Requirements | Req Dependencies (`### 7.4`) | `grep "flowchart LR" sections/requirements.md` |
+| 7. Requirements | Feature Dependencies (`### 7.5`) | `grep "flowchart LR" sections/requirements.md` |
+| 11. Roadmap | Gantt Chart (`### 11.1`) | `grep "gantt" sections/roadmap.md` |
 
-Add the following section to PRD.md (typically Section 12 or Appendix):
+**If any diagram is missing from its section file, regenerate that section before proceeding.**
 
-```markdown
-## 12. Visual Summary
+### Step 3.2.6: Self-Contained Verification
 
-This section provides inline visualizations referenced throughout the PRD.
-
-### 12.1 Feature Hierarchy
-
-```mermaid
-flowchart TD
-    [Embed content from visuals/feature-hierarchy.md]
-```
-
-> 📄 **Full Diagram**: See [visuals/feature-hierarchy.md](.specify/product/visuals/feature-hierarchy.md)
-
-### 12.2 Feature Dependencies
-
-```mermaid
-flowchart LR
-    [Embed content from visuals/feature-deps.md]
-```
-
-> 📄 **Full Diagram**: See [visuals/feature-deps.md](.specify/product/visuals/feature-deps.md)
-
-### 12.3 User Flows
-
-```mermaid
-flowchart TB
-    [Embed content from visuals/user-flows.md]
-```
-
-> 📄 **Full Diagram**: See [visuals/user-flows.md](.specify/product/visuals/user-flows.md)
-
-### 12.4 State Machine
-
-```mermaid
-stateDiagram-v2
-    [Embed content from visuals/state-machine.md]
-```
-
-> 📄 **Full Diagram**: See [visuals/state-machine.md](.specify/product/visuals/state-machine.md)
-
-### 12.5 ASCII Fallback Diagrams
-
-If Mermaid rendering fails, ASCII diagrams are available in the full visual files linked above.
-```
-
-#### Embedding Rules
-
-1. **Extract Mermaid Blocks**: Copy the mermaid code block from each visual file
-2. **Preserve Node IDs**: Do NOT modify node IDs (already sanitized in Step 2.8)
-3. **Update Cross-References**: Ensure links use correct relative paths
-4. **Add Navigation**: Each subsection links to full diagram file
-5. **Include Fallback Note**: Mention ASCII fallbacks exist in source files
-
-#### Verification Checklist
-
-- [ ] Visual Summary section added to PRD.md
-- [ ] All 4 diagram types included (hierarchy, deps, flows, state)
-- [ ] Mermaid blocks are complete and valid
-- [ ] Navigation links work (test by clicking)
-- [ ] References from other sections point to Visual Summary
+- [ ] **ZERO** `.specify/` paths in reader-facing content across all section files
+- [ ] All cross-references use in-document anchors (`#section-id`)
+- [ ] Mermaid blocks are complete and valid (use `flowchart`, not `graph`)
 
 ### Step 3.3: Aggregate into Unified PRD.md
 
-**Structure**:
+> **CRITICAL (v1.5.6): The PRD.md MUST be SELF-CONTAINED.**
+> - ALL Mermaid diagrams embedded IN-SECTION (near the content they describe)
+> - ALL business sections (1.5, 3.5, 5.5, 10.4, 10.5, 11.5) included
+> - **ZERO reader-facing links to `.specify/` paths** — use in-document anchors only
+> - Section files are build artifacts only — do NOT reference them
+> - **NO separate Visual Summary section** — diagrams live in their home sections
+
+**Structure** (must match `prd-template.md` exactly):
 
 ```markdown
 # Product Requirements Document: [Product Name]
 
 ## 1. Document Information
-[Version, date, status]
+[Quick Stats table, revision history, related docs (NO .specify/ links), approval]
 
-## 2. Product Overview
-[Unified overview]
+## 1.5 Executive Summary
+[One-page business case: opportunity, problem, solution, business impact, investment, ROI, recommendation]
 
-## 3. Problem Statement
-[Consolidated from all feature-areas]
+## 2. Overview
+[Product description, purpose, scope]
+### 2.4 Feature Hierarchy [MERMAID flowchart TD]
+### 2.5 Architecture Overview [MERMAID flowchart TB]
+### 2.6 Cross-Area Interactions [MERMAID flowchart TB — only if multi-feature-area]
+
+## 3. The Problem
+[Problem statement, context, validation evidence]
+
+## 3.5 Market Opportunity
+[TAM/SAM/SOM, competitive landscape, market timing, ICP, positioning]
 
 ## 4. Goals & Objectives
-[Merged goals]
+[Primary, technical, and business goals traced to PDRs]
 
 ## 5. Success Metrics
-[Unified metrics]
+[Adoption, engagement, quality metrics]
+### 5.5 Business Outcome Metrics [efficiency, quality, time with $ values]
+### 5.6 Financial Metrics [cost per user, ROI, payback period]
 
-## 6. Target Personas
-[Consolidated personas]
+## 6. Personas
+[Primary, secondary personas, anti-personas]
+### 6.4 User Journey [MERMAID journey]
 
-## 7. Functional Requirements
-[Merged requirements by feature-area]
-
-### 7.1 Core Requirements
-[Core feature-area requirements]
-
-### 7.2 Business Requirements
-[Business feature-area requirements]
+## 7. Functional Requirements [CHECKPOINT]
+[User stories, REQ-XXX IDs, priority matrix]
+### 7.4 Requirement Dependencies [MERMAID flowchart LR]
+### 7.5 Feature Dependencies [MERMAID flowchart LR]
+### 7.6 State Transitions [MERMAID stateDiagram-v2 — only if stateful features]
 
 ## 8. Non-Functional Requirements
-[Consolidated NFRs]
+[Performance, security, reliability, usability, scalability]
 
 ## 9. Out of Scope
-[Unified exclusions]
+[Feature, technical, market exclusions with rationale]
 
 ## 10. Risks & Mitigation
-[Consolidated risks]
+[Risk summary, technical, market, operational risks]
+### 10.4 Business Risks [adoption, competitive, financial]
 
-## 11. Roadmap
-[Unified timeline]
+## 10.5 Investment & Resources
+[Team, budget, risk-adjusted ROI, go/no-go criteria]
 
-## 12. Product Decision Records Summary
-[Index linking to PDRs]
+## 11. Roadmap & Milestones
+### 11.1 Roadmap Overview [MERMAID gantt]
+[Milestone details with demo sentences]
+
+## 11.5 Go-to-Market Strategy
+[Launch phases, pricing, messaging, success metrics by phase]
+
+## 12. PDR Summary
+[Key decisions, constitution alignment — NO external links]
+
+## Appendix A: Glossary
+## Appendix B: References
+## Appendix C: Change History
 ```
 
-### Step 3.4: PDR Lifecycle Management (MANDATORY)
+**Self-Contained Cross-Reference Rules:**
+- Diagram references: `See [Section 2.4](#24-feature-hierarchy)` (in-document anchors only)
+- PDR references: `PDR-078` as text (NOT `[PDR-078](.specify/drafts/pdr.md#pdr-078)`)
+- Constitution references: "as defined in the project constitution" (NOT `[constitution](.specify/memory/constitution.md)`)
+- Section cross-refs: `See [Section 7](#7-functional-requirements)` (in-document anchors only)
+- **NO** references to `.specify/product/visuals/` — that directory no longer exists
+
+### Step 3.4: PDR Lifecycle Management (MANDATORY — DO NOT SKIP)
+
+> **⚠️ THIS STEP IS MANDATORY.** The implement command CANNOT be marked "completed" without executing PDR lifecycle management. Skipping this step means the Final Completion Verification (checks 5 and 6) will FAIL, and `state.json` phase MUST NOT be set to "completed".
 
 **Step 1: Filter Accepted PDRs**
-- Identify PDRs with status "Accepted"
-- Skip Discovered/Proposed PDRs
+- Read `{REPO_ROOT}/.specify/drafts/pdr.md`
+- Count PDRs with status "Accepted"
+- Count PDRs with status "Proposed" or "Discovered"
 
-**Step 2: Copy to Canonical Location**
+**Step 2: Copy Accepted PDRs to Memory (MANDATORY)**
 - Write Accepted PDRs to `{REPO_ROOT}/.specify/memory/pdr.md`
-- Merge with existing content
+- If `memory/pdr.md` already exists, merge (append new PDRs, update existing)
+- **Verify file was written**: `ls -la {REPO_ROOT}/.specify/memory/pdr.md`
+- **If write fails → STOP and report error**
 
 **Step 3: Clean Up Drafts**
-- Remove promoted PDRs from drafts
-- If no PDRs remain → DELETE drafts file
+- If ALL PDRs are Accepted → drafts file may be retained for cross-reference analysis
+- If some PDRs remain Proposed/Discovered → keep only those in drafts
+- Set `pdr_lifecycle.drafts_retained` and `pdr_lifecycle.drafts_reason` in state.json
 
-**Step 4: Report Lifecycle Changes**
+**Step 4: Update state.json with Lifecycle Fields**
+```json
+"pdr_lifecycle": {
+  "pdrs_promoted": [N],
+  "memory_pdr_written": true,
+  "memory_pdr_location": ".specify/memory/pdr.md",
+  "drafts_retained": true|false,
+  "drafts_reason": "[reason if retained]"
+}
+```
+
+**Step 5: Report Lifecycle Changes**
 ```
 📋 PDR Lifecycle Summary:
 ├── Promoted to memory: [N] Accepted PDRs
+├── Memory file: .specify/memory/pdr.md ✓
 ├── Remaining in drafts: [M] PDRs (Proposed/Discovered)
 └── Cleanup verified: ✓
 ```
+
+**Failure Mode**: If Step 2 (copy to memory) is not executed, the Final Completion Verification checks 5 and 6 will fail, blocking the "completed" state.
 
 ### Step 3.5: Generate Final Report
 
@@ -786,23 +685,29 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 4. Begin feature development with `/spec.specify`
 ```
 
-## Final Completion Verification (MANDATORY)
+## Final Completion Verification (MANDATORY — ALL CHECKS MUST PASS)
+
+> **⚠️ DO NOT set `phase: "completed"` until ALL checks pass.** This is a hard gate.
 
 **Before marking state.json phase as "completed", verify:**
 
-| Check | Expected | Verification | Status |
-|-------|----------|--------------|--------|
-| 1. Section files on disk | N files | List sections directory | ☐ |
-| 2. PRD.md exists | Yes | Check file existence | ☐ |
-| 3. PRD.md content size | >200 lines | Count lines | ☐ |
-| 4. PRD.md has all sections | N headers | Parse headers | ☐ |
-| 5. Memory PDRs promoted | N Accepted | Count in memory | ☐ |
-| 6. Drafts cleaned | No duplicates | Compare drafts vs memory | ☐ |
-| 7. state.json consistent | All sections "completed" | Verify progress | ☐ |
+| # | Check | Expected | Verification | Status |
+|---|-------|----------|--------------|--------|
+| 1 | Section files on disk | N files | `ls .specify/product/sections/` | ☐ |
+| 2 | PRD.md exists | Yes | `ls PRD.md` | ☐ |
+| 3 | PRD.md content size | >200 lines | `wc -l PRD.md` | ☐ |
+| 4 | PRD.md has all sections | Sections 1-12 + sub-sections | `grep "^## " PRD.md` | ☐ |
+| 5 | PRD.md is self-contained | 0 `.specify/` links | `grep -c '](.specify/' PRD.md` = 0 | ☐ |
+| 6 | Diagrams embedded in-section | Overview has Mermaid, Requirements has Mermaid, Roadmap has Mermaid | `grep -c "mermaid" PRD.md` >= 4 | ☐ |
+| 7 | **No** `.specify/product/visuals/` dir | Should not exist | `! ls .specify/product/visuals/ 2>/dev/null` | ☐ |
+| 8 | **Memory PDRs written** | `memory/pdr.md` exists | `ls .specify/memory/pdr.md` | ☐ |
+| 9 | **`pdr_lifecycle.memory_pdr_written`** | `true` | Check state.json | ☐ |
+| 10 | state.json consistent | All sections "completed" | Verify progress | ☐ |
 
 **Gate Rule:**
-- If **ALL checks pass**: Mark phase as "completed"
-- If **ANY check fails**: Do NOT mark as completed
+- If **ALL 10 checks pass**: Mark `phase: "completed"` and `pdr_lifecycle.memory_pdr_written: true`
+- If **ANY check fails**: Do NOT mark as completed. Report which check(s) failed.
+- **Check 6 is the most commonly skipped** — verify `memory/pdr.md` actually exists on disk.
 
 ## State File Schema
 
@@ -810,7 +715,7 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
 
 ```json
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "created_at": "ISO8601 timestamp",
   "updated_at": "ISO8601 timestamp",
   "phase": "planning | plan_approved | executing | summarizing | completed",
@@ -826,7 +731,7 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
       "name": "Core",
       "pdrs": ["PDR-001"],
       "characteristics": ["b2b", "saas"],
-      "dag": ["overview", "problem", "goals", "metrics", "personas", "requirements", "nfrs", "out-of-scope", "risks", "roadmap", "pdr-summary"],
+      "dag": ["overview", "problem", "market-opportunity", "goals", "metrics", "personas", "executive-summary", "requirements", "nfrs", "out-of-scope", "risks", "investment", "roadmap", "gtm", "pdr-summary"],
       "progress": {
         "overview": "completed",
         "problem": "completed",
@@ -835,11 +740,20 @@ If Mermaid rendering fails, ASCII diagrams are available in the full visual file
       }
     }
   ],
+  "pdr_lifecycle": {
+    "pdrs_promoted": 0,
+    "memory_pdr_written": false,
+    "memory_pdr_location": ".specify/memory/pdr.md",
+    "drafts_retained": false,
+    "drafts_reason": ""
+  },
   "conflicts_detected": [],
   "conflicts_resolved": [],
   "output_file": "PRD.md"
 }
 ```
+
+> **IMPORTANT**: The `pdr_lifecycle` object is MANDATORY. The Final Completion Verification checks `memory_pdr_written === true` before allowing phase "completed". If this field is `false`, the gate MUST fail.
 
 ## Key Rules
 

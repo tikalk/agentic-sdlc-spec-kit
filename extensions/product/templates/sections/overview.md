@@ -4,7 +4,7 @@ TEMPLATE COMPLIANCE v1.5.2 - THIS IS A TEMPLATE, MUST BE FILLED:
 ✓ Fill ALL [PLACEHOLDERS] with actual content
 ✓ Trace content to source PDRs
 ✓ Validate with: ./scripts/validate-prd.sh --strict
-NOTE: In final PRD, this becomes Section 3 (after Visual Summary and Document Info)
+NOTE: In final PRD, this becomes Section 2 (after Executive Summary and Document Info)
 -->
 
 # Overview: [FEATURE_AREA_NAME]
@@ -12,23 +12,23 @@ NOTE: In final PRD, this becomes Section 3 (after Visual Summary and Document In
 **Feature Area**: [FEATURE_AREA_NAME]
 **PDRs Referenced**: [PDR_IDS]
 **Generated**: [DATE]
-**Section Number**: 3 (in final PRD)
+**Section Number**: 2 (in final PRD)
 
 ---
 
-## 3. Overview
+## 2. Overview
 
 **Purpose**: High-level description of the product - what it is and why it exists
 
-### 1.1 Product Description
+### 2.1 Product Description
 
 [High-level description derived from Problem PDRs and Vision/Constitution]
 
-### 1.2 Purpose
+### 2.2 Purpose
 
 [Describe the business/technical problem this product solves]
 
-### 1.3 Scope
+### 2.3 Scope
 
 **In Scope:**
 
@@ -49,7 +49,29 @@ NOTE: In final PRD, this becomes Section 3 (after Visual Summary and Document In
 | [PDR-XXX] | Problem | [How it affects this section] |
 | [PDR-XXX] | Business Model | [How it affects this section] |
 
-### 1.4 Architecture Overview
+### 2.4 Feature Hierarchy
+
+Visual representation of the product's feature areas and their relationships:
+
+```mermaid
+flowchart TD
+    Product["[PRODUCT_NAME]"]
+    
+    Product --> FA1["[Feature Area 1]"]
+    Product --> FA2["[Feature Area 2]"]
+    Product --> FA3["[Feature Area 3]"]
+    
+    FA1 --> F1A["[Feature 1A]"]
+    FA1 --> F1B["[Feature 1B]"]
+    
+    FA2 --> F2A["[Feature 2A]"]
+    FA2 --> F2B["[Feature 2B]"]
+    
+    FA3 --> F3A["[Feature 3A]"]
+    FA3 --> F3B["[Feature 3B]"]
+```
+
+### 2.5 Architecture Overview
 
 Visual representation of the system architecture:
 
@@ -123,3 +145,12 @@ flowchart TB
 - Backend services are organized by feature area
 - Data layer provides persistence and messaging
 - External integrations are abstracted behind service layer
+
+### 2.6 Cross-Area Interactions
+
+<!-- CONDITIONAL: Include when product has multiple feature areas with dependencies -->
+
+| Feature Area A | Feature Area B | Interaction Type | Description |
+|----------------|----------------|------------------|-------------|
+| [Area 1] | [Area 2] | [Data flow / Event / Shared service] | [How they interact] |
+| [Area 2] | [Area 3] | [Data flow / Event / Shared service] | [How they interact] |

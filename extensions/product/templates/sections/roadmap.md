@@ -7,25 +7,11 @@
 
 ---
 
-## 10. Roadmap & Milestones
+## 11. Roadmap & Milestones
 
 **Purpose**: Define product release milestones with feature groupings
 
-### 10.1 Roadmap Overview
-
-```text
-Timeline
-────────────────────────────────────────────────────────────────────►
-    │           │           │           │
-    ▼           ▼           ▼           ▼
-┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
-│  M1    │  │  M2    │  │  M3    │  │ Future │
-│ Alpha  │  │ Beta   │  │  GA    │  │        │
-└────────┘  └────────┘  └────────┘  └────────┘
-  [Date]      [Date]      [Date]
-```
-
-#### Gantt Chart View
+### 11.1 Roadmap Overview
 
 ```mermaid
 gantt
@@ -54,40 +40,7 @@ gantt
     GA Release           :milestone, m3, 2024-05-15, 0d
 ```
 
-<details>
-<summary>📊 ASCII Fallback (if Mermaid fails)</summary>
-
-```
-Roadmap Timeline
-═══════════════════════════════════════════════════════════════════════
-
-Phase 1: Foundation (Q1 2024)
-├─ Authentication     [████████░░] 30 days  ✅ Complete
-├─ User Profile       [██████░░░░] 20 days  ✅ Complete
-└─ Core Infrastructure  [███████░░░] 25 days  🔄 Active
-                       ▼
-                  Alpha Milestone
-
-Phase 2: Business (Q1-Q2 2024)
-├─ Billing Setup      [█████░░░░░] 20 days
-├─ Payment Processing   [██████░░░░] 25 days
-└─ Subscription Mgmt    [███░░░░░░░] 15 days
-                       ▼
-                  Beta Milestone
-
-Phase 3: Growth (Q2 2024)
-├─ Analytics          [████████░░] 30 days
-├─ API Access         [█████░░░░░] 20 days
-└─ Developer Portal   [██████░░░░] 25 days
-                       ▼
-                  GA Milestone
-
-Legend: ✅ Complete | 🔄 Active | ⬜ Planned
-```
-
-</details>
-
-### 10.2 Milestone 1: [Name] - [Target Date]
+### 11.2 Milestone 1: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -111,7 +64,7 @@ Legend: ✅ Complete | 🔄 Active | ⬜ Planned
 
 ---
 
-### 10.3 Milestone 2: [Name] - [Target Date]
+### 11.3 Milestone 2: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -138,7 +91,7 @@ Legend: ✅ Complete | 🔄 Active | ⬜ Planned
 
 ---
 
-### 10.4 Milestone 3: [Name] - [Target Date]
+### 11.4 Milestone 3: [Name] - [Target Date]
 
 **Demo Sentence:** "After this milestone, the user can: [observable capability]"
 
@@ -154,7 +107,7 @@ Legend: ✅ Complete | 🔄 Active | ⬜ Planned
 
 ---
 
-### 10.5 Milestones Traced to PDRs
+### 11.5 Milestones Traced to PDRs
 
 | Milestone | PDR | Target Date | Status |
 |-----------|-----|-------------|--------|

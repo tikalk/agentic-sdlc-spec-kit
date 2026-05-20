@@ -7,11 +7,11 @@
 
 ---
 
-## 5. Personas
+## 6. Personas
 
 **Purpose**: Define target users and their needs
 
-### 5.1 Primary Persona
+### 6.1 Primary Persona
 
 **Name**: [Persona Name]
 
@@ -26,7 +26,7 @@
 
 **PDR Reference**: PDR-XXX
 
-### 5.2 Secondary Persona
+### 6.2 Secondary Persona
 
 **Name**: [Persona Name]
 
@@ -41,7 +41,7 @@
 
 **PDR Reference**: PDR-XXX
 
-### 5.3 Anti-Personas (Who This Is NOT For)
+### 6.3 Anti-Personas (Who This Is NOT For)
 
 | Anti-Persona | Why Not Targeted |
 |--------------|------------------|
@@ -55,7 +55,7 @@
 |-----|----------|-------------------|
 | [PDR-XXX] | [Decision] | [How it defines target users] |
 
-### 5.4 User Journey Visualization
+### 6.4 User Journey Visualization
 
 User experience flow across key touchpoints:
 
