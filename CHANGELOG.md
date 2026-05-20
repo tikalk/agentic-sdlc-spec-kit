@@ -255,7 +255,22 @@ All notable changes to the Specify CLI and templates are documented here.
 
 - **Quick extension**: v1.0.3 → v1.0.4 (hook execution template improvement)
 
-# [Unreleased]
+# [0.8.7+adlc6] - 2026-05-13
+
+### Fixed
+
+- **OpenCode Docker HTTP**: Use the real OpenCode server API (`POST /session` then `POST /session/{id}/command`) instead of the non-existent `/api/execute`, map core `speckit.*` slash names to `spec.*` for the HTTP command field (with an override for `speckit.taskstoissues`), and probe **`/global/health`** (with `/health` fallback) for readiness so traffic reaches the container and can appear in **`docker compose logs`**.
+
+# [0.8.7+adlc5] - 2026-05-13
+
+### Added
+
+- **`specify integration invoke`**: Dispatch a Spec Kit command (e.g. `implement`) through the active integration, including **OpenCode Docker** HTTP mode when configured.
+- **`/speckit.implement` template**: Document that IDE-only implementation does not hit OpenCode Docker; use `specify integration invoke implement ...` from the repo root when `"mode": "docker"` in `.specify/opencode.json`.
+
+### Changed
+
+- **OpenCode Docker**: Emit `[specify][opencode-docker]` trace lines to **stderr** whenever a command (including `implement`) is dispatched via HTTP so you can confirm the container path in the terminal.
 
 ### Added
 

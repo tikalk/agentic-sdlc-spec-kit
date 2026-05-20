@@ -38,6 +38,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 import typer
+from rich.console import Console
+
 from rich.panel import Panel
 from rich.live import Live
 from rich.align import Align
@@ -805,20 +807,25 @@ def init(
     if not ignore_agent_tools:
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config and agent_config["requires_cli"]:
-            install_url = agent_config["install_url"]
-            if not check_tool(selected_ai):
-                error_panel = Panel(
-                    f"[cyan]{selected_ai}[/cyan] not found\n"
-                    f"Install from: [cyan]{install_url}[/cyan]\n"
-                    f"{agent_config['name']} is required to continue with this project type.\n\n"
-                    "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
-                    title="[red]Agent Detection Error[/red]",
-                    border_style="red",
-                    padding=(1, 2)
-                )
-                console.print()
-                console.print(error_panel)
-                raise typer.Exit(1)
+            # Special case: opencode supports Docker mode, so don't require local CLI
+            if selected_ai == "opencode":
+                # Skip local CLI check for opencode - Docker mode will handle it
+                pass
+            else:
+                install_url = agent_config["install_url"]
+                if not check_tool(selected_ai):
+                    error_panel = Panel(
+                        f"[cyan]{selected_ai}[/cyan] not found\n"
+                        f"Install from: [cyan]{install_url}[/cyan]\n"
+                        f"{agent_config['name']} is required to continue with this project type.\n\n"
+                        "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                        title="[red]Agent Detection Error[/red]",
+                        border_style="red",
+                        padding=(1, 2)
+                    )
+                    console.print()
+                    console.print(error_panel)
+                    raise typer.Exit(1)
 
     if script_type:
         if script_type not in SCRIPT_TYPE_CHOICES:
@@ -2724,6 +2731,84 @@ def integration_info(
         console.print(f"[red]Error:[/red] Integration '{integration_id}' not found")
         console.print("\nTry: specify integration search")
     raise typer.Exit(1)
+
+
+@integration_app.command("invoke")
+def integration_invoke(
+    command: str = typer.Argument(
+        ...,
+        metavar="COMMAND",
+        help="Spec Kit command stem (e.g. implement, plan, tasks, specify).",
+    ),
+    agent_args: str = typer.Argument(
+        "",
+        metavar="[ARGS]",
+        help="Optional text passed to the agent after the slash command.",
+    ),
+    integration_key: str | None = typer.Option(
+        None,
+        "--integration",
+        "-I",
+        help="Integration to use (default: project's active integration).",
+    ),
+):
+    """Run a Spec Kit command through the configured agent (local CLI or OpenCode Docker HTTP)."""
+    from .integrations import get_integration
+
+    project_root = _require_specify_project()
+    current = _read_integration_json(project_root)
+    key = integration_key or _default_integration_key(current)
+    if not key:
+        console.print(
+            "[red]Error:[/red] No default integration. "
+            "Choose one with [cyan]specify integration use <id>[/cyan]."
+        )
+        raise typer.Exit(1)
+
+    impl = get_integration(key)
+    if impl is None:
+        console.print(f"[red]Error:[/red] Unknown integration {key!r}.")
+        raise typer.Exit(1)
+
+    stem = command.strip().lstrip("/")
+    if stem.startswith("speckit."):
+        stem = stem[len("speckit.") :]
+    elif stem.startswith("spec."):
+        stem = stem[len("spec.") :]
+
+    exec_args = impl.build_exec_args("test", project_root=project_root)
+    if exec_args is None:
+        console.print(
+            f"[red]Error:[/red] Integration {key!r} does not support "
+            "non-interactive command dispatch."
+        )
+        raise typer.Exit(1)
+
+    is_docker_mode = "--docker-mode" in exec_args
+    if not is_docker_mode and not shutil.which(impl.key):
+        console.print(
+            f"[red]Error:[/red] {impl.key!r} is not on PATH and OpenCode Docker mode "
+            "is not active (see .specify/opencode.json or run [cyan]specify docker-up[/cyan])."
+        )
+        raise typer.Exit(1)
+
+    try:
+        result = impl.dispatch_command(
+            stem,
+            args=agent_args,
+            project_root=project_root,
+            stream=True,
+        )
+    except NotImplementedError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
+
+    code = result.get("exit_code", 1)
+    if code not in (0, None):
+        err = (result.get("stderr") or "").strip()
+        if err:
+            console.print(f"[red]{err}[/red]")
+        raise typer.Exit(int(code))
 
 
 @integration_catalog_app.command("list")
@@ -5518,38 +5603,28 @@ def workflow_catalog_remove(
     console.print(f"[green]✓[/green] Catalog source '{removed_name}' removed")
 
 
+# docker_up and other docker commands are registered as app subcommands below
+
+
 @app.command()
-def docker_up():
+def docker_up(
+    project_root: Path | None = typer.Option(
+        None, "--project-root", help="Project root directory"
+    )
+):
     """Start OpenCode in a Docker container.
 
     Builds and starts the Docker container, then waits for it to be ready.
     Configuration is stored in .specify/opencode.json.
     """
-    from .integrations.opencode.docker_manager import DockerManager
+    from .integrations.opencode.docker_manager import DockerManager, ensure_opencode_docker_assets
 
-    project_root = _require_specify_project()
+    _project_root = project_root or _require_specify_project()
 
-    # Scaffold Docker files from package if they don't exist
-    docker_template_dir = Path(__file__).parent / "integrations" / "opencode" / "docker"
-    dockerfile_src = docker_template_dir / "Dockerfile"
-    compose_src = docker_template_dir / "docker-compose.yml"
-
-    specify_dir = project_root / ".specify"
-    dockerfile_dst = specify_dir / "Dockerfile"
-    compose_dst = specify_dir / "docker-compose.yml"
-
-    specify_dir.mkdir(parents=True, exist_ok=True)
-
-    if not dockerfile_dst.exists() and dockerfile_src.exists():
-        shutil.copy(dockerfile_src, dockerfile_dst)
-        console.print(f"[dim]Created {dockerfile_dst}[/dim]")
-
-    if not compose_dst.exists() and compose_src.exists():
-        shutil.copy(compose_src, compose_dst)
-        console.print(f"[dim]Created {compose_dst}[/dim]")
+    ensure_opencode_docker_assets(_project_root)
 
     # Load or create config
-    config_path = project_root / ".specify" / "opencode.json"
+    config_path = _project_root / ".specify" / "opencode.json"
     config = {}
     if config_path.exists():
         try:
@@ -5563,16 +5638,20 @@ def docker_up():
     container_name = docker_config.get("container_name", "opencode-dev")
     http_url = docker_config.get("http_url", "http://localhost:9000")
 
-    manager = DockerManager(compose_file, container_name, http_url)
+    manager = DockerManager(
+        compose_file, container_name, http_url, project_root=_project_root
+    )
 
     console.print("[bold]Starting OpenCode Docker container...[/bold]")
     if manager.docker_up():
         config["mode"] = "docker"
+        container_workspace = docker_config.get("container_workspace", "/workspace")
         config["docker"] = {
             "enabled": True,
             "compose_file": compose_file,
             "container_name": container_name,
             "http_url": http_url,
+            "container_workspace": container_workspace,
         }
         config_path.parent.mkdir(parents=True, exist_ok=True)
         with open(config_path, "w") as f:
@@ -5584,13 +5663,17 @@ def docker_up():
 
 
 @app.command()
-def docker_down():
+def docker_down(
+    project_root: Path | None = typer.Option(
+        None, "--project-root", help="Project root directory"
+    )
+):
     """Stop the OpenCode Docker container."""
     from .integrations.opencode.docker_manager import DockerManager
 
-    project_root = _require_specify_project()
+    _project_root = project_root or _require_specify_project()
 
-    config_path = project_root / ".specify" / "opencode.json"
+    config_path = _project_root / ".specify" / "opencode.json"
     config = {}
     if config_path.exists():
         try:
@@ -5604,28 +5687,35 @@ def docker_down():
     container_name = docker_config.get("container_name", "opencode-dev")
     http_url = docker_config.get("http_url", "http://localhost:9000")
 
-    manager = DockerManager(compose_file, container_name, http_url)
+    manager = DockerManager(
+        compose_file, container_name, http_url, project_root=_project_root
+    )
 
     console.print("[bold]Stopping OpenCode Docker container...[/bold]")
     if manager.docker_down():
         config["mode"] = "local"
+        config.setdefault("docker", {})
         config["docker"]["enabled"] = False
         with open(config_path, "w") as f:
             json.dump(config, f, indent=2)
-        console.print("[green]✓[/green] OpenCode container stopped")
+        console.print(f"[green]✓[/green] OpenCode container stopped")
     else:
         console.print("[red]✗[/red] Failed to stop Docker container")
         raise typer.Exit(1)
 
 
 @app.command()
-def docker_status():
+def docker_status(
+    project_root: Path | None = typer.Option(
+        None, "--project-root", help="Project root directory"
+    )
+):
     """Show OpenCode Docker container status."""
     from .integrations.opencode.docker_manager import DockerManager
 
-    project_root = _require_specify_project()
+    _project_root = project_root or _require_specify_project()
 
-    config_path = project_root / ".specify" / "opencode.json"
+    config_path = _project_root / ".specify" / "opencode.json"
     config = {}
     if config_path.exists():
         try:
@@ -5639,7 +5729,9 @@ def docker_status():
     container_name = docker_config.get("container_name", "opencode-dev")
     http_url = docker_config.get("http_url", "http://localhost:9000")
 
-    manager = DockerManager(compose_file, container_name, http_url)
+    manager = DockerManager(
+        compose_file, container_name, http_url, project_root=_project_root
+    )
 
     status = manager.docker_status()
     if status is None:

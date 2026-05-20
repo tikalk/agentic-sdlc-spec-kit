@@ -13,6 +13,24 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## OpenCode Docker (when `.specify/opencode.json` uses `"mode": "docker"`)
+
+If this project is configured for **OpenCode in Docker** (`specify docker-up`, `.specify/opencode.json` with `"mode": "docker"`), then **doing the implementation only by editing files in this chat does not run on OpenCode** — nothing is sent to the container, so Docker logs stay quiet.
+
+When the user asked to **use the OpenCode Docker container** for implementation (or when the above config is present and they want execution there), you **MUST** run the Specify CLI from the **repository root** so dispatch hits the OpenCode HTTP endpoint (after `specify docker-up` is healthy):
+
+```bash
+specify integration invoke implement --integration opencode "$ARGUMENTS"
+```
+
+If `opencode` is already the project's default integration, `--integration opencode` may be omitted:
+
+```bash
+specify integration invoke implement "$ARGUMENTS"
+```
+
+Use the same shell/terminal tool you use for other repo commands; do not only describe this command — **execute it** so the OpenCode server receives **`POST /session`** then **`POST /session/{id}/command`** (that is what makes `docker compose logs` show activity). When it runs, the Specify CLI prints lines to **stderr** prefixed with `[specify][opencode-docker]` — if you see those lines in the terminal, the request was sent to the OpenCode HTTP server inside Docker (not the local `opencode` binary). If the user prefers to stay entirely in this IDE without OpenCode, skip this section and implement locally as usual.
+
 ## Pre-Execution Checks
 
 **Check for extension hooks (before implementation)**:

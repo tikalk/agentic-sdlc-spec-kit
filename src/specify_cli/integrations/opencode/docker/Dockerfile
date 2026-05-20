@@ -2,7 +2,7 @@ FROM node:24-alpine
 
 WORKDIR /app
 
-RUN apk add --no-cache git curl
+RUN apk add --no-cache git curl python3 coreutils
 
 # Download and extract OpenCode binary for Linux
 RUN apk add --no-cache tar && \
@@ -22,8 +22,17 @@ RUN addgroup -g 2000 opencode && \
 RUN mkdir -p /workspace && \
     chown -R opencode:opencode /workspace /app
 
+# Prefix each server output line with [opencode-server] so it stands out in
+# `docker compose logs`.  OPENCODE_LOG_LEVEL controls verbosity (default INFO).
+# stdbuf -oL forces line-buffered mode so lines appear in real-time.
+RUN printf '#!/bin/sh\n' > /start.sh && \
+    printf 'LOG_LEVEL="${OPENCODE_LOG_LEVEL:-INFO}"\n' >> /start.sh && \
+    printf 'exec opencode serve --hostname 0.0.0.0 --port 3000 --log-level "$LOG_LEVEL" 2>&1 |\n' >> /start.sh && \
+    printf '  stdbuf -oL sed "s/^/[opencode-server] /"\n' >> /start.sh && \
+    chmod +x /start.sh
+
 USER opencode
 
 EXPOSE 3000
 
-CMD ["opencode", "serve", "--hostname", "0.0.0.0", "--port", "3000"]
+CMD ["/start.sh"]

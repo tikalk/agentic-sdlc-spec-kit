@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   opencode:
     build:
@@ -13,8 +11,9 @@ services:
     environment:
       - NODE_ENV=development
       - OPENCODE_PORT=3000
+      - OPENCODE_LOG_LEVEL=${OPENCODE_LOG_LEVEL:-INFO}
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:3000/global/health"]
       interval: 5s
       timeout: 3s
       retries: 30

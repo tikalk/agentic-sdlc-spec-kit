@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import inspect
 import shutil
 from pathlib import Path
 from typing import Any
@@ -127,14 +128,23 @@ class CommandStep(StepBase):
             return None
 
         # Check if the integration supports CLI dispatch
-        if impl.build_exec_args("test") is None:
-            return None
-
-        # Check if the CLI tool is actually installed
-        if not shutil.which(impl.key):
-            return None
-
         project_root = Path(context.project_root) if context.project_root else None
+        build_sig = inspect.signature(impl.build_exec_args)
+        if project_root is not None and "project_root" in build_sig.parameters:
+            exec_args = impl.build_exec_args("test", project_root=project_root)
+        else:
+            exec_args = impl.build_exec_args("test")
+        if exec_args is None:
+            return None
+
+        # Check if the CLI tool is actually installed (skip for Docker mode)
+        # OpenCode integration uses --docker-mode sentinel for HTTP dispatch
+        is_docker_mode = (
+            hasattr(impl, "is_docker_mode_exec_args")
+            and impl.is_docker_mode_exec_args(exec_args)
+        ) or ("--docker-mode" in exec_args if exec_args else False)
+        if not is_docker_mode and not shutil.which(impl.key):
+            return None
 
         try:
             return impl.dispatch_command(

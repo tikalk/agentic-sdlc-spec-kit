@@ -376,9 +376,10 @@ spec docker-up
 Once the container is running, all `spec.implement` tasks and OpenCode commands automatically execute on the Docker container via HTTP API:
 
 ```bash
-/spec.implement "write a hello world function"
-# Runs on Docker OpenCode instead of local binary
+specify integration invoke implement "write a hello world function"
 ```
+
+The CLI talks to the OpenCode HTTP server inside Docker (`POST /session` then `POST /session/{id}/command`). While that runs, **`docker compose -f .specify/docker-compose.yml logs -f`** should show server activity, and your terminal shows **`[specify][opencode-docker]`** lines on stderr when Specify is dispatching to Docker.
 
 **Checking container status:**
 
@@ -411,9 +412,10 @@ Docker settings are stored in `.specify/opencode.json`:
   "mode": "docker",
   "docker": {
     "enabled": true,
-    "compose_file": "./docker-compose.yml",
+    "compose_file": "./.specify/docker-compose.yml",
     "container_name": "opencode-dev",
-    "http_url": "http://localhost:9000"
+    "http_url": "http://localhost:9000",
+    "container_workspace": "/workspace"
   }
 }
 ```
