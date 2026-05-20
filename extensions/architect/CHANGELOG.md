@@ -2,6 +2,38 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.1.0] - 2026-05-20
+
+### Added
+
+- **Functional View template**: Technology Abstraction Rule and validation checklist
+  - Added explicit instruction to use architectural roles (Database, Object Storage) not product names
+  - Added forward cross-reference to Development View §3.5.2
+  - Added 5-point validation checklist for technology neutrality
+- **Development View template**: Enhanced structure for technology mapping
+  - Added §3.5.2 Technology Stack Mapping table (role → technology → ADR)
+  - Added §3.5.3 Technology Architecture diagram with concrete technology labels
+  - Added backward cross-reference to Functional View §3.2
+  - Added 5-point validation checklist for view parity
+- **Analyze Pass E.6**: Technology Neutrality check
+  - Scans Functional View for product/vendor names in elements and diagrams
+  - Distinguishes architectural roles (acceptable) from product names (flagged)
+  - Severity: MEDIUM (reported, not blocking)
+- **Analyze Pass E.7**: Functional-Development Mapping check
+  - Verifies Technology Stack Mapping table exists in Development View
+  - Checks that Functional View elements have corresponding mapping entries
+  - Supports N:1 mappings (multiple elements → one technology)
+  - Severity: MEDIUM if elements missing, LOW if table absent
+- **Config options**: `technology_neutrality` and `view_parity` toggles in `analysis:` section
+
+### Changed
+
+- Development View section renumbering:
+  - §3.5.2 → §3.5.4 (Module Dependencies)
+  - §3.5.3 → §3.5.5 (Build & CI/CD)
+  - §3.5.4 → §3.5.6 (Development Standards)
+- Functional View template example: `[e.g., REST /auth/*]` → `[e.g., API /auth/*]` (technology-neutral)
+
 ## [2.0.8] - 2026-05-17
 
 ### Fixed
