@@ -2,6 +2,22 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.8.12] - 2026-05-20
+
+### Changed
+
+- fix(codex): inject dot-to-hyphen hook command note in Codex skills (#2503)
+- Update Squad Bridge extension to v1.3.0 (#2645)
+- Update Superpowers Implementation Bridge extension to v0.5.0 (#2644)
+- Add Team Assign extension to community catalog (#2642)
+- refactor: migrate extension catalog stack parsing to shared base (#2576)
+- Update Architecture Workflow extension to v1.1.0 (#2588)
+-  fix(workflow): support integration: auto to follow project's initialized AI (#2421)
+- Add Superpowers Implementation Bridge extension to community catalog (#2586)
+- Add Interactive HTML Preview extension to community catalog (#2585)
+- chore: release 0.8.11, begin 0.8.12.dev0 development (#2584)
+- Update Agent Governance extension to v1.1.0 (#2583)
+
 ## [0.8.11] - 2026-05-15
 
 ### Changed
