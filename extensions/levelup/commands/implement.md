@@ -36,9 +36,9 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 - ✅ `context_modules/examples/**/*.md` - Example files (one per accepted Example CDR)
 - ✅ `context_modules/constitution.md` - Append amendments (if Constitution CDR accepted)
 - ✅ `skills/*/` - Skill directories (if draft skills exist and not --skip-skills)
-- ✅ `context_modules/CDR.md` - Index of accepted CDRs (create LAST)
+- ✅ `CDR.md` - Index of accepted CDRs at ROOT (create LAST)
 
-**⚠️ CRITICAL**: You must create ALL of the above. Do NOT create context_modules/CDR.md first and skip the actual module files.
+**⚠️ CRITICAL**: You must create ALL of the above. Do NOT create CDR.md first and skip the actual module files.
 
 **MCP Integration**:
 
@@ -315,7 +315,25 @@ git checkout -b "$BRANCH_NAME" main
 
 If branch exists, check if it was created in this session or reuse.
 
-#### Step 3: Process Each CDR (with Memory Engineering)
+#### Step 3: Ensure AGENTS.md Exists
+
+**Objective**: Create AGENTS.md if missing in team-ai-directives
+
+```bash
+cd "$TEAM_DIRECTIVES"
+
+if [ ! -f "AGENTS.md" ]; then
+  echo "Creating AGENTS.md from template..."
+  cp ".specify/extensions/levelup/templates/agents-template.md" "AGENTS.md"
+  echo "✅ AGENTS.md created"
+else
+  echo "✅ AGENTS.md already exists"
+fi
+```
+
+**Note**: AGENTS.md is only created if missing. Existing content is never overwritten.
+
+#### Step 4: Process Each CDR (with Memory Engineering)
 
 For each CDR that passed signal gate, create/update the target file with YAML frontmatter and verification metadata.
 
@@ -578,7 +596,7 @@ echo "Constitution: $(wc -l < context_modules/constitution.md 2>/dev/null || ech
 echo "=== Skills ==="
 echo "Skill directories: $(find skills -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)"
 echo "=== CDR Index ==="
-echo "context_modules/CDR.md exists: $(test -f context_modules/CDR.md && echo YES || echo NO)"
+echo "CDR.md exists: $(test -f CDR.md && echo YES || echo NO)"
 echo "==="
 echo "Files to be committed:"
 git status --porcelain
@@ -587,7 +605,7 @@ git status --porcelain
 **STOP if**:
 - Any context module category shows 0 files but you have accepted CDRs for that type
 - Skills directory is empty but you have draft skills
-- context_modules/CDR.md does not exist
+- CDR.md does not exist
 
 **If any check fails, you MUST go back and create the missing files before proceeding.**
 
@@ -599,7 +617,7 @@ git status --porcelain
 
 ```bash
 cd "$TEAM_DIRECTIVES"
-git add context_modules/ skills/ .skills.json context_modules/CDR.md
+git add context_modules/ skills/ .skills.json CDR.md AGENTS.md
 ```
 
 #### Step 2: Generate Commit Message
@@ -649,7 +667,7 @@ Context module contributions from **{project-name}**.
 
 ### CDR Records
 
-Accepted CDRs are recorded in `context_modules/CDR.md` for tracking.
+Accepted CDRs are recorded in `CDR.md` (at repository root) for tracking.
 
 ### Skills Added
 
@@ -783,7 +801,7 @@ MCP tools not available. Create PR manually:
 
 | File | Description |
 |------|-------------|
-| `{TEAM_DIRECTIVES}/context_modules/CDR.md` | Accepted CDRs from this contribution |
+| `{TEAM_DIRECTIVES}/CDR.md` | Accepted CDRs from this contribution (at ROOT) |
 | `{TEAM_DIRECTIVES}/context_modules/**` | New/updated context modules |
 | `{TEAM_DIRECTIVES}/skills/**` | New skills |
 | `{TEAM_DIRECTIVES}/.skills.json` | Updated manifest |

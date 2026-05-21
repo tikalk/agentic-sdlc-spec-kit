@@ -141,6 +141,21 @@ CDRs define:
 | **Accepted** | Approved for implementation |
 | **Rejected** | Not approved (reason documented in CDR) |
 
+### Target Module Structure
+
+Rules are organized by **functional category** (not technology):
+
+| Category | Purpose | Example Target |
+|----------|---------|----------------|
+| `style-guides/` | Language idioms, conventions | `rules/style-guides/python_pydantic_patterns.md` |
+| `framework/` | Architecture, DI, DDD | `rules/framework/python_di_container.md` |
+| `security/` | Authentication, secrets | `rules/security/typescript_auth_middleware.md` |
+| `testing/` | Test frameworks, fixtures | `rules/testing/python_test_architecture.md` |
+| `devops/` | CI/CD, infrastructure | `rules/devops/github_actions.md` |
+| `data/` | Data patterns, provenance | `rules/data/python_provenance_tracking.md` |
+
+**Filename format**: `{technology}_{pattern_name}.md` (use underscores)
+
 ## Skill Types Taxonomy
 
 When discovering skills, classify them using Anthropic's 9-category taxonomy from "Lessons from Building Claude Code: How We Use Skills". This helps teams build better skills by guiding CDR classification during discovery.

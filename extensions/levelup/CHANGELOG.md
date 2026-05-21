@@ -5,6 +5,63 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-05-21
+
+### Added
+
+- **LLM-Based Functional Categorization**: Replaced technology-based paths with functional categories
+  - 6 functional categories: style-guides, framework, security, testing, devops, data
+  - LLM semantic analysis for automatic categorization
+  - Confidence scoring with user fallback for ambiguous patterns
+  - No static keyword mapping required
+
+- **AGENTS.md Auto-Creation**: Creates AGENTS.md in team-ai-directives if missing
+  - Minimal template documenting functional category structure
+  - Non-destructive: never overwrites existing AGENTS.md
+  - Added to git staging during implement phase
+
+- **agents-template.md**: New template for AGENTS.md generation
+  - Documents 6 functional categories
+  - Explains loading order and rule structure
+  - Provides usage guidance for skills and rules
+
+### Changed
+
+- **CDR.md Location**: Moved from `context_modules/CDR.md` to ROOT `CDR.md`
+  - Aligns with Tikal template repository structure
+  - Updated all references in implement.md
+  - Git add command now includes ROOT CDR.md and AGENTS.md
+
+- **Path Structure**: Technology-based → Functional category paths
+  - Before: `rules/python/pydantic-patterns.md`
+  - After: `rules/style-guides/python_pydantic_patterns.md`
+  - Filename format: `{technology}_{pattern_name}.md` (underscores)
+
+- **synthesis-prompt.md**: Added Step 3 for LLM categorization
+  - Category decision framework
+  - Confidence assessment logic
+  - User prompt for uncertain categorizations
+
+- **cdr-template.md**: Updated target module examples
+  - Shows functional category paths
+  - Documents new filename conventions
+
+- **README.md**: Added Target Module Structure section
+  - Documents all 6 functional categories
+  - Shows example paths for each category
+
+### Technical Details
+
+- **New Files**: `templates/agents-template.md`
+- **Modified Files**: 
+  - `templates/subagents/synthesis-prompt.md` (LLM categorization)
+  - `templates/cdr-template.md` (path examples)
+  - `commands/implement.md` (CDR.md location, AGENTS.md creation)
+  - `README.md` (documentation)
+- **Deleted Files**: None (layout-mapping.yaml not created - using LLM instead)
+- **Breaking Changes**: None for new CDRs (legacy CDRs keep original paths)
+- **Minimum speckit_version**: >=0.0.80 (unchanged)
+
 ## [1.4.0] - 2026-05-18
 
 ### Added

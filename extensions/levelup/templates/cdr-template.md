@@ -60,14 +60,25 @@ Comparison against existing team-ai-directives content:
 
 - **Exact match**: [Yes/No - is this already in TD?]
 - **Similar existing patterns**: 
-  - `[rules/python/error-handling.md]` - Similarity: 0.65 - [Brief description of similarity/difference]
+  - `[rules/framework/python_error_handling.md]` - Similarity: 0.65 - [Brief description of similarity/difference]
 - **Gap identified**: [Yes/No - should this be added to TD?]
 - **Potential conflict**: [Any existing rules that might conflict]
 - **Enhancement opportunity**: [Could enhance existing TD pattern]
 
 ### Target Module
 
-`context_modules/rules/{domain}/{file}.md` | `context_modules/personas/{file}.md` | `context_modules/examples/{category}/{file}.md` | `skills/{skill-name}/`
+**Use functional categories (NOT technology folders):**
+
+- **Rules**: `context_modules/rules/{category}/{technology}_{pattern}.md`
+  - Categories: `style-guides/`, `framework/`, `security/`, `testing/`, `devops/`, `data/`
+  - Examples: `rules/style-guides/python_pydantic_patterns.md`, `rules/security/typescript_auth_middleware.md`
+
+- **Personas**: `context_modules/personas/{file}.md`
+
+- **Examples**: `context_modules/examples/{technology}/{file}.md` (technology-based)
+  - Examples: `examples/python/typed_api_client.md`, `examples/typescript/react_hooks.md`
+
+- **Skills**: `skills/{skill-name}/`
 
 ### Context Type
 

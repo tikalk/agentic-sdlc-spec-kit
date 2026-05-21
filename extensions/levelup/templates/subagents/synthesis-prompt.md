@@ -117,7 +117,76 @@ Create CDRs for:
 Cross-subsystem synthesis via /levelup.init
 
 ### Target Module
-context_modules/rules/{domain}/{file}.md
+create with functional category (see Step 3 below)
+
+### Step 3: Categorize Pattern (CRITICAL - Use Functional Categories, Not Technology)
+
+**Analyze pattern and assign to functional category using LLM reasoning:**
+
+**Available Categories (in priority order):**
+1. **style-guides** - Language idioms, conventions, formatting, code style
+2. **framework** - Architecture, DI, DDD, design patterns, contracts
+3. **security** - Auth, authorization, secrets, vulnerabilities, encryption
+4. **testing** - Test frameworks, fixtures, validation, quality
+5. **devops** - CI/CD, deployment, infrastructure, operations
+6. **data** - Data patterns, provenance, ETL, data management
+
+**Decision Framework:**
+Ask: "What is the primary concern of this pattern?"
+
+```
+IF pattern is about:
+- How to write code, language features, style, conventions
+  → style-guides
+  
+- System structure, architecture, design patterns, contracts, DI
+  → framework
+  
+- Authentication, authorization, secrets, security
+  → security
+  
+- Tests, validation, fixtures, quality assurance
+  → testing
+  
+- Deployment, CI/CD, infrastructure, operations
+  → devops
+  
+- Data flow, lineage, ETL, data management
+  → data
+```
+
+**Confidence Assessment:**
+- **High (>80%)**: Pattern clearly fits one category → auto-categorize
+- **Medium (50-80%)**: Could fit 2 categories → present top 2 to user
+- **Low (<50%)**: Unclear → prompt user to categorize manually
+
+**Filename Format:**
+```
+{technology}_{pattern_name}.md
+```
+Use underscores, not hyphens. Prepend technology (python_, typescript_, java_).
+
+**Target Module Format:**
+```
+context_modules/rules/{category}/{technology}_{pattern_name}.md
+```
+
+**Examples:**
+| Pattern | Analysis | Category | Target Module |
+|---------|----------|----------|---------------|
+| Pydantic models | Python data validation patterns | style-guides | `rules/style-guides/python_pydantic_patterns.md` |
+| Test architecture | Test infrastructure and organization | testing | `rules/testing/python_test_architecture.md` |
+| DI container | Dependency injection architecture | framework | `rules/framework/python_di_container.md` |
+| Auth middleware | Authentication and security | security | `rules/security/typescript_auth_middleware.md` |
+| DDD patterns | Domain-driven design | framework | `rules/framework/python_ddd_patterns.md` |
+| Provenance | Data lineage and tracking | data | `rules/data/python_provenance_tracking.md` |
+
+**Process:**
+1. Read pattern description and context
+2. Analyze primary concern using decision framework
+3. Select category (or prompt user if uncertain)
+4. Generate filename with technology prefix
+5. Format complete target module path
 
 ### Context Type
 Rule | Persona | Example | Skill

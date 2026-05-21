@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc16] - 2026-05-21
+
+### Added
+
+- **LevelUp extension v1.5.0**: LLM-based functional categorization and Tikal template alignment
+  - LLM semantic analysis categorizes patterns into 6 functional categories (style-guides, framework, security, testing, devops, data)
+  - AGENTS.md auto-creation in team-ai-directives (if missing)
+  - CDR.md location moved from `context_modules/` to ROOT
+  - New path structure: `rules/{category}/{tech}_{pattern}.md`
+  - Confidence scoring with user fallback for ambiguous categorizations
+
 # [0.8.12+adlc14] - 2026-05-19
 
 ### Changed
