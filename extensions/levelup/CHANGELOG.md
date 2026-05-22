@@ -5,6 +5,36 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-05-22
+
+### Added
+
+- **Repair Command**: New `/levelup.repair` command for re-indexing team-ai-directives files
+  - Rebuilds CDR.md from context_modules/ directory
+  - Rebuilds .skills.json from skills/ directory
+  - Validates and repairs AGENTS.md (creates if missing, restores if corrupted)
+  - Auto-detects orphan context modules (missing YAML frontmatter)
+  - Auto-detects orphan skills (missing .skills.json entries)
+  - Auto-generates missing metadata from file content
+
+- **Repair Flags**:
+  - `--dry-run`: Report only, don't write changes
+  - `--cdr-only`: Only repair CDR.md
+  - `--skills-only`: Only repair .skills.json
+  - `--agents-only`: Only repair AGENTS.md
+  - Default: Repair all indexes with auto-fix
+
+- **Auto-Fix Capabilities**:
+  - Adds YAML frontmatter to orphan context modules
+  - Generates .skills.json entries from SKILL.md content
+  - Removes entries for missing files
+  - Restores AGENTS.md from template if corrupted
+
+### Changed
+
+- `extension.yml`: Version bump to 1.6.0, registered `levelup.repair` command
+- `README.md`: Added repair command to table, flow diagram, and usage documentation
+
 ## [1.5.0] - 2026-05-21
 
 ### Added

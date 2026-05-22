@@ -66,6 +66,7 @@ Run `/levelup.validate` to:
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
 | `/levelup.trace` | Generate and validate AI session execution traces |
 | `/levelup.validate` | Scan team-ai-directives for rule conflicts |
+| `/levelup.repair` | Re-index CDR.md, .skills.json, and AGENTS.md |
 
 ## Quick Start
 
@@ -252,7 +253,48 @@ levelup.validate ◀────────────────────
       ▼
 levelup.clarify
 (Resolve conflicts)
+
+
+levelup.repair
+(Re-index TD files)
+      │
+      │ [after manual edits]
+      ▼
+levelup.validate
+(Verify consistency)
 ```
+
+### Repair Command
+
+Re-index team-ai-directives files when they become inconsistent:
+
+```bash
+/levelup.repair
+```
+
+**Flags**:
+
+| Flag | Description |
+|------|-------------|
+| `--dry-run` | Report only, don't write changes |
+| `--cdr-only` | Only repair CDR.md |
+| `--skills-only` | Only repair .skills.json |
+| `--agents-only` | Only repair AGENTS.md |
+| (default) | Repair all three indexes with auto-fix |
+
+**What it repairs**:
+
+| Target | Repairs |
+|--------|---------|
+| **AGENTS.md** | Creates if missing, restores if corrupted |
+| **CDR.md** | Rebuilds index from context_modules/ |
+| **.skills.json** | Rebuilds manifest from skills/ |
+
+**Auto-fix actions**:
+
+- Adds YAML frontmatter to orphan context modules
+- Generates .skills.json entries for orphan skills
+- Removes entries for missing files
 
 ## Related Issues
 

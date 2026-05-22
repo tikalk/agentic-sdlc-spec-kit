@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc17] - 2026-05-22
+
+### Added
+
+- **LevelUp extension v1.6.0**: Repair command for index reindexing
+  - New `/levelup.repair` command to re-index CDR.md, .skills.json, and AGENTS.md
+  - Auto-detects orphan context modules (missing YAML frontmatter)
+  - Auto-detects orphan skills (missing .skills.json entries)
+  - Auto-generates missing metadata from file content
+  - Supports `--dry-run`, `--cdr-only`, `--skills-only`, `--agents-only` flags
+  - AGENTS.md validation and auto-repair from template
+
 # [0.8.12+adlc16] - 2026-05-21
 
 ### Added

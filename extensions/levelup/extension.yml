@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.5.0"
+  version: "1.6.0"
   description: "Discover and contribute context modules to team-ai-directives using CDRs. Features multi-agent sub-system analysis with cross-system pattern detection, inconsistency tracking, signal gate filtering, verification metadata, and freshness tracking."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -60,6 +60,12 @@ provides:
       file: "commands/validate.md"
       description: "Scan team-ai-directives for rule conflicts, update verification timestamps, and create CDRs for resolution"
       aliases: ["levelup.validate"]
+
+    # Repair - Re-index CDR.md, .skills.json, and AGENTS.md
+    - name: "adlc.levelup.repair"
+      file: "commands/repair.md"
+      description: "Re-index CDR.md, .skills.json, and AGENTS.md in team-ai-directives with auto-fix"
+      aliases: ["levelup.repair"]
 
   config:
     - name: "levelup-config.yml"
