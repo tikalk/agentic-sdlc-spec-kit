@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc18] - 2026-05-23
+
+### Fixed
+
+- **team-ai-directives reference mode**: Extension is now properly registered in `.specify/extensions/.registry` when using `--team-ai-directives` with a local directory path. Previously, the extension was not registered, causing `specify extension list` and `specify extension remove` to not recognize it, and hooks/commands were not registered with AI agents.
+
 # [0.8.12+adlc17] - 2026-05-22
 
 ### Added

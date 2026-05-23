@@ -799,13 +799,18 @@ def sync_team_ai_directives(
             )
 
         if not install:
-            # Reference mode: use directory in-place without copying
-            manifest = ExtensionManifest(manifest_path)
-            if manifest.id != TEAM_DIRECTIVES_DIRNAME:
-                raise ValueError(
-                    f"Extension ID mismatch: expected '{TEAM_DIRECTIVES_DIRNAME}', "
-                    f"got '{manifest.id}'"
-                )
+            # Reference mode: register extension without copying
+            ext_manager = ExtensionManager(project_root)
+            speckit_version = get_speckit_version()
+
+            # Force override: remove existing registration before re-registering
+            if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+                ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+            manifest = ext_manager.register_reference_extension(
+                potential_path, speckit_version, priority=1
+            )
+            _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
             return ("reference", potential_path)
 
         # Install mode: copy to .specify/extensions/

@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc18 | 2026-05-23 | 0.8.12 | Fix team-ai-directives reference mode registration in extension registry |
 | 0.8.12+adlc17 | 2026-05-22 | 0.8.12 | LevelUp extension v1.6.0: Repair command for CDR.md, .skills.json, and AGENTS.md reindexing |
 | 0.8.12+adlc16 | 2026-05-20 | 0.8.12 | Architect extension v2.1.0: Technology neutrality in Functional View, Functional-Development view parity, analyze Pass E.6/E.7 |
 | 0.8.12+adlc14 | 2026-05-19 | 0.8.12 | Product extension v1.5.6: In-section diagrams, remove Visual Summary, sections renumbered 1-12, delete visual templates, no .specify/product/visuals/ |
