@@ -5,6 +5,19 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-05-23
+
+### Fixed
+
+- **repair.md**: Redundant ID generation fixed - strips context type directory prefix (`rules/`, `personas/`, `examples/`) before generating IDs (e.g., `rules/style-guides/java/google_style_guide.md` now produces `rule-style-guides-java-google_style_guide` instead of `rule-rules-style-guides-java-google_style_guide`)
+- **repair.md**: CDR references preserved during repair - orphan files now look up existing CDR.md entries before setting `cdr_ref: null`, preventing CDR reference loss
+- **repair.md**: AGENTS.md section check now uses flexible grep (`grep -qiE "##.*CDR\\.md"`) to match both `## CDR.md` and `## Context Directive Records (CDR.md)`
+- **validate-directives.sh**: Fixed jq error `Could not open file []` caused by passing JSON string `"[]"` as a filename argument to `jq -s` in line 439; now pipes both inputs via stdin
+
+### Changed
+
+- `extension.yml`: Version bump to 1.6.1
+
 ## [1.6.0] - 2026-05-22
 
 ### Added

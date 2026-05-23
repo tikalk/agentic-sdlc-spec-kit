@@ -436,7 +436,7 @@ main() {
     constitution_conflicts=$(check_constitution_conflicts "$rules_json" "$constitution_json")
     
     local all_conflicts="[]"
-    all_conflicts=$(echo "$conflicts" | jq -s '.[0] + .[1]' "$constitution_conflicts")
+    all_conflicts=$(echo "$conflicts $constitution_conflicts" | jq -s 'add')
     
     local filtered_conflicts
     filtered_conflicts=$(filter_by_severity "$all_conflicts")

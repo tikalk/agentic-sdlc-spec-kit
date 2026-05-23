@@ -122,7 +122,7 @@ grep -q "^## Structure" "{TEAM_DIRECTIVES}/AGENTS.md"
 grep -q "^## Loading Order" "{TEAM_DIRECTIVES}/AGENTS.md"
 grep -q "^## Functional Categories" "{TEAM_DIRECTIVES}/AGENTS.md"
 grep -q "^## Using Skills" "{TEAM_DIRECTIVES}/AGENTS.md"
-grep -q "^## CDR.md" "{TEAM_DIRECTIVES}/AGENTS.md"
+grep -qiE "##.*CDR\.md" "{TEAM_DIRECTIVES}/AGENTS.md"
 ```
 
 #### Step 3: Auto-Repair
@@ -197,20 +197,52 @@ Extraction logic:
 3. Parse YAML between `---` markers
 4. Extract: `id`, `cdr_ref`, `created`, `modified`, `verified`, `age_days`
 
+#### Step 2a: Build CDR Lookup from Existing CDR.md
+
+Before generating new frontmatter, read the existing CDR.md to find pre-existing CDR references for orphan files.
+
+Parse the CDR.md index table to build a mapping of `{relative_file_path → cdr_ref}`:
+
+```bash
+# Read existing CDR.md and extract file path -> CDR reference mappings
+CDR_LOOKUP=()
+if [[ -f "{TEAM_DIRECTIVES}/CDR.md" ]]; then
+    while IFS='|' read -r _ id module _ _ _ _; do
+        id="${id// /}"
+        module="${module// /}"
+        if [[ -n "$id" && -n "$module" && "$id" =~ ^CDR- ]]; then
+            CDR_LOOKUP["$module"]="$id"
+        fi
+    done < <(grep "| CDR-" "{TEAM_DIRECTIVES}/CDR.md")
+fi
+```
+
+This creates an associative array:
+```
+context_modules/rules/style-guides/java/google_style_guide.md → CDR-2026-023
+```
+
 #### Step 3: Detect Orphans (No Frontmatter)
 
 Files with `.md` extension but no YAML frontmatter.
 
 For each orphan:
-1. Generate `id` from filename: `rules/python/new-pattern.md` → `rule-python-new-pattern`
+1. Generate `id` from filename:
+   - Strip the context type directory prefix (`rules/`, `personas/`, `examples/`)
+   - Remove `.md` extension, replace `/` with `-`, prepend type prefix
+   - Example: `rules/python/new-pattern.md` → strip `rules/` → `python/new-pattern.md` → `rule-python-new-pattern`
+   - Example: `personas/architect.md` → strip `personas/` → `architect.md` → `persona-architect`
 2. Determine context type from path:
    - `rules/` → `Rule`
    - `personas/` → `Persona`
    - `examples/` → `Example`
-3. Set default metadata:
+3. Compute the file's relative path from `TEAM_DIRECTIVES` (e.g., `context_modules/rules/style-guides/java/google_style_guide.md`) and look it up in `CDR_LOOKUP`:
+   - If found, use the existing `cdr_ref` (e.g., `CDR-2026-023`)
+   - If not found, set `cdr_ref: null`
+4. Set default metadata:
    ```yaml
    id: {generated-id}
-   cdr_ref: null
+   cdr_ref: {from CDR_LOOKUP or null}  # Preserve existing CDR ref if available
    created: {today}
    modified: {today}
    verified: {today}
@@ -222,9 +254,10 @@ If `--dry-run`:
 ```markdown
 ### Orphan Files Detected
 
-| File | Generated ID | Action |
-|------|--------------|--------|
-| rules/python/new-pattern.md | rule-python-new-pattern | Would add frontmatter |
+| File | Generated ID | Existing CDR Ref | Action |
+|------|--------------|-----------------|--------|
+| rules/python/new-pattern.md | rule-python-new-pattern | CDR-2026-023 | Would add frontmatter (preserving CDR ref) |
+| personas/architect.md | persona-architect | null | Would add frontmatter |
 ```
 
 Otherwise, auto-fix:
