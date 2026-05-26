@@ -2,6 +2,15 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc20] - 2026-05-26
+
+### Fixed
+
+- **Extension download URL**: Fixed `{{VERSION}}` placeholder not being substituted in extension download URLs
+  - The `download_extension` method in `ExtensionCatalog` now replaces `{{VERSION}}` with the actual version (with 'v' prefix)
+  - Fixes HTTP 404 errors when updating extensions like `team-ai-directives` that use version placeholders in their download URLs
+  - Example: `.../archive/refs/tags/{{VERSION}}.zip` → `.../archive/refs/tags/v1.7.2.zip`
+
 # [0.8.12+adlc18] - 2026-05-23
 
 ### Fixed

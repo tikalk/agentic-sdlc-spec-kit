@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc20 | 2026-05-26 | 0.8.12 | Fix extension download URL {{VERSION}} placeholder substitution in download_extension method |
 | 0.8.12+adlc19 | 2026-05-23 | 0.8.12 | LevelUp extension v1.6.1: Fix redundant ID generation, CDR ref preservation, AGENTS.md grep pattern, validate-directives.sh jq error |
 | 0.8.12+adlc18 | 2026-05-23 | 0.8.12 | Fix team-ai-directives reference mode registration in extension registry |
 | 0.8.12+adlc17 | 2026-05-22 | 0.8.12 | LevelUp extension v1.6.0: Repair command for CDR.md, .skills.json, and AGENTS.md reindexing |

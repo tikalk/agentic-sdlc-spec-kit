@@ -2348,6 +2348,8 @@ class ExtensionCatalog:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         version = ext_info.get("version", "unknown")
+        # Replace {{VERSION}} placeholder with actual version (add 'v' prefix for GitHub tags)
+        download_url = download_url.replace("{{VERSION}}", f"v{version}")
         zip_filename = f"{extension_id}-{version}.zip"
         zip_path = target_dir / zip_filename
 
