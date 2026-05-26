@@ -317,6 +317,57 @@ def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
     return project_path / ".agents" / "skills"
 
 
+def resolve_active_skills_dir(project_root: Path) -> Path | None:
+    """Return the active skills directory, creating it on demand when enabled.
+
+    Reads ``.specify/init-options.json`` to determine whether skills are
+    enabled and which agent was selected.  When ``ai_skills`` is true the
+    directory is created safely (symlink/containment checks); when false
+    only Kimi's native-skills fallback is honoured (directory must already
+    exist).
+
+    Returns:
+        The skills directory ``Path``, or ``None`` if skills are not active.
+
+    Raises:
+        ValueError: If the resolved skills path escapes the project root,
+            a parent component is a symlink, or a path component exists
+            but is not a directory.
+        OSError: If the directory cannot be created (e.g. permission denied).
+    """
+    from .shared_infra import _ensure_safe_shared_directory
+
+    opts = load_init_options(project_root)
+    if not isinstance(opts, dict):
+        opts = {}
+
+    agent = opts.get("ai")
+    if not isinstance(agent, str) or not agent:
+        return None
+
+    ai_skills_enabled = bool(opts.get("ai_skills"))
+    if not ai_skills_enabled and agent != "kimi":
+        return None
+
+    skills_dir = _get_skills_dir(project_root, agent)
+
+    if not ai_skills_enabled:
+        # Kimi native-skills fallback: use the directory only if it exists.
+        if not skills_dir.is_dir():
+            return None
+        _ensure_safe_shared_directory(
+            project_root, skills_dir,
+            create=False, context="agent skills directory",
+        )
+        return skills_dir
+
+    # ai_skills is explicitly enabled — create the directory safely.
+    _ensure_safe_shared_directory(
+        project_root, skills_dir, context="agent skills directory",
+    )
+    return skills_dir
+
+
 def _cli_error_detail(exc: BaseException) -> str:
     """Return a compact one-line exception detail for CLI output."""
     detail = str(exc).replace("\n", " ").strip()
