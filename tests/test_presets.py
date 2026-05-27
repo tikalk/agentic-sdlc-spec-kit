@@ -2346,6 +2346,154 @@ class TestPresetSkills:
         metadata = manager.registry.get("self-test")
         assert "speckit-specify" in metadata.get("registered_skills", [])
 
+    def test_register_skills_resolves_command_refs(self, project_dir, temp_dir):
+        """Preset skill overrides must resolve __SPECKIT_COMMAND_*__ tokens (issue #2717).
+
+        ``_register_skills()`` previously ran only ``resolve_skill_placeholders()``,
+        so command cross-references leaked into SKILL.md as raw placeholders
+        instead of rendering as ``/speckit-<cmd>`` like the command layer.
+        """
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify")
+
+        preset_dir = self._create_command_preset(
+            temp_dir,
+            "cmdref-install",
+            "speckit.specify",
+            "Override specify",
+            "Run `__SPECKIT_COMMAND_SPECIFY__` then `__SPECKIT_COMMAND_PLAN__`.\n",
+        )
+
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked into SKILL.md"
+        # Claude's invoke_separator is "-", so tokens render as /speckit-<cmd>.
+        assert "/speckit-specify" in content
+        assert "/speckit-plan" in content
+
+    def test_restore_skill_resolves_command_refs(self, project_dir, temp_dir):
+        """Skill restore on preset removal must also resolve command tokens (issue #2717)."""
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify")
+
+        core_cmds = project_dir / ".specify" / "templates" / "commands"
+        core_cmds.mkdir(parents=True, exist_ok=True)
+        (core_cmds / "specify.md").write_text(
+            "---\ndescription: Core specify\n---\n\n"
+            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+        )
+
+        preset_dir = self._create_command_preset(
+            temp_dir,
+            "cmdref-restore",
+            "speckit.specify",
+            "Override specify",
+            "Override body\n",
+        )
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+        manager.remove("cmdref-restore")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on restore"
+        assert "/speckit-plan" in content
+
+    def test_reconcile_override_skill_resolves_command_refs(self, project_dir, temp_dir):
+        """Reconcile's project-override restore must resolve command tokens (issue #2717).
+
+        When a preset that overrode a command is removed and a project override
+        becomes the winning layer, ``_reconcile_skills`` rewrites the skill from
+        the override body — which must also render ``__SPECKIT_COMMAND_*__`` tokens.
+        """
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify")
+
+        # Project override wins once the preset is removed; its body carries a
+        # command cross-reference token. No core template exists for "specify",
+        # so the skill is restored exclusively via the reconcile override branch.
+        overrides_dir = project_dir / ".specify" / "templates" / "overrides"
+        overrides_dir.mkdir(parents=True, exist_ok=True)
+        (overrides_dir / "speckit.specify.md").write_text(
+            "---\ndescription: Override specify\n---\n\n"
+            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+        )
+
+        preset_dir = self._create_command_preset(
+            temp_dir,
+            "cmdref-reconcile",
+            "speckit.specify",
+            "Preset specify",
+            "Preset body\n",
+        )
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+        manager.remove("cmdref-reconcile")
+
+        content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
+        assert "override:speckit.specify" in content, "skill should be restored from the project override"
+        assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on reconcile"
+        assert "/speckit-plan" in content
+
+    def test_extension_restore_resolves_command_refs(self, project_dir, temp_dir):
+        """Extension-backed skill restore must resolve command tokens (issue #2717).
+
+        When a preset override is removed and the skill is restored from an
+        extension command body, ``__SPECKIT_COMMAND_*__`` tokens in that body
+        must render as slash-command invocations like the core-template path.
+        """
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-fakeext-cmd", body="original extension skill")
+
+        extension_dir = project_dir / ".specify" / "extensions" / "fakeext"
+        (extension_dir / "commands").mkdir(parents=True, exist_ok=True)
+        (extension_dir / "commands" / "cmd.md").write_text(
+            "---\ndescription: Extension fakeext cmd\n---\n\n"
+            "Then run `__SPECKIT_COMMAND_PLAN__`.\n"
+        )
+        extension_manifest = {
+            "schema_version": "1.0",
+            "extension": {
+                "id": "fakeext",
+                "name": "Fake Extension",
+                "version": "1.0.0",
+                "description": "Test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "commands": [
+                    {
+                        "name": "speckit.fakeext.cmd",
+                        "file": "commands/cmd.md",
+                        "description": "Fake extension command",
+                    }
+                ]
+            },
+        }
+        with open(extension_dir / "extension.yml", "w") as f:
+            yaml.dump(extension_manifest, f)
+
+        preset_dir = self._create_command_preset(
+            temp_dir,
+            "cmdref-ext-restore",
+            "speckit.fakeext.cmd",
+            "Override fakeext cmd",
+            "Override body\n",
+        )
+        manager = PresetManager(project_dir)
+        manager.install_from_directory(preset_dir, "0.1.5")
+        manager.remove("cmdref-ext-restore")
+
+        content = (skills_dir / "speckit-fakeext-cmd" / "SKILL.md").read_text()
+        assert "source: extension:fakeext" in content, "skill should be restored from the extension"
+        assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on extension restore"
+        assert "/speckit-plan" in content
+
     def test_core_command_override_skill_uses_preset_command_description(self, project_dir, temp_dir):
         """Preset skill overrides for core commands should keep preset frontmatter descriptions."""
         self._write_init_options(project_dir, ai="claude")
