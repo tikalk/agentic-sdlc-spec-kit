@@ -165,31 +165,45 @@ def build_alias_map(project_root: Path) -> dict[str, str]:
     """
     alias_map: dict[str, str] = {}
     
-    # Scan extensions
+    # Scan extensions (both copied and reference/top-level)
     extensions_dir = project_root / ".specify" / "extensions"
+    scan_dirs: list[Path] = []
     if extensions_dir.is_dir():
         for ext_dir in extensions_dir.iterdir():
-            if not ext_dir.is_dir():
+            if ext_dir.is_dir() and not ext_dir.name.startswith("."):
+                scan_dirs.append(ext_dir)
+    # Also scan reference extensions stored at top-level paths
+    try:
+        from specify_cli.extensions import ExtensionRegistry
+        registry = ExtensionRegistry(extensions_dir)
+        for _ext_id, metadata in registry.list().items():
+            if metadata.get("source") == "reference" and metadata.get("path"):
+                ref_path = Path(metadata["path"])
+                if ref_path.is_dir() and ref_path not in scan_dirs:
+                    scan_dirs.append(ref_path)
+    except Exception:
+        pass
+    
+    for ext_dir in scan_dirs:
+        manifest_path = ext_dir / "extension.yml"
+        if not manifest_path.is_file():
+            continue
+        try:
+            import yaml
+            with open(manifest_path, 'r', encoding='utf-8') as f:
+                manifest = yaml.safe_load(f)
+            if not isinstance(manifest, dict):
                 continue
-            manifest_path = ext_dir / "extension.yml"
-            if not manifest_path.is_file():
-                continue
-            try:
-                import yaml
-                with open(manifest_path, 'r', encoding='utf-8') as f:
-                    manifest = yaml.safe_load(f)
-                if not isinstance(manifest, dict):
+            commands = manifest.get("provides", {}).get("commands", [])
+            for cmd in commands:
+                if not isinstance(cmd, dict):
                     continue
-                commands = manifest.get("provides", {}).get("commands", [])
-                for cmd in commands:
-                    if not isinstance(cmd, dict):
-                        continue
-                    cmd_name = cmd.get("name")
-                    aliases = cmd.get("aliases", [])
-                    if cmd_name and aliases and isinstance(aliases, list):
-                        alias_map[cmd_name] = aliases[0]
-            except Exception:
-                continue
+                cmd_name = cmd.get("name")
+                aliases = cmd.get("aliases", [])
+                if cmd_name and aliases and isinstance(aliases, list):
+                    alias_map[cmd_name] = aliases[0]
+        except Exception:
+            continue
     
     # Scan presets
     presets_dir = project_root / ".specify" / "presets"
@@ -243,6 +257,72 @@ def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> st
     
     alias_map = build_alias_map(project_root)
     return alias_map.get(cmd_name, cmd_name)
+
+
+# ============================================================================
+# REFERENCE EXTENSION PATH RESOLUTION
+# ============================================================================
+
+
+def resolve_extension_dir(project_root: Path, extension_id: str) -> Path:
+    """Resolve extension directory, handling reference (top-level) extensions.
+
+    Reference extensions are registered in the extension registry with
+    ``source: "reference"`` and a ``path`` pointing to a top-level directory
+    outside ``.specify/extensions/``. This function checks the registry first
+    and falls back to the standard ``.specify/extensions/{id}`` location.
+
+    Args:
+        project_root: Path to the project root
+        extension_id: Extension ID to resolve
+
+    Returns:
+        Path to the extension directory
+    """
+    try:
+        from specify_cli.extensions import ExtensionRegistry
+
+        registry = ExtensionRegistry(project_root / ".specify" / "extensions")
+        metadata = registry.get(extension_id)
+        if (
+            metadata
+            and metadata.get("source") == "reference"
+            and metadata.get("path")
+        ):
+            return Path(metadata["path"])
+    except Exception:
+        pass
+    return project_root / ".specify" / "extensions" / extension_id
+
+
+def get_reference_extension_paths(project_root: Path) -> list[Path]:
+    """Return paths of all reference (top-level) extensions.
+
+    Scans the extension registry for entries with ``source: "reference"``
+    and returns their stored paths, filtering to only existing directories.
+
+    Args:
+        project_root: Path to the project root
+
+    Returns:
+        List of directory paths for reference extensions
+    """
+    try:
+        from specify_cli.extensions import ExtensionRegistry
+
+        registry = ExtensionRegistry(project_root / ".specify" / "extensions")
+        paths: list[Path] = []
+        for _ext_id, metadata in registry.list().items():
+            if (
+                metadata.get("source") == "reference"
+                and metadata.get("path")
+            ):
+                p = Path(metadata["path"])
+                if p.is_dir():
+                    paths.append(p)
+        return paths
+    except Exception:
+        return []
 
 
 # ============================================================================

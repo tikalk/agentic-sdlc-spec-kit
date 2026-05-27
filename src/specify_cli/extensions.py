@@ -1579,7 +1579,11 @@ class ExtensionManager:
             if manifest is None:
                 continue
 
-            ext_dir = self.extensions_dir / ext_id
+            try:
+                from specify_cli.cli_customization import resolve_extension_dir
+                ext_dir = resolve_extension_dir(self.project_root, ext_id)
+            except ImportError:
+                ext_dir = self.extensions_dir / ext_id
             updates: Dict[str, Any] = {}
 
             if agent_config and not skills_mode_active:
@@ -2402,7 +2406,13 @@ class ConfigManager:
         """
         self.project_root = project_root
         self.extension_id = extension_id
-        self.extension_dir = project_root / ".specify" / "extensions" / extension_id
+        try:
+            from specify_cli.cli_customization import resolve_extension_dir
+            self.extension_dir = resolve_extension_dir(project_root, extension_id)
+        except ImportError:
+            self.extension_dir = (
+                project_root / ".specify" / "extensions" / extension_id
+            )
 
     def _load_yaml_config(self, file_path: Path) -> Dict[str, Any]:
         """Load configuration from YAML file.

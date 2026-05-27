@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc21] - 2026-05-28
+
+### Added
+
+- **Reference extension support**: Extensions registered with `source: reference` and a top-level `path` (e.g., `./team-ai-directives/`) are now fully supported across the CLI:
+  - Extension directory resolution (`resolve_extension_dir()` in `cli_customization.py`)
+  - Config file loading (`ConfigManager` in `extensions.py`)
+  - Command/skill re-registration (`register_enabled_extensions_for_agent()` in `extensions.py`)
+  - Script permission setting (`ensure_executable_scripts()` in `__init__.py`)
+  - Alias map building (`build_alias_map()` in `cli_customization.py`)
+  - All logic centralized in `cli_customization.py` per fork philosophy; upstream files get minimal call-site delegations
+
+### Tests
+
+- Added 4 tests for reference extension path resolution in `tests/test_team_directives.py`
+
 # [0.8.12+adlc20] - 2026-05-26
 
 ### Fixed

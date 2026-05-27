@@ -1,10 +1,106 @@
 """Tests for team-ai-directives synchronization with authentication module."""
 
-from pathlib import Path
 import urllib.error
 from unittest.mock import patch, MagicMock
 import pytest
-from specify_cli import sync_team_ai_directives, TEAM_DIRECTIVES_DIRNAME
+from specify_cli import sync_team_ai_directives
+from specify_cli.cli_customization import (
+    resolve_extension_dir,
+    get_reference_extension_paths,
+    build_alias_map,
+)
+
+
+# ============================================================================
+# Reference Extension Path Resolution Tests
+# ============================================================================
+
+
+def test_resolve_extension_dir_for_reference(tmp_path):
+    """Should return stored path for reference extensions."""
+    ext_id = "my-ref-ext"
+    ref_path = tmp_path / "my-ref-ext"
+    ref_path.mkdir()
+
+    # Create registry with reference extension
+    registry_dir = tmp_path / ".specify" / "extensions"
+    registry_dir.mkdir(parents=True)
+    registry_file = registry_dir / ".registry"
+    registry_file.write_text(
+        f'{{"schema_version": "1.0", "extensions": '
+        f'{{"{ext_id}": {{"source": "reference", "path": "{ref_path}"}}}}}}'
+    )
+
+    result = resolve_extension_dir(tmp_path, ext_id)
+    assert result == ref_path
+
+
+def test_resolve_extension_dir_for_installed(tmp_path):
+    """Should fall back to .specify/extensions/{id} for copied extensions."""
+    ext_id = "git"
+    installed_path = tmp_path / ".specify" / "extensions" / ext_id
+    installed_path.mkdir(parents=True)
+
+    result = resolve_extension_dir(tmp_path, ext_id)
+    assert result == installed_path
+
+
+def test_get_reference_extension_paths(tmp_path):
+    """Should return only reference extensions with valid paths."""
+    ref_path = tmp_path / "team-ai-directives"
+    ref_path.mkdir()
+
+    registry_dir = tmp_path / ".specify" / "extensions"
+    registry_dir.mkdir(parents=True)
+    registry_file = registry_dir / ".registry"
+    registry_file.write_text(
+        f'{{"schema_version": "1.0", "extensions": '
+        f'{{"team-ai-directives": '
+        f'{{"source": "reference", "path": "{ref_path}"}},'
+        f'"git": {{"source": "local", "path": "/some/path"}}}}}}'
+    )
+
+    paths = get_reference_extension_paths(tmp_path)
+    assert len(paths) == 1
+    assert paths[0] == ref_path
+
+
+def test_build_alias_map_includes_reference_extensions(tmp_path):
+    """Should discover aliases from reference (top-level) extensions."""
+    ref_path = tmp_path / "team-ai-directives"
+    ref_path.mkdir()
+    commands_dir = ref_path / "commands"
+    commands_dir.mkdir()
+
+    # Write extension.yml with aliases
+    (ref_path / "extension.yml").write_text(
+        'schema_version: "1.0"\n'
+        'extension:\n'
+        '  id: team-ai-directives\n'
+        '  name: Team AI Directives\n'
+        '  version: "1.0.0"\n'
+        '  description: Test\n'
+        'requires:\n'
+        '  speckit_version: ">=0.3.0"\n'
+        'provides:\n'
+        '  commands:\n'
+        '    - name: adlc.team-ai-directives.verify\n'
+        '      file: commands/verify.md\n'
+        '      aliases:\n'
+        '        - team.verify\n'
+    )
+
+    # Register as reference extension
+    registry_dir = tmp_path / ".specify" / "extensions"
+    registry_dir.mkdir(parents=True)
+    (registry_dir / ".registry").write_text(
+        f'{{"schema_version": "1.0", "extensions": '
+        f'{{"team-ai-directives": '
+        f'{{"source": "reference", "path": "{ref_path}"}}}}}}'
+    )
+
+    alias_map = build_alias_map(tmp_path)
+    assert alias_map.get("adlc.team-ai-directives.verify") == "team.verify"
 
 
 def test_sync_accepts_zip_urls(tmp_path):

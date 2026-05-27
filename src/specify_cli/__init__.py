@@ -405,6 +405,12 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         project_path / ".specify" / "scripts",
         project_path / ".specify" / "extensions",
     ]
+    try:
+        from specify_cli.cli_customization import get_reference_extension_paths
+        for ref_path in get_reference_extension_paths(project_path):
+            scan_roots.append(ref_path)
+    except ImportError:
+        pass
     failures: list[str] = []
     updated = 0
     for scripts_root in scan_roots:
