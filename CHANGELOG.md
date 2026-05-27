@@ -2,6 +2,20 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.8.15] - 2026-05-27
+
+### Changed
+
+- Update Fiction Book Writing preset to v1.8.1 (#2714)
+- chore: update memorylint and superb to 1.4.0 (#2690)
+- fix: promote post-execution hook dispatch to H2 with directive language (#2713)
+- Add Token Budget extension to community catalog (#2712)
+- fix: create skills directory on demand during extension/preset install (#2711)
+- fix: PS 5.1 compat — replace non-ASCII chars in shipped PowerShell scripts (#2709)
+- docs: update security-governance preset to v0.3.0 (#2676)
+- Update README.md (#2675)
+- chore: release 0.8.14, begin 0.8.15.dev0 development (#2706)
+
 ## [0.8.14] - 2026-05-26
 
 ### Changed
