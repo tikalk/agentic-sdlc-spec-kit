@@ -270,3 +270,63 @@ def test_sync_open_url_called_for_download(tmp_path, monkeypatch):
         call_args = mock_open.call_args
         assert call_args[0][0] == repo_url
         assert call_args[1].get("timeout") == 60
+
+
+def test_preset_resolver_finds_reference_extension_commands(tmp_path):
+    """PresetResolver.resolve() should find commands in reference extensions.
+
+    Regression test for the bug where resolve(), resolve_extension_command_via_manifest(),
+    _get_source_info(), and collect_all_layers() all hardcoded
+    ``self.extensions_dir / ext_id`` and ignored reference extensions living
+    outside ``.specify/extensions/``.
+    """
+    from specify_cli.presets import PresetResolver
+
+    project_root = tmp_path
+    ext_id = "team-ai-directives"
+    ref_path = project_root / ext_id
+    ref_path.mkdir()
+
+    # Create extension manifest with a command
+    (ref_path / "extension.yml").write_text(
+        'schema_version: "1.0"\n'
+        "extension:\n"
+        '  id: "team-ai-directives"\n'
+        '  name: "Team AI Directives"\n'
+        '  version: "1.0.0"\n'
+        '  description: "Team-specific AI directives"\n'
+        "requires:\n"
+        '  speckit_version: ">=0.1.0"\n'
+        "provides:\n"
+        "  commands:\n"
+        '    - name: "adlc.team-ai-directives.constitution"\n'
+        '      file: "commands/constitution.md"\n'
+        '      description: "Load team constitution"\n'
+    )
+    commands_dir = ref_path / "commands"
+    commands_dir.mkdir()
+    (commands_dir / "constitution.md").write_text("# Team Constitution\n")
+
+    # Register as reference extension
+    registry_dir = project_root / ".specify" / "extensions"
+    registry_dir.mkdir(parents=True)
+    (registry_dir / ".registry").write_text(
+        f'{{"schema_version": "1.0", "extensions": '
+        f'{{"{ext_id}": {{"source": "reference", "path": "{ref_path}"}}}}}}'
+    )
+
+    resolver = PresetResolver(project_root)
+
+    # Test resolve_extension_command_via_manifest() finds the command
+    # in a reference extension living outside .specify/extensions/
+    found_via_manifest = resolver.resolve_extension_command_via_manifest(
+        "adlc.team-ai-directives.constitution"
+    )
+    assert found_via_manifest is not None
+    assert found_via_manifest == commands_dir / "constitution.md"
+
+    # Test collect_all_layers() includes the reference extension
+    layers = resolver.collect_all_layers(
+        "adlc.team-ai-directives.constitution", "command"
+    )
+    assert any("team-ai-directives" in layer.get("source", "") for layer in layers)

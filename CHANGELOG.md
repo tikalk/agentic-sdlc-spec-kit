@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc22] - 2026-05-28
+
+### Fixed
+
+- **PresetResolver reference extension path resolution**: `resolve_extension_command_via_manifest()`, `collect_all_layers()`, `_get_source_info()`, and `resolve()` in `presets.py` all hardcoded `self.extensions_dir / ext_id`, breaking reference extensions living outside `.specify/extensions/` (e.g., `./team-ai-directives/`). All four locations now call `resolve_extension_dir()` from `cli_customization.py` with the standard `try/except ImportError` fallback pattern.
+
+### Tests
+
+- Added `test_preset_resolver_finds_reference_extension_commands` in `tests/test_team_directives.py` to verify `PresetResolver` can locate commands in reference extensions via both manifest-based and layer-based resolution.
+
 # [0.8.12+adlc21] - 2026-05-28
 
 ### Added
