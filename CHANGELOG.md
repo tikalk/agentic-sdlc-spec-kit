@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc23] - 2026-05-28
+
+### Fixed
+
+- **Windows test failures**: Replaced f-string JSON construction with `json.dumps()` in `tests/test_team_directives.py` to properly escape Windows paths containing backslashes. This fixes corrupted `.registry` JSON on Windows that caused `resolve_extension_dir()`, `get_reference_extension_paths()`, and `build_alias_map()` to fail.
+
 # [0.8.12+adlc22] - 2026-05-28
 
 ### Fixed

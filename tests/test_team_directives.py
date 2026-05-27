@@ -1,5 +1,6 @@
 """Tests for team-ai-directives synchronization with authentication module."""
 
+import json
 import urllib.error
 from unittest.mock import patch, MagicMock
 import pytest
@@ -27,8 +28,14 @@ def test_resolve_extension_dir_for_reference(tmp_path):
     registry_dir.mkdir(parents=True)
     registry_file = registry_dir / ".registry"
     registry_file.write_text(
-        f'{{"schema_version": "1.0", "extensions": '
-        f'{{"{ext_id}": {{"source": "reference", "path": "{ref_path}"}}}}}}'
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "extensions": {
+                    ext_id: {"source": "reference", "path": str(ref_path)}
+                },
+            }
+        )
     )
 
     result = resolve_extension_dir(tmp_path, ext_id)
@@ -54,10 +61,18 @@ def test_get_reference_extension_paths(tmp_path):
     registry_dir.mkdir(parents=True)
     registry_file = registry_dir / ".registry"
     registry_file.write_text(
-        f'{{"schema_version": "1.0", "extensions": '
-        f'{{"team-ai-directives": '
-        f'{{"source": "reference", "path": "{ref_path}"}},'
-        f'"git": {{"source": "local", "path": "/some/path"}}}}}}'
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "extensions": {
+                    "team-ai-directives": {
+                        "source": "reference",
+                        "path": str(ref_path),
+                    },
+                    "git": {"source": "local", "path": "/some/path"},
+                },
+            }
+        )
     )
 
     paths = get_reference_extension_paths(tmp_path)
@@ -94,9 +109,17 @@ def test_build_alias_map_includes_reference_extensions(tmp_path):
     registry_dir = tmp_path / ".specify" / "extensions"
     registry_dir.mkdir(parents=True)
     (registry_dir / ".registry").write_text(
-        f'{{"schema_version": "1.0", "extensions": '
-        f'{{"team-ai-directives": '
-        f'{{"source": "reference", "path": "{ref_path}"}}}}}}'
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "extensions": {
+                    "team-ai-directives": {
+                        "source": "reference",
+                        "path": str(ref_path),
+                    }
+                },
+            }
+        )
     )
 
     alias_map = build_alias_map(tmp_path)
@@ -311,8 +334,14 @@ def test_preset_resolver_finds_reference_extension_commands(tmp_path):
     registry_dir = project_root / ".specify" / "extensions"
     registry_dir.mkdir(parents=True)
     (registry_dir / ".registry").write_text(
-        f'{{"schema_version": "1.0", "extensions": '
-        f'{{"{ext_id}": {{"source": "reference", "path": "{ref_path}"}}}}}}'
+        json.dumps(
+            {
+                "schema_version": "1.0",
+                "extensions": {
+                    ext_id: {"source": "reference", "path": str(ref_path)}
+                },
+            }
+        )
     )
 
     resolver = PresetResolver(project_root)
