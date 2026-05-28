@@ -14,6 +14,20 @@ scripts:
   ps: scripts/powershell/check-prerequisites.ps1 -Json
 ---
 
+## MANDATORY: Pre-Execution Hooks
+
+**STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
+
+1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+2. Read `.specify/extensions.yml` and find `hooks.before_tasks`.
+3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+4. For each remaining hook:
+   - **Mandatory** (`optional: false`): Read the command file for `{command}` from the extension commands directory and execute its full instructions NOW before continuing.
+   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+5. State which hooks were executed, then proceed to User Input.
+
+---
+
 ## User Input
 
 ```text
@@ -21,35 +35,6 @@ $ARGUMENTS
 ```
 
 You **MUST** consider the user input before proceeding (if not empty).
-
-## Pre-Execution Checks
-
-**Check for extension hooks (before tasks generation)**:
-- Check if `.specify/extensions.yml` exists in the project root.
-- If it exists, read it and look for entries under the `hooks.before_tasks` key
-- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-- For each executable hook, output the following based on its `optional` flag:
-  - **Optional hook** (`optional: true`):
-    ```
-    ## Extension Hooks
-
-    **Optional Pre-Hook**: {extension}
-    Command: `/{command}`
-    Description: {description}
-
-    Prompt: {prompt}
-    To execute: `/{command}`
-    ```
-  - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
-    - If the hook command file cannot be found, log a warning and proceed anyway
-- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
@@ -138,32 +123,6 @@ If working in a non-git repository:
     - Independent test criteria for each story
     - Suggested MVP scope (typically just User Story 1)
     - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
-
-8. **Check for extension hooks**: After tasks.md is generated, check if `.specify/extensions.yml` exists in the project root.
-   - If it exists, read it and look for entries under the `hooks.after_tasks` key
-   - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-   - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-   - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-     - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-     - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-   - For each executable hook, output the following based on its `optional` flag:
-     - **Optional hook** (`optional: true`):
-       ```
-       ## Extension Hooks
-
-       **Optional Hook**: {extension}
-       Command: `/{command}`
-       Description: {description}
-
-       Prompt: {prompt}
-       To execute: `/{command}`
-       ```
-- **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed
-    - If the hook command file cannot be found or execution fails, log a warning and continue
-    - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 Context for task generation: {ARGS}
 
@@ -260,3 +219,13 @@ Every task MUST strictly follow this format:
   - Independent component implementation
   - Standard library/framework usage
   - Tasks with comprehensive test coverage
+
+## Post-Execution Hooks
+
+1. If `.specify/extensions.yml` does not exist, skip silently.
+2. Read `hooks.after_tasks`.
+3. Skip hooks with `enabled: false` or non-empty `condition`.
+4. For each remaining hook:
+   - **Mandatory** (`optional: false`): Read and execute the hook command file immediately.
+   - **Optional** (`optional: true`): Display hook info for user decision.
+5. If no hooks registered, skip silently.

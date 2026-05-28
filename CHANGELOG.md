@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc25] - 2026-05-28
+
+### Fixed
+
+- **Hook execution hardening in all preset command files**: Extension hooks were buried after `## User Input` sections, causing agents to skip them and jump straight to the main workflow. Fixed in all 8 `presets/agentic-sdlc/commands/adlc.spec.*.md` files:
+  - **Pre-execution hooks moved to absolute top**: Now appear immediately after frontmatter, before `## User Input` (or before `## Mission Brief` in `specify.md`)
+  - **Compact imperative format**: Replaced ~25-line verbose instructions with ~12-line numbered steps starting with explicit **STOP** language
+  - **Post-execution hooks extracted and standardized**: Removed from inside numbered workflow lists (where they were ignored) into standalone `## Post-Execution Hooks` sections at file end
+  - **Broken indentation fixed** in `implement.md`, `plan.md`, and `tasks.md` post-execution blocks
+  - Added missing `## Post-Execution Hooks` section to `checklist.md` (was completely absent)
+
 # [0.8.12+adlc24] - 2026-05-28
 
 ### Added
