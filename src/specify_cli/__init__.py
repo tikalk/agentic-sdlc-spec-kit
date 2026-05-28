@@ -1218,11 +1218,14 @@ def integration_uninstall(
         console.print(f"[dim]Details:[/dim] {exc}")
         raise typer.Exit(1)
 
-    removed, skipped = manifest.uninstall(project_root, force=force)
-
-    # Remove managed context section from the agent context file
-    if integration:
-        integration.remove_context_section(project_root)
+    if not integration:
+        console.print(
+            f"[yellow]Warning:[/yellow] Integration '{key}' not found "
+            "in registry. Falling back to manifest-based cleanup."
+        )
+        removed, skipped = manifest.uninstall(project_root, force=force)
+    else:
+        removed, skipped = integration.teardown(project_root, manifest, force=force)
 
     remaining = [installed for installed in installed_keys if installed != key]
     new_default = default_key if default_key != key else (remaining[0] if remaining else None)
@@ -1364,8 +1367,9 @@ def integration_switch(
                     f"run [cyan]specify integration uninstall {installed_key}[/cyan], then retry."
                 )
                 raise typer.Exit(1)
-            removed, skipped = old_manifest.uninstall(project_root, force=force)
-            current_integration.remove_context_section(project_root)
+            removed, skipped = current_integration.teardown(
+                project_root, old_manifest, force=force,
+            )
             if removed:
                 console.print(f"  Removed {len(removed)} file(s)")
             if skipped:
@@ -3601,7 +3605,9 @@ def extension_update(
                     if agent_name not in registrar.AGENT_CONFIGS:
                         continue
                     agent_config = registrar.AGENT_CONFIGS[agent_name]
-                    commands_dir = project_root / agent_config["dir"]
+                    commands_dir = _AgentReg._resolve_agent_dir(
+                        agent_name, agent_config, project_root
+                    )
 
                     for cmd_name in cmd_names:
                         output_name = _AgentReg._compute_output_name(agent_name, cmd_name, agent_config)
@@ -3762,7 +3768,9 @@ def extension_update(
                             if agent_name not in registrar.AGENT_CONFIGS:
                                 continue
                             agent_config = registrar.AGENT_CONFIGS[agent_name]
-                            commands_dir = project_root / agent_config["dir"]
+                            commands_dir = _AgentReg._resolve_agent_dir(
+                                agent_name, agent_config, project_root
+                            )
 
                             for cmd_name in cmd_names:
                                 output_name = _AgentReg._compute_output_name(agent_name, cmd_name, agent_config)

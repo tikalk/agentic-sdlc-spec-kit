@@ -654,15 +654,28 @@ class CommandRegistrar:
     ) -> Path:
         """Return the agent command directory, falling back to legacy_dir.
 
-        When the canonical directory (``agent_config["dir"]``) does not
-        exist but a ``legacy_dir`` is configured and present on disk,
-        returns the legacy path and emits a deprecation warning advising
-        the user to upgrade.
+        Supports project-relative paths (e.g. ``.claude/skills/``),
+        home-relative paths (e.g. ``~/.hermes/skills``), and absolute
+        paths — the ``agent_config["dir"]`` value is resolved verbatim
+        when absolute or starting with ``~/``, or joined with
+        ``project_root`` when relative.
+
+        When the canonical directory does not exist but a ``legacy_dir``
+        is configured and present on disk, returns the legacy path and
+        emits a deprecation warning advising the user to upgrade.
 
         Integrations that do not declare ``legacy_dir`` get the canonical
         path unconditionally — no fallback, no warning.
         """
-        agent_dir = project_root / agent_config["dir"]
+        dir_str = agent_config["dir"]
+        if dir_str.startswith("~"):
+            # Use Path.home() + remainder instead of expanduser() so tests
+            # that monkeypatch Path.home() can properly isolate the home dir.
+            # expanduser() uses OS env/user lookup and ignores monkeypatches.
+            agent_dir = Path.home() / dir_str[1:].lstrip("/")
+        else:
+            p = Path(dir_str)
+            agent_dir = p if p.is_absolute() else project_root / p
         if not agent_dir.exists():
             legacy = agent_config.get("legacy_dir")
             if legacy:
@@ -704,6 +717,15 @@ class CommandRegistrar:
 
         self._ensure_configs()
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
+            # Check detect_dir first (project-local marker) if configured,
+            # falling back to the resolved dir for output.  This prevents
+            # global dirs (e.g. ~/.hermes/skills) from causing false
+            # detection in every project.
+            detect_dir_str = agent_config.get("detect_dir")
+            if detect_dir_str:
+                detect_path = project_root / detect_dir_str
+                if not detect_path.exists():
+                    continue
             agent_dir = self._resolve_agent_dir(
                 agent_name, agent_config, project_root,
             )
@@ -755,6 +777,11 @@ class CommandRegistrar:
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
             if agent_config.get("extension") == "/SKILL.md":
                 continue
+            detect_dir_str = agent_config.get("detect_dir")
+            if detect_dir_str:
+                detect_path = project_root / detect_dir_str
+                if not detect_path.exists():
+                    continue
             agent_dir = self._resolve_agent_dir(
                 agent_name, agent_config, project_root,
             )
