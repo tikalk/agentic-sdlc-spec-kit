@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc28] - 2026-05-28
+
+### Fixed
+
+- **Preset hook command resolution**: All 8 preset command files now instruct agents to resolve hook command filenames via the extension's `extension.yml` manifest (`provides.commands[].file`) rather than guessing by appending `.md` to the command name. This fixes hook failures for all extensions using short command filenames (architect, product, levelup, team-ai-directives). Git extension hooks were already working because git uses full command names as filenames.
+  - Preset version bumped to `1.0.5`
+
 # [0.8.12+adlc27] - 2026-05-28
 
 ### Fixed
