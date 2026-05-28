@@ -25,6 +25,12 @@ import yaml
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
 
+_HOOK_COMMAND_NOTE = (
+    "- When constructing slash commands from hook command names, "
+    "replace dots (`.`) with hyphens (`-`). "
+    "For example, `speckit.git.commit` → `/speckit-git-commit`.\n"
+)
+
 
 # ---------------------------------------------------------------------------
 # IntegrationOption
@@ -1391,15 +1397,53 @@ class SkillsIntegration(IntegrationBase):
             invocation = f"{invocation} {args}"
         return invocation
 
+    @staticmethod
+    def _inject_hook_command_note(content: str) -> str:
+        """Insert a dot-to-hyphen note before each hook output instruction.
+
+        Targets the line ``- For each executable hook, output the following``
+        and inserts the note on the line before it, matching its indentation.
+        Skips individual instructions that already have the note immediately
+        above them.
+        """
+        note = _HOOK_COMMAND_NOTE.rstrip("\n")
+
+        def repl(m: re.Match[str]) -> str:
+            indent = m.group(1)
+            instruction = m.group(2)
+            previous_lines = content[:m.start()].splitlines()
+            if previous_lines and previous_lines[-1] == indent + note:
+                return m.group(0)
+            # ``eol`` is empty when the regex matched via ``$`` because the
+            # instruction was the final line of a file with no trailing
+            # newline. Default to ``\n`` so the note never collapses onto
+            # the same line as the instruction.
+            eol = m.group(3) or "\n"
+            return (
+                indent
+                + note
+                + eol
+                + indent
+                + instruction
+                + eol
+            )
+
+        return re.sub(
+            r"(?m)^([ \t]*)(- For each executable hook, output the following[^\r\n]*)(\r\n|\n|$)",
+            repl,
+            content,
+        )
+
     def post_process_skill_content(self, content: str) -> str:
         """Post-process a SKILL.md file's content after generation.
 
         Called by external skill generators (presets, extensions) to let
         the integration inject agent-specific frontmatter or body
-        transformations.  The default implementation returns *content*
-        unchanged.  Subclasses may override — see ``ClaudeIntegration``.
+        transformations.  The base implementation injects shared skills
+        guidance for converting dotted hook command names to hyphenated
+        slash commands.  Subclasses may override — see ``ClaudeIntegration``.
         """
-        return content
+        return self._inject_hook_command_note(content)
 
     def setup(
         self,
@@ -1501,6 +1545,8 @@ class SkillsIntegration(IntegrationBase):
                 f"---\n"
                 f"{processed_body}"
             )
+
+            skill_content = self.post_process_skill_content(skill_content)
 
             # Write speckit-<name>/SKILL.md
             skill_dir = skills_dir / skill_name
