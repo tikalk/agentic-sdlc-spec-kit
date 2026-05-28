@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-04-29T00:00:00Z",
+  "updated_at": "2026-05-28T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
     "git": {
@@ -21,7 +21,7 @@
     "team-ai-directives": {
       "id": "team-ai-directives",
       "name": "Team AI Directives",
-      "version": "1.5.0",
+      "version": "1.7.3",
       "bundled": false,
       "preinstall": false,
       "description": "Team-specific AI agent context, skills, and conventions for Spec-Driven Development",
@@ -34,9 +34,10 @@
         "speckit_version": ">=0.3.0"
       },
       "commands": [
-        "adlc.team.verify",
-        "adlc.team.discover",
-        "adlc.team.constitution"
+        "adlc.team-ai-directives.verify",
+        "adlc.team-ai-directives.discover",
+        "adlc.team-ai-directives.constitution",
+        "adlc.team-ai-directives.release"
       ],
       "tags": [
         "team-directives",
