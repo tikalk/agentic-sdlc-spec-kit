@@ -890,6 +890,9 @@ def sync_team_ai_directives(
             manifest = ext_manager.register_reference_extension(
                 potential_path, speckit_version, priority=1
             )
+            copy_reference_extension_commands(
+                project_root, manifest.id, potential_path
+            )
             _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
             return ("reference", potential_path)
 
@@ -1061,6 +1064,33 @@ def check_reference_extension_update(
     return None, None
 
 
+def copy_reference_extension_commands(
+    project_root: Path,
+    ext_id: str,
+    reference_path: Path,
+) -> None:
+    """Copy command files from a reference extension to .specify/extensions/<ext>/commands/.
+
+    This ensures preset hook resolution can find command files at the expected
+    local path regardless of whether the extension is installed locally or
+    registered as a reference.
+    """
+    import shutil
+
+    source_commands = reference_path / "commands"
+    if not source_commands.exists():
+        return
+
+    dest_dir = project_root / ".specify" / "extensions" / ext_id / "commands"
+    if dest_dir.exists():
+        shutil.rmtree(dest_dir)
+    dest_dir.mkdir(parents=True, exist_ok=True)
+
+    for cmd_file in source_commands.iterdir():
+        if cmd_file.is_file():
+            shutil.copy2(cmd_file, dest_dir / cmd_file.name)
+
+
 def apply_reference_extension_update(
     manager: Any,
     ext_id: str,
@@ -1116,6 +1146,11 @@ def apply_reference_extension_update(
 
     # Re-register from reference path
     manager.register_reference_extension(ref_path, speckit_version, priority=priority)
+
+    # Copy command files so preset hook resolution finds them locally
+    copy_reference_extension_commands(
+        manager.project_root, ext_id, ref_path
+    )
 
 
 def pre_init(

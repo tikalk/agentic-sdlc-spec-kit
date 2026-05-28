@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc27] - 2026-05-28
+
+### Fixed
+
+- **Reference extension hook resolution**: `register_reference_extension()` now copies command files to `.specify/extensions/<ext>/commands/` so preset hook execution can find them. Previously, reference extensions only registered agent command files but left `.specify/extensions/<ext>/commands/` empty, causing `before_constitution` hooks to fail with "File not found".
+  - New helper `copy_reference_extension_commands()` in `cli_customization.py`
+  - Called after `register_reference_extension()` in both initial setup (`sync_team_ai_directives`) and updates (`apply_reference_extension_update`)
+
+### Changed
+
+- **Team AI Directives extension v1.7.4**:
+  - Command files renamed to align with architect naming convention (`commands/constitution.md`, `commands/discover.md`, etc.)
+  - `constitution.md` now dynamically reads `context_modules/constitution.md` instead of hardcoding 12 stale principles
+  - `discover.md` replaced non-existent `${SPECIFY_TEAM_DIRECTIVES}` env var with registry-based extension root resolution
+  - `verify.md` removed hardcoded principle count; now dynamically checks project constitution alignment
+
 # [0.8.12+adlc26] - 2026-05-28
 
 ### Fixed

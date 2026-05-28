@@ -502,3 +502,67 @@ def test_apply_reference_extension_update_success(tmp_path):
     assert registry_v2["version"] == "2.0.0"
     assert registry_v2["priority"] == 5  # preserved
     assert registry_v2["source"] == "reference"
+
+
+def test_copy_reference_extension_commands(tmp_path):
+    """Should copy command files from reference path to local extension dir."""
+    from specify_cli.cli_customization import copy_reference_extension_commands
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    ref_path = tmp_path / "test-ext"
+    ref_path.mkdir()
+    commands_dir = ref_path / "commands"
+    commands_dir.mkdir()
+    (commands_dir / "hello.md").write_text("hello")
+    (commands_dir / "world.md").write_text("world")
+
+    copy_reference_extension_commands(project_dir, "test-ext", ref_path)
+
+    dest_dir = project_dir / ".specify" / "extensions" / "test-ext" / "commands"
+    assert (dest_dir / "hello.md").exists()
+    assert (dest_dir / "world.md").exists()
+    assert (dest_dir / "hello.md").read_text() == "hello"
+
+
+def test_copy_reference_extension_commands_missing_source(tmp_path):
+    """Should silently skip when source commands dir does not exist."""
+    from specify_cli.cli_customization import copy_reference_extension_commands
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    ref_path = tmp_path / "test-ext"
+    ref_path.mkdir()  # no commands/ subdir
+
+    # Should not raise
+    copy_reference_extension_commands(project_dir, "test-ext", ref_path)
+
+    dest_dir = project_dir / ".specify" / "extensions" / "test-ext" / "commands"
+    assert not dest_dir.exists()
+
+
+def test_copy_reference_extension_commands_overwrites_existing(tmp_path):
+    """Should replace existing command files on re-copy."""
+    from specify_cli.cli_customization import copy_reference_extension_commands
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+
+    ref_path = tmp_path / "test-ext"
+    ref_path.mkdir()
+    commands_dir = ref_path / "commands"
+    commands_dir.mkdir()
+    (commands_dir / "cmd.md").write_text("v2")
+
+    # Pre-create old version
+    dest_dir = project_dir / ".specify" / "extensions" / "test-ext" / "commands"
+    dest_dir.mkdir(parents=True)
+    (dest_dir / "cmd.md").write_text("v1")
+    (dest_dir / "old.md").write_text("should be removed")
+
+    copy_reference_extension_commands(project_dir, "test-ext", ref_path)
+
+    assert (dest_dir / "cmd.md").read_text() == "v2"
+    assert not (dest_dir / "old.md").exists()
