@@ -4356,7 +4356,23 @@ def extension_update(
                 except pkg_version.InvalidVersion:
                     console.print(f"⚠  {ext_id}: Invalid bundled version '{bundled_version_str}' (skipping bundled)")
 
-            # 2. Check remote catalog
+            # 2. Check reference extension manifest (fork customization)
+            try:
+                from .cli_customization import check_reference_extension_update
+
+                ref_version, ref_info = check_reference_extension_update(
+                    ext_id, metadata, installed_version
+                )
+                if ref_version:
+                    current_best = update_version if update_version else installed_version
+                    if ref_version > current_best:
+                        update_source = "reference"
+                        update_version = ref_version
+                        update_info = ref_info
+            except ImportError:
+                pass
+
+            # 3. Check remote catalog
             ext_info = catalog.get_extension_info(ext_id)
             if ext_info and ext_info.get("_install_allowed", True):
                 try:
@@ -4386,7 +4402,12 @@ def extension_update(
                         **update_info,
                     }
                 )
-                source_label = "bundled" if update_source == "bundled" else update_info.get("catalog_name", "remote")
+                if update_source == "bundled":
+                    source_label = "bundled"
+                elif update_source == "reference":
+                    source_label = "reference"
+                else:
+                    source_label = update_info.get("catalog_name", "remote")
                 console.print(f"📦 {ext_id}: Update available (v{installed_version} → v{update_version} from {source_label})")
             else:
                 console.print(f"✓ {ext_id}: Up to date (v{installed_version})")
@@ -4542,6 +4563,24 @@ def extension_update(
                     if current_metadata and isinstance(current_metadata, dict):
                         current_metadata["source"] = "bundled"
                         manager.registry.update(extension_id, current_metadata)
+
+                elif update_source == "reference":
+                    # Update from reference extension (fork customization)
+                    try:
+                        from .cli_customization import apply_reference_extension_update
+
+                        apply_reference_extension_update(
+                            manager,
+                            extension_id,
+                            update_info,
+                            speckit_version,
+                            backup_registry_entry,
+                        )
+                    except ImportError:
+                        raise ExtensionError(
+                            f"Reference extension update not supported for '{extension_id}'. "
+                            f"Update cli_customization.py to enable."
+                        )
 
                 else:
                     # Update from remote catalog (original logic)

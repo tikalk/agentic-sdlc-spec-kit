@@ -2,6 +2,25 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc24] - 2026-05-28
+
+### Added
+
+- **Reference extension auto-update**: `specify extension update` now detects and applies updates for reference extensions (`source: "reference"`):
+  - Detection: Reads local `extension.yml` at the stored `path` and compares version against registry
+  - Application: `remove()` old registration + `register_reference_extension()` from local path, preserving original priority
+  - Rollback: Existing backup framework handles failures automatically (registry, command files, hooks)
+  - All logic lives in `cli_customization.py` (`check_reference_extension_update()`, `apply_reference_extension_update()`) per fork philosophy
+  - `__init__.py` gets only 3 minimal call sites with `try/except ImportError` fallbacks
+
+### Tests
+
+- Added 4 tests in `tests/test_team_directives.py`:
+  - `test_check_reference_extension_update_success`
+  - `test_check_reference_extension_update_no_change`
+  - `test_check_reference_extension_update_not_reference`
+  - `test_apply_reference_extension_update_success`
+
 # [0.8.12+adlc23] - 2026-05-28
 
 ### Fixed

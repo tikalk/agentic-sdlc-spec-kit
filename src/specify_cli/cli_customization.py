@@ -1010,6 +1010,114 @@ def get_team_directives_path(project_path: Path) -> Path | None:
     return fallback if fallback.exists() else None
 
 
+# ----------------------------------------------------------------------------
+# Reference Extension Update Helpers
+# ----------------------------------------------------------------------------
+
+
+def check_reference_extension_update(
+    ext_id: str,
+    metadata: dict,
+    installed_version: version.Version,
+) -> tuple[version.Version | None, dict | None]:
+    """Check if a reference extension has a newer version in its local manifest.
+
+    For extensions registered with ``source: "reference"``, reads the local
+    ``extension.yml`` at the stored ``path`` and compares its version against
+    the installed (registry) version.
+
+    Args:
+        ext_id: Extension ID
+        metadata: Registry metadata dict (must contain ``source`` and ``path``)
+        installed_version: Currently installed version from registry
+
+    Returns:
+        Tuple of (new_version, update_info) or (None, None) if no update.
+        ``update_info`` contains ``reference_path`` and ``manifest_version``.
+    """
+    if metadata.get("source") != "reference" or not metadata.get("path"):
+        return None, None
+
+    import yaml
+
+    manifest_path = Path(metadata["path"]) / "extension.yml"
+    if not manifest_path.exists():
+        return None, None
+
+    try:
+        with open(manifest_path, encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        version_str = data.get("extension", {}).get("version")
+        if not version_str:
+            return None, None
+        manifest_version = version.Version(version_str)
+        if manifest_version > installed_version:
+            return manifest_version, {
+                "reference_path": Path(metadata["path"]),
+                "manifest_version": version_str,
+            }
+    except Exception:
+        pass
+    return None, None
+
+
+def apply_reference_extension_update(
+    manager: Any,
+    ext_id: str,
+    update_info: dict,
+    speckit_version: str,
+    backup_registry_entry: dict | None,
+) -> None:
+    """Apply update to a reference extension by re-registering from local path.
+
+    Removes the old registration (preserving command file backups) and
+    re-registers the extension from its reference path, preserving the
+    original priority.
+
+    Args:
+        manager: ExtensionManager instance
+        ext_id: Extension ID
+        update_info: Dict with ``reference_path`` and ``manifest_version``
+        speckit_version: Current spec-kit version
+        backup_registry_entry: Original registry entry for priority preservation
+
+    Raises:
+        ExtensionError: If reference path is missing or invalid
+        ValueError: If extension ID in manifest doesn't match
+    """
+    from .extensions import ExtensionError
+
+    ref_path = update_info["reference_path"]
+    if not ref_path.exists():
+        raise ExtensionError(f"Reference extension path not found: {ref_path}")
+
+    manifest_path = ref_path / "extension.yml"
+    if not manifest_path.exists():
+        raise ExtensionError(f"Missing extension.yml: {ref_path}")
+
+    import yaml
+
+    with open(manifest_path, encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    manifest_id = data.get("extension", {}).get("id")
+    if manifest_id != ext_id:
+        raise ValueError(f"ID mismatch: expected '{ext_id}', got '{manifest_id}'")
+
+    # Preserve original priority
+    priority = (
+        backup_registry_entry.get("priority", 10)
+        if isinstance(backup_registry_entry, dict)
+        else 10
+    )
+
+    # Remove old registration (skips directory deletion for reference extensions)
+    manager.remove(ext_id, keep_config=True)
+
+    # Re-register from reference path
+    manager.register_reference_extension(ref_path, speckit_version, priority=priority)
+
+
 def pre_init(
     project_path: Path,
     selected_ai: str,

@@ -9,6 +9,8 @@ from specify_cli.cli_customization import (
     resolve_extension_dir,
     get_reference_extension_paths,
     build_alias_map,
+    check_reference_extension_update,
+    apply_reference_extension_update,
 )
 
 
@@ -359,3 +361,144 @@ def test_preset_resolver_finds_reference_extension_commands(tmp_path):
         "adlc.team-ai-directives.constitution", "command"
     )
     assert any("team-ai-directives" in layer.get("source", "") for layer in layers)
+
+
+# ============================================================================
+# Reference Extension Update Helpers
+# ============================================================================
+
+
+def test_check_reference_extension_update_success(tmp_path):
+    """Should detect newer version in reference extension manifest."""
+    ext_id = "test-ref"
+    ref_path = tmp_path / ext_id
+    ref_path.mkdir()
+
+    manifest = {
+        "schema_version": "1.0",
+        "extension": {
+            "id": ext_id,
+            "name": "Test Ref",
+            "version": "2.0.0",
+            "description": "Test",
+        },
+        "requires": {"speckit_version": ">=0.1.0"},
+        "provides": {"commands": []},
+    }
+    import yaml
+
+    (ref_path / "extension.yml").write_text(yaml.dump(manifest, sort_keys=False))
+
+    from packaging import version as pkg_version
+
+    installed = pkg_version.Version("1.0.0")
+    metadata = {"source": "reference", "path": str(ref_path)}
+
+    new_version, info = check_reference_extension_update(ext_id, metadata, installed)
+
+    assert new_version is not None
+    assert str(new_version) == "2.0.0"
+    assert info["manifest_version"] == "2.0.0"
+    assert info["reference_path"] == ref_path
+
+
+def test_check_reference_extension_update_no_change(tmp_path):
+    """Should return None when local manifest matches installed version."""
+    ext_id = "test-ref"
+    ref_path = tmp_path / ext_id
+    ref_path.mkdir()
+
+    manifest = {
+        "schema_version": "1.0",
+        "extension": {
+            "id": ext_id,
+            "name": "Test Ref",
+            "version": "1.0.0",
+            "description": "Test",
+        },
+        "requires": {"speckit_version": ">=0.1.0"},
+        "provides": {"commands": []},
+    }
+    import yaml
+
+    (ref_path / "extension.yml").write_text(yaml.dump(manifest, sort_keys=False))
+
+    from packaging import version as pkg_version
+
+    installed = pkg_version.Version("1.0.0")
+    metadata = {"source": "reference", "path": str(ref_path)}
+
+    new_version, info = check_reference_extension_update(ext_id, metadata, installed)
+
+    assert new_version is None
+    assert info is None
+
+
+def test_check_reference_extension_update_not_reference(tmp_path):
+    """Should return None for non-reference extensions."""
+    from packaging import version as pkg_version
+
+    installed = pkg_version.Version("1.0.0")
+    metadata = {"source": "remote", "version": "1.0.0"}
+
+    new_version, info = check_reference_extension_update("test", metadata, installed)
+
+    assert new_version is None
+    assert info is None
+
+
+def test_apply_reference_extension_update_success(tmp_path):
+    """Should re-register reference extension with new version and preserve priority."""
+    from specify_cli.extensions import ExtensionManager
+    from specify_cli import get_speckit_version
+
+    project_dir = tmp_path / "project"
+    project_dir.mkdir()
+    (project_dir / ".specify" / "extensions" / ".claude" / "commands").mkdir(parents=True)
+
+    ext_id = "test-ref-update"
+    ref_path = tmp_path / ext_id
+    ref_path.mkdir()
+
+    # v1.0.0 manifest
+    manifest_v1 = {
+        "schema_version": "1.0",
+        "extension": {
+            "id": ext_id,
+            "name": "Test Ref",
+            "version": "1.0.0",
+            "description": "Test",
+        },
+        "requires": {"speckit_version": ">=0.1.0"},
+        "provides": {"commands": [{"name": f"adlc.{ext_id}.hello", "file": "hello.md"}]},
+    }
+    (ref_path / "hello.md").write_text("---\ndescription: Test\n---\n\n$ARGUMENTS\n")
+    import yaml
+
+    (ref_path / "extension.yml").write_text(yaml.dump(manifest_v1, sort_keys=False))
+
+    manager = ExtensionManager(project_dir)
+    speckit_version = get_speckit_version()
+
+    # Register v1.0.0 with priority 5
+    manager.register_reference_extension(ref_path, speckit_version, priority=5)
+
+    registry_v1 = manager.registry.get(ext_id)
+    assert registry_v1["version"] == "1.0.0"
+    assert registry_v1["priority"] == 5
+
+    # Update manifest to v2.0.0
+    manifest_v2 = dict(manifest_v1)
+    manifest_v2["extension"]["version"] = "2.0.0"
+    (ref_path / "extension.yml").write_text(yaml.dump(manifest_v2, sort_keys=False))
+
+    # Apply update
+    update_info = {"reference_path": ref_path, "manifest_version": "2.0.0"}
+    apply_reference_extension_update(
+        manager, ext_id, update_info, speckit_version, registry_v1
+    )
+
+    registry_v2 = manager.registry.get(ext_id)
+    assert registry_v2["version"] == "2.0.0"
+    assert registry_v2["priority"] == 5  # preserved
+    assert registry_v2["source"] == "reference"
