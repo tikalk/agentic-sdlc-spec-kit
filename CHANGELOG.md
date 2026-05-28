@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc26] - 2026-05-28
+
+### Fixed
+
+- **Architect extension v2.1.1**: Hardened `/architect.implement` DAG orchestration
+  - Sub-system threshold enforcement: 4–6 MUST ask confirmation; >6 MUST suggest grouping
+  - DAG-guarded view generation: views outside sub-system DAG are skipped (prevents orphaned views)
+  - Per-view state updates: state.json updated after EACH view, not batched per-subsystem
+  - Accepted-only ADR promotion: Proposed/Discovered ADRs no longer promoted to memory
+- **AD-template.md**: Fixed constitution link path (`memory/` → `.specify/memory/`)
+
 # [0.8.12+adlc25] - 2026-05-28
 
 ### Fixed

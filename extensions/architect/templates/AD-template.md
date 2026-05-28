@@ -406,7 +406,7 @@ graph TB
 
 ## 6. Constitution Alignment
 
-**Constitution Reference**: [memory/constitution.md](memory/constitution.md)
+**Constitution Reference**: [.specify/memory/constitution.md](.specify/memory/constitution.md)
 
 ### Alignment Status
 

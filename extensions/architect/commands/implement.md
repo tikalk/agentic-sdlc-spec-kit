@@ -310,9 +310,11 @@ Located in the extension's `templates/` directory:
 > - Minimum content: 20 lines with proper section headers
 >
 > ### Constraint 2: State MUST Be Updated After EACH View
-> You **MUST** update state.json after EACH view completion -- not at the end.
-> Mark each view's progress as "completed" only AFTER the file exists on disk
-> and you've verified it by reading it back.
+> You **MUST** update state.json immediately after EACH individual view
+> file is written to disk and verified readable -- before starting the
+> next view in the DAG. Do NOT batch updates per-subsystem or per-phase.
+> Mark each view's progress as "completed" only AFTER the file exists on
+> disk and you've verified it by reading it back.
 >
 > ### Constraint 3: Functional View Checkpoint is MANDATORY
 > You **MUST** pause after Functional view for user checkpoint (unless `--no-checkpoint`).
@@ -335,6 +337,13 @@ Located in the extension's `templates/` directory:
 > You **MUST** read view files from disk in Phase 3, not from memory.
 > Use file read operations. This ensures resumability and auditability.
 > If a view file cannot be read, STOP and report the error.
+>
+> ### Constraint 7: Views MUST Be in Sub-system DAG
+> You **MUST NOT** generate a view that is not listed in the sub-system's
+> `dag` array in state.json. Before generating any view, check the DAG.
+> If the view is absent, mark it as `skipped` in state.json and proceed.
+> Generating views outside the DAG creates orphaned files and invalidates
+> the architecture.
 
 ## PHASE 1: PLAN (Plan Agent)
 
@@ -408,6 +417,20 @@ Context → Functional → Information ──┬─→ Development → Deploymen
 | Monolith | Simplify Functional, skip Concurrency |
 
 ### Step 1.4: Present Plan for User Approval
+
+**Sub-System Count Threshold Enforcement** (MANDATORY):
+Regardless of any prior approval from `/architect.specify`, you **MUST**
+apply the following rules before presenting the DAG plan:
+
+| Sub-System Count | Required Action |
+|-----------------|-----------------|
+| 1–3 | Present plan; auto-approve allowed |
+| 4–6 | **MUST ask user confirmation** — do not proceed without explicit approval |
+| >6 | **MUST suggest grouping** and **MUST ask confirmation** |
+
+> **CRITICAL**: Approval from `/architect.specify` (Phase 0) does **NOT**
+> substitute for DAG execution plan approval. The user must confirm the
+> per-sub-system DAG plan independently.
 
 Present the execution plan to the user:
 
@@ -509,6 +532,9 @@ After user approval, write the execution plan to `{REPO_ROOT}/.specify/architect
 
 For each view in the DAG:
 
+0. **DAG Membership Check**: Confirm the view is listed in the sub-system's
+   `dag` array in state.json. If absent → mark `skipped`, do NOT generate,
+   continue to next view.
 1. **Check Dependencies**: Ensure all dependency views are completed
 2. **Load Dependency Context**: Read completed view files for context
 3. **Load View Template**: Read from `templates/views/{view}.md`
@@ -637,6 +663,10 @@ Each view template contains placeholders to be filled:
 - Disaster recovery
 
 ### Step 2.5: Update Progress in state.json
+
+> **WARNING**: Batching state updates (e.g., updating only after all views
+> for a sub-system are complete) violates Constraint 2. Update state.json
+> immediately after each individual view file is written and verified.
 
 After each view is generated:
 
@@ -909,8 +939,11 @@ Load perspective templates and apply across all views:
 After generating AD.md, perform ALL of the following steps:
 
 **Step 1: Filter Accepted ADRs**
-- Identify ADRs with status "Accepted" (already validated in Phase 1)
-- **Skip** Discovered/Proposed ADRs - these remain in drafts for future approval
+- Identify ADRs with **exact** status "Accepted" only
+- **MUST remain in drafts**: Any ADR with status "Proposed", "Discovered",
+  "Deprecated", or "Superseded" — these are NOT eligible for promotion
+- **Verification**: After filtering, count non-Accepted ADRs in the promotion
+  set. If >0, STOP and fix before proceeding.
 
 **Step 2: Copy to Canonical Location (MANDATORY)**
 - Write Accepted ADRs to `{REPO_ROOT}/.specify/memory/adr.md`

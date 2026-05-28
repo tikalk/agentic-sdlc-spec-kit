@@ -2,6 +2,16 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.1.1] - 2026-05-28
+
+### Fixed
+
+- DAG plan approval now enforces sub-system count thresholds independently of `/architect.specify` approval
+- Views not in a sub-system's DAG are skipped instead of generated as orphans
+- State updates enforced per-view (not batched per-subsystem)
+- ADR promotion strictly filters for `Accepted` status only
+- AD-template.md constitution link path corrected
+
 ## [2.1.0] - 2026-05-20
 
 ### Added
