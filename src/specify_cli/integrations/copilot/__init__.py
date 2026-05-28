@@ -149,6 +149,7 @@ class CopilotIntegration(IntegrationBase):
         # (default: enabled).  The deprecated SPECKIT_ALLOW_ALL_TOOLS
         # is also honoured as a fallback.
         args = [_copilot_executable(), "-p", prompt]
+        self._apply_extra_args_env_var(args)
         if _allow_all():
             args.append("--yolo")
         if model:
@@ -217,6 +218,11 @@ class CopilotIntegration(IntegrationBase):
             prompt = args or ""
 
         cli_args = [_copilot_executable(), "-p", prompt]
+        # Honour SPECKIT_INTEGRATION_COPILOT_EXTRA_ARGS for real workflow
+        # runs.  `dispatch_command` builds cli_args inline rather than
+        # going through `build_exec_args`, so the hook must be invoked
+        # here too — otherwise the env var is silently ignored.
+        self._apply_extra_args_env_var(cli_args)
         if not skills_mode:
             cli_args.extend(["--agent", agent_name])
         if _allow_all():

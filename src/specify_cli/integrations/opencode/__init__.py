@@ -29,6 +29,11 @@ class OpencodeIntegration(MarkdownIntegration):
         output_json: bool = True,
     ) -> list[str] | None:
         args = [self.key, "run"]
+        # Apply operator-injected extra args before the prompt-derived
+        # --command and the canonical --format/-m flags so Spec Kit's
+        # later appends remain authoritative under repeated-flag CLI
+        # semantics.
+        self._apply_extra_args_env_var(args)
 
         message = prompt
         if prompt.startswith("/"):
