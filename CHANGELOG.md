@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc32] - 2026-05-29
+
+### Fixed
+
+- **Team AI Directives skills installation now uses correct directory for each agent type**:
+  - For `SkillsIntegration` subclasses (claude, codex, cursor-agent, etc.): skills go to `skills_dest()` which is the same as commands directory since commands ARE skills
+  - For `MarkdownIntegration` and other subclasses (opencode, windsurf, qwen, etc.): skills go to `folder + "skills"` per agentskills.io convention
+  - Previously, all agents incorrectly used `skills_dest()` which returned commands directory for non-SkillsIntegration agents (e.g., `.opencode/commands/` instead of `.opencode/skills/`)
+  - Fix is isolated to `_install_skills_from_path()` in `cli_customization.py` (fork-only code)
+
 # [0.8.12+adlc31] - 2026-05-29
 
 ### Changed

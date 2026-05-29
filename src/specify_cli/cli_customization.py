@@ -2180,12 +2180,21 @@ def _install_skills_from_path(
         Exception: If skill installation fails
     """
     from .integrations import INTEGRATION_REGISTRY
+    from .integrations.base import SkillsIntegration
     
     if selected_ai not in INTEGRATION_REGISTRY:
         raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
     
     integration = INTEGRATION_REGISTRY[selected_ai]
-    skills_dest = integration.skills_dest(project_path)
+    
+    # Determine skills directory based on integration type:
+    # - SkillsIntegration: commands ARE skills → use skills_dest() (same dir as commands)
+    # - Others: skills are separate → use folder + "skills" (agentskills.io convention)
+    if isinstance(integration, SkillsIntegration):
+        skills_dest = integration.skills_dest(project_path)
+    else:
+        folder = integration.config.get("folder", "")
+        skills_dest = project_path / folder / "skills"
     
     installed = []
     
