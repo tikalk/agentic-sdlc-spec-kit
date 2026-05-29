@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc36] - 2026-05-29
+
+### Added
+
+- **LevelUp extension v1.6.4**: Constitution Generation phase in `/levelup.init`
+  - New Phase 8 generates/enhances team constitution from discovered patterns
+  - Derives principles from cross-cutting patterns and inconsistencies
+  - `--skip-constitution` flag to disable
+  - Fixed Pattern Agent input to include `constitution` in `team_directives`
+
 # [0.8.12+adlc35] - 2026-05-29
 
 ### Changed

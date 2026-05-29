@@ -85,6 +85,8 @@ Scan an **existing codebase** (brownfield) using **multi-agent sub-system analys
 
 - `--resume`: Resume from previous state (if interrupted)
 
+- `--skip-constitution`: Skip constitution generation phase
+
 ## Role & Context
 
 You are orchestrating a **multi-agent analysis pipeline** with three specialized agents:
@@ -104,7 +106,9 @@ Phase 5: Pattern Agent (Per sub-system, sequential)
     ↓
 Phase 6: Synthesis Agent (Cross-sub-system, once)
     ↓
-Phase 7: Output (CDR generation and summary)
+Phase 7: Constitution Generation (Once)
+    ↓
+Phase 8: Output (CDR generation and summary)
 ```
 
 ### Cross-Sub-System Analysis
@@ -127,8 +131,9 @@ The Synthesis Agent detects:
 5. **Discovery Agent** (Phase 5): Scan each sub-system for patterns
 6. **Pattern Agent** (Phase 6): Classify and score patterns per sub-system
 7. **Synthesis Agent** (Phase 7): Cross-sub-system analysis
-8. **CDR Generation** (Phase 8): Generate final CDRs
-9. **Output** (Phase 9): Write CDRs and present summary
+8. **Constitution Generation** (Phase 8): Generate/enhance team constitution from discovered patterns
+9. **CDR Generation** (Phase 9): Generate final CDRs
+10. **Output** (Phase 10): Write CDRs and present summary
 
 ## Execution Steps
 
@@ -234,6 +239,13 @@ Create `{REPO_ROOT}/.specify/levelup/state.json`:
       }
     }
   ],
+  "constitution_generation": {
+    "enabled": true,
+    "completed": false,
+    "skipped": false,
+    "principles_derived": 0,
+    "output_path": null
+  },
   "workflow": {
     "init_completed": false,
     "total_subsystems": 2,
@@ -368,7 +380,8 @@ Use template: `templates/subagents/pattern-prompt.md`
   "team_directives": {
     "rules": [...],
     "personas": [...],
-    "examples": [...]
+    "examples": [...],
+    "constitution": "..."
   }
 }
 ```
@@ -500,11 +513,181 @@ Generate CDRs for:
 }
 ```
 
-### Phase 8: Write CDRs
+### Phase 8: Constitution Generation
+
+**Objective**: Generate or enhance team constitution from discovered patterns
+
+**Skip Conditions** (skip this phase if ANY are true):
+- `--skip-constitution` flag provided
+- `--focus` flag set to value other than `constitution` or `all`
+- Config `discovery.constitution: false`
+
+#### Step 1: Check Constitution Exists
+
+Check if `{TEAM_DIRECTIVES}/context_modules/constitution.md` exists.
+
+| Status | Action |
+|--------|--------|
+| **Missing** | Generate new constitution from template |
+| **Exists** | Enhance existing constitution with derived principles |
+
+#### Step 2: Read Constitution Template
+
+Read `.specify/templates/constitution-template.md` for structure. Key placeholders:
+- `[PROJECT_NAME]` → Team/directories name
+- `[PRINCIPLE_N_NAME]` → Derived from cross-cutting patterns
+- `[PRINCIPLE_N_DESCRIPTION]` → Derived from pattern evidence
+- `[CONSTITUTION_VERSION]` → Start at `1.0.0` (new) or increment existing
+- `[RATIFICATION_DATE]` → Today's date (new) or preserve existing
+- `[LAST_AMENDED_DATE]` → Today's date
+
+#### Step 3: Derive Principles from Patterns
+
+**Input from Synthesis Agent state**:
+- Cross-cutting patterns (patterns in ≥50% of sub-systems)
+- Inconsistencies detected
+- High-value patterns (reuse_score > 0.7)
+
+**Principle Derivation Logic**:
+
+| Cross-Cutting Pattern | → Constitution Principle |
+|----------------------|-------------------------|
+| Error handling consistent across subsystems | **Robust Error Handling** |
+| Logging/observability patterns | **Observability First** |
+| Security/auth patterns | **Security by Default** |
+| Testing patterns | **Tests Drive Confidence** |
+| API/interface patterns | **Interface Consistency** |
+| Inconsistencies detected | **Standardization Mandate** |
+
+**Derivation Process**:
+```json
+{
+  "cross_cutting_patterns": [
+    {
+      "pattern": "Custom Error Handling",
+      "subsystems": ["auth", "payments", "users"],
+      "cross_system_score": 1.0,
+      "consistency": "consistent"
+    }
+  ],
+  "inconsistencies": [
+    {
+      "id": "INC-001",
+      "concern": "Authentication",
+      "subsystems": ["auth", "payments", "users"]
+    }
+  ],
+  "derived_principles": [
+    {
+      "name": "Robust Error Handling",
+      "description": "All services MUST implement consistent error handling with custom exception classes, error codes, and structured logging. Evidence: Custom error classes found in 3/3 sub-systems.",
+      "source": "cross_cutting_pattern",
+      "evidence": ["auth/errors.py", "payments/exceptions.py", "users/errors.py"]
+    },
+    {
+      "name": "Standardization Mandate",
+      "description": "When patterns are adopted across multiple sub-systems, they MUST be implemented consistently. Divergent implementations require team review and reconciliation.",
+      "source": "inconsistency_resolution",
+      "evidence": ["INC-001: Authentication divergence between sub-systems"]
+    }
+  ]
+}
+```
+
+#### Step 4: Compare with Existing Constitution
+
+If constitution exists:
+
+1. Read existing principles
+2. Check for overlap with derived principles
+3. Determine action for each derived principle:
+
+| Overlap Status | Action |
+|----------------|--------|
+| **New concern** | Add as new principle |
+| **Enhances existing** | Append to existing principle description |
+| **Already covered** | Skip (add evidence as reinforcement note) |
+
+Output comparison:
+```json
+{
+  "existing_principles_count": 10,
+  "new_principles_proposed": 2,
+  "principles_enhanced": 1,
+  "principles_preserved": 10,
+  "version_bump": "minor"
+}
+```
+
+#### Step 5: Generate Constitution Content
+
+**When constitution MISSING** - Generate from template:
+
+```markdown
+# Team Constitution
+
+## Core Principles
+
+### I. [Derived Principle 1 Name]
+[Derived description with evidence]
+
+**Source**: Cross-sub-system analysis via /levelup.init
+**Evidence**: [File paths from codebase]
+
+### II. [Derived Principle 2 Name]
+...
+
+## Governance
+
+This constitution was generated from codebase analysis and should be reviewed by the team.
+
+**Version**: 1.0.0 | **Ratified**: {today} | **Last Amended**: {today}
+```
+
+**When constitution EXISTS** - Append derived section:
+
+```markdown
+## Derived from Codebase Analysis
+
+*The following principles were derived from patterns discovered in the codebase via /levelup.init on {date}. Review and ratify as needed.*
+
+### [Principle Name]
+[Description]
+
+**Source**: Cross-cutting pattern / Inconsistency resolution
+**Evidence**: [File paths]
+**Status**: Proposed (pending team review)
+
+---
+
+**Version**: {incremented} | **Last Amended**: {today}
+```
+
+#### Step 6: Write Constitution
+
+Write to `{TEAM_DIRECTIVES}/context_modules/constitution.md`:
+- If file exists: Append derived section (preserve existing content)
+- If file missing: Create from template
+
+#### Step 7: Update State
+
+```json
+{
+  "constitution_generation": {
+    "completed": true,
+    "skipped": false,
+    "existing_constitution": true,
+    "principles_derived": 2,
+    "principles_enhanced": 1,
+    "output_file": "{TEAM_DIRECTIVES}/context_modules/constitution.md",
+    "version_change": "1.0.0 → 1.1.0"
+  }
+}
+```
+
+### Phase 9: Write CDRs
 
 **Objective**: Write generated CDRs to file
-
-#### Step 1: Format CDRs
 
 For each generated CDR, use template from `templates/cdr-template.md` with:
 - Cross-system metadata section
@@ -560,7 +743,7 @@ Update state.json:
 }
 ```
 
-### Phase 9: Output Summary
+### Phase 10: Output Summary
 
 **Objective**: Present final summary
 
@@ -596,6 +779,20 @@ Update state.json:
 | Skills | 1 | |
 | Inconsistencies | 1 | **Needs resolution** |
 | **Total** | **8** | |
+
+### Constitution Generated
+| Metric | Value |
+|--------|-------|
+| Principles derived | 2 |
+| Principles enhanced | 1 |
+| Existing principles preserved | 10 |
+| Version change | 1.0.0 → 1.1.0 |
+
+**Output**: `{TEAM_DIRECTIVES}/context_modules/constitution.md`
+
+**Derived Principles**:
+1. **Robust Error Handling** - from cross-cutting pattern (3 sub-systems)
+2. **Standardization Mandate** - from inconsistency INC-001
 
 ### Inconsistencies Requiring Attention
 **CDR-INC-001**: Authentication Pattern Inconsistency
@@ -654,6 +851,7 @@ The command supports resumable execution:
 | File | Description |
 |------|-------------|
 | `{REPO_ROOT}/.specify/drafts/cdr.md` | Generated CDRs with cross-system metadata |
+| `{TEAM_DIRECTIVES}/context_modules/constitution.md` | Generated/enhanced team constitution |
 | `{REPO_ROOT}/.specify/levelup/state.json` | Execution state for resumability |
 
 ## Notes

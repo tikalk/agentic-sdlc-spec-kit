@@ -5,6 +5,23 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.4] - 2026-05-29
+
+### Added
+
+- **Constitution Generation Phase (Phase 8)**: New phase in `/levelup.init` that generates or enhances team constitution from discovered patterns
+  - Derives principles from cross-cutting patterns (patterns in ≥50% of sub-systems)
+  - Creates principles from inconsistency resolutions
+  - Preserves existing constitution when enhancing
+  - Writes to `{TEAM_DIRECTIVES}/context_modules/constitution.md`
+- **`--skip-constitution` flag**: Skip constitution generation phase
+
+### Changed
+
+- `init.md`: Added Phase 8 (Constitution Generation), renumbered Phase 8→9, Phase 9→10
+- `init.md`: Fixed Pattern Agent input to include `constitution` in `team_directives` object
+- `extension.yml`: Version bump to 1.6.4
+
 ## [1.6.3] - 2026-05-29
 
 ### Changed
