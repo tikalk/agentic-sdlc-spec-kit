@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc33] - 2026-05-29
+
+### Removed
+
+- **`specify skill` CLI subcommand removed**: The Skills Package Manager CLI (`specify skill search/install/list/eval/update/remove/sync-team/check-updates/config`) has been removed along with the entire `src/specify_cli/skills/` package (~2048 lines). Team-ai-directives required skills are still auto-installed during `specify init --team-ai-directives`. For browsing and installing additional team skills, use the new `/team.skills` agent command.
+
+### Added
+
+- **`/team.skills` agent command**: New team-ai-directives extension command (`team.skills`) that reads `.skills.json` from the knowledge base, shows available skills grouped by category (required, recommended, internal), and installs selected skills to the agent's skills directory. Team-ai-directives extension v1.7.7.
+
 # [0.8.12+adlc32] - 2026-05-29
 
 ### Fixed

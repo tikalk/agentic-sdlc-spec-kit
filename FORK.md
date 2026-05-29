@@ -96,7 +96,6 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
-        skill_app,
         compute_skill_output_name,
     )
 except ImportError:
@@ -104,7 +103,6 @@ except ImportError:
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
     TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
     PKG_NAMES = ["specify-cli"]
-    skill_app = None
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -324,38 +322,19 @@ These functions are called during init but don't conflict with upstream because 
 
 The following files and directories exist **only in the fork** and were never present in upstream. During merges, git will show these as "deleted by them" — always reject the deletion.
 
-### `src/specify_cli/skills/` — Skills Package Manager
-
-**Directory**: `src/specify_cli/skills/`
-
-A developer-grade package manager for agent skills treating them as versioned software dependencies with evaluation, lifecycle management, and dual registry integration.
-
-**Files**:
-- `__init__.py` — Package exports (SkillsManifest, SkillInstaller, SkillEvaluator, etc.)
-- `discovery.py` — SkillAutoDiscovery, feature-based skill matching
-- `evaluator.py` — SkillEvaluator for quality assessment
-- `installer.py` — SkillInstaller with dual registry support
-- `manifest.py` — SkillsManifest, TeamSkillsManifest
-- `registry.py` — SkillsRegistryClient (skills.sh integration)
-
-**Total**: ~2048 lines of fork-only code
-
-**Referenced from**: `cli_customization.py` (skill commands CLI)
-
 ### `src/specify_cli/cli_customization.py` — Fork Customization Module
 
 **File**: `src/specify_cli/cli_customization.py`
 
-The central customization module providing theming, team directives, skill commands, and fork-specific features. This is the single source of truth for fork identity.
+The central customization module providing theming, team directives, and fork-specific features. This is the single source of truth for fork identity.
 
 **Key exports**:
 - Theming: `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`
 - Package Identity: `PKG_NAMES`
 - Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`
 - Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`
-- Skills CLI: `skill_app`, skill command handlers
 
-**Total**: ~2500 lines of fork-only code
+**Total**: ~1700 lines of fork-only code
 
 ### Test Files
 

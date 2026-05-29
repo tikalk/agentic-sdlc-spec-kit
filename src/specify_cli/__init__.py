@@ -110,7 +110,6 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
-        skill_app,
         compute_skill_output_name,
         get_team_directives_path,
         sync_team_ai_directives,
@@ -124,7 +123,6 @@ except ImportError:
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
     TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
     PKG_NAMES = ["specify-cli"]
-    skill_app = None
 
     def apply_theming_patches(_console_module):
         """Fallback: no theming patches applied."""
@@ -1445,15 +1443,6 @@ integration_catalog_app = typer.Typer(
     add_completion=False,
 )
 integration_app.add_typer(integration_catalog_app, name="catalog")
-
-# Add skill_app if available and SKILLS_AVAILABLE is True
-try:
-    from .cli_customization import SKILLS_AVAILABLE
-
-    if SKILLS_AVAILABLE and skill_app is not None:
-        app.add_typer(skill_app, name="skill")
-except ImportError:
-    pass
 
 
 def _read_integration_json(project_root: Path) -> dict[str, Any]:

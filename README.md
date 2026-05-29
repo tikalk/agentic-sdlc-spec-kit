@@ -57,7 +57,6 @@ This fork represents the evolution from a development process to a complete orga
 - [🔧 Team AI Directives Integration](#-team-ai-directives-integration)
 - [🛠️ Community Friends](#️-community-friends)
 - [🤖 Supported AI Agents](#-supported-ai-agents)
-- [📦 Skills Package Manager](#-skills-package-manager)
 - [🔧 Specify CLI Reference](#-specify-cli-reference)
 - [🧩 Making Spec Kit Your Own: Extensions & Presets](#-making-spec-kit-your-own-extensions--presets)
 - [📚 Core Philosophy](#-core-philosophy)
@@ -289,28 +288,15 @@ This fork supports the following AI coding agents:
 | Junie | `junie` | ✓ | `--ai junie --ai-skills` |
 | And more... |
 
-## 📦 Skills Package Manager
+## Team Skills
 
-The fork includes a skills package manager for managing reusable AI session context:
+When you initialize with `--team-ai-directives`, required skills from your team's knowledge base are automatically installed to your agent's skills directory. To browse and install additional team skills (recommended, internal), use the `/team.skills` agent command:
 
-```bash
-# List installed skills
-specify skills list
-
-# Install a skill package
-specify skills install <package>
-
-# Update skills
-specify skills update
+```
+/team.skills
 ```
 
-## Relevant Skills (Auto-Detected)
-
-When you initialize a project, the following skills are auto-detected based on your AI assistant selection:
-
-- **Claude Code**: `.claude/skills/` — Skills installed from the specification
-- **Codex**: `.agents/skills/` — Skills installed via Codex CLI
-- **Custom**: Based on your selected integration
+This reads your team's `.skills.json` manifest and lets you pick which skills to install.
 
 ## 🤖 Supported AI Coding Agent Integrations
 
