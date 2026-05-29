@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc34] - 2026-05-29
+
+### Fixed
+
+- **ADLC preset v1.0.7: Hardened `tasks_meta.json` creation in implement and tasks commands**:
+  - `adlc.spec.implement.md`: Added MANDATORY step 2 to run `tasks-meta-utils.sh init` with verification before implementation begins; added per-task metadata update instructions after each task completion; added step 10 completion verification safety net that creates `tasks_meta.json` retroactively if missing
+  - `adlc.spec.tasks.md`: Hardened step 2 with MANDATORY marker, code block format, and explicit verification for `tasks_meta.json` creation; reformatted per-task `add-task` call as code block for agent reliability
+  - Root cause: AI agents were following prose instructions and skipping the shell script calls that create `tasks_meta.json`, breaking downstream `/levelup.trace` and quality gate tracking
+
+- **LevelUp extension: Fixed `common.sh` path resolution in `generate-trace.sh` and `validate-trace.sh`**:
+  - Both scripts used `source "$SCRIPT_DIR/common.sh"` which fails because `common.sh` lives in `.specify/scripts/bash/`, not in the extension's script directory
+  - Applied project-root-discovery pattern (walk up to `.specify/` or `.git/`) already used by `setup-levelup.sh` and `analyze-context.sh`
+
 # [0.8.12+adlc33] - 2026-05-29
 
 ### Removed

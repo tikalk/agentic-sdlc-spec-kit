@@ -57,7 +57,15 @@ If working in a non-git repository:
 - Run: `export SPECIFY_FEATURE=001-user-auth` before this command
 - Without this, tasks.md will be written to the wrong location
 
-2. **Initialize Dual Execution Loop**: Run `scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"` to create tasks_meta.json structure for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
+2. **MANDATORY - Initialize Dual Execution Loop**:
+
+   Run from repo root:
+   ```bash
+   bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+   ```
+   This creates `$FEATURE_DIR/tasks_meta.json` for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
+
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `/spec.implement` quality gates and `/levelup.trace` will not function.
 
 3. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
@@ -82,7 +90,11 @@ If working in a non-git repository:
         - Include models, services, endpoints, UI components specific to that story
         - Mark which tasks are [P] parallelizable within each story
         - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
-        - **For each task**: Run `scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files"` to determine execution mode and update tasks_meta.json with `scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$execution_mode"`
+        - **For each task**, classify and register in execution metadata by running:
+          ```bash
+          MODE=$(bash .specify/scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files")
+          bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$MODE"
+          ```
         - If tests requested: Include tests specific to that story
     - **Tests are CONFIGURABLE**: Check current mode opinion settings - if TDD enabled, generate test tasks before implementation; if disabled, tests are optional
     - Apply task rules:

@@ -24,9 +24,30 @@ for arg in "$@"; do
     esac
 done
 
-# Get script directory and load common functions
+# Get script directory for common.sh sourcing
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+
+# Find project root by walking up from script location
+_find_project_root() {
+    local dir="$SCRIPT_DIR"
+    while [ "$dir" != "/" ]; do
+        if [ -d "$dir/.specify" ] || [ -d "$dir/.git" ]; then
+            echo "$dir"
+            return 0
+        fi
+        dir="$(dirname "$dir")"
+    done
+    return 1
+}
+
+PROJECT_ROOT="$(_find_project_root)" || PROJECT_ROOT="$SCRIPT_DIR"
+
+# Load common functions - use absolute path from project root
+if [[ -n "$PROJECT_ROOT" && -f "$PROJECT_ROOT/.specify/scripts/bash/common.sh" ]]; then
+    source "$PROJECT_ROOT/.specify/scripts/bash/common.sh"
+elif [[ -f "$SCRIPT_DIR/common.sh" ]]; then
+    source "$SCRIPT_DIR/common.sh"
+fi
 
 eval $(get_feature_paths)
 

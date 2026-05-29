@@ -40,7 +40,18 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Reading from `./tasks.md` instead of `./specs/<BRANCH>/tasks.md`
   - Writing implementation files to root instead of feature directory
 
-2. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+2. **MANDATORY - Initialize Execution Tracking**:
+
+   Run from repo root to create the execution metadata file:
+   ```bash
+   bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+   ```
+
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/levelup.trace` and quality gate tracking will not function.
+
+   If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
+
+3. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
    - For each checklist, count:
      - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
@@ -69,9 +80,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
    - **If all checklists are complete**:
      - Display the table showing all checklists passed
-     - Automatically proceed to step 3
+     - Automatically proceed to step 4
 
-3. Load and analyze the implementation context:
+4. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
@@ -80,7 +91,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read /memory/constitution.md for governance constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
-4. **Project Setup Verification**:
+5. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup
 
    **Detection & Creation Logic**:
@@ -124,7 +135,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-5. Parse tasks.md structure and extract:
+6. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
@@ -132,7 +143,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
      - Record assigned agents and job IDs for ASYNC tasks
 
-6. Execute implementation following execution approach:
+7. Execute implementation following execution approach:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **File-based coordination**: Tasks affecting the same files must run sequentially
@@ -147,22 +158,34 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
-7. Implementation execution rules:
+8. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: Write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
-8. Progress tracking and error handling:
+9. Progress tracking and error handling:
    - Report progress after each completed task
    - Halt execution if any non-parallel task fails
    - For parallel tasks [P], continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - **IMPORTANT** After completing each task, update execution metadata by running:
+     ```bash
+     bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$TASK_ID" "$DESCRIPTION" "$FILES" "SYNC_OR_ASYNC"
+     ```
 
-9. Completion validation:
+10. **MANDATORY - Verify Execution Metadata**:
+
+    Before reporting completion, verify execution metadata exists:
+    ```bash
+    test -f "$FEATURE_DIR/tasks_meta.json" || bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+    ```
+    If `tasks_meta.json` was created retroactively (not at step 2), log a warning that per-task metadata was not captured during implementation.
+
+11. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
