@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "team-ai-directives"
   name: "Team AI Directives"
-  version: "1.7.7"
+  version: "1.7.8"
   description: "Team-specific AI agent context, skills, and conventions for Spec-Driven Development"
   author: "Team"
   repository: "https://github.com/tikalk/agentic-sdlc-team-ai-directives"
@@ -33,6 +33,11 @@ provides:
       file: "commands/skills.md"
       description: "Browse and install team skills from team-ai-directives knowledge base"
       aliases: ["team.skills"]
+
+    - name: "adlc.team-ai-directives.repair"
+      file: "commands/repair.md"
+      description: "Re-index CDR.md, .skills.json, and AGENTS.md in team-ai-directives with auto-fix"
+      aliases: ["team.repair"]
 
 hooks:
   before_constitution:

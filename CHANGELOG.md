@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc35] - 2026-05-29
+
+### Changed
+
+- **LevelUp extension v1.6.3**: Moved `/levelup.repair` command to team-ai-directives extension as `/team.repair`
+  - Repair is a team-admin maintenance command, better paired with `/team.verify`
+  - `agents-template.md` moved to `extensions/team-ai-directives/templates/`
+  - `implement.md` updated to cross-reference template from team-ai-directives extension
+- **Team AI Directives extension v1.7.8**: New `/team.repair` command, fixed `/team.skills` broken script path
+  - New `setup-team.sh` / `setup-team.ps1` scripts for team-ai-directives path resolution
+  - Fixed `team.skills` referencing non-existent script path
+
+### Removed
+
+- **LevelUp orphan scripts**: Deleted `analyze-context.sh` and `analyze-context.ps1` (not referenced by any command)
+
 # [0.8.12+adlc34] - 2026-05-29
 
 ### Fixed

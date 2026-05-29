@@ -5,6 +5,21 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.3] - 2026-05-29
+
+### Changed
+
+- **Repair command moved**: `/levelup.repair` moved to team-ai-directives extension as `/team.repair`
+  - Better alignment with team-admin workflow (paired with `team.verify`)
+  - `agents-template.md` moved to `extensions/team-ai-directives/templates/`
+  - `implement.md` updated to cross-reference template from team-ai-directives
+- `extension.yml`: Version bump to 1.6.3
+
+### Removed
+
+- **analyze-context.sh**: Orphan script not referenced by any command
+- **analyze-context.ps1**: Orphan PowerShell script not referenced by any command
+
 ## [1.6.1] - 2026-05-23
 
 ### Fixed

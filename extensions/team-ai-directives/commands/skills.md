@@ -1,8 +1,8 @@
 ---
 description: Browse and install team skills from team-ai-directives knowledge base
 scripts:
-  sh: .specify/extensions/team-ai-directives/scripts/bash/setup-levelup.sh --json
-  ps: .specify/extensions/team-ai-directives/scripts/powershell/setup-levelup.ps1 -Json
+  sh: .specify/extensions/team-ai-directives/scripts/bash/setup-team.sh --json
+  ps: .specify/extensions/team-ai-directives/scripts/powershell/setup-team.ps1 -Json
 ---
 
 ## User Input

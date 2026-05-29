@@ -1,8 +1,8 @@
 ---
 description: Re-index CDR.md, .skills.json, and AGENTS.md in team-ai-directives
 scripts:
-  sh: .specify/extensions/levelup/scripts/bash/setup-levelup.sh --json
-  ps: .specify/extensions/levelup/scripts/powershell/setup-levelup.ps1 -Json
+  sh: .specify/extensions/team-ai-directives/scripts/bash/setup-team.sh --json
+  ps: .specify/extensions/team-ai-directives/scripts/powershell/setup-team.ps1 -Json
 ---
 
 ## User Input
@@ -129,7 +129,7 @@ grep -qiE "##.*CDR\.md" "{TEAM_DIRECTIVES}/AGENTS.md"
 
 | Status | Action |
 |--------|--------|
-| **Missing** | Create from `.specify/extensions/levelup/templates/agents-template.md` |
+| **Missing** | Create from `.specify/extensions/team-ai-directives/templates/agents-template.md` |
 | **Corrupted** (missing sections) | Overwrite with template |
 | **Valid** | No changes |
 
@@ -142,7 +142,7 @@ If `--dry-run`:
 
 Otherwise, execute repair:
 ```bash
-cp ".specify/extensions/levelup/templates/agents-template.md" "{TEAM_DIRECTIVES}/AGENTS.md"
+cp ".specify/extensions/team-ai-directives/templates/agents-template.md" "{TEAM_DIRECTIVES}/AGENTS.md"
 ```
 
 #### Step 4: Track Results
