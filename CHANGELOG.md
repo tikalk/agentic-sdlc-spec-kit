@@ -2,6 +2,20 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.8.18] - 2026-05-29
+
+### Changed
+
+- Add support for SPECKIT_WORKFLOW_RUN_ID override (#2742)
+- feat: support SPECKIT_INTEGRATION_<KEY>_EXECUTABLE env var (#2743)
+- chore(deps): bump github/gh-aw-actions from 0.74.8 to 0.77.0 (#2754)
+- chore(deps): bump github/codeql-action from 4.35.5 to 4.36.0 (#2753)
+- fix: disable no-op issue reporting for catalog submission workflows (#2748)
+- Add confirmation prompt for URL-based extension installs (#2745)
+- fix: restrict community submission workflows to labeled event only (#2741)
+- feat(integrations): support SPECIFY_<KEY>_EXTRA_ARGS env var for agent subprocess flags (#2596)
+- chore: release 0.8.17, begin 0.8.18.dev0 development (#2737)
+
 ## [0.8.17] - 2026-05-28
 
 ### Changed
