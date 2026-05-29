@@ -2595,11 +2595,7 @@ class PresetResolver:
 
         # Priority 3: Extension-provided templates (sorted by priority — lower number wins)
         for _priority, ext_id, _metadata in self._get_all_extensions_by_priority():
-            try:
-                from specify_cli.cli_customization import resolve_extension_dir
-                ext_dir = resolve_extension_dir(self.project_root, ext_id)
-            except ImportError:
-                ext_dir = self.extensions_dir / ext_id
+            ext_dir = self.extensions_dir / ext_id
             if not ext_dir.is_dir():
                 continue
             for subdir in subdirs:
@@ -2704,11 +2700,7 @@ class PresetResolver:
         from .extensions import ExtensionManifest, ValidationError
 
         for _priority, ext_id, _metadata in self._get_all_extensions_by_priority():
-            try:
-                from specify_cli.cli_customization import resolve_extension_dir
-                ext_dir = resolve_extension_dir(self.project_root, ext_id)
-            except ImportError:
-                ext_dir = self.extensions_dir / ext_id
+            ext_dir = self.extensions_dir / ext_id
             manifest_path = ext_dir / "extension.yml"
             if not manifest_path.is_file():
                 continue
@@ -2778,11 +2770,7 @@ class PresetResolver:
                     continue
 
         for _priority, ext_id, ext_meta in self._get_all_extensions_by_priority():
-            try:
-                from specify_cli.cli_customization import resolve_extension_dir
-                ext_dir = resolve_extension_dir(self.project_root, ext_id)
-            except ImportError:
-                ext_dir = self.extensions_dir / ext_id
+            ext_dir = self.extensions_dir / ext_id
             if not ext_dir.is_dir():
                 continue
             try:
@@ -2925,11 +2913,7 @@ class PresetResolver:
 
         # Priority 3: Extension-provided templates (always "replace")
         for _priority, ext_id, ext_meta in self._get_all_extensions_by_priority():
-            try:
-                from specify_cli.cli_customization import resolve_extension_dir
-                ext_dir = resolve_extension_dir(self.project_root, ext_id)
-            except ImportError:
-                ext_dir = self.extensions_dir / ext_id
+            ext_dir = self.extensions_dir / ext_id
             if not ext_dir.is_dir():
                 continue
             # Try convention-based lookup first

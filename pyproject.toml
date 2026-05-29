@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.8.12+adlc28"
+version = "0.8.12+adlc29"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
@@ -35,6 +35,7 @@ packages = ["src/specify_cli"]
 "extensions/quick" = "specify_cli/core_pack/extensions/quick"
 "extensions/product" = "specify_cli/core_pack/extensions/product"
 "extensions/tdd" = "specify_cli/core_pack/extensions/tdd"
+"extensions/team-ai-directives" = "specify_cli/core_pack/extensions/team-ai-directives"
 # Tikalk bundled presets
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
 "presets/catalog.json" = "specify_cli/bundled_presets/catalog.json"
@@ -58,13 +59,10 @@ packages = ["src/specify_cli"]
 [tool.hatch.build.targets.sdist]
 include = [
     "src/",
-    "extensions/levelup/",
-    "extensions/evals/",
-    "extensions/architect/",
-    "extensions/quick/",
-    "extensions/product/",
-    "extensions/tdd/",
-    "presets/agentic-sdlc/",
+    "extensions/",
+    "presets/",
+    "templates/",
+    "scripts/",
 ]
 
 [project.optional-dependencies]

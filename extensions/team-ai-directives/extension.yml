@@ -1,0 +1,51 @@
+schema_version: "1.0"
+
+extension:
+  id: "team-ai-directives"
+  name: "Team AI Directives"
+  version: "1.7.5"
+  description: "Team-specific AI agent context, skills, and conventions for Spec-Driven Development"
+  author: "Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-team-ai-directives"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.3.0"
+
+provides:
+  commands:
+    - name: "adlc.team-ai-directives.verify"
+      file: "commands/verify.md"
+      description: "Verify team-ai-directives installation and health check"
+      aliases: ["team.verify"]
+
+    - name: "adlc.team-ai-directives.discover"
+      file: "commands/discover.md"
+      description: "Discover relevant context from team-ai-directives for current feature"
+      aliases: ["team.discover"]
+
+    - name: "adlc.team-ai-directives.constitution"
+      file: "commands/constitution.md"
+      description: "Discover and load team constitution principles before project constitution update"
+      aliases: ["team.constitution"]
+
+hooks:
+  before_constitution:
+    command: adlc.team-ai-directives.constitution
+    optional: false
+    description: "Discover and inherit team constitution principles before project constitution update"
+
+  before_specify:
+    command: adlc.team-ai-directives.discover
+    optional: false
+    description: "Auto-discover personas, rules, and examples from team-ai-directives"
+
+  before_plan:
+    command: adlc.team-ai-directives.discover
+    optional: false
+    description: "Auto-discover architecture patterns and implementation guidelines"
+
+tags:
+  - "team-directives"
+  - "context"
+  - "skills"

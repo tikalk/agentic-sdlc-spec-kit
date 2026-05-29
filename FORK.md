@@ -39,6 +39,12 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc26 | 2026-05-28 | 0.8.12 | Architect extension v2.1.1: Hardened DAG orchestration (threshold enforcement, DAG-guarded views, per-view state updates, Accepted-only ADR promotion), AD-template.md link fix |
+| 0.8.12+adlc25 | 2026-05-28 | 0.8.12 | Hook execution hardening in all preset command files: pre-execution hooks moved to absolute top, compact imperative format, post-execution hooks extracted and standardized |
+| 0.8.12+adlc24 | 2026-05-28 | 0.8.12 | Reference extension auto-update: specify extension update detects and applies updates for source: reference extensions with rollback support |
+| 0.8.12+adlc23 | 2026-05-28 | 0.8.12 | Windows test failures: Replaced f-string JSON construction with json.dumps() to properly escape Windows paths |
+| 0.8.12+adlc22 | 2026-05-28 | 0.8.12 | PresetResolver reference extension path resolution: resolve_extension_dir() for reference extensions living outside .specify/extensions/ |
+| 0.8.12+adlc21 | 2026-05-28 | 0.8.12 | Reference extension support: full support for extensions registered with source: reference and a top-level path across CLI commands and config loading |
 | 0.8.12+adlc20 | 2026-05-26 | 0.8.12 | Fix extension download URL {{VERSION}} placeholder substitution in download_extension method |
 | 0.8.12+adlc19 | 2026-05-23 | 0.8.12 | LevelUp extension v1.6.1: Fix redundant ID generation, CDR ref preservation, AGENTS.md grep pattern, validate-directives.sh jq error |
 | 0.8.12+adlc18 | 2026-05-23 | 0.8.12 | Fix team-ai-directives reference mode registration in extension registry |
