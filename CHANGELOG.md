@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc31] - 2026-05-29
+
+### Changed
+
+- **Team AI Directives extension v1.7.6**: Renamed `{KNOWLEDGE_BASE}` placeholder to `{TEAM_AI_DIRECTIVES}` across all command files (verify.md, discover.md, constitution.md) for consistency with extension naming
+
 # [0.8.12+adlc30] - 2026-05-29
 
 ### Changed

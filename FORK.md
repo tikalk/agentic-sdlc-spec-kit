@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc31 | 2026-05-29 | 0.8.12 | Team AI Directives extension v1.7.6: Renamed {KNOWLEDGE_BASE} to {TEAM_AI_DIRECTIVES} placeholder |
 | 0.8.12+adlc26 | 2026-05-28 | 0.8.12 | Architect extension v2.1.1: Hardened DAG orchestration (threshold enforcement, DAG-guarded views, per-view state updates, Accepted-only ADR promotion), AD-template.md link fix |
 | 0.8.12+adlc25 | 2026-05-28 | 0.8.12 | Hook execution hardening in all preset command files: pre-execution hooks moved to absolute top, compact imperative format, post-execution hooks extracted and standardized |
 | 0.8.12+adlc24 | 2026-05-28 | 0.8.12 | Reference extension auto-update: specify extension update detects and applies updates for source: reference extensions with rollback support |
