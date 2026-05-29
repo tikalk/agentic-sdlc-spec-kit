@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc30] - 2026-05-29
+
+### Changed
+
+- **LevelUp extension: `levelup.skills` renamed to `levelup.skill`, command rewritten**:
+  - Renamed command from plural `skills` to singular `skill` to reflect that it builds exactly one skill per invocation
+  - Rewrote `commands/skill.md` from 422 lines to ~120 lines: removed verbose phase -1, out-of-scope, role & context, notes, and related commands sections; kept essential flow (setup → build → validate → register)
+  - Updated all references across `extension.yml`, `README.md`, `QUICKSTART.md`, `clarify.md`, `implement.md`, `specify.md`, `trace.md`
+  - LevelUp extension version bumped to `1.6.2`
+
 # [0.8.12+adlc29] - 2026-05-29
 
 ### Changed

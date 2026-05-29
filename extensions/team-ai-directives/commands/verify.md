@@ -28,28 +28,28 @@ Output: `[OK]` or `[FAIL]` with reason
 
 1. Read `.specify/init-options.json` → get knowledge base path
 2. Verify:
-   - `{KNOWLEDGE_BASE}/context_modules/constitution.md`
-   - `{KNOWLEDGE_BASE}/context_modules/personas/`
-   - `{KNOWLEDGE_BASE}/context_modules/rules/`
-   - `{KNOWLEDGE_BASE}/context_modules/examples/`
+   - `{TEAM_AI_DIRECTIVES}/context_modules/constitution.md`
+   - `{TEAM_AI_DIRECTIVES}/context_modules/personas/`
+   - `{TEAM_AI_DIRECTIVES}/context_modules/rules/`
+   - `{TEAM_AI_DIRECTIVES}/context_modules/examples/`
 
 Output: `[OK]` or `[FAIL]` with reason
 
 ### Check 4: Skills registry
 
-- `{KNOWLEDGE_BASE}/.skills.json` exists and is valid JSON
+- `{TEAM_AI_DIRECTIVES}/.skills.json` exists and is valid JSON
 
 Output: `[OK]` or `[FAIL]` with reason
 
 ### Check 5: CDR tracking
 
-- `{KNOWLEDGE_BASE}/CDR.md` exists
+- `{TEAM_AI_DIRECTIVES}/CDR.md` exists
 
 Output: `[OK]` or `[FAIL]` with reason
 
 ### Check 6: Constitution Alignment
 
-1. Read team constitution from `{KNOWLEDGE_BASE}/context_modules/constitution.md`
+1. Read team constitution from `{TEAM_AI_DIRECTIVES}/context_modules/constitution.md`
 2. Locate project constitution: `{REPO_ROOT}/.specify/memory/constitution.md`
 3. If project constitution exists:
    - Check if it references team-ai-directives (e.g., "Based on team-ai-directives", "Inherits from")

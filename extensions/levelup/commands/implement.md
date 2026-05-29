@@ -842,4 +842,4 @@ Run `/levelup.validate` to update verification timestamps and check directive fr
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Accept CDRs for implementation
 - `/levelup.specify` - Enrich CDRs with feature context
-- `/levelup.skills` - Build skills from CDRs
+- `/levelup.skill` - Build one skill from accepted CDRs

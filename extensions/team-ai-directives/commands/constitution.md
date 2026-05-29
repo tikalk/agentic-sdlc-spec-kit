@@ -17,11 +17,11 @@ Read `.specify/init-options.json` (JSON) and extract the `team_ai_directives` fi
 
 ### Step 2: Read Version
 
-Read `{KNOWLEDGE_BASE}/AGENTS.md` (if exists) and look for a version line, or read git tags from the knowledge base directory.
+Read `{TEAM_AI_DIRECTIVES}/AGENTS.md` (if exists) and look for a version line, or read git tags from the knowledge base directory.
 
 ### Step 3: Read Constitution
 
-Read `{KNOWLEDGE_BASE}/context_modules/constitution.md`.
+Read `{TEAM_AI_DIRECTIVES}/context_modules/constitution.md`.
 
 ### Step 4: Output (Auto-populate Context)
 

@@ -30,14 +30,14 @@ Extract the feature's:
 
 ### Step 3: Scan team-ai-directives
 
-Read all files from `{KNOWLEDGE_BASE}/context_modules/`:
+Read all files from `{TEAM_AI_DIRECTIVES}/context_modules/`:
 
 1. **constitution.md** - Always include this
 2. **personas/** - List all persona files
 3. **rules/** - List all rule files (organized by category)
 4. **examples/** - List all example files
 
-Also read `{KNOWLEDGE_BASE}/.skills.json` for skill registry.
+Also read `{TEAM_AI_DIRECTIVES}/.skills.json` for skill registry.
 
 ### Step 4: Select Relevant Context
 

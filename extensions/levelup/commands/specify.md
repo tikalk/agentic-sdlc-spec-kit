@@ -245,5 +245,5 @@ Consider adding more context:
 
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Resolve ambiguities and accept CDRs
-- `/levelup.skills` - Build skills from accepted CDRs
+- `/levelup.skill` - Build one skill from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives

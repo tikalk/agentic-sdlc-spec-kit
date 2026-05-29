@@ -62,7 +62,7 @@ Run `/levelup.validate` to:
 | `/levelup.init` | Scan codebase and discover CDRs (like `/architect.init`) |
 | `/levelup.clarify` | Resolve ambiguities in discovered CDRs (like `/architect.clarify`) |
 | `/levelup.specify` | Refine CDRs using current feature spec context |
-| `/levelup.skills` | Build a single skill from accepted CDRs |
+| `/levelup.skill` | Build one skill from accepted CDRs |
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
 | `/levelup.trace` | Generate and validate AI session execution traces |
 | `/levelup.validate` | Scan team-ai-directives for rule conflicts |
@@ -105,7 +105,7 @@ This validates patterns and updates CDR statuses to "Accepted" or "Rejected".
 Build a skill from accepted CDRs:
 
 ```bash
-/levelup.skills python-error-handling
+/levelup.skill python-error-handling
 ```
 
 This creates a skill in `.specify/drafts/skills/`.
@@ -223,8 +223,8 @@ pull_request:
 ## Command Flow
 
 ```
-levelup.init          levelup.clarify        levelup.skills        levelup.implement
-(Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skills)  ───▶ (Create PR)
+levelup.init          levelup.clarify        levelup.skill        levelup.implement
+(Discover CDRs)  ───▶  (Resolve Ambiguities) ───▶ (Build Skill)  ───▶ (Create PR)
       │                      │                      │                      │
       │    [handoff]         │    [handoff]         │                      │
       └──▶ levelup.specify ◀────┘                      │                      │

@@ -6,8 +6,8 @@ handoffs:
     prompt: Add context from current feature spec to CDRs
     send: false
   - label: Build Skills
-    agent: adlc.levelup.skills
-    prompt: Build skills from accepted CDRs
+    agent: adlc.levelup.skill
+    prompt: Build one skill from accepted CDRs
     send: false
   - label: Create PR
     agent: adlc.levelup.implement
@@ -441,8 +441,8 @@ Run `/levelup.specify` to:
 - Link CDRs to implementation
 
 **Option 2: Build Skills**
-Run `/levelup.skills {topic}` to:
-- Build a skill from accepted CDRs
+Run `/levelup.skill {topic}` to:
+- Build one skill from accepted CDRs
 
 **Option 3: Create PR**
 Run `/levelup.implement` to:
@@ -472,7 +472,7 @@ Run `/levelup.implement` to:
 
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.specify` - Refine CDRs from feature context
-- `/levelup.skills` - Build skills from accepted CDRs
+- `/levelup.skill` - Build one skill from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives
 - `/architect.clarify` - Similar pattern for ADR clarification
 - `/product.clarify` - Similar pattern for PDR clarification

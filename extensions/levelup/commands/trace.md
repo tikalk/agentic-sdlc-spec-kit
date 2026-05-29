@@ -314,5 +314,5 @@ Check execution metadata for corruption.
 - `/levelup.init` - Discover CDRs from codebase
 - `/levelup.clarify` - Resolve ambiguities and accept CDRs
 - `/levelup.specify` - Extract CDRs from feature context (uses trace if available)
-- `/levelup.skills` - Build skills from accepted CDRs
+- `/levelup.skill` - Build one skill from accepted CDRs
 - `/levelup.implement` - Create PR to team-ai-directives
