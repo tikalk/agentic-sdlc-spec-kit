@@ -21,14 +21,13 @@
     "team-ai-directives": {
       "id": "team-ai-directives",
       "name": "Team AI Directives",
-      "version": "1.7.3",
-      "bundled": false,
+      "version": "1.7.5",
+      "bundled": true,
       "preinstall": false,
       "description": "Team-specific AI agent context, skills, and conventions for Spec-Driven Development",
       "author": "Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
       "homepage": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
-      "download_url": "https://github.com/tikalk/agentic-sdlc-team-ai-directives/archive/refs/tags/{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.3.0"
@@ -36,8 +35,7 @@
       "commands": [
         "adlc.team-ai-directives.verify",
         "adlc.team-ai-directives.discover",
-        "adlc.team-ai-directives.constitution",
-        "adlc.team-ai-directives.release"
+        "adlc.team-ai-directives.constitution"
       ],
       "tags": [
         "team-directives",

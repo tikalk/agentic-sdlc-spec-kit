@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc29] - 2026-05-29
+
+### Changed
+
+- **Team AI Directives extension is now bundled with the CLI**: The extension (`extension.yml` + commands) is now bundled in `extensions/team-ai-directives/` and installed from the CLI package, not from the external repository.
+  - Removed all reference extension code (`register_reference_extension`, `copy_reference_extension_commands`, `check_reference_extension_update`, `apply_reference_extension_update`, `resolve_extension_dir`, `get_reference_extension_paths`)
+  - The `--team-ai-directives` flag now points to a **knowledge base** (directory with `context_modules/`, `skills/`, `.skills.json`, `CDR.md`) rather than an extension source
+  - The bundled extension commands read team content from the knowledge base path stored in `.specify/init-options.json`
+  - Extension version bumped to `1.7.5`
+  - Preset version bumped to `1.0.6`
+
 # [0.8.12+adlc28] - 2026-05-28
 
 ### Fixed

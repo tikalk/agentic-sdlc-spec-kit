@@ -264,66 +264,6 @@ def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> st
 # ============================================================================
 
 
-def resolve_extension_dir(project_root: Path, extension_id: str) -> Path:
-    """Resolve extension directory, handling reference (top-level) extensions.
-
-    Reference extensions are registered in the extension registry with
-    ``source: "reference"`` and a ``path`` pointing to a top-level directory
-    outside ``.specify/extensions/``. This function checks the registry first
-    and falls back to the standard ``.specify/extensions/{id}`` location.
-
-    Args:
-        project_root: Path to the project root
-        extension_id: Extension ID to resolve
-
-    Returns:
-        Path to the extension directory
-    """
-    try:
-        from specify_cli.extensions import ExtensionRegistry
-
-        registry = ExtensionRegistry(project_root / ".specify" / "extensions")
-        metadata = registry.get(extension_id)
-        if (
-            metadata
-            and metadata.get("source") == "reference"
-            and metadata.get("path")
-        ):
-            return Path(metadata["path"])
-    except Exception:
-        pass
-    return project_root / ".specify" / "extensions" / extension_id
-
-
-def get_reference_extension_paths(project_root: Path) -> list[Path]:
-    """Return paths of all reference (top-level) extensions.
-
-    Scans the extension registry for entries with ``source: "reference"``
-    and returns their stored paths, filtering to only existing directories.
-
-    Args:
-        project_root: Path to the project root
-
-    Returns:
-        List of directory paths for reference extensions
-    """
-    try:
-        from specify_cli.extensions import ExtensionRegistry
-
-        registry = ExtensionRegistry(project_root / ".specify" / "extensions")
-        paths: list[Path] = []
-        for _ext_id, metadata in registry.list().items():
-            if (
-                metadata.get("source") == "reference"
-                and metadata.get("path")
-            ):
-                p = Path(metadata["path"])
-                if p.is_dir():
-                    paths.append(p)
-        return paths
-    except Exception:
-        return []
-
 
 # ============================================================================
 # FORK SELF CHECK - GitHub API endpoint for specify self check command
@@ -846,82 +786,70 @@ def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
 
 
 def sync_team_ai_directives(
-    repo_url: str, project_root: Path, *, install: bool = True, force: bool = False
+    repo_url: str, project_root: Path, *, force: bool = False
 ) -> tuple[str, Path]:
-    """Install team-ai-directives as extension from ZIP URL or local path.
+    """Install bundled team-ai-directives extension and resolve knowledge base path.
+
+    The extension itself is bundled with the spec-kit CLI. The knowledge base
+    (context_modules, skills, .skills.json, CDR.md) is provided by the user
+    via --team-ai-directives as a local directory or ZIP URL.
 
     Args:
-        repo_url: URL or local path to team-ai-directives
+        repo_url: URL or local path to team-ai-directives knowledge base
         project_root: Project root directory
-        install: If True, copy local directories to .specify/extensions/.
-                 If False, use local directories in-place (reference mode).
         force: If True, remove existing team-ai-directives before reinstalling.
-              If False (default), raise error if already installed.
 
     Returns:
-        Tuple of (status, path) where status is "installed", "local", or "reference"
+        Tuple of (status, knowledge_base_path) where status is "local" or "installed"
     """
-    from .extensions import ExtensionManager, ExtensionManifest  # noqa: F401
+    from .extensions import ExtensionManager
+    from ._assets import _locate_bundled_extension
 
     repo_url = (repo_url or "").strip()
     if not repo_url:
         raise ValueError("Team AI directives repository URL cannot be empty")
 
+    # Install bundled extension from CLI package
+    ext_manager = ExtensionManager(project_root)
+    speckit_version = get_speckit_version()
+
+    if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+        ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
+
+    if not ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
+        bundled_path = _locate_bundled_extension(TEAM_DIRECTIVES_DIRNAME)
+        if bundled_path and bundled_path.exists():
+            ext_manager.install_from_directory(
+                bundled_path, speckit_version, priority=1
+            )
+        else:
+            raise RuntimeError(
+                f"Bundled extension '{TEAM_DIRECTIVES_DIRNAME}' not found in CLI package"
+            )
+
+    # Resolve knowledge base path
     potential_path = Path(repo_url).expanduser()
 
     if potential_path.exists() and potential_path.is_dir():
-        # Validate it's a proper extension
-        manifest_path = potential_path / "extension.yml"
-        if not manifest_path.exists():
-            raise ValueError(
-                f"Invalid team-ai-directives directory: {potential_path}\n"
-                f"Missing extension.yml manifest file"
-            )
-
-        if not install:
-            # Reference mode: register extension without copying
-            ext_manager = ExtensionManager(project_root)
-            speckit_version = get_speckit_version()
-
-            # Force override: remove existing registration before re-registering
-            if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
-                ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
-
-            manifest = ext_manager.register_reference_extension(
-                potential_path, speckit_version, priority=1
-            )
-            copy_reference_extension_commands(
-                project_root, manifest.id, potential_path
-            )
-            _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
-            return ("reference", potential_path)
-
-        # Install mode: copy to .specify/extensions/
-        ext_manager = ExtensionManager(project_root)
-        speckit_version = get_speckit_version()
-
-        # Force override: remove existing team-ai-directives before reinstalling
-        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
-            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
-
-        manifest = ext_manager.install_from_directory(
-            potential_path, speckit_version, priority=1
+        # Validate it's a knowledge base (not an extension)
+        has_content = (
+            (potential_path / "context_modules").exists()
+            or (potential_path / ".skills.json").exists()
+            or (potential_path / "CDR.md").exists()
         )
-        dest_dir = project_root / ".specify" / "extensions" / manifest.id
-        _store_extension_source_url(project_root, manifest.id, str(potential_path.resolve()))
-        return ("local", dest_dir)
+        if not has_content:
+            raise ValueError(
+                f"Invalid team-ai-directives knowledge base: {potential_path}\n"
+                f"Missing expected content (context_modules/, .skills.json, or CDR.md)"
+            )
+        return ("local", potential_path)
 
     if repo_url.endswith(".zip") or "/archive/" in repo_url:
-        ext_manager = ExtensionManager(project_root)
-        speckit_version = get_speckit_version()
-
-        # Force override: remove existing team-ai-directives before reinstalling
-        if force and ext_manager.registry.is_installed(TEAM_DIRECTIVES_DIRNAME):
-            ext_manager.remove(TEAM_DIRECTIVES_DIRNAME)
-
-        download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+        download_dir = (
+            project_root / ".specify" / "extensions" / ".cache" / "downloads"
+        )
         download_dir.mkdir(parents=True, exist_ok=True)
-        zip_path = download_dir / "team-ai-directives-download.zip"
+        zip_path = download_dir / "team-ai-directives-kb.zip"
 
         try:
             from specify_cli.authentication.http import open_url
@@ -933,8 +861,8 @@ def sync_team_ai_directives(
                 if e.code in (401, 403):
                     raise ValueError(
                         f"Authentication failed accessing {repo_url}\n"
-                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
-                        f"See: https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/docs/reference/authentication.md"
+                        f"The repository may be private. Configure authentication "
+                        f"in ~/.specify/auth.json"
                     ) from e
                 elif e.code == 404:
                     raise ValueError(
@@ -950,36 +878,40 @@ def sync_team_ai_directives(
                 ) from e
             zip_path.write_bytes(zip_data)
 
-            # Validate downloaded content is actually a ZIP file
-            # (GitLab may return HTML login page for private repos without auth)
+            # Validate downloaded content
             if not zip_data.startswith(b'PK'):
                 content_preview = zip_data[:500].decode('utf-8', errors='replace')
                 if '<html' in content_preview.lower():
                     raise ValueError(
                         f"Repository requires authentication: {repo_url}\n"
-                        f"The repository may be private. Configure authentication in ~/.specify/auth.json\n"
-                        f"See: https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/docs/reference/authentication.md"
+                        f"The repository may be private."
                     )
                 raise ValueError(
-                    f"Downloaded file is not a valid ZIP archive: {repo_url}\n"
-                    f"Expected a ZIP file, but received different content type."
+                    f"Downloaded file is not a valid ZIP archive: {repo_url}"
                 )
 
-            manifest = ext_manager.install_from_zip(zip_path, speckit_version, priority=1)
-            dest_dir = project_root / ".specify" / "extensions" / manifest.id
+            import zipfile
 
-            target_repo = _derive_target_repo_from_url(repo_url)
-            _store_extension_source_url(project_root, manifest.id, repo_url, target_repo)
+            extract_dir = download_dir / "team-ai-directives-kb-extracted"
+            if extract_dir.exists():
+                shutil.rmtree(extract_dir)
+            extract_dir.mkdir(parents=True, exist_ok=True)
 
-            # Register bundled catalog if exists
-            if target_repo:
-                catalog_url = target_repo.replace(
-                    "github.com",
-                    "raw.githubusercontent.com"
-                ) + "/main/extensions/catalog.json"
-                _register_bundled_catalog(project_root, catalog_url)
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(extract_dir)
 
-            return ("installed", dest_dir)
+            # Find the actual content directory
+            kb_path = extract_dir
+            entries = [e for e in kb_path.iterdir() if e.is_dir()]
+            if len(entries) == 1 and not (kb_path / "context_modules").exists():
+                subdir = entries[0]
+                if (
+                    (subdir / "context_modules").exists()
+                    or (subdir / ".skills.json").exists()
+                ):
+                    kb_path = subdir
+
+            return ("installed", kb_path)
         finally:
             if zip_path.exists():
                 zip_path.unlink()
@@ -988,7 +920,7 @@ def sync_team_ai_directives(
             "Invalid team-ai-directives URL. Expected:\n"
             "  - Local directory path\n"
             "  - ZIP file URL (ending in .zip)\n"
-            "  - GitHub archive URL (e.g., https://github.com/org/repo/archive/refs/tags/v1.0.0.zip)"
+            "  - GitHub/GitLab archive URL"
         )
 
 
@@ -1018,140 +950,6 @@ def get_team_directives_path(project_path: Path) -> Path | None:
 # ----------------------------------------------------------------------------
 
 
-def check_reference_extension_update(
-    ext_id: str,
-    metadata: dict,
-    installed_version: version.Version,
-) -> tuple[version.Version | None, dict | None]:
-    """Check if a reference extension has a newer version in its local manifest.
-
-    For extensions registered with ``source: "reference"``, reads the local
-    ``extension.yml`` at the stored ``path`` and compares its version against
-    the installed (registry) version.
-
-    Args:
-        ext_id: Extension ID
-        metadata: Registry metadata dict (must contain ``source`` and ``path``)
-        installed_version: Currently installed version from registry
-
-    Returns:
-        Tuple of (new_version, update_info) or (None, None) if no update.
-        ``update_info`` contains ``reference_path`` and ``manifest_version``.
-    """
-    if metadata.get("source") != "reference" or not metadata.get("path"):
-        return None, None
-
-    import yaml
-
-    manifest_path = Path(metadata["path"]) / "extension.yml"
-    if not manifest_path.exists():
-        return None, None
-
-    try:
-        with open(manifest_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f) or {}
-        version_str = data.get("extension", {}).get("version")
-        if not version_str:
-            return None, None
-        manifest_version = version.Version(version_str)
-        if manifest_version > installed_version:
-            return manifest_version, {
-                "reference_path": Path(metadata["path"]),
-                "manifest_version": version_str,
-            }
-    except Exception:
-        pass
-    return None, None
-
-
-def copy_reference_extension_commands(
-    project_root: Path,
-    ext_id: str,
-    reference_path: Path,
-) -> None:
-    """Copy command files from a reference extension to .specify/extensions/<ext>/commands/.
-
-    This ensures preset hook resolution can find command files at the expected
-    local path regardless of whether the extension is installed locally or
-    registered as a reference.
-    """
-    import shutil
-
-    source_commands = reference_path / "commands"
-    if not source_commands.exists():
-        return
-
-    dest_dir = project_root / ".specify" / "extensions" / ext_id / "commands"
-    if dest_dir.exists():
-        shutil.rmtree(dest_dir)
-    dest_dir.mkdir(parents=True, exist_ok=True)
-
-    for cmd_file in source_commands.iterdir():
-        if cmd_file.is_file():
-            shutil.copy2(cmd_file, dest_dir / cmd_file.name)
-
-
-def apply_reference_extension_update(
-    manager: Any,
-    ext_id: str,
-    update_info: dict,
-    speckit_version: str,
-    backup_registry_entry: dict | None,
-) -> None:
-    """Apply update to a reference extension by re-registering from local path.
-
-    Removes the old registration (preserving command file backups) and
-    re-registers the extension from its reference path, preserving the
-    original priority.
-
-    Args:
-        manager: ExtensionManager instance
-        ext_id: Extension ID
-        update_info: Dict with ``reference_path`` and ``manifest_version``
-        speckit_version: Current spec-kit version
-        backup_registry_entry: Original registry entry for priority preservation
-
-    Raises:
-        ExtensionError: If reference path is missing or invalid
-        ValueError: If extension ID in manifest doesn't match
-    """
-    from .extensions import ExtensionError
-
-    ref_path = update_info["reference_path"]
-    if not ref_path.exists():
-        raise ExtensionError(f"Reference extension path not found: {ref_path}")
-
-    manifest_path = ref_path / "extension.yml"
-    if not manifest_path.exists():
-        raise ExtensionError(f"Missing extension.yml: {ref_path}")
-
-    import yaml
-
-    with open(manifest_path, encoding="utf-8") as f:
-        data = yaml.safe_load(f) or {}
-
-    manifest_id = data.get("extension", {}).get("id")
-    if manifest_id != ext_id:
-        raise ValueError(f"ID mismatch: expected '{ext_id}', got '{manifest_id}'")
-
-    # Preserve original priority
-    priority = (
-        backup_registry_entry.get("priority", 10)
-        if isinstance(backup_registry_entry, dict)
-        else 10
-    )
-
-    # Remove old registration (skips directory deletion for reference extensions)
-    manager.remove(ext_id, keep_config=True)
-
-    # Re-register from reference path
-    manager.register_reference_extension(ref_path, speckit_version, priority=priority)
-
-    # Copy command files so preset hook resolution finds them locally
-    copy_reference_extension_commands(
-        manager.project_root, ext_id, ref_path
-    )
-
 
 def pre_init(
     project_path: Path,
@@ -1174,263 +972,133 @@ def pre_init(
     directives_path: Path | None = None
 
     try:
-        # Determine if this is a local directory (use reference mode) or URL (install)
-        potential_path = Path(team_ai_directives).expanduser()
-        is_local_dir = potential_path.exists() and potential_path.is_dir()
-
-        if is_local_dir:
-            # Local directory: use reference mode (no copy)
-            status, directives_path = sync_team_ai_directives(
-                team_ai_directives, project_path, install=False
-            )
-            tracker.complete("team-directives", f"referenced: {directives_path}")
-
-            # Install MCP config before team-skills
-            if directives_path and (directives_path / ".mcp.json").exists():
-                if tracker:
-                    tracker.start("team-mcp")
-                try:
-                    success, messages, resolved, unresolved = install_mcp_config(
-                        directives_path, project_path
-                    )
-                    
-                    # Parse messages to extract useful info
-                    installed_servers = []
-                    merged_servers = []
-                    
-                    for msg in messages:
-                        if msg.startswith("✓ Installed"):
-                            pass  # General success message
-                        elif msg.startswith("✓ Merged"):
-                            pass  # General success message
-                        elif msg.startswith("  ℹ Resolved"):
-                            pass  # Already tracked in resolved list
-                        elif msg.startswith("  ⚠ Unresolved"):
-                            # Parse unresolved vars and map to servers
-                            pass
-                        elif msg.startswith("    - mcpServers:"):
-                            server_name = msg.replace("    - mcpServers: ", "").strip()
-                            merged_servers.append(server_name)
-                        elif msg.startswith("    - tools:"):
-                            tool_name = msg.replace("    - tools: ", "").strip()
-                            merged_servers.append(tool_name)
-                    
-                    # Read the config to get server names
-                    try:
-                        mcp_path = project_path / ".mcp.json"
-                        if mcp_path.exists():
-                            mcp_config = json.loads(mcp_path.read_text())
-                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
-                            all_tools = list(mcp_config.get("tools", {}).keys())
-                            
-                            # Determine which servers need env vars
-                            for server_name in all_servers + all_tools:
-                                if server_name not in merged_servers:
-                                    installed_servers.append(server_name)
-                    except Exception:
-                        pass
-                    
-                    # Build user-friendly tracker status
-                    total_items = len(installed_servers) + len(merged_servers)
-                    status_parts = []
-                    
-                    if total_items > 0:
-                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
-                    
-                    if unresolved:
-                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
-                    
-                    if merged_servers:
-                        status_parts.append(f"{len(merged_servers)} merged")
-                    
-                    status_msg = ", ".join(status_parts) if status_parts else "installed"
-                    
-                    if success:
-                        if tracker:
-                            if unresolved:
-                                tracker.complete("team-mcp", status_msg)  # Yellow warning style
-                            else:
-                                tracker.complete("team-mcp", status_msg)
-                        
-                        # Print explanatory console output
-                        if installed_servers:
-                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
-                        if merged_servers:
-                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
-                        
-                        # Show env var hints
-                        if unresolved:
-                            for var in unresolved[:3]:  # Show first 3
-                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
-                            if len(unresolved) > 3:
-                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
-                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
-                    else:
-                        if tracker:
-                            tracker.skip("team-mcp", "validation failed - see warnings")
-                        # Print error messages
-                        for msg in messages:
-                            if msg.startswith("✗"):
-                                console.print(f"[red]{msg}[/red]")
-                            else:
-                                console.print(f"[dim]{msg}[/dim]")
-                except Exception as e:
-                    if tracker:
-                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
-                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
-            else:
-                # Skip team-mcp step if no .mcp.json
-                if tracker:
-                    tracker.skip("team-mcp", "no .mcp.json found")
-            if directives_path and selected_ai:
-                try:
-                    tracker.start("team-skills")
-                    installed = _install_skills_from_path(
-                        team_directives_path=directives_path,
-                        project_path=project_path,
-                        selected_ai=selected_ai,
-                        force=False,
-                    )
-                    if installed:
-                        console.print(f"[dim]Installed team-ai-directives skills: {installed}[/dim]")
-                        tracker.complete("team-skills", f"{len(installed)} skills")
-                    else:
-                        tracker.skip("team-skills", "no required skills found")
-                except Exception as e:
-                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
-                    if tracker:
-                        tracker.error("team-skills", str(e))
-            return
-
-        # ZIP URL: install to .specify/extensions/ (auto-override existing)
+        # Install bundled extension and resolve knowledge base path
         status, directives_path = sync_team_ai_directives(
-            team_ai_directives, project_path, install=True, force=True
+            team_ai_directives, project_path, force=True
         )
+        tracker.complete("team-directives", f"{status}: {directives_path}")
 
-        if status == "installed":
-            tracker.complete("team-directives", f"installed to {directives_path}")
-            
-            # Install MCP config after team-directives
-            if directives_path and (directives_path / ".mcp.json").exists():
-                if tracker:
-                    tracker.start("team-mcp")
+        # Install MCP config from knowledge base
+        if directives_path and (directives_path / ".mcp.json").exists():
+            if tracker:
+                tracker.start("team-mcp")
+            try:
+                success, messages, resolved, unresolved = install_mcp_config(
+                    directives_path, project_path
+                )
+
+                # Parse messages to extract useful info
+                installed_servers = []
+                merged_servers = []
+
+                for msg in messages:
+                    if msg.startswith("    - mcpServers:"):
+                        server_name = msg.replace("    - mcpServers: ", "").strip()
+                        merged_servers.append(server_name)
+                    elif msg.startswith("    - tools:"):
+                        tool_name = msg.replace("    - tools: ", "").strip()
+                        merged_servers.append(tool_name)
+
+                # Read the config to get server names
                 try:
-                    success, messages, resolved, unresolved = install_mcp_config(
-                        directives_path, project_path
+                    mcp_path = project_path / ".mcp.json"
+                    if mcp_path.exists():
+                        mcp_config = json.loads(mcp_path.read_text())
+                        all_servers = list(mcp_config.get("mcpServers", {}).keys())
+                        all_tools = list(mcp_config.get("tools", {}).keys())
+
+                        # Determine which servers need env vars
+                        for server_name in all_servers + all_tools:
+                            if server_name not in merged_servers:
+                                installed_servers.append(server_name)
+                except Exception:
+                    pass
+
+                # Build user-friendly tracker status
+                total_items = len(installed_servers) + len(merged_servers)
+                status_parts = []
+
+                if total_items > 0:
+                    status_parts.append(
+                        f"{total_items} server{'s' if total_items > 1 else ''}"
                     )
-                    
-                    # Parse messages to extract useful info
-                    installed_servers = []
-                    merged_servers = []
-                    
-                    for msg in messages:
-                        if msg.startswith("    - mcpServers:"):
-                            server_name = msg.replace("    - mcpServers: ", "").strip()
-                            merged_servers.append(server_name)
-                        elif msg.startswith("    - tools:"):
-                            tool_name = msg.replace("    - tools: ", "").strip()
-                            merged_servers.append(tool_name)
-                    
-                    # Read the config to get server names
-                    try:
-                        mcp_path = project_path / ".mcp.json"
-                        if mcp_path.exists():
-                            mcp_config = json.loads(mcp_path.read_text())
-                            all_servers = list(mcp_config.get("mcpServers", {}).keys())
-                            all_tools = list(mcp_config.get("tools", {}).keys())
-                            
-                            # Determine which servers need env vars
-                            for server_name in all_servers + all_tools:
-                                if server_name not in merged_servers:
-                                    installed_servers.append(server_name)
-                    except Exception:
-                        pass
-                    
-                    # Build user-friendly tracker status
-                    total_items = len(installed_servers) + len(merged_servers)
-                    status_parts = []
-                    
-                    if total_items > 0:
-                        status_parts.append(f"{total_items} server{'s' if total_items > 1 else ''}")
-                    
-                    if unresolved:
-                        status_parts.append(f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup")
-                    
+
+                if unresolved:
+                    status_parts.append(
+                        f"{len(unresolved)} need{'s' if len(unresolved) == 1 else ''} setup"
+                    )
+
+                if merged_servers:
+                    status_parts.append(f"{len(merged_servers)} merged")
+
+                status_msg = ", ".join(status_parts) if status_parts else "installed"
+
+                if success:
+                    if tracker:
+                        tracker.complete("team-mcp", status_msg)
+
+                    # Print explanatory console output
+                    if installed_servers:
+                        console.print(
+                            f"[dim]  Installed: {', '.join(installed_servers)}[/dim]"
+                        )
                     if merged_servers:
-                        status_parts.append(f"{len(merged_servers)} merged")
-                    
-                    status_msg = ", ".join(status_parts) if status_parts else "installed"
-                    
-                    if success:
-                        if tracker:
-                            tracker.complete("team-mcp", status_msg)
-                        
-                        # Print explanatory console output
-                        if installed_servers:
-                            console.print(f"[dim]  Installed: {', '.join(installed_servers)}[/dim]")
-                        if merged_servers:
-                            console.print(f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]")
-                        
-                        # Show env var hints
-                        if unresolved:
-                            for var in unresolved[:3]:  # Show first 3
-                                console.print(f"[dim]  Needs env var: ${var}[/dim]")
-                            if len(unresolved) > 3:
-                                console.print(f"[dim]  ... and {len(unresolved) - 3} more[/dim]")
-                            console.print(f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\"")
-                    else:
-                        if tracker:
-                            tracker.skip("team-mcp", "validation failed - see warnings")
-                    # Print all messages
-                    for msg in messages:
-                        console.print(f"[dim]{msg}[/dim]")
-                except Exception as e:
+                        console.print(
+                            f"[dim]  Merged with existing: {', '.join(merged_servers)}[/dim]"
+                        )
+
+                    # Show env var hints
+                    if unresolved:
+                        for var in unresolved[:3]:  # Show first 3
+                            console.print(f"[dim]  Needs env var: ${var}[/dim]")
+                        if len(unresolved) > 3:
+                            console.print(
+                                f"[dim]  ... and {len(unresolved) - 3} more[/dim]"
+                            )
+                        console.print(
+                            f"[yellow]  Hint:[/yellow] Set with: export {unresolved[0]}=\"your-value\""
+                        )
+                else:
                     if tracker:
-                        tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
-                    console.print(f"[yellow]Warning:[/yellow] MCP config installation failed: {e}")
-            else:
-                # Skip team-mcp step if no .mcp.json
+                        tracker.skip("team-mcp", "validation failed - see warnings")
+                # Print all messages
+                for msg in messages:
+                    console.print(f"[dim]{msg}[/dim]")
+            except Exception as e:
                 if tracker:
-                    tracker.skip("team-mcp", "no .mcp.json found")
-            
-            # Install skills after MCP config
-            if directives_path and selected_ai:
-                try:
-                    if tracker:
-                        tracker.start("team-skills")
-                    installed = _install_skills_from_path(
-                        team_directives_path=directives_path,
-                        project_path=project_path,
-                        selected_ai=selected_ai,
-                        force=False,
-                    )
-                    if installed:
-                        if tracker:
-                            tracker.complete("team-skills", f"{len(installed)} skills")
-                        console.print("[dim]Installed team-ai-directives skills[/dim]")
-                    else:
-                        if tracker:
-                            tracker.skip("team-skills", "no required skills found")
-                except Exception as e:
-                    console.print(f"[yellow]Warning:[/yellow] Failed to install skills: {e}")
-                    if tracker:
-                        tracker.error("team-skills", str(e))
-            return
+                    tracker.skip("team-mcp", f"skipped: {str(e)[:40]}")
+                console.print(
+                    f"[yellow]Warning:[/yellow] MCP config installation failed: {e}"
+                )
+        else:
+            # Skip team-mcp step if no .mcp.json
+            if tracker:
+                tracker.skip("team-mcp", "no .mcp.json found")
 
-        if status == "local":
-            tracker.complete("team-directives", f"local: {directives_path}")
-            return
-
-        # If sync_team_ai_directives returns an unexpected status, treat it as an error.
-        tracker.error(
-            "team-directives",
-            f"unexpected status '{status}' (path={directives_path})",
-        )
-        console.print(
-            "[yellow]Warning:[/yellow] Failed to sync team AI directives: "
-            f"unexpected status '{status}'"
-        )
-        return
+        # Install skills from knowledge base
+        if directives_path and selected_ai:
+            try:
+                if tracker:
+                    tracker.start("team-skills")
+                installed = _install_skills_from_path(
+                    team_directives_path=directives_path,
+                    project_path=project_path,
+                    selected_ai=selected_ai,
+                    force=False,
+                )
+                if installed:
+                    if tracker:
+                        tracker.complete("team-skills", f"{len(installed)} skills")
+                    console.print("[dim]Installed team-ai-directives skills[/dim]")
+                else:
+                    if tracker:
+                        tracker.skip("team-skills", "no required skills found")
+            except Exception as e:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to install skills: {e}"
+                )
+                if tracker:
+                    tracker.error("team-skills", str(e))
 
     except Exception as e:
         tracker.error("team-directives", str(e))

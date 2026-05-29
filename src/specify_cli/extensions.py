@@ -1244,78 +1244,6 @@ class ExtensionManager:
 
         return manifest
 
-    def register_reference_extension(
-        self,
-        source_dir: Path,
-        speckit_version: str,
-        register_commands: bool = True,
-        priority: int = 10,
-    ) -> ExtensionManifest:
-        """Register an extension from a local directory without copying it.
-
-        Similar to install_from_directory() but:
-        - Does NOT copy files to .specify/extensions/
-        - Stores absolute path in registry for resolution
-        - Still registers commands, hooks, and skills
-
-        Args:
-            source_dir: Path to extension directory
-            speckit_version: Current spec-kit version
-            register_commands: If True, register commands with AI agents
-            priority: Resolution priority (lower = higher precedence, default 10)
-
-        Returns:
-            Registered extension manifest
-
-        Raises:
-            ValidationError: If manifest is invalid or priority is invalid
-            CompatibilityError: If extension is incompatible
-            ExtensionError: If extension is already installed
-        """
-        if priority < 1:
-            raise ValidationError("Priority must be a positive integer (1 or higher)")
-
-        manifest_path = source_dir / "extension.yml"
-        manifest = ExtensionManifest(manifest_path)
-
-        self.check_compatibility(manifest, speckit_version)
-
-        if self.registry.is_installed(manifest.id):
-            raise ExtensionError(
-                f"Extension '{manifest.id}' is already installed. "
-                f"Use 'specify extension remove {manifest.id}' first."
-            )
-
-        self._validate_install_conflicts(manifest)
-
-        registered_commands = {}
-        if register_commands:
-            registrar = CommandRegistrar()
-            registered_commands = registrar.register_commands_for_all_agents(
-                manifest, source_dir, self.project_root
-            )
-
-        registered_skills = self._register_extension_skills(manifest, source_dir)
-
-        hook_executor = HookExecutor(self.project_root)
-        hook_executor.register_hooks(manifest)
-
-        self.registry.add(
-            manifest.id,
-            {
-                "version": manifest.version,
-                "source": "reference",
-                "path": str(source_dir.resolve()),
-                "manifest_hash": manifest.get_hash(),
-                "enabled": True,
-                "priority": priority,
-                "registered_commands": registered_commands,
-                "registered_skills": registered_skills,
-            },
-        )
-
-        return manifest
-
     def install_from_zip(
         self,
         zip_path: Path,
@@ -1403,8 +1331,6 @@ class ExtensionManager:
         else:
             registered_skills = []
 
-        # Check if this is a reference extension (no directory to delete)
-        is_reference = metadata and metadata.get("source") == "reference"
         extension_dir = self.extensions_dir / extension_id
 
         # Unregister commands from all AI agents
@@ -1415,41 +1341,39 @@ class ExtensionManager:
         # Unregister agent skills
         self._unregister_extension_skills(registered_skills, extension_id)
 
-        # Only remove directory for non-reference extensions
-        if not is_reference:
-            if keep_config:
-                # Preserve config files, only remove non-config files
-                if extension_dir.exists():
-                    for child in extension_dir.iterdir():
-                        # Keep top-level *-config.yml and *-config.local.yml files
-                        if child.is_file() and (
-                            child.name.endswith("-config.yml")
-                            or child.name.endswith("-config.local.yml")
-                        ):
-                            continue
-                        if child.is_dir():
-                            shutil.rmtree(child)
-                        else:
-                            child.unlink()
-            else:
-                # Backup config files before deleting
-                if extension_dir.exists():
-                    # Use subdirectory per extension to avoid name accumulation
-                    # (e.g., jira-jira-config.yml on repeated remove/install cycles)
-                    backup_dir = self.extensions_dir / ".backup" / extension_id
-                    backup_dir.mkdir(parents=True, exist_ok=True)
+        if keep_config:
+            # Preserve config files, only remove non-config files
+            if extension_dir.exists():
+                for child in extension_dir.iterdir():
+                    # Keep top-level *-config.yml and *-config.local.yml files
+                    if child.is_file() and (
+                        child.name.endswith("-config.yml")
+                        or child.name.endswith("-config.local.yml")
+                    ):
+                        continue
+                    if child.is_dir():
+                        shutil.rmtree(child)
+                    else:
+                        child.unlink()
+        else:
+            # Backup config files before deleting
+            if extension_dir.exists():
+                # Use subdirectory per extension to avoid name accumulation
+                # (e.g., jira-jira-config.yml on repeated remove/install cycles)
+                backup_dir = self.extensions_dir / ".backup" / extension_id
+                backup_dir.mkdir(parents=True, exist_ok=True)
 
-                    # Backup both primary and local override config files
-                    config_files = list(extension_dir.glob("*-config.yml")) + list(
-                        extension_dir.glob("*-config.local.yml")
-                    )
-                    for config_file in config_files:
-                        backup_path = backup_dir / config_file.name
-                        shutil.copy2(config_file, backup_path)
+                # Backup both primary and local override config files
+                config_files = list(extension_dir.glob("*-config.yml")) + list(
+                    extension_dir.glob("*-config.local.yml")
+                )
+                for config_file in config_files:
+                    backup_path = backup_dir / config_file.name
+                    shutil.copy2(config_file, backup_path)
 
-                # Remove extension directory
-                if extension_dir.exists():
-                    shutil.rmtree(extension_dir)
+            # Remove extension directory
+            if extension_dir.exists():
+                shutil.rmtree(extension_dir)
 
         # Unregister hooks
         hook_executor = HookExecutor(self.project_root)
@@ -1579,11 +1503,7 @@ class ExtensionManager:
             if manifest is None:
                 continue
 
-            try:
-                from specify_cli.cli_customization import resolve_extension_dir
-                ext_dir = resolve_extension_dir(self.project_root, ext_id)
-            except ImportError:
-                ext_dir = self.extensions_dir / ext_id
+            ext_dir = self.extensions_dir / ext_id
             updates: Dict[str, Any] = {}
 
             if agent_config and not skills_mode_active:
@@ -1627,12 +1547,8 @@ class ExtensionManager:
             if not isinstance(metadata, dict):
                 metadata = {}
 
-            # For reference extensions, use the stored path; otherwise use standard location
-            if metadata.get("source") == "reference" and metadata.get("path"):
-                manifest_path = Path(metadata["path"]) / "extension.yml"
-            else:
-                ext_dir = self.extensions_dir / ext_id
-                manifest_path = ext_dir / "extension.yml"
+            ext_dir = self.extensions_dir / ext_id
+            manifest_path = ext_dir / "extension.yml"
 
             try:
                 manifest = ExtensionManifest(manifest_path)
@@ -1679,14 +1595,8 @@ class ExtensionManager:
         if not self.registry.is_installed(extension_id):
             return None
 
-        metadata = self.registry.get(extension_id)
-
-        # For reference extensions, use the stored path; otherwise use standard location
-        if metadata and metadata.get("source") == "reference" and metadata.get("path"):
-            manifest_path = Path(metadata["path"]) / "extension.yml"
-        else:
-            ext_dir = self.extensions_dir / extension_id
-            manifest_path = ext_dir / "extension.yml"
+        ext_dir = self.extensions_dir / extension_id
+        manifest_path = ext_dir / "extension.yml"
 
         try:
             return ExtensionManifest(manifest_path)
@@ -2406,13 +2316,7 @@ class ConfigManager:
         """
         self.project_root = project_root
         self.extension_id = extension_id
-        try:
-            from specify_cli.cli_customization import resolve_extension_dir
-            self.extension_dir = resolve_extension_dir(project_root, extension_id)
-        except ImportError:
-            self.extension_dir = (
-                project_root / ".specify" / "extensions" / extension_id
-            )
+        self.extension_dir = project_root / ".specify" / "extensions" / extension_id
 
     def _load_yaml_config(self, file_path: Path) -> Dict[str, Any]:
         """Load configuration from YAML file.
