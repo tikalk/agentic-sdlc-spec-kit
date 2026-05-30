@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.8.12+adlc37 | 2026-05-30 | 0.8.12 | LevelUp v1.7.0: Constitution CDR lifecycle - constitution changes now require review before publication |
 | 0.8.12+adlc36 | 2026-05-29 | 0.8.12 | LevelUp v1.6.4: Constitution Generation phase in /levelup.init - derives principles from cross-cutting patterns and inconsistencies |
 | 0.8.12+adlc35 | 2026-05-29 | 0.8.12 | LevelUp v1.6.3: Moved /levelup.repair to team-ai-directives as /team.repair, deleted orphan scripts; Team AI Directives v1.7.8: team.repair command, team.skills script fix, setup-team.sh/ps1 |
 | 0.8.12+adlc34 | 2026-05-29 | 0.8.12 | ADLC preset v1.0.7: Hardened tasks_meta.json creation (MANDATORY init step, per-task metadata updates, completion verification); LevelUp extension: fixed common.sh path resolution in generate-trace.sh and validate-trace.sh |

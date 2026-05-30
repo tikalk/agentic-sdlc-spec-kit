@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc37] - 2026-05-30
+
+### Changed
+
+- **LevelUp extension v1.7.0**: Constitution changes now follow CDR lifecycle
+  - **BREAKING**: `/levelup.init` Phase 8 creates Constitution CDRs instead of writing to team-ai-directives
+  - Constitution changes require review via `/levelup.clarify` and acceptance before publication
+  - `/levelup.implement` handles both Constitution Creation and Amendment CDRs
+  - Ensures team review and validation of all constitution changes
+  - Added `Constitution Creation` and `Constitution Amendment` CDR types
+  - Added Constitution Strategy section to CDR template
+
 # [0.8.12+adlc36] - 2026-05-29
 
 ### Added

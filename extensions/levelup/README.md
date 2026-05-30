@@ -156,6 +156,80 @@ Rules are organized by **functional category** (not technology):
 
 **Filename format**: `{technology}_{pattern_name}.md` (use underscores)
 
+## Constitution CDR Workflow
+
+**Constitution changes follow the standard CDR lifecycle** - they are NOT written directly to team-ai-directives.
+
+### Constitution CDR Types
+
+| Type | When Used | Action |
+|------|-----------|--------|
+| **Constitution Creation** | No team constitution exists | Creates new constitution from template |
+| **Constitution Amendment** | Enhancing existing constitution | Appends new principles to existing document |
+
+### Workflow
+
+1. **Discovery** (`/levelup.init`):
+   - Analyzes cross-cutting patterns across sub-systems
+   - Derives principles from patterns with ≥50% coverage
+   - Creates Constitution CDR with status "Discovered"
+   - Stores in `.specify/drafts/cdr.md`
+
+2. **Review** (`/levelup.clarify`):
+   - Team reviews derived principles
+   - Validates evidence from codebase
+   - Decides on version strategy (MAJOR/MINOR/PATCH)
+   - Updates CDR status to "Accepted" or "Rejected"
+
+3. **Publication** (`/levelup.implement`):
+   - Creates or updates `context_modules/constitution.md`
+   - Adds verification metadata
+   - Includes CDR reference for audit trail
+
+### Why This Matters
+
+- **Team Review**: All constitution changes require explicit approval
+- **Audit Trail**: CDR tracks decision, evidence, and rationale
+- **Version Control**: Proper versioning with semver
+- **Quality Gates**: Constitution changes go through same validation as other context modules
+
+### Example Constitution CDR
+
+```markdown
+## CDR-CONST-001: Team Constitution Creation
+
+### Status
+**Discovered**
+
+### Context Type
+Constitution Creation
+
+### Context
+Team constitution missing. Deriving foundational principles from cross-cutting patterns.
+
+### Proposed Content
+# Team Constitution
+
+## Core Principles
+
+### I. Robust Error Handling
+All services MUST implement consistent error handling...
+
+**Source**: Cross-sub-system analysis
+**Evidence**: auth/errors.py, payments/exceptions.py
+
+### Constitution Strategy
+
+#### Derived Principles
+| Principle Name | Source | Evidence | Action |
+|----------------|--------|----------|--------|
+| Robust Error Handling | Cross-cutting pattern | 3 sub-systems | New |
+
+#### Version Strategy
+- **Current version**: None
+- **Version bump**: N/A (new constitution)
+```
+
 ## Skill Types Taxonomy
 
 When discovering skills, classify them using Anthropic's 9-category taxonomy from "Lessons from Building Claude Code: How We Use Skills". This helps teams build better skills by guiding CDR classification during discovery.

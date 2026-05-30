@@ -5,6 +5,29 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-05-30
+
+### Changed
+
+- **BREAKING: Constitution CDR Lifecycle** - Constitution changes now follow the CDR workflow instead of direct file writes:
+  - `/levelup.init` Phase 8 now creates Constitution CDRs in `.specify/drafts/cdr.md` instead of writing to team-ai-directives
+  - Constitution changes require review via `/levelup.clarify` and acceptance before publication
+  - `/levelup.implement` handles both Constitution Creation and Amendment CDRs
+  - Ensures team review and validation of all constitution changes
+  - Provides audit trail through CDR tracking
+
+### Added
+
+- **Constitution CDR Types**: Added support for `Constitution Creation` and `Constitution Amendment` CDR types
+- **Constitution Strategy Section**: New section in CDR template for tracking constitution derivation, version strategy, and ratification plan
+- **State Tracking**: Added `constitution_cdr_generation` to state.json for tracking constitution CDR creation
+
+### Fixed
+
+- Constitution generation now properly integrates with the CDR lifecycle
+- Teams must review and accept constitution changes before publication
+- Prevents accidental constitution changes during brownfield analysis
+
 ## [1.6.4] - 2026-05-29
 
 ### Added
@@ -13,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Derives principles from cross-cutting patterns (patterns in ≥50% of sub-systems)
   - Creates principles from inconsistency resolutions
   - Preserves existing constitution when enhancing
-  - Writes to `{TEAM_DIRECTIVES}/context_modules/constitution.md`
+  - ~~Writes to `{TEAM_DIRECTIVES}/context_modules/constitution.md`~~ **Changed in v1.7.0**: Now creates CDRs instead
 - **`--skip-constitution` flag**: Skip constitution generation phase
 
 ### Changed

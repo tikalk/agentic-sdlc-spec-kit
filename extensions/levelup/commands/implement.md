@@ -34,7 +34,7 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 - ✅ `context_modules/rules/**/*.md` - Rule files (one per accepted Rule CDR)
 - ✅ `context_modules/personas/*.md` - Persona files (one per accepted Persona CDR)
 - ✅ `context_modules/examples/**/*.md` - Example files (one per accepted Example CDR)
-- ✅ `context_modules/constitution.md` - Append amendments (if Constitution CDR accepted)
+- ✅ `context_modules/constitution.md` - Create or amend (if Constitution CDR accepted)
 - ✅ `skills/*/` - Skill directories (if draft skills exist and not --skip-skills)
 - ✅ `CDR.md` - Index of accepted CDRs at ROOT (create LAST)
 
@@ -449,7 +449,62 @@ CDR: {cdr_ref}
 Date: {modified}
 ```
 
-**Constitution Amendments** (append to `context_modules/constitution.md`):
+**Constitution** (`context_modules/constitution.md`):
+
+**For Constitution Creation CDRs** (constitution does not exist):
+
+Create new constitution file:
+```markdown
+---
+id: {id}
+cdr_ref: {cdr_ref}
+created: {created}
+modified: {modified}
+verified: {verified}
+age_days: {age_days}
+evidence:
+  principles:
+    - name: {principle_1_name}
+      source: {pattern_source}
+      evidence: {file_paths}
+    - name: {principle_2_name}
+      source: {pattern_source}
+      evidence: {file_paths}
+---
+
+> ⚠️ **Memory Verification**
+> This constitution is {age_days} days old. Verify before applying:
+> - [ ] Principles still align with team values
+> - [ ] Evidence still valid in current codebase
+> - [ ] No conflicting principles introduced
+
+# Team Constitution
+
+{Content from CDR proposed content - full constitution}
+
+## Governance
+
+This constitution was generated from codebase analysis via /levelup.init.
+Amendments require team review and approval.
+
+**Version**: 1.0.0 | **Ratified**: {created} | **Last Amended**: {modified}
+
+## Source
+
+Contributed from: {project-name}
+CDR: {cdr_ref}
+Date: {modified}
+
+## Verification Log
+
+| Date | Verified By | Notes |
+|------|-------------|-------|
+| {verified} | {project-name} | Initial constitution via /levelup.implement |
+```
+
+**For Constitution Amendment CDRs** (constitution exists):
+
+Append to existing constitution:
 ```markdown
 
 ## {Amendment Title}
@@ -462,7 +517,23 @@ Date: {modified}
 {Content from CDR proposed content}
 
 <!-- CDR: {cdr_ref}, Date: {modified}, ID: {id} -->
+
+**Version**: {incremented_version} | **Last Amended**: {modified}
 ```
+
+**Constitution Update Process**:
+
+1. Check if `{TEAM_DIRECTIVES}/context_modules/constitution.md` exists
+2. For **Constitution Creation** CDRs:
+   - Create new file from CDR proposed content
+   - Set initial version to 1.0.0
+   - Set ratification date to today
+3. For **Constitution Amendment** CDRs:
+   - Read existing constitution
+   - Append new section (preserve existing content)
+   - Increment version according to CDR strategy
+   - Update "Last Amended" date
+4. Add verification metadata and CDR reference
 
 #### ⚠️ Step 4: VERIFY Context Modules Created
 
@@ -471,12 +542,17 @@ Date: {modified}
 Run this command and report the count:
 ```bash
 cd "$TEAM_DIRECTIVES"
+echo "Constitution: $(test -f context_modules/constitution.md && echo '1' || echo '0')"
 echo "Rules: $(find context_modules/rules -name '*.md' 2>/dev/null | wc -l)"
 echo "Personas: $(find context_modules/personas -name '*.md' 2>/dev/null | wc -l)"  
 echo "Examples: $(find context_modules/examples -name '*.md' 2>/dev/null | wc -l)"
 ```
 
 **If any count is 0 but you have accepted CDRs for that type, you MUST go back and create the files.**
+
+**Special cases**:
+- **Constitution**: If Constitution CDR is accepted, verify file exists (count should be 1)
+- **Inconsistency CDRs**: These don't create files directly; they inform other CDRs
 
 #### Step 5: Process Draft Skills
 
@@ -560,7 +636,7 @@ Context Directive Records tracking approved contributions to team-ai-directives.
 
 ### Context Type
 
-Rule | Persona | Example | Constitution Amendment
+Rule | Persona | Example | Constitution Creation | Constitution Amendment
 
 ### Signal Gate
 

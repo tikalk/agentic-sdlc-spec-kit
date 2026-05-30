@@ -513,23 +513,25 @@ Generate CDRs for:
 }
 ```
 
-### Phase 8: Constitution Generation
+### Phase 8: Constitution CDR Generation
 
-**Objective**: Generate or enhance team constitution from discovered patterns
+**Objective**: Create Constitution CDRs from discovered patterns for team review
 
 **Skip Conditions** (skip this phase if ANY are true):
 - `--skip-constitution` flag provided
 - `--focus` flag set to value other than `constitution` or `all`
 - Config `discovery.constitution: false`
 
+**IMPORTANT**: This phase creates Constitution CDRs (Context Directive Records) in `.specify/drafts/cdr.md`, NOT the final constitution file. Constitution changes require team review and acceptance before being published to team-ai-directives via `/levelup.implement`.
+
 #### Step 1: Check Constitution Exists
 
 Check if `{TEAM_DIRECTIVES}/context_modules/constitution.md` exists.
 
-| Status | Action |
-|--------|--------|
-| **Missing** | Generate new constitution from template |
-| **Exists** | Enhance existing constitution with derived principles |
+| Status | CDR Type |
+|--------|----------|
+| **Missing** | Constitution Creation |
+| **Exists** | Constitution Amendment |
 
 #### Step 2: Read Constitution Template
 
@@ -598,7 +600,7 @@ Read `.specify/templates/constitution-template.md` for structure. Key placeholde
 
 If constitution exists:
 
-1. Read existing principles
+1. Read existing principles from `{TEAM_DIRECTIVES}/context_modules/constitution.md`
 2. Check for overlap with derived principles
 3. Determine action for each derived principle:
 
@@ -619,10 +621,49 @@ Output comparison:
 }
 ```
 
-#### Step 5: Generate Constitution Content
+#### Step 5: Generate Constitution CDR Content
 
-**When constitution MISSING** - Generate from template:
+**When constitution MISSING** - Create Constitution Creation CDR:
 
+```markdown
+## CDR-CONST-001: Team Constitution Creation
+
+### Status
+**Discovered**
+
+### Date
+{today}
+
+### Source
+Cross-sub-system analysis via /levelup.init
+
+### Cross-System Metadata
+- **Appears in**: [List of sub-systems analyzed]
+- **Cross-system score**: [0.0-1.0]
+- **Consistency**: [Pattern consistency across sub-systems]
+- **Reuse score**: [0.0-1.0]
+
+### Target Module
+`context_modules/constitution.md`
+
+### Context Type
+Constitution Creation
+
+### Context
+Team constitution missing. Deriving foundational principles from cross-cutting patterns discovered in codebase.
+
+**Discovery Evidence:**
+- [Cross-cutting pattern 1 with evidence]
+- [Cross-cutting pattern 2 with evidence]
+- [Resolved inconsistencies]
+
+**Problem Statement:**
+Team lacks documented governance principles. Constitution will establish baseline standards based on proven patterns.
+
+### Decision
+Create new team constitution with principles derived from codebase patterns.
+
+**Proposed Content:**
 ```markdown
 # Team Constitution
 
@@ -644,8 +685,65 @@ This constitution was generated from codebase analysis and should be reviewed by
 **Version**: 1.0.0 | **Ratified**: {today} | **Last Amended**: {today}
 ```
 
-**When constitution EXISTS** - Append derived section:
+### Constitution Strategy
 
+#### Constitution Status
+- **Current constitution**: Missing
+- **Action**: Create new
+- **Derived principles count**: [N]
+
+#### Derived Principles
+| Principle Name | Source | Evidence | Action |
+|----------------|--------|----------|--------|
+| [Principle 1] | Cross-cutting pattern | [file paths] | New |
+| [Principle 2] | Inconsistency resolution | [INC-XXX] | New |
+
+#### Version Strategy
+- **Current version**: None
+- **Version bump**: N/A (new constitution)
+- **Rationale**: First constitution derived from codebase analysis
+```
+
+**When constitution EXISTS** - Create Constitution Amendment CDR:
+
+```markdown
+## CDR-CONST-001: Constitution Amendment - [Principle Name]
+
+### Status
+**Discovered**
+
+### Date
+{today}
+
+### Source
+Cross-sub-system analysis via /levelup.init
+
+### Cross-System Metadata
+- **Appears in**: [List of sub-systems with pattern]
+- **Cross-system score**: [0.0-1.0]
+- **Consistency**: [Pattern consistency]
+- **Reuse score**: [0.0-1.0]
+
+### Target Module
+`context_modules/constitution.md`
+
+### Context Type
+Constitution Amendment
+
+### Context
+Existing constitution can be enhanced with principles derived from newly discovered patterns.
+
+**Discovery Evidence:**
+- [Pattern evidence from codebase]
+- [Inconsistency resolutions]
+
+**Problem Statement:**
+Cross-cutting patterns identified that should be elevated to constitutional principles.
+
+### Decision
+Append derived section to existing constitution.
+
+**Proposed Content:**
 ```markdown
 ## Derived from Codebase Analysis
 
@@ -663,31 +761,64 @@ This constitution was generated from codebase analysis and should be reviewed by
 **Version**: {incremented} | **Last Amended**: {today}
 ```
 
-#### Step 6: Write Constitution
+### Constitution Strategy
 
-Write to `{TEAM_DIRECTIVES}/context_modules/constitution.md`:
-- If file exists: Append derived section (preserve existing content)
-- If file missing: Create from template
+#### Constitution Status
+- **Current constitution**: Exists
+- **Action**: Append section
+- **Derived principles count**: [N]
+
+#### Derived Principles
+| Principle Name | Source | Evidence | Action |
+|----------------|--------|----------|--------|
+| [Principle 1] | Cross-cutting pattern | [file paths] | New/Enhances existing |
+
+#### Version Strategy
+- **Current version**: [X.Y.Z]
+- **Version bump**: [MINOR]
+- **Rationale**: New principles added from codebase analysis
+```
+
+#### Step 6: Write Constitution CDR
+
+**CRITICAL**: Write to `.specify/drafts/cdr.md` (NOT to team-ai-directives).
+
+Append Constitution CDR to `{REPO_ROOT}/.specify/drafts/cdr.md`:
+- Use CDR template from `templates/cdr-template.md`
+- Set Status: "Discovered"
+- Set Context Type: "Constitution Creation" or "Constitution Amendment"
+- Include Constitution Strategy section
+
+**Do NOT write to team-ai-directives.** Constitution changes require:
+1. Team review via `/levelup.clarify`
+2. Acceptance via status change to "Accepted"
+3. Publication via `/levelup.implement`
 
 #### Step 7: Update State
 
 ```json
 {
-  "constitution_generation": {
+  "constitution_cdr_generation": {
     "completed": true,
     "skipped": false,
     "existing_constitution": true,
+    "cdr_type": "Constitution Amendment",
+    "cdr_id": "CDR-CONST-001",
     "principles_derived": 2,
     "principles_enhanced": 1,
-    "output_file": "{TEAM_DIRECTIVES}/context_modules/constitution.md",
-    "version_change": "1.0.0 → 1.1.0"
+    "output_file": "{REPO_ROOT}/.specify/drafts/cdr.md",
+    "requires_review": true,
+    "requires_acceptance": true,
+    "next_step": "Run /levelup.clarify to review constitution changes, then /levelup.implement to publish to team-ai-directives"
   }
 }
 ```
 
 ### Phase 9: Write CDRs
 
-**Objective**: Write generated CDRs to file
+**Objective**: Write generated CDRs to file (excluding Constitution CDRs which are created in Phase 8)
+
+**Note**: Constitution CDRs are created in Phase 8. This phase writes Rule, Persona, Example, Skill, and Inconsistency CDRs.
 
 For each generated CDR, use template from `templates/cdr-template.md` with:
 - Cross-system metadata section
@@ -705,6 +836,7 @@ Append to `{REPO_ROOT}/.specify/drafts/cdr.md`:
 
 | ID | Target Module | Context Type | Cross-System | Status | Date |
 |----|---------------|--------------|--------------|--------|------|
+| CDR-CONST-001 | context_modules/constitution.md | Constitution Creation | ✓ | Discovered | 2026-01-20 |
 | CDR-001 | rules/python/error-handling | Rule | ✓ | Discovered | 2026-01-20 |
 | CDR-002 | examples/testing/fixtures | Example | | Discovered | 2026-01-20 |
 | CDR-INC-001 | (Inconsistency) | Inconsistency | ✓ | Discovered | 2026-01-20 |
@@ -724,6 +856,9 @@ Append to `{REPO_ROOT}/.specify/drafts/cdr.md`:
 | INC-001 | Authentication | auth, payments | High |
 
 ---
+
+## CDR-CONST-001: Team Constitution Creation
+[Constitution CDR from Phase 8...]
 
 ## CDR-001: Error Handling Pattern
 [Full CDR content with cross-system metadata...]
@@ -774,25 +909,35 @@ Update state.json:
 ### CDRs Generated
 | Category | Count | Notes |
 |----------|-------|-------|
+| Constitution | 1 | **Needs review before publishing** |
 | Rules | 4 | 2 cross-cutting |
 | Examples | 2 | |
 | Skills | 1 | |
 | Inconsistencies | 1 | **Needs resolution** |
-| **Total** | **8** | |
+| **Total** | **9** | |
 
-### Constitution Generated
+### Constitution CDR Generated
 | Metric | Value |
 |--------|-------|
+| CDR ID | CDR-CONST-001 |
+| CDR Type | Constitution Creation / Amendment |
 | Principles derived | 2 |
 | Principles enhanced | 1 |
 | Existing principles preserved | 10 |
 | Version change | 1.0.0 → 1.1.0 |
+| Requires review | ✓ |
+| Status | Discovered |
 
-**Output**: `{TEAM_DIRECTIVES}/context_modules/constitution.md`
+**Output**: `{REPO_ROOT}/.specify/drafts/cdr.md`
 
 **Derived Principles**:
 1. **Robust Error Handling** - from cross-cutting pattern (3 sub-systems)
 2. **Standardization Mandate** - from inconsistency INC-001
+
+**⚠️ Action Required**: Constitution changes require team review:
+1. Run `/levelup.clarify` to review derived principles
+2. Update CDR status to "Accepted" after approval
+3. Run `/levelup.implement` to publish to team-ai-directives
 
 ### Inconsistencies Requiring Attention
 **CDR-INC-001**: Authentication Pattern Inconsistency
@@ -850,9 +995,13 @@ The command supports resumable execution:
 
 | File | Description |
 |------|-------------|
-| `{REPO_ROOT}/.specify/drafts/cdr.md` | Generated CDRs with cross-system metadata |
-| `{TEAM_DIRECTIVES}/context_modules/constitution.md` | Generated/enhanced team constitution |
+| `{REPO_ROOT}/.specify/drafts/cdr.md` | Generated CDRs with cross-system metadata (includes Constitution CDRs) |
 | `{REPO_ROOT}/.specify/levelup/state.json` | Execution state for resumability |
+
+**Note**: Constitution changes are NOT written directly to team-ai-directives. They are created as CDRs in Phase 8 and require:
+1. Review via `/levelup.clarify`
+2. Acceptance (status change to "Accepted")
+3. Publication via `/levelup.implement`
 
 ## Notes
 

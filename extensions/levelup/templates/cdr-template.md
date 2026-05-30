@@ -82,8 +82,12 @@ Comparison against existing team-ai-directives content:
 
 ### Context Type
 
-Rule | Persona | Example | Constitution Amendment | Skill | Inconsistency
+Rule | Persona | Example | Constitution Creation | Constitution Amendment | Skill | Inconsistency
 
+> **Constitution Creation**: Used when no team constitution exists. Derives principles from cross-cutting patterns discovered in codebase.
+>
+> **Constitution Amendment**: Used when enhancing existing constitution with new principles derived from codebase patterns.
+>
 > **Inconsistency**: Used when the same pattern/concern has different implementations across sub-systems. Requires team decision to standardize.
 
 ### Skill Type
@@ -266,6 +270,39 @@ Track resolution of cross-sub-system inconsistencies:
 - [ ] Create/update context module in team-directives
 - [ ] Mark this CDR as Resolved
 
+### Constitution Strategy
+> **Only for CDRs with Context Type = "Constitution Creation" or "Constitution Amendment"**
+
+Track constitution generation/enhancement strategy:
+
+#### Constitution Status
+- **Current constitution**: [Exists | Missing]
+- **Action**: [Create new | Append section | Enhance existing]
+- **Derived principles count**: [N principles derived from patterns]
+
+#### Derived Principles
+| Principle Name | Source | Evidence | Action |
+|----------------|--------|----------|--------|
+| [Principle 1] | Cross-cutting pattern | [file paths] | [New/Enhances existing/Skipped] |
+| [Principle 2] | Inconsistency resolution | [INC-XXX] | [New] |
+
+#### Principle Derivation
+- **Cross-cutting patterns analyzed**: [N patterns across M sub-systems]
+- **Inconsistencies resolved**: [N inconsistencies that became principles]
+- **High-value patterns**: [Patterns with reuse_score > 0.7]
+- **Existing principles preserved**: [N principles unchanged]
+
+#### Version Strategy
+- **Current version**: [X.Y.Z or "None" for new constitution]
+- **Version bump**: [MAJOR/MINOR/PATCH]
+- **Rationale**: [Why this version bump type]
+
+#### Ratification Plan
+- [ ] Team review of derived principles
+- [ ] Approval of each principle
+- [ ] Version ratification
+- [ ] Update governance dates
+
 ### Implementation Notes
 
 **Target Repository:** team-ai-directives
@@ -315,11 +352,31 @@ Track resolution of cross-sub-system inconsistencies:
 - Must be working, tested examples
 - Include context for when to use
 
-### Constitution Amendments
+### Constitution Creation
 
-- Governance principles, quality standards
+- Used when team-ai-directives has no constitution
+- Derives principles from cross-cutting patterns discovered in codebase
+- Principles MUST be based on evidence from multiple sub-systems
+- Include both the principle and the codebase evidence that supports it
+- Start with template from `.specify/templates/constitution-template.md`
+
+**Required sections:**
+- Core Principles (derived from patterns)
+- Governance (ratification process)
+- Version tracking
+
+### Constitution Amendment
+
+- Used to enhance existing constitution with new principles
+- Based on newly discovered patterns or resolved inconsistencies
 - Should be fundamental principles, not specific rules
 - Require broader team consensus
+- Preserve existing content, append new section
+
+**Amendment types:**
+- **New principle**: Add as new section
+- **Enhancement**: Extend existing principle description
+- **Reinforcement**: Add evidence to existing principle (no content change)
 
 ### Skills
 
