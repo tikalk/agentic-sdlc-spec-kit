@@ -105,6 +105,8 @@ graph TD
 |------------|---------|------------------|-------------------|
 | [DEPENDENCY_1] | [Purpose] | [e.g., 99.9% uptime] | [e.g., Cache, degraded mode] |
 
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
+
 ---
 
 ### 3.2 Functional View
@@ -151,6 +153,8 @@ graph TD
 - [Excluded functionality 1]
 - [Excluded functionality 2]
 
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
+
 ---
 
 ### 3.3 Information View
@@ -176,6 +180,8 @@ graph TD
 - **Validation Rules**: [Key data validation points]
 - **Retention Policy**: [Data lifecycle requirements]
 - **Backup Strategy**: [Backup approach]
+
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
 
 ---
 <!-- OPTIONAL VIEW: Concurrency -->
@@ -204,6 +210,8 @@ graph TD
 - **Synchronization**: [e.g., Distributed locks via Redis]
 - **Communication**: [e.g., Message queues, event bus]
 - **Deadlock Prevention**: [e.g., Lock ordering, timeouts]
+
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
 
 ---
 
@@ -246,6 +254,8 @@ project-root/
 - **Coding Standards**: [e.g., ESLint config, PEP 8]
 - **Review Requirements**: [e.g., 2 approvals]
 - **Testing Requirements**: [e.g., 80% coverage]
+
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
 
 ---
 
@@ -295,6 +305,8 @@ graph TB
 | Web Server | [e.g., 2 cores] | [e.g., 4GB] | [e.g., 20GB] |
 | Database | [Specs] | [Specs] | [Specs] |
 
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
+
 ---
 <!-- OPTIONAL VIEW: Operational -->
 <!-- Include this section only if using --views=operational or --views=all -->
@@ -331,6 +343,8 @@ graph TB
 - **Tier 2**: Application support
 - **Tier 3**: Engineering
 - **On-call**: [Rotation schedule]
+
+> **Subsystem Details**: [Auto-generated if 2+ subsystems]
 
 ---
 

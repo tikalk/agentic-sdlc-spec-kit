@@ -150,6 +150,7 @@ Before finalizing this view, verify:
 - [ ] **Diagram Parity**: Technology Architecture diagram (§3.5.3) mirrors Functional View diagram structure
 - [ ] **Code Alignment**: Code organization reflects the technology stack choices
 - [ ] **Dependency Rules**: Module dependencies are consistent with technology constraints
+- [ ] **Diagram Convention**: Directory trees use plain `text` code blocks; architectural relationship diagrams use Mermaid syntax -- ASCII box-drawing art is NOT permitted
 
 ---
 

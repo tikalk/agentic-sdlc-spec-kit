@@ -55,7 +55,7 @@ The `/architect.implement` command uses a three-phase DAG orchestration approach
 
 - Generates views per sub-system following the DAG order
 - Passes dependency context between views (e.g., Context → Functional → Information)
-- Writes per-view outputs to `.specify/architect/views/{subsystem}/{view}.md`
+- Writes per-view outputs to `.specify/architect/views/{subsystem}/{view}.md` (linked from AD.md if 2+ subsystems)
 - Updates progress in state.json for resumability
 
 ### Phase 3: Summarize
@@ -65,6 +65,19 @@ The `/architect.implement` command uses a three-phase DAG orchestration approach
 - Aggregates into unified AD.md
 - Applies Security and Performance perspectives
 - Moves Accepted ADRs to canonical location
+
+### Subsystem View Links
+
+When multiple subsystems are detected, AD.md includes inline links to detailed subsystem views:
+
+```markdown
+### 3.2 Functional View
+[Unified functional elements]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/functional.md) | [Auth](.specify/architect/views/auth/functional.md)
+```
+
+Links are **skipped** for single-subsystem projects (unified view is sufficient).
 
 ### DAG Customization Rules
 

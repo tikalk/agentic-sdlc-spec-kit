@@ -87,6 +87,18 @@ _Source ADRs: [ADR-XXX]_
 
 ---
 
+## Validation Checklist
+
+Before finalizing this view, verify:
+
+- [ ] **Complete Entity Coverage**: All significant data entities are documented with storage location and access pattern
+- [ ] **Data Model Diagram**: ER diagram uses Mermaid `erDiagram` syntax -- ASCII box-drawing art is NOT permitted
+- [ ] **Data Flow Diagrams**: All flow diagrams use Mermaid `flowchart`/`graph` syntax -- ASCII box-drawing art is NOT permitted
+- [ ] **Consistency Model**: Consistency model (eventual, strong, ACID) is explicitly stated
+- [ ] **ADR Alignment**: Data storage decisions trace to corresponding ADRs
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Information View |

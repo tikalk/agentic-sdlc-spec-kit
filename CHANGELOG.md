@@ -2,6 +2,29 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.8.12+adlc39] - 2026-05-30
+
+### Changed
+
+- **Architect extension v2.1.3**: Viewpoint-organized aggregation & Mermaid enforcement
+  - **Constraint 8**: AD.md MUST be organized by viewpoint (3.1 Context, 3.2 Functional, etc.), NOT by subsystem
+  - **Constraint 9**: All architectural diagrams MUST use Mermaid syntax -- ASCII box-drawing art prohibited
+  - Step 3.4 expanded with per-viewpoint aggregation recipe (Context, Functional, Information, Development, Deployment)
+  - Phase 2-3 gate now scans for ASCII box-drawing characters and warns
+  - Final verification checklist expanded to 10 checks (viewpoint structure + Mermaid compliance)
+  - Added validation checklists to `information.md` and `deployment.md` view templates
+  - Added Mermaid-only check to `context.md` and `development.md` validation checklists
+
+# [0.8.12+adlc38] - 2026-05-30
+
+### Added
+
+- **Architect extension v2.1.2**: Subsystem view links in AD.md
+  - Inline links after each view section when 2+ subsystems detected
+  - Single subsystem case: links skipped (unified view sufficient)
+  - Missing view handling: subsystems without specific view excluded from links
+  - Document hierarchy updated: subsystem views now marked as "Reference" (not "Intermediate")
+
 # [0.8.12+adlc37] - 2026-05-30
 
 ### Changed

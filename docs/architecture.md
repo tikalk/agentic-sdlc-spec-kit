@@ -86,6 +86,7 @@ Greenfield:   /architect.specify --> /architect.clarify --> /architect.implement
 |------|----------|---------|
 | System ADRs | `.specify/drafts/adr.md` | Architecture Decision Records |
 | System AD | `AD.md` (root) or `{TEAM_DIRECTIVES}/AD.md` via PR | Full Architecture Description |
+| View Files | `.specify/architect/views/{subsystem}/{view}.md` | Per-subsystem detailed views (linked from AD.md) |
 | Feature ADRs | `specs/{feature}/adr.md` | Feature-level decisions |
 | Feature AD | `specs/{feature}/AD.md` | Feature-level architecture |
 | Constitution | `.specify/memory/constitution.md` | Governance principles |

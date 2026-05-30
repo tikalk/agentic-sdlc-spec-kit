@@ -95,6 +95,18 @@ _Source ADRs: [ADR-XXX]_
 
 ---
 
+## Validation Checklist
+
+Before finalizing this view, verify:
+
+- [ ] **Environment Coverage**: All runtime environments (dev, staging, prod) are documented
+- [ ] **Network Topology**: Topology diagram uses Mermaid `graph` syntax -- ASCII box-drawing art is NOT permitted
+- [ ] **Infrastructure Diagrams**: All infrastructure diagrams use Mermaid syntax
+- [ ] **Hardware Requirements**: Resource specifications (CPU, memory, storage) are documented
+- [ ] **ADR Alignment**: Deployment decisions trace to corresponding ADRs
+
+---
+
 **ADR Traceability:**
 
 | ADR | Decision | Impact on Deployment View |

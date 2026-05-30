@@ -142,7 +142,7 @@ You are acting as an **Architecture Orchestrator** managing a multi-phase docume
 |----------|---------|----------|
 | `{REPO_ROOT}/.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
 | `{REPO_ROOT}/.specify/architect/state.json` | DAG execution state | State |
-| `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Intermediate |
+| `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Reference |
 | `{REPO_ROOT}/AD.md` | Full Architecture Description | Output |
 | `{REPO_ROOT}/.specify/memory/constitution.md` | Governance principles | Constraint |
 
@@ -326,7 +326,7 @@ Located in the extension's `templates/` directory:
 > - All view files exist on disk (verify by reading each file)
 > - AD.md has been written with content aggregated from view files
 > - Drafts cleanup has been performed and verified
-> - The final verification table (7 checks) has been output
+> - The final verification table (10 checks) has been output
 >
 > ### Constraint 5: AD.md Content MUST Come From View Files
 > You **MUST NOT** write AD.md directly from ADRs. AD.md content MUST come from
@@ -344,6 +344,33 @@ Located in the extension's `templates/` directory:
 > If the view is absent, mark it as `skipped` in state.json and proceed.
 > Generating views outside the DAG creates orphaned files and invalidates
 > the architecture.
+>
+> ### Constraint 8: AD.md MUST Be Organized by Viewpoint
+> You **MUST** organize AD.md by **viewpoint** (§3.1 Context, §3.2 Functional,
+> §3.3 Information, etc.), **NOT** by subsystem. Each viewpoint section
+> presents the **unified system-level** perspective that merges content
+> from all subsystems. Subsystem-specific detail is accessible via
+> "Subsystem Details" links (see Step 3.5).
+>
+> **WRONG** (per-subsystem — this is what subsystem view files are for):
+> `## 5. Sub-System: Auth → ### 5.1 Context → ### 5.2 Functional`
+>
+> **RIGHT** (per-viewpoint — unified across ALL subsystems):
+> `## 3. Architectural Views → ### 3.1 Context View → ### 3.2 Functional View`
+>
+> ### Constraint 9: Diagrams MUST Use Mermaid Syntax
+> You **MUST** use Mermaid syntax for all architectural diagrams in both
+> view files and AD.md. ASCII box-drawing art (characters like `┌`, `└`,
+> `├`, `│`, `───`, `═══`) is **NOT** permitted for architecture diagrams.
+>
+> Accepted Mermaid diagram types:
+> - `graph TB/LR` — architecture, topology, flow diagrams
+> - `erDiagram` — data models and entity relationships
+> - `sequenceDiagram` — interaction flows
+> - `flowchart` — process flows
+>
+> Directory tree listings (code organization) may use plain `text`
+> code blocks — these are not architectural diagrams.
 
 ## PHASE 1: PLAN (Plan Agent)
 
@@ -701,16 +728,27 @@ If the agent session is interrupted:
 1. For each subsystem in state.json, check every view with status "completed"
 2. Verify the file exists: `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md`
 3. Verify each file is readable and has minimum content (≥20 lines)
+4. **Mermaid scan (Constraint 9)**: Scan each view file for ASCII box-drawing
+   characters (`┌`, `└`, `├`, `│`, `═`, `───`). If found in any view that
+   should contain architectural diagrams (context, functional, information,
+   deployment), flag as a warning and note the file for correction.
 
 **Verification Checklist** (output this table):
 
-| Subsystem | View | File Path | Exists | Readable | Lines |
-|-----------|------|-----------|--------|----------|-------|
-| {subsystem} | {view} | {path} | ✓/✗ | ✓/✗ | {N} |
+| Subsystem | View | File Path | Exists | Readable | Lines | Mermaid OK |
+|-----------|------|-----------|--------|----------|-------|------------|
+| {subsystem} | {view} | {path} | ✓/✗ | ✓/✗ | {N} | ✓/⚠ |
 
 **Gate Decision:**
 - If **ALL checks pass** → Proceed to Phase 3
-- If **ANY check fails** → STOP and report:
+- If **Mermaid warnings** → Log warnings but proceed (non-blocking). Output:
+  ```
+  ⚠️ MERMAID WARNING: ASCII box-drawing art detected in:
+  - {subsystem}/{view}: Convert to Mermaid diagram syntax
+  
+  Proceeding to Phase 3. Fix ASCII diagrams in next iteration.
+  ```
+- If **ANY other check fails** → STOP and report:
   ```
   ❌ PHASE 2→3 GATE BLOCKED
   
@@ -866,6 +904,31 @@ Compare views across sub-systems for:
 
 ### Step 3.4: Aggregate into Unified AD.md
 
+> **CRITICAL: Viewpoint-Organized Aggregation (Constraint 8)**
+>
+> The AD.md MUST follow the structure below, organized by **viewpoint**.
+> Each viewpoint section merges content from ALL subsystems into a unified
+> system-level description. Do NOT organize by subsystem -- that structure
+> belongs in the subsystem view files, not in the aggregated AD.md.
+>
+> For each viewpoint:
+> 1. Present a **system-level summary** that shows how all subsystems relate
+> 2. Include a **unified Mermaid diagram** showing cross-subsystem interactions
+> 3. Summarize each subsystem's role within this viewpoint
+> 4. Link to subsystem details (if 2+ subsystems, per Step 3.5)
+
+#### Per-Viewpoint Aggregation Recipe
+
+| Viewpoint | How to Aggregate |
+|-----------|-----------------|
+| **Context** | Single system-level blackbox diagram (Mermaid `graph`). Subsystems appear as internal blocks only if they have independent external interfaces. Merge and deduplicate stakeholder and external entity tables across all subsystems. |
+| **Functional** | Merged component inventory table across all subsystems. Single unified interaction diagram showing cross-subsystem data flows. Use Mermaid `subgraph` blocks per subsystem to show boundaries. |
+| **Information** | Consolidated ER diagram (Mermaid `erDiagram`) combining all subsystem entities. Unified data flow showing how data moves across subsystem boundaries (Mermaid `flowchart`). Deduplicate entity tables. |
+| **Concurrency** | Merged process structure table. Unified sequence/flow diagrams showing cross-subsystem async interactions. |
+| **Development** | Single code organization tree showing all subsystems as top-level directories. Merged build process and CI/CD pipeline tables. Unified technology stack mapping. |
+| **Deployment** | Single deployment topology diagram (Mermaid `graph`) showing all subsystems in their runtime environments. Merged runtime environments and hardware requirements tables. |
+| **Operational** | Merged operational responsibilities table. Unified monitoring, alerting, and DR strategy across all subsystems. |
+
 **Structure of Unified AD.md**:
 
 ```markdown
@@ -883,25 +946,39 @@ Compare views across sub-systems for:
 [Unified from all sub-system context views]
 [Single system-level context diagram]
 
+> **Subsystem Details**: [Core](.specify/architect/views/core/context.md) | [Auth](.specify/architect/views/auth/context.md) | [Data](.specify/architect/views/data/context.md)
+
 ### 3.2 Functional View
 [Merged functional elements from all sub-systems]
 [Unified component diagram]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/functional.md) | [Auth](.specify/architect/views/auth/functional.md) | [Data](.specify/architect/views/data/functional.md)
 
 ### 3.3 Information View
 [Consolidated data model]
 [Unified ER diagram]
 
+> **Subsystem Details**: [Core](.specify/architect/views/core/information.md) | [Auth](.specify/architect/views/auth/information.md) | [Data](.specify/architect/views/data/information.md)
+
 ### 3.4 Concurrency View (if applicable)
 [Merged from sub-systems with concurrency]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/concurrency.md) | [Auth](.specify/architect/views/auth/concurrency.md)
 
 ### 3.5 Development View
 [Unified code organization]
 
+> **Subsystem Details**: [Core](.specify/architect/views/core/development.md) | [Auth](.specify/architect/views/auth/development.md) | [Data](.specify/architect/views/data/development.md)
+
 ### 3.6 Deployment View
 [Consolidated deployment topology]
 
+> **Subsystem Details**: [Core](.specify/architect/views/core/deployment.md) | [Auth](.specify/architect/views/auth/deployment.md) | [Data](.specify/architect/views/data/deployment.md)
+
 ### 3.7 Operational View (if applicable)
 [Merged operational concerns]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/operational.md) | [Auth](.specify/architect/views/auth/operational.md)
 
 ## 4. Architectural Perspectives
 
@@ -918,7 +995,47 @@ Compare views across sub-systems for:
 [Consolidated from all ADRs]
 ```
 
-### Step 3.5: Apply Perspectives
+### Step 3.5: Generate Subsystem View Links (CONDITIONAL)
+
+**Condition**: Only generate links if `len(state.json.subsystems) > 1`
+
+For each view section in AD.md:
+
+1. **Collect subsystem links**:
+   - For each subsystem in state.json
+   - Check if view exists in subsystem's `dag` array
+   - Build link: `[SubsystemName](.specify/architect/views/{subsystem-id}/{view}.md)`
+
+2. **Format link block**:
+   ```markdown
+   > **Subsystem Details**: [Core](path) | [Auth](path) | [Data](path)
+   ```
+
+3. **Handle missing views**:
+   - If a subsystem doesn't have a particular view (not in `dag`), skip that subsystem's link
+   - Example: If Auth doesn't have Concurrency view, omit from Concurrency links
+
+4. **Single subsystem case**:
+   - If only 1 subsystem exists, **SKIP** adding links entirely
+   - The unified view is identical to the subsystem view, making links redundant
+
+**Example Output** (3 subsystems, all have Context view):
+```markdown
+### 3.1 Context View
+[Unified system-level context]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/context.md) | [Auth](.specify/architect/views/auth/context.md) | [Data](.specify/architect/views/data/context.md)
+```
+
+**Example Output** (2 subsystems, only Core has Concurrency):
+```markdown
+### 3.4 Concurrency View
+[Merged concurrency concerns]
+
+> **Subsystem Details**: [Core](.specify/architect/views/core/concurrency.md)
+```
+
+### Step 3.6: Apply Perspectives
 
 Load perspective templates and apply across all views:
 
@@ -934,7 +1051,7 @@ Load perspective templates and apply across all views:
 - Scalability model
 - Capacity planning
 
-### Step 3.6: ADR Lifecycle Management (MANDATORY)
+### Step 3.7: ADR Lifecycle Management (MANDATORY)
 
 After generating AD.md, perform ALL of the following steps:
 
@@ -1010,7 +1127,7 @@ Output this summary to the user:
 
 **Before marking state.json phase as "completed", verify ALL outputs:**
 
-Run this 7-point verification checklist:
+Run this 10-point verification checklist:
 
 | Check | Expected | Verification Method | Status |
 |-------|----------|---------------------|--------|
@@ -1021,6 +1138,9 @@ Run this 7-point verification checklist:
 | 5. Memory ADRs promoted | N Accepted ADRs | Count in `{REPO_ROOT}/.specify/memory/adr.md` | ☐ |
 | 6. Drafts cleaned | No duplicates | Compare drafts vs memory | ☐ |
 | 7. state.json consistent | All views "completed" | Verify progress field | ☐ |
+| 8. Subsystem links (if applicable) | Links in AD.md (if 2+ subsystems) | Scan AD.md for "Subsystem Details" | ☐ |
+| 9. Viewpoint-organized (Constraint 8) | No `## N. Sub-System:` sections | Scan AD.md for per-subsystem top-level headers | ☐ |
+| 10. Mermaid diagrams (Constraint 9) | No ASCII box-drawing art | Scan AD.md for `┌`, `└`, `├`, `═` characters | ☐ |
 
 **Gate Rule:**
 - If **ALL checks pass** (☑): Mark phase as "completed" in state.json
@@ -1033,6 +1153,9 @@ Run this 7-point verification checklist:
 Verification Results:
 ├── View files: [N] generated ✓
 ├── AD.md: [lines] lines, [sections] views ✓
+├── Subsystem links: [N] links (if applicable) ✓
+├── Viewpoint-organized: ✓
+├── Mermaid diagrams: ✓
 ├── ADRs promoted: [N] to memory ✓
 ├── Drafts cleaned: [N] remaining ✓
 └── State consistent: ✓

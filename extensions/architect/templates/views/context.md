@@ -114,3 +114,4 @@ _Source ADRs: [ADR-XXX]_
 - [ ] No internal services shown (e.g., AuthService, UserService)
 - [ ] All entities are either stakeholders OR external systems
 - [ ] All connections cross the system boundary
+- [ ] **Mermaid Only**: All architectural diagrams use Mermaid syntax (`graph`, `sequenceDiagram`, etc.) -- ASCII box-drawing art is NOT permitted

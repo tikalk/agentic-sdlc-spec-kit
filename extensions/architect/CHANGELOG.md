@@ -2,6 +2,27 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.1.3] - 2026-05-30
+
+### Changed
+
+- **Constraint 8**: AD.md MUST be organized by viewpoint, NOT by subsystem
+- **Constraint 9**: All architectural diagrams MUST use Mermaid syntax (ASCII box-drawing art prohibited)
+- Step 3.4 expanded with per-viewpoint aggregation recipe table
+- Phase 2-3 gate now scans for ASCII box-drawing characters and warns
+- Final verification checklist expanded to 10 checks (viewpoint structure + Mermaid compliance)
+- Added validation checklists to `information.md` and `deployment.md` view templates
+- Added Mermaid-only check to `context.md` and `development.md` validation checklists
+
+## [2.1.2] - 2026-05-30
+
+### Added
+
+- Inline subsystem view links after each view section when 2+ subsystems detected
+- Single subsystem case: links skipped (unified view sufficient)
+- Document hierarchy updated: subsystem views marked as "Reference" (not "Intermediate")
+- AD-template.md placeholder after each view section for subsystem links
+
 ## [2.1.1] - 2026-05-28
 
 ### Fixed
