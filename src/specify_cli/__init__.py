@@ -304,6 +304,72 @@ def load_init_options(project_path: Path) -> dict[str, Any]:
         return {}
 
 
+# ---------------------------------------------------------------------------
+# Agent-context extension config helpers
+# ---------------------------------------------------------------------------
+
+_AGENT_CTX_EXT_CONFIG = (
+    Path(".specify") / "extensions" / "agent-context" / "agent-context-config.yml"
+)
+
+
+def _load_agent_context_config(project_root: Path) -> dict[str, Any]:
+    """Load the agent-context extension config, returning defaults on failure."""
+    from .integrations.base import IntegrationBase
+
+    defaults: dict[str, Any] = {
+        "context_file": "",
+        "context_markers": {
+            "start": IntegrationBase.CONTEXT_MARKER_START,
+            "end": IntegrationBase.CONTEXT_MARKER_END,
+        },
+    }
+    path = project_root / _AGENT_CTX_EXT_CONFIG
+    if not path.exists():
+        return defaults
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, yaml.YAMLError):
+        return defaults
+    if not isinstance(raw, dict):
+        return defaults
+    return raw
+
+
+def _save_agent_context_config(
+    project_root: Path, config: dict[str, Any]
+) -> None:
+    """Persist *config* to the agent-context extension config file."""
+    path = project_root / _AGENT_CTX_EXT_CONFIG
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False), encoding="utf-8")
+
+
+def _update_agent_context_config_file(
+    project_root: Path,
+    context_file: str | None,
+    *,
+    preserve_markers: bool = True,
+) -> None:
+    """Update the agent-context extension config with *context_file*.
+
+    When *preserve_markers* is True (default), any existing
+    ``context_markers`` values are kept unchanged so user customisations
+    survive integration changes and reinit.  When False, the default
+    markers are written unconditionally.
+    """
+    from .integrations.base import IntegrationBase
+
+    cfg = _load_agent_context_config(project_root)
+    cfg["context_file"] = context_file or ""
+    if not preserve_markers or not isinstance(cfg.get("context_markers"), dict):
+        cfg["context_markers"] = {
+            "start": IntegrationBase.CONTEXT_MARKER_START,
+            "end": IntegrationBase.CONTEXT_MARKER_END,
+        }
+    _save_agent_context_config(project_root, cfg)
+
+
 def _get_skills_dir(project_path: Path, selected_ai: str) -> Path:
     """Resolve the agent-specific skills directory.
 
@@ -649,13 +715,31 @@ def _refresh_init_options_speckit_version(project_root: Path) -> None:
 
 
 def _clear_init_options_for_integration(project_root: Path, integration_key: str) -> None:
-    """Clear active integration keys from init-options.json when they match."""
+    """Clear active integration keys from init-options.json when they match.
+
+    Also clears ``context_file`` from the agent-context extension config so
+    no stale path is left behind when the integration is uninstalled.
+    """
     opts = load_init_options(project_root)
+    has_legacy_context_keys = ("context_file" in opts) or ("context_markers" in opts)
+    # Remove legacy fields that older versions may have written.
+    opts.pop("context_file", None)
+    opts.pop("context_markers", None)
+
     if opts.get("integration") == integration_key or opts.get("ai") == integration_key:
         opts.pop("integration", None)
         opts.pop("ai", None)
         opts.pop("ai_skills", None)
-        opts.pop("context_file", None)
+        save_init_options(project_root, opts)
+        # Clear context_file in the extension config if it already exists.
+        # Avoid creating the config (and parent dirs) in projects where the
+        # agent-context extension was never installed.
+        ext_cfg_path = project_root / _AGENT_CTX_EXT_CONFIG
+        if ext_cfg_path.exists():
+            _update_agent_context_config_file(
+                project_root, "", preserve_markers=True
+            )
+    elif has_legacy_context_keys:
         save_init_options(project_root, opts)
 
 
@@ -1100,12 +1184,23 @@ def _update_init_options_for_integration(
     integration: Any,
     script_type: str | None = None,
 ) -> None:
-    """Update ``init-options.json`` to reflect *integration* as the active one."""
+    """Update init-options.json and the agent-context extension config to
+    reflect *integration* as the active one.
+
+    ``context_file`` and ``context_markers`` are stored in the agent-context
+    extension config (``.specify/extensions/agent-context/agent-context-config.yml``),
+    not in ``init-options.json``.  Existing user-customised markers are
+    always preserved when the config already exists; invalid marker values
+    are silently ignored at runtime by ``_resolve_context_markers()`` which
+    falls back to the class-level defaults.
+    """
     from .integrations.base import SkillsIntegration
     opts = load_init_options(project_root)
     opts["integration"] = integration.key
     opts["ai"] = integration.key
-    opts["context_file"] = integration.context_file
+    # Remove legacy fields if they were written by an older version.
+    opts.pop("context_file", None)
+    opts.pop("context_markers", None)
     opts["speckit_version"] = get_speckit_version()
     if script_type:
         opts["script"] = script_type
@@ -1113,6 +1208,25 @@ def _update_init_options_for_integration(
         opts["ai_skills"] = True
     else:
         opts.pop("ai_skills", None)
+
+    # Update the agent-context extension config BEFORE init-options.json
+    # so a failure here doesn't leave init-options partially updated.
+    ext_cfg_path = project_root / _AGENT_CTX_EXT_CONFIG
+    if ext_cfg_path.exists():
+        _update_agent_context_config_file(
+            project_root,
+            integration.context_file,
+            preserve_markers=True,
+        )
+    elif integration.context_file:
+        # Extension config doesn't exist yet (extension not installed).
+        # Write defaults so scripts have something to read.
+        _update_agent_context_config_file(
+            project_root,
+            integration.context_file,
+            preserve_markers=False,
+        )
+
     save_init_options(project_root, opts)
 
 
