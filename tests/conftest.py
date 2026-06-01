@@ -69,6 +69,24 @@ def strip_ansi(text: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Fork-aware prefix helpers
+# ---------------------------------------------------------------------------
+
+def _cmd_prefix() -> str:
+    """Return the command prefix for the current installation.
+
+    Upstream uses 'speckit'; the tikalk fork uses 'spec'.
+    """
+    from specify_cli import PKG_NAMES
+    return "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+
+
+def _skill_prefix() -> str:
+    """Alias for _cmd_prefix() for use in skill/file-name contexts."""
+    return _cmd_prefix()
+
+
+# ---------------------------------------------------------------------------
 # Auth config isolation — prevents tests from reading ~/.specify/auth.json
 # ---------------------------------------------------------------------------
 

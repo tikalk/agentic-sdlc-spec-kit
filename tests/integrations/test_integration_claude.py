@@ -5,13 +5,14 @@ import json
 import os
 from unittest.mock import patch
 
-import pytest
 import yaml
 
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import IntegrationBase, SkillsIntegration
 from specify_cli.integrations.claude import ARGUMENT_HINTS
 from specify_cli.integrations.manifest import IntegrationManifest
+
+from tests.conftest import _skill_prefix
 
 
 class TestClaudeIntegration:
@@ -49,10 +50,8 @@ class TestClaudeIntegration:
         skills_dir = tmp_path / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
+        pfx = _skill_prefix()
+        plan_skill = skills_dir / f"{pfx}-plan" / "SKILL.md"
         assert plan_skill.exists()
 
         content = plan_skill.read_text(encoding="utf-8")
@@ -64,7 +63,7 @@ class TestClaudeIntegration:
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "speckit-plan"
+        assert parsed["name"] == f"{pfx}-plan"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
         assert parsed["metadata"]["source"] == "templates/commands/plan.md"
@@ -149,10 +148,8 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        pfx = _skill_prefix()
+        assert (project / ".claude" / "skills" / f"{pfx}-plan" / "SKILL.md").exists()
         assert not (project / ".claude" / "commands").exists()
 
         init_options = json.loads(
@@ -190,10 +187,8 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        assert (project / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
+        pfx = _skill_prefix()
+        assert (project / ".claude" / "skills" / f"{pfx}-specify" / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
     def test_interactive_claude_selection_uses_integration_path(self, tmp_path):
@@ -229,10 +224,8 @@ class TestClaudeIntegration:
         assert (project / ".specify" / "integration.json").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        skill_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        pfx = _skill_prefix()
+        skill_file = project / ".claude" / "skills" / f"{pfx}-plan" / "SKILL.md"
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content
@@ -259,10 +252,8 @@ class TestClaudeIntegration:
         )
 
         assert result.exit_code == 0
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        assert (target / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
+        pfx = _skill_prefix()
+        assert (target / ".claude" / "skills" / f"{pfx}-specify" / "SKILL.md").exists()
 
     def test_claude_hooks_render_skill_invocation(self, tmp_path):
         from specify_cli.extensions import HookExecutor
@@ -524,10 +515,8 @@ class TestClaudeHookCommandNote:
         i = get_integration("claude")
         m = IntegrationManifest("claude", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec-' prefix instead of 'speckit-'")
-        specify_skill = tmp_path / ".claude/skills/speckit-specify/SKILL.md"
+        pfx = _skill_prefix()
+        specify_skill = tmp_path / ".claude/skills" / f"{pfx}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         # specify.md has hook sections

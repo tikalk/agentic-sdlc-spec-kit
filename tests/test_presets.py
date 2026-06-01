@@ -15,15 +15,7 @@ import json
 import tempfile
 
 
-def _cmd_prefix() -> str:
-    """Return 'spec' for fork, 'speckit' for upstream."""
-    try:
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            return "spec"
-    except Exception:
-        pass
-    return "speckit"
+from tests.conftest import _cmd_prefix
 import shutil
 import warnings
 import zipfile

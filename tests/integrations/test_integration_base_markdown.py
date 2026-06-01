@@ -7,11 +7,11 @@ logic from ``MarkdownIntegrationTests``.
 
 import os
 
-import pytest
-
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import MarkdownIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+
+from tests.conftest import _cmd_prefix
 
 
 class MarkdownIntegrationTests:
@@ -65,9 +65,7 @@ class MarkdownIntegrationTests:
     # -- Setup / teardown -------------------------------------------------
 
     def test_setup_creates_files(self, tmp_path):
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork uses 'spec.' prefix instead of 'speckit.'")
+        pfx = _cmd_prefix()
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -75,7 +73,11 @@ class MarkdownIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            assert f.name.startswith("speckit.")
+            # Most files use the fork prefix, but core commands like taskstoissues
+            # retain the upstream speckit prefix.
+            assert f.name.startswith(f"{pfx}.") or f.name.startswith("speckit."), (
+                f"Unexpected filename: {f.name}"
+            )
             assert f.name.endswith(".md")
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
@@ -274,10 +276,10 @@ class MarkdownIntegrationTests:
             files.append(f"{cmd_dir}/speckit.{stem}.md")
 
         # Framework files
-        files.append(f".specify/integration.json")
-        files.append(f".specify/init-options.json")
+        files.append(".specify/integration.json")
+        files.append(".specify/init-options.json")
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
-        files.append(f".specify/integrations/speckit.manifest.json")
+        files.append(".specify/integrations/speckit.manifest.json")
 
         if script_variant == "sh":
             for name in ["check-prerequisites.sh", "common.sh", "create-new-feature.sh",
