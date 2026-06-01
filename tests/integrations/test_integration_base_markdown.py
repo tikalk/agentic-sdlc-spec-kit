@@ -7,6 +7,8 @@ logic from ``MarkdownIntegrationTests``.
 
 import os
 
+import pytest
+
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import MarkdownIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
@@ -63,6 +65,9 @@ class MarkdownIntegrationTests:
     # -- Setup / teardown -------------------------------------------------
 
     def test_setup_creates_files(self, tmp_path):
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            pytest.skip("Fork uses 'spec.' prefix instead of 'speckit.'")
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)

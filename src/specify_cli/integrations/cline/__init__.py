@@ -40,14 +40,25 @@ def format_cline_command_name(cmd_name: str) -> str:
                   hyphenated format (speckit-foo-bar), or plain name (foo)
 
     Returns:
-        Hyphenated command name with 'speckit-' prefix
+        Hyphenated command name with prefix
     """
+    from ..base import _get_command_prefix
+    prefix = _get_command_prefix()
+
+    # Convert dots to hyphens
     cmd_name = cmd_name.replace(".", "-")
 
-    if not cmd_name.startswith("speckit-"):
-        cmd_name = f"speckit-{cmd_name}"
+    # Already correctly prefixed — return as-is
+    if cmd_name.startswith(f"{prefix}-"):
+        return cmd_name
 
-    return cmd_name
+    # Strip any other known prefix and re-prefix with current one
+    for old_prefix in ("speckit-", "spec-", "adlc-"):
+        if cmd_name.startswith(old_prefix):
+            cmd_name = cmd_name[len(old_prefix):]
+            break
+
+    return f"{prefix}-{cmd_name}"
 
 
 class ClineIntegration(MarkdownIntegration):
@@ -117,7 +128,7 @@ class ClineIntegration(MarkdownIntegration):
     def _rewrite_handoff_references(content: str) -> str:
         """Replace dot-notation agent references in handoffs with hyphens."""
         return re.sub(
-            r"(?m)^(\s*agent:\s*)(speckit\.[A-Za-z0-9-_]+(?:\.[A-Za-z0-9-_]+)*)",
+            r"(?m)^(\s*agent:\s*)((?:speckit|spec|adlc)\.[A-Za-z0-9-_]+(?:\.[A-Za-z0-9-_]+)*)",
             lambda m: f"{m.group(1)}{format_cline_command_name(m.group(2))}",
             content,
         )

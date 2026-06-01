@@ -35,10 +35,12 @@ try:
         post_init as _fork_post_init,
         should_print_project_ready as _fork_should_print_project_ready,
         accent_style,
+        PKG_NAMES,
     )
     _FORK = True
 except ImportError:
     _FORK = False
+    PKG_NAMES = ["specify-cli"]
 
 
 def _build_integration_equivalent(
@@ -354,7 +356,8 @@ def register(app: typer.Typer) -> None:
         if not here:
             setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
-        console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
+        _border = accent_style() if _FORK else "cyan"
+        console.print(Panel("\n".join(setup_lines), border_style=_border, padding=(1, 2)))
 
         should_init_git = False
         if not no_git:
@@ -395,6 +398,9 @@ def register(app: typer.Typer) -> None:
 
         console.print(f"[cyan]Selected coding agent integration:[/cyan] {selected_ai}")
         console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+
+        # Tikalk fork: activate tracker coordination flag
+        sys._specify_tracker_active = True
 
         tracker = StepTracker("Initialize Specify Project")
 
@@ -797,16 +803,20 @@ def register(app: typer.Typer) -> None:
             step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
+        # Tikalk fork: detect fork identity for prefix selection
+        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
+        _cmd_prefix = "spec" if _is_fork else "speckit"
+
         def _display_cmd(name: str) -> str:
             if codex_skill_mode or agy_skill_mode or trae_skill_mode:
-                return f"$speckit-{name}"
+                return f"${_cmd_prefix}-{name}"
             if claude_skill_mode:
-                return f"/speckit-{name}"
+                return f"/{_cmd_prefix}-{name}"
             if kimi_skill_mode:
-                return f"/skill:speckit-{name}"
+                return f"/skill:{_cmd_prefix}-{name}"
             if cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode or cline_skill_mode:
-                return f"/speckit-{name}"
-            return f"/speckit.{name}"
+                return f"/{_cmd_prefix}-{name}"
+            return f"/{_cmd_prefix}.{name}"
 
         steps_lines.append(f"{step_num}. Start using {usage_label} with your coding agent:")
 
@@ -816,7 +826,7 @@ def register(app: typer.Typer) -> None:
         steps_lines.append(f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks")
         steps_lines.append(f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation")
 
-        steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
+        steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=_border, padding=(1, 2))
         console.print()
         console.print(steps_panel)
 
@@ -833,6 +843,6 @@ def register(app: typer.Typer) -> None:
             f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])"
         ]
         enhancements_title = "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
-        enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style="cyan", padding=(1, 2))
+        enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style=_border, padding=(1, 2))
         console.print()
         console.print(enhancements_panel)

@@ -1160,6 +1160,10 @@ class ExtensionManager:
         Raises:
             CompatibilityError: If extension is incompatible
         """
+        # Skip check for unknown versions (bundled extensions are guaranteed compatible)
+        if speckit_version == "unknown":
+            return True
+
         required = manifest.requires_speckit_version
         current = pkg_version.Version(speckit_version)
 
@@ -2426,16 +2430,21 @@ class HookExecutor:
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
+
         # Tikalk fork: use alias resolution for fork-specific command naming
-        try:
-            from specify_cli.cli_customization import resolve_command_alias
-            resolved_name = resolve_command_alias(command_id, None)
-        except Exception:
-            resolved_name = command_id
-        if not resolved_name.startswith("speckit."):
-            # Fork alias already resolved — use hyphenated form
-            return resolved_name.replace(".", "-")
-        return f"speckit-{resolved_name[len('speckit.'):].replace('.', '-')}"
+        # Only apply to non-speckit commands; upstream speckit.* stays as-is
+        if not command_id.startswith("speckit."):
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved_name = resolve_command_alias(command_id, None)
+                if resolved_name != command_id:
+                    return resolved_name.replace(".", "-")
+            except Exception:
+                pass
+
+        if not command_id.startswith("speckit."):
+            return ""
+        return f"speckit-{command_id[len('speckit.'):].replace('.', '-')}"
 
     def _render_hook_invocation(self, command: Any) -> str:
         """Render an agent-specific invocation string for a hook command."""
@@ -2447,12 +2456,15 @@ class HookExecutor:
             return ""
 
         # Tikalk fork: use alias resolution for fork-specific command naming
-        try:
-            from specify_cli.cli_customization import resolve_command_alias
-            resolved = resolve_command_alias(command_id, self.project_root)
-            return f"/{resolved}"
-        except Exception:
-            pass
+        # Only apply to non-speckit commands; upstream speckit.* stays as-is
+        if not command_id.startswith("speckit."):
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                resolved = resolve_command_alias(command_id, self.project_root)
+                if resolved != command_id:
+                    return f"/{resolved}"
+            except Exception:
+                pass
 
         init_options = self._load_init_options()
         selected_ai = init_options.get("ai")

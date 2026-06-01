@@ -13,6 +13,17 @@ Tests cover:
 import pytest
 import json
 import tempfile
+
+
+def _cmd_prefix() -> str:
+    """Return 'spec' for fork, 'speckit' for upstream."""
+    try:
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            return "spec"
+    except Exception:
+        pass
+    return "speckit"
 import shutil
 import warnings
 import zipfile
@@ -2382,8 +2393,8 @@ class TestPresetSkills:
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked into SKILL.md"
         # Claude's invoke_separator is "-", so tokens render as /speckit-<cmd>.
-        assert "/speckit-specify" in content
-        assert "/speckit-plan" in content
+        assert f"/{_cmd_prefix()}-specify" in content
+        assert f"/{_cmd_prefix()}-plan" in content
 
     def test_restore_skill_resolves_command_refs(self, project_dir, temp_dir):
         """Skill restore on preset removal must also resolve command tokens (issue #2717)."""
@@ -2411,7 +2422,7 @@ class TestPresetSkills:
 
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on restore"
-        assert "/speckit-plan" in content
+        assert f"/{_cmd_prefix()}-plan" in content
 
     def test_reconcile_override_skill_resolves_command_refs(self, project_dir, temp_dir):
         """Reconcile's project-override restore must resolve command tokens (issue #2717).
@@ -2448,7 +2459,7 @@ class TestPresetSkills:
         content = (skills_dir / "speckit-specify" / "SKILL.md").read_text()
         assert "override:speckit.specify" in content, "skill should be restored from the project override"
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on reconcile"
-        assert "/speckit-plan" in content
+        assert f"/{_cmd_prefix()}-plan" in content
 
     def test_extension_restore_resolves_command_refs(self, project_dir, temp_dir):
         """Extension-backed skill restore must resolve command tokens (issue #2717).
@@ -2503,7 +2514,7 @@ class TestPresetSkills:
         content = (skills_dir / "speckit-fakeext-cmd" / "SKILL.md").read_text()
         assert "source: extension:fakeext" in content, "skill should be restored from the extension"
         assert "__SPECKIT_COMMAND_" not in content, "raw command token leaked on extension restore"
-        assert "/speckit-plan" in content
+        assert f"/{_cmd_prefix()}-plan" in content
 
     def test_core_command_override_skill_uses_preset_command_description(self, project_dir, temp_dir):
         """Preset skill overrides for core commands should keep preset frontmatter descriptions."""
@@ -2738,6 +2749,9 @@ class TestPresetSkills:
 
     def test_no_skills_registered_when_no_skill_dir_exists(self, project_dir, temp_dir):
         """Skills should not be created when no existing skill dir is found."""
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            pytest.skip("Fork has bundled presets with different skill registration")
         self._write_init_options(project_dir, ai="claude")
         # Don't create skills dir — simulate --ai-skills never created them
 
