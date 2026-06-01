@@ -21,7 +21,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 ## Pre-Execution Checks
 
 **Check for extension hooks (before specification)**:
-- Check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
+- Check if `.specify/extensions.yml` exists in the project root.
 - If it exists, read it and look for entries under the `hooks.before_specify` key
 - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
 - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
@@ -41,11 +41,16 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed to the Outline
-    - If the hook command file cannot be found, log a warning and proceed anyway
-- If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
@@ -66,10 +71,6 @@ Given that feature description, do this:
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
 2. **Branch creation** (optional, via hook):
-
-   **Branch numbering mode**: Before running the script, check if `{REPO_ROOT}/.specify/init-options.json` exists and read the `branch_numbering` value.
-   - If `"timestamp"`, add `--timestamp` (Bash) or `-Timestamp` (PowerShell) to the script invocation
-   - If `"sequential"` or absent, do not add any extra flag (default behavior)
 
    If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
 
@@ -108,7 +109,9 @@ Given that feature description, do this:
 
 4. Load `templates/spec-template.md` to understand required sections.
 
-5. Follow this execution flow:
+5. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
+
+6. Follow this execution flow:
     1. Parse user description from arguments
        If empty: ERROR "No feature description provided"
     2. Extract key concepts from description
@@ -182,7 +185,7 @@ Given that feature description, do this:
 
    c. **Handle Validation Results**:
 
-      - **If all items pass**: Mark checklist complete and proceed to step 8
+      - **If all items pass**: Mark checklist complete and proceed to the Mandatory Post-Execution Hooks section
 
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
@@ -227,37 +230,46 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-8. **Report completion** to the user with:
-   - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
-   - `SPEC_FILE` — the spec file path
-   - Checklist results summary
-   - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
+## Mandatory Post-Execution Hooks
 
-9. **Check for extension hooks**: After reporting completion, check if `{REPO_ROOT}/.specify/extensions.yml` exists in the project root.
-    - If it exists, read it and look for entries under the `hooks.after_specify` key
-    - If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
-    - Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-    - For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-      - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-      - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-    - For each executable hook, output the following based on its `optional` flag:
-      - **Optional hook** (`optional: true`):
-        ```
-        ## Extension Hooks
+**You MUST complete this section before reporting completion to the user.**
 
-        **Optional Hook**: {extension}
-        Command: `/{command}`
-        Description: {description}
+Check if `.specify/extensions.yml` exists in the project root.
+- If it does not exist, or no hooks are registered under `hooks.after_specify`, skip to the Completion Report.
+- If it exists, read it and look for entries under the `hooks.after_specify` key.
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue to the Completion Report.
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Mandatory hook** (`optional: false`) — **You MUST emit `EXECUTE_COMMAND:` for each mandatory hook**:
+    ```
+    ## Extension Hooks
 
-        Prompt: {prompt}
-        To execute: `/{command}`
-        ```
-      - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed
-    - If the hook command file cannot be found or execution fails, log a warning and continue
-    - If no hooks are registered or `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently
+    **Automatic Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+    ```
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
+
+    **Optional Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
+
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+
+## Completion Report
+
+Report completion to the user with:
+- `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
+- `SPEC_FILE` — the spec file path
+- Checklist results summary
+- Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
 **NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 
@@ -321,3 +333,9 @@ Success criteria must be:
 - "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
 - "React components render efficiently" (framework-specific)
 - "Redis cache hit rate above 80%" (technology-specific)
+
+## Done When
+
+- [ ] Specification written to `SPEC_FILE` and validated against quality checklist
+- [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
+- [ ] Completion reported to user with feature directory, spec file path, and checklist results

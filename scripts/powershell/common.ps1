@@ -1,161 +1,6 @@
 #!/usr/bin/env pwsh
 # Common PowerShell functions analogous to common.sh
 
-# Get the global config path using XDG Base Directory spec
-# Platform-specific locations:
-# - Linux: ~/.config/specify/config.json
-# - macOS: ~/Library/Application Support/specify/config.json (but we use XDG for consistency)
-# - Windows: %APPDATA%\specify\config.json
-function Get-GlobalConfigPath {
-    if ($env:XDG_CONFIG_HOME) {
-        $configDir = $env:XDG_CONFIG_HOME
-    } elseif ($IsWindows -or $env:OS -eq 'Windows_NT') {
-        $configDir = $env:APPDATA
-    } else {
-        $configDir = Join-Path $HOME ".config"
-    }
-    return Join-Path $configDir "specify" "config.json"
-}
-
-function Get-ProjectConfigPath {
-    $repoRoot = Get-RepoRoot
-    return Join-Path $repoRoot ".specify" "config.json"
-}
-
-function Get-ConfigPath {
-    <#
-    .SYNOPSIS
-    Get config path with hierarchical resolution
-    Priority: 1) Project config  2) User config  3) Default to project
-    #>
-    $projectConfig = Get-ProjectConfigPath
-    $userConfig = Get-GlobalConfigPath
-    
-    if (Test-Path $projectConfig) {
-        return $projectConfig
-    } elseif (Test-Path $userConfig) {
-        return $userConfig
-    } else {
-        return $projectConfig
-    }
-}
-
-# Get current workflow mode - always returns "spec" for core commands
-function Get-CurrentMode {
-    # Core commands use standard mode
-    return 'spec'
-}
-
-# Detect workflow mode and framework options from spec.md
-# Usage: Get-WorkflowConfig -SpecFile "path/to/spec.md"
-# Returns hashtable: @{mode="build|spec"; tdd=$true|$false; contracts=$true|$false; data_models=$true|$false; risk_tests=$true|$false}
-function Get-WorkflowConfig {
-    param(
-        [string]$SpecFile = "spec.md"
-    )
-    
-    # Source and execute the standalone script
-    $scriptDir = Split-Path -Parent $PSCommandPath
-    . "$scriptDir/Detect-WorkflowConfig.ps1"
-    
-    # Call the function
-    return Get-WorkflowConfig -SpecFile $SpecFile
-}
-
-
-# Get a specific mode configuration value
-# Usage: Get-ModeConfig "atomic_commits" → returns "true" or "false"
-# Usage: Get-ModeConfig "skip_micro_review" → returns "true" or "false"
-function Get-ModeConfig {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$Key
-    )
-    
-    $configFile = Get-ConfigPath
-    
-    # Default to false if no config exists
-    if (-not (Test-Path $configFile)) {
-        return 'false'
-    }
-    
-    try {
-        $config = Get-Content $configFile -Raw | ConvertFrom-Json
-        $mode = Get-CurrentMode
-        
-        # Read mode-specific config value, default to false
-        $value = $config.mode_defaults.$mode.$Key
-        
-        if ($null -eq $value) {
-            return 'false'
-        }
-        
-        # Convert to lowercase string for consistency with bash
-        return $value.ToString().ToLower()
-    }
-    catch {
-        return 'false'  # Fallback on any error
-    }
-}
-
-# Get architecture diagram format from global config (mermaid or ascii)
-# Defaults to "mermaid" if config doesn't exist or format is invalid
-function Get-ArchitectureDiagramFormat {
-    $configFile = Get-ConfigPath
-    
-    # Default to mermaid if no config exists
-    if (-not (Test-Path $configFile)) {
-        return 'mermaid'
-    }
-    
-    try {
-        $config = Get-Content $configFile -Raw | ConvertFrom-Json
-        $format = $config.architecture.diagram_format
-        
-        # Validate format (only mermaid or ascii allowed)
-        if ($format -eq 'mermaid' -or $format -eq 'ascii') {
-            return $format
-        }
-        return 'mermaid'  # Fallback for invalid values
-    }
-    catch {
-        return 'mermaid'  # Fallback on any error
-    }
-}
-
-# Validate Mermaid diagram syntax (lightweight regex validation)
-# Returns $true if valid, $false if invalid
-# Args: MermaidCode - Mermaid code string
-function Test-MermaidSyntax {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$MermaidCode
-    )
-    
-    # Check if empty
-    if ([string]::IsNullOrWhiteSpace($MermaidCode)) {
-        return $false
-    }
-    
-    # Check for basic Mermaid diagram types
-    if ($MermaidCode -notmatch '^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|gitGraph|mindmap|timeline)') {
-        return $false
-    }
-    
-    # Check for balanced brackets/parentheses (simplified)
-    $openBrackets = ([regex]::Matches($MermaidCode, '\[')).Count
-    $closeBrackets = ([regex]::Matches($MermaidCode, '\]')).Count
-    $openParens = ([regex]::Matches($MermaidCode, '\(')).Count
-    $closeParens = ([regex]::Matches($MermaidCode, '\)')).Count
-    
-    if ($openBrackets -ne $closeBrackets -or $openParens -ne $closeParens) {
-        return $false
-    }
-    
-    # Basic syntax passed
-    return $true
-}
-
 # Find repository root by searching upward for .specify directory
 # This is the primary marker for spec-kit projects
 function Find-SpecifyRoot {
@@ -171,7 +16,6 @@ function Find-SpecifyRoot {
         if (Test-Path -LiteralPath (Join-Path $current ".specify") -PathType Container) {
             return $current
         }
-
         $parent = Split-Path $current -Parent
         if ([string]::IsNullOrEmpty($parent) -or $parent -eq $current) {
             return $null
@@ -321,7 +165,7 @@ function Test-FeatureBranch {
 }
 
 # True when .specify/feature.json pins an existing feature directory that matches the
-# active FEATURE_DIR from Get-FeaturePathsEnv (so /speckit.plan can skip git branch pattern checks).
+# active FEATURE_DIR from Get-FeaturePathsEnv (so __SPECKIT_COMMAND_PLAN__ can skip git branch pattern checks).
 function Test-FeatureJsonMatchesFeatureDir {
     param(
         [Parameter(Mandatory = $true)][string]$RepoRoot,
@@ -444,7 +288,7 @@ function Get-FeaturePathsEnv {
 
     # Resolve feature directory.  Priority:
     #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
-    #   2. .specify/feature.json "feature_directory" key (persisted by /speckit.specify)
+    #   2. .specify/feature.json "feature_directory" key (persisted by __SPECKIT_COMMAND_SPECIFY__)
     #   3. Branch-name-based prefix lookup (same as scripts/bash/common.sh)
     $featureJson = Join-Path $repoRoot '.specify/feature.json'
     if ($env:SPECIFY_FEATURE_DIRECTORY) {
@@ -474,10 +318,6 @@ function Get-FeaturePathsEnv {
         $featureDir = Get-FeatureDirFromBranchPrefixOrExit -RepoRoot $repoRoot -CurrentBranch $currentBranch
     }
     
-    # Project-level governance documents
-    $memoryDir = Join-Path $repoRoot '.specify/memory'
-    $constitutionFile = Join-Path $memoryDir 'constitution.md'
-    
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
         CURRENT_BRANCH = $currentBranch
@@ -490,17 +330,16 @@ function Get-FeaturePathsEnv {
         DATA_MODEL    = Join-Path $featureDir 'data-model.md'
         QUICKSTART    = Join-Path $featureDir 'quickstart.md'
         CONTRACTS_DIR = Join-Path $featureDir 'contracts'
-        CONSTITUTION  = $constitutionFile
     }
 }
 
 function Test-FileExists {
     param([string]$Path, [string]$Description)
     if (Test-Path -Path $Path -PathType Leaf) {
-        Write-Output "  ✓ $Description"
+        Write-Output "  [OK] $Description"
         return $true
     } else {
-        Write-Output "  ✗ $Description"
+        Write-Output "  [FAIL] $Description"
         return $false
     }
 }
@@ -508,147 +347,34 @@ function Test-FileExists {
 function Test-DirHasFiles {
     param([string]$Path, [string]$Description)
     if ((Test-Path -Path $Path -PathType Container) -and (Get-ChildItem -Path $Path -ErrorAction SilentlyContinue | Where-Object { -not $_.PSIsContainer } | Select-Object -First 1)) {
-        Write-Output "  ✓ $Description"
+        Write-Output "  [OK] $Description"
         return $true
     } else {
-        Write-Output "  ✗ $Description"
+        Write-Output "  [FAIL] $Description"
         return $false
     }
 }
 
-# Extract constitution principles and constraints
-# Returns array of rules
-function Get-ConstitutionRules {
-    param([string]$ConstitutionFile)
-    
-    if (-not (Test-Path $ConstitutionFile)) {
-        return @()
+# Find a usable Python 3 executable (python3, python, or py -3).
+# Returns the command/arguments as an array, or $null if none found.
+function Get-Python3Command {
+    if (Get-Command python3 -ErrorAction SilentlyContinue) { return @('python3') }
+    if (Get-Command python -ErrorAction SilentlyContinue) {
+        $ver = & python --version 2>&1
+        if ($ver -match 'Python 3') { return @('python') }
     }
-    
-    try {
-        $content = Get-Content $ConstitutionFile -Raw
-        $rules = @()
-        
-        foreach ($line in $content -split "`n") {
-            $trimmed = $line.Trim()
-            if ($trimmed -match '^\s*-\s+\*\*(Principle|PRINCIPLE|Constraint|CONSTRAINT|Pattern|PATTERN)') {
-                $type = 'principle'
-                if ($trimmed -match 'Constraint|CONSTRAINT') { $type = 'constraint' }
-                if ($trimmed -match 'Pattern|PATTERN') { $type = 'pattern' }
-                
-                $rules += @{
-                    type = $type
-                    text = $trimmed
-                }
-            }
-        }
-        
-        return $rules
+    if (Get-Command py -ErrorAction SilentlyContinue) {
+        $ver = & py -3 --version 2>&1
+        if ($ver -match 'Python 3') { return @('py', '-3') }
     }
-    catch {
-        return @()
-    }
+    return $null
 }
 
-# Extract architecture viewpoints from architecture.md
-# Returns hashtable with view names and presence status
-function Get-ArchitectureViews {
-    param([string]$ArchitectureFile)
-    
-    if (-not (Test-Path $ArchitectureFile)) {
-        return @{}
-    }
-    
-    try {
-        $content = Get-Content $ArchitectureFile -Raw
-        $views = @{}
-        
-        $viewPatterns = @{
-            'context' = '###\s+3\.1\s+Context\s+View'
-            'functional' = '###\s+3\.2\s+Functional\s+View'
-            'information' = '###\s+3\.3\s+Information\s+View'
-            'concurrency' = '###\s+3\.4\s+Concurrency\s+View'
-            'development' = '###\s+3\.5\s+Development\s+View'
-            'deployment' = '###\s+3\.6\s+Deployment\s+View'
-            'operational' = '###\s+3\.7\s+Operational\s+View'
-        }
-        
-        foreach ($viewName in $viewPatterns.Keys) {
-            $pattern = $viewPatterns[$viewName]
-            if ($content -match $pattern) {
-                $views[$viewName] = @{ present = $true }
-            }
-            else {
-                $views[$viewName] = @{ present = $false }
-            }
-        }
-        
-        return $views
-    }
-    catch {
-        return @{}
-    }
-}
-
-# Extract diagram blocks from architecture.md
-# Returns array of diagrams with type and format
-function Get-ArchitectureDiagrams {
-    param([string]$ArchitectureFile)
-    
-    if (-not (Test-Path $ArchitectureFile)) {
-        return @()
-    }
-    
-    try {
-        $content = Get-Content $ArchitectureFile -Raw
-        $diagrams = @()
-        
-        # Find all code blocks (mermaid or text)
-        $codeBlockPattern = '```(mermaid|text)\r?\n(.*?)\r?\n```'
-        $matches = [regex]::Matches($content, $codeBlockPattern, 'Singleline')
-        
-        foreach ($match in $matches) {
-            $diagramFormat = $match.Groups[1].Value
-            $diagramContent = $match.Groups[2].Value
-            
-            # Find which view this diagram belongs to
-            $startPos = $match.Index
-            $precedingText = $content.Substring(0, $startPos)
-            
-            # Find the most recent view heading
-            $viewName = 'unknown'
-            $viewPatterns = @(
-                @{ pattern = '###\s+3\.1\s+Context\s+View'; name = 'context' },
-                @{ pattern = '###\s+3\.2\s+Functional\s+View'; name = 'functional' },
-                @{ pattern = '###\s+3\.3\s+Information\s+View'; name = 'information' },
-                @{ pattern = '###\s+3\.4\s+Concurrency\s+View'; name = 'concurrency' },
-                @{ pattern = '###\s+3\.5\s+Development\s+View'; name = 'development' },
-                @{ pattern = '###\s+3\.6\s+Deployment\s+View'; name = 'deployment' },
-                @{ pattern = '###\s+3\.7\s+Operational\s+View'; name = 'operational' }
-            )
-            
-            foreach ($vp in $viewPatterns) {
-                $viewMatches = [regex]::Matches($precedingText, $vp.pattern, 'IgnoreCase')
-                if ($viewMatches.Count -gt 0) {
-                    $viewName = $vp.name
-                    # Keep looking for the last (most recent) match
-                }
-            }
-            
-            $diagrams += @{
-                view = $viewName
-                format = $diagramFormat
-                line_count = ($diagramContent -split "`n").Count
-            }
-        }
-        
-        return $diagrams
-    }
-    catch {
-        return @()
-    }
-}
-
+# Resolve a template name to a file path using the priority stack:
+#   1. .specify/templates/overrides/
+#   2. .specify/presets/<preset-id>/templates/ (sorted by priority from .registry)
+#   3. .specify/extensions/<ext-id>/templates/
+#   4. .specify/templates/ (core)
 function Resolve-Template {
     param(
         [Parameter(Mandatory=$true)][string]$TemplateName,
@@ -672,6 +398,7 @@ function Resolve-Template {
                 $presets = $registryData.presets
                 if ($presets) {
                     $sortedPresets = $presets.PSObject.Properties |
+                        Where-Object { $null -eq $_.Value.enabled -or $_.Value.enabled -ne $false } |
                         Sort-Object { if ($null -ne $_.Value.priority) { $_.Value.priority } else { 10 } } |
                         ForEach-Object { $_.Name }
                 }
@@ -709,4 +436,208 @@ function Resolve-Template {
     if (Test-Path $core) { return $core }
 
     return $null
+}
+
+# Resolve a template name to composed content using composition strategies.
+# Reads strategy metadata from preset manifests and composes content
+# from multiple layers using prepend, append, or wrap strategies.
+function Resolve-TemplateContent {
+    param(
+        [Parameter(Mandatory=$true)][string]$TemplateName,
+        [Parameter(Mandatory=$true)][string]$RepoRoot
+    )
+
+    $base = Join-Path $RepoRoot '.specify/templates'
+
+    # Collect all layers (highest priority first)
+    $layerPaths = @()
+    $layerStrategies = @()
+
+    # Priority 1: Project overrides (always "replace")
+    $override = Join-Path $base "overrides/$TemplateName.md"
+    if (Test-Path $override) {
+        $layerPaths += $override
+        $layerStrategies += 'replace'
+    }
+
+    # Priority 2: Installed presets (sorted by priority from .registry)
+    $presetsDir = Join-Path $RepoRoot '.specify/presets'
+    if (Test-Path $presetsDir) {
+        $registryFile = Join-Path $presetsDir '.registry'
+        $sortedPresets = @()
+        if (Test-Path $registryFile) {
+            try {
+                $registryData = Get-Content $registryFile -Raw | ConvertFrom-Json
+                $presets = $registryData.presets
+                if ($presets) {
+                    $sortedPresets = $presets.PSObject.Properties |
+                        Where-Object { $null -eq $_.Value.enabled -or $_.Value.enabled -ne $false } |
+                        Sort-Object { if ($null -ne $_.Value.priority) { $_.Value.priority } else { 10 } } |
+                        ForEach-Object { $_.Name }
+                }
+            } catch {
+                $sortedPresets = @()
+            }
+        }
+
+        if ($sortedPresets.Count -gt 0) {
+            $pyCmd = Get-Python3Command
+            if (-not $pyCmd) {
+                # Check if any preset has strategy fields that would be ignored
+                foreach ($pid in $sortedPresets) {
+                    $mf = Join-Path $presetsDir "$pid/preset.yml"
+                    if ((Test-Path $mf) -and (Select-String -Path $mf -Pattern 'strategy:' -Quiet -ErrorAction SilentlyContinue)) {
+                        Write-Warning "No Python 3 found; preset composition strategies will be ignored"
+                        break
+                    }
+                }
+            }
+            $yamlWarned = $false
+            foreach ($presetId in $sortedPresets) {
+                # Read strategy and file path from preset manifest
+                $strategy = 'replace'
+                $manifestFilePath = ''
+                $manifest = Join-Path $presetsDir "$presetId/preset.yml"
+                if ((Test-Path $manifest) -and $pyCmd) {
+                    try {
+                        # Use Python to parse YAML manifest for strategy and file path
+                        $pyArgs = if ($pyCmd.Count -gt 1) { $pyCmd[1..($pyCmd.Count-1)] } else { @() }
+                        $pyStderrFile = [System.IO.Path]::GetTempFileName()
+                        $stratResult = & $pyCmd[0] @pyArgs -c @"
+import sys
+try:
+    import yaml
+except ImportError:
+    print('yaml_missing', file=sys.stderr)
+    print('replace\t')
+    sys.exit(0)
+try:
+    with open(sys.argv[1]) as f:
+        data = yaml.safe_load(f)
+    for t in data.get('provides', {}).get('templates', []):
+        if t.get('name') == sys.argv[2] and t.get('type', 'template') == 'template':
+            print(t.get('strategy', 'replace') + '\t' + t.get('file', ''))
+            sys.exit(0)
+    print('replace\t')
+except Exception:
+    print('replace\t')
+"@ $manifest $TemplateName 2>$pyStderrFile
+                        if ($stratResult) {
+                            $parts = $stratResult.Trim() -split "`t", 2
+                            $strategy = $parts[0].ToLowerInvariant()
+                            if ($parts.Count -gt 1 -and $parts[1]) { $manifestFilePath = $parts[1] }
+                        }
+                        if (-not $yamlWarned -and (Test-Path $pyStderrFile) -and (Get-Content $pyStderrFile -Raw -ErrorAction SilentlyContinue) -match 'yaml_missing') {
+                            Write-Warning "PyYAML not available; composition strategies may be ignored"
+                            $yamlWarned = $true
+                        }
+                        Remove-Item $pyStderrFile -Force -ErrorAction SilentlyContinue
+                    } catch {
+                        $strategy = 'replace'
+                        if ($pyStderrFile) { Remove-Item $pyStderrFile -Force -ErrorAction SilentlyContinue }
+                    }
+                }
+                # Try manifest file path first, then convention path
+                $candidate = $null
+                if ($manifestFilePath) {
+                    # Reject absolute paths and parent traversal
+                    if ([System.IO.Path]::IsPathRooted($manifestFilePath) -or $manifestFilePath -match '\.\.[\\/]') {
+                        $manifestFilePath = ''
+                    }
+                }
+                if ($manifestFilePath) {
+                    $mf = Join-Path $presetsDir "$presetId/$manifestFilePath"
+                    if (Test-Path $mf) { $candidate = $mf }
+                }
+                if (-not $candidate) {
+                    $cf = Join-Path $presetsDir "$presetId/templates/$TemplateName.md"
+                    if (Test-Path $cf) { $candidate = $cf }
+                }
+                if ($candidate) {
+                    $layerPaths += $candidate
+                    $layerStrategies += $strategy
+                }
+            }
+        } else {
+            # Fallback: alphabetical directory order (no registry or parse failure)
+            foreach ($preset in Get-ChildItem -Path $presetsDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' }) {
+                $candidate = Join-Path $preset.FullName "templates/$TemplateName.md"
+                if (Test-Path $candidate) {
+                    $layerPaths += $candidate
+                    $layerStrategies += 'replace'
+                }
+            }
+        }
+    }
+
+    # Priority 3: Extension-provided templates (always "replace")
+    $extDir = Join-Path $RepoRoot '.specify/extensions'
+    if (Test-Path $extDir) {
+        foreach ($ext in Get-ChildItem -Path $extDir -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -notlike '.*' } | Sort-Object Name) {
+            $candidate = Join-Path $ext.FullName "templates/$TemplateName.md"
+            if (Test-Path $candidate) {
+                $layerPaths += $candidate
+                $layerStrategies += 'replace'
+            }
+        }
+    }
+
+    # Priority 4: Core templates (always "replace")
+    $core = Join-Path $base "$TemplateName.md"
+    if (Test-Path $core) {
+        $layerPaths += $core
+        $layerStrategies += 'replace'
+    }
+
+    if ($layerPaths.Count -eq 0) { return $null }
+
+    # If the top (highest-priority) layer is replace, it wins entirely --
+    # lower layers are irrelevant regardless of their strategies.
+    if ($layerStrategies[0] -eq 'replace') {
+        return (Get-Content $layerPaths[0] -Raw)
+    }
+
+    # Check if any layer uses a non-replace strategy
+    $hasComposition = $false
+    foreach ($s in $layerStrategies) {
+        if ($s -ne 'replace') { $hasComposition = $true; break }
+    }
+
+    if (-not $hasComposition) {
+        return (Get-Content $layerPaths[0] -Raw)
+    }
+
+    # Find the effective base: scan from highest priority (index 0) downward
+    # to find the nearest replace layer. Only compose layers above that base.
+    $baseIdx = -1
+    for ($i = 0; $i -lt $layerPaths.Count; $i++) {
+        if ($layerStrategies[$i] -eq 'replace') {
+            $baseIdx = $i
+            break
+        }
+    }
+    if ($baseIdx -lt 0) { return $null }
+
+    $content = Get-Content $layerPaths[$baseIdx] -Raw
+
+    for ($i = $baseIdx - 1; $i -ge 0; $i--) {
+        $path = $layerPaths[$i]
+        $strat = $layerStrategies[$i]
+        $layerContent = Get-Content $path -Raw
+
+        switch ($strat) {
+            'replace' { $content = $layerContent }
+            'prepend' { $content = "$layerContent`n`n$content" }
+            'append'  { $content = "$content`n`n$layerContent" }
+            'wrap'    {
+                if (-not $layerContent.Contains('{CORE_TEMPLATE}')) {
+                    throw "Wrap strategy missing {CORE_TEMPLATE} placeholder"
+                }
+                $content = $layerContent.Replace('{CORE_TEMPLATE}', $content)
+            }
+            default { throw "Unknown strategy: $strat" }
+        }
+    }
+
+    return $content
 }

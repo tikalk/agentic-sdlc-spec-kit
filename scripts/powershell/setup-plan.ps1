@@ -33,35 +33,25 @@ if (-not (Test-FeatureJsonMatchesFeatureDir -RepoRoot $paths.REPO_ROOT -ActiveFe
 # Ensure the feature directory exists
 New-Item -ItemType Directory -Path $paths.FEATURE_DIR -Force | Out-Null
 
-# Detect current workflow mode and select appropriate plan template
-$currentMode = Get-CurrentMode
-
-if ($currentMode -eq 'build') {
-    $template = Resolve-Template -TemplateName 'plan-template-build' -RepoRoot $paths.REPO_ROOT
+# Copy plan template if plan doesn't already exist
+if (Test-Path $paths.IMPL_PLAN -PathType Leaf) {
+    if ($Json) {
+        [Console]::Error.WriteLine("Plan already exists at $($paths.IMPL_PLAN), skipping template copy")
+    } else {
+        Write-Output "Plan already exists at $($paths.IMPL_PLAN), skipping template copy"
+    }
 } else {
     $template = Resolve-Template -TemplateName 'plan-template' -RepoRoot $paths.REPO_ROOT
-}
-
-if ($template -and (Test-Path $template)) {
-    # Read the template content and write it to the implementation plan file with UTF-8 encoding without BOM
-    $content = [System.IO.File]::ReadAllText($template)
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    [System.IO.File]::WriteAllText($paths.IMPL_PLAN, $content, $utf8NoBom)
-    Write-Output "Copied plan template to $($paths.IMPL_PLAN)"
-} else {
-    Write-Warning "Plan template not found at $template"
-    # Create a basic plan file if template doesn't exist
-    New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
-}
-
-$constitutionFile = $env:SPECIFY_CONSTITUTION
-if (-not $constitutionFile) {
-    $constitutionFile = Join-Path $paths.REPO_ROOT '.specify/memory/constitution.md'
-}
-if (Test-Path $constitutionFile) {
-    $env:SPECIFY_CONSTITUTION = $constitutionFile
-} else {
-    $constitutionFile = ''
+    if ($template -and (Test-Path $template)) {
+        # Read the template content and write it to the implementation plan file with UTF-8 encoding without BOM
+        $content = [System.IO.File]::ReadAllText($template)
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($paths.IMPL_PLAN, $content, $utf8NoBom)
+    } else {
+        Write-Warning "Plan template not found"
+        # Create a basic plan file if template doesn't exist
+        New-Item -ItemType File -Path $paths.IMPL_PLAN -Force | Out-Null
+    }
 }
 
 # Output results
@@ -72,7 +62,6 @@ if ($Json) {
         SPECS_DIR = $paths.FEATURE_DIR
         BRANCH = $paths.CURRENT_BRANCH
         HAS_GIT = $paths.HAS_GIT
-        CONSTITUTION = $constitutionFile
     }
     $result | ConvertTo-Json -Compress
 } else {
@@ -81,9 +70,4 @@ if ($Json) {
     Write-Output "SPECS_DIR: $($paths.FEATURE_DIR)"
     Write-Output "BRANCH: $($paths.CURRENT_BRANCH)"
     Write-Output "HAS_GIT: $($paths.HAS_GIT)"
-    if ($constitutionFile) {
-        Write-Output "CONSTITUTION: $constitutionFile"
-    } else {
-        Write-Output "CONSTITUTION: (missing)"
-    }
 }

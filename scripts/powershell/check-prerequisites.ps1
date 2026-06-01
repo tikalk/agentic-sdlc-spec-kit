@@ -43,7 +43,7 @@ EXAMPLES:
   # Check task prerequisites (plan.md required)
   .\check-prerequisites.ps1 -Json
   
-  # Check implementation prerequisites (plan.md required, tasks.md always required)
+  # Check implementation prerequisites (plan.md + tasks.md required)
   .\check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
   
   # Get feature paths only (no validation)
@@ -56,72 +56,10 @@ EXAMPLES:
 # Source common functions
 . "$PSScriptRoot/common.ps1"
 
-function Get-RisksFromFile {
-    param([string]$Path)
-
-    if (-not (Test-Path $Path -PathType Leaf)) {
-        return @()
-    }
-
-    $risks = @()
-    $pattern = '^-\s*RISK:\s*(.+)$'
-    $index = 1
-
-    foreach ($line in Get-Content -Path $Path) {
-        $trim = $line.Trim()
-        if ($trim -notmatch $pattern) { continue }
-
-        $content = $Matches[1]
-        $parts = @()
-        foreach ($piece in ($content -split '\|')) {
-            $trimmed = $piece.Trim()
-            if ($trimmed) { $parts += $trimmed }
-        }
-
-        $data = @{}
-
-        if ($parts.Count -gt 0 -and $parts[0] -notmatch ':') {
-            $data['id'] = $parts[0]
-            if ($parts.Count -gt 1) {
-                $parts = $parts[1..($parts.Count - 1)]
-            } else {
-                $parts = @()
-            }
-        }
-
-        foreach ($part in $parts) {
-            if ($part -match '^\s*([^:]+):\s*(.+)$') {
-                $key = $Matches[1].Trim()
-                $value = $Matches[2].Trim()
-                $normalized = $key.ToLower().Replace(' ', '_')
-
-                if ($normalized -eq 'risk') {
-                    $data['id'] = $value
-                } else {
-                    $data[$normalized] = $value
-                }
-            }
-        }
-
-        if (-not $data.ContainsKey('id')) {
-            $data['id'] = "missing-id-$index"
-        }
-        $index += 1
-
-        $risks += [PSCustomObject]$data
-    }
-
-    return $risks
-}
-
-# Get feature paths and validate branch
+# Get feature paths
 $paths = Get-FeaturePathsEnv
 
-if (-not (Test-FeatureBranch -Branch $paths.CURRENT_BRANCH -HasGit:$paths.HAS_GIT)) { 
-    exit 1 
-}
-
-# If paths-only mode, output paths and exit (support combined -Json -PathsOnly)
+# If paths-only mode, output paths and exit (no validation)
 if ($PathsOnly) {
     if ($Json) {
         [PSCustomObject]@{
@@ -131,8 +69,6 @@ if ($PathsOnly) {
             FEATURE_SPEC = $paths.FEATURE_SPEC
             IMPL_PLAN    = $paths.IMPL_PLAN
             TASKS        = $paths.TASKS
-            CONSTITUTION = $paths.CONSTITUTION
-            AD = $paths.AD
         } | ConvertTo-Json -Compress
     } else {
         Write-Output "REPO_ROOT: $($paths.REPO_ROOT)"
@@ -141,30 +77,32 @@ if ($PathsOnly) {
         Write-Output "FEATURE_SPEC: $($paths.FEATURE_SPEC)"
         Write-Output "IMPL_PLAN: $($paths.IMPL_PLAN)"
         Write-Output "TASKS: $($paths.TASKS)"
-        Write-Output "CONSTITUTION: $($paths.CONSTITUTION)"
-        Write-Output "AD: $($paths.AD)"
     }
     exit 0
+}
+
+# Validate branch name
+if (-not (Test-FeatureBranch -Branch $paths.CURRENT_BRANCH -HasGit:$paths.HAS_GIT)) {
+    exit 1
 }
 
 # Validate required directories and files
 if (-not (Test-Path $paths.FEATURE_DIR -PathType Container)) {
     Write-Output "ERROR: Feature directory not found: $($paths.FEATURE_DIR)"
-    Write-Output "Run /spec.specify first to create the feature structure."
+    Write-Output "Run __SPECKIT_COMMAND_SPECIFY__ first to create the feature structure."
     exit 1
 }
 
-# Check for plan.md (required)
 if (-not (Test-Path $paths.IMPL_PLAN -PathType Leaf)) {
     Write-Output "ERROR: plan.md not found in $($paths.FEATURE_DIR)"
-    Write-Output "Run /spec.plan first to create the implementation plan."
+    Write-Output "Run __SPECKIT_COMMAND_PLAN__ first to create the implementation plan."
     exit 1
 }
 
 # Check for tasks.md if required
 if ($RequireTasks -and -not (Test-Path $paths.TASKS -PathType Leaf)) {
     Write-Output "ERROR: tasks.md not found in $($paths.FEATURE_DIR)"
-    Write-Output "Run /spec.tasks first to create the task list."
+    Write-Output "Run __SPECKIT_COMMAND_TASKS__ first to create the task list."
     exit 1
 }
 
@@ -188,40 +126,11 @@ if ($IncludeTasks -and (Test-Path $paths.TASKS)) {
 }
 
 # Output results
-    $specRisks = Get-RisksFromFile -Path $paths.FEATURE_SPEC
-    $planRisks = Get-RisksFromFile -Path $paths.IMPL_PLAN
-    
-    # Check for constitution and architecture (optional governance documents)
-    $constitutionExists = Test-Path $paths.CONSTITUTION -PathType Leaf
-    $adExists = Test-Path $paths.AD -PathType Leaf
-    
-    $constitutionRules = @()
-    $adViews = @{}
-    $adDiagrams = @()
-    
-    if ($constitutionExists) {
-        $constitutionRules = Get-ConstitutionRules -ConstitutionFile $paths.CONSTITUTION
-    }
-    
-    if ($adExists) {
-        $adViews = Get-ArchitectureViews -ArchitectureFile $paths.AD
-        $adDiagrams = Get-ArchitectureDiagrams -ArchitectureFile $paths.AD
-    }
-
 if ($Json) {
     # JSON output
     [PSCustomObject]@{ 
         FEATURE_DIR = $paths.FEATURE_DIR
         AVAILABLE_DOCS = $docs 
-        SPEC_RISKS = $specRisks
-        PLAN_RISKS = $planRisks
-        CONSTITUTION = $paths.CONSTITUTION
-        CONSTITUTION_EXISTS = $constitutionExists
-        CONSTITUTION_RULES = $constitutionRules
-        AD = $paths.AD
-        AD_EXISTS = $adExists
-        AD_VIEWS = $adViews
-        AD_DIAGRAMS = $adDiagrams
     } | ConvertTo-Json -Compress
 } else {
     # Text output
@@ -237,13 +146,4 @@ if ($Json) {
     if ($IncludeTasks) {
         Test-FileExists -Path $paths.TASKS -Description 'tasks.md' | Out-Null
     }
-
-    Write-Output "SPEC_RISKS: $($specRisks.Count)"
-    Write-Output "PLAN_RISKS: $($planRisks.Count)"
-    
-    # Show governance document status
-    Write-Output ""
-    Write-Output "GOVERNANCE DOCUMENTS:"
-    Test-FileExists -Path $paths.CONSTITUTION -Description 'constitution.md (optional)' | Out-Null
-    Test-FileExists -Path $paths.AD -Description 'AD.md (optional)' | Out-Null
 }

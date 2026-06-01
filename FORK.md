@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.9.0+adlc1 | 2026-06-01 | 0.9.0 | Upstream merge: 73 commits (v0.8.12-v0.9.0), Cline + Hermes integrations, agent-context extension, commands package refactoring, env var enhancements |
 | 0.8.12+adlc39 | 2026-05-30 | 0.8.12 | Architect v2.1.3: Viewpoint-organized aggregation enforcement, Mermaid-only diagram constraint |
 | 0.8.12+adlc38 | 2026-05-30 | 0.8.12 | Architect v2.1.2: Subsystem view links in AD.md - inline links after each view when 2+ subsystems detected |
 | 0.8.12+adlc37 | 2026-05-30 | 0.8.12 | LevelUp v1.7.0: Constitution CDR lifecycle - constitution changes now require review before publication |

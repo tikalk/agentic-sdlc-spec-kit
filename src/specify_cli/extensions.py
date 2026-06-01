@@ -25,26 +25,33 @@ import yaml
 from packaging import version as pkg_version
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
-_FALLBACK_CORE_COMMAND_NAMES = frozenset(
-    {
-        "analyze",
-        "checklist",
-        "clarify",
-        "constitution",
-        "implement",
-        "plan",
-        "specify",
-        "tasks",
-        "taskstoissues",
-    }
-)
-# Get namespaces from customization module (supports speckit and adlc)
+from .catalogs import CatalogEntry as BaseCatalogEntry, CatalogStackBase
+
+# Tikalk fork: support multiple command namespaces (speckit + adlc)
 try:
     from .cli_customization import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
 except ImportError:
     EXTENSION_NAMESPACES = ["speckit"]
     EXTENSION_ALIAS_PATTERN_ENABLED = False
 
+# Tikalk fork: override reinstall command to point to fork
+try:
+    from .cli_customization import FORK_INSTALL_COMMAND
+    REINSTALL_COMMAND = FORK_INSTALL_COMMAND
+except ImportError:
+    REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"
+
+_FALLBACK_CORE_COMMAND_NAMES = frozenset({
+    "analyze",
+    "checklist",
+    "clarify",
+    "constitution",
+    "implement",
+    "plan",
+    "specify",
+    "tasks",
+    "taskstoissues",
+})
 EXTENSION_COMMAND_NAME_PATTERN = re.compile(
     rf"^(?:{'|'.join(EXTENSION_NAMESPACES)})\.([a-z0-9-]+)\.([a-z0-9-]+)$"
 )
@@ -54,8 +61,6 @@ if EXTENSION_ALIAS_PATTERN_ENABLED:
     EXTENSION_ALIAS_NAME_PATTERN = re.compile(r"^([a-z0-9-]+)\.([a-z0-9-]+)$")
 else:
     EXTENSION_ALIAS_NAME_PATTERN = None
-
-REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"
 
 
 def _load_core_command_names() -> frozenset[str]:
@@ -90,19 +95,16 @@ CORE_COMMAND_NAMES = _load_core_command_names()
 
 class ExtensionError(Exception):
     """Base exception for extension-related errors."""
-
     pass
 
 
 class ValidationError(ExtensionError):
     """Raised when extension manifest validation fails."""
-
     pass
 
 
 class CompatibilityError(ExtensionError):
     """Raised when extension is incompatible with current environment."""
-
     pass
 
 
@@ -127,14 +129,8 @@ def normalize_priority(value: Any, default: int = 10) -> int:
 
 
 @dataclass
-class CatalogEntry:
+class CatalogEntry(BaseCatalogEntry):
     """Represents a single catalog entry in the catalog stack."""
-
-    url: str
-    name: str
-    priority: int
-    install_allowed: bool
-    description: str = ""
 
 
 class ExtensionManifest:
@@ -199,7 +195,7 @@ class ExtensionManifest:
                 raise ValidationError(f"Missing extension.{field}")
 
         # Validate extension ID format
-        if not re.match(r"^[a-z0-9-]+$", ext["id"]):
+        if not re.match(r'^[a-z0-9-]+$', ext["id"]):
             raise ValidationError(
                 f"Invalid extension ID '{ext['id']}': "
                 "must be lowercase alphanumeric with hyphens only"
@@ -222,15 +218,21 @@ class ExtensionManifest:
         hooks = self.data.get("hooks")
 
         if "commands" in provides and not isinstance(commands, list):
-            raise ValidationError("Invalid provides.commands: expected a list")
+            raise ValidationError(
+                "Invalid provides.commands: expected a list"
+            )
         if "hooks" in self.data and not isinstance(hooks, dict):
-            raise ValidationError("Invalid hooks: expected a mapping")
+            raise ValidationError(
+                "Invalid hooks: expected a mapping"
+            )
 
         has_commands = bool(commands)
         has_hooks = bool(hooks)
 
         if not has_commands and not has_hooks:
-            raise ValidationError("Extension must provide at least one command or hook")
+            raise ValidationError(
+                "Extension must provide at least one command or hook"
+            )
 
         # Validate hook values (if present)
         if hooks:
@@ -244,7 +246,7 @@ class ExtensionManifest:
                         f"Hook '{hook_name}' missing required 'command' field"
                     )
 
-        # Validate commands (if present)
+        # Validate commands; track renames so hook references can be rewritten.
         rename_map: Dict[str, str] = {}
         for cmd in commands:
             if not isinstance(cmd, dict):
@@ -254,13 +256,13 @@ class ExtensionManifest:
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
 
-            # Validate command name format with auto-correction
-            if not re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", cmd["name"]):
+            # Validate command name format
+            if not EXTENSION_COMMAND_NAME_PATTERN.match(cmd["name"]):
                 corrected = self._try_correct_command_name(cmd["name"], ext["id"])
                 if corrected:
                     self.warnings.append(
                         f"Command name '{cmd['name']}' does not follow the required pattern "
-                        f"'(speckit|adlc).{{extension}}.{{command}}'. Registering as '{corrected}'. "
+                        f"'speckit.{{extension}}.{{command}}'. Registering as '{corrected}'. "
                         f"The extension author should update the manifest to use this name."
                     )
                     rename_map[cmd["name"]] = corrected
@@ -268,11 +270,12 @@ class ExtensionManifest:
                 else:
                     raise ValidationError(
                         f"Invalid command name '{cmd['name']}': "
-                        "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                        "must follow pattern 'speckit.{extension}.{command}'"
                     )
 
             # Validate alias types; no pattern enforcement on aliases — they are
-            # intentionally free-form to preserve community extension compatibility.
+            # intentionally free-form to preserve community extension compatibility
+            # (e.g. 'speckit.verify' short aliases used by existing extensions).
             aliases = cmd.get("aliases")
             if aliases is None:
                 cmd["aliases"] = []
@@ -288,7 +291,7 @@ class ExtensionManifest:
                     )
 
         # Rewrite any hook command references that pointed at a renamed command or
-        # an alias-form ref (ext.cmd → namespace.ext.cmd). Always emit a warning when
+        # an alias-form ref (ext.cmd → speckit.ext.cmd).  Always emit a warning when
         # the reference is changed so extension authors know to update the manifest.
         for hook_name, hook_data in self.data.get("hooks", {}).items():
             if not isinstance(hook_data, dict):
@@ -300,43 +303,39 @@ class ExtensionManifest:
                 continue
             # Step 1: apply any rename from the auto-correction pass.
             after_rename = rename_map.get(command_ref, command_ref)
-            # Step 2: lift alias-form '{ext_id}.cmd' to canonical 'namespace.{ext_id}.cmd'.
+            # Step 2: lift alias-form '{ext_id}.cmd' to canonical 'speckit.{ext_id}.cmd'.
             parts = after_rename.split(".")
             if len(parts) == 2 and parts[0] == ext["id"]:
-                # Preserve namespace: use speckit or adlc based on what's available
-                namespace = "speckit"  # default
-                if parts[0] in EXTENSION_NAMESPACES:
-                    namespace = parts[0]
-                final_ref = f"{namespace}.{ext['id']}.{parts[1]}"
+                final_ref = f"speckit.{ext['id']}.{parts[1]}"
             else:
                 final_ref = after_rename
             if final_ref != command_ref:
                 hook_data["command"] = final_ref
                 self.warnings.append(
                     f"Hook '{hook_name}' referenced command '{command_ref}'; "
-                    f"updated to '{final_ref}'. The extension author should update the manifest."
+                    f"updated to canonical form '{final_ref}'. "
+                    f"The extension author should update the manifest."
                 )
 
     @staticmethod
     def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
         """Try to auto-correct a non-conforming command name to the required pattern.
 
-        Handles these legacy formats:
-          - 'speckit.command' → 'speckit.{ext_id}.command'
-          - 'adlc.command' → 'adlc.{ext_id}.command'
+        Handles the two legacy formats used by community extensions:
+          - 'speckit.command'  → 'speckit.{ext_id}.command'
           - '{ext_id}.command' → 'speckit.{ext_id}.command'
 
         The 'X.Y' form is only corrected when X matches ext_id to ensure the
-        result passes the install-time namespace check.
+        result passes the install-time namespace check. Any other prefix is
+        uncorrectable and will produce a ValidationError at the call site.
 
         Returns the corrected name, or None if no safe correction is possible.
         """
-        parts = name.split(".")
+        parts = name.split('.')
         if len(parts) == 2:
-            if parts[0] in ("speckit", "adlc") or parts[0] == ext_id:
-                namespace = "speckit" if parts[0] == ext_id else parts[0]
-                candidate = f"{namespace}.{ext_id}.{parts[1]}"
-                if re.match(r"^(speckit|adlc)\.[a-z0-9-]+\.[a-z0-9-]+$", candidate):
+            if parts[0] == 'speckit' or parts[0] == ext_id:
+                candidate = f"speckit.{ext_id}.{parts[1]}"
+                if EXTENSION_COMMAND_NAME_PATTERN.match(candidate):
                     return candidate
         return None
 
@@ -377,7 +376,7 @@ class ExtensionManifest:
 
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""
-        with open(self.path, "rb") as f:
+        with open(self.path, 'rb') as f:
             return f"sha256:{hashlib.sha256(f.read()).hexdigest()}"
 
 
@@ -400,26 +399,35 @@ class ExtensionRegistry:
     def _load(self) -> dict:
         """Load registry from disk."""
         if not self.registry_path.exists():
-            return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
+            return {
+                "schema_version": self.SCHEMA_VERSION,
+                "extensions": {}
+            }
 
         try:
-            with open(self.registry_path, "r") as f:
+            with open(self.registry_path, 'r') as f:
                 data = json.load(f)
             # Validate loaded data is a dict (handles corrupted registry files)
             if not isinstance(data, dict):
-                return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
+                return {
+                    "schema_version": self.SCHEMA_VERSION,
+                    "extensions": {}
+                }
             # Normalize extensions field (handles corrupted extensions value)
             if not isinstance(data.get("extensions"), dict):
                 data["extensions"] = {}
             return data
         except (json.JSONDecodeError, FileNotFoundError):
             # Corrupted or missing registry, start fresh
-            return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
+            return {
+                "schema_version": self.SCHEMA_VERSION,
+                "extensions": {}
+            }
 
     def _save(self):
         """Save registry to disk."""
         self.extensions_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.registry_path, "w") as f:
+        with open(self.registry_path, 'w') as f:
             json.dump(self.data, f, indent=2)
 
     def add(self, extension_id: str, metadata: dict):
@@ -431,7 +439,7 @@ class ExtensionRegistry:
         """
         self.data["extensions"][extension_id] = {
             **copy.deepcopy(metadata),
-            "installed_at": datetime.now(timezone.utc).isoformat(),
+            "installed_at": datetime.now(timezone.utc).isoformat()
         }
         self._save()
 
@@ -488,9 +496,7 @@ class ExtensionRegistry:
             ValueError: If metadata is None or not a dict
         """
         if metadata is None or not isinstance(metadata, dict):
-            raise ValueError(
-                f"Cannot restore '{extension_id}': metadata must be a dict"
-            )
+            raise ValueError(f"Cannot restore '{extension_id}': metadata must be a dict")
         # Ensure extensions dict exists (handle corrupted registry)
         if not isinstance(self.data.get("extensions"), dict):
             self.data["extensions"] = {}
@@ -603,9 +609,7 @@ class ExtensionRegistry:
             if not include_disabled and not meta.get("enabled", True):
                 continue
             metadata_copy = copy.deepcopy(meta)
-            metadata_copy["priority"] = normalize_priority(
-                metadata_copy.get("priority", 10)
-            )
+            metadata_copy["priority"] = normalize_priority(metadata_copy.get("priority", 10))
             sortable_extensions.append((ext_id, metadata_copy))
         return sorted(
             sortable_extensions,
@@ -679,13 +683,15 @@ class ExtensionManager:
                     if match is None:
                         raise ValidationError(
                             f"Invalid {kind} '{name}': "
-                            "must follow pattern '(speckit|adlc).{extension}.{command}'"
+                            "must follow pattern 'speckit.{extension}.{command}'"
                         )
+
                     namespace = match.group(1)
                     if namespace != manifest.id:
                         raise ValidationError(
                             f"{kind.capitalize()} '{name}' must use extension namespace '{manifest.id}'"
                         )
+
                     if namespace in CORE_COMMAND_NAMES:
                         raise ValidationError(
                             f"{kind.capitalize()} '{name}' conflicts with core command namespace '{namespace}'"
@@ -749,9 +755,7 @@ class ExtensionManager:
             )
 
     @staticmethod
-    def _load_extensionignore(
-        source_dir: Path,
-    ) -> Optional[Callable[[str, List[str]], Set[str]]]:
+    def _load_extensionignore(source_dir: Path) -> Optional[Callable[[str, List[str]], Set[str]]]:
         """Load .extensionignore and return an ignore function for shutil.copytree.
 
         The .extensionignore file uses .gitignore-compatible patterns (one per line).
@@ -817,42 +821,29 @@ class ExtensionManager:
     def _get_skills_dir(self) -> Optional[Path]:
         """Return the active skills directory for extension skill registration.
 
-        Reads ``.specify/init-options.json`` to determine whether skills
-        are enabled and which agent was selected, then delegates to
-        the module-level ``_get_skills_dir()`` helper for the concrete path.
+        Delegates to :func:`resolve_active_skills_dir` which reads
+        init-options, applies the Kimi native-skills fallback, and
+        safely creates the directory when ``ai_skills`` is enabled.
 
-        Kimi is treated as a native-skills agent: if ``ai == "kimi"`` and
-        ``.kimi/skills`` exists, extension installs should still propagate
-        command skills even when ``ai_skills`` is false.
-
-        Returns:
-            The skills directory ``Path``, or ``None`` if skills were not
-            enabled and no native-skills fallback applies.
+        Returns ``None`` (instead of raising) when the directory cannot
+        be created due to symlink, containment, or permission issues so
+        that callers can fall back gracefully.
         """
-        from . import load_init_options, _get_skills_dir as resolve_skills_dir
-
-        opts = load_init_options(self.project_root)
-        if not isinstance(opts, dict):
-            opts = {}
-
-        agent = opts.get("ai")
-        if not isinstance(agent, str) or not agent:
+        from . import resolve_active_skills_dir, _print_cli_warning
+        try:
+            return resolve_active_skills_dir(self.project_root)
+        except (ValueError, OSError) as exc:
+            _print_cli_warning(
+                "resolve", "skills directory", None, exc,
+                continuing="Continuing without skill registration.",
+            )
             return None
-
-        ai_skills_enabled = bool(opts.get("ai_skills"))
-        if not ai_skills_enabled and agent != "kimi":
-            return None
-
-        skills_dir = resolve_skills_dir(self.project_root, agent)
-        if not skills_dir.is_dir():
-            return None
-
-        return skills_dir
 
     def _register_extension_skills(
         self,
         manifest: ExtensionManifest,
         extension_dir: Path,
+        link_outputs: bool = False,
     ) -> List[str]:
         """Generate SKILL.md files for extension commands as agent skills.
 
@@ -864,6 +855,8 @@ class ExtensionManager:
         Args:
             manifest: Extension manifest.
             extension_dir: Installed extension directory.
+            link_outputs: If True, create dev-mode symlinks for rendered
+                skill files when supported by the OS.
 
         Returns:
             List of skill names that were created (for registry storage).
@@ -906,34 +899,34 @@ class ExtensionManager:
             if not source_file.is_file():
                 continue
 
-            # Derive skill name from command name using alias map
-            # Alias map returns the alias form (e.g., "spec.constitution"),
-            # which we convert to hyphenated skill name (e.g., "spec-constitution")
+            # Derive skill name from command name using the same hyphenated
+            # convention as hook rendering and preset skill registration.
+            # Tikalk fork: use alias resolution for fork-specific command naming
             try:
                 from specify_cli.cli_customization import resolve_command_alias
                 resolved_name = resolve_command_alias(cmd_name, self.project_root)
             except Exception:
                 resolved_name = cmd_name
-            skill_name = resolved_name.replace(".", "-")
-
-            # Skip creating primary skill when aliases exist (fork alias-only mode)
-            has_aliases = bool(cmd_info.get("aliases"))
-            if has_aliases:
-                # In fork mode, skip primary - alias will be created by register_commands
-                # Detect fork by checking if cli_customization exists
-                try:
-                    import importlib.util
-                    if importlib.util.find_spec("specify_cli.cli_customization") is not None:
-                        continue
-                except Exception:
-                    pass
+            short_name_raw = resolved_name
+            if short_name_raw.startswith("speckit."):
+                short_name_raw = short_name_raw[len("speckit."):]
+            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
             skill_file = skill_subdir / "SKILL.md"
-            if skill_file.exists():
-                # Do not overwrite user-customized skills
-                continue
+            cache_root = extension_dir / ".specify-dev" / "extension-skills"
+            cache_file = cache_root / skill_name / "SKILL.md"
+            CommandRegistrar._ensure_inside(cache_file, cache_root)
+            if skill_file.exists() or skill_file.is_symlink():
+                # Do not overwrite user-customized skills, but allow dev-mode
+                # symlinks that point back to this extension's generated cache
+                # to be refreshed on a subsequent dev install.
+                if not (
+                    link_outputs
+                    and self._is_expected_dev_symlink(skill_file, cache_file)
+                ):
+                    continue
 
             # Create skill directory; track whether we created it so we can clean
             # up safely if reading the source file subsequently fails.
@@ -967,26 +960,58 @@ class ExtensionManager:
             )
             frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
 
-            # Derive a human-friendly title from the command name using alias map
+            # Derive a human-friendly title from the command name
+            # Tikalk fork: use alias resolution for fork-specific command naming
             try:
                 from specify_cli.cli_customization import resolve_command_alias
                 resolved_name = resolve_command_alias(cmd_name, self.project_root)
             except Exception:
                 resolved_name = cmd_name
-            title_name = resolved_name.replace(".", " ").replace("-", " ").title()
+            short_name = resolved_name
+            if short_name.startswith("speckit."):
+                short_name = short_name[len("speckit."):]
+            title_name = short_name.replace(".", " ").replace("-", " ").title()
 
             skill_content = (
-                f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
+                f"---\n"
+                f"{frontmatter_text}\n"
+                f"---\n\n"
+                f"# {title_name} Skill\n\n"
+                f"{body}\n"
             )
-            if integration is not None and hasattr(
-                integration, "post_process_skill_content"
-            ):
-                skill_content = integration.post_process_skill_content(skill_content)
+            if integration is not None and hasattr(integration, "post_process_skill_content"):
+                skill_content = integration.post_process_skill_content(
+                    skill_content
+                )
 
-            skill_file.write_text(skill_content, encoding="utf-8")
+            if link_outputs:
+                try:
+                    cache_file.parent.mkdir(parents=True, exist_ok=True)
+                    cache_file.write_text(skill_content, encoding="utf-8")
+                    if skill_file.exists() or skill_file.is_symlink():
+                        skill_file.unlink()
+                    target = os.path.relpath(cache_file, skill_file.parent)
+                    os.symlink(target, skill_file)
+                except (OSError, ValueError):
+                    if skill_file.is_symlink():
+                        skill_file.unlink()
+                    skill_file.write_text(skill_content, encoding="utf-8")
+            else:
+                skill_file.write_text(skill_content, encoding="utf-8")
             written.append(skill_name)
 
         return written
+
+    @staticmethod
+    def _is_expected_dev_symlink(skill_file: Path, cache_file: Path) -> bool:
+        """Return True when an existing skill file links to its dev cache."""
+        if not skill_file.is_symlink():
+            return False
+
+        try:
+            return skill_file.resolve(strict=False) == cache_file.resolve(strict=False)
+        except OSError:
+            return False
 
     def _unregister_extension_skills(
         self,
@@ -1048,7 +1073,6 @@ class ExtensionManager:
                     continue
                 try:
                     import yaml as _yaml
-
                     raw = skill_md.read_text(encoding="utf-8")
                     source = ""
                     if raw.startswith("---"):
@@ -1073,9 +1097,7 @@ class ExtensionManager:
             for cfg in AGENT_CONFIG.values():
                 folder = cfg.get("folder", "")
                 if folder:
-                    candidate_dirs.add(
-                        self.project_root / folder.rstrip("/") / "skills"
-                    )
+                    candidate_dirs.add(self.project_root / folder.rstrip("/") / "skills")
             candidate_dirs.add(self.project_root / DEFAULT_SKILLS_DIR)
 
             for skills_candidate in candidate_dirs:
@@ -1088,9 +1110,7 @@ class ExtensionManager:
                         continue
                     try:
                         skill_subdir = (skills_candidate / skill_name).resolve()
-                        skill_subdir.relative_to(
-                            skills_candidate.resolve()
-                        )  # raises if outside
+                        skill_subdir.relative_to(skills_candidate.resolve())  # raises if outside
                     except (OSError, ValueError):
                         continue
                     if not skill_subdir.is_dir():
@@ -1104,7 +1124,6 @@ class ExtensionManager:
                         continue
                     try:
                         import yaml as _yaml
-
                         raw = skill_md.read_text(encoding="utf-8")
                         source = ""
                         if raw.startswith("---"):
@@ -1125,7 +1144,9 @@ class ExtensionManager:
                     shutil.rmtree(skill_subdir)
 
     def check_compatibility(
-        self, manifest: ExtensionManifest, speckit_version: str
+        self,
+        manifest: ExtensionManifest,
+        speckit_version: str
     ) -> bool:
         """Check if extension is compatible with current spec-kit version.
 
@@ -1139,10 +1160,6 @@ class ExtensionManager:
         Raises:
             CompatibilityError: If extension is incompatible
         """
-        # Skip check for unknown versions (bundled extensions are guaranteed compatible)
-        if speckit_version == "unknown":
-            return True
-
         required = manifest.requires_speckit_version
         current = pkg_version.Version(speckit_version)
 
@@ -1166,6 +1183,7 @@ class ExtensionManager:
         speckit_version: str,
         register_commands: bool = True,
         priority: int = 10,
+        link_commands: bool = False,
     ) -> ExtensionManifest:
         """Install extension from a local directory.
 
@@ -1174,6 +1192,8 @@ class ExtensionManager:
             speckit_version: Current spec-kit version
             register_commands: If True, register commands with AI agents
             priority: Resolution priority (lower = higher precedence, default 10)
+            link_commands: If True, register rendered agent artifacts as
+                symlinks to a dev cache when supported by the OS.
 
         Returns:
             Installed extension manifest
@@ -1217,30 +1237,29 @@ class ExtensionManager:
             registrar = CommandRegistrar()
             # Register for all detected agents
             registered_commands = registrar.register_commands_for_all_agents(
-                manifest, dest_dir, self.project_root
+                manifest, dest_dir, self.project_root, link_outputs=link_commands
             )
 
         # Auto-register extension commands as agent skills when --ai-skills
         # was used during project initialisation (feature parity).
-        registered_skills = self._register_extension_skills(manifest, dest_dir)
+        registered_skills = self._register_extension_skills(
+            manifest, dest_dir, link_outputs=link_commands
+        )
 
         # Register hooks and update installed list in extensions.yml
         hook_executor = HookExecutor(self.project_root)
         hook_executor.register_hooks(manifest)
 
         # Update registry
-        self.registry.add(
-            manifest.id,
-            {
-                "version": manifest.version,
-                "source": "local",
-                "manifest_hash": manifest.get_hash(),
-                "enabled": True,
-                "priority": priority,
-                "registered_commands": registered_commands,
-                "registered_skills": registered_skills,
-            },
-        )
+        self.registry.add(manifest.id, {
+            "version": manifest.version,
+            "source": "local",
+            "manifest_hash": manifest.get_hash(),
+            "enabled": True,
+            "priority": priority,
+            "registered_commands": registered_commands,
+            "registered_skills": registered_skills,
+        })
 
         return manifest
 
@@ -1272,7 +1291,7 @@ class ExtensionManager:
             temp_path = Path(tmpdir)
 
             # Extract ZIP safely (prevent Zip Slip attack)
-            with zipfile.ZipFile(zip_path, "r") as zf:
+            with zipfile.ZipFile(zip_path, 'r') as zf:
                 # Validate all paths first before extracting anything
                 temp_path_resolved = temp_path.resolve()
                 for member in zf.namelist():
@@ -1302,9 +1321,7 @@ class ExtensionManager:
                 raise ValidationError("No extension.yml found in ZIP file")
 
             # Install from extracted directory
-            return self.install_from_directory(
-                extension_dir, speckit_version, priority=priority
-            )
+            return self.install_from_directory(extension_dir, speckit_version, priority=priority)
 
     def remove(self, extension_id: str, keep_config: bool = False) -> bool:
         """Remove an installed extension.
@@ -1321,9 +1338,7 @@ class ExtensionManager:
 
         # Get registered commands and skills before removal
         metadata = self.registry.get(extension_id)
-        registered_commands = (
-            metadata.get("registered_commands", {}) if metadata else {}
-        )
+        registered_commands = metadata.get("registered_commands", {}) if metadata else {}
         raw_skills = metadata.get("registered_skills", []) if metadata else []
         # Normalize: must be a list of plain strings to avoid corrupted-registry errors
         if isinstance(raw_skills, list):
@@ -1347,8 +1362,8 @@ class ExtensionManager:
                 for child in extension_dir.iterdir():
                     # Keep top-level *-config.yml and *-config.local.yml files
                     if child.is_file() and (
-                        child.name.endswith("-config.yml")
-                        or child.name.endswith("-config.local.yml")
+                        child.name.endswith("-config.yml") or
+                        child.name.endswith("-config.local.yml")
                     ):
                         continue
                     if child.is_dir():
@@ -1546,40 +1561,35 @@ class ExtensionManager:
             # Ensure metadata is a dictionary to avoid AttributeError when using .get()
             if not isinstance(metadata, dict):
                 metadata = {}
-
             ext_dir = self.extensions_dir / ext_id
             manifest_path = ext_dir / "extension.yml"
 
             try:
                 manifest = ExtensionManifest(manifest_path)
-                result.append(
-                    {
-                        "id": ext_id,
-                        "name": manifest.name,
-                        "version": metadata.get("version", "unknown"),
-                        "description": manifest.description,
-                        "enabled": metadata.get("enabled", True),
-                        "priority": normalize_priority(metadata.get("priority")),
-                        "installed_at": metadata.get("installed_at"),
-                        "command_count": len(manifest.commands),
-                        "hook_count": len(manifest.hooks),
-                    }
-                )
+                result.append({
+                    "id": ext_id,
+                    "name": manifest.name,
+                    "version": metadata.get("version", "unknown"),
+                    "description": manifest.description,
+                    "enabled": metadata.get("enabled", True),
+                    "priority": normalize_priority(metadata.get("priority")),
+                    "installed_at": metadata.get("installed_at"),
+                    "command_count": len(manifest.commands),
+                    "hook_count": len(manifest.hooks)
+                })
             except ValidationError:
                 # Corrupted extension
-                result.append(
-                    {
-                        "id": ext_id,
-                        "name": ext_id,
-                        "version": metadata.get("version", "unknown"),
-                        "description": "⚠️ Corrupted extension",
-                        "enabled": False,
-                        "priority": normalize_priority(metadata.get("priority")),
-                        "installed_at": metadata.get("installed_at"),
-                        "command_count": 0,
-                        "hook_count": 0,
-                    }
-                )
+                result.append({
+                    "id": ext_id,
+                    "name": ext_id,
+                    "version": metadata.get("version", "unknown"),
+                    "description": "⚠️ Corrupted extension",
+                    "enabled": False,
+                    "priority": normalize_priority(metadata.get("priority")),
+                    "installed_at": metadata.get("installed_at"),
+                    "command_count": 0,
+                    "hook_count": 0
+                })
 
         return result
 
@@ -1632,46 +1642,37 @@ class CommandRegistrar:
 
     # Re-export AGENT_CONFIGS at class level for direct attribute access
     from .agents import CommandRegistrar as _AgentRegistrar
-
     AGENT_CONFIGS = _AgentRegistrar.AGENT_CONFIGS
 
     def __init__(self):
         from .agents import CommandRegistrar as _Registrar
-
         self._registrar = _Registrar()
 
     # Delegate static/utility methods
     @staticmethod
     def parse_frontmatter(content: str) -> tuple[dict, str]:
         from .agents import CommandRegistrar as _Registrar
-
         return _Registrar.parse_frontmatter(content)
 
     @staticmethod
     def render_frontmatter(fm: dict) -> str:
         from .agents import CommandRegistrar as _Registrar
-
         return _Registrar.render_frontmatter(fm)
 
     @staticmethod
     def _write_copilot_prompt(project_root, cmd_name: str) -> None:
         from .agents import CommandRegistrar as _Registrar
-
         _Registrar.write_copilot_prompt(project_root, cmd_name)
 
     def _render_markdown_command(self, frontmatter, body, ext_id):
         # Preserve extension-specific comment format for backward compatibility
         context_note = f"\n<!-- Extension: {ext_id} -->\n<!-- Config: .specify/extensions/{ext_id}/ -->\n"
-        return (
-            self._registrar.render_frontmatter(frontmatter) + "\n" + context_note + body
-        )
+        return self._registrar.render_frontmatter(frontmatter) + "\n" + context_note + body
 
     def _render_toml_command(self, frontmatter, body, ext_id):
         # Preserve extension-specific context comments for backward compatibility
         base = self._registrar.render_toml_command(frontmatter, body, ext_id)
-        context_lines = (
-            f"# Extension: {ext_id}\n# Config: .specify/extensions/{ext_id}/\n"
-        )
+        context_lines = f"# Extension: {ext_id}\n# Config: .specify/extensions/{ext_id}/\n"
         return base.rstrip("\n") + "\n" + context_lines
 
     def register_commands_for_agent(
@@ -1680,56 +1681,64 @@ class CommandRegistrar:
         manifest: ExtensionManifest,
         extension_dir: Path,
         project_root: Path,
+        link_outputs: bool = False,
     ) -> List[str]:
         """Register extension commands for a specific agent."""
         if agent_name not in self.AGENT_CONFIGS:
             raise ExtensionError(f"Unsupported agent: {agent_name}")
         context_note = f"\n<!-- Extension: {manifest.id} -->\n<!-- Config: .specify/extensions/{manifest.id}/ -->\n"
         return self._registrar.register_commands(
-            agent_name,
-            manifest.commands,
-            manifest.id,
-            extension_dir,
-            project_root,
+            agent_name, manifest.commands, manifest.id, extension_dir, project_root,
             context_note=context_note,
+            link_outputs=link_outputs,
         )
 
     def register_commands_for_all_agents(
-        self, manifest: ExtensionManifest, extension_dir: Path, project_root: Path
+        self,
+        manifest: ExtensionManifest,
+        extension_dir: Path,
+        project_root: Path,
+        link_outputs: bool = False,
     ) -> Dict[str, List[str]]:
         """Register extension commands for all detected agents."""
         context_note = f"\n<!-- Extension: {manifest.id} -->\n<!-- Config: .specify/extensions/{manifest.id}/ -->\n"
         return self._registrar.register_commands_for_all_agents(
-            manifest.commands,
-            manifest.id,
-            extension_dir,
-            project_root,
+            manifest.commands, manifest.id, extension_dir, project_root,
             context_note=context_note,
+            link_outputs=link_outputs,
         )
 
     def unregister_commands(
-        self, registered_commands: Dict[str, List[str]], project_root: Path
+        self,
+        registered_commands: Dict[str, List[str]],
+        project_root: Path
     ) -> None:
         """Remove previously registered command files from agent directories."""
         self._registrar.unregister_commands(registered_commands, project_root)
 
     def register_commands_for_claude(
-        self, manifest: ExtensionManifest, extension_dir: Path, project_root: Path
+        self,
+        manifest: ExtensionManifest,
+        extension_dir: Path,
+        project_root: Path,
+        link_outputs: bool = False,
     ) -> List[str]:
         """Register extension commands for Claude Code agent."""
         return self.register_commands_for_agent(
-            "claude", manifest, extension_dir, project_root
+            "claude", manifest, extension_dir, project_root, link_outputs=link_outputs
         )
 
 
-class ExtensionCatalog:
+class ExtensionCatalog(CatalogStackBase):
     """Manages extension catalog fetching, caching, and searching."""
 
-    DEFAULT_CATALOG_URL = (
-        "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json"
-    )
+    DEFAULT_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json"
     COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json"
     CACHE_DURATION = 3600  # 1 hour in seconds
+    CONFIG_FILENAME = "extension-catalogs.yml"
+    ENTRY_CLASS = CatalogEntry
+    ERROR_TYPE = ValidationError
+    VALIDATION_ERROR_TYPE = ValidationError
 
     def __init__(self, project_root: Path):
         """Initialize extension catalog manager.
@@ -1742,27 +1751,6 @@ class ExtensionCatalog:
         self.cache_dir = self.extensions_dir / ".cache"
         self.cache_file = self.cache_dir / "catalog.json"
         self.cache_metadata_file = self.cache_dir / "catalog-metadata.json"
-
-    def _validate_catalog_url(self, url: str) -> None:
-        """Validate that a catalog URL uses HTTPS (localhost HTTP allowed).
-
-        Args:
-            url: URL to validate
-
-        Raises:
-            ValidationError: If URL is invalid or uses non-HTTPS scheme
-        """
-        from urllib.parse import urlparse
-
-        parsed = urlparse(url)
-        is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
-            raise ValidationError(
-                f"Catalog URL must use HTTPS (got {parsed.scheme}://). "
-                "HTTP is only allowed for localhost."
-            )
-        if not parsed.netloc:
-            raise ValidationError("Catalog URL must be a valid URL with a host.")
 
     def _make_request(self, url: str):
         """Build a urllib Request, adding auth headers when a provider matches.
@@ -1779,81 +1767,6 @@ class ExtensionCatalog:
         """
         from specify_cli.authentication.http import open_url
         return open_url(url, timeout)
-
-    def _load_catalog_config(self, config_path: Path) -> Optional[List[CatalogEntry]]:
-        """Load catalog stack configuration from a YAML file.
-
-        Args:
-            config_path: Path to extension-catalogs.yml
-
-        Returns:
-            Ordered list of CatalogEntry objects, or None if file doesn't exist.
-
-        Raises:
-            ValidationError: If any catalog entry has an invalid URL,
-                the file cannot be parsed, a priority value is invalid,
-                or the file exists but contains no valid catalog entries
-                (fail-closed for security).
-        """
-        if not config_path.exists():
-            return None
-        try:
-            data = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-        except (yaml.YAMLError, OSError, UnicodeError) as e:
-            raise ValidationError(f"Failed to read catalog config {config_path}: {e}")
-        catalogs_data = data.get("catalogs", [])
-        if not catalogs_data:
-            # File exists but has no catalogs key or empty list - fail closed
-            raise ValidationError(
-                f"Catalog config {config_path} exists but contains no 'catalogs' entries. "
-                f"Remove the file to use built-in defaults, or add valid catalog entries."
-            )
-        if not isinstance(catalogs_data, list):
-            raise ValidationError(
-                f"Invalid catalog config: 'catalogs' must be a list, got {type(catalogs_data).__name__}"
-            )
-        entries: List[CatalogEntry] = []
-        skipped_entries: List[int] = []
-        for idx, item in enumerate(catalogs_data):
-            if not isinstance(item, dict):
-                raise ValidationError(
-                    f"Invalid catalog entry at index {idx}: expected a mapping, got {type(item).__name__}"
-                )
-            url = str(item.get("url", "")).strip()
-            if not url:
-                skipped_entries.append(idx)
-                continue
-            self._validate_catalog_url(url)
-            try:
-                priority = int(item.get("priority", idx + 1))
-            except (TypeError, ValueError):
-                raise ValidationError(
-                    f"Invalid priority for catalog '{item.get('name', idx + 1)}': "
-                    f"expected integer, got {item.get('priority')!r}"
-                )
-            raw_install = item.get("install_allowed", False)
-            if isinstance(raw_install, str):
-                install_allowed = raw_install.strip().lower() in ("true", "yes", "1")
-            else:
-                install_allowed = bool(raw_install)
-            entries.append(
-                CatalogEntry(
-                    url=url,
-                    name=str(item.get("name", f"catalog-{idx + 1}")),
-                    priority=priority,
-                    install_allowed=install_allowed,
-                    description=str(item.get("description", "")),
-                )
-            )
-        entries.sort(key=lambda e: e.priority)
-        if not entries:
-            # All entries were invalid (missing URLs) - fail closed for security
-            raise ValidationError(
-                f"Catalog config {config_path} contains {len(catalogs_data)} entries but none have valid URLs "
-                f"(entries at indices {skipped_entries} were skipped). "
-                f"Each catalog entry must have a 'url' field."
-            )
-        return entries
 
     def get_active_catalogs(self) -> List[CatalogEntry]:
         """Get the ordered list of active catalogs.
@@ -1885,7 +1798,7 @@ class ExtensionCatalog:
                     )
                     self._non_default_catalog_warning_shown = True
             return [
-                CatalogEntry(
+                self._entry(
                     url=catalog_url,
                     name="custom",
                     priority=1,
@@ -1895,27 +1808,27 @@ class ExtensionCatalog:
             ]
 
         # 2. Project-level config overrides all defaults
-        project_config_path = self.project_root / ".specify" / "extension-catalogs.yml"
+        project_config_path = self.project_root / ".specify" / self.CONFIG_FILENAME
         catalogs = self._load_catalog_config(project_config_path)
         if catalogs is not None:
             return catalogs
 
         # 3. User-level config
-        user_config_path = Path.home() / ".specify" / "extension-catalogs.yml"
+        user_config_path = Path.home() / ".specify" / self.CONFIG_FILENAME
         catalogs = self._load_catalog_config(user_config_path)
         if catalogs is not None:
             return catalogs
 
         # 4. Built-in default stack
         return [
-            CatalogEntry(
+            self._entry(
                 url=self.DEFAULT_CATALOG_URL,
                 name="default",
                 priority=1,
                 install_allowed=True,
                 description="Built-in catalog of installable extensions",
             ),
-            CatalogEntry(
+            self._entry(
                 url=self.COMMUNITY_CATALOG_URL,
                 name="community",
                 priority=2,
@@ -1939,9 +1852,7 @@ class ExtensionCatalog:
         active = self.get_active_catalogs()
         return active[0].url if active else self.DEFAULT_CATALOG_URL
 
-    def _fetch_single_catalog(
-        self, entry: CatalogEntry, force_refresh: bool = False
-    ) -> Dict[str, Any]:
+    def _fetch_single_catalog(self, entry: CatalogEntry, force_refresh: bool = False) -> Dict[str, Any]:
         """Fetch a single catalog with per-URL caching.
 
         For the DEFAULT_CATALOG_URL, uses legacy cache files (self.cache_file /
@@ -2000,15 +1911,10 @@ class ExtensionCatalog:
             # Save to cache
             self.cache_dir.mkdir(parents=True, exist_ok=True)
             cache_file.write_text(json.dumps(catalog_data, indent=2))
-            cache_meta_file.write_text(
-                json.dumps(
-                    {
-                        "cached_at": datetime.now(timezone.utc).isoformat(),
-                        "catalog_url": entry.url,
-                    },
-                    indent=2,
-                )
-            )
+            cache_meta_file.write_text(json.dumps({
+                "cached_at": datetime.now(timezone.utc).isoformat(),
+                "catalog_url": entry.url,
+            }, indent=2))
 
             return catalog_data
 
@@ -2017,9 +1923,7 @@ class ExtensionCatalog:
         except json.JSONDecodeError as e:
             raise ExtensionError(f"Invalid JSON in catalog from {entry.url}: {e}")
 
-    def _get_merged_extensions(
-        self, force_refresh: bool = False
-    ) -> List[Dict[str, Any]]:
+    def _get_merged_extensions(self, force_refresh: bool = False) -> List[Dict[str, Any]]:
         """Fetch and merge extensions from all active catalogs.
 
         Higher-priority (lower priority number) catalogs win on conflicts
@@ -2212,9 +2116,7 @@ class ExtensionCatalog:
                 return ext_data
         return None
 
-    def download_extension(
-        self, extension_id: str, target_dir: Optional[Path] = None
-    ) -> Path:
+    def download_extension(self, extension_id: str, target_dir: Optional[Path] = None) -> Path:
         """Download extension ZIP from catalog.
 
         Args:
@@ -2248,7 +2150,6 @@ class ExtensionCatalog:
 
         # Validate download URL requires HTTPS (prevent man-in-the-middle attacks)
         from urllib.parse import urlparse
-
         parsed = urlparse(download_url)
         is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
         if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
@@ -2262,8 +2163,6 @@ class ExtensionCatalog:
         target_dir.mkdir(parents=True, exist_ok=True)
 
         version = ext_info.get("version", "unknown")
-        # Replace {{VERSION}} placeholder with actual version (add 'v' prefix for GitHub tags)
-        download_url = download_url.replace("{{VERSION}}", f"v{version}")
         zip_filename = f"{extension_id}-{version}.zip"
         zip_path = target_dir / zip_filename
 
@@ -2276,9 +2175,7 @@ class ExtensionCatalog:
             return zip_path
 
         except urllib.error.URLError as e:
-            raise ExtensionError(
-                f"Failed to download extension from {download_url}: {e}"
-            )
+            raise ExtensionError(f"Failed to download extension from {download_url}: {e}")
         except IOError as e:
             raise ExtensionError(f"Failed to save extension ZIP: {e}")
 
@@ -2390,7 +2287,7 @@ class ConfigManager:
                 continue
 
             # Remove prefix and split into parts
-            config_path = key[len(prefix) :].lower().split("_")
+            config_path = key[len(prefix):].lower().split("_")
 
             # Build nested dict
             current = env_config
@@ -2404,9 +2301,7 @@ class ConfigManager:
 
         return env_config
 
-    def _merge_configs(
-        self, base: Dict[str, Any], override: Dict[str, Any]
-    ) -> Dict[str, Any]:
+    def _merge_configs(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
         """Recursively merge two configuration dictionaries.
 
         Args:
@@ -2419,11 +2314,7 @@ class ConfigManager:
         result = base.copy()
 
         for key, value in override.items():
-            if (
-                key in result
-                and isinstance(result[key], dict)
-                and isinstance(value, dict)
-            ):
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
                 # Recursive merge for nested dicts
                 result[key] = self._merge_configs(result[key], value)
             else:
@@ -2529,24 +2420,22 @@ class HookExecutor:
             self._init_options_cache = payload if isinstance(payload, dict) else {}
         return self._init_options_cache
 
-    def _skill_name_from_command(self, command: Any) -> str:
-        """Map a command id to skill name (e.g., speckit.plan -> speckit-plan).
-
-        Handles fork prefixes: adlc.* -> adlc-*, spec.* -> spec-*, git.* -> git-*
-        """
+    @staticmethod
+    def _skill_name_from_command(command: Any) -> str:
+        """Map a command id like speckit.plan to speckit-plan skill name."""
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
-
-        # Use alias map to resolve to alias form, then convert to hyphenated skill name
+        # Tikalk fork: use alias resolution for fork-specific command naming
         try:
             from specify_cli.cli_customization import resolve_command_alias
-            resolved_name = resolve_command_alias(command_id, self.project_root)
+            resolved_name = resolve_command_alias(command_id, None)
         except Exception:
             resolved_name = command_id
-        skill_name = resolved_name.replace(".", "-")
-
-        return skill_name
+        if not resolved_name.startswith("speckit."):
+            # Fork alias already resolved — use hyphenated form
+            return resolved_name.replace(".", "-")
+        return f"speckit-{resolved_name[len('speckit.'):].replace('.', '-')}"
 
     def _render_hook_invocation(self, command: Any) -> str:
         """Render an agent-specific invocation string for a hook command."""
@@ -2557,18 +2446,21 @@ class HookExecutor:
         if not command_id:
             return ""
 
+        # Tikalk fork: use alias resolution for fork-specific command naming
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved = resolve_command_alias(command_id, self.project_root)
+            return f"/{resolved}"
+        except Exception:
+            pass
+
         init_options = self._load_init_options()
         selected_ai = init_options.get("ai")
-        codex_skill_mode = selected_ai == "codex" and bool(
-            init_options.get("ai_skills")
-        )
-        claude_skill_mode = selected_ai == "claude" and bool(
-            init_options.get("ai_skills")
-        )
+        codex_skill_mode = selected_ai == "codex" and bool(init_options.get("ai_skills"))
+        claude_skill_mode = selected_ai == "claude" and bool(init_options.get("ai_skills"))
         kimi_skill_mode = selected_ai == "kimi"
-        cursor_skill_mode = selected_ai == "cursor-agent" and bool(
-            init_options.get("ai_skills")
-        )
+        cursor_skill_mode = selected_ai == "cursor-agent" and bool(init_options.get("ai_skills"))
+        cline_mode = selected_ai == "cline"
 
         skill_name = self._skill_name_from_command(command_id)
         if codex_skill_mode and skill_name:
@@ -2579,14 +2471,10 @@ class HookExecutor:
             return f"/skill:{skill_name}"
         if cursor_skill_mode and skill_name:
             return f"/{skill_name}"
+        if cline_mode:
+            from .integrations.cline import format_cline_command_name
 
-        # For non-skill agents in the fork, use alias map to resolve command name
-        try:
-            from specify_cli.cli_customization import resolve_command_alias
-            resolved = resolve_command_alias(command_id, self.project_root)
-            return f"/{resolved}"
-        except Exception:
-            pass
+            return f"/{format_cline_command_name(command_id)}"
 
         return f"/{command_id}"
 
@@ -2645,9 +2533,7 @@ class HookExecutor:
         """
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.config_file.write_text(
-            yaml.dump(
-                config, default_flow_style=False, sort_keys=False, allow_unicode=True
-            ),
+            yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True),
             encoding="utf-8",
         )
 
@@ -2914,9 +2800,7 @@ class HookExecutor:
         condition = condition.strip()
 
         # Pattern: "config.key.path is set"
-        if match := re.match(
-            r"config\.([a-z0-9_.]+)\s+is\s+set", condition, re.IGNORECASE
-        ):
+        if match := re.match(r'config\.([a-z0-9_.]+)\s+is\s+set', condition, re.IGNORECASE):
             key_path = match.group(1)
             if not extension_id:
                 return False
@@ -2925,11 +2809,7 @@ class HookExecutor:
             return config_manager.has_value(key_path)
 
         # Pattern: "config.key.path == 'value'" or "config.key.path != 'value'"
-        if match := re.match(
-            r'config\.([a-z0-9_.]+)\s*(==|!=)\s*["\']([^"\']+)["\']',
-            condition,
-            re.IGNORECASE,
-        ):
+        if match := re.match(r'config\.([a-z0-9_.]+)\s*(==|!=)\s*["\']([^"\']+)["\']', condition, re.IGNORECASE):
             key_path = match.group(1)
             operator = match.group(2)
             expected_value = match.group(3)
@@ -2953,16 +2833,12 @@ class HookExecutor:
                 return normalized_value != expected_value
 
         # Pattern: "env.VAR_NAME is set"
-        if match := re.match(r"env\.([A-Z0-9_]+)\s+is\s+set", condition, re.IGNORECASE):
+        if match := re.match(r'env\.([A-Z0-9_]+)\s+is\s+set', condition, re.IGNORECASE):
             var_name = match.group(1).upper()
             return var_name in os.environ
 
         # Pattern: "env.VAR_NAME == 'value'" or "env.VAR_NAME != 'value'"
-        if match := re.match(
-            r'env\.([A-Z0-9_]+)\s*(==|!=)\s*["\']([^"\']+)["\']',
-            condition,
-            re.IGNORECASE,
-        ):
+        if match := re.match(r'env\.([A-Z0-9_]+)\s*(==|!=)\s*["\']([^"\']+)["\']', condition, re.IGNORECASE):
             var_name = match.group(1).upper()
             operator = match.group(2)
             expected_value = match.group(3)
@@ -2977,7 +2853,9 @@ class HookExecutor:
         # Unknown condition format, default to False for safety
         return False
 
-    def format_hook_message(self, event_name: str, hooks: List[Dict[str, Any]]) -> str:
+    def format_hook_message(
+        self, event_name: str, hooks: List[Dict[str, Any]]
+    ) -> str:
         """Format hook execution message for display in command output.
 
         Args:
@@ -2997,20 +2875,9 @@ class HookExecutor:
             extension = hook.get("extension")
             command = hook.get("command")
             invocation = self._render_hook_invocation(command)
-            # Resolve command to alias for display (fork mode)
-            raw_command = command if isinstance(command, str) and command.strip() else ""
-            if raw_command:
-                try:
-                    from specify_cli.cli_customization import resolve_command_alias
-                    command_text = resolve_command_alias(raw_command, self.project_root)
-                except Exception:
-                    command_text = raw_command
-            else:
-                command_text = "<missing command>"
+            command_text = command if isinstance(command, str) and command.strip() else "<missing command>"
             display_invocation = invocation or (
-                f"/{command_text}"
-                if command_text != "<missing command>"
-                else "/<missing command>"
+                f"/{command_text}" if command_text != "<missing command>" else "/<missing command>"
             )
             optional = hook.get("optional", True)
             prompt = hook.get("prompt", "")
@@ -3026,9 +2893,8 @@ class HookExecutor:
             else:
                 lines.append(f"\n**Automatic Hook**: {extension}")
                 lines.append(f"Executing: `{display_invocation}`")
-                lines.append(f"Execute now: read the command file for `{command_text}` and run its instructions.")
-                lines.append(f"Invocation: `{display_invocation}`")
-                lines.append("If the command file is not found or execution fails, log a warning and continue.")
+                lines.append(f"EXECUTE_COMMAND: {command_text}")
+                lines.append(f"EXECUTE_COMMAND_INVOCATION: {display_invocation}")
 
         return "\n".join(lines)
 
@@ -3049,7 +2915,11 @@ class HookExecutor:
         hooks = self.get_hooks_for_event(event_name)
 
         if not hooks:
-            return {"has_hooks": False, "hooks": [], "message": ""}
+            return {
+                "has_hooks": False,
+                "hooks": [],
+                "message": ""
+            }
 
         # Filter hooks by condition
         executable_hooks = []
@@ -3061,13 +2931,13 @@ class HookExecutor:
             return {
                 "has_hooks": False,
                 "hooks": [],
-                "message": f"# No executable hooks for event '{event_name}' (conditions not met)",
+                "message": f"# No executable hooks for event '{event_name}' (conditions not met)"
             }
 
         return {
             "has_hooks": True,
             "hooks": executable_hooks,
-            "message": self.format_hook_message(event_name, executable_hooks),
+            "message": self.format_hook_message(event_name, executable_hooks)
         }
 
     def execute_hook(self, hook: Dict[str, Any]) -> Dict[str, Any]:
@@ -3092,7 +2962,7 @@ class HookExecutor:
             "extension": hook.get("extension"),
             "optional": hook.get("optional", True),
             "description": hook.get("description", ""),
-            "prompt": hook.get("prompt", ""),
+            "prompt": hook.get("prompt", "")
         }
 
     def enable_hooks(self, extension_id: str):

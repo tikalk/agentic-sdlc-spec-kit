@@ -8,7 +8,7 @@ from unittest.mock import patch
 import yaml
 
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
-from specify_cli.integrations.base import IntegrationBase
+from specify_cli.integrations.base import IntegrationBase, SkillsIntegration
 from specify_cli.integrations.claude import ARGUMENT_HINTS
 from specify_cli.integrations.manifest import IntegrationManifest
 
@@ -48,7 +48,7 @@ class TestClaudeIntegration:
         skills_dir = tmp_path / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        plan_skill = skills_dir / "spec-plan" / "SKILL.md"
+        plan_skill = skills_dir / "speckit-plan" / "SKILL.md"
         assert plan_skill.exists()
 
         content = plan_skill.read_text(encoding="utf-8")
@@ -56,11 +56,11 @@ class TestClaudeIntegration:
         assert "{ARGS}" not in content
         assert "__AGENT__" not in content
         assert "__SPECKIT_COMMAND_" not in content, "unprocessed __SPECKIT_COMMAND_*__"
-        assert "/speckit." not in content, "skills agent must use /spec-<name> not /speckit.<name>"
+        assert "/speckit." not in content, "skills agent must use /speckit-<name> not /speckit.<name>"
 
         parts = content.split("---", 2)
         parsed = yaml.safe_load(parts[1])
-        assert parsed["name"] == "spec-plan"
+        assert parsed["name"] == "speckit-plan"
         assert parsed["user-invocable"] is True
         assert parsed["disable-model-invocation"] is False
         assert parsed["metadata"]["source"] == "templates/commands/plan.md"
@@ -145,7 +145,7 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".claude" / "skills" / "spec-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
         assert not (project / ".claude" / "commands").exists()
 
         init_options = json.loads(
@@ -183,7 +183,7 @@ class TestClaudeIntegration:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0, result.output
-        assert (project / ".claude" / "skills" / "spec-specify" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
     def test_interactive_claude_selection_uses_integration_path(self, tmp_path):
@@ -197,8 +197,8 @@ class TestClaudeIntegration:
             os.chdir(project)
             runner = CliRunner()
             with (
-                patch("specify_cli._stdin_is_interactive", return_value=True),
-                patch("specify_cli.select_with_arrows", return_value="claude"),
+                patch("specify_cli.commands.init._stdin_is_interactive", return_value=True),
+                patch("specify_cli.commands.init.select_with_arrows", return_value="claude"),
             ):
                 result = runner.invoke(
                     app,
@@ -219,7 +219,7 @@ class TestClaudeIntegration:
         assert (project / ".specify" / "integration.json").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
-        skill_file = project / ".claude" / "skills" / "spec-plan" / "SKILL.md"
+        skill_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content
@@ -246,7 +246,7 @@ class TestClaudeIntegration:
         )
 
         assert result.exit_code == 0
-        assert (target / ".claude" / "skills" / "spec-specify" / "SKILL.md").exists()
+        assert (target / ".claude" / "skills" / "speckit-specify" / "SKILL.md").exists()
 
     def test_claude_hooks_render_skill_invocation(self, tmp_path):
         from specify_cli.extensions import HookExecutor
@@ -269,10 +269,9 @@ class TestClaudeIntegration:
             ],
         )
 
-        # Hook invocation uses speckit- prefix (command resolution keeps original prefix)
         assert "Executing: `/speckit-plan`" in message
-        assert "Execute now: read the command file for `speckit.plan`" in message
-        assert "Invocation: `/speckit-plan`" in message
+        assert "EXECUTE_COMMAND: speckit.plan" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /speckit-plan" in message
 
     def test_claude_preset_creates_new_skill_without_commands_dir(self, tmp_path):
         from specify_cli import save_init_options
@@ -354,12 +353,10 @@ class TestClaudeArgumentHints:
         created = i.setup(tmp_path, m, script_type="sh")
         skill_files = [f for f in created if f.name == "SKILL.md"]
         for f in skill_files:
-            # Extract stem: speckit-plan or spec-plan -> stem
+            # Extract stem: speckit-plan -> plan
             stem = f.parent.name
             if stem.startswith("speckit-"):
                 stem = stem[len("speckit-"):]
-            elif stem.startswith("spec-"):
-                stem = stem[len("spec-"):]
             expected_hint = ARGUMENT_HINTS.get(stem)
             assert expected_hint is not None, (
                 f"No expected hint defined for skill '{stem}'"
@@ -485,18 +482,20 @@ class TestClaudeDisableModelInvocation:
         from specify_cli.agents import CommandRegistrar
 
         fm = CommandRegistrar.build_skill_frontmatter(
-            "codex", "spec-plan", "desc", "templates/commands/plan.md"
+            "codex", "speckit-plan", "desc", "templates/commands/plan.md"
         )
         assert "disable-model-invocation" not in fm
         assert "user-invocable" not in fm
 
-    def test_non_claude_post_process_is_identity(self, tmp_path):
-        """Non-Claude integrations should not modify skill content."""
-        codex = get_integration("codex")
-        if codex is None:
-            return  # codex not registered in this build
+    def test_skills_default_post_process_preserves_content_without_hooks(self, tmp_path):
+        """SkillsIntegration agents without an override preserve non-hook content."""
+        # ``agy`` is a plain SkillsIntegration with no post-process override,
+        # so it stands in for the base-class default behavior.
+        agy = get_integration("agy")
+        if agy is None:
+            return  # agy not registered in this build
         content = "---\nname: test\n---\nBody"
-        assert codex.post_process_skill_content(content) == content
+        assert agy.post_process_skill_content(content) == content
 
 
 class TestClaudeHookCommandNote:
@@ -506,46 +505,65 @@ class TestClaudeHookCommandNote:
         """Skills that have hook sections should get the normalization note."""
         i = get_integration("claude")
         m = IntegrationManifest("claude", tmp_path)
-        created = i.setup(tmp_path, m, script_type="sh")
-        specify_skill = tmp_path / ".claude/skills/spec-specify/SKILL.md"
+        i.setup(tmp_path, m, script_type="sh")
+        specify_skill = tmp_path / ".claude/skills/speckit-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         # specify.md has hook sections
         assert "replace dots" in content, (
-            "spec-specify should have dot-to-hyphen hook note"
+            "speckit-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self, tmp_path):
         """Skills without hook sections should not get the note."""
-        from specify_cli.integrations.claude import ClaudeIntegration
-
         content = "---\nname: test\ndescription: test\n---\n\nNo hooks here.\n"
-        result = ClaudeIntegration._inject_hook_command_note(content)
+        result = SkillsIntegration._inject_hook_command_note(content)
         assert "replace dots" not in result
 
     def test_hook_note_idempotent(self, tmp_path):
         """Injecting the note twice should not duplicate it."""
-        from specify_cli.integrations.claude import ClaudeIntegration
-
         content = (
             "---\nname: test\n---\n\n"
             "- For each executable hook, output the following based on its flag:\n"
         )
-        once = ClaudeIntegration._inject_hook_command_note(content)
-        twice = ClaudeIntegration._inject_hook_command_note(once)
+        once = SkillsIntegration._inject_hook_command_note(content)
+        twice = SkillsIntegration._inject_hook_command_note(once)
         assert once == twice, "Hook note injection should be idempotent"
+
+    def test_hook_note_fills_missing_repeated_instructions(self, tmp_path):
+        """Already-noted hook sections should not suppress later sections."""
+        from specify_cli.integrations.base import _HOOK_COMMAND_NOTE
+
+        content = (
+            "---\nname: test\n---\n\n"
+            f"{_HOOK_COMMAND_NOTE}"
+            "- For each executable hook, output the following based on its flag:\n"
+            "\n"
+            "  - For each executable hook, output the following based on its flag:\n"
+        )
+        result = SkillsIntegration._inject_hook_command_note(content)
+        assert result.count("replace dots (`.`) with hyphens") == 2
+
+    def test_hook_note_not_suppressed_by_unrelated_phrase(self, tmp_path):
+        """Unrelated text should not trip the hook-note idempotence guard."""
+        content = (
+            "---\nname: test\n---\n\n"
+            "This paragraph says replace dots in a different context.\n"
+            "- For each executable hook, output the following based on its flag:\n"
+        )
+        result = SkillsIntegration._inject_hook_command_note(content)
+        assert "This paragraph says replace dots in a different context." in result
+        assert result.count("replace dots (`.`) with hyphens") == 1
 
     def test_hook_note_preserves_indentation(self, tmp_path):
         """The injected note should match the indentation of the target line."""
-        from specify_cli.integrations.claude import ClaudeIntegration
-
         content = (
             "---\nname: test\n---\n\n"
             "   - For each executable hook, output the following\n"
         )
-        result = ClaudeIntegration._inject_hook_command_note(content)
+        result = SkillsIntegration._inject_hook_command_note(content)
         lines = result.splitlines()
-        note_line = [l for l in lines if "replace dots" in l][0]
+        note_line = [line for line in lines if "replace dots" in line][0]
         assert note_line.startswith("   "), "Note should preserve indentation"
 
     def test_post_process_injects_all_claude_flags(self):

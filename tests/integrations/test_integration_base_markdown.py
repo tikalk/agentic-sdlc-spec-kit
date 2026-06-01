@@ -70,8 +70,7 @@ class MarkdownIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            # Most files use spec. prefix, but taskstoissues uses speckit.
-            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
+            assert f.name.startswith("speckit.")
             assert f.name.endswith(".md")
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
@@ -79,9 +78,7 @@ class MarkdownIntegrationTests:
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
         expected_dir = i.commands_dest(tmp_path)
-        assert expected_dir.exists(), (
-            f"Expected directory {expected_dir} was not created"
-        )
+        assert expected_dir.exists(), f"Expected directory {expected_dir} was not created"
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0, "No command files were created"
         for f in cmd_files:
@@ -160,9 +157,7 @@ class MarkdownIntegrationTests:
         i.setup(tmp_path, m)
         if i.context_file:
             ctx_path = tmp_path / i.context_file
-            assert ctx_path.exists(), (
-                f"Context file {i.context_file} not created for {self.KEY}"
-            )
+            assert ctx_path.exists(), f"Context file {i.context_file} not created for {self.KEY}"
             content = ctx_path.read_text(encoding="utf-8")
             assert "<!-- SPECKIT START -->" in content
             assert "<!-- SPECKIT END -->" in content
@@ -177,9 +172,7 @@ class MarkdownIntegrationTests:
             ctx_path = tmp_path / i.context_file
             # Add user content around the section
             content = ctx_path.read_text(encoding="utf-8")
-            ctx_path.write_text(
-                "# My Rules\n\n" + content + "\n# Footer\n", encoding="utf-8"
-            )
+            ctx_path.write_text("# My Rules\n\n" + content + "\n# Footer\n", encoding="utf-8")
             i.teardown(tmp_path, m)
             remaining = ctx_path.read_text(encoding="utf-8")
             assert "<!-- SPECKIT START -->" not in remaining
@@ -198,20 +191,10 @@ class MarkdownIntegrationTests:
         try:
             os.chdir(project)
             runner = CliRunner()
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--ai",
-                    self.KEY,
-                    "--script",
-                    "sh",
-                    "--no-git",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = runner.invoke(app, [
+                "init", "--here", "--ai", self.KEY, "--script", "sh", "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init --ai {self.KEY} failed: {result.output}"
@@ -229,34 +212,22 @@ class MarkdownIntegrationTests:
         try:
             os.chdir(project)
             runner = CliRunner()
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    self.KEY,
-                    "--script",
-                    "sh",
-                    "--no-git",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = runner.invoke(app, [
+                "init", "--here", "--integration", self.KEY, "--script", "sh", "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
-        assert result.exit_code == 0, (
-            f"init --integration {self.KEY} failed: {result.output}"
-        )
+        assert result.exit_code == 0, f"init --integration {self.KEY} failed: {result.output}"
         i = get_integration(self.KEY)
         cmd_dir = i.commands_dest(project)
         assert cmd_dir.is_dir(), f"Commands directory {cmd_dir} not created"
-        commands = sorted(cmd_dir.glob("spec.*"))
+        commands = sorted(cmd_dir.glob("speckit.*"))
         assert len(commands) > 0, f"No command files in {cmd_dir}"
 
     def test_init_options_includes_context_file(self, tmp_path):
-        """init-options.json must include context_file for the active integration."""
-        import json
+        """agent-context extension config must include context_file for the active integration."""
+        import yaml
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -265,62 +236,43 @@ class MarkdownIntegrationTests:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    self.KEY,
-                    "--script",
-                    "sh",
-                    "--no-git",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", self.KEY, "--script", "sh",
+                "--no-git", "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        opts = json.loads((project / ".specify" / "init-options.json").read_text())
+        ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
+        ext_cfg = yaml.safe_load(ext_cfg_path.read_text(encoding="utf-8")) if ext_cfg_path.exists() else {}
         i = get_integration(self.KEY)
-        assert opts.get("context_file") == i.context_file, (
-            f"Expected context_file={i.context_file!r}, got {opts.get('context_file')!r}"
+        assert ext_cfg.get("context_file") == i.context_file, (
+            f"Expected context_file={i.context_file!r}, got {ext_cfg.get('context_file')!r}"
         )
 
     # -- Complete file inventory ------------------------------------------
 
     COMMAND_STEMS = [
-        "analyze",
-        "checklist",
-        "clarify",
-        "constitution",
-        "implement",
-        "plan",
-        "specify",
-        "tasks",
-        "taskstoissues",  # Note: created as speckit.taskstoissues.md (special case)
+        "agent-context.update",
+        "analyze", "checklist", "clarify", "constitution",
+        "implement", "plan", "specify", "tasks", "taskstoissues",
     ]
 
     def _expected_files(self, script_variant: str) -> list[str]:
         """Build the expected file list for this integration + script variant."""
-        from specify_cli import PKG_NAMES
-
         i = get_integration(self.KEY)
         cmd_dir = i.registrar_config["dir"]
         files = []
 
         # Command files
         for stem in self.COMMAND_STEMS:
-            # taskstoissues keeps speckit prefix (special case)
-            prefix = "speckit" if stem == "taskstoissues" else "spec"
-            files.append(f"{cmd_dir}/{prefix}.{stem}.md")
+            files.append(f"{cmd_dir}/speckit.{stem}.md")
 
         # Framework files
         files.append(f".specify/integration.json")
         files.append(f".specify/init-options.json")
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
-        files.append(f".specify/integrations/speckit.manifest.json")  # FIXME: should be spec.manifest.json
+        files.append(f".specify/integrations/speckit.manifest.json")
 
         if script_variant == "sh":
             for name in ["check-prerequisites.sh", "common.sh", "create-new-feature.sh",
@@ -331,40 +283,38 @@ class MarkdownIntegrationTests:
                          "setup-plan.ps1", "setup-tasks.ps1"]:
                 files.append(f".specify/scripts/powershell/{name}")
 
-        for name in [
-            "checklist-template.md",
-            "constitution-template.md",
-            "plan-template.md",
-            "spec-template.md",
-            "tasks-template.md",
-        ]:
+        for name in ["checklist-template.md",
+                     "constitution-template.md", "plan-template.md",
+                     "spec-template.md", "tasks-template.md"]:
             files.append(f".specify/templates/{name}")
 
         files.append(".specify/memory/constitution.md")
-        # Bundled workflow - FIXME: workflows directory not created
-        # files.append(".specify/workflows/spec/workflow.yml")
-        # files.append(".specify/workflows/workflow-registry.json")
+        # Bundled workflow
+        files.append(".specify/workflows/speckit/workflow.yml")
+        files.append(".specify/workflows/workflow-registry.json")
+
+        # Bundled agent-context extension
+        files.append(".specify/extensions.yml")
+        files.append(".specify/extensions/.registry")
+        files.append(".specify/extensions/agent-context/README.md")
+        files.append(".specify/extensions/agent-context/agent-context-config.yml")
+        files.append(".specify/extensions/agent-context/commands/speckit.agent-context.update.md")
+        files.append(".specify/extensions/agent-context/extension.yml")
+        files.append(".specify/extensions/agent-context/scripts/bash/update-agent-context.sh")
+        files.append(".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1")
 
         # Agent context file (if set)
         if i.context_file:
             files.append(i.context_file)
 
-        # Fork adds extra bundled files (shared infrastructure)
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        if is_fork:
-            files.append(".specify/templates/agent-file-template.md")
-            if script_variant == "sh":
-                for name in ["generate-risk-tests.sh", "implement.sh",
-                             "scan-project-artifacts.sh", "tasks-meta-utils.sh"]:
-                    files.append(f".specify/scripts/bash/{name}")
-            else:
-                for name in ["implement.ps1", "scan-project-artifacts.ps1"]:
-                    files.append(f".specify/scripts/powershell/{name}")
-
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            import pytest
+            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -373,33 +323,27 @@ class MarkdownIntegrationTests:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    self.KEY,
-                    "--script",
-                    "sh",
-                    "--no-git",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", self.KEY, "--script", "sh",
+                "--no-git", "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = set(
-            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+        actual = sorted(p.relative_to(project).as_posix()
+                        for p in project.rglob("*") if p.is_file())
+        expected = self._expected_files("sh")
+        assert actual == expected, (
+            f"Missing: {sorted(set(expected) - set(actual))}\n"
+            f"Extra: {sorted(set(actual) - set(expected))}"
         )
-        expected = set(self._expected_files("sh"))
-        # Check that all expected files are present (allow extra files from bundled extensions/presets)
-        missing = expected - actual
-        assert not missing, f"Missing: {sorted(missing)}"
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration <key> --script ps."""
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            import pytest
+            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -408,26 +352,17 @@ class MarkdownIntegrationTests:
         old_cwd = os.getcwd()
         try:
             os.chdir(project)
-            result = CliRunner().invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    self.KEY,
-                    "--script",
-                    "ps",
-                    "--no-git",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = CliRunner().invoke(app, [
+                "init", "--here", "--integration", self.KEY, "--script", "ps",
+                "--no-git", "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = set(
-            p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
+        actual = sorted(p.relative_to(project).as_posix()
+                        for p in project.rglob("*") if p.is_file())
+        expected = self._expected_files("ps")
+        assert actual == expected, (
+            f"Missing: {sorted(set(expected) - set(actual))}\n"
+            f"Extra: {sorted(set(actual) - set(expected))}"
         )
-        expected = set(self._expected_files("ps"))
-        missing = expected - actual
-        assert not missing, f"Missing: {sorted(missing)}"

@@ -11,6 +11,7 @@ The engine is the orchestrator that:
 from __future__ import annotations
 
 import json
+import os
 import re
 import uuid
 from datetime import datetime, timezone
@@ -425,7 +426,7 @@ class WorkflowEngine:
         inputs:
             User-provided input values.
         run_id:
-            Optional run ID (auto-generated if not provided).
+            Optional run ID (uses SPECKIT_WORKFLOW_RUN_ID when set, otherwise auto-generated).
 
         Returns
         -------
@@ -433,8 +434,14 @@ class WorkflowEngine:
         """
         from . import STEP_REGISTRY
 
+        effective_run_id = run_id
+        if effective_run_id is None:
+            env_run_id = os.environ.get("SPECKIT_WORKFLOW_RUN_ID", "").strip()
+            if env_run_id:
+                effective_run_id = env_run_id
+
         state = RunState(
-            run_id=run_id,
+            run_id=effective_run_id,
             workflow_id=definition.id,
             project_root=self.project_root,
         )
@@ -673,22 +680,29 @@ class WorkflowEngine:
                         if not evaluate_condition(condition, context):
                             break
                         # Namespace nested step IDs per iteration
-                        iter_steps = []
-                        for ns in result.next_steps:
+                        # so logs and state keys are unique.
+                        # Execute one step at a time and alias each
+                        # result back to the unprefixed key so that
+                        # later steps in the same body and the loop
+                        # condition see the latest values.
+                        for ns_idx, ns in enumerate(result.next_steps):
                             ns_copy = dict(ns)
-                            if "id" in ns_copy:
-                                ns_copy["id"] = f"{step_id}:{ns_copy['id']}:{_loop_iter + 1}"
-                            iter_steps.append(ns_copy)
-                        self._execute_steps(
-                            iter_steps, context, state, registry,
-                            step_offset=-1,
-                        )
-                        if state.status in (
-                            RunStatus.PAUSED,
-                            RunStatus.FAILED,
-                            RunStatus.ABORTED,
-                        ):
-                            return
+                            orig = ns_copy.get("id")
+                            base_id = orig or f"step-{ns_idx}"
+                            ns_copy["id"] = f"{step_id}:{base_id}:{_loop_iter + 1}"
+                            self._execute_steps(
+                                [ns_copy], context, state, registry,
+                                step_offset=-1,
+                            )
+                            if state.status in (
+                                RunStatus.PAUSED,
+                                RunStatus.FAILED,
+                                RunStatus.ABORTED,
+                            ):
+                                return
+                            if orig and ns_copy["id"] in context.steps:
+                                context.steps[orig] = context.steps[ns_copy["id"]]
+                                state.step_results[orig] = context.steps[ns_copy["id"]]
 
             # Fan-out: execute nested step template per item with unique IDs
             if step_type == "fan-out":
