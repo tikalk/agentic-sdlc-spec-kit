@@ -2,6 +2,20 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.9.1] - 2026-06-02
+
+### Changed
+
+- fix(cli): pin UTF-8 encoding on init-options and .extensionignore I/O (#2686)
+- docs: list Hermes in supported integrations table (#2768)
+- fix(copilot): resolve active spec template (#2765)
+- fix: add missing agent-context extension entries to Cline _expected_files (#2797)
+- Add spec-kit-linear extension to community catalog (#2795)
+- feat: add native Cline integration (#2508)
+- Update workflow-preset community catalog entry (#2756)
+- chore: release 0.9.0, begin 0.9.1.dev0 development (#2794)
+- Add RAG Azure Builder extension to community catalog (#2793)
+
 ## [0.9.0] - 2026-06-01
 
 ### Changed
