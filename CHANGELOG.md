@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.0+adlc2] - 2026-06-02
+
+### Fixed
+
+- **Fork prefix naming consistency**: Fixed inconsistent `spec-` vs `speckit-` prefixes across all skill/command generation paths
+  - Alias-aware rule: commands WITH fork aliases use `spec-` prefix; commands WITHOUT aliases keep upstream `speckit-` prefix
+  - Fixed `SkillsIntegration.setup()` to use per-template alias detection
+  - Fixed `compute_skill_output_name()` to apply `format_name` for non-skill agents and alias-aware logic for skill agents
+  - Fixed `_register_extension_skills()` and `_skill_name_from_command()` in extensions to use alias-aware naming
+  - Fixed `agents.py` to skip primary file writes when aliases exist (aliases-only registration for fork)
+  - Fixed Cline `format_cline_command_name()` double-prefix bug
+  - Fixed duplicate tracker output during init
+  - Added `tests/conftest.py` helpers `_cmd_prefix()` / `_skill_prefix()` for fork-aware test assertions
+  - Fixed 7 previously-skipped tests with dynamic prefix assertions
+
 # [0.9.0+adlc1] - 2026-06-01
 
 ### Changed
