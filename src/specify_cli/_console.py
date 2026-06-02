@@ -97,7 +97,7 @@ class StepTracker:
             elif status == "pending":
                 symbol = "[green dim]○[/green dim]"
             elif status == "running":
-                symbol = "[cyan]○[/cyan]"
+                symbol = f"[{ACCENT_STYLE}]○[/{ACCENT_STYLE}]"
             elif status == "error":
                 symbol = "[red]●[/red]"
             elif status == "skipped":
@@ -172,14 +172,14 @@ def select_with_arrows(
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
-        table.add_column(style="cyan", justify="left", width=3)
+        table.add_column(style=ACCENT_STYLE, justify="left", width=3)
         table.add_column(style="white", justify="left")
 
         for i, key in enumerate(option_keys):
             if i == selected_index:
-                table.add_row("▶", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row("▶", f"[{ACCENT_STYLE}]{key}[/{ACCENT_STYLE}] [dim]({options[key]})[/dim]")
             else:
-                table.add_row(" ", f"[cyan]{key}[/cyan] [dim]({options[key]})[/dim]")
+                table.add_row(" ", f"[{ACCENT_STYLE}]{key}[/{ACCENT_STYLE}] [dim]({options[key]})[/dim]")
 
         table.add_row("", "")
         table.add_row("", "[dim]Use ↑/↓ to navigate, Enter to select, Esc to cancel[/dim]")

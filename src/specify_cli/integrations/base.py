@@ -25,6 +25,19 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+try:
+    from ..cli_customization import accent
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
+        return f"[{style}]{text}[/]"
+
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
 
@@ -704,7 +717,7 @@ class IntegrationBase(ABC):
             "[yellow]Deprecation:[/yellow] Inline agent-context updates during "
             "integration setup will be disabled in v0.12.0. Context file "
             "management has moved to the bundled [bold]agent-context[/bold] "
-            "extension. Run [cyan]specify extension disable agent-context[/cyan] "
+            f"extension. Run {accent('specify extension disable agent-context')} "
             "to opt out early.",
             highlight=False,
         )

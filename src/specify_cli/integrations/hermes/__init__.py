@@ -18,6 +18,13 @@ from typing import Any
 
 import yaml
 
+try:
+    from ...cli_customization import resolve_command_alias, COMMAND_PREFIX
+except ImportError:
+    def resolve_command_alias(cmd: str, _project_root=None) -> str:
+        return cmd
+    COMMAND_PREFIX = "speckit"
+
 from ..base import IntegrationOption, SkillsIntegration
 from ..manifest import IntegrationManifest
 
@@ -120,7 +127,9 @@ class HermesIntegration(SkillsIntegration):
 
             # Derive the skill name from the template stem
             command_name = src_file.stem  # e.g. "plan"
-            skill_name = f"speckit-{command_name.replace('.', '-')}"
+            aliased = resolve_command_alias(f"speckit.{command_name}")
+            pfx = COMMAND_PREFIX if aliased != f"speckit.{command_name}" else "speckit"
+            skill_name = f"{pfx}-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description
             frontmatter: dict[str, Any] = {}
@@ -233,7 +242,7 @@ class HermesIntegration(SkillsIntegration):
         global_skills_dir = self._hermes_home_skills_dir()
         if global_skills_dir.is_dir():
             for skill_dir in sorted(global_skills_dir.iterdir()):
-                if skill_dir.is_dir() and skill_dir.name.startswith("speckit-"):
+                if skill_dir.is_dir() and skill_dir.name.startswith(("speckit-", "spec-")):
                     try:
                         rmtree(skill_dir)
                         removed.append(skill_dir)

@@ -368,7 +368,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
         if updated:
-            console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
+            console.print(accent(f"Updated execute permissions on {updated} script(s) recursively"))
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
             for f in failures:
@@ -684,7 +684,7 @@ def version(
     show_banner()
 
     info_table = Table(show_header=False, box=None, padding=(0, 2))
-    info_table.add_column("Key", style="cyan", justify="right")
+    info_table.add_column("Key", style=accent_style(), justify="right")
     info_table.add_column("Value", style="white")
 
     info_table.add_row("CLI Version", cli_version)
@@ -696,7 +696,7 @@ def version(
 
     panel = Panel(
         info_table,
-        title="[bold cyan]Specify CLI Information[/bold cyan]",
+        title=accent("Specify CLI Information", bold=True),
         border_style=accent_style(),
         padding=(1, 2)
     )
@@ -1003,7 +1003,7 @@ def integration_list(
             return
 
         table = Table(title="Integration Catalog")
-        table.add_column("ID", style="cyan")
+        table.add_column("ID", style=accent_style())
         table.add_column("Name")
         table.add_column("Version")
         table.add_column("Source")
@@ -1040,7 +1040,7 @@ def integration_list(
         return
 
     table = Table(title="Coding Agent Integrations")
-    table.add_column("Key", style="cyan")
+    table.add_column("Key", style=accent_style())
     table.add_column("Name")
     table.add_column("Status")
     table.add_column("CLI Required")
@@ -1066,11 +1066,11 @@ def integration_list(
     console.print(table)
 
     if installed_keys:
-        console.print(f"\n[dim]Default integration:[/dim] [cyan]{default_key or 'none'}[/cyan]")
-        console.print(f"[dim]Installed integrations:[/dim] [cyan]{', '.join(sorted(installed_keys))}[/cyan]")
+        console.print(f"\n[dim]Default integration:[/dim] {accent(default_key or 'none')}")
+        console.print(f"[dim]Installed integrations:[/dim] {accent(', '.join(sorted(installed_keys)))}")
     else:
         console.print("\n[yellow]No integration currently installed.[/yellow]")
-        console.print("Install one with: [cyan]specify integration install <key>[/cyan]")
+        console.print(f"Install one with: {accent('specify integration install <key>')}")
 
 
 @integration_app.command("install")
@@ -1103,11 +1103,11 @@ def integration_install(
         else:
             console.print(
                 f"To make it the default integration, run "
-                f"[cyan]specify integration use {key}[/cyan]."
+                f"{accent(f'specify integration use {key}')}."
             )
         console.print(
             f"To refresh its managed files or options, run "
-            f"[cyan]specify integration upgrade {key}[/cyan]."
+            f"{accent(f'specify integration upgrade {key}')}."
         )
         console.print("No files were changed.")
         raise typer.Exit(0)
@@ -1123,18 +1123,18 @@ def integration_install(
                 f"[red]Error:[/red] Installed integrations: {', '.join(installed_keys)}."
             )
             if default_key:
-                console.print(f"Default integration: [cyan]{default_key}[/cyan].")
+                console.print(f"Default integration: {accent(default_key)}.")
             console.print(
                 "Installing multiple integrations is only automatic when all involved "
                 "integrations are declared multi-install safe."
             )
             console.print(
                 f"To replace the default integration, run "
-                f"[cyan]specify integration switch {key}[/cyan]."
+                f"{accent(f'specify integration switch {key}')}."
             )
             console.print(
                 f"To install '{key}' alongside the existing integrations anyway, "
-                "retry the same install command with [cyan]--force[/cyan]."
+                f"retry the same install command with {accent('--force')}."
             )
             raise typer.Exit(1)
 
@@ -1226,7 +1226,7 @@ def integration_install(
     name = (integration.config or {}).get("name", key)
     console.print(f"\n[green]✓[/green] Integration '{name}' installed successfully")
     if default_key:
-        console.print(f"[dim]Default integration remains:[/dim] [cyan]{default_key}[/cyan]")
+        console.print(f"[dim]Default integration remains:[/dim] {accent(default_key)}")
 
 
 def _parse_integration_options(integration: Any, raw_options: str) -> dict[str, Any] | None:
@@ -1345,7 +1345,7 @@ def integration_use(
         if installed_keys:
             console.print(f"[yellow]Installed integrations:[/yellow] {', '.join(installed_keys)}")
         else:
-            console.print("Install one with: [cyan]specify integration install <key>[/cyan]")
+            console.print(f"Install one with: {accent('specify integration install <key>')}")
         raise typer.Exit(1)
 
     integration = get_integration(key)
@@ -1365,7 +1365,7 @@ def integration_use(
         refresh_templates_force=force,
         refresh_hint=(
             "To overwrite customizations, re-run with "
-            f"[cyan]specify integration use {key} --force[/cyan]."
+            f"{accent(f'specify integration use {key} --force')}."
         ),
     )
     console.print(f"[green]✓[/green] Default integration set to [bold]{key}[/bold].")
@@ -1433,8 +1433,8 @@ def integration_uninstall(
         console.print(f"Manifest: {manifest_path}")
         console.print(
             f"To recover, delete the unreadable manifest, run "
-            f"[cyan]specify integration uninstall {key}[/cyan] to clear stale metadata, "
-            f"then run [cyan]specify integration install {key}[/cyan] to regenerate."
+            f"{accent(f'specify integration uninstall {key}')} to clear stale metadata, "
+            f"then run {accent(f'specify integration install {key}')} to regenerate."
         )
         console.print(f"[dim]Details:[/dim] {exc}")
         raise typer.Exit(1)
@@ -1516,7 +1516,7 @@ def integration_switch(
                 "to an already installed integration."
             )
             console.print(
-                f"Run [cyan]specify integration upgrade {target} --integration-options ...[/cyan] "
+                f"Run {accent(f'specify integration upgrade {target} --integration-options ...')} "
                 "to update managed files/options."
             )
             raise typer.Exit(1)
@@ -1549,8 +1549,8 @@ def integration_switch(
                 "to an already installed integration."
             )
             console.print(
-                f"Run [cyan]specify integration upgrade {target} --integration-options ...[/cyan] "
-                f"to update managed files/options, then [cyan]specify integration use {target}[/cyan]."
+                f"Run {accent(f'specify integration upgrade {target} --integration-options ...')} "
+                f"to update managed files/options, then {accent(f'specify integration use {target}')}."
             )
             raise typer.Exit(1)
         raw_options, parsed_options = _resolve_integration_options(
@@ -1577,7 +1577,7 @@ def integration_switch(
         manifest_path = project_root / ".specify" / "integrations" / f"{installed_key}.manifest.json"
 
         if current_integration and manifest_path.exists():
-            console.print(f"Uninstalling current integration: [cyan]{installed_key}[/cyan]")
+            console.print(f"Uninstalling current integration: {accent(installed_key)}")
             try:
                 old_manifest = IntegrationManifest.load(installed_key, project_root)
             except _MANIFEST_READ_ERRORS as exc:
@@ -1585,7 +1585,7 @@ def integration_switch(
                 console.print(f"[dim]{exc}[/dim]")
                 console.print(
                     f"To recover, delete the unreadable manifest at {manifest_path}, "
-                    f"run [cyan]specify integration uninstall {installed_key}[/cyan], then retry."
+                    f"run {accent(f'specify integration uninstall {installed_key}')}, then retry."
                 )
                 raise typer.Exit(1)
             removed, skipped = current_integration.teardown(
@@ -1610,8 +1610,8 @@ def integration_switch(
         else:
             console.print(f"[red]Error:[/red] Integration '{installed_key}' is installed but has no manifest.")
             console.print(
-                f"Run [cyan]specify integration uninstall {installed_key}[/cyan] to clear metadata, "
-                f"then retry [cyan]specify integration switch {target}[/cyan]."
+                f"Run {accent(f'specify integration uninstall {installed_key}')} to clear metadata, "
+                f"then retry {accent(f'specify integration switch {target}')}."
             )
             raise typer.Exit(1)
 
@@ -1684,14 +1684,14 @@ def integration_switch(
         ),
         refresh_hint=(
             "To overwrite customizations, re-run with "
-            "[cyan]specify integration switch ... --refresh-shared-infra[/cyan]."
+            + accent("specify integration switch ... --refresh-shared-infra") + "."
         ),
     )
     if os.name != "nt":
         ensure_executable_scripts(project_root)
 
     # Phase 2: Install target integration
-    console.print(f"Installing integration: [cyan]{target}[/cyan]")
+    console.print(f"Installing integration: {accent(target)}")
     manifest = IntegrationManifest(
         target_integration.key, project_root, version=get_speckit_version()
     )
@@ -1820,7 +1820,7 @@ def integration_upgrade(
     manifest_path = project_root / ".specify" / "integrations" / f"{key}.manifest.json"
     if not manifest_path.exists():
         console.print(f"[yellow]No manifest found for integration '{key}'. Nothing to upgrade.[/yellow]")
-        console.print(f"Run [cyan]specify integration install {key}[/cyan] to perform a fresh install.")
+        console.print(f"Run {accent(f'specify integration install {key}')} to perform a fresh install.")
         raise typer.Exit(0)
 
     try:
@@ -1835,7 +1835,7 @@ def integration_upgrade(
         console.print(f"[yellow]⚠[/yellow]  {len(modified)} file(s) have been modified since installation:")
         for rel in modified:
             console.print(f"    {rel}")
-        console.print("\nUse [cyan]--force[/cyan] to overwrite modified files, or resolve manually.")
+        console.print(f"\nUse {accent('--force')} to overwrite modified files, or resolve manually.")
         raise typer.Exit(1)
 
     selected_script = _resolve_integration_script_type(project_root, current, key, script)
@@ -1871,7 +1871,7 @@ def integration_upgrade(
         ensure_executable_scripts(project_root)
 
     # Phase 1: Install new files (overwrites existing; old-only files remain)
-    console.print(f"Upgrading integration: [cyan]{key}[/cyan]")
+    console.print(f"Upgrading integration: {accent(key)}")
     new_manifest = IntegrationManifest(key, project_root, version=get_speckit_version())
 
     try:
@@ -2023,7 +2023,7 @@ def integration_search(
         if iid == installed_key:
             console.print("\n  [green]✓ Installed[/green] (currently active)")
         elif iid in INTEGRATION_REGISTRY:
-            console.print(f"\n  [cyan]Install:[/cyan] specify integration install {iid}")
+            console.print(f"\n  {accent('Install:')} specify integration install {iid}")
         elif install_allowed:
             console.print(
                 "\n  [yellow]Found in catalog.[/yellow] Only built-in integration IDs "
@@ -2065,7 +2065,7 @@ def integration_info(
     if info:
         name = info.get("name", integration_id)
         version = info.get("version", "?")
-        console.print(f"\n[bold cyan]{name}[/bold cyan] ({integration_id}) v{version}")
+        console.print(f"\n{accent(name, bold=True)} ({integration_id}) v{version}")
         if info.get("description"):
             console.print(f"  {info['description']}")
         console.print()
@@ -2097,7 +2097,7 @@ def integration_info(
         integration = INTEGRATION_REGISTRY[integration_id]
         cfg = integration.config or {}
         name = cfg.get("name", integration_id)
-        console.print(f"\n[bold cyan]{name}[/bold cyan] ({integration_id})")
+        console.print(f"\n{accent(name, bold=True)} ({integration_id})")
         console.print("  [dim]Built-in integration (not listed in catalog)[/dim]")
         if integration_id == installed_key:
             console.print("\n  [green]✓ Installed[/green] (currently active)")
@@ -2146,7 +2146,7 @@ def integration_catalog_list():
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Integration Catalog Sources:[/bold cyan]\n")
+    console.print(f"\n{accent('Integration Catalog Sources:', bold=True)}\n")
     if env_override:
         console.print(
             "  SPECKIT_INTEGRATION_CATALOG_URL is set; it supersedes configured catalog files."
@@ -2247,10 +2247,10 @@ def preset_list():
     if not installed:
         console.print("[yellow]No presets installed.[/yellow]")
         console.print("\nInstall a preset with:")
-        console.print("  [cyan]specify preset add <pack-name>[/cyan]")
+        console.print(f"  {accent('specify preset add <pack-name>')}")
         return
 
-    console.print("\n[bold cyan]Installed Presets:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed Presets:', bold=True)}\n")
     for pack in installed:
         status = "[green]enabled[/green]" if pack.get("enabled", True) else "[red]disabled[/red]"
         pri = pack.get('priority', 10)
@@ -2295,7 +2295,7 @@ def preset_add(
                 console.print(f"[red]Error:[/red] Directory not found: {dev}")
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
+            console.print(f"Installing preset from {accent(dev_path)}...")
             manifest = manager.install_from_directory(dev_path, speckit_version, priority)
             console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
 
@@ -2308,7 +2308,7 @@ def preset_add(
                 console.print(f"[red]Error:[/red] URL must use HTTPS (got {_parsed.scheme}://). HTTP is only allowed for localhost.")
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
+            console.print(f"Installing preset from {accent(from_url)}...")
             import urllib.request
             import urllib.error
             import tempfile
@@ -2332,7 +2332,7 @@ def preset_add(
             # Try bundled preset first, then catalog
             bundled_path = _locate_bundled_preset(preset_id)
             if bundled_path:
-                console.print(f"Installing bundled preset [cyan]{preset_id}[/cyan]...")
+                console.print(f"Installing bundled preset {accent(preset_id)}...")
                 manifest = manager.install_from_directory(bundled_path, speckit_version, priority)
                 console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
             else:
@@ -2364,7 +2364,7 @@ def preset_add(
                     console.print("Add the catalog with --install-allowed or install from the preset's repository directly with --from.")
                     raise typer.Exit(1)
 
-                console.print(f"Installing preset [cyan]{pack_info.get('name', preset_id)}[/cyan]...")
+                console.print(f"Installing preset {accent(pack_info.get('name', preset_id))}...")
 
                 try:
                     zip_path = catalog.download_pack(preset_id)
@@ -2431,7 +2431,7 @@ def preset_search(
         console.print("[yellow]No presets found matching your criteria.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]Presets ({len(results)} found):[/bold cyan]\n")
+    console.print(f"\n{accent(f'Presets ({len(results)} found):', bold=True)}\n")
     for pack in results:
         console.print(f"  [bold]{pack.get('name', pack['id'])}[/bold] ({pack['id']}) v{pack.get('version', '?')}")
         console.print(f"    {pack.get('description', '')}")
@@ -2518,7 +2518,7 @@ def preset_info(
     local_pack = manager.get_pack(preset_id)
 
     if local_pack:
-        console.print(f"\n[bold cyan]Preset: {local_pack.name}[/bold cyan]\n")
+        console.print(f"\n{accent(f'Preset: {local_pack.name}', bold=True)}\n")
         console.print(f"  ID:          {local_pack.id}")
         console.print(f"  Version:     {local_pack.version}")
         console.print(f"  Description: {local_pack.description}")
@@ -2554,7 +2554,8 @@ def preset_info(
         console.print(f"[red]Error:[/red] Preset '{preset_id}' not found (not installed and not in catalog)")
         raise typer.Exit(1)
 
-    console.print(f"\n[bold cyan]Preset: {pack_info.get('name', preset_id)}[/bold cyan]\n")
+    _preset_name = pack_info.get('name', preset_id)
+    console.print(f"\n{accent('Preset: ' + _preset_name, bold=True)}\n")
     console.print(f"  ID:          {pack_info['id']}")
     console.print(f"  Version:     {pack_info.get('version', '?')}")
     console.print(f"  Description: {pack_info.get('description', '')}")
@@ -2567,7 +2568,7 @@ def preset_info(
     if pack_info.get("license"):
         console.print(f"  License:     {pack_info['license']}")
     console.print("\n  [yellow]Status: not installed[/yellow]")
-    console.print(f"  Install with: [cyan]specify preset add {preset_id}[/cyan]")
+    console.print(f"  Install with: {accent(f'specify preset add {preset_id}')}")
     console.print()
 
 
@@ -2699,7 +2700,7 @@ def preset_catalog_list():
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Active Preset Catalogs:[/bold cyan]\n")
+    console.print(f"\n{accent('Active Preset Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
             "[green]install allowed[/green]"
@@ -2887,7 +2888,7 @@ def _resolve_installed_extension(
             "Multiple installed extensions share this name:"
         )
         table = Table(title="Matching extensions")
-        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("ID", style=accent_style(), no_wrap=True)
         table.add_column("Name", style="white")
         table.add_column("Version", style="green")
         for ext in name_matches:
@@ -2944,7 +2945,7 @@ def _resolve_catalog_extension(
                 "Multiple catalog extensions share this name:"
             )
             table = Table(title="Matching extensions")
-            table.add_column("ID", style="cyan", no_wrap=True)
+            table.add_column("ID", style=accent_style(), no_wrap=True)
             table.add_column("Name", style="white")
             table.add_column("Version", style="green")
             table.add_column("Catalog", style="dim")
@@ -2986,7 +2987,7 @@ def extension_list(
         return
 
     if installed:
-        console.print("\n[bold cyan]Installed Extensions:[/bold cyan]\n")
+        console.print(f"\n{accent('Installed Extensions:', bold=True)}\n")
 
         for ext in installed:
             status_icon = "✓" if ext["enabled"] else "✗"
@@ -3000,7 +3001,7 @@ def extension_list(
 
     if available or all_extensions:
         console.print("\nInstall an extension:")
-        console.print("  [cyan]specify extension add <name>[/cyan]")
+        console.print(f"  {accent('specify extension add <name>')}")
 
 
 @catalog_app.command("list")
@@ -3017,7 +3018,7 @@ def catalog_list():
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Active Extension Catalogs:[/bold cyan]\n")
+    console.print(f"\n{accent('Active Extension Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
             "[green]install allowed[/green]"
@@ -3219,7 +3220,7 @@ def extension_add(
             raise typer.Exit(0)
 
     try:
-        with console.status(f"[cyan]Installing extension: {extension}[/cyan]"):
+        with console.status(f"{accent(f'Installing extension: {extension}')}"):
             if dev:
                 # Install from local directory
                 source_path = Path(extension).expanduser().resolve()
@@ -3345,7 +3346,7 @@ def extension_add(
         if is_cline:
             from specify_cli.integrations.cline import format_cline_command_name
 
-        console.print("\n[bold cyan]Provided commands:[/bold cyan]")
+        console.print(f"\n{accent('Provided commands:', bold=True)}")
         for cmd in manifest.commands:
             cmd_name = cmd['name']
             if is_cline:
@@ -3506,7 +3507,7 @@ def extension_search(
 
             # Install command (show warning if not installable)
             if install_allowed:
-                console.print(f"\n  [cyan]Install:[/cyan] specify extension add {ext['id']}")
+                console.print(f"\n  {accent('Install:')} specify extension add {ext['id']}")
             else:
                 console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'.")
                 console.print(
@@ -3694,7 +3695,7 @@ def _print_extension_info(ext_info: dict, manager):
         console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
-        console.print(f"\n[cyan]Install:[/cyan] specify extension add {ext_info['id']}")
+        console.print(f"\n{accent('Install:')} specify extension add {ext_info['id']}")
     else:
         catalog_name = ext_info.get("_catalog_name", "community")
         console.print("[yellow]Not installed[/yellow]")
@@ -4397,7 +4398,7 @@ def workflow_run(
             key, _, value = kv.partition("=")
             inputs[key.strip()] = value.strip()
 
-    console.print(f"\n[bold cyan]Running workflow:[/bold cyan] {definition.name} ({definition.id})")
+    console.print(f"\n{accent('Running workflow:', bold=True)} {definition.name} ({definition.id})")
     console.print(f"[dim]Version: {definition.version}[/dim]\n")
 
     try:
@@ -4420,7 +4421,7 @@ def workflow_run(
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
     if state.status.value == "paused":
-        console.print(f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]")
+        console.print(f"\nResume with: {accent(f'specify workflow resume {state.run_id}')}")
 
 
 @workflow_app.command("resume")
@@ -4484,7 +4485,7 @@ def workflow_status(
         }
         color = status_colors.get(state.status.value, "white")
 
-        console.print(f"\n[bold cyan]Workflow Run: {state.run_id}[/bold cyan]")
+        console.print(f"\n{accent(f'Workflow Run: {state.run_id}', bold=True)}")
         console.print(f"  Workflow: {state.workflow_id}")
         console.print(f"  Status:   [{color}]{state.status.value}[/{color}]")
         console.print(f"  Created:  {state.created_at}")
@@ -4505,7 +4506,7 @@ def workflow_status(
             console.print("[yellow]No workflow runs found.[/yellow]")
             return
 
-        console.print("\n[bold cyan]Workflow Runs:[/bold cyan]\n")
+        console.print(f"\n{accent('Workflow Runs:', bold=True)}\n")
         for run_data in runs:
             s = run_data.get("status", "unknown")
             sc = {"completed": "green", "failed": "red", "paused": "yellow", "running": "blue"}.get(s, "white")
@@ -4529,10 +4530,10 @@ def workflow_list():
     if not installed:
         console.print("[yellow]No workflows installed.[/yellow]")
         console.print("\nInstall a workflow with:")
-        console.print("  [cyan]specify workflow add <workflow-id>[/cyan]")
+        console.print(f"  {accent('specify workflow add <workflow-id>')}")
         return
 
-    console.print("\n[bold cyan]Installed Workflows:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed Workflows:', bold=True)}\n")
     for wf_id, wf_data in installed.items():
         console.print(f"  [bold]{wf_data.get('name', wf_id)}[/bold] ({wf_id}) v{wf_data.get('version', '?')}")
         desc = wf_data.get("description", "")
@@ -4818,7 +4819,7 @@ def workflow_search(
         console.print("[yellow]No workflows found.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]Workflows ({len(results)}):[/bold cyan]\n")
+    console.print(f"\n{accent(f'Workflows ({len(results)}):', bold=True)}\n")
     for wf in results:
         console.print(f"  [bold]{wf.get('name', wf.get('id', '?'))}[/bold] ({wf.get('id', '?')}) v{wf.get('version', '?')}")
         desc = wf.get("description", "")
@@ -4855,7 +4856,7 @@ def workflow_info(
         pass
 
     if definition:
-        console.print(f"\n[bold cyan]{definition.name}[/bold cyan] ({definition.id})")
+        console.print(f"\n{accent(definition.name, bold=True)} ({definition.id})")
         console.print(f"  Version:     {definition.version}")
         if definition.author:
             console.print(f"  Author:      {definition.author}")
@@ -4888,7 +4889,7 @@ def workflow_info(
         info = None
 
     if info:
-        console.print(f"\n[bold cyan]{info.get('name', workflow_id)}[/bold cyan] ({workflow_id})")
+        console.print(f"\n{accent(info.get('name', workflow_id), bold=True)} ({workflow_id})")
         console.print(f"  Version:     {info.get('version', '?')}")
         if info.get("description"):
             console.print(f"  Description: {info['description']}")
@@ -4914,7 +4915,7 @@ def workflow_catalog_list():
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Workflow Catalog Sources:[/bold cyan]\n")
+    console.print(f"\n{accent('Workflow Catalog Sources:', bold=True)}\n")
     for i, cfg in enumerate(configs):
         install_status = "[green]install allowed[/green]" if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
         console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")

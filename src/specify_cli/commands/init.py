@@ -34,6 +34,7 @@ try:
         pre_init as _fork_pre_init,
         post_init as _fork_post_init,
         should_print_project_ready as _fork_should_print_project_ready,
+        accent,
         accent_style,
         PKG_NAMES,
     )
@@ -41,6 +42,16 @@ try:
 except ImportError:
     _FORK = False
     PKG_NAMES = ["specify-cli"]
+
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
+        return f"[{style}]{text}[/]"
 
 
 def _build_integration_equivalent(
@@ -99,7 +110,7 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.complete("constitution", "copied from template")
         else:
-            console.print("[cyan]Initialized constitution from template[/cyan]")
+            console.print(accent("Initialized constitution from template"))
     except Exception as e:
         if tracker:
             tracker.add("constitution", "Constitution setup")
@@ -281,7 +292,7 @@ def register(app: typer.Typer) -> None:
                 console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
                 console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
                 if force:
-                    console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
+                    console.print(accent("--force supplied: skipping confirmation and proceeding with merge"))
                 else:
                     response = typer.confirm("Do you want to continue?")
                     if not response:
@@ -299,10 +310,10 @@ def register(app: typer.Typer) -> None:
                     if existing_items:
                         console.print(f"[yellow]Warning:[/yellow] Directory '{project_name}' is not empty ({len(existing_items)} items)")
                         console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
-                    console.print(f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]")
+                    console.print(accent(f"--force supplied: merging into existing directory '{project_name}'"))
                 else:
                     error_panel = Panel(
-                        f"Directory already exists: '[cyan]{project_name}[/cyan]'\n"
+                        f"Directory already exists: '{accent(project_name)}'\n"
                         "Please choose a different project name or remove the existing directory.\n"
                         "Use [bold]--force[/bold] to merge into the existing directory.",
                         title="[red]Directory Conflict[/red]",
@@ -347,7 +358,7 @@ def register(app: typer.Typer) -> None:
         current_dir = Path.cwd()
 
         setup_lines = [
-            "[cyan]Specify Project Setup[/cyan]",
+            accent("Specify Project Setup", bold=True),
             "",
             f"{'Project':<15} [green]{project_path.name}[/green]",
             f"{'Working Path':<15} [dim]{current_dir}[/dim]",
@@ -371,10 +382,10 @@ def register(app: typer.Typer) -> None:
                 install_url = agent_config["install_url"]
                 if not check_tool(selected_ai):
                     error_panel = Panel(
-                        f"[cyan]{selected_ai}[/cyan] not found\n"
-                        f"Install from: [cyan]{install_url}[/cyan]\n"
+                        f"{accent(selected_ai)} not found\n"
+                        f"Install from: {accent(install_url)}\n"
                         f"{agent_config['name']} is required to continue with this project type.\n\n"
-                        "Tip: Use [cyan]--ignore-agent-tools[/cyan] to skip this check",
+                        f"Tip: Use {accent('--ignore-agent-tools')} to skip this check",
                         title="[red]Agent Detection Error[/red]",
                         border_style="red",
                         padding=(1, 2)
@@ -396,8 +407,8 @@ def register(app: typer.Typer) -> None:
             else:
                 selected_script = default_script
 
-        console.print(f"[cyan]Selected coding agent integration:[/cyan] {selected_ai}")
-        console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
+        console.print(f"{accent('Selected coding agent integration:')} {selected_ai}")
+        console.print(f"{accent('Selected script type:')} {selected_script}")
 
         # Tikalk fork: activate tracker coordination flag
         sys._specify_tracker_active = True
@@ -737,7 +748,7 @@ def register(app: typer.Typer) -> None:
             if agent_folder:
                 security_notice = Panel(
                     f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
-                    f"Consider adding [cyan]{agent_folder}[/cyan] (or parts of it) to [cyan].gitignore[/cyan] to prevent accidental credential leakage.",
+                    f"Consider adding {accent(agent_folder)} (or parts of it) to {accent('.gitignore')} to prevent accidental credential leakage.",
                     title="[yellow]Agent Folder Security[/yellow]",
                     border_style="yellow",
                     padding=(1, 2)
@@ -769,7 +780,7 @@ def register(app: typer.Typer) -> None:
 
         steps_lines = []
         if not here:
-            steps_lines.append(f"1. Go to the project folder: [cyan]cd {project_name}[/cyan]")
+            steps_lines.append(f"1. Go to the project folder: {accent(f'cd {project_name}')}")
             step_num = 2
         else:
             steps_lines.append("1. You're already in the project directory!")
@@ -790,16 +801,16 @@ def register(app: typer.Typer) -> None:
         native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode or trae_skill_mode or cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode
 
         if codex_skill_mode and not ai_skills:
-            steps_lines.append(f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to [cyan].agents/skills[/cyan]")
+            steps_lines.append(f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to {accent('.agents/skills')}")
             step_num += 1
         if claude_skill_mode and not ai_skills:
-            steps_lines.append(f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to [cyan].claude/skills[/cyan]")
+            steps_lines.append(f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to {accent('.claude/skills')}")
             step_num += 1
         if cursor_agent_skill_mode and not ai_skills:
-            steps_lines.append(f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to [cyan].cursor/skills[/cyan]")
+            steps_lines.append(f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to {accent('.cursor/skills')}")
             step_num += 1
         if devin_skill_mode:
-            steps_lines.append(f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to [cyan].devin/skills[/cyan]")
+            steps_lines.append(f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to {accent('.devin/skills')}")
             step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
@@ -820,11 +831,11 @@ def register(app: typer.Typer) -> None:
 
         steps_lines.append(f"{step_num}. Start using {usage_label} with your coding agent:")
 
-        steps_lines.append(f"   {step_num}.1 [cyan]{_display_cmd('constitution')}[/] - Establish project principles")
-        steps_lines.append(f"   {step_num}.2 [cyan]{_display_cmd('specify')}[/] - Create baseline specification")
-        steps_lines.append(f"   {step_num}.3 [cyan]{_display_cmd('plan')}[/] - Create implementation plan")
-        steps_lines.append(f"   {step_num}.4 [cyan]{_display_cmd('tasks')}[/] - Generate actionable tasks")
-        steps_lines.append(f"   {step_num}.5 [cyan]{_display_cmd('implement')}[/] - Execute implementation")
+        steps_lines.append(f"   {step_num}.1 {accent(_display_cmd('constitution'))} - Establish project principles")
+        steps_lines.append(f"   {step_num}.2 {accent(_display_cmd('specify'))} - Create baseline specification")
+        steps_lines.append(f"   {step_num}.3 {accent(_display_cmd('plan'))} - Create implementation plan")
+        steps_lines.append(f"   {step_num}.4 {accent(_display_cmd('tasks'))} - Generate actionable tasks")
+        steps_lines.append(f"   {step_num}.5 {accent(_display_cmd('implement'))} - Execute implementation")
 
         steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=_border, padding=(1, 2))
         console.print()
@@ -838,9 +849,9 @@ def register(app: typer.Typer) -> None:
         enhancement_lines = [
             enhancement_intro,
             "",
-            f"○ [cyan]{_display_cmd('clarify')}[/] [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before [cyan]{_display_cmd('plan')}[/] if used)",
-            f"○ [cyan]{_display_cmd('analyze')}[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]{_display_cmd('tasks')}[/], before [cyan]{_display_cmd('implement')}[/])",
-            f"○ [cyan]{_display_cmd('checklist')}[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]{_display_cmd('plan')}[/])"
+            f"○ {accent(_display_cmd('clarify'))} [bright_black](optional)[/bright_black] - Ask structured questions to de-risk ambiguous areas before planning (run before {accent(_display_cmd('plan'))} if used)",
+            f"○ {accent(_display_cmd('analyze'))} [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after {accent(_display_cmd('tasks'))}, before {accent(_display_cmd('implement'))})",
+            f"○ {accent(_display_cmd('checklist'))} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {accent(_display_cmd('plan'))})"
         ]
         enhancements_title = "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
         enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style=_border, padding=(1, 2))

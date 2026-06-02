@@ -10,6 +10,19 @@ from typing import Any
 from .integrations.base import IntegrationBase
 from .integrations.manifest import IntegrationManifest
 
+try:
+    from .cli_customization import accent
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
+        return f"[{style}]{text}[/]"
+
 
 class SymlinkedSharedPathError(ValueError):
     """Raised when a shared infrastructure path or ancestor is a symlink.
@@ -425,8 +438,8 @@ def install_shared_infra(
         else:
             console.print(
                 "To refresh shared infrastructure, run "
-                "[cyan]specify init --here --force[/cyan] or "
-                "[cyan]specify integration upgrade --force[/cyan]."
+                f"{accent('specify init --here --force')} or "
+                f"{accent('specify integration upgrade --force')}."
             )
 
     if symlinked_files:

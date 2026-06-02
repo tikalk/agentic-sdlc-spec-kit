@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.0+adlc3] - 2026-06-02
+
+### Fixed
+
+- **Theming consistency**: Fixed 91 hardcoded `[cyan]` instances across all source files to use fork's `accent()`/`accent_style()` helpers
+  - `src/specify_cli/__init__.py`: 64 cyan instances replaced with `accent()`/`accent_style()`
+  - `src/specify_cli/commands/init.py`: 24 cyan instances replaced with `accent()`/`accent_style()`
+  - `src/specify_cli/_console.py`: 4 cyan instances replaced with `ACCENT_STYLE`
+  - `src/specify_cli/_utils.py`: 2 cyan instances replaced with `accent()`
+  - `src/specify_cli/shared_infra.py`: 2 cyan instances replaced with `accent()`
+  - `src/specify_cli/integrations/base.py`: 1 cyan instance replaced with `accent()`
+  - `src/specify_cli/integrations/hermes/__init__.py`: 2 lines fixed for fork-aware skill naming and cleanup
+  - All CLI output now consistently uses the fork's orange `#f47721` accent color instead of upstream cyan
+
 # [0.9.0+adlc2] - 2026-06-02
 
 ### Fixed

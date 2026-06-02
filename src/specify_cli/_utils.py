@@ -12,6 +12,19 @@ from pathlib import Path
 from typing import Any
 from ._console import console
 
+try:
+    from .cli_customization import accent
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
+        return f"[{style}]{text}[/]"
+
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 CLAUDE_NPM_LOCAL_PATH = Path.home() / ".claude" / "local" / "node_modules" / ".bin" / "claude"
 
@@ -100,7 +113,7 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> tuple[bool, str | 
         original_cwd = Path.cwd()
         os.chdir(project_path)
         if not quiet:
-            console.print("[cyan]Initializing git repository...[/cyan]")
+            console.print(accent("Initializing git repository..."))
         subprocess.run(["git", "init"], check=True, capture_output=True, text=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True, text=True)
@@ -264,7 +277,7 @@ def merge_json_files(existing_path: Path, new_content: Any, verbose: bool = Fals
         return None
 
     if verbose:
-        console.print(f"[cyan]Merged JSON file:[/cyan] {existing_path.name}")
+        console.print(f"{accent('Merged JSON file:')} {existing_path.name}")
 
     return merged
 
