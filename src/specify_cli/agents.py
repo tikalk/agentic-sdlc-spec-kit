@@ -532,10 +532,17 @@ class CommandRegistrar:
         registered = []
         is_cline_ext = agent_name == "cline" and source_id != "core"
 
+        # Tikalk fork: alias-only mode — when aliases exist, skip primary registration
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED as _ALIAS_ENABLED
+        except ImportError:
+            _ALIAS_ENABLED = False
+
         for cmd_info in commands:
             cmd_name = cmd_info["name"]
             aliases = cmd_info.get("aliases", [])
             cmd_file = cmd_info["file"]
+            _skip_primary = _ALIAS_ENABLED and bool(aliases)
 
             source_file = source_dir / cmd_file
             if not source_file.exists():
@@ -599,60 +606,61 @@ class CommandRegistrar:
             _sep = agent_config.get("invoke_separator", ".")
             body = IntegrationBase.resolve_command_refs(body, _sep)
 
-            output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
+            if not _skip_primary:
+                output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
 
-            if agent_config["extension"] == "/SKILL.md":
-                output = self.render_skill_command(
+                if agent_config["extension"] == "/SKILL.md":
+                    output = self.render_skill_command(
+                        agent_name,
+                        output_name,
+                        frontmatter,
+                        body,
+                        source_id,
+                        cmd_file,
+                        project_root,
+                    )
+                elif agent_config["format"] == "markdown":
+                    body = self.resolve_skill_placeholders(
+                        agent_name, frontmatter, body, project_root
+                    )
+                    body = self._convert_argument_placeholder(
+                        body, "$ARGUMENTS", agent_config["args"]
+                    )
+                    output = self.render_markdown_command(
+                        frontmatter, body, source_id, context_note
+                    )
+                elif agent_config["format"] == "toml":
+                    body = self.resolve_skill_placeholders(
+                        agent_name, frontmatter, body, project_root
+                    )
+                    body = self._convert_argument_placeholder(
+                        body, "$ARGUMENTS", agent_config["args"]
+                    )
+                    output = self.render_toml_command(frontmatter, body, source_id)
+                elif agent_config["format"] == "yaml":
+                    output = self.render_yaml_command(
+                        frontmatter, body, source_id, cmd_name
+                    )
+                else:
+                    raise ValueError(f"Unsupported format: {agent_config['format']}")
+
+                dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
+                self._ensure_inside(dest_file, commands_dir)
+                dest_file.parent.mkdir(parents=True, exist_ok=True)
+                self._write_registered_output(
+                    dest_file,
+                    output,
+                    source_dir,
                     agent_name,
                     output_name,
-                    frontmatter,
-                    body,
-                    source_id,
-                    cmd_file,
-                    project_root,
+                    agent_config["extension"],
+                    link_outputs,
                 )
-            elif agent_config["format"] == "markdown":
-                body = self.resolve_skill_placeholders(
-                    agent_name, frontmatter, body, project_root
-                )
-                body = self._convert_argument_placeholder(
-                    body, "$ARGUMENTS", agent_config["args"]
-                )
-                output = self.render_markdown_command(
-                    frontmatter, body, source_id, context_note
-                )
-            elif agent_config["format"] == "toml":
-                body = self.resolve_skill_placeholders(
-                    agent_name, frontmatter, body, project_root
-                )
-                body = self._convert_argument_placeholder(
-                    body, "$ARGUMENTS", agent_config["args"]
-                )
-                output = self.render_toml_command(frontmatter, body, source_id)
-            elif agent_config["format"] == "yaml":
-                output = self.render_yaml_command(
-                    frontmatter, body, source_id, cmd_name
-                )
-            else:
-                raise ValueError(f"Unsupported format: {agent_config['format']}")
 
-            dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
-            self._ensure_inside(dest_file, commands_dir)
-            dest_file.parent.mkdir(parents=True, exist_ok=True)
-            self._write_registered_output(
-                dest_file,
-                output,
-                source_dir,
-                agent_name,
-                output_name,
-                agent_config["extension"],
-                link_outputs,
-            )
+                if agent_name == "copilot":
+                    self.write_copilot_prompt(project_root, cmd_name)
 
-            if agent_name == "copilot":
-                self.write_copilot_prompt(project_root, cmd_name)
-
-            registered.append(cmd_name)
+                registered.append(cmd_name)
 
             for alias in aliases:
                 alias_output_name = self._compute_output_name(
@@ -695,18 +703,37 @@ class CommandRegistrar:
                             f"Unsupported format: {agent_config['format']}"
                         )
                 else:
-                    # For other agents, reuse the primary output
-                    alias_output = output
-                    if agent_config["extension"] == "/SKILL.md":
-                        alias_output = self.render_skill_command(
-                            agent_name,
-                            alias_output_name,
-                            frontmatter,
-                            body,
-                            source_id,
-                            cmd_file,
-                            project_root,
-                        )
+                    # For other agents, reuse the primary output when available
+                    if _skip_primary:
+                        # Primary was skipped — render alias output fresh
+                        if agent_config["extension"] == "/SKILL.md":
+                            alias_output = self.render_skill_command(
+                                agent_name, alias_output_name, frontmatter, body,
+                                source_id, cmd_file, project_root,
+                            )
+                        elif agent_config["format"] == "markdown":
+                            alias_output = self.render_markdown_command(
+                                frontmatter, body, source_id, context_note
+                            )
+                        elif agent_config["format"] == "toml":
+                            alias_output = self.render_toml_command(
+                                frontmatter, body, source_id
+                            )
+                        elif agent_config["format"] == "yaml":
+                            alias_output = self.render_yaml_command(
+                                frontmatter, body, source_id, alias
+                            )
+                        else:
+                            raise ValueError(
+                                f"Unsupported format: {agent_config['format']}"
+                            )
+                    else:
+                        alias_output = output
+                        if agent_config["extension"] == "/SKILL.md":
+                            alias_output = self.render_skill_command(
+                                agent_name, alias_output_name, frontmatter, body,
+                                source_id, cmd_file, project_root,
+                            )
 
                 alias_file = (
                     commands_dir / f"{alias_output_name}{agent_config['extension']}"

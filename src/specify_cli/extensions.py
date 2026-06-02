@@ -907,10 +907,24 @@ class ExtensionManager:
                 resolved_name = resolve_command_alias(cmd_name, self.project_root)
             except Exception:
                 resolved_name = cmd_name
-            short_name_raw = resolved_name
-            if short_name_raw.startswith("speckit."):
-                short_name_raw = short_name_raw[len("speckit."):]
-            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+
+            if resolved_name != cmd_name:
+                # Has alias - apply fork prefix logic
+                from .integrations.base import _get_command_prefix
+                _pfx = _get_command_prefix()
+                for _ns in ("speckit.", "spec.", "adlc."):
+                    if resolved_name.startswith(_ns):
+                        skill_name = f"{_pfx}-{resolved_name[len(_ns):].replace('.', '-')}"
+                        break
+                else:
+                    skill_name = resolved_name.replace(".", "-")
+            else:
+                # No alias - keep upstream behavior
+                short_name_raw = cmd_name
+                if short_name_raw.startswith("speckit."):
+                    short_name_raw = short_name_raw[len("speckit."):]
+                skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+
 
             # Check if skill already exists before creating the directory
             skill_subdir = skills_dir / skill_name
@@ -2426,22 +2440,28 @@ class HookExecutor:
 
     @staticmethod
     def _skill_name_from_command(command: Any) -> str:
-        """Map a command id like speckit.plan to speckit-plan skill name."""
+        """Map a command id like speckit.plan to <prefix>-plan skill name."""
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
 
-        # Tikalk fork: use alias resolution for fork-specific command naming
-        # Only apply to non-speckit commands; upstream speckit.* stays as-is
-        if not command_id.startswith("speckit."):
-            try:
-                from specify_cli.cli_customization import resolve_command_alias
-                resolved_name = resolve_command_alias(command_id, None)
-                if resolved_name != command_id:
-                    return resolved_name.replace(".", "-")
-            except Exception:
-                pass
+        # Resolve alias first
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            resolved_name = resolve_command_alias(command_id, None)
+        except Exception:
+            resolved_name = command_id
 
+        if resolved_name != command_id:
+            # Has alias - apply fork prefix logic
+            from .integrations.base import _get_command_prefix
+            _pfx = _get_command_prefix()
+            for _ns in ("speckit.", "spec.", "adlc."):
+                if resolved_name.startswith(_ns):
+                    return f"{_pfx}-{resolved_name[len(_ns):].replace('.', '-')}"
+            return resolved_name.replace(".", "-")
+
+        # No alias - keep upstream behavior
         if not command_id.startswith("speckit."):
             return ""
         return f"speckit-{command_id[len('speckit.'):].replace('.', '-')}"

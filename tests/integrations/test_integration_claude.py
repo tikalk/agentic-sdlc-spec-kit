@@ -50,7 +50,10 @@ class TestClaudeIntegration:
         skills_dir = tmp_path / ".claude" / "skills"
         assert skills_dir.is_dir()
 
-        pfx = _skill_prefix()
+        # In clean test env, core commands have no aliases → upstream prefix
+        from specify_cli.cli_customization import resolve_command_alias
+        aliased = resolve_command_alias("speckit.plan", tmp_path)
+        pfx = "spec" if aliased != "speckit.plan" else "speckit"
         plan_skill = skills_dir / f"{pfx}-plan" / "SKILL.md"
         assert plan_skill.exists()
 
@@ -515,13 +518,15 @@ class TestClaudeHookCommandNote:
         i = get_integration("claude")
         m = IntegrationManifest("claude", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        pfx = _skill_prefix()
+        from specify_cli.cli_customization import resolve_command_alias
+        aliased = resolve_command_alias("speckit.specify", tmp_path)
+        pfx = "spec" if aliased != "speckit.specify" else "speckit"
         specify_skill = tmp_path / ".claude/skills" / f"{pfx}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         # specify.md has hook sections
         assert "replace dots" in content, (
-            "speckit-specify should have dot-to-hyphen hook note"
+            f"{pfx}-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self, tmp_path):

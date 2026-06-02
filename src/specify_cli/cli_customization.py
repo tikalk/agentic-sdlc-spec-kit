@@ -287,25 +287,30 @@ def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: P
     """
     Compute the on-disk skill name for an agent with fork-specific handling.
 
-    This function uses the alias map to resolve command names to their aliases,
-    ensuring consistent naming across all agent types. For example:
-    - "speckit.git.commit" -> "git-commit" (via alias "git.commit")
-    - "adlc.spec.constitution" -> "spec-constitution" (via alias "spec.constitution")
-    - "adlc.architect.specify" -> "architect-specify" (via alias "architect.specify")
+    Commands WITH aliases use the alias form (fork-appropriate naming).
+    Commands WITHOUT aliases keep upstream behavior (speckit- prefix).
 
-    Args:
-        cmd_name: The command name (e.g., "adlc.spec.constitution", "spec.constitution", "speckit.test-ext.hello")
-        agent_config: Agent configuration dict
-        project_root: Optional project root for building alias map
-
-    Returns:
-        The output name for the skill file (e.g., "spec-constitution", "architect-specify", or "speckit-test-ext-hello")
+    Examples:
+    - "speckit.plan" -> "spec-plan" (via alias "spec.plan")
+    - "adlc.levelup.init" -> "levelup-init" (via alias "levelup.init")
+    - "speckit.taskstoissues" -> "speckit-taskstoissues" (no alias, upstream name)
     """
     if agent_config.get("extension") != "/SKILL.md":
-        return cmd_name
+        format_name = agent_config.get("format_name")
+        return format_name(cmd_name) if format_name else cmd_name
 
-    # Use alias map to resolve to alias form, then convert to hyphenated skill name
     resolved = resolve_command_alias(cmd_name, project_root)
+
+    if resolved != cmd_name:
+        # Has alias - apply fork prefix logic
+        from specify_cli.integrations.base import _get_command_prefix
+        pfx = _get_command_prefix()
+        for ns in ("speckit.", "spec.", "adlc."):
+            if resolved.startswith(ns):
+                return f"{pfx}-{resolved[len(ns):].replace('.', '-')}"
+        return resolved.replace(".", "-")
+
+    # No alias - keep upstream behavior
     return resolved.replace(".", "-")
 
 

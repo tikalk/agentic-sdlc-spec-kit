@@ -1841,7 +1841,26 @@ class SkillsIntegration(IntegrationBase):
 
             # Derive the skill name from the template stem
             command_name = src_file.stem  # e.g. "plan"
-            skill_name = f"{_get_command_prefix()}-{command_name.replace('.', '-')}"
+
+            # Tikalk fork: use alias-aware naming — only fork prefix when alias exists
+            try:
+                from specify_cli.cli_customization import resolve_command_alias
+                canonical = f"speckit.{command_name}"
+                aliased = resolve_command_alias(canonical, project_root)
+                if aliased != canonical:
+                    # Fork alias exists — strip namespace and apply fork prefix
+                    pfx = _get_command_prefix()
+                    for ns in ("speckit.", "spec.", "adlc."):
+                        if aliased.startswith(ns):
+                            skill_name = f"{pfx}-{aliased[len(ns):].replace('.', '-')}"
+                            break
+                    else:
+                        skill_name = f"{pfx}-{aliased.replace('.', '-')}"
+                else:
+                    # No alias — keep upstream naming
+                    skill_name = f"speckit-{command_name.replace('.', '-')}"
+            except Exception:
+                skill_name = f"speckit-{command_name.replace('.', '-')}"
 
             # Parse frontmatter for description
             frontmatter: dict[str, Any] = {}

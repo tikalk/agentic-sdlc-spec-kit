@@ -1319,6 +1319,8 @@ $ARGUMENTS
 
     def test_unregister_commands_handles_legacy_dot_notated_files(self, project_dir):
         """Unregister should clean up both legacy dot-notated and new hyphenated files."""
+        from tests.conftest import _cmd_prefix
+        pfx = _cmd_prefix()
         # 1. Mock an agent that uses hyphenated/formatted names (e.g. Cline)
         from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
         registrar = AgentCommandRegistrar()
@@ -1331,9 +1333,9 @@ $ARGUMENTS
 
         # 2. Create both legacy and new files
         # Command name: speckit.git.commit
-        # Formatted name: speckit-git-commit
+        # Formatted name: <prefix>-git-commit
         cmd_name = "speckit.git.commit"
-        formatted_name = "speckit-git-commit"
+        formatted_name = f"{pfx}-git-commit"
 
         legacy_file = cline_dir / f"{cmd_name}.md"
         formatted_file = cline_dir / f"{formatted_name}.md"
@@ -4953,6 +4955,9 @@ $ARGUMENTS
         assert f"{_pfx}.mock-ext.greet" not in hello_body
 
     def test_non_cline_extension_no_hyphenation(self, tmp_path):
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            pytest.skip("Fork: Claude is a skill agent, creates SKILL.md not .md files")
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
