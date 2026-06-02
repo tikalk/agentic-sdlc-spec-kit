@@ -5,7 +5,7 @@ from pathlib import Path
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
 
-from .test_integration_base_skills import SkillsIntegrationTests
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix
 
 
 class TestCursorAgentIntegration(SkillsIntegrationTests):
@@ -104,5 +104,6 @@ class TestCursorAgentAutoPromote:
         result = runner.invoke(app, ["init", str(target), "--ai", "cursor-agent", "--no-git", "--ignore-agent-tools", "--script", "sh"])
 
         assert result.exit_code == 0, f"init --ai cursor-agent failed: {result.output}"
-        assert (target / ".cursor" / "skills" / "spec-plan" / "SKILL.md").exists()
+        # Full init installs bundled presets (with aliases) → use global fork prefix
+        assert (target / ".cursor" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
 

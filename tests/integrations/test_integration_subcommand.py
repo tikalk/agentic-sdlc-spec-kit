@@ -3,11 +3,10 @@
 import json
 import os
 
-import pytest
 from typer.testing import CliRunner
 
 from specify_cli import app
-from tests.conftest import strip_ansi
+from tests.conftest import _cmd_prefix, _content_ref, _skill_dir_name, _skill_prefix, strip_ansi
 
 
 runner = CliRunner()
@@ -232,8 +231,9 @@ class TestIntegrationInstall:
         assert data["integration_settings"]["claude"]["invoke_separator"] == "-"
         assert data["integration_settings"]["codex"]["invoke_separator"] == "-"
 
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
-        assert (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        pfx = _skill_prefix("plan")
+        assert (project / ".claude" / "skills" / f"{pfx}-plan" / "SKILL.md").exists()
+        assert (project / ".agents" / "skills" / f"{pfx}-plan" / "SKILL.md").exists()
 
     def test_install_non_default_refreshes_init_options_version_only(self, tmp_path, monkeypatch):
         project = _init_project(tmp_path, "claude")
@@ -256,7 +256,8 @@ class TestIntegrationInstall:
         assert updated["speckit_version"] == "0.8.11"
         assert updated["integration"] == "claude"
         assert updated["ai"] == "claude"
-        assert "context_file" not in updated
+        # context_file is set during the original init and must be preserved
+        assert updated.get("context_file") == opts.get("context_file")
 
     def test_install_additional_preserves_shared_manifest(self, tmp_path):
         project = _init_project(tmp_path, "claude")
@@ -389,8 +390,8 @@ class TestIntegrationInstall:
         assert (project / ".specify" / "templates").is_dir()
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         script_content = script.read_text(encoding="utf-8")
-        assert "/speckit-specify" in script_content
-        assert "/speckit.specify" not in script_content
+        assert f"{_content_ref('specify')}" in script_content
+        assert f"{_content_ref('specify', '.')}" not in script_content
 
 
 # ── uninstall ────────────────────────────────────────────────────────
@@ -423,7 +424,7 @@ class TestIntegrationUninstall:
     def test_uninstall_removes_files(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Claude uses skills directory
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
         old_cwd = os.getcwd()
@@ -436,7 +437,7 @@ class TestIntegrationUninstall:
         assert "uninstalled" in result.output
 
         # Command files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
 
         # Manifest removed
         assert not (project / ".specify" / "integrations" / "claude.manifest.json").exists()
@@ -447,7 +448,7 @@ class TestIntegrationUninstall:
     def test_uninstall_preserves_modified_files(self, tmp_path):
         """Full lifecycle: install → modify → uninstall → modified file kept."""
         project = _init_project(tmp_path, "claude")
-        plan_file = project / ".claude" / "skills" / "speckit-plan" / "SKILL.md"
+        plan_file = project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md"
         assert plan_file.exists()
 
         # Modify a file
@@ -461,7 +462,7 @@ class TestIntegrationUninstall:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert "preserved" in result.output
-        assert ".claude/skills/speckit-plan/SKILL.md" in result.output
+        assert f".claude/skills/{_skill_dir_name('plan')}/SKILL.md" in result.output
 
         # Modified file kept
         assert plan_file.exists()
@@ -509,8 +510,8 @@ class TestIntegrationUninstall:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
-        assert not (project / ".agents" / "skills" / "speckit-plan" / "SKILL.md").exists()
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".agents" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "claude"
@@ -520,8 +521,8 @@ class TestIntegrationUninstall:
         project = _init_project(tmp_path, "gemini")
         template = project / ".specify" / "templates" / "plan-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -539,8 +540,8 @@ class TestIntegrationUninstall:
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "claude"
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in script.read_text(encoding="utf-8")
 
     def test_uninstall_preserves_shared_infra(self, tmp_path):
         """Shared scripts and templates are not removed by integration uninstall."""
@@ -602,8 +603,8 @@ class TestIntegrationUse:
         project = _init_project(tmp_path, "claude")
         template = project / ".specify" / "templates" / "plan-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -616,15 +617,15 @@ class TestIntegrationUse:
 
             use_gemini = runner.invoke(app, ["integration", "use", "gemini"], catch_exceptions=False)
             assert use_gemini.exit_code == 0, use_gemini.output
-            assert "/speckit.plan" in template.read_text(encoding="utf-8")
-            assert "/speckit.plan" in script.read_text(encoding="utf-8")
-            assert "/speckit-plan" not in script.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan', '.')}" in template.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan', '.')}" in script.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan')}" not in script.read_text(encoding="utf-8")
 
             use_claude = runner.invoke(app, ["integration", "use", "claude"], catch_exceptions=False)
             assert use_claude.exit_code == 0, use_claude.output
-            assert "/speckit-plan" in template.read_text(encoding="utf-8")
-            assert "/speckit-plan" in script.read_text(encoding="utf-8")
-            assert "/speckit.plan" not in script.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan')}" in script.read_text(encoding="utf-8")
+            assert f"{_content_ref('plan', '.')}" not in script.read_text(encoding="utf-8")
         finally:
             os.chdir(old_cwd)
 
@@ -657,7 +658,7 @@ class TestIntegrationUse:
             os.chdir(old_cwd)
 
         updated = template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in updated
+        assert f"{_content_ref('plan', '.')}" in updated
         assert "custom template" not in updated
 
     def test_use_does_not_persist_default_when_shared_infra_refresh_fails(self, tmp_path, monkeypatch):
@@ -767,8 +768,8 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
         assert "shared infrastructure refreshed" in result.output
         assert "managed shared infrastructure refreshed" not in result.output
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
-        assert "/speckit-plan" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in script.read_text(encoding="utf-8")
 
     def test_switch_installed_target_rejects_integration_options(self, tmp_path):
         project = _init_project(tmp_path, "claude")
@@ -796,9 +797,9 @@ class TestIntegrationSwitch:
     def test_switch_between_integrations(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Verify claude files exist (claude uses skills)
-        assert (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
         shared_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit-specify" in shared_script.read_text(encoding="utf-8")
+        assert f"{_content_ref('specify')}" in shared_script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -813,12 +814,12 @@ class TestIntegrationSwitch:
         assert "Switched to" in result.output
 
         # Old claude files removed
-        assert not (project / ".claude" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
 
         # New copilot files created
-        assert (project / ".github" / "agents" / "speckit.plan.agent.md").exists()
-        assert "/speckit.specify" in shared_script.read_text(encoding="utf-8")
-        assert "/speckit-specify" not in shared_script.read_text(encoding="utf-8")
+        assert (project / ".github" / "agents" / f"{_cmd_prefix()}.plan.agent.md").exists()
+        assert f"{_content_ref('specify', '.')}" in shared_script.read_text(encoding="utf-8")
+        assert f"{_content_ref('specify')}" not in shared_script.read_text(encoding="utf-8")
 
         # integration.json updated
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -833,7 +834,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         # Verify git extension skills exist for kimi
-        kimi_git_feature = project / ".kimi" / "skills" / "speckit-git-feature" / "SKILL.md"
+        kimi_git_feature = project / f".kimi/skills/{_skill_dir_name('git.feature')}/SKILL.md"
         assert kimi_git_feature.exists(), "Git extension skill should exist for kimi"
 
         result = _run_in_project(project, [
@@ -843,7 +844,8 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
 
         # Git extension commands should exist for opencode
-        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
+        # (primary speckit.git.feature is skipped because alias git.feature exists)
+        opencode_git_feature = project / ".opencode" / "commands" / "git.feature.md"
         assert opencode_git_feature.exists(), "Git extension command should exist for opencode"
 
         # Old kimi extension skills should be removed
@@ -865,7 +867,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
 
         # Git extension skills should exist for claude
-        claude_git_feature = project / ".claude" / "skills" / "speckit-git-feature" / "SKILL.md"
+        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature')}/SKILL.md"
         assert claude_git_feature.exists(), "Git extension skill should exist for claude"
 
         # Old opencode extension commands should be removed
@@ -893,15 +895,14 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        copilot_git_feature = project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
-        copilot_agent_file = project / ".github" / "agents" / "speckit.git.feature.agent.md"
+        copilot_git_feature = project / f".github/skills/{_skill_dir_name('git.feature')}/SKILL.md"
+        copilot_agent_file = project / ".github" / "agents" / "git.feature.agent.md"
         assert copilot_git_feature.exists(), "Git extension skill should exist for Copilot skills mode"
         assert not copilot_agent_file.exists(), "Copilot skills mode should not create extension .agent.md files"
 
-        # Verify Copilot-specific frontmatter: mode field should map from
-        # skill name (speckit-git-feature) back to dot notation (speckit.git-feature)
+        # Verify Copilot-specific frontmatter: mode field derived from skill name
         skill_content = copilot_git_feature.read_text(encoding="utf-8")
-        assert "mode: speckit.git-feature" in skill_content, (
+        assert "mode: git-feature" in skill_content, (
             "Copilot skill frontmatter should contain mode mapped from skill name"
         )
 
@@ -909,7 +910,7 @@ class TestIntegrationSwitch:
             (project / ".specify" / "extensions" / ".registry").read_text(encoding="utf-8")
         )
         git_meta = registry["extensions"]["git"]
-        assert "speckit-git-feature" in git_meta["registered_skills"]
+        assert "git-feature" in git_meta["registered_skills"]
         assert "copilot" not in git_meta["registered_commands"]
 
         result = _run_in_project(project, [
@@ -918,7 +919,7 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
+        opencode_git_feature = project / ".opencode" / "commands" / "git.feature.md"
         assert opencode_git_feature.exists(), "Git extension command should exist for opencode"
         assert not copilot_git_feature.exists(), "Old Copilot extension skill should be removed"
 
@@ -939,7 +940,7 @@ class TestIntegrationSwitch:
         result = _run_in_project(project, ["extension", "disable", "git"])
         assert result.exit_code == 0, result.output
 
-        opencode_git_feature = project / ".opencode" / "commands" / "speckit.git.feature.md"
+        opencode_git_feature = project / ".opencode" / "commands" / "git.feature.md"
         assert opencode_git_feature.exists(), "Disabled extension command remains until integration switch"
 
         result = _run_in_project(project, [
@@ -948,7 +949,7 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        claude_git_feature = project / ".claude" / "skills" / "speckit-git-feature" / "SKILL.md"
+        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature')}/SKILL.md"
         assert not claude_git_feature.exists(), "Disabled extension should not be registered for new agent"
         assert not opencode_git_feature.exists(), "Old disabled extension command should be removed on switch"
 
@@ -966,7 +967,7 @@ class TestIntegrationSwitch:
         shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
         assert shared_script.exists()
         shared_content = shared_script.read_text(encoding="utf-8")
-        assert "/speckit-plan" in shared_content
+        assert f"{_content_ref('plan')}" in shared_content
 
         old_cwd = os.getcwd()
         try:
@@ -981,8 +982,8 @@ class TestIntegrationSwitch:
 
         assert shared_script.exists()
         updated = shared_script.read_text(encoding="utf-8")
-        assert "/speckit.plan" in updated
-        assert "/speckit-plan" not in updated
+        assert f"{_content_ref('plan', '.')}" in updated
+        assert f"{_content_ref('plan')}" not in updated
 
     def test_switch_refreshes_stale_managed_shared_infra(self, tmp_path):
         """Regression for #2293: stale managed shared scripts get refreshed on switch."""
@@ -990,7 +991,7 @@ class TestIntegrationSwitch:
 
         project = _init_project(tmp_path, "claude")
         shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
-        assert "/speckit-plan" in shared_script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in shared_script.read_text(encoding="utf-8")
 
         # Simulate a stale vendored script: write truncated content as bytes
         # (write_text would translate \n→\r\n on Windows and break the hash)
@@ -1020,8 +1021,8 @@ class TestIntegrationSwitch:
         # Stale managed file should be replaced by the target integration's rendered version.
         updated = shared_script.read_text(encoding="utf-8")
         assert "# stale vendored copy" not in updated
-        assert "/speckit.plan" in updated
-        assert "/speckit-plan" not in updated
+        assert f"{_content_ref('plan', '.')}" in updated
+        assert f"{_content_ref('plan')}" not in updated
 
     def test_switch_preserves_user_customized_shared_infra(self, tmp_path):
         """User customizations (hash divergence from manifest) survive switch without --refresh-shared-infra."""
@@ -1051,7 +1052,7 @@ class TestIntegrationSwitch:
         """--refresh-shared-infra explicitly overwrites user customizations on switch."""
         project = _init_project(tmp_path, "claude")
         shared_script = project / ".specify" / "scripts" / "bash" / "common.sh"
-        assert "/speckit-plan" in shared_script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in shared_script.read_text(encoding="utf-8")
         rendered_bytes = shared_script.read_bytes()
 
         # User customization (hash diverges from manifest)
@@ -1072,8 +1073,8 @@ class TestIntegrationSwitch:
         # Customization is overwritten with the target integration's rendered version.
         updated = shared_script.read_text(encoding="utf-8")
         assert "# user customization" not in updated
-        assert "/speckit.plan" in updated
-        assert "/speckit-plan" not in updated
+        assert f"{_content_ref('plan', '.')}" in updated
+        assert f"{_content_ref('plan')}" not in updated
 
     def test_switch_skips_symlinked_parent_directory(self, tmp_path):
         """Regression: if .specify/scripts/bash is a symlink, switch must not write through it.
@@ -1185,7 +1186,7 @@ class TestIntegrationSwitch:
         assert opts["ai"] == "codex"
 
         template = project / ".specify" / "templates" / "plan-template.md"
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
 
 
 class TestIntegrationUpgrade:
@@ -1251,7 +1252,8 @@ class TestIntegrationUpgrade:
         assert updated["speckit_version"] == "0.8.11"
         assert updated["integration"] == "gemini"
         assert updated["ai"] == "gemini"
-        assert "context_file" not in updated
+        # context_file is set during the original init and must be preserved
+        assert updated.get("context_file") == opts.get("context_file")
 
     def test_upgrade_does_not_persist_state_when_shared_infra_refresh_fails(self, tmp_path, monkeypatch):
         project = _init_project(tmp_path, "claude")
@@ -1293,8 +1295,8 @@ class TestIntegrationUpgrade:
         managed_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         customized_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
 
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.specify" in managed_script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('specify', '.')}" in managed_script.read_text(encoding="utf-8")
         customized_before = customized_script.read_text(encoding="utf-8") + "\n# user customization\n"
         customized_script.write_text(customized_before, encoding="utf-8")
 
@@ -1304,18 +1306,18 @@ class TestIntegrationUpgrade:
         ])
 
         assert result.exit_code == 0, result.output
-        assert "/speckit-plan" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" in template.read_text(encoding="utf-8")
         managed_content = managed_script.read_text(encoding="utf-8")
-        assert "/speckit-specify" in managed_content
-        assert "/speckit.specify" not in managed_content
+        assert f"{_content_ref('specify')}" in managed_content
+        assert f"{_content_ref('specify', '.')}" not in managed_content
         assert customized_script.read_text(encoding="utf-8") == customized_before
 
     def test_upgrade_non_default_keeps_default_template_invocations(self, tmp_path):
         project = _init_project(tmp_path, "gemini")
         template = project / ".specify" / "templates" / "plan-template.md"
         script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in script.read_text(encoding="utf-8")
 
         old_cwd = os.getcwd()
         try:
@@ -1337,9 +1339,9 @@ class TestIntegrationUpgrade:
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "gemini"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in script.read_text(encoding="utf-8")
-        assert "/speckit-plan" not in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in template.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan', '.')}" in script.read_text(encoding="utf-8")
+        assert f"{_content_ref('plan')}" not in script.read_text(encoding="utf-8")
 
     def test_upgrade_migrates_opencode_legacy_dir(self, tmp_path):
         """Upgrade moves OpenCode commands from .opencode/command/ to .opencode/commands/."""

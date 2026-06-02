@@ -11,34 +11,42 @@ from .test_integration_base_markdown import MarkdownIntegrationTests
 class TestClineCommandNameFormatter:
     """Test the Cline command name formatter."""
 
+    def _expected(self, name: str) -> str:
+        """Return the expected prefixed name (fork uses 'spec-', upstream 'speckit-')."""
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        return f"{pfx}-{name}"
+
     def test_simple_name_without_prefix(self):
         """Test formatting a simple name without 'speckit.' prefix."""
-        assert format_cline_command_name("plan") == "speckit-plan"
-        assert format_cline_command_name("tasks") == "speckit-tasks"
-        assert format_cline_command_name("specify") == "speckit-specify"
+        assert format_cline_command_name("plan") == self._expected("plan")
+        assert format_cline_command_name("tasks") == self._expected("tasks")
+        assert format_cline_command_name("specify") == self._expected("specify")
 
     def test_name_with_speckit_prefix(self):
         """Test formatting a name that already has 'speckit.' prefix."""
-        assert format_cline_command_name("speckit.plan") == "speckit-plan"
-        assert format_cline_command_name("speckit.tasks") == "speckit-tasks"
+        assert format_cline_command_name("speckit.plan") == self._expected("plan")
+        assert format_cline_command_name("speckit.tasks") == self._expected("tasks")
 
     def test_extension_command_name(self):
         """Test formatting extension command names with dots."""
         assert (
             format_cline_command_name("speckit.my-extension.example")
-            == "speckit-my-extension-example"
+            == self._expected("my-extension-example")
         )
         assert (
             format_cline_command_name("my-extension.example")
-            == "speckit-my-extension-example"
+            == self._expected("my-extension-example")
         )
 
     def test_idempotent_already_hyphenated(self):
-        """Test that already-hyphenated names are returned unchanged (idempotent)."""
-        assert format_cline_command_name("speckit-plan") == "speckit-plan"
+        """Test that already-hyphenated names with current prefix are idempotent."""
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        assert format_cline_command_name(f"{pfx}-plan") == f"{pfx}-plan"
         assert (
-            format_cline_command_name("speckit-my-extension-example")
-            == "speckit-my-extension-example"
+            format_cline_command_name(f"{pfx}-my-extension-example")
+            == f"{pfx}-my-extension-example"
         )
 
 
@@ -50,19 +58,21 @@ class TestClineIntegration(MarkdownIntegrationTests):
     CONTEXT_FILE = ".clinerules/specify-rules.md"
 
     @pytest.mark.parametrize(
-        "cmd_name, expected_filename",
+        "cmd_name, base_name",
         [
-            ("plan", "speckit-plan.md"),
-            ("speckit.plan", "speckit-plan.md"),
-            ("speckit.git.commit", "speckit-git-commit.md"),
-            ("speckit", "speckit-speckit.md"),
-            ("speckitfoo", "speckit-speckitfoo.md"),
+            ("plan", "plan"),
+            ("speckit.plan", "plan"),
+            ("speckit.git.commit", "git-commit"),
+            ("speckit", "speckit"),
+            ("speckitfoo", "speckitfoo"),
         ],
     )
-    def test_cline_command_filename(self, cmd_name, expected_filename):
+    def test_cline_command_filename(self, cmd_name, base_name):
         """Verify Cline uses hyphenated filenames."""
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
         cline = get_integration("cline")
-        assert cline.command_filename(cmd_name) == expected_filename
+        assert cline.command_filename(cmd_name) == f"{pfx}-{base_name}.md"
 
     def test_cline_invoke_separator(self):
         """Verify Cline uses hyphen as invoke separator."""
@@ -77,11 +87,13 @@ class TestClineIntegration(MarkdownIntegrationTests):
         assert cline.registrar_config["format_name"] == format_cline_command_name
 
     def test_cline_handoff_rewrite(self):
-        """Verify Cline rewrites agent: speckit.foo to agent: speckit-foo."""
+        """Verify Cline rewrites agent: speckit.foo to agent: <prefix>-foo."""
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
         cline = get_integration("cline")
         content = "---\nagent: speckit.plan\n---\n"
         rewritten = cline._rewrite_handoff_references(content)
-        assert rewritten == "---\nagent: speckit-plan\n---\n"
+        assert rewritten == f"---\nagent: {pfx}-plan\n---\n"
 
     def test_cline_hook_instruction_injection(self):
         """Verify Cline injects the dot-to-hyphen note for hooks."""
@@ -107,17 +119,19 @@ class TestClineIntegration(MarkdownIntegrationTests):
             and f.suffix == ".md"
             and f.name != i.context_file
         ]
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
         for f in cmd_files:
             assert f.exists()
-            assert f.name.startswith("speckit-")
+            assert f.name.startswith(f"{pfx}-")
             assert f.name.endswith(".md")
 
         specify_file = next(
-            (f for f in cmd_files if f.name == "speckit-specify.md"), None
+            (f for f in cmd_files if f.name == f"{pfx}-specify.md"), None
         )
         assert specify_file is not None
         specify_contents = specify_file.read_text(encoding="utf-8")
-        assert "/speckit-plan" in specify_contents
+        assert f"/{pfx}-plan" in specify_contents
         assert "/speckit.plan" not in specify_contents
 
     def test_integration_flag_creates_files(self, tmp_path):
@@ -150,11 +164,13 @@ class TestClineIntegration(MarkdownIntegrationTests):
         i = get_integration(self.KEY)
         cmd_dir = i.commands_dest(project)
         assert cmd_dir.is_dir()
-        commands = sorted(cmd_dir.glob("speckit-*"))
+        from tests.conftest import _cmd_prefix
+        commands = sorted(cmd_dir.glob(f"{_cmd_prefix()}-*"))
         assert len(commands) > 0
 
-    def _expected_files(self, script_variant: str) -> list[str]:
-        """Override to expect hyphenated speckit- prefix."""
+    def _expected_files(self, script_variant: str, project=None) -> list[str]:
+        """Override to expect hyphenated prefix."""
+        from tests.conftest import _cmd_prefix, _is_fork
         i = get_integration(self.KEY)
         cmd_dir = i.registrar_config["dir"]
         files = []
@@ -165,7 +181,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
             if hasattr(self, "COMMANDS_SUBDIR_STEMS")
             else self.COMMAND_STEMS
         ):
-            files.append(f"{cmd_dir}/speckit-{stem.replace('.', '-')}.md")
+            files.append(f"{cmd_dir}/{_cmd_prefix()}-{stem.replace('.', '-')}.md")
 
         # Framework files
         files.append(".specify/integration.json")
@@ -209,5 +225,16 @@ class TestClineIntegration(MarkdownIntegrationTests):
         # Agent context file (if set)
         if i.context_file:
             files.append(i.context_file)
+
+        # On the fork, bundled extensions and presets create additional files.
+        if _is_fork() and project is not None:
+            from pathlib import Path as _Path
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
 
         return sorted(files)

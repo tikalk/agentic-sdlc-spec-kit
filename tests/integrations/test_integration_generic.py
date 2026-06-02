@@ -7,6 +7,7 @@ import pytest
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.base import MarkdownIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.conftest import _cmd_prefix, _is_fork
 
 
 class TestGenericIntegration:
@@ -85,7 +86,10 @@ class TestGenericIntegration:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0
         for f in cmd_files:
-            assert f.name.startswith("speckit.")
+            # taskstoissues is special-cased to keep speckit. prefix for backwards compatibility
+            assert f.name.startswith(("spec.", "speckit.")), (
+                f"Expected spec. or speckit. prefix, got {f.name}"
+            )
             assert f.name.endswith(".md")
 
     def test_templates_are_processed(self, tmp_path):
@@ -177,7 +181,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        plan_file = tmp_path / ".custom" / "cmds" / "speckit.plan.md"
+        plan_file = tmp_path / ".custom" / "cmds" / f"{_cmd_prefix()}.plan.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -190,7 +194,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        implement_file = tmp_path / ".custom" / "cmds" / "speckit.implement.md"
+        implement_file = tmp_path / ".custom" / "cmds" / f"{_cmd_prefix()}.implement.md"
         assert implement_file.exists()
         content = implement_file.read_text(encoding="utf-8")
         assert ".specify/memory/constitution.md" in content
@@ -213,11 +217,13 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        cmd_file = tmp_path / ".custom" / "cmds" / f"speckit.{command_stem}.md"
+        # taskstoissues is special-cased to keep speckit. prefix
+        pfx = "speckit" if command_stem == "taskstoissues" else _cmd_prefix()
+        cmd_file = tmp_path / ".custom" / "cmds" / f"{pfx}.{command_stem}.md"
         assert cmd_file.exists(), f"Command file missing: {cmd_file.name}"
         content = cmd_file.read_text(encoding="utf-8")
         assert "constitution.md" in content, (
-            f"speckit.{command_stem}.md must reference constitution.md"
+            f"{pfx}.{command_stem}.md must reference constitution.md"
         )
 
     def test_constitution_command_exists(self, tmp_path):
@@ -225,7 +231,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        cmd_file = tmp_path / ".custom" / "cmds" / "speckit.constitution.md"
+        cmd_file = tmp_path / ".custom" / "cmds" / f"{_cmd_prefix()}.constitution.md"
         assert cmd_file.exists()
 
     # -- CLI --------------------------------------------------------------
@@ -288,16 +294,16 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted([
+        files = [
             "AGENTS.md",
-            ".myagent/commands/speckit.analyze.md",
-            ".myagent/commands/speckit.checklist.md",
-            ".myagent/commands/speckit.clarify.md",
-            ".myagent/commands/speckit.constitution.md",
-            ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
-            ".myagent/commands/speckit.specify.md",
-            ".myagent/commands/speckit.tasks.md",
+            f".myagent/commands/{_cmd_prefix()}.analyze.md",
+            f".myagent/commands/{_cmd_prefix()}.checklist.md",
+            f".myagent/commands/{_cmd_prefix()}.clarify.md",
+            f".myagent/commands/{_cmd_prefix()}.constitution.md",
+            f".myagent/commands/{_cmd_prefix()}.implement.md",
+            f".myagent/commands/{_cmd_prefix()}.plan.md",
+            f".myagent/commands/{_cmd_prefix()}.specify.md",
+            f".myagent/commands/{_cmd_prefix()}.tasks.md",
             ".myagent/commands/speckit.taskstoissues.md",
             ".specify/extensions.yml",
             ".specify/extensions/.registry",
@@ -324,7 +330,18 @@ class TestGenericIntegration:
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        # On the fork, bundled extensions and presets create additional files.
+        if _is_fork():
+            from pathlib import Path as _Path
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
+        expected = sorted(files)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -352,16 +369,16 @@ class TestGenericIntegration:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file()
         )
-        expected = sorted([
+        files = [
             "AGENTS.md",
-            ".myagent/commands/speckit.analyze.md",
-            ".myagent/commands/speckit.checklist.md",
-            ".myagent/commands/speckit.clarify.md",
-            ".myagent/commands/speckit.constitution.md",
-            ".myagent/commands/speckit.implement.md",
-            ".myagent/commands/speckit.plan.md",
-            ".myagent/commands/speckit.specify.md",
-            ".myagent/commands/speckit.tasks.md",
+            f".myagent/commands/{_cmd_prefix()}.analyze.md",
+            f".myagent/commands/{_cmd_prefix()}.checklist.md",
+            f".myagent/commands/{_cmd_prefix()}.clarify.md",
+            f".myagent/commands/{_cmd_prefix()}.constitution.md",
+            f".myagent/commands/{_cmd_prefix()}.implement.md",
+            f".myagent/commands/{_cmd_prefix()}.plan.md",
+            f".myagent/commands/{_cmd_prefix()}.specify.md",
+            f".myagent/commands/{_cmd_prefix()}.tasks.md",
             ".myagent/commands/speckit.taskstoissues.md",
             ".specify/extensions.yml",
             ".specify/extensions/.registry",
@@ -388,7 +405,18 @@ class TestGenericIntegration:
             ".specify/templates/tasks-template.md",
             ".specify/workflows/speckit/workflow.yml",
             ".specify/workflows/workflow-registry.json",
-        ])
+        ]
+        # On the fork, bundled extensions and presets create additional files.
+        if _is_fork():
+            from pathlib import Path as _Path
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
+        expected = sorted(files)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"

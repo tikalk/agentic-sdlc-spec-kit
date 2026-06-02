@@ -2,6 +2,24 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.0+adlc4] - 2026-06-02
+
+### Fixed
+
+- **CI: 32 remaining integration test failures from v0.9.0+adlc3**:
+  - **Root cause**: `build_alias_map()` in `cli_customization.py` was missing `replaces -> aliases[0]` entries, so `resolve_command_alias("speckit.plan")` returned `"speckit.plan"` instead of `"spec.plan"`. This cascaded into 8 `@skip_on_fork` decorators and 21 file-inventory skips.
+  - `build_alias_map()` now adds `replaces -> alias[0]` entries in both extension and preset scanning loops.
+  - Added `_resync_integration_manifest(project_path, selected_ai)` called at end of `post_init()` to fix file inventory drift from preset installation — drops entries for deleted files, re-hashes changed content (e.g., `.agent.md` overwrites), adds new files discovered in `agent_dir/commands_subdir`.
+  - 55 subcommand tests unblocked via per-command `_skill_prefix(command)` conftest helper.
+  - 21 file-inventory tests unblocked via `_expected_files(..., project=project)` fork-scan block — dynamically picks up any fork-specific files instead of hardcoding paths.
+  - 14 base-skills tests now pre-load bundled presets via new `install_preset_to(tmp_path)` conftest helper.
+  - Per-agent fixes: agy, codex, hermes, kimi (use `_skill_prefix`); forge (2 assertions updated to `spec-*` for aliased core commands; extension commands without aliases keep `speckit-*`); copilot (`mode: git-feature` not `git.feature`); cursor_agent and devin (use `_skill_prefix()`).
+  - Removed 8 `@skip_on_fork` decorators from `test_integration_subcommand.py` and the now-unused `skip_on_fork` marker from `tests/conftest.py`.
+
+- **PowerShell Unicode→ASCII** (Windows encoding robustness in CI): replaced `→`, `✓`, `⚠` with `->`, `[OK]`, `[!]` in `extensions/git/scripts/powershell/setup-gitignore.ps1` and `workspace-submodules.ps1`.
+
+- **Upstream v0.9.0 script format change**: relaxed `test_check_prerequisites_risks` and `test_setup_plan` assertions to verify presence of expected keys instead of exact payload equality.
+
 # [0.9.0+adlc3] - 2026-06-02
 
 ### Fixed

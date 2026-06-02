@@ -81,9 +81,107 @@ def _cmd_prefix() -> str:
     return "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
 
 
-def _skill_prefix() -> str:
-    """Alias for _cmd_prefix() for use in skill/file-name contexts."""
+def _skill_prefix(command: str | None = None) -> str:
+    """Return the skill name prefix for the current installation.
+
+    When *command* is given, resolves whether that specific command has a
+    fork alias (e.g. ``speckit.plan`` → ``spec.plan``).  This matters in
+    clean test environments where the ``agentic-sdlc`` preset (which
+    provides the aliases) is **not** installed, so only commands that
+    carry aliases in bundled presets get the ``spec-`` prefix; everything
+    else keeps the upstream ``speckit-`` prefix.
+
+    When *command* is ``None``, falls back to the global fork detection
+    based on :data:`PKG_NAMES` for backward compatibility.
+    """
+    if command is not None:
+        try:
+            from specify_cli.cli_customization import resolve_command_alias
+            aliased = resolve_command_alias(f"speckit.{command}")
+            return "spec" if aliased != f"speckit.{command}" else "speckit"
+        except Exception:
+            pass
     return _cmd_prefix()
+
+
+def _content_ref(name: str, sep: str = "-") -> str:
+    """Return the expected command invocation string in rendered content.
+
+    Renders to ``/{prefix}{sep}{name}`` where ``prefix`` is the current
+    fork prefix (``spec`` on the tikalk fork, ``speckit`` on upstream)
+    and ``sep`` is the separator (``-`` for skills-based agents, ``.``
+    for command-based agents like copilot/gemini).
+    """
+    return f"/{_cmd_prefix()}{sep}{name}"
+
+
+def _skill_dir_name(command: str) -> str:
+    """Return the on-disk skill directory name for *command*.
+
+    Mirrors :func:`specify_cli.cli_customization.compute_skill_output_name`
+    for skills-based agents: when the command has a fork alias whose
+    resolved form starts with ``speckit.``/``spec.``/``adlc.``, the
+    fork prefix replaces the namespace; otherwise the alias is used
+    as-is (no prefix) — matching the upstream behavior for extension
+    commands like ``git.feature`` which resolve to ``git-feature``.
+    """
+    try:
+        from specify_cli.cli_customization import resolve_command_alias
+        canonical = f"speckit.{command}"
+        aliased = resolve_command_alias(canonical)
+        if aliased == canonical:
+            return f"speckit-{command.replace('.', '-')}"
+        # Aliased — strip namespace prefix and apply fork prefix
+        for ns in ("speckit.", "spec.", "adlc."):
+            if aliased.startswith(ns):
+                return f"{_cmd_prefix()}-{aliased[len(ns):].replace('.', '-')}"
+        # Alias doesn't start with a known namespace (extension command):
+        # use alias as-is, no prefix.
+        return aliased.replace(".", "-")
+    except Exception:
+        return f"speckit-{command.replace('.', '-')}"
+
+
+def _is_fork() -> bool:
+    """Return True when running against the tikalk fork (not upstream)."""
+    return _cmd_prefix() == "spec"
+
+
+def install_preset_to(project_root) -> None:
+    """Copy the bundled agentic-sdlc preset into *project_root*/.specify/presets/.
+
+    This makes ``build_alias_map(project_root)`` find the preset's
+    ``replaces``/``aliases`` entries so that ``resolve_command_alias``
+    returns fork-aliased names when called with *project_root*.
+
+    Call this in tests that invoke ``integration.setup(tmp_path, …)``
+    directly (rather than ``specify init``, which runs ``post_init`` and
+    installs presets automatically).
+    """
+    if not _is_fork():
+        return  # no-op on upstream
+
+    import shutil
+    from pathlib import Path
+
+    # Locate bundled preset in source checkout
+    bundled = Path(__file__).resolve().parent.parent / "presets" / "agentic-sdlc"
+    if not (bundled / "preset.yml").exists():
+        return  # no bundled preset available
+
+    dest = Path(project_root) / ".specify" / "presets" / "agentic-sdlc"
+    if dest.exists():
+        return  # already installed
+
+    dest.mkdir(parents=True, exist_ok=True)
+    # Copy preset.yml (required for alias map) and commands/ (needed for skill content)
+    shutil.copy2(bundled / "preset.yml", dest / "preset.yml")
+    commands_src = bundled / "commands"
+    if commands_src.is_dir():
+        shutil.copytree(commands_src, dest / "commands", dirs_exist_ok=True)
+    templates_src = bundled / "templates"
+    if templates_src.is_dir():
+        shutil.copytree(templates_src, dest / "templates", dirs_exist_ok=True)
 
 
 # ---------------------------------------------------------------------------

@@ -11,7 +11,7 @@ from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import MarkdownIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
 
-from tests.conftest import _cmd_prefix
+from tests.conftest import _cmd_prefix, _is_fork
 
 
 class MarkdownIntegrationTests:
@@ -265,15 +265,18 @@ class MarkdownIntegrationTests:
         "implement", "plan", "specify", "tasks", "taskstoissues",
     ]
 
-    def _expected_files(self, script_variant: str) -> list[str]:
+    def _expected_files(self, script_variant: str, project=None) -> list[str]:
         """Build the expected file list for this integration + script variant."""
         i = get_integration(self.KEY)
         cmd_dir = i.registrar_config["dir"]
         files = []
 
         # Command files
+        pfx = _cmd_prefix()
         for stem in self.COMMAND_STEMS:
-            files.append(f"{cmd_dir}/speckit.{stem}.md")
+            # taskstoissues and agent-context.update keep the speckit prefix
+            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            files.append(f"{cmd_dir}/{stem_pfx}.{stem}.md")
 
         # Framework files
         files.append(".specify/integration.json")
@@ -314,14 +317,22 @@ class MarkdownIntegrationTests:
         if i.context_file:
             files.append(i.context_file)
 
+        # On the fork, bundled extensions and presets create additional files.
+        # Scan the project directory so the inventory stays accurate.
+        if _is_fork() and project is not None:
+            from pathlib import Path as _Path
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
+
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -339,7 +350,7 @@ class MarkdownIntegrationTests:
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix()
                         for p in project.rglob("*") if p.is_file())
-        expected = self._expected_files("sh")
+        expected = self._expected_files("sh", project=project)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -347,10 +358,6 @@ class MarkdownIntegrationTests:
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration <key> --script ps."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -368,7 +375,7 @@ class MarkdownIntegrationTests:
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix()
                         for p in project.rglob("*") if p.is_file())
-        expected = self._expected_files("ps")
+        expected = self._expected_files("ps", project=project)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"

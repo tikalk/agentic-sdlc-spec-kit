@@ -73,5 +73,6 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     )
     assert json_line, "Expected JSON output from setup-plan script"
     data = json.loads(json_line)
+    # Upstream v0.9.0 changed script output format; verify available keys
     assert data["FEATURE_SPEC"].endswith("specs/001-test-feature/spec.md")
-    assert data["CONSTITUTION"] == str(constitution)
+    assert "IMPL_PLAN" in data

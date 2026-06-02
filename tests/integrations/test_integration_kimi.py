@@ -4,7 +4,7 @@ from specify_cli.integrations import get_integration
 from specify_cli.integrations.kimi import _migrate_legacy_kimi_dotted_skills
 from specify_cli.integrations.manifest import IntegrationManifest
 
-from .test_integration_base_skills import SkillsIntegrationTests
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix, install_preset_to
 
 
 class TestKimiIntegration(SkillsIntegrationTests):
@@ -106,6 +106,7 @@ class TestKimiLegacyMigration:
 
     def test_setup_with_migrate_legacy_option(self, tmp_path):
         """KimiIntegration.setup() with --migrate-legacy migrates dotted dirs."""
+        install_preset_to(tmp_path)
         i = get_integration("kimi")
 
         skills_dir = tmp_path / ".kimi" / "skills"
@@ -118,8 +119,8 @@ class TestKimiLegacyMigration:
 
         assert not legacy.exists()
         assert (skills_dir / "speckit-oldcmd" / "SKILL.md").exists()
-        # New skills from templates should also exist (using spec-* alias form)
-        assert (skills_dir / "spec-specify" / "SKILL.md").exists()
+        # New skills from templates should also exist (using correct prefix)
+        assert (skills_dir / f"{_skill_prefix('specify')}-specify" / "SKILL.md").exists()
 
 
 class TestKimiNextSteps:
@@ -145,13 +146,7 @@ class TestKimiNextSteps:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0
-        # Check prefix based on fork vs upstream
-        from specify_cli import PKG_NAMES
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        if is_fork:
-            assert "/skill:spec-constitution" in result.output
-            assert "/skill:speckit-constitution" not in result.output
-        else:
-            assert "/skill:speckit-constitution" in result.output
-            assert "/skill:spec-constitution" not in result.output
+        # Full init installs bundled presets (with aliases) → use global fork prefix
+        _pfx = _skill_prefix()
+        assert f"/skill:{_pfx}-constitution" in result.output
         assert "Optional skills that you can use for your specs" in result.output

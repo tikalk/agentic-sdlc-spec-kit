@@ -2,7 +2,7 @@
 
 from specify_cli.integrations import get_integration
 
-from .test_integration_base_skills import SkillsIntegrationTests
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix, install_preset_to
 
 
 class TestAgyIntegration(SkillsIntegrationTests):
@@ -42,7 +42,9 @@ class TestAgyAutoPromote:
         result = runner.invoke(app, ["init", str(target), "--ai", "agy", "--no-git", "--script", "sh", "--ignore-agent-tools"])
 
         assert result.exit_code == 0, f"init --ai agy failed: {result.output}"
-        assert (target / ".agents" / "skills" / "spec-plan" / "SKILL.md").exists()
+        # Full ``specify init`` installs bundled presets (which provide aliases),
+        # so use the global fork prefix rather than per-command alias resolution.
+        assert (target / ".agents" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
 
     def test_agy_setup_warning(self, tmp_path):
         """Agy integration should print a warning about v1.20.5 requirement during setup."""
@@ -91,17 +93,15 @@ class TestAgyHookCommandNote:
         from specify_cli.integrations import get_integration
         from specify_cli.integrations.manifest import IntegrationManifest
 
+        install_preset_to(tmp_path)
         i = get_integration("agy")
         m = IntegrationManifest("agy", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        # Fork uses spec- prefix, upstream uses speckit-
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
-        specify_skill = tmp_path / f".agents/skills/{_pfx}-specify/SKILL.md"
+        specify_skill = tmp_path / f".agents/skills/{_skill_prefix('specify')}-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            f"{_pfx}-specify should have dot-to-hyphen hook note"
+            f"{_skill_prefix('specify')}-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self):

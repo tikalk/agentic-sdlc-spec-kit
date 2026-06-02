@@ -285,11 +285,11 @@ if ($IgnoreOnly) {
             
             # Register as submodule
             if ($DryRun) {
-                $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
+                $registeredRepos += "$repoName -> $remoteUrl [DRY RUN]"
             } else {
                 try {
                     git submodule add $remoteUrl $repoName 2>$null | Out-Null
-                    $registeredRepos += "$repoName → $remoteUrl"
+                    $registeredRepos += "$repoName -> $remoteUrl"
                 } catch {
                     $errorRepos += "$repoName`: failed to add submodule"
                 }
@@ -307,11 +307,11 @@ if ($IgnoreOnly) {
         
         # Register as submodule
         if ($DryRun) {
-            $registeredRepos += "$repoName → $remoteUrl [DRY RUN]"
+            $registeredRepos += "$repoName -> $remoteUrl [DRY RUN]"
         } else {
             try {
                 git submodule add $remoteUrl $repoName 2>$null | Out-Null
-                $registeredRepos += "$repoName → $remoteUrl"
+                $registeredRepos += "$repoName -> $remoteUrl"
             } catch {
                 $errorRepos += "$repoName`: failed to add submodule"
             }
@@ -368,7 +368,7 @@ if ($Json) {
     if ($registeredRepos.Count -gt 0) {
         Write-Host "Registered ($($registeredRepos.Count)):"
         foreach ($repo in $registeredRepos) {
-            Write-Host "  ✓ $repo"
+            Write-Host "  [OK] $repo"
         }
         Write-Host ""
     }
@@ -376,7 +376,7 @@ if ($Json) {
     if ($ignoredRepos.Count -gt 0) {
         Write-Host "Added to .gitignore ($($ignoredRepos.Count)):"
         foreach ($repo in $ignoredRepos) {
-            Write-Host "  ✓ $repo"
+            Write-Host "  [OK] $repo"
         }
         Write-Host ""
     }
@@ -392,7 +392,7 @@ if ($Json) {
     if ($errorRepos.Count -gt 0) {
         Write-Host "Errors ($($errorRepos.Count)):"
         foreach ($repo in $errorRepos) {
-            Write-Host "  ⚠ $repo"
+            Write-Host "  [!] $repo"
         }
         Write-Host ""
     }

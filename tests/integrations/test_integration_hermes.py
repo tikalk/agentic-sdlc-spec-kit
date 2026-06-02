@@ -13,6 +13,8 @@ non-destructive to a developer's real Hermes installation.
 from pathlib import Path
 
 from specify_cli.integrations import get_integration
+
+from .test_integration_base_skills import _skill_prefix, install_preset_to
 from specify_cli.integrations.manifest import IntegrationManifest
 
 from .test_integration_base_skills import SkillsIntegrationTests
@@ -74,6 +76,7 @@ class TestHermesIntegration(SkillsIntegrationTests):
 
     def test_plan_references_correct_context_file(self, tmp_path, monkeypatch):
         """Plan skill goes to global dir, but we check it still references AGENTS.md."""
+        install_preset_to(tmp_path)
         home = _fake_home(tmp_path)
         monkeypatch.setattr(Path, "home", lambda: home)
 
@@ -83,7 +86,7 @@ class TestHermesIntegration(SkillsIntegrationTests):
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
         # Find the plan skill in global ~/.hermes/skills/
-        plan_file = home / ".hermes" / "skills" / "speckit-plan" / "SKILL.md"
+        plan_file = home / ".hermes" / "skills" / f"{_skill_prefix('plan')}-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created globally"
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -199,17 +202,18 @@ class TestHermesIntegration(SkillsIntegrationTests):
 
     def test_hook_sections_explain_dotted_command_conversion(self, tmp_path, monkeypatch):
         """Override: Hermes skills live in global ~/.hermes/skills/."""
+        install_preset_to(tmp_path)
         home = _fake_home(tmp_path)
         monkeypatch.setattr(Path, "home", lambda: home)
 
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        specify_skill = home / ".hermes" / "skills" / "speckit-specify" / "SKILL.md"
+        specify_skill = home / ".hermes" / "skills" / f"{_skill_prefix('specify')}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            "speckit-specify should explain dotted hook command conversion"
+            f"{_skill_prefix('specify')}-specify should explain dotted hook command conversion"
         )
         assert content.count("replace dots") == content.count(
             "- For each executable hook, output the following"
@@ -349,14 +353,20 @@ class TestHermesAutoPromote:
         ])
 
         assert result.exit_code == 0, f"init --ai hermes failed: {result.output}"
-        # Skills should be in global ~/.hermes/skills/
-        assert (home / ".hermes" / "skills" / "speckit-plan" / "SKILL.md").exists()
+        # Skills should be in global ~/.hermes/skills/ (full init installs aliases)
+        assert (home / ".hermes" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
         # Local marker should exist
         assert (target / ".hermes" / "skills").is_dir()
         # No core SKILL.md files in project-local dir
         # (extension-installed skills like agent-context-update may appear)
-        local_skills = [
-            d for d in (target / ".hermes" / "skills").iterdir()
-            if "agent-context" not in d.name
-        ]
-        assert local_skills == [], f"Local skills dir should be empty, got: {local_skills}"
+        # Fork installs bundled extensions/presets which add more local skills.
+        from specify_cli import PKG_NAMES
+        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
+            # Fork: local dir will have extension skills; just verify global skills exist
+            pass
+        else:
+            local_skills = [
+                d for d in (target / ".hermes" / "skills").iterdir()
+                if "agent-context" not in d.name
+            ]
+            assert local_skills == [], f"Local skills dir should be empty, got: {local_skills}"

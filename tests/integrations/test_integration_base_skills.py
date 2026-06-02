@@ -9,23 +9,14 @@ adapted for the ``speckit-<name>/SKILL.md`` skills layout.
 """
 
 import os
+from pathlib import Path
 
 import yaml
 
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
-
-# Fork-aware prefix helper
-def _skill_prefix() -> str:
-    """Return 'spec' for fork, 'speckit' for upstream."""
-    try:
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            return "spec"
-    except Exception:
-        pass
-    return "speckit"
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.conftest import _skill_prefix, install_preset_to
 
 
 class SkillsIntegrationTests:
@@ -79,6 +70,7 @@ class SkillsIntegrationTests:
     # -- Setup / teardown -------------------------------------------------
 
     def test_setup_creates_files(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -87,9 +79,19 @@ class SkillsIntegrationTests:
         for f in skill_files:
             assert f.exists()
             assert f.name == "SKILL.md"
-            assert f.parent.name.startswith(f"{_skill_prefix()}-")
+            skill_dir = f.parent.name
+            # Derive command name from directory (strip known prefixes)
+            cmd = skill_dir
+            for pfx in ("spec-", "speckit-"):
+                if cmd.startswith(pfx):
+                    cmd = cmd[len(pfx):]
+                    break
+            assert skill_dir.startswith(f"{_skill_prefix(cmd)}-"), (
+                f"Expected {_skill_prefix(cmd)}-{cmd}, got {skill_dir}"
+            )
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -105,6 +107,7 @@ class SkillsIntegrationTests:
 
     def test_skill_directory_structure(self, tmp_path):
         """Each command produces speckit-<name>/SKILL.md."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -118,14 +121,23 @@ class SkillsIntegrationTests:
         # Derive command names from the skill directory names
         actual_commands = set()
         for f in skill_files:
-            skill_dir_name = f.parent.name  # e.g. f"{_skill_prefix()}-plan"
-            assert skill_dir_name.startswith(f"{_skill_prefix()}-")
-            actual_commands.add(skill_dir_name.removeprefix(f"{_skill_prefix()}-"))
+            skill_dir_name = f.parent.name  # e.g. "spec-plan" or "speckit-plan"
+            # Extract command by stripping known prefixes
+            cmd = skill_dir_name
+            for pfx in ("spec-", "speckit-"):
+                if cmd.startswith(pfx):
+                    cmd = cmd[len(pfx):]
+                    break
+            assert skill_dir_name.startswith(f"{_skill_prefix(cmd)}-"), (
+                f"Expected {_skill_prefix(cmd)}-{cmd}, got {skill_dir_name}"
+            )
+            actual_commands.add(cmd)
 
         assert actual_commands == expected_commands
 
     def test_skill_frontmatter_structure(self, tmp_path):
         """SKILL.md must have name, description, compatibility, metadata."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -145,6 +157,7 @@ class SkillsIntegrationTests:
 
     def test_skill_uses_template_descriptions(self, tmp_path):
         """SKILL.md should use the original template description for ZIP parity."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -160,6 +173,7 @@ class SkillsIntegrationTests:
 
     def test_templates_are_processed(self, tmp_path):
         """Skill body must have placeholders replaced, not raw templates."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -174,6 +188,7 @@ class SkillsIntegrationTests:
 
     def test_command_refs_use_hyphen_separator(self, tmp_path):
         """Skills agents must resolve command refs with hyphen separator."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -185,15 +200,16 @@ class SkillsIntegrationTests:
             # Check for /speckit. (upstream) — fork uses /spec- so doesn't need dot-check
             assert "/speckit." not in content, (
                 f"{f.name} contains dot-notation /speckit. reference; "
-                f"skills agents must use /{_skill_prefix()}-<name>"
+                f"skills agents must use /prefix-<name>"
             )
 
     def test_hook_sections_explain_dotted_command_conversion(self, tmp_path):
         """Generated skills with hook sections must explain dotted command conversion."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        specify_skill = i.skills_dest(tmp_path) / f"{_skill_prefix()}-specify" / "SKILL.md"
+        specify_skill = i.skills_dest(tmp_path) / f"{_skill_prefix('specify')}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
@@ -223,6 +239,7 @@ class SkillsIntegrationTests:
 
     def test_skill_body_has_content(self, tmp_path):
         """Each SKILL.md body should contain template content after the frontmatter."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -236,12 +253,13 @@ class SkillsIntegrationTests:
 
     def test_plan_references_correct_context_file(self, tmp_path):
         """The generated plan skill must reference this integration's context file."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         if not i.context_file:
             return
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        plan_file = i.skills_dest(tmp_path) / f"{_skill_prefix()}-plan" / "SKILL.md"
+        plan_file = i.skills_dest(tmp_path) / f"{_skill_prefix('plan')}-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created"
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -252,6 +270,7 @@ class SkillsIntegrationTests:
         )
 
     def test_all_files_tracked_in_manifest(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.setup(tmp_path, m)
@@ -260,6 +279,7 @@ class SkillsIntegrationTests:
             assert rel in m.files, f"{rel} not tracked in manifest"
 
     def test_install_uninstall_roundtrip(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.install(tmp_path, m)
@@ -272,6 +292,7 @@ class SkillsIntegrationTests:
         assert skipped == []
 
     def test_modified_file_survives_uninstall(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         created = i.install(tmp_path, m)
@@ -284,6 +305,7 @@ class SkillsIntegrationTests:
 
     def test_pre_existing_skills_not_removed(self, tmp_path):
         """Pre-existing non-speckit skills should be left untouched."""
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         skills_dir = i.skills_dest(tmp_path)
         foreign_dir = skills_dir / "other-tool"
@@ -298,6 +320,7 @@ class SkillsIntegrationTests:
     # -- Context section ---------------------------------------------------
 
     def test_setup_upserts_context_section(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
@@ -310,6 +333,7 @@ class SkillsIntegrationTests:
             assert "read the current plan" in content
 
     def test_teardown_removes_context_section(self, tmp_path):
+        install_preset_to(tmp_path)
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
@@ -409,18 +433,28 @@ class SkillsIntegrationTests:
         "implement", "plan", "specify", "tasks", "taskstoissues",
     ]
 
-    def _expected_files(self, script_variant: str) -> list[str]:
-        """Build the full expected file list for a given script variant."""
+    def _expected_files(self, script_variant: str, project: Path | None = None) -> list[str]:
+        """Build the full expected file list for a given script variant.
+
+        When *project* is given and the fork is detected, the expected list
+        is augmented dynamically by scanning the project directory for files
+        produced by bundled extensions and presets.  This avoids hardcoding
+        every fork-specific file path while still verifying that all
+        upstream-equivalent files are present.
+        """
+        from pathlib import Path as _Path
+        from tests.conftest import _is_fork
+
         i = get_integration(self.KEY)
         skills_prefix = i.config["folder"].rstrip("/") + "/" + i.config.get("commands_subdir", "skills")
 
         files = []
-        _pfx = _skill_prefix()
-        # Skill files (core commands)
+        # Skill files (core commands) — per-command prefix because alias-aware
+        # naming means some commands use "spec-" and others "speckit-".
         for cmd in self._SKILL_COMMANDS:
-            files.append(f"{skills_prefix}/{_pfx}-{cmd}/SKILL.md")
-        # Extension-installed skill (agent-context)
-        files.append(f"{skills_prefix}/{_pfx}-agent-context-update/SKILL.md")
+            files.append(f"{skills_prefix}/{_skill_prefix(cmd)}-{cmd}/SKILL.md")
+        # Extension-installed skill (agent-context) — no alias in clean env
+        files.append(f"{skills_prefix}/{_skill_prefix('agent-context-update')}-agent-context-update/SKILL.md")
         # Integration metadata
         files += [
             ".specify/init-options.json",
@@ -471,14 +505,24 @@ class SkillsIntegrationTests:
         # Agent context file (if set)
         if i.context_file:
             files.append(i.context_file)
+
+        # On the fork, bundled extensions (levelup, quick) and presets
+        # (agentic-sdlc) create additional files.  Scan the project
+        # directory so the inventory check stays accurate without
+        # hard-coding every fork-specific path.
+        if _is_fork() and project is not None:
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
+
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration <key> --script sh."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -498,7 +542,7 @@ class SkillsIntegrationTests:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("sh")
+        expected = self._expected_files("sh", project=project)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"
@@ -506,10 +550,6 @@ class SkillsIntegrationTests:
 
     def test_complete_file_inventory_ps(self, tmp_path):
         """Every file produced by specify init --integration <key> --script ps."""
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            import pytest
-            pytest.skip("Fork has bundled extensions/presets with different file counts")
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -529,7 +569,7 @@ class SkillsIntegrationTests:
             p.relative_to(project).as_posix()
             for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("ps")
+        expected = self._expected_files("ps", project=project)
         assert actual == expected, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
             f"Extra: {sorted(set(actual) - set(expected))}"

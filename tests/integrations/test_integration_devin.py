@@ -1,6 +1,6 @@
 """Tests for DevinIntegration."""
 
-from .test_integration_base_skills import SkillsIntegrationTests
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix
 
 
 class TestDevinIntegration(SkillsIntegrationTests):
@@ -72,4 +72,5 @@ class TestDevinAutoPromote:
         )
 
         assert result.exit_code == 0, f"init --ai devin failed: {result.output}"
-        assert (target / ".devin" / "skills" / "spec-plan" / "SKILL.md").exists()
+        # Full init installs bundled presets (with aliases) → use global fork prefix
+        assert (target / ".devin" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()

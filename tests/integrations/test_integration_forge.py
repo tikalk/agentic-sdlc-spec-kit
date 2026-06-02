@@ -19,17 +19,19 @@ class TestForgeCommandNameFormatter:
 
     def test_name_with_speckit_prefix(self):
         """Test formatting a name that already has 'speckit.' prefix."""
-        # speckit. prefix is converted to speckit- (dots to hyphens)
-        assert format_forge_command_name("speckit.plan") == "speckit-plan"
-        assert format_forge_command_name("speckit.tasks") == "speckit-tasks"
+        # Core commands with aliases resolve to spec-* on the fork
+        assert format_forge_command_name("speckit.plan") == "spec-plan"
+        assert format_forge_command_name("speckit.tasks") == "spec-tasks"
 
     def test_extension_command_name(self):
         """Test formatting extension command names with dots."""
+        # Extension commands have no alias — dots become hyphens, keeping speckit- prefix
         assert format_forge_command_name("speckit.my-extension.example") == "speckit-my-extension-example"
         assert format_forge_command_name("my-extension.example") == "my-extension-example"
 
     def test_complex_nested_name(self):
         """Test formatting deeply nested command names."""
+        # No alias for these extension commands — keep speckit- prefix
         assert format_forge_command_name("speckit.jira.sync-status") == "speckit-jira-sync-status"
         assert format_forge_command_name("speckit.foo.bar.baz") == "speckit-foo-bar-baz"
 
@@ -37,7 +39,7 @@ class TestForgeCommandNameFormatter:
         """Test that existing hyphens are preserved."""
         # Bare names without prefix stay as-is
         assert format_forge_command_name("my-extension") == "my-extension"
-        # speckit. prefix converts dots to hyphens
+        # No alias — dots become hyphens, keeping speckit- prefix
         assert format_forge_command_name("speckit.my-ext.test-cmd") == "speckit-my-ext-test-cmd"
 
     def test_alias_formatting(self):
@@ -494,13 +496,16 @@ class TestForgeCommandRegistrar:
 
         assert "speckit.git.feature" in registered
 
-        forge_cmd = tmp_path / ".forge" / "commands" / "speckit-git-feature.md"
+        # resolve_command_alias strips speckit. from extension commands
+        forge_cmd = tmp_path / ".forge" / "commands" / "git-feature.md"
         assert forge_cmd.exists(), "Expected Forge command file was not created"
 
         content = forge_cmd.read_text(encoding="utf-8")
-        # Fork uses /spec-specify instead of /speckit-specify
-        assert "/spec-specify" in content, (
-            "Expected '/spec-specify' (hyphen) in generated Forge git.feature command body, "
+        # __SPECKIT_COMMAND_SPECIFY__ resolves to /spec-specify (fork) or /speckit-specify (upstream)
+        from specify_cli import PKG_NAMES
+        pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        assert f"/{pfx}-specify" in content, (
+            f"Expected '/{pfx}-specify' (hyphen) in generated Forge git.feature command body, "
             "but it was not found. Check that __SPECKIT_COMMAND_SPECIFY__ is resolved correctly."
         )
         # Check for either speckit.specify or spec.specify (dot notation should not exist)

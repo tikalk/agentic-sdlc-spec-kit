@@ -201,9 +201,13 @@ def build_alias_map(project_root: Path) -> dict[str, str]:
                 aliases = cmd.get("aliases", [])
                 if cmd_name and aliases and isinstance(aliases, list):
                     alias_map[cmd_name] = aliases[0]
+                    # Also map replaced command name to the same alias
+                    replaces = cmd.get("replaces")
+                    if replaces:
+                        alias_map[replaces] = aliases[0]
         except Exception:
             continue
-    
+
     # Scan presets
     presets_dir = project_root / ".specify" / "presets"
     if presets_dir.is_dir():
@@ -230,9 +234,16 @@ def build_alias_map(project_root: Path) -> dict[str, str]:
                     aliases = tmpl.get("aliases", [])
                     if cmd_name and aliases and isinstance(aliases, list):
                         alias_map[cmd_name] = aliases[0]
+                        # Also map replaced command name to the same alias
+                        # so resolve_command_alias("speckit.plan") works
+                        # for the original (upstream) command name in
+                        # addition to the preset name.
+                        replaces = tmpl.get("replaces")
+                        if replaces:
+                            alias_map[replaces] = aliases[0]
             except Exception:
                 continue
-    
+
     return alias_map
 
 
@@ -1142,6 +1153,91 @@ def post_init(
 
     _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git, force=force)
     _install_bundled_presets(project_path, selected_ai, tracker, force=force)
+
+    # Resync the integration manifest — bundled presets may delete/rename
+    # skill directories (e.g. speckit-plan/ -> spec-plan/) without updating
+    # the integration manifest that was saved during setup().
+    _resync_integration_manifest(project_path, selected_ai)
+
+
+def _resync_integration_manifest(project_path: Path, selected_ai: str) -> None:
+    """Re-snapshot the integration manifest after bundled content installation.
+
+    During ``specify init``, the integration manifest is saved *before*
+    ``post_init`` runs.  Bundled presets may then:
+
+    * Delete original skill directories (via ``_cleanup_replaced_commands``)
+      and create new ones with fork-aliased names (via ``_register_skills``).
+    * Overwrite command files (``.agent.md``, ``.md``, ``.toml``) with
+      enhanced content from the preset (via ``_register_commands``).
+
+    This function loads the manifest, drops entries whose files no longer
+    exist on disk, re-hashes files whose content changed, adds new files
+    discovered in the integration directories, and re-saves.
+    """
+    import hashlib
+
+    from .integrations import get_integration
+    from .integrations.manifest import IntegrationManifest
+
+    try:
+        integration = get_integration(selected_ai)
+    except Exception:
+        return
+
+    manifest_path = (
+        project_path / ".specify" / "integrations" / f"{selected_ai}.manifest.json"
+    )
+    if not manifest_path.exists():
+        return
+
+    try:
+        manifest = IntegrationManifest.load(selected_ai, project_path)
+    except Exception:
+        return
+
+    current_files = dict(manifest.files)
+    changed = False
+
+    # 1. Drop entries whose files no longer exist on disk
+    #    and re-hash entries whose content changed.
+    for rel_path in list(current_files):
+        abs_path = project_path / rel_path
+        if not abs_path.exists():
+            del current_files[rel_path]
+            changed = True
+        elif abs_path.is_file():
+            new_hash = hashlib.sha256(abs_path.read_bytes()).hexdigest()
+            if new_hash != current_files[rel_path]:
+                current_files[rel_path] = new_hash
+                changed = True
+
+    # 2. Scan integration directories for new files to record.
+    agent_dir = project_path / integration.config.get("folder", "")
+    commands_subdir = integration.config.get("commands_subdir", "commands")
+    scan_dir = agent_dir / commands_subdir
+
+    if scan_dir.is_dir():
+        for child in scan_dir.rglob("*"):
+            if not child.is_file():
+                continue
+            try:
+                rel = child.relative_to(project_path).as_posix()
+            except ValueError:
+                continue
+            if rel not in current_files:
+                current_files[rel] = hashlib.sha256(child.read_bytes()).hexdigest()
+                changed = True
+
+    if not changed:
+        return
+
+    # Rebuild and re-save the manifest
+    manifest._files = current_files
+    try:
+        manifest.save()
+    except Exception:
+        pass  # best-effort; don't break init on manifest IO errors
 
 
 def _install_bundled_extensions(

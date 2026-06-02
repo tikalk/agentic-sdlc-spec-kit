@@ -17,6 +17,8 @@ from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import TomlIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
 
+from tests.conftest import _is_fork
+
 
 class TomlIntegrationTests:
     """Mixin — set class-level constants and inherit these tests.
@@ -496,18 +498,19 @@ class TomlIntegrationTests:
         "taskstoissues",
     ]
 
-    def _expected_files(self, script_variant: str) -> list[str]:
+    def _expected_files(self, script_variant: str, project=None) -> list[str]:
         """Build the expected file list for this integration + script variant."""
         i = get_integration(self.KEY)
         cmd_dir = i.registrar_config["dir"]
         files = []
 
-        # Command files (.toml) - fork uses spec. prefix (except taskstoissues)
+        # Command files (.toml) - fork uses spec. prefix (except taskstoissues
+        # and agent-context.update which keep the speckit prefix)
+        from tests.conftest import _cmd_prefix
+        pfx = _cmd_prefix()
         for stem in self.COMMAND_STEMS:
-            if stem == "taskstoissues":
-                files.append(f"{cmd_dir}/speckit.{stem}.toml")
-            else:
-                files.append(f"{cmd_dir}/spec.{stem}.toml")
+            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            files.append(f"{cmd_dir}/{stem_pfx}.{stem}.toml")
 
         # Framework files
         files.append(".specify/integration.json")
@@ -562,6 +565,18 @@ class TomlIntegrationTests:
         if i.context_file:
             files.append(i.context_file)
 
+        # On the fork, bundled extensions and presets create additional files.
+        # Scan the project directory so the inventory stays accurate.
+        if _is_fork() and project is not None:
+            from pathlib import Path as _Path
+            proj = _Path(project)
+            for child in proj.rglob("*"):
+                if not child.is_file():
+                    continue
+                rel = child.relative_to(proj).as_posix()
+                if rel not in files:
+                    files.append(rel)
+
         return sorted(files)
 
     def test_complete_file_inventory_sh(self, tmp_path):
@@ -594,7 +609,7 @@ class TomlIntegrationTests:
         actual = sorted(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("sh")
+        expected = self._expected_files("sh", project=project)
         missing = sorted(set(expected) - set(actual))
         assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
@@ -631,7 +646,7 @@ class TomlIntegrationTests:
         actual = sorted(
             p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file()
         )
-        expected = self._expected_files("ps")
+        expected = self._expected_files("ps", project=project)
         missing = sorted(set(expected) - set(actual))
         assert not missing, (
             f"Missing: {sorted(set(expected) - set(actual))}\n"
