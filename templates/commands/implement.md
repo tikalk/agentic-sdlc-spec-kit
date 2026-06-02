@@ -13,6 +13,25 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Dev Container Mode (when `.specify/devcontainer.json` uses `"mode": "enabled"`)
+
+If this project is configured for **Dev Container** execution (`.specify/devcontainer.json` with `"mode": "enabled"`), then **doing the implementation only by editing files in this IDE does not run inside the dev container** — the commands run on the host machine instead of the containerized environment.
+
+When the user asked to **use the Dev Container** for implementation (or when the above config is present and they want execution there), you **MUST** run the Specify CLI from the **repository root** so dispatch routes to the dev container via the `devcontainer` CLI:
+
+```bash
+devcontainer up --workspace-folder .
+specify integration invoke implement --integration devcontainer "$ARGUMENTS"
+```
+
+If `devcontainer` is already the project's default integration, `--integration devcontainer` may be omitted:
+
+```bash
+specify integration invoke implement "$ARGUMENTS"
+```
+
+Use the same shell/terminal tool you use for other repo commands; do not only describe this command — **execute it** so the command runs inside the dev container. When it runs, the Specify CLI prints lines to **stderr** prefixed with `[specify][devcontainer]` — if you see those lines in the terminal, the request was routed to the dev container. If the user prefers to stay entirely in this IDE without dev container, skip this section and implement locally as usual.
+
 ## OpenCode Docker (when `.specify/opencode.json` uses `"mode": "docker"`)
 
 If this project is configured for **OpenCode in Docker** (`specify docker-up`, `.specify/opencode.json` with `"mode": "docker"`), then **doing the implementation only by editing files in this chat does not run on OpenCode** — nothing is sent to the container, so Docker logs stay quiet.

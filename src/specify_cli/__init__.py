@@ -1133,6 +1133,13 @@ def init(
                 tracker.skip("extensions", f"hook error: {hook_err}")
                 tracker.skip("presets", f"hook error: {hook_err}")
 
+            # After all presets/extensions are installed, re-wrap for devcontainer
+            if resolved_integration.key == "devcontainer":
+                try:
+                    resolved_integration.post_preset_install(project_path)
+                except Exception as wrap_err:
+                    print(f"[specify][devcontainer] Post-init wrap failed: {wrap_err}", file=sys.stderr)
+
             tracker.complete("final", "project ready")
         except (typer.Exit, SystemExit):
             raise

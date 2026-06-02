@@ -55,6 +55,7 @@ Specify supports multiple AI agents by generating agent-specific command files a
 | **Gemini CLI**             | `.gemini/commands/`    | TOML     | `gemini`        | Google's Gemini CLI         |
 | **GitHub Copilot**         | `.github/agents/`      | Markdown | N/A (IDE-based) | GitHub Copilot in VS Code   |
 | **Cursor**                 | `.cursor/commands/`    | Markdown | N/A (IDE-based) | Cursor IDE (`--ai cursor-agent`) |
+| **Dev Container**          | `.devcontainer/commands/` | Markdown | `devcontainer` (optional) | VS Code Dev Containers (`--integration devcontainer`) |
 | **Qwen Code**              | `.qwen/commands/`      | Markdown | `qwen`          | Alibaba's Qwen Code CLI     |
 | **opencode**               | `.opencode/command/`   | Markdown | `opencode`      | opencode CLI                |
 | **Codex CLI**              | `.agents/skills/`      | Markdown | `codex`         | Codex CLI (`--ai codex --ai-skills`) |
@@ -288,6 +289,7 @@ Work within integrated development environments:
 
 - **GitHub Copilot**: Built into VS Code/compatible editors
 - **Cursor**: Built into Cursor IDE (`--ai cursor-agent`)
+- **Dev Container**: VS Code Dev Containers (`--integration devcontainer`)
 - **Windsurf**: Built into Windsurf IDE
 - **Kilo Code**: Built into Kilo Code IDE
 - **Roo Code**: Built into Roo Code IDE
@@ -299,7 +301,7 @@ Work within integrated development environments:
 
 ### Markdown Format
 
-Used by: Claude, Cursor, GitHub Copilot, opencode, Windsurf, Junie, Kiro CLI, Amp, SHAI, IBM Bob, Kimi Code, Qwen, Pi, Codex, Auggie, CodeBuddy, Qoder, Roo Code, Kilo Code, Trae, Antigravity, Mistral Vibe, iFlow, Forge
+Used by: Claude, Cursor, GitHub Copilot, Dev Container, opencode, Windsurf, Junie, Kiro CLI, Amp, SHAI, IBM Bob, Kimi Code, Qwen, Pi, Codex, Auggie, CodeBuddy, Qoder, Roo Code, Kilo Code, Trae, Antigravity, Mistral Vibe, iFlow, Forge
 
 **Standard format:**
 
@@ -355,6 +357,7 @@ Command content with {SCRIPT} and {{args}} placeholders.
 - **IDE agents**: Follow IDE-specific patterns:
   - Copilot: `.github/agents/`
   - Cursor: `.cursor/commands/`
+  - Dev Container: `.devcontainer/commands/`
   - Windsurf: `.windsurf/workflows/`
   - Kilo Code: `.kilocode/workflows/`
   - Roo Code: `.roo/commands/`
