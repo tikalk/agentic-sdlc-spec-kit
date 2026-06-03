@@ -119,7 +119,7 @@ class TestUnsupported:
         out = strip_ansi(result.output)
         assert "Could not identify your install method automatically" in out
         assert (
-            "uv tool install specify-cli --force --from "
+            "uv tool install agentic-sdlc-specify-cli --force --from "
             "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@vX.Y.Z"
         ) in out
         assert (
@@ -145,7 +145,7 @@ class TestUnsupported:
         out = strip_ansi(result.output)
         assert "Could not identify your install method automatically" in out
         assert (
-            "uv tool install specify-cli --force --from "
+            "uv tool install agentic-sdlc-specify-cli --force --from "
             "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@vX.Y.Z"
         ) in out
         assert (

@@ -332,7 +332,7 @@ class TestArgvAssemblyUvTool:
             "uv",
             "tool",
             "install",
-            "specify-cli",
+            "agentic-sdlc-specify-cli",
             "--force",
             "--from",
             "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@v0.7.6",
@@ -369,8 +369,8 @@ class TestBareUpgradeUvTool:
 
         assert result.exit_code == 0
         out = strip_ansi(result.output)
-        assert "Upgrading specify-cli 0.7.5 → v0.7.6 via uv tool:" in out
-        assert "Upgraded specify-cli: 0.7.5 → 0.7.6" in out
+        assert "Upgrading agentic-sdlc-specify-cli 0.7.5 → v0.7.6 via uv tool:" in out
+        assert "Upgraded agentic-sdlc-specify-cli: 0.7.5 → 0.7.6" in out
         assert mock_run.call_count == 2
         for call in mock_run.call_args_list:
             assert call.kwargs.get("shell", False) is False
@@ -463,7 +463,7 @@ class TestAlreadyLatestUvTool:
         assert result.exit_code == 0
         out = strip_ansi(result.output)
         assert "Already on latest release" not in out
-        assert "Upgrading specify-cli release-main → v0.7.6 via uv tool:" in out
+        assert "Upgrading agentic-sdlc-specify-cli release-main → v0.7.6 via uv tool:" in out
         assert mock_run.call_count == 2
 
     def test_unparseable_resolved_target_fails_before_literal_noop(
@@ -502,8 +502,8 @@ class TestAlreadyLatestUvTool:
         out = strip_ansi(result.output)
         assert "Already on latest release" not in out
         # A pinned older tag is a downgrade and must be labelled as such.
-        assert "Downgrading specify-cli 0.7.6 → v0.7.5 via uv tool:" in out
-        assert "Upgrading specify-cli" not in out
+        assert "Downgrading agentic-sdlc-specify-cli 0.7.6 → v0.7.5 via uv tool:" in out
+        assert "Upgrading agentic-sdlc-specify-cli" not in out
         assert mock_run.call_count == 2
 
     def test_pinned_rc_tag_uses_canonical_version_equality_for_noop(
@@ -854,7 +854,22 @@ class TestBareUpgradePipx:
         assert result.exit_code == 0
         out = strip_ansi(result.output)
         assert "via pipx:" in out
-        assert "Upgraded specify-cli: 0.7.5 → 0.7.6" in out
+        assert "Upgraded agentic-sdlc-specify-cli: 0.7.5 → 0.7.6" in out
+
+    def test_fork_release_tag_is_accepted_and_rendered_literally(self):
+        with patch("specify_cli._version.shutil.which", return_value="uv"):
+            argv = _assemble_installer_argv(
+                _InstallMethod.UV_TOOL, "agentic-sdlc-v0.9.2+adlc4"
+            )
+        assert argv == [
+            "uv",
+            "tool",
+            "install",
+            "agentic-sdlc-specify-cli",
+            "--force",
+            "--from",
+            "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-v0.9.2+adlc4",
+        ]
 
 
 class TestDetectionShortCircuit:

@@ -159,6 +159,22 @@ class TestUserStory1:
         assert "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@v0.7.4" in output
         assert "specify self upgrade" in output
         assert "pipx install --force" in output
+        assert "uv tool install agentic-sdlc-specify-cli --force --from" in output
+
+    def test_unknown_installed_handles_fork_release_tag(self):
+        with patch("specify_cli._version._get_installed_version", return_value="unknown"), patch(
+            "specify_cli.authentication.http.urllib.request.urlopen",
+            return_value=mock_urlopen_response({"tag_name": "agentic-sdlc-v0.9.2+adlc4"}),
+        ):
+            result = runner.invoke(app, ["self", "check"])
+        output = strip_ansi(result.output)
+        assert result.exit_code == 0
+        assert "Current version could not be determined" in output
+        assert "Latest release: agentic-sdlc-v0.9.2+adlc4" in output
+        assert "uv tool install agentic-sdlc-specify-cli --force --from" in output
+        assert (
+            "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@agentic-sdlc-v0.9.2+adlc4"
+        ) in output.replace("\n", "")
 
     def test_unknown_installed_uses_placeholder_when_latest_tag_is_invalid(self):
         with patch("specify_cli._version._get_installed_version", return_value="unknown"), patch(

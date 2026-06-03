@@ -31,6 +31,11 @@ from packaging.version import InvalidVersion, Version
 from ._console import console
 
 GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
+_PACKAGE_NAMES = ("agentic-sdlc-specify-cli", "specify-cli")
+_UV_TOOL_PACKAGE_NAME = _PACKAGE_NAMES[0]
+_DISPLAY_NAME = _PACKAGE_NAMES[0]
+_FORK_TAG_PREFIX = "agentic-sdlc-"
+_RELEASES_URL = "https://github.com/tikalk/agentic-sdlc-spec-kit/releases"
 _RESOLUTION_FAILURE_OFFLINE = "offline or timeout"
 _RESOLUTION_FAILURE_RATE_LIMITED = (
     "rate limited (configure ~/.specify/auth.json with a GitHub token)"
@@ -51,7 +56,7 @@ _VERIFY_TIMEOUT_SECS = 10
 
 
 def _get_installed_version() -> str:
-    """Return the installed specify-cli distribution version or 'unknown'.
+    """Return the installed CLI distribution version or 'unknown'.
 
     Uses importlib.metadata so the value reflects what was actually installed
     by pip/uv/pipx — not a value read from pyproject.toml. This is
@@ -66,10 +71,12 @@ def _get_installed_version() -> str:
     if invalid_metadata_error is not None:
         metadata_errors.append(invalid_metadata_error)
 
-    try:
-        return importlib.metadata.version("specify-cli")
-    except tuple(metadata_errors):
-        return "unknown"
+    for package_name in _PACKAGE_NAMES:
+        try:
+            return importlib.metadata.version(package_name)
+        except tuple(metadata_errors):
+            continue
+    return "unknown"
 
 
 def _normalize_tag(tag: str) -> str:
@@ -78,7 +85,10 @@ def _normalize_tag(tag: str) -> str:
     Any trailing text after a recognized prerelease marker is preserved; callers
     still validate the returned value with `packaging.version.Version`.
     """
-    normalized = tag[1:] if tag.startswith("v") else tag
+    normalized = tag
+    if normalized.startswith(_FORK_TAG_PREFIX):
+        normalized = normalized[len(_FORK_TAG_PREFIX) :]
+    normalized = normalized[1:] if normalized.startswith("v") else normalized
     prerelease_match = _PRERELEASE_TAG_PATTERN.match(normalized)
     if prerelease_match is None:
         return normalized
@@ -293,7 +303,7 @@ def _scrubbed_env() -> dict[str, str]:
 # so they can compose (e.g. v1.0.0-rc1+build.42) — matching PEP 440 /semver,
 # which the Version() check below then enforces canonically.
 _TAG_REGEX = re.compile(
-    r"^v[0-9]+\.[0-9]+\.[0-9]+"
+    r"^(?:agentic-sdlc-)?v[0-9]+\.[0-9]+\.[0-9]+"
     r"(?:(?:\.?dev[0-9]+)|(?:[-.]?(?:a|b|rc|alpha|beta)[-.]?[0-9]+))?"
     r"(?:\+[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)*)?$"
 )
@@ -303,16 +313,18 @@ _INVALID_TAG_MESSAGE = "Invalid --tag: expected vMAJOR.MINOR.PATCH[suffix]"
 def _validate_tag(tag: str) -> str:
     """Validate a user-supplied --tag value.
 
-    Accepts vX.Y.Z plus an optional dev or alpha/beta/rc suffix and/or an
-    optional build-metadata suffix, which may combine (for example:
-    v1.0.0-rc1, v0.8.0.dev0, v0.8.0+build.42, v1.0.0-rc1+build.42). An
-    uppercase ``V`` prefix is accepted and folded to the canonical lowercase
-    ``v``. Rejects everything else, including bare 'latest', hash refs, branch
-    names, and numeric versions without the 'v' prefix.
+    Accepts either ``vX.Y.Z`` or ``agentic-sdlc-vX.Y.Z`` plus an optional dev
+    or alpha/beta/rc suffix and/or an optional build-metadata suffix, which may
+    combine. An uppercase ``V`` prefix is accepted and folded to the canonical
+    lowercase ``v`` after any supported fork prefix. Rejects everything else,
+    including bare 'latest', hash refs, branch names, and numeric versions
+    without the version prefix.
     """
     tag = tag.strip()
     if not tag:
         raise typer.BadParameter(_INVALID_TAG_MESSAGE)
+    if tag.startswith(f"{_FORK_TAG_PREFIX}V"):
+        tag = f"{_FORK_TAG_PREFIX}v{tag[len(_FORK_TAG_PREFIX) + 1:]}"
     # Fold a leading uppercase `V` (a common paste) to the canonical lowercase
     # `v`. The remainder stays case-sensitive on purpose: the validated tag is
     # used verbatim as a git ref, which is case-sensitive on GitHub, so we must
@@ -401,13 +413,13 @@ def _tier3_registry_lookup_allowed(argv0_path: Path) -> bool:
 
 
 def _uv_tool_list_contains_specify_cli(stdout: str) -> bool:
-    """Return whether `uv tool list` output includes an exact `specify-cli` entry."""
+    """Return whether `uv tool list` output includes a known CLI package entry."""
     for raw_line in stdout.splitlines():
         line = raw_line.strip()
         if not line:
             continue
         first_token = line.split(None, 1)[0]
-        if first_token == "specify-cli":
+        if first_token in _PACKAGE_NAMES:
             return True
     return False
 
@@ -429,9 +441,14 @@ def _editable_direct_url_path() -> Path | None:
     if invalid_metadata_error is not None:
         metadata_errors.append(invalid_metadata_error)
 
-    try:
-        dist = _md.distribution("specify-cli")
-    except tuple(metadata_errors):
+    dist = None
+    for package_name in _PACKAGE_NAMES:
+        try:
+            dist = _md.distribution(package_name)
+            break
+        except tuple(metadata_errors):
+            continue
+    if dist is None:
         return None
 
     payload = dist.read_text("direct_url.json")
@@ -558,7 +575,7 @@ def _detect_install_method(
                 if result.returncode == 0:
                     payload = json.loads(result.stdout or "")
                     venvs = payload.get("venvs") if isinstance(payload, dict) else None
-                    if isinstance(venvs, dict) and "specify-cli" in venvs:
+                    if isinstance(venvs, dict) and any(name in venvs for name in _PACKAGE_NAMES):
                         pipx_match = True
             except (subprocess.TimeoutExpired, OSError, ValueError):
                 pass
@@ -631,7 +648,7 @@ def _assemble_installer_argv(
             uv_bin,
             "tool",
             "install",
-            "specify-cli",
+            _UV_TOOL_PACKAGE_NAME,
             "--force",
             "--from",
             source_spec,
@@ -913,9 +930,14 @@ def _source_checkout_path() -> Path | None:
     if invalid_metadata_error is not None:
         metadata_errors.append(invalid_metadata_error)
 
-    try:
-        dist = _md.distribution("specify-cli")
-    except tuple(metadata_errors):
+    dist = None
+    for package_name in _PACKAGE_NAMES:
+        try:
+            dist = _md.distribution(package_name)
+            break
+        except tuple(metadata_errors):
+            continue
+    if dist is None:
         return None
     files = dist.files or []
     for f in files:
@@ -965,7 +987,7 @@ def _emit_guidance(method: _InstallMethod, target_tag: str | None) -> None:
             soft_wrap=True,
         )
         console.print(
-            f"  uv tool install specify-cli --force --from "
+            f"  uv tool install {_UV_TOOL_PACKAGE_NAME} --force --from "
             f"{_manual_source_spec(target_tag)}",
             soft_wrap=True,
         )
@@ -985,13 +1007,13 @@ def _rollback_hint(plan: _UpgradePlan) -> str:
     if plan.pre_upgrade_snapshot == "unknown":
         return (
             "Could not determine the previous version; "
-            "reinstall manually from: https://github.com/tikalk/agentic-sdlc-spec-kit/releases"
+            f"reinstall manually from: {_RELEASES_URL}"
         )
     rollback_tag = _stable_release_tag_for_version(plan.pre_upgrade_snapshot)
     if rollback_tag is None:
         return (
             "Previous version was not an exact stable release tag; "
-            "reinstall manually from: https://github.com/tikalk/agentic-sdlc-spec-kit/releases"
+            f"reinstall manually from: {_RELEASES_URL}"
         )
     if plan.method == _InstallMethod.PIPX:
         return (
@@ -999,8 +1021,8 @@ def _rollback_hint(plan: _UpgradePlan) -> str:
             f"git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{rollback_tag}"
         )
     return (
-        f"To pin back to the previous version: uv tool install specify-cli --force "
-        f"--from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{rollback_tag}"
+        f"To pin back to the previous version: uv tool install {_UV_TOOL_PACKAGE_NAME} --force "
+        f"--from {_GITHUB_SOURCE_URL}@{rollback_tag}"
     )
 
 
@@ -1141,7 +1163,7 @@ self_app = typer.Typer(
 
 @self_app.command("check")
 def self_check() -> None:
-    """Check whether a newer specify-cli release is available. Read-only.
+    """Check whether a newer CLI release is available. Read-only.
 
     This command only checks for updates; it does not modify your installation.
     Use `specify self upgrade` to actually perform the upgrade once you've seen
@@ -1174,7 +1196,7 @@ def self_check() -> None:
         console.print("[yellow]Could not validate latest release tag from GitHub.[/yellow]")
         console.print("\nManual fallback:")
         console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
+            f"  uv tool install {_UV_TOOL_PACKAGE_NAME} --force --from {_manual_source_spec(manual_tag)}"
         )
         console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
         return
@@ -1186,7 +1208,7 @@ def self_check() -> None:
         console.print(f"Latest release: {latest_display}")
         console.print("\nManual fallback:")
         console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
+            f"  uv tool install {_UV_TOOL_PACKAGE_NAME} --force --from {_manual_source_spec(manual_tag)}"
         )
         console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
         console.print("\nIf this install can still be detected:")
@@ -1200,7 +1222,7 @@ def self_check() -> None:
         console.print("  specify self upgrade")
         console.print("\nManual fallback:")
         console.print(
-            f"  uv tool install specify-cli --force --from {_manual_source_spec(manual_tag)}"
+            f"  uv tool install {_UV_TOOL_PACKAGE_NAME} --force --from {_manual_source_spec(manual_tag)}"
         )
         console.print(f"  pipx install --force {_manual_source_spec(manual_tag)}")
         return
@@ -1227,7 +1249,7 @@ def self_upgrade(
         "latest stable release is resolved via GitHub Releases.",
     ),
 ) -> None:
-    """Upgrade specify-cli to the latest release (or a pinned --tag).
+    """Upgrade the CLI to the latest release (or a pinned --tag).
 
     Bare invocation executes immediately with no confirmation prompt, matching
     pip install -U / uv tool upgrade / npm update conventions. Use --dry-run
@@ -1367,7 +1389,7 @@ def self_upgrade(
     )
     argv_str = _render_argv(plan.installer_argv) if plan.installer_argv else ""
     console.print(
-        f"{verb} specify-cli {plan.current_version} → {plan.target_tag} "
+        f"{verb} {_DISPLAY_NAME} {plan.current_version} → {plan.target_tag} "
         f"via {_method_label(plan.method)}: {argv_str}",
         soft_wrap=True,
     )
@@ -1424,6 +1446,6 @@ def self_upgrade(
     pre_upgrade_display = _canonicalize_version_text(plan.pre_upgrade_snapshot)
     verified_display = _canonicalize_version_text(verified)
     console.print(
-        f"Upgraded specify-cli: {pre_upgrade_display} → {verified_display}",
+        f"Upgraded {_DISPLAY_NAME}: {pre_upgrade_display} → {verified_display}",
         soft_wrap=True,
     )

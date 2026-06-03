@@ -90,7 +90,7 @@ class TestVerificationMismatch:
             result = runner.invoke(app, ["self", "upgrade", "--tag", "v1.0.0-rc1"])
 
         assert result.exit_code == 0
-        assert "Upgraded specify-cli: 0.9.0 → 1.0.0rc1" in strip_ansi(result.output)
+        assert "Upgraded agentic-sdlc-specify-cli: 0.9.0 → 1.0.0rc1" in strip_ansi(result.output)
 
     def test_verify_accepts_specify_cli_binary_name_in_version_output(
         self,
@@ -110,7 +110,7 @@ class TestVerificationMismatch:
             result = runner.invoke(app, ["self", "upgrade"])
 
         assert result.exit_code == 0
-        assert "Upgraded specify-cli: 0.7.5 → 0.7.6" in strip_ansi(result.output)
+        assert "Upgraded agentic-sdlc-specify-cli: 0.7.5 → 0.7.6" in strip_ansi(result.output)
 
     def test_verify_accepts_capitalized_binary_name_in_version_output(
         self,
@@ -130,7 +130,7 @@ class TestVerificationMismatch:
             result = runner.invoke(app, ["self", "upgrade"])
 
         assert result.exit_code == 0
-        assert "Upgraded specify-cli: 0.7.5 → 0.7.6" in strip_ansi(result.output)
+        assert "Upgraded agentic-sdlc-specify-cli: 0.7.5 → 0.7.6" in strip_ansi(result.output)
 
     def test_verify_rejects_output_without_parseable_version(
         self,
@@ -166,7 +166,7 @@ class TestVerificationMismatch:
             method=_InstallMethod.UV_TOOL,
             current_version="0.7.5",
             target_tag="v0.7.6",
-            installer_argv=["/usr/bin/uv", "tool", "install", "specify-cli"],
+            installer_argv=["/usr/bin/uv", "tool", "install", "agentic-sdlc-specify-cli"],
             preview_summary="",
             pre_upgrade_snapshot="0.7.5",
         )
@@ -194,7 +194,7 @@ class TestVerificationMismatch:
             method=_InstallMethod.UV_TOOL,
             current_version="0.7.5",
             target_tag="v0.7.6",
-            installer_argv=["/usr/bin/uv", "tool", "install", "specify-cli"],
+            installer_argv=["/usr/bin/uv", "tool", "install", "agentic-sdlc-specify-cli"],
             preview_summary="",
             pre_upgrade_snapshot="0.7.5",
         )
@@ -224,7 +224,7 @@ class TestVerificationMismatch:
             method=_InstallMethod.UV_TOOL,
             current_version="0.7.5",
             target_tag="v0.7.6",
-            installer_argv=["/usr/bin/uv", "tool", "install", "specify-cli"],
+            installer_argv=["/usr/bin/uv", "tool", "install", "agentic-sdlc-specify-cli"],
             preview_summary="",
             pre_upgrade_snapshot="0.7.5",
         )
@@ -255,7 +255,7 @@ class TestVerificationMismatch:
             method=_InstallMethod.UV_TOOL,
             current_version="0.7.5",
             target_tag="v0.7.6",
-            installer_argv=["/usr/bin/uv", "tool", "install", "specify-cli"],
+            installer_argv=["/usr/bin/uv", "tool", "install", "agentic-sdlc-specify-cli"],
             preview_summary="",
             pre_upgrade_snapshot="0.7.5",
         )
@@ -494,8 +494,19 @@ class TestUnknownCurrent:
 
         assert result.exit_code == 0
         out = strip_ansi(result.output)
-        assert "Upgrading specify-cli unknown → v0.7.6 via uv tool:" in out
-        assert "Upgraded specify-cli: unknown → 0.7.6" in out
+        assert "Upgrading agentic-sdlc-specify-cli unknown → v0.7.6 via uv tool:" in out
+        assert "Upgraded agentic-sdlc-specify-cli: unknown → 0.7.6" in out
+
+    def test_valid_fork_release_tag(self, uv_tool_argv0, clean_environ):
+        with patch("specify_cli._version.shutil.which", return_value="uv"), patch(
+            "specify_cli._version._get_installed_version", return_value="0.9.1"
+        ):
+            result = runner.invoke(
+                app,
+                ["self", "upgrade", "--dry-run", "--tag", "agentic-sdlc-v0.9.2+adlc4"],
+            )
+        assert result.exit_code == 0
+        assert "Target version: agentic-sdlc-v0.9.2+adlc4" in strip_ansi(result.output)
 
     def test_unknown_current_rollback_hint_degrades(
         self,

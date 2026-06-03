@@ -413,7 +413,7 @@ class TestInstallerFailed:
         assert "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@v0.7.6" in out
         assert (
             "To pin back to the previous version: "
-            "uv tool install specify-cli --force --from "
+            "uv tool install agentic-sdlc-specify-cli --force --from "
             "git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@v0.7.5"
         ) in out
         # No verification attempted after a failed installer run.
@@ -518,7 +518,7 @@ class TestInstallerFailed:
         assert result.exit_code == 2
         out = strip_ansi(result.output)
         assert (
-            "To pin back to the previous version: uv tool install specify-cli --force "
+            "To pin back to the previous version: uv tool install agentic-sdlc-specify-cli --force "
             "--from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@v0.7.5"
         ) in out
         assert "Previous version was not an exact stable release tag" not in out
