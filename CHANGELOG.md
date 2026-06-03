@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.2+adlc2] - 2026-06-03
+
+### Fixed
+
+- **Project-scoped alias resolution for skills/hooks**: `HookExecutor._skill_name_from_command()` now accepts `project_root` and resolves aliases against the target project instead of `Path.cwd()`. `HookExecutor._render_hook_invocation()` now passes `self.project_root`, so hook invocations correctly render `spec-plan` / `spec-tasks` inside projects with the `agentic-sdlc` preset installed, while preserving `speckit-*` for commands that intentionally remain upstream-named (`git.*`, `agent-context`, `tasktoissues`) or for clean projects without the preset.
+- **Project-scoped alias resolution for generated skill filenames**: `CommandRegistrar._compute_output_name()` now threads `project_root` into `compute_skill_output_name(...)` at registration, alias-registration, and unregister cleanup sites. Generated skill/command output names now depend on the project's installed preset/extension aliases rather than the process working directory.
+- **Fork CI regressions in clean checkouts**: restored the correct expectations for commands without fork aliases (`speckit-git-feature`, `speckit-specify`, `speckit-shortcut`) and updated hook-rendering tests to install the bundled `agentic-sdlc` preset before asserting `spec-` output for core commands like `plan` and `tasks`.
+
 # [0.9.2+adlc1] - 2026-06-03
 
 ### Changed
@@ -4076,4 +4084,3 @@ The following entries are from the upstream spec-kit project and are included fo
 ### Changed
 
 - Update release.yml
-

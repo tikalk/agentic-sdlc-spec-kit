@@ -431,17 +431,23 @@ class CommandRegistrar:
 
     @staticmethod
     def _compute_output_name(
-        agent_name: str, cmd_name: str, agent_config: Dict[str, Any]
+        agent_name: str,
+        cmd_name: str,
+        agent_config: Dict[str, Any],
+        project_root: Optional[Path] = None,
     ) -> str:
         """Compute the on-disk command or skill name for an agent.
 
         Uses fork-specific naming when available, falling back to upstream behavior.
+        Alias resolution is scoped to *project_root* so fork aliases defined by
+        the project's installed extensions/presets are honored regardless of the
+        process working directory.
         """
         # Try to use fork-specific function first (if in fork)
         from specify_cli import compute_skill_output_name
 
         if compute_skill_output_name is not None:
-            return compute_skill_output_name(cmd_name, agent_config)
+            return compute_skill_output_name(cmd_name, agent_config, project_root)
 
         # Fallback to upstream behavior
         if agent_config["extension"] != "/SKILL.md":
@@ -607,7 +613,7 @@ class CommandRegistrar:
             body = IntegrationBase.resolve_command_refs(body, _sep)
 
             if not _skip_primary:
-                output_name = self._compute_output_name(agent_name, cmd_name, agent_config)
+                output_name = self._compute_output_name(agent_name, cmd_name, agent_config, project_root)
 
                 if agent_config["extension"] == "/SKILL.md":
                     output = self.render_skill_command(
@@ -664,7 +670,7 @@ class CommandRegistrar:
 
             for alias in aliases:
                 alias_output_name = self._compute_output_name(
-                    agent_name, alias, agent_config
+                    agent_name, alias, agent_config, project_root
                 )
 
                 # For agents with inject_name, render with alias-specific frontmatter
@@ -1003,7 +1009,7 @@ class CommandRegistrar:
 
             for cmd_name in cmd_names:
                 output_name = self._compute_output_name(
-                    agent_name, cmd_name, agent_config
+                    agent_name, cmd_name, agent_config, project_root
                 )
 
                 names_to_clean = [output_name]

@@ -261,9 +261,11 @@ class TestClaudeIntegration:
 
     def test_claude_hooks_render_skill_invocation(self, tmp_path):
         from specify_cli.extensions import HookExecutor
+        from tests.conftest import install_preset_to
 
         project = tmp_path / "claude-hooks"
         project.mkdir()
+        install_preset_to(project)
         init_options = project / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "claude", "ai_skills": True}))
@@ -280,7 +282,7 @@ class TestClaudeIntegration:
             ],
         )
 
-        pfx = _skill_prefix("plan")
+        pfx = _skill_prefix("plan", project_root=project)
         assert f"Executing: `/{pfx}-plan`" in message
         assert "EXECUTE_COMMAND: speckit.plan" in message
         assert f"EXECUTE_COMMAND_INVOCATION: /{pfx}-plan" in message

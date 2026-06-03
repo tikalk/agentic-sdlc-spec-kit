@@ -1301,9 +1301,18 @@ $ARGUMENTS
         assert not (claude_dir / "speckit-ext-alias-cmd" / "SKILL.md").exists()
 
     def test_unregister_commands_for_codex_skills_uses_mapped_names(self, project_dir):
-        """Codex skill cleanup should use the same mapped names as registration."""
-        specify_dir = HookExecutor._skill_name_from_command("speckit.specify")
-        shortcut_dir = HookExecutor._skill_name_from_command("speckit.shortcut")
+        """Codex skill cleanup should use the same mapped names as registration.
+
+        The dir names are computed with the SAME project-scoped resolution that
+        ``unregister_commands`` uses, so the test is deterministic regardless of
+        the process working directory (no preset installed here -> speckit-*).
+        """
+        specify_dir = HookExecutor._skill_name_from_command(
+            "speckit.specify", project_dir
+        )
+        shortcut_dir = HookExecutor._skill_name_from_command(
+            "speckit.shortcut", project_dir
+        )
         skills_dir = project_dir / ".agents" / "skills"
         (skills_dir / specify_dir).mkdir(parents=True)
         (skills_dir / specify_dir / "SKILL.md").write_text("body")
@@ -4756,7 +4765,11 @@ class TestHookInvocationRendering:
     """Test hook invocation formatting for different agent modes."""
 
     def test_kimi_hooks_render_skill_invocation(self, project_dir):
-        """Kimi projects should render /skill:speckit-* invocations."""
+        """Kimi projects should render /skill:<prefix>-* invocations."""
+        from tests.conftest import _skill_prefix, install_preset_to
+        # Install the bundled preset so fork aliases (speckit.plan -> spec.plan)
+        # resolve against this project root, exercising the fork's spec- output.
+        install_preset_to(project_dir)
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
@@ -4773,14 +4786,15 @@ class TestHookInvocationRendering:
             ],
         )
 
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        _pfx = _skill_prefix("plan", project_root=project_dir)
         assert f"Executing: `/skill:{_pfx}-plan`" in message
         assert "EXECUTE_COMMAND: speckit.plan" in message
         assert f"EXECUTE_COMMAND_INVOCATION: /skill:{_pfx}-plan" in message
 
     def test_codex_hooks_render_dollar_skill_invocation(self, project_dir):
-        """Codex projects with --ai-skills should render $speckit-* invocations."""
+        """Codex projects with --ai-skills should render $<prefix>-* invocations."""
+        from tests.conftest import _skill_prefix, install_preset_to
+        install_preset_to(project_dir)
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "codex", "ai_skills": True}))
@@ -4795,8 +4809,7 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "speckit.tasks"
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        _pfx = _skill_prefix("tasks", project_root=project_dir)
         assert execution["invocation"] == f"${_pfx}-tasks"
 
     def test_cline_hooks_render_hyphenated_invocation(self, project_dir):
@@ -4886,6 +4899,8 @@ class TestHookInvocationRendering:
 
     def test_hook_executor_caches_init_options_lookup(self, project_dir, monkeypatch):
         """Init options should be loaded once per executor instance."""
+        from tests.conftest import _skill_prefix, install_preset_to
+        install_preset_to(project_dir)
         calls = {"count": 0}
 
         def fake_load_init_options(_project_root):
@@ -4895,8 +4910,7 @@ class TestHookInvocationRendering:
         monkeypatch.setattr("specify_cli.load_init_options", fake_load_init_options)
 
         hook_executor = HookExecutor(project_dir)
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        _pfx = _skill_prefix("plan", project_root=project_dir)
         assert hook_executor._render_hook_invocation("speckit.plan") == f"/skill:{_pfx}-plan"
         assert hook_executor._render_hook_invocation("speckit.tasks") == f"/skill:{_pfx}-tasks"
         assert calls["count"] == 1

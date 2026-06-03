@@ -265,8 +265,11 @@ class TestAgentConfigConsistency:
         )
 
         assert "speckit.git.feature" in registered
+        # No preset/git-extension is installed in this tmp_path, so the
+        # git.feature command has no fork alias and keeps the upstream
+        # ``speckit-`` skill directory name.
         skill_file = (
-            tmp_path / ".claude" / "skills" / "git-feature" / "SKILL.md"
+            tmp_path / ".claude" / "skills" / "speckit-git-feature" / "SKILL.md"
         )
         assert skill_file.exists(), (
             f"Expected Claude skill file not found at {skill_file}"

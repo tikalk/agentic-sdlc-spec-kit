@@ -2512,8 +2512,14 @@ class HookExecutor:
         return self._init_options_cache
 
     @staticmethod
-    def _skill_name_from_command(command: Any) -> str:
-        """Map a command id like speckit.plan to <prefix>-plan skill name."""
+    def _skill_name_from_command(command: Any, project_root: Optional[Path] = None) -> str:
+        """Map a command id like speckit.plan to <prefix>-plan skill name.
+
+        Alias resolution is scoped to *project_root* (the project whose
+        installed extensions/presets define the alias map). When omitted it
+        falls back to the current working directory, which only works when
+        the caller is running from inside the target project.
+        """
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
@@ -2521,7 +2527,7 @@ class HookExecutor:
         # Resolve alias first
         try:
             from specify_cli.cli_customization import resolve_command_alias
-            resolved_name = resolve_command_alias(command_id, None)
+            resolved_name = resolve_command_alias(command_id, project_root)
         except Exception:
             resolved_name = command_id
 
@@ -2567,7 +2573,7 @@ class HookExecutor:
         cursor_skill_mode = selected_ai == "cursor-agent" and bool(init_options.get("ai_skills"))
         cline_mode = selected_ai == "cline"
 
-        skill_name = self._skill_name_from_command(command_id)
+        skill_name = self._skill_name_from_command(command_id, self.project_root)
         if codex_skill_mode and skill_name:
             return f"${skill_name}"
         if claude_skill_mode and skill_name:
