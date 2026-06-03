@@ -13,7 +13,6 @@ Usage:
         ...
 """
 
-import os
 from typing import ClassVar
 
 from specify_cli import PKG_NAMES

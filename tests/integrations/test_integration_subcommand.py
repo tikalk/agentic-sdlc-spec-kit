@@ -231,7 +231,7 @@ class TestIntegrationInstall:
         assert data["integration_settings"]["claude"]["invoke_separator"] == "-"
         assert data["integration_settings"]["codex"]["invoke_separator"] == "-"
 
-        pfx = _skill_prefix("plan")
+        pfx = _skill_prefix("plan", project_root=project)
         assert (project / ".claude" / "skills" / f"{pfx}-plan" / "SKILL.md").exists()
         assert (project / ".agents" / "skills" / f"{pfx}-plan" / "SKILL.md").exists()
 
@@ -424,7 +424,7 @@ class TestIntegrationUninstall:
     def test_uninstall_removes_files(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Claude uses skills directory
-        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
         assert (project / ".specify" / "integrations" / "claude.manifest.json").exists()
 
         old_cwd = os.getcwd()
@@ -437,7 +437,7 @@ class TestIntegrationUninstall:
         assert "uninstalled" in result.output
 
         # Command files removed
-        assert not (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
 
         # Manifest removed
         assert not (project / ".specify" / "integrations" / "claude.manifest.json").exists()
@@ -448,7 +448,7 @@ class TestIntegrationUninstall:
     def test_uninstall_preserves_modified_files(self, tmp_path):
         """Full lifecycle: install → modify → uninstall → modified file kept."""
         project = _init_project(tmp_path, "claude")
-        plan_file = project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md"
+        plan_file = project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md"
         assert plan_file.exists()
 
         # Modify a file
@@ -462,7 +462,7 @@ class TestIntegrationUninstall:
             os.chdir(old_cwd)
         assert result.exit_code == 0
         assert "preserved" in result.output
-        assert f".claude/skills/{_skill_dir_name('plan')}/SKILL.md" in result.output
+        assert f".claude/skills/{_skill_dir_name('plan', project_root=project)}/SKILL.md" in result.output
 
         # Modified file kept
         assert plan_file.exists()
@@ -510,8 +510,8 @@ class TestIntegrationUninstall:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, result.output
-        assert not (project / ".agents" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
-        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert not (project / ".agents" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == "claude"
@@ -797,7 +797,7 @@ class TestIntegrationSwitch:
     def test_switch_between_integrations(self, tmp_path):
         project = _init_project(tmp_path, "claude")
         # Verify claude files exist (claude uses skills)
-        assert (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert (project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
         shared_script = project / ".specify" / "scripts" / "bash" / "check-prerequisites.sh"
         assert f"{_content_ref('specify')}" in shared_script.read_text(encoding="utf-8")
 
@@ -814,7 +814,7 @@ class TestIntegrationSwitch:
         assert "Switched to" in result.output
 
         # Old claude files removed
-        assert not (project / ".claude" / "skills" / _skill_dir_name("plan") / "SKILL.md").exists()
+        assert not (project / ".claude" / "skills" / _skill_dir_name("plan", project_root=project) / "SKILL.md").exists()
 
         # New copilot files created
         assert (project / ".github" / "agents" / f"{_cmd_prefix()}.plan.agent.md").exists()
@@ -834,7 +834,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         # Verify git extension skills exist for kimi
-        kimi_git_feature = project / f".kimi/skills/{_skill_dir_name('git.feature')}/SKILL.md"
+        kimi_git_feature = project / f".kimi/skills/{_skill_dir_name('git.feature', project_root=project)}/SKILL.md"
         assert kimi_git_feature.exists(), "Git extension skill should exist for kimi"
 
         result = _run_in_project(project, [
@@ -867,7 +867,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
 
         # Git extension skills should exist for claude
-        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature')}/SKILL.md"
+        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature', project_root=project)}/SKILL.md"
         assert claude_git_feature.exists(), "Git extension skill should exist for claude"
 
         # Old opencode extension commands should be removed
@@ -895,7 +895,7 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        copilot_git_feature = project / f".github/skills/{_skill_dir_name('git.feature')}/SKILL.md"
+        copilot_git_feature = project / f".github/skills/{_skill_dir_name('git.feature', project_root=project)}/SKILL.md"
         copilot_agent_file = project / ".github" / "agents" / "git.feature.agent.md"
         assert copilot_git_feature.exists(), "Git extension skill should exist for Copilot skills mode"
         assert not copilot_agent_file.exists(), "Copilot skills mode should not create extension .agent.md files"
@@ -949,7 +949,7 @@ class TestIntegrationSwitch:
         ])
         assert result.exit_code == 0, result.output
 
-        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature')}/SKILL.md"
+        claude_git_feature = project / f".claude/skills/{_skill_dir_name('git.feature', project_root=project)}/SKILL.md"
         assert not claude_git_feature.exists(), "Disabled extension should not be registered for new agent"
         assert not opencode_git_feature.exists(), "Old disabled extension command should be removed on switch"
 

@@ -5,6 +5,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -81,7 +82,9 @@ def _cmd_prefix() -> str:
     return "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
 
 
-def _skill_prefix(command: str | None = None) -> str:
+def _skill_prefix(
+    command: str | None = None, project_root: Path | None = None
+) -> str:
     """Return the skill name prefix for the current installation.
 
     When *command* is given, resolves whether that specific command has a
@@ -93,11 +96,17 @@ def _skill_prefix(command: str | None = None) -> str:
 
     When *command* is ``None``, falls back to the global fork detection
     based on :data:`PKG_NAMES` for backward compatibility.
+
+    *project_root* should be the directory where the preset/extension
+    bundle is installed; it defaults to ``Path.cwd()`` which only works
+    when the test is run from inside the project under test.
     """
     if command is not None:
         try:
             from specify_cli.cli_customization import resolve_command_alias
-            aliased = resolve_command_alias(f"speckit.{command}")
+            aliased = resolve_command_alias(
+                f"speckit.{command}", project_root=project_root
+            )
             return "spec" if aliased != f"speckit.{command}" else "speckit"
         except Exception:
             pass
@@ -115,7 +124,7 @@ def _content_ref(name: str, sep: str = "-") -> str:
     return f"/{_cmd_prefix()}{sep}{name}"
 
 
-def _skill_dir_name(command: str) -> str:
+def _skill_dir_name(command: str, project_root: Path | None = None) -> str:
     """Return the on-disk skill directory name for *command*.
 
     Mirrors :func:`specify_cli.cli_customization.compute_skill_output_name`
@@ -124,11 +133,15 @@ def _skill_dir_name(command: str) -> str:
     fork prefix replaces the namespace; otherwise the alias is used
     as-is (no prefix) — matching the upstream behavior for extension
     commands like ``git.feature`` which resolve to ``git-feature``.
+
+    *project_root* should be the directory where the preset/extension
+    bundle is installed; it defaults to ``Path.cwd()`` which only works
+    when the test is run from inside the project under test.
     """
     try:
         from specify_cli.cli_customization import resolve_command_alias
         canonical = f"speckit.{command}"
-        aliased = resolve_command_alias(canonical)
+        aliased = resolve_command_alias(canonical, project_root=project_root)
         if aliased == canonical:
             return f"speckit-{command.replace('.', '-')}"
         # Aliased — strip namespace prefix and apply fork prefix

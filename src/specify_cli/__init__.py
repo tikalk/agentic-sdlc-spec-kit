@@ -2680,7 +2680,7 @@ def preset_disable(
     console.print(f"[green]✓[/green] Preset '{preset_id}' disabled")
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]")
-    console.print(f"To re-enable: specify preset enable {preset_id}")
+    console.print(f"To re-enable: {accent(f'specify preset enable {preset_id}')}")
 
 
 # ===== Preset Catalog Commands =====
@@ -2983,7 +2983,7 @@ def extension_list(
     if not installed and not (available or all_extensions):
         console.print("[yellow]No extensions installed.[/yellow]")
         console.print("\nInstall an extension with:")
-        console.print("  specify extension add <extension-name>")
+        console.print(f"  {accent('specify extension add <extension-name>')}")
         return
 
     if installed:
@@ -3284,7 +3284,7 @@ def extension_add(
                     if not ext_info:
                         console.print(f"[red]Error:[/red] Extension '{extension}' not found in catalog")
                         console.print("\nSearch available extensions:")
-                        console.print("  specify extension search")
+                        console.print(f"  {accent('specify extension search')}")
                         raise typer.Exit(1)
 
                     # If catalog resolved a display name to an ID, check bundled again
@@ -3437,7 +3437,7 @@ def extension_remove(
             console.print(f"\nConfig files preserved in .specify/extensions/{extension_id}/")
         else:
             console.print(f"\nConfig files backed up to .specify/extensions/.backup/{extension_id}/")
-        console.print(f"\nTo reinstall: specify extension add {extension_id}")
+        console.print(f"\nTo reinstall: {accent(f'specify extension add {extension_id}')}")
     else:
         console.print("[red]Error:[/red] Failed to remove extension")
         raise typer.Exit(1)
@@ -3466,7 +3466,7 @@ def extension_search(
                 console.print("\nTry:")
                 console.print("  • Broader search terms")
                 console.print("  • Remove filters")
-                console.print("  • specify extension search (show all)")
+                console.print(f"  • {accent('specify extension search')} (show all)")
             raise typer.Exit(0)
 
         console.print(f"\n[green]Found {len(results)} extension(s):[/green]\n")
@@ -3510,9 +3510,10 @@ def extension_search(
                 console.print(f"\n  {accent('Install:')} specify extension add {ext['id']}")
             else:
                 console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'.")
+                ext_id_zip = ext['id']
                 console.print(
                     f"  Add to an approved catalog with install_allowed: true, "
-                    f"or install from a ZIP URL: specify extension add {ext['id']} --from <zip-url>"
+                    f"or install from a ZIP URL: {accent(f'specify extension add {ext_id_zip} --from <zip-url>')}"
                 )
             console.print()
 
@@ -3594,7 +3595,7 @@ def extension_info(
         console.print("[green]✓ Installed[/green]")
         priority = normalize_priority(metadata.get("priority") if metadata_is_dict else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
-        console.print(f"\nTo remove: specify extension remove {resolved_installed_id}")
+        console.print(f"\nTo remove: {accent(f'specify extension remove {resolved_installed_id}')}")
         return
 
     # Case 3: Not found anywhere
@@ -3603,7 +3604,7 @@ def extension_info(
         console.print("\nTry again when online, or use the extension ID directly.")
     else:
         console.print(f"[red]Error:[/red] Extension '{extension}' not found")
-        console.print("\nTry: specify extension search")
+        console.print(f"\nTry: {accent('specify extension search')}")
     raise typer.Exit(1)
 
 
@@ -3692,7 +3693,8 @@ def _print_extension_info(ext_info: dict, manager):
         metadata = manager.registry.get(ext_info['id'])
         priority = normalize_priority(metadata.get("priority") if isinstance(metadata, dict) else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
-        console.print(f"\nTo remove: specify extension remove {ext_info['id']}")
+        ext_info_id = ext_info['id']
+        console.print(f"\nTo remove: {accent(f'specify extension remove {ext_info_id}')}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
         console.print(f"\n{accent('Install:')} specify extension add {ext_info['id']}")
@@ -4294,7 +4296,7 @@ def extension_disable(
 
     console.print(f"[green]✓[/green] Extension '{display_name}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
-    console.print(f"To re-enable: specify extension enable {extension_id}")
+    console.print(f"To re-enable: {accent(f'specify extension enable {extension_id}')}")
 
 
 @extension_app.command("set-priority")

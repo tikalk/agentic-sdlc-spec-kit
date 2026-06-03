@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.0+adlc5] - 2026-06-03
+
+### Fixed
+
+- **CI: 61 integration test failures from v0.9.0+adlc4 (TestAgyIntegration.test_setup_creates_files and 60 peers)**: `_skill_prefix(command)` and `_skill_dir_name(command)` in `tests/conftest.py` called `resolve_command_alias(...)` without passing `project_root`, defaulting to `Path.cwd()`. Tests that install the bundled preset to `tmp_path` (not cwd) got `"speckit"` prefix when the actual skill directory on disk was `spec-analyze` (etc). Both helpers now accept an optional `project_root` parameter that is forwarded to `resolve_command_alias`; 30+ test call sites updated to pass `project_root=tmp_path` / `project_root=project` / `project_root=home`. Copilot's skills tests (`test_skills_creates_skill_files`, `test_skills_directory_structure`) additionally now call `install_preset_to(tmp_path)` so the alias map can be resolved at the test's project root.
+- **Hermes `setup()` production bug**: `resolve_command_alias(f"speckit.{command_name}")` at line 130 was using `Path.cwd()` instead of the `project_root` parameter already in scope, causing Hermes to create `speckit-*` skill directories on CI (fresh checkout without `.specify/` at cwd) instead of `spec-*`. Fixed by passing `project_root`.
+- **Test assertions that depend on cwd alias resolution** (copilot `build_command_invocation`, claude `format_hook_message`, forge `format_forge_command_name`, forge extension registrar): these functions use `resolve_command_alias()` without `project_root`, so their output depends on whether `.specify/` exists at `Path.cwd()`. Test assertions were changed to use `_skill_prefix("cmd")` (which also resolves via cwd) or `format_forge_command_name()` directly, ensuring they match the production code in both local dev (cwd has `.specify/`) and CI (cwd is clean) environments.
+- **Kimi `test_setup_with_migrate_legacy_option`**: added missing `project_root=tmp_path` to `_skill_prefix('specify')` call so it matches the `setup()` output which uses `project_root=tmp_path`.
+
+### Changed
+
+- **Theming**: wrapped 10 `specify <preset|extension> ...` command-hint strings in `accent()` across `preset_*` and `extension_*` commands in `src/specify_cli/__init__.py` (lines 2683, 2986, 3287, 3440, 3469, 3515, 3598, 3607, 3697, 4299). Two sites with dict-key f-strings (`ext['id']`, `ext_info['id']`) were extracted to local variables first to avoid nested-quote complexity.
+
 # [0.9.0+adlc4] - 2026-06-02
 
 ### Fixed

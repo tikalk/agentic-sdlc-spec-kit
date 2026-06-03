@@ -127,7 +127,9 @@ class HermesIntegration(SkillsIntegration):
 
             # Derive the skill name from the template stem
             command_name = src_file.stem  # e.g. "plan"
-            aliased = resolve_command_alias(f"speckit.{command_name}")
+            aliased = resolve_command_alias(
+                f"speckit.{command_name}", project_root
+            )
             pfx = COMMAND_PREFIX if aliased != f"speckit.{command_name}" else "speckit"
             skill_name = f"{pfx}-{command_name.replace('.', '-')}"
 

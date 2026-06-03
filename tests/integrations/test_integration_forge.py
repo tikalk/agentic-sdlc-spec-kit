@@ -3,6 +3,7 @@
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
 from specify_cli.integrations.forge import format_forge_command_name
+from tests.conftest import _skill_prefix
 
 
 class TestForgeCommandNameFormatter:
@@ -19,9 +20,9 @@ class TestForgeCommandNameFormatter:
 
     def test_name_with_speckit_prefix(self):
         """Test formatting a name that already has 'speckit.' prefix."""
-        # Core commands with aliases resolve to spec-* on the fork
-        assert format_forge_command_name("speckit.plan") == "spec-plan"
-        assert format_forge_command_name("speckit.tasks") == "spec-tasks"
+        # Result depends on whether the agentic-sdlc preset is installed at cwd
+        assert format_forge_command_name("speckit.plan") == f"{_skill_prefix('plan')}-plan"
+        assert format_forge_command_name("speckit.tasks") == f"{_skill_prefix('tasks')}-tasks"
 
     def test_extension_command_name(self):
         """Test formatting extension command names with dots."""
@@ -496,8 +497,9 @@ class TestForgeCommandRegistrar:
 
         assert "speckit.git.feature" in registered
 
-        # resolve_command_alias strips speckit. from extension commands
-        forge_cmd = tmp_path / ".forge" / "commands" / "git-feature.md"
+        # Filename depends on whether git extension is installed at cwd
+        expected_name = format_forge_command_name("speckit.git.feature") + ".md"
+        forge_cmd = tmp_path / ".forge" / "commands" / expected_name
         assert forge_cmd.exists(), "Expected Forge command file was not created"
 
         content = forge_cmd.read_text(encoding="utf-8")

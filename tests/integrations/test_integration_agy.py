@@ -97,11 +97,11 @@ class TestAgyHookCommandNote:
         i = get_integration("agy")
         m = IntegrationManifest("agy", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        specify_skill = tmp_path / f".agents/skills/{_skill_prefix('specify')}-specify/SKILL.md"
+        specify_skill = tmp_path / f".agents/skills/{_skill_prefix('specify', project_root=tmp_path)}-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            f"{_skill_prefix('specify')}-specify should have dot-to-hyphen hook note"
+            f"{_skill_prefix('specify', project_root=tmp_path)}-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self):
@@ -134,5 +134,5 @@ class TestAgyHookCommandNote:
         )
         result = AgyIntegration._inject_hook_command_note(content)
         lines = result.splitlines()
-        note_line = [l for l in lines if "replace dots" in l][0]
+        note_line = [line for line in lines if "replace dots" in line][0]
         assert note_line.startswith("   "), "Note should preserve indentation"

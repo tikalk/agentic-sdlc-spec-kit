@@ -120,7 +120,7 @@ class TestKimiLegacyMigration:
         assert not legacy.exists()
         assert (skills_dir / "speckit-oldcmd" / "SKILL.md").exists()
         # New skills from templates should also exist (using correct prefix)
-        assert (skills_dir / f"{_skill_prefix('specify')}-specify" / "SKILL.md").exists()
+        assert (skills_dir / f"{_skill_prefix('specify', project_root=tmp_path)}-specify" / "SKILL.md").exists()
 
 
 class TestKimiNextSteps:

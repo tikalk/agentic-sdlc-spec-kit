@@ -86,8 +86,8 @@ class SkillsIntegrationTests:
                 if cmd.startswith(pfx):
                     cmd = cmd[len(pfx):]
                     break
-            assert skill_dir.startswith(f"{_skill_prefix(cmd)}-"), (
-                f"Expected {_skill_prefix(cmd)}-{cmd}, got {skill_dir}"
+            assert skill_dir.startswith(f"{_skill_prefix(cmd, project_root=tmp_path)}-"), (
+                f"Expected {_skill_prefix(cmd, project_root=tmp_path)}-{cmd}, got {skill_dir}"
             )
 
     def test_setup_writes_to_correct_directory(self, tmp_path):
@@ -128,8 +128,8 @@ class SkillsIntegrationTests:
                 if cmd.startswith(pfx):
                     cmd = cmd[len(pfx):]
                     break
-            assert skill_dir_name.startswith(f"{_skill_prefix(cmd)}-"), (
-                f"Expected {_skill_prefix(cmd)}-{cmd}, got {skill_dir_name}"
+            assert skill_dir_name.startswith(f"{_skill_prefix(cmd, project_root=tmp_path)}-"), (
+                f"Expected {_skill_prefix(cmd, project_root=tmp_path)}-{cmd}, got {skill_dir_name}"
             )
             actual_commands.add(cmd)
 
@@ -209,7 +209,7 @@ class SkillsIntegrationTests:
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        specify_skill = i.skills_dest(tmp_path) / f"{_skill_prefix('specify')}-specify" / "SKILL.md"
+        specify_skill = i.skills_dest(tmp_path) / f"{_skill_prefix('specify', project_root=tmp_path)}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
@@ -259,7 +259,7 @@ class SkillsIntegrationTests:
             return
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        plan_file = i.skills_dest(tmp_path) / f"{_skill_prefix('plan')}-plan" / "SKILL.md"
+        plan_file = i.skills_dest(tmp_path) / f"{_skill_prefix('plan', project_root=tmp_path)}-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created"
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -452,9 +452,9 @@ class SkillsIntegrationTests:
         # Skill files (core commands) — per-command prefix because alias-aware
         # naming means some commands use "spec-" and others "speckit-".
         for cmd in self._SKILL_COMMANDS:
-            files.append(f"{skills_prefix}/{_skill_prefix(cmd)}-{cmd}/SKILL.md")
+            files.append(f"{skills_prefix}/{_skill_prefix(cmd, project_root=project)}-{cmd}/SKILL.md")
         # Extension-installed skill (agent-context) — no alias in clean env
-        files.append(f"{skills_prefix}/{_skill_prefix('agent-context-update')}-agent-context-update/SKILL.md")
+        files.append(f"{skills_prefix}/{_skill_prefix('agent-context-update', project_root=project)}-agent-context-update/SKILL.md")
         # Integration metadata
         files += [
             ".specify/init-options.json",

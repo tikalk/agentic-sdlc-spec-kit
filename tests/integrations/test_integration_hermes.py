@@ -86,7 +86,7 @@ class TestHermesIntegration(SkillsIntegrationTests):
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
         # Find the plan skill in global ~/.hermes/skills/
-        plan_file = home / ".hermes" / "skills" / f"{_skill_prefix('plan')}-plan" / "SKILL.md"
+        plan_file = home / ".hermes" / "skills" / f"{_skill_prefix('plan', project_root=tmp_path)}-plan" / "SKILL.md"
         assert plan_file.exists(), f"Plan skill {plan_file} not created globally"
         content = plan_file.read_text(encoding="utf-8")
         assert i.context_file in content, (
@@ -209,11 +209,11 @@ class TestHermesIntegration(SkillsIntegrationTests):
         i = get_integration(self.KEY)
         m = IntegrationManifest(self.KEY, tmp_path)
         i.setup(tmp_path, m)
-        specify_skill = home / ".hermes" / "skills" / f"{_skill_prefix('specify')}-specify" / "SKILL.md"
+        specify_skill = home / ".hermes" / "skills" / f"{_skill_prefix('specify', project_root=tmp_path)}-specify" / "SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            f"{_skill_prefix('specify')}-specify should explain dotted hook command conversion"
+            f"{_skill_prefix('specify', project_root=tmp_path)}-specify should explain dotted hook command conversion"
         )
         assert content.count("replace dots") == content.count(
             "- For each executable hook, output the following"

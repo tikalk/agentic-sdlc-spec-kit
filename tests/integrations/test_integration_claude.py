@@ -279,9 +279,10 @@ class TestClaudeIntegration:
             ],
         )
 
-        assert "Executing: `/speckit-plan`" in message
+        pfx = _skill_prefix("plan")
+        assert f"Executing: `/{pfx}-plan`" in message
         assert "EXECUTE_COMMAND: speckit.plan" in message
-        assert "EXECUTE_COMMAND_INVOCATION: /speckit-plan" in message
+        assert f"EXECUTE_COMMAND_INVOCATION: /{pfx}-plan" in message
 
     def test_claude_preset_creates_new_skill_without_commands_dir(self, tmp_path):
         from specify_cli import save_init_options
