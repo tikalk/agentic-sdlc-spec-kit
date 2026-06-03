@@ -266,7 +266,7 @@ class TestAgentConfigConsistency:
 
         assert "speckit.git.feature" in registered
         skill_file = (
-            tmp_path / ".claude" / "skills" / "speckit-git-feature" / "SKILL.md"
+            tmp_path / ".claude" / "skills" / "git-feature" / "SKILL.md"
         )
         assert skill_file.exists(), (
             f"Expected Claude skill file not found at {skill_file}"

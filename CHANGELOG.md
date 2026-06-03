@@ -2,6 +2,29 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.2+adlc1] - 2026-06-03
+
+### Changed
+
+- **Upstream merge**: Synced with `github/spec-kit` (base upstream 0.9.2, 14 commits since v0.9.0):
+  - `ee17b04` refactor(integrations): co-locate integration command handlers in `integrations/` domain dir — ~1400 lines of CLI handlers moved out of `__init__.py` into `_helpers.py`, `_install_commands.py`, `_migrate_commands.py`, `_query_commands.py`, `_commands.py`; `__init__.py` now calls `register()`. Fork theming (`accent`/`accent_style`) re-applied to the moved `_query_commands.py`, `_install_commands.py`, `_migrate_commands.py`.
+  - `d79a514` fix(copilot): remove unsupported `mode:` frontmatter from Copilot skills (issue #2799) — fork adopted upstream removal; `post_process_skill_content` no longer injects `mode:`. Fork's `spec-` invocation-prefix logic preserved.
+  - `442a581` fix(cli): pin UTF-8 encoding on init-options and `.extensionignore` I/O.
+  - `14da893` fix(copilot): resolve active spec template.
+  - `c9c02ae` fix: resolve GitHub release asset API URL for private-repo extension downloads (new `_github_http.py`).
+  - `7bab056` feat(workflows): add `continue_on_error` step field for non-halting failures.
+  - `39921dd` fix(shared-infra): record skipped files in `speckit.manifest.json`.
+  - `39925ac` fix: add agent-context extension entries to Cline `_expected_files`.
+  - `a1b8de6` Product Forge extension v1.6.0; `9768b1e` agent parity governance preset catalog; `7c558ab` add `.editorconfig`; `ed10b32` docs: list Hermes.
+  - Removed upstream command stubs deleted by the refactor: `commands/{extension,integration,preset,workflow}.py`.
+
+### Fixed
+
+- **Fork prefix adaptation in upstream tests**: new/updated upstream tests hardcoded the `speckit` prefix where the fork emits `spec`. Adapted to fork-aware helpers:
+  - `tests/integrations/test_integration_copilot.py::test_specify_agent_resolves_active_spec_template` — use `_cmd_prefix()` for the agent filename.
+  - `tests/test_agent_config_consistency.py::test_skills_agent_command_token_resolves_with_hyphen` — corrected skill dir to `git-feature` (extension command, no prefix).
+  - `tests/test_extensions.py` (4 tests: codex unregister, kimi/codex hook invocation, init-options cache) — use `HookExecutor._skill_name_from_command()` and the `PKG_NAMES` fork-prefix guard to match `spec-`/`$spec-`/`/skill:spec-` output.
+
 # [0.9.0+adlc5] - 2026-06-03
 
 ### Fixed
@@ -2367,6 +2390,34 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.9.2] - 2026-06-02
+
+### Changed
+
+- Update agent parity governance preset catalog entry (#2777)
+- fix: resolve GitHub release asset API URL for private repo extension downloads (#2792)
+- fix: remove unsupported mode: frontmatter from Copilot skills mode (fixes #2799) (#2819)
+- refactor(integrations): co-locate integration commands in integrations/ domain dir (PR-5/8) (#2720)
+- Update Product Forge extension to v1.6.0 (#2820)
+- feat(workflows): add continue_on_error step field for non-halting failures (#2663)
+- chore: add .editorconfig for consistent code formatting (#2366)
+- fix(shared-infra): record skipped files in speckit.manifest.json (#2483)
+- chore: release 0.9.1, begin 0.9.2.dev0 development (#2818)
+
+## [0.9.1] - 2026-06-02
+
+### Changed
+
+- fix(cli): pin UTF-8 encoding on init-options and .extensionignore I/O (#2686)
+- docs: list Hermes in supported integrations table (#2768)
+- fix(copilot): resolve active spec template (#2765)
+- fix: add missing agent-context extension entries to Cline _expected_files (#2797)
+- Add spec-kit-linear extension to community catalog (#2795)
+- feat: add native Cline integration (#2508)
+- Update workflow-preset community catalog entry (#2756)
+- chore: release 0.9.0, begin 0.9.1.dev0 development (#2794)
+- Add RAG Azure Builder extension to community catalog (#2793)
 
 ## [0.9.0] - 2026-06-01
 
