@@ -2,6 +2,25 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.2+adlc4] - 2026-06-03
+
+### Fixed
+
+- **Self-upgrade targets the fork repo**: `specify self check` / `specify self upgrade` / rollback guidance now use `tikalk/agentic-sdlc-spec-kit` release API and git install URLs instead of `github/spec-kit`, so upgrade and recovery instructions stay aligned with the fork's actual release source.
+- **Themed root help output**: `specify --help` now shows a fork-themed Rich help panel under the banner, keeping top-level help visually consistent with the orange CLI branding.
+- **Post-merge verification cleanup**: updated self-upgrade tests to expect fork URLs, fixed the generic integration quickstart-guide assertion to use the active fork prefix, and resolved targeted Ruff issues in touched repo/test files. Ruff now also excludes intentionally non-Python eval template assets under `extensions/evals/templates/*.py`.
+
+# [0.9.2+adlc3] - 2026-06-03
+
+### Changed
+
+- **Upstream main merge**: Synced with `github/spec-kit` `main` after upstream `0.9.2`, bringing in workflow self-upgrade docs/tests additions and the workflow run-state hardening from `bb2b49d`.
+
+### Fixed
+
+- **Workflow run-state path traversal hardening**: adopted upstream `RunState` validation so `RunState.load()` now rejects malformed `run_id` values before constructing filesystem paths under `.specify/workflows/runs/`, preventing path traversal / file probing via resume IDs. `RunState.__init__()` now treats `run_id=None` as the only auto-generate case and rejects explicit empty-string IDs consistently.
+- **Workflow regression coverage**: adopted upstream tests for malformed workflow `run_id` values, covering traversal vectors and ensuring `RunState.__init__()`, `RunState._validate_run_id()`, and `RunState.load()` stay aligned.
+
 # [0.9.2+adlc2] - 2026-06-03
 
 ### Fixed

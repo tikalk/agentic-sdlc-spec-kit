@@ -10,7 +10,7 @@ import sys
 import importlib.util
 from pathlib import Path
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Callable
+from typing import Any, Dict, Optional, Callable
 import traceback
 
 
@@ -98,7 +98,6 @@ class EvaluatorRunner:
         """Execute grader function against single example."""
         example_input = example.get("input", "")
         expected_output = example.get("expected_output")
-        expected_pass = example.get("expected_pass", True)
         context = example.get("context")
 
         input_str = self.normalize_input(example_input)
@@ -274,7 +273,7 @@ class EvaluatorRunner:
         with open(latest_file, "w") as f:
             json.dump(results, f, indent=2)
 
-        print(f"\n\n📊 EVALUATION SUMMARY")
+        print("\n\n📊 EVALUATION SUMMARY")
         print(f"{'='*50}")
         print(f"Total Examples: {total_evaluated}")
         print(f"Passed: {total_pass}")

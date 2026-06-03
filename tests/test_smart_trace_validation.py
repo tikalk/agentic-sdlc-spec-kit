@@ -2,12 +2,6 @@
 """
 Test Smart Trace Validation functionality in /analyze command
 """
-import json
-import os
-import tempfile
-from pathlib import Path
-
-
 def test_traceability_detection():
     """Test detection of @issue-tracker references in artifacts"""
 
@@ -101,8 +95,8 @@ def test_mcp_configuration_validation():
                 return True
         return False
 
-    assert has_issue_tracker_config(valid_mcp) == True
-    assert has_issue_tracker_config(invalid_mcp) == False
+    assert has_issue_tracker_config(valid_mcp)
+    assert not has_issue_tracker_config(invalid_mcp)
 
     print("✅ MCP configuration validation test passed")
 

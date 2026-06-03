@@ -230,6 +230,15 @@ class BannerGroup(TyperGroup):
     def format_help(self, ctx, formatter):
         # Show banner before help
         show_banner()
+        console.print(
+            Panel(
+                "[white]Use [bold]specify <command> --help[/bold] for command-specific guidance.[/white]",
+                border_style=ACCENT_STYLE,
+                title=f"[{ACCENT_STYLE}]Help[/{ACCENT_STYLE}]",
+                padding=(0, 1),
+            )
+        )
+        console.print()
         super().format_help(ctx, formatter)
 
 
