@@ -2755,12 +2755,28 @@ def workflow_run(
     """Run a workflow from an installed ID or local YAML path."""
     from .workflows.engine import WorkflowEngine
 
-    project_root = _require_specify_project()
+    source_path = Path(source).expanduser()
+    is_file_source = source_path.suffix.lower() in (".yml", ".yaml") and source_path.is_file()
+
+    if is_file_source:
+        # When running a YAML file directly, use cwd as project root
+        # without requiring a .specify/ project directory.
+        project_root = Path.cwd()
+        specify_dir = project_root / ".specify"
+        if specify_dir.is_symlink():
+            console.print("[red]Error:[/red] Refusing to use symlinked .specify path in current directory")
+            raise typer.Exit(1)
+        if specify_dir.exists() and not specify_dir.is_dir():
+            console.print("[red]Error:[/red] .specify path exists but is not a directory")
+            raise typer.Exit(1)
+    else:
+        project_root = _require_specify_project()
+
     engine = WorkflowEngine(project_root)
     engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
 
     try:
-        definition = engine.load_workflow(source)
+        definition = engine.load_workflow(source_path if is_file_source else source)
     except FileNotFoundError:
         console.print(f"[red]Error:[/red] Workflow not found: {source}")
         raise typer.Exit(1)
