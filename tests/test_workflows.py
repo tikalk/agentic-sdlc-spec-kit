@@ -3138,6 +3138,158 @@ steps:
         assert "do-specify" not in state.step_results
 
 
+class TestWorkflowJsonOutput:
+    """Test the --json machine-readable output for run/resume/status."""
+
+    _WF = """
+schema_version: "1.0"
+workflow:
+  id: "json-wf"
+  name: "JSON WF"
+  version: "1.0.0"
+steps:
+  - id: ask
+    type: gate
+    message: "Review"
+    options: [approve, reject]
+  - id: after
+    type: shell
+    run: "echo done"
+"""
+
+    _WF_DONE = """
+schema_version: "1.0"
+workflow:
+  id: "json-done"
+  name: "JSON Done"
+  version: "1.0.0"
+steps:
+  - id: only
+    type: shell
+    run: "echo done"
+"""
+
+    def _write_wf(self, project_dir, text, name):
+        path = project_dir / f"{name}.yml"
+        path.write_text(text, encoding="utf-8")
+        return path
+
+    def _invoke(self, project_dir, args):
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            return runner.invoke(app, args, catch_exceptions=False)
+
+    def test_run_json_completed(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF_DONE, "done")
+        result = self._invoke(project_dir, ["workflow", "run", str(wf), "--json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["workflow_id"] == "json-done"
+        assert payload["status"] == "completed"
+        assert "run_id" in payload
+
+    def test_run_json_paused(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF, "gated")
+        result = self._invoke(project_dir, ["workflow", "run", str(wf), "--json"])
+        assert result.exit_code == 0
+        payload = json.loads(result.stdout)
+        assert payload["status"] == "paused"
+        assert payload["current_step_id"] == "ask"
+        assert payload["current_step_index"] == 0
+
+    def test_run_json_output_has_no_markup_or_ansi(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF_DONE, "clean")
+        out = self._invoke(
+            project_dir, ["workflow", "run", str(wf), "--json"]
+        ).stdout
+        # Machine output must be exactly the JSON object: no Rich markup
+        # tags and no ANSI escape sequences leaking in.
+        assert "\x1b[" not in out
+        assert "[/" not in out
+        assert out.strip() == json.dumps(json.loads(out), indent=2)
+
+    def test_run_default_output_is_human_not_json(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF_DONE, "done2")
+        result = self._invoke(project_dir, ["workflow", "run", str(wf)])
+        assert result.exit_code == 0
+        assert "Running workflow" in result.stdout
+        with pytest.raises(json.JSONDecodeError):
+            json.loads(result.stdout)
+
+    def test_status_json_single_and_list(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF, "gated2")
+        run = json.loads(
+            self._invoke(project_dir, ["workflow", "run", str(wf), "--json"]).stdout
+        )
+        rid = run["run_id"]
+
+        single = json.loads(
+            self._invoke(project_dir, ["workflow", "status", rid, "--json"]).stdout
+        )
+        assert single["run_id"] == rid
+        assert single["status"] == "paused"
+        assert single["steps"]["ask"] == "paused"
+        # status --json carries the same step-position fields as run/resume
+        # so automation never has to branch on which command produced it.
+        assert single["current_step_id"] == run["current_step_id"]
+        assert single["current_step_index"] == run["current_step_index"]
+
+        listing = json.loads(
+            self._invoke(project_dir, ["workflow", "status", "--json"]).stdout
+        )
+        assert any(r["run_id"] == rid for r in listing["runs"])
+
+    def test_resume_json(self, project_dir):
+        wf = self._write_wf(project_dir, self._WF, "gated3")
+        rid = json.loads(
+            self._invoke(project_dir, ["workflow", "run", str(wf), "--json"]).stdout
+        )["run_id"]
+        # Non-interactive resume re-runs the gate, which pauses again.
+        resumed = json.loads(
+            self._invoke(project_dir, ["workflow", "resume", rid, "--json"]).stdout
+        )
+        assert resumed["run_id"] == rid
+        assert resumed["status"] == "paused"
+
+    def test_json_redirect_keeps_stdout_clean(self, capfd):
+        # While a workflow runs under --json, steps can still write to stdout:
+        # the gate step prints its prompt and the prompt step runs a
+        # subprocess that inherits the stdout fd. Both must be redirected to
+        # stderr so the JSON object on stdout stays parseable. capfd captures
+        # at the file-descriptor level, so it sees the subprocess output too.
+        import subprocess
+        import sys as _sys
+        from specify_cli import _stdout_to_stderr_when
+
+        print("STDOUT_BEFORE")
+        with _stdout_to_stderr_when(True):
+            print("PY_LEAK")  # Python-level write (gate-style)
+            subprocess.run(  # inherited-fd write (prompt-style)
+                [_sys.executable, "-c", "print('SUBPROC_LEAK')"],
+                check=True,
+            )
+        print("STDOUT_AFTER")
+
+        out, err = capfd.readouterr()
+        # stdout keeps only what was written outside the guarded block.
+        assert "STDOUT_BEFORE" in out and "STDOUT_AFTER" in out
+        assert "PY_LEAK" not in out and "SUBPROC_LEAK" not in out
+        # The step output is preserved on stderr, not discarded.
+        assert "PY_LEAK" in err and "SUBPROC_LEAK" in err
+
+    def test_json_redirect_inactive_is_noop(self, capfd):
+        from specify_cli import _stdout_to_stderr_when
+
+        with _stdout_to_stderr_when(False):
+            print("VISIBLE_ON_STDOUT")
+        out, _ = capfd.readouterr()
+        assert "VISIBLE_ON_STDOUT" in out
+
+
 class TestResumeWithInputs:
     """Test that `workflow resume` can accept updated workflow inputs."""
 
