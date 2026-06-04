@@ -85,6 +85,12 @@ from ._agent_config import (
     DEFAULT_INIT_INTEGRATION as DEFAULT_INIT_INTEGRATION,
     SCRIPT_TYPE_CHOICES as SCRIPT_TYPE_CHOICES,
 )
+from ._init_options import (
+    INIT_OPTIONS_FILE as INIT_OPTIONS_FILE,
+    is_ai_skills_enabled as _is_ai_skills_enabled,
+    load_init_options as load_init_options,
+    save_init_options as save_init_options,
+)
 
 # Tikalk fork customizations - import with fallback to upstream defaults
 try:
@@ -358,65 +364,6 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
             for f in failures:
                 console.print(f"  - {f}")
 
-INIT_OPTIONS_FILE = ".specify/init-options.json"
-
-
-def save_init_options(project_path: Path, options: dict[str, Any]) -> None:
-    """Persist the CLI options used during ``specify init``.
-
-    Writes a small JSON file to ``.specify/init-options.json`` so that
-    later operations (e.g. preset install) can adapt their behaviour
-    without scanning the filesystem.
-    """
-    dest = project_path / INIT_OPTIONS_FILE
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    # Write JSON as real UTF-8 instead of ``\uXXXX`` escape sequences
-    # (``ensure_ascii=False``) and pin the file encoding to match.
-    #
-    # The default ``json.dumps`` output is ASCII-only — any non-ASCII
-    # character is encoded as a ``\uXXXX`` escape — so without the
-    # ``ensure_ascii=False`` flip below the encoding pin alone would be
-    # a no-op for any payload we plausibly write today. We pair the two
-    # so the on-disk bytes match a human's expectation of "this file is
-    # UTF-8" (greppable, readable in editors that don't decode JSON
-    # escapes, friendly to peers running ``cat`` or ``Get-Content``) and
-    # so the encoding pin is a real contract instead of a future hedge.
-    #
-    # ``Path.write_text`` without ``encoding=`` falls back to the system
-    # locale codec (cp1252 / gb2312 / cp932 on Windows), which would
-    # mis-encode non-ASCII bytes locally and produce a file a peer with
-    # a different locale couldn't decode. The sibling integration-
-    # catalog writer in ``integrations/catalog.py`` pins
-    # ``encoding="utf-8"`` for the same reason.
-    dest.write_text(
-        json.dumps(options, indent=2, sort_keys=True, ensure_ascii=False),
-        encoding="utf-8",
-    )
-
-
-def load_init_options(project_path: Path) -> dict[str, Any]:
-    """Load the init options previously saved by ``specify init``.
-
-    Returns an empty dict if the file does not exist or cannot be parsed.
-    """
-    path = project_path / INIT_OPTIONS_FILE
-    if not path.exists():
-        return {}
-    try:
-        # Match the explicit UTF-8 used by ``save_init_options``; without
-        # it ``read_text`` falls back to the system codec on Windows and
-        # raises ``UnicodeDecodeError`` on any file containing the
-        # multi-byte UTF-8 sequences ``save_init_options`` now writes
-        # directly. ``UnicodeDecodeError`` is a subclass of
-        # ``ValueError``, not ``OSError`` / ``json.JSONDecodeError``, so
-        # it must be listed explicitly here to preserve the existing
-        # "fall back to empty dict" contract for corrupted / foreign-
-        # codec files.
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
-        return {}
-
-
 # ---------------------------------------------------------------------------
 # Agent-context extension config helpers
 # ---------------------------------------------------------------------------
@@ -500,10 +447,10 @@ def resolve_active_skills_dir(project_root: Path) -> Path | None:
     """Return the active skills directory, creating it on demand when enabled.
 
     Reads ``.specify/init-options.json`` to determine whether skills are
-    enabled and which agent was selected.  When ``ai_skills`` is true the
-    directory is created safely (symlink/containment checks); when false
-    only Kimi's native-skills fallback is honoured (directory must already
-    exist).
+    enabled and which agent was selected.  Only ``ai_skills`` set to boolean
+    ``True`` creates the directory safely (symlink/containment checks); when
+    ``ai_skills`` is not boolean ``True``, only Kimi's native-skills fallback
+    is honoured, and the native skills directory must already exist.
 
     Returns:
         The skills directory ``Path``, or ``None`` if skills are not active.
@@ -524,14 +471,15 @@ def resolve_active_skills_dir(project_root: Path) -> Path | None:
     if not isinstance(agent, str) or not agent:
         return None
 
-    ai_skills_enabled = bool(opts.get("ai_skills"))
+    ai_skills_enabled = _is_ai_skills_enabled(opts)
     if not ai_skills_enabled and agent != "kimi":
         return None
 
     skills_dir = _get_skills_dir(project_root, agent)
 
     if not ai_skills_enabled:
-        # Kimi native-skills fallback: use the directory only if it exists.
+        # Kimi native-skills fallback when ai_skills is not boolean True:
+        # use the native skills directory only if it already exists.
         if not skills_dir.is_dir():
             return None
         _ensure_safe_shared_directory(
@@ -540,7 +488,7 @@ def resolve_active_skills_dir(project_root: Path) -> Path | None:
         )
         return skills_dir
 
-    # ai_skills is explicitly enabled — create the directory safely.
+    # ai_skills is boolean True: create the directory safely.
     _ensure_safe_shared_directory(
         project_root, skills_dir, context="agent skills directory",
     )
@@ -1709,6 +1657,7 @@ def extension_add(
     extension: str = typer.Argument(help="Extension name or path"),
     dev: bool = typer.Option(False, "--dev", help="Install from local directory"),
     from_url: Optional[str] = typer.Option(None, "--from", help="Install from custom URL"),
+    force: bool = typer.Option(False, "--force", help="Overwrite if already installed"),
     priority: int = typer.Option(10, "--priority", help="Resolution priority (lower = higher precedence, default 10)"),
 ):
     """Install an extension."""
@@ -1722,6 +1671,9 @@ def extension_add(
 
     manager = ExtensionManager(project_root)
     speckit_version = get_speckit_version()
+
+    if force:
+        console.print("[yellow]--force:[/yellow] Will overwrite if already installed")
 
     # Prompt for URL-based installs BEFORE the spinner so the user can
     # actually see and respond to the confirmation (the Rich status
@@ -1773,11 +1725,15 @@ def extension_add(
                     console.print(f"[red]Error:[/red] No extension.yml found in {source_path}")
                     raise typer.Exit(1)
 
+                if force:
+                    console.print(f"[yellow]--force:[/yellow] Installing from [cyan]{source_path}[/cyan] (will overwrite if already installed)...")
+
                 manifest = manager.install_from_directory(
                     source_path,
                     speckit_version,
                     priority=priority,
                     link_commands=True,
+                    force=force
                 )
 
             elif from_url:
@@ -1799,7 +1755,7 @@ def extension_add(
                     zip_path.write_bytes(zip_data)
 
                     # Install from downloaded ZIP
-                    manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority)
+                    manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority, force=force)
                 except urllib.error.URLError as e:
                     console.print(f"[red]Error:[/red] Failed to download from {safe_url}: {e}")
                     raise typer.Exit(1)
@@ -1812,7 +1768,9 @@ def extension_add(
                 # Try bundled extensions first (shipped with spec-kit)
                 bundled_path = _locate_bundled_extension(extension)
                 if bundled_path is not None:
-                    manifest = manager.install_from_directory(bundled_path, speckit_version, priority=priority)
+                    manifest = manager.install_from_directory(
+                        bundled_path, speckit_version, priority=priority, force=force
+                    )
                 else:
                     # Install from catalog (also resolves display names to IDs)
                     catalog = ExtensionCatalog(project_root)
@@ -1833,7 +1791,9 @@ def extension_add(
                     if resolved_id != extension:
                         bundled_path = _locate_bundled_extension(resolved_id)
                         if bundled_path is not None:
-                            manifest = manager.install_from_directory(bundled_path, speckit_version, priority=priority)
+                            manifest = manager.install_from_directory(
+                                bundled_path, speckit_version, priority=priority, force=force
+                            )
 
                     if bundled_path is None:
                         # Bundled extensions without a download URL must come from the local package
@@ -1869,7 +1829,7 @@ def extension_add(
 
                         try:
                             # Install from downloaded ZIP
-                            manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority)
+                            manifest = manager.install_from_zip(zip_path, speckit_version, priority=priority, force=force)
                         finally:
                             # Clean up downloaded ZIP
                             if zip_path.exists():
@@ -2926,12 +2886,28 @@ def workflow_run(
     """Run a workflow from an installed ID or local YAML path."""
     from .workflows.engine import WorkflowEngine
 
-    project_root = _require_specify_project()
+    source_path = Path(source).expanduser()
+    is_file_source = source_path.suffix.lower() in (".yml", ".yaml") and source_path.is_file()
+
+    if is_file_source:
+        # When running a YAML file directly, use cwd as project root
+        # without requiring a .specify/ project directory.
+        project_root = Path.cwd()
+        specify_dir = project_root / ".specify"
+        if specify_dir.is_symlink():
+            console.print("[red]Error:[/red] Refusing to use symlinked .specify path in current directory")
+            raise typer.Exit(1)
+        if specify_dir.exists() and not specify_dir.is_dir():
+            console.print("[red]Error:[/red] .specify path exists but is not a directory")
+            raise typer.Exit(1)
+    else:
+        project_root = _require_specify_project()
+
     engine = WorkflowEngine(project_root)
     engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
 
     try:
-        definition = engine.load_workflow(source)
+        definition = engine.load_workflow(source_path if is_file_source else source)
     except FileNotFoundError:
         console.print(f"[red]Error:[/red] Workflow not found: {source}")
         raise typer.Exit(1)

@@ -114,8 +114,8 @@ class SkillsIntegrationTests:
         skill_files = [f for f in created if "scripts" not in f.parts]
 
         expected_commands = {
-            "analyze", "checklist", "clarify", "constitution",
-            "implement", "plan", "specify", "tasks", "taskstoissues",
+            "analyze", "clarify", "constitution", "implement",
+            "plan", "checklist", "specify", "tasks", "taskstoissues",
         }
 
         # Derive command names from the skill directory names
@@ -429,8 +429,8 @@ class SkillsIntegrationTests:
     # -- Complete file inventory ------------------------------------------
 
     _SKILL_COMMANDS = [
-        "analyze", "checklist", "clarify", "constitution",
-        "implement", "plan", "specify", "tasks", "taskstoissues",
+        "analyze", "clarify", "constitution", "implement",
+        "plan", "checklist", "specify", "tasks", "taskstoissues",
     ]
 
     def _expected_files(self, script_variant: str, project: Path | None = None) -> list[str]:

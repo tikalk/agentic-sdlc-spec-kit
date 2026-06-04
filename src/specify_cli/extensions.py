@@ -26,6 +26,7 @@ from packaging import version as pkg_version
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
 from .catalogs import CatalogEntry as BaseCatalogEntry, CatalogStackBase
+from ._init_options import is_ai_skills_enabled
 
 # Tikalk fork: support multiple command namespaces (speckit + adlc)
 try:
@@ -43,11 +44,11 @@ except ImportError:
 
 _FALLBACK_CORE_COMMAND_NAMES = frozenset({
     "analyze",
-    "checklist",
     "clarify",
     "constitution",
     "implement",
     "plan",
+    "checklist",
     "specify",
     "tasks",
     "taskstoissues",
@@ -850,15 +851,53 @@ class ExtensionManager:
         be created due to symlink, containment, or permission issues so
         that callers can fall back gracefully.
         """
-        from . import resolve_active_skills_dir, _print_cli_warning
+        from . import (
+            _print_cli_warning,
+            load_init_options,
+            resolve_active_skills_dir,
+        )
+
+        def _ensure_usable(skills_dir: Path) -> Optional[Path]:
+            try:
+                skills_dir.mkdir(parents=True, exist_ok=True)
+                if not skills_dir.is_dir():
+                    raise NotADirectoryError(f"{skills_dir} is not a directory")
+            except (OSError, ValueError) as exc:
+                _print_cli_warning(
+                    "resolve", "skills directory", str(skills_dir), exc,
+                    continuing="Continuing without skill registration.",
+                )
+                return None
+            return skills_dir
+
         try:
-            return resolve_active_skills_dir(self.project_root)
+            skills_dir = resolve_active_skills_dir(self.project_root)
         except (ValueError, OSError) as exc:
             _print_cli_warning(
                 "resolve", "skills directory", None, exc,
                 continuing="Continuing without skill registration.",
             )
             return None
+        if skills_dir is None:
+            return None
+
+        opts = load_init_options(self.project_root)
+        if not isinstance(opts, dict):
+            return _ensure_usable(skills_dir)
+        selected_ai = opts.get("ai")
+        if not isinstance(selected_ai, str) or not selected_ai:
+            return _ensure_usable(skills_dir)
+
+        from .agents import CommandRegistrar
+
+        registrar = CommandRegistrar()
+        agent_config = registrar.AGENT_CONFIGS.get(selected_ai)
+        if agent_config and agent_config.get("extension") == "/SKILL.md":
+            agent_skills_dir = registrar._resolve_agent_dir(
+                selected_ai, agent_config, self.project_root
+            )
+            return _ensure_usable(agent_skills_dir)
+        return _ensure_usable(skills_dir)
 
     def _register_extension_skills(
         self,
@@ -1223,6 +1262,7 @@ class ExtensionManager:
         register_commands: bool = True,
         priority: int = 10,
         link_commands: bool = False,
+        force: bool = False,
     ) -> ExtensionManifest:
         """Install extension from a local directory.
 
@@ -1233,6 +1273,8 @@ class ExtensionManager:
             priority: Resolution priority (lower = higher precedence, default 10)
             link_commands: If True, register rendered agent artifacts as
                 symlinks to a dev cache when supported by the OS.
+            force: If True and extension is already installed, remove it first
+                   before proceeding with installation
 
         Returns:
             Installed extension manifest
@@ -1254,13 +1296,33 @@ class ExtensionManager:
 
         # Check if already installed
         if self.registry.is_installed(manifest.id):
-            raise ExtensionError(
-                f"Extension '{manifest.id}' is already installed. "
-                f"Use 'specify extension remove {manifest.id}' first."
-            )
+            if not force:
+                raise ExtensionError(
+                    f"Extension '{manifest.id}' is already installed. "
+                    f"Use 'specify extension remove {manifest.id}' first, "
+                    f"or retry with --force to overwrite."
+                )
 
         # Reject manifests that would shadow core commands or installed extensions.
         self._validate_install_conflicts(manifest)
+
+        # Remove existing installation AFTER all validations pass so that a
+        # validation failure doesn't leave the user with a half-uninstalled
+        # extension (configs stranded in .backup/).
+        did_remove = False
+        if force and self.registry.is_installed(manifest.id):
+            # Clear any stale backup from a previous remove so that only the
+            # backup produced by the current remove() call is restored later.
+            backup_config_dir = self.extensions_dir / ".backup" / manifest.id
+            # Check is_symlink first: is_dir() follows symlinks so a
+            # symlink-to-directory would pass, but rmtree() raises on them.
+            if backup_config_dir.is_symlink():
+                backup_config_dir.unlink()
+            elif backup_config_dir.is_dir():
+                shutil.rmtree(backup_config_dir)
+            elif backup_config_dir.exists():
+                backup_config_dir.unlink()
+            did_remove = self.remove(manifest.id)
 
         # Install extension
         dest_dir = self.extensions_dir / manifest.id
@@ -1276,7 +1338,11 @@ class ExtensionManager:
             registrar = CommandRegistrar()
             # Register for all detected agents
             registered_commands = registrar.register_commands_for_all_agents(
-                manifest, dest_dir, self.project_root, link_outputs=link_commands
+                manifest,
+                dest_dir,
+                self.project_root,
+                link_outputs=link_commands,
+                create_missing_active_skills_dir=True,
             )
 
         # Auto-register extension commands as agent skills when --ai-skills
@@ -1288,6 +1354,26 @@ class ExtensionManager:
         # Register hooks and update installed list in extensions.yml
         hook_executor = HookExecutor(self.project_root)
         hook_executor.register_hooks(manifest)
+
+        # Restore config files from backup when --force triggered a removal.
+        # Only restore *.yml config files to match what remove() backs up,
+        # so unexpected artifacts in .backup/ are not resurrected.
+        if did_remove:
+            backup_config_dir = self.extensions_dir / ".backup" / manifest.id
+            # is_symlink first: is_dir() follows symlinks, but rmtree()
+            # raises on them — and we shouldn't follow symlinks to restore.
+            if backup_config_dir.is_symlink():
+                backup_config_dir.unlink()
+            elif backup_config_dir.is_dir():
+                for cfg_file in backup_config_dir.iterdir():
+                    if cfg_file.is_file() and not cfg_file.is_symlink() and (
+                        cfg_file.name.endswith("-config.yml") or
+                        cfg_file.name.endswith("-config.local.yml")
+                    ):
+                        shutil.copy2(cfg_file, dest_dir / cfg_file.name)
+                shutil.rmtree(backup_config_dir)
+            elif backup_config_dir.exists():
+                backup_config_dir.unlink()
 
         # Update registry
         self.registry.add(manifest.id, {
@@ -1307,6 +1393,7 @@ class ExtensionManager:
         zip_path: Path,
         speckit_version: str,
         priority: int = 10,
+        force: bool = False,
     ) -> ExtensionManifest:
         """Install extension from ZIP file.
 
@@ -1314,6 +1401,8 @@ class ExtensionManager:
             zip_path: Path to extension ZIP file
             speckit_version: Current spec-kit version
             priority: Resolution priority (lower = higher precedence, default 10)
+            force: If True and extension is already installed, remove it first
+                   before proceeding with installation
 
         Returns:
             Installed extension manifest
@@ -1360,7 +1449,9 @@ class ExtensionManager:
                 raise ValidationError("No extension.yml found in ZIP file")
 
             # Install from extracted directory
-            return self.install_from_directory(extension_dir, speckit_version, priority=priority)
+            return self.install_from_directory(
+                extension_dir, speckit_version, priority=priority, force=force
+            )
 
     def remove(self, extension_id: str, keep_config: bool = False) -> bool:
         """Remove an installed extension.
@@ -1542,9 +1633,10 @@ class ExtensionManager:
             init_options = {}
 
         active_agent = init_options.get("ai")
+        ai_skills_enabled = is_ai_skills_enabled(init_options)
         skills_mode_active = (
             active_agent == agent_name
-            and bool(init_options.get("ai_skills"))
+            and ai_skills_enabled
             and bool(agent_config)
             and agent_config.get("extension") != "/SKILL.md"
         )
@@ -1738,6 +1830,7 @@ class CommandRegistrar:
         extension_dir: Path,
         project_root: Path,
         link_outputs: bool = False,
+        create_missing_active_skills_dir: bool = False,
     ) -> Dict[str, List[str]]:
         """Register extension commands for all detected agents."""
         context_note = f"\n<!-- Extension: {manifest.id} -->\n<!-- Config: .specify/extensions/{manifest.id}/ -->\n"
@@ -1745,6 +1838,7 @@ class CommandRegistrar:
             manifest.commands, manifest.id, extension_dir, project_root,
             context_note=context_note,
             link_outputs=link_outputs,
+            create_missing_active_skills_dir=create_missing_active_skills_dir,
         )
 
     def unregister_commands(
@@ -2567,10 +2661,11 @@ class HookExecutor:
 
         init_options = self._load_init_options()
         selected_ai = init_options.get("ai")
-        codex_skill_mode = selected_ai == "codex" and bool(init_options.get("ai_skills"))
-        claude_skill_mode = selected_ai == "claude" and bool(init_options.get("ai_skills"))
+        ai_skills_enabled = is_ai_skills_enabled(init_options)
+        codex_skill_mode = selected_ai == "codex" and ai_skills_enabled
+        claude_skill_mode = selected_ai == "claude" and ai_skills_enabled
         kimi_skill_mode = selected_ai == "kimi"
-        cursor_skill_mode = selected_ai == "cursor-agent" and bool(init_options.get("ai_skills"))
+        cursor_skill_mode = selected_ai == "cursor-agent" and ai_skills_enabled
         cline_mode = selected_ai == "cline"
 
         skill_name = self._skill_name_from_command(command_id, self.project_root)
@@ -2827,7 +2922,7 @@ class HookExecutor:
 
         if not isinstance(config, dict):
             config = {}
-            # We don't save yet, as there are no hooks to unregister, 
+            # We don't save yet, as there are no hooks to unregister,
             # but unregister_extension above might have already saved a normalized config.
             return
 

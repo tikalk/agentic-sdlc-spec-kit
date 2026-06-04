@@ -488,11 +488,11 @@ class TomlIntegrationTests:
     COMMAND_STEMS = [
         "agent-context.update",
         "analyze",
-        "checklist",
         "clarify",
         "constitution",
         "implement",
         "plan",
+        "checklist",
         "specify",
         "tasks",
         "taskstoissues",

@@ -636,12 +636,10 @@ class TestAuthenticatedHttp:
             resp.__enter__ = lambda s: s
             resp.__exit__ = MagicMock(return_value=False)
             return resp
-
         mock_opener = MagicMock()
         mock_opener.open.side_effect = fake_side_effect
-        with patch("specify_cli.authentication.http.urllib.request.build_opener", return_value=mock_opener), patch(
-            "specify_cli.authentication.http.urllib.request.urlopen", side_effect=fake_side_effect
-        ):
+        with patch("specify_cli.authentication.http.urllib.request.build_opener", return_value=mock_opener), \
+             patch("specify_cli.authentication.http.urllib.request.urlopen", side_effect=fake_side_effect):
             open_url("https://github.com/org/repo")
         assert call_count == 2
 
@@ -711,7 +709,6 @@ class TestLoadConfigCaching:
         """_load_config() should call load_auth_config only once per process."""
         from unittest.mock import patch
         from specify_cli.authentication import http as _mod
-
         # Allow the real load path (no override)
         monkeypatch.setattr(_mod, "_config_override", None)
         monkeypatch.setattr(_mod, "_config_cache", None)

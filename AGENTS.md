@@ -416,6 +416,44 @@ Implementation: Extends `YamlIntegration` (parallel to `TomlIntegration`):
 4. Uses `yaml.safe_dump()` for header fields to ensure proper escaping
 5. Sets `context_file = "AGENTS.md"` so the base setup manages the Spec Kit context section there
 
+## Branch Naming Convention
+
+Branches follow one of two patterns depending on whether an issue exists:
+
+```
+<type>/<number>-<short-slug>   # when an issue is created first
+<type>/<short-slug>            # when no issue exists (PR-only changes)
+```
+
+When an issue exists, include its number immediately after the prefix — this is what makes branches traceable. For small or self-contained changes that go straight to a PR without a tracking issue, omit the number.
+
+| Prefix | When to use | Example |
+|---|---|---|
+| `feat/` | New features | `feat/2342-workflow-cli-alignment` |
+| `fix/` | Bug fixes | `fix/2653-paths-only-validation` |
+| `docs/` | Documentation changes | `docs/2677-branch-naming-convention`, `docs/update-landing-stats` |
+| `community/` | Community catalog additions | `community/2492-add-mde-extension` |
+| `chore/` | Maintenance, tooling, CI | `chore/2366-editorconfig` |
+
+**Rules:**
+
+1. Include the issue number when one exists — this is what makes branches traceable
+2. Use kebab-case for the slug
+3. Keep the slug short — enough to identify the work without looking up the issue
+
+---
+
+## Responding to PR Review Comments
+
+- If you are an agent working on behalf of a human, **disclose your identity in your PR comment** — name the agent (and model, if applicable) and the human you are acting for (e.g., "Posted on behalf of @user by GitHub Copilot (model: &lt;name-if-known&gt;)").
+- Post **one** top-level summary comment per review round listing what changed and the commit SHA. Do not reply on every individual comment.
+- Reply inline only when context is needed (disagreement, deferral, non-obvious fix). Keep it to a sentence or two.
+- **Never click "Resolve conversation"** — that belongs to the reviewer or PR author.
+- No emoji, no celebratory framing, no checklist mirroring the reviewer's items, no restating what the reviewer wrote.
+- Re-request review once per round (when all feedback is addressed), not after every intermediate push.
+
+---
+
 ## Common Pitfalls
 
 1. **Using shorthand keys instead of actual CLI tool names**: Always use the actual executable name as the AGENT_CONFIG key (e.g., `"cursor-agent"` not `"cursor"`). This prevents the need for special-case mappings throughout the codebase.

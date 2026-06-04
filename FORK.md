@@ -39,6 +39,7 @@ Use `agentic-sdlc-v<version>` with plus:
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.9.4+adlc1 | 2026-06-04 | 0.9.4 | Merge upstream 0.9.4 (10 commits): active skills registration recovery, cursor-agent headless CLI dispatch, `--force` flag on `extension add`, `specify workflow run` without project, extracted `_init_options.py`, plus ruff lint fixes and community catalog updates. Preserved fork identity, theming, namespaces, and self-update fork-awareness |
 | 0.9.2+adlc5 | 2026-06-04 | 0.9.2 | Hotfix: made `specify self check` and `specify self upgrade` fork-aware by detecting `agentic-sdlc-specify-cli`, accepting fork tags like `agentic-sdlc-v0.9.2+adlc4`, and emitting fork-correct reinstall/rollback commands |
 | 0.9.2+adlc4 | 2026-06-03 | 0.9.2 | Follow-up fork release after upstream main merge: self-upgrade/rollback guidance now points to `tikalk/agentic-sdlc-spec-kit`, themed `specify --help`, fixed generic integration quickstart test, and cleaned targeted Ruff/test issues while excluding eval Python template assets from Ruff |
 | 0.9.2+adlc3 | 2026-06-03 | 0.9.2 | Upstream main merge after 0.9.2: adopted `bb2b49d` workflow run-state hardening so `RunState.load()` validates `run_id` before path construction, plus new traversal/validation regression tests; kept fork release/version identity |

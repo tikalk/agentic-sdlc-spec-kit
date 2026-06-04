@@ -161,7 +161,7 @@ class YamlIntegrationTests:
             content = f.read_text(encoding="utf-8")
             # Strip trailing source comment before parsing
             lines = content.split("\n")
-            yaml_lines = [line for line in lines if not line.startswith("# Source:")]
+            yaml_lines = [ln for ln in lines if not ln.startswith("# Source:")]
             try:
                 parsed = yaml.safe_load("\n".join(yaml_lines))
             except Exception as exc:
@@ -192,7 +192,7 @@ class YamlIntegrationTests:
         content = cmd_files[0].read_text(encoding="utf-8")
         # Strip source comment for parsing
         lines = content.split("\n")
-        yaml_lines = [line for line in lines if not line.startswith("# Source:")]
+        yaml_lines = [ln for ln in lines if not ln.startswith("# Source:")]
         parsed = yaml.safe_load("\n".join(yaml_lines))
 
         assert "description:" not in parsed["prompt"]
@@ -375,11 +375,11 @@ class YamlIntegrationTests:
     COMMAND_STEMS = [
         "agent-context.update",
         "analyze",
-        "checklist",
         "clarify",
         "constitution",
         "implement",
         "plan",
+        "checklist",
         "specify",
         "tasks",
         "taskstoissues",

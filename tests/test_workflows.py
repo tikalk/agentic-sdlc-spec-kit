@@ -601,15 +601,18 @@ class TestCommandStep:
         mock_result.stderr = ""
 
         with patch("specify_cli.workflows.steps.command.shutil.which", return_value="/usr/local/bin/claude"), \
+             patch("specify_cli.integrations.base.shutil.which", return_value="/usr/local/bin/claude"), \
              patch("subprocess.run", return_value=mock_result) as mock_run:
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED
         assert result.output["dispatched"] is True
         assert result.output["exit_code"] == 0
-        # Verify the CLI was called with -p and the skill invocation
+        # Verify the CLI was called with the resolved path (via shutil.which,
+        # which honors PATHEXT for ``.cmd``/``.bat`` shims on Windows), then
+        # ``-p`` and the skill invocation.
         call_args = mock_run.call_args
-        assert call_args[0][0][0] == "claude"
+        assert call_args[0][0][0] == "/usr/local/bin/claude"
         assert call_args[0][0][1] == "-p"
         # Fork uses /spec-specify instead of /speckit-specify
         assert "/spec-specify login" in call_args[0][0][2]
@@ -638,6 +641,7 @@ class TestCommandStep:
         mock_result.stderr = "API error"
 
         with patch("specify_cli.workflows.steps.command.shutil.which", return_value="/usr/local/bin/claude"), \
+             patch("specify_cli.integrations.base.shutil.which", return_value="/usr/local/bin/claude"), \
              patch("subprocess.run", return_value=mock_result):
             result = step.execute(config, ctx)
 
