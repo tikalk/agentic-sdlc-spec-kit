@@ -1154,10 +1154,154 @@ def post_init(
     _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git, force=force)
     _install_bundled_presets(project_path, selected_ai, tracker, force=force)
 
+    # Reconcile RovoDev prompt wrappers — they are generated during
+    # integration setup() (before aliases are available) and therefore point
+    # at upstream ``speckit-<name>`` skills, but bundled presets later rename
+    # the skills to their fork-aliased names (e.g. ``spec-plan``). Rebuild the
+    # wrappers + prompts.yml so they reference the final on-disk skills.
+    if selected_ai == "rovodev":
+        _reconcile_rovodev_prompts(project_path)
+
     # Resync the integration manifest — bundled presets may delete/rename
     # skill directories (e.g. speckit-plan/ -> spec-plan/) without updating
     # the integration manifest that was saved during setup().
     _resync_integration_manifest(project_path, selected_ai)
+
+
+def _reconcile_rovodev_prompts(project_path: Path) -> None:
+    """Align RovoDev prompt wrappers + prompts.yml with the final skills.
+
+    RovoDev's ``setup()`` emits one ``<name>.prompt.md`` wrapper per core
+    skill plus a ``prompts.yml`` manifest. Those wrappers contain
+    ``use skill <name> ...`` and are generated *before* bundled presets run,
+    so on the fork they reference upstream ``speckit-<name>`` skills that the
+    presets subsequently rename to ``spec-<name>``. Left unreconciled, every
+    wrapper points at a skill directory that no longer exists, breaking
+    ``acli rovodev`` command dispatch.
+
+    This pass, run from ``post_init`` after presets are installed:
+
+    * Re-resolves each prompt's target through :func:`compute_skill_output_name`
+      (now that alias presets are present) to its final skill name.
+    * Renames the wrapper file and rewrites its ``use skill`` body.
+    * Updates the matching ``prompts.yml`` entry (name + content_file).
+    * Drops wrappers whose final skill is absent from disk.
+
+    Best-effort: any IO/parse error is swallowed so init never fails here.
+    """
+    import yaml
+
+    rovodev_dir = project_path / ".rovodev"
+    prompts_dir = rovodev_dir / "prompts"
+    prompts_yml = rovodev_dir / "prompts.yml"
+    skills_dir = rovodev_dir / "skills"
+    if not prompts_dir.is_dir() or not skills_dir.is_dir():
+        return
+
+    existing_skills = {
+        d.name for d in skills_dir.iterdir() if d.is_dir()
+    }
+
+    def _final_name(original: str) -> str:
+        stem = original
+        for pfx in ("speckit-", "spec-", "adlc-"):
+            if stem.startswith(pfx):
+                stem = stem[len(pfx):]
+                break
+        try:
+            resolved = compute_skill_output_name(
+                f"speckit.{stem.replace('-', '.')}",
+                {"extension": "/SKILL.md"},
+                project_path,
+            )
+        except Exception:
+            return original
+        return resolved or original
+
+    # Load existing prompts.yml entries (source of truth for which prompts
+    # rovodev generated). Fall back to scanning the prompts directory.
+    entries: list[dict[str, Any]] = []
+    if prompts_yml.exists():
+        try:
+            data = yaml.safe_load(prompts_yml.read_text(encoding="utf-8")) or {}
+            raw = data.get("prompts") if isinstance(data, dict) else None
+            if isinstance(raw, list):
+                entries = [e for e in raw if isinstance(e, dict)]
+        except (yaml.YAMLError, OSError, UnicodeError):
+            entries = []
+
+    if not entries:
+        entries = [
+            {
+                "name": pf.name.removesuffix(".prompt.md"),
+                "description": "",
+                "content_file": f"prompts/{pf.name}",
+            }
+            for pf in sorted(prompts_dir.glob("*.prompt.md"))
+        ]
+
+    new_entries: list[dict[str, Any]] = []
+    changed = False
+
+    for entry in entries:
+        name = entry.get("name", "")
+        if not name:
+            new_entries.append(entry)
+            continue
+
+        final = _final_name(name)
+        old_file = prompts_dir / f"{name}.prompt.md"
+
+        if final not in existing_skills:
+            # Orphan: drop the stale wrapper entirely.
+            if old_file.exists():
+                try:
+                    old_file.unlink()
+                except OSError:
+                    pass
+            changed = True
+            continue
+
+        if final == name:
+            new_entries.append(entry)
+            continue
+
+        # Rename wrapper file and rewrite its body to the final skill name.
+        new_file = prompts_dir / f"{final}.prompt.md"
+        try:
+            new_file.write_text(
+                f"use skill {final} $ARGUMENTS\n", encoding="utf-8"
+            )
+            if old_file.exists() and old_file != new_file:
+                old_file.unlink()
+        except OSError:
+            new_entries.append(entry)
+            continue
+
+        updated = dict(entry)
+        updated["name"] = final
+        updated["content_file"] = f"prompts/{final}.prompt.md"
+        if not updated.get("description"):
+            updated["description"] = f"Invoke {final} skill"
+        new_entries.append(updated)
+        changed = True
+
+    if not changed:
+        return
+
+    try:
+        prompts_yml.write_text(
+            yaml.safe_dump(
+                {"prompts": new_entries},
+                default_flow_style=False,
+                sort_keys=False,
+                allow_unicode=True,
+                width=10_000,
+            ),
+            encoding="utf-8",
+        )
+    except (yaml.YAMLError, OSError):
+        pass
 
 
 def _resync_integration_manifest(project_path: Path, selected_ai: str) -> None:
