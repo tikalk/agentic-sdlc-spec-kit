@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sys
 import tempfile
 from pathlib import Path
 
@@ -859,8 +860,54 @@ class TestShellStep:
         assert any("missing 'run'" in e for e in errors)
 
 
+class _StubStdin:
+    """Stdin stub exposing only a fixed ``isatty`` result.
+
+    A real ``TextIOWrapper.isatty`` is not assignable under some runners
+    (e.g. pytest with capture disabled), so the gate tests force the value
+    through this stub to stay deterministic regardless of how the suite is
+    run.
+    """
+
+    def __init__(self, tty: bool):
+        self._tty = tty
+
+    def isatty(self) -> bool:
+        return self._tty
+
+
+class _FakeSys:
+    """Stand-in for the gate module's ``sys`` with a fixed-``isatty`` stdin.
+
+    Every other attribute delegates to the real ``sys``. Rebinding the gate
+    module's ``sys`` name (rather than mutating the process-wide
+    ``sys.stdin``) keeps the patch local to the gate module and leaves the
+    real stdin untouched.
+    """
+
+    def __init__(self, tty: bool):
+        self.stdin = _StubStdin(tty)
+
+    def __getattr__(self, name):
+        return getattr(sys, name)
+
+
+def _force_gate_stdin(monkeypatch, *, tty: bool):
+    from specify_cli.workflows.steps import gate as gate_module
+
+    monkeypatch.setattr(gate_module, "sys", _FakeSys(tty=tty))
+
+
 class TestGateStep:
     """Test the gate step type."""
+
+    @pytest.fixture(autouse=True)
+    def _non_tty_stdin_by_default(self, monkeypatch):
+        # Default every gate test to a non-TTY stdin so none can drop into
+        # the interactive prompt and block on input() when the suite runs
+        # with a real TTY. Interactive tests opt back in with
+        # _force_gate_stdin(monkeypatch, tty=True).
+        _force_gate_stdin(monkeypatch, tty=False)
 
     def test_execute_returns_paused(self):
         from specify_cli.workflows.steps.gate import GateStep
@@ -896,6 +943,174 @@ class TestGateStep:
             "on_reject": "invalid",
         })
         assert any("on_reject" in e for e in errors)
+
+    def test_interactive_prompt_renders_show_file(self, tmp_path, monkeypatch, capsys):
+        from specify_cli.workflows.steps.gate import GateStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        review = tmp_path / "spec.md"
+        review.write_text("LINE-ONE\nLINE-TWO\n", encoding="utf-8")
+
+        _force_gate_stdin(monkeypatch, tty=True)
+        monkeypatch.setattr("builtins.input", lambda _prompt="": "1")
+
+        step = GateStep()
+        config = {
+            "id": "review",
+            "message": "Review the spec.",
+            "show_file": str(review),
+            "options": ["approve", "reject"],
+        }
+        result = step.execute(config, StepContext())
+        out = capsys.readouterr().out
+
+        assert "LINE-ONE" in out and "LINE-TWO" in out
+        assert str(review) in out
+        assert result.status == StepStatus.COMPLETED
+        assert result.output["choice"] == "approve"
+
+    def test_interactive_prompt_missing_show_file_does_not_crash(
+        self, tmp_path, monkeypatch, capsys
+    ):
+        from specify_cli.workflows.steps.gate import GateStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        missing = tmp_path / "does-not-exist.md"
+
+        _force_gate_stdin(monkeypatch, tty=True)
+        monkeypatch.setattr("builtins.input", lambda _prompt="": "1")
+
+        step = GateStep()
+        config = {
+            "id": "review",
+            "message": "Review.",
+            "show_file": str(missing),
+            "options": ["approve", "reject"],
+        }
+        result = step.execute(config, StepContext())
+        out = capsys.readouterr().out
+
+        assert "could not read file" in out
+        assert result.status == StepStatus.COMPLETED
+
+    def test_non_interactive_show_file_still_pauses_without_reading(
+        self, tmp_path, monkeypatch
+    ):
+        from specify_cli.workflows.steps.gate import GateStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        review = tmp_path / "spec.md"
+        review.write_text("CONTENT\n", encoding="utf-8")
+
+        # stdin defaults to non-TTY via the autouse fixture.
+        # The non-interactive path must not read the file; hard-fail if it does.
+        monkeypatch.setattr(
+            GateStep,
+            "_read_show_file",
+            staticmethod(
+                lambda _p: (_ for _ in ()).throw(
+                    AssertionError("show_file read on the non-interactive path")
+                )
+            ),
+        )
+
+        step = GateStep()
+        config = {
+            "id": "review",
+            "message": "Review.",
+            "show_file": str(review),
+            "options": ["approve", "reject"],
+        }
+        result = step.execute(config, StepContext())
+        assert result.status == StepStatus.PAUSED
+        assert result.output["show_file"] == str(review)
+
+    def test_read_show_file_empty(self, tmp_path):
+        from specify_cli.workflows.steps.gate import GateStep
+
+        empty = tmp_path / "empty.md"
+        empty.write_text("", encoding="utf-8")
+        assert GateStep._read_show_file(str(empty)) == ["(file is empty)"]
+
+    def test_read_show_file_truncates_large_file(self, tmp_path):
+        from specify_cli.workflows.steps.gate import GateStep
+
+        big = tmp_path / "big.md"
+        big.write_text(
+            "\n".join(f"line{i}" for i in range(GateStep.MAX_SHOW_FILE_LINES + 50)),
+            encoding="utf-8",
+        )
+        rendered = GateStep._read_show_file(str(big))
+        # MAX_SHOW_FILE_LINES content lines + one truncation notice line.
+        assert len(rendered) == GateStep.MAX_SHOW_FILE_LINES + 1
+        assert "truncated" in rendered[-1]
+
+    def test_read_show_file_invalid_path_does_not_raise(self):
+        from specify_cli.workflows.steps.gate import GateStep
+
+        # An embedded NUL byte makes the OS reject the path with ValueError
+        # before any I/O; it must degrade to a notice, not crash the prompt.
+        rendered = GateStep._read_show_file("bad\x00path.md")
+        assert len(rendered) == 1
+        assert rendered[0].startswith("(could not read file:")
+
+    def test_read_show_file_strips_control_chars(self, tmp_path):
+        from specify_cli.workflows.steps.gate import GateStep
+
+        # A file with ANSI/control bytes must not inject escapes into the
+        # terminal; ESC and other C0 controls are stripped, tab is kept.
+        f = tmp_path / "ansi.md"
+        f.write_text("a\x1b[2Jb\tc\x07d\n", encoding="utf-8")
+        rendered = GateStep._read_show_file(str(f))
+        assert rendered == ["a[2Jb\tcd"]
+        assert "\x1b" not in rendered[0] and "\x07" not in rendered[0]
+
+    def test_compose_prompt_sanitizes_show_file_path(self):
+        from specify_cli.workflows.steps.gate import GateStep
+
+        # The displayed path header (and the read-error notice it produces)
+        # must not carry escapes even when the path string itself contains
+        # control characters — ESC, LF, and C1 CSI (\x9b); the file is still
+        # opened with the raw value.
+        out = GateStep._compose_prompt("Review.", "ev\x1bil\x9b[2J\npath.md")
+        assert "\x1b" not in out and "\x9b" not in out
+        assert "evil[2Jpath.md:" in out
+
+    def test_interactive_non_string_message_renders(self, monkeypatch, capsys):
+        from specify_cli.workflows.steps.gate import GateStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        # A YAML numeric literal reaches the prompt as a non-string; it must
+        # render rather than crash on the multi-line split.
+        _force_gate_stdin(monkeypatch, tty=True)
+        monkeypatch.setattr("builtins.input", lambda _prompt="": "1")
+
+        step = GateStep()
+        config = {"id": "review", "message": 123, "options": ["approve", "reject"]}
+        result = step.execute(config, StepContext())
+        out = capsys.readouterr().out
+        assert "123" in out
+        assert result.status == StepStatus.COMPLETED
+
+    def test_templated_show_file_resolving_to_non_string_is_coerced(self):
+        from specify_cli.workflows.steps.gate import GateStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        # A single-expression template can resolve to a non-string (e.g. a
+        # number from a prior step); it must be coerced to str, not skipped.
+        # stdin defaults to non-TTY via the autouse fixture, so the path
+        # stays non-interactive (-> PAUSED) and cannot block on input.
+        step = GateStep()
+        ctx = StepContext(steps={"prev": {"output": {"ref": 123}}})
+        config = {
+            "id": "review",
+            "message": "Review.",
+            "show_file": "{{ steps.prev.output.ref }}",
+            "options": ["approve", "reject"],
+        }
+        result = step.execute(config, ctx)  # non-interactive -> PAUSED
+        assert result.status == StepStatus.PAUSED
+        assert result.output["show_file"] == "123"
 
 
 class TestIfThenStep:
@@ -2622,19 +2837,11 @@ steps:
         from specify_cli.workflows.engine import WorkflowDefinition, WorkflowEngine
         from specify_cli.workflows.base import RunStatus
         from specify_cli.workflows.steps.gate import GateStep
-        from specify_cli.workflows.steps import gate as gate_module
 
         # Force the gate step into interactive mode and feed a "reject"
-        # choice so the abort path actually runs in the test env
-        # (default behaviour returns StepStatus.PAUSED when stdin is not a TTY).
-        # Swap sys.stdin itself for a stub: setattr on the real
-        # TextIOWrapper's `isatty` method is not assignable under some
-        # runners (e.g. pytest with capture disabled).
-        class _TTYStdin:
-            def isatty(self) -> bool:
-                return True
-
-        monkeypatch.setattr(gate_module.sys, "stdin", _TTYStdin())
+        # choice so the abort path actually runs in the test env (default
+        # behaviour returns StepStatus.PAUSED when stdin is not a TTY).
+        _force_gate_stdin(monkeypatch, tty=True)
         monkeypatch.setattr(
             GateStep, "_prompt", staticmethod(lambda _msg, _opts: "reject")
         )
