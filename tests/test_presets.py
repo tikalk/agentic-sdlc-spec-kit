@@ -1528,17 +1528,33 @@ class TestPresetCatalog:
             zf.writestr("preset.yml", "id: test-pack\nname: Test\nversion: 1.0.0\n")
         zip_bytes = zip_buf.getvalue()
 
-        mock_response = MagicMock()
-        mock_response.read.return_value = zip_bytes
-        mock_response.__enter__ = lambda s: s
-        mock_response.__exit__ = MagicMock(return_value=False)
+        release_response = MagicMock()
+        release_response.read.return_value = json.dumps(
+            {
+                "assets": [
+                    {
+                        "name": "test-pack.zip",
+                        "url": "https://api.github.com/repos/org/repo/releases/assets/1",
+                    }
+                ]
+            }
+        ).encode()
+        release_response.__enter__ = lambda s: s
+        release_response.__exit__ = MagicMock(return_value=False)
 
-        captured = {}
+        asset_response = MagicMock()
+        asset_response.read.return_value = zip_bytes
+        asset_response.__enter__ = lambda s: s
+        asset_response.__exit__ = MagicMock(return_value=False)
+
+        captured = []
         mock_opener = MagicMock()
 
         def fake_open(req, timeout=None):
-            captured["req"] = req
-            return mock_response
+            captured.append(req)
+            if req.full_url.endswith("/releases/tags/v1"):
+                return release_response
+            return asset_response
 
         mock_opener.open.side_effect = fake_open
 
@@ -1554,7 +1570,56 @@ class TestPresetCatalog:
              patch("specify_cli.authentication.http.urllib.request.build_opener", return_value=mock_opener):
             catalog.download_pack("test-pack", target_dir=project_dir)
 
-        assert captured["req"].get_header("Authorization") == "Bearer ghp_testtoken"
+        assert captured[0].full_url == "https://api.github.com/repos/org/repo/releases/tags/v1"
+        assert captured[0].get_header("Authorization") == "Bearer ghp_testtoken"
+        assert captured[1].full_url == "https://api.github.com/repos/org/repo/releases/assets/1"
+        assert captured[1].get_header("Authorization") == "Bearer ghp_testtoken"
+        assert captured[1].get_header("Accept") == "application/octet-stream"
+
+    def test_download_pack_accepts_direct_github_rest_asset_url(self, project_dir, monkeypatch):
+        """download_pack can use a GitHub REST release asset URL directly."""
+        from unittest.mock import patch, MagicMock
+
+        monkeypatch.setenv("GITHUB_TOKEN", "ghp_testtoken")
+        self._inject_github_config(monkeypatch, token_env="GITHUB_TOKEN")
+        catalog = PresetCatalog(project_dir)
+
+        import io
+        zip_buf = io.BytesIO()
+        with zipfile.ZipFile(zip_buf, "w") as zf:
+            zf.writestr("preset.yml", "id: test-pack\nname: Test\nversion: 1.0.0\n")
+        zip_bytes = zip_buf.getvalue()
+
+        asset_response = MagicMock()
+        asset_response.read.return_value = zip_bytes
+        asset_response.__enter__ = lambda s: s
+        asset_response.__exit__ = MagicMock(return_value=False)
+
+        captured = []
+        mock_opener = MagicMock()
+
+        def fake_open(req, timeout=None):
+            captured.append(req)
+            return asset_response
+
+        mock_opener.open.side_effect = fake_open
+
+        pack_info = {
+            "id": "test-pack",
+            "name": "Test Pack",
+            "version": "1.0.0",
+            "download_url": "https://api.github.com/repos/org/repo/releases/assets/1",
+            "_install_allowed": True,
+        }
+
+        with patch.object(catalog, "get_pack_info", return_value=pack_info), \
+             patch("specify_cli.authentication.http.urllib.request.build_opener", return_value=mock_opener):
+            catalog.download_pack("test-pack", target_dir=project_dir)
+
+        assert len(captured) == 1
+        assert captured[0].full_url == "https://api.github.com/repos/org/repo/releases/assets/1"
+        assert captured[0].get_header("Authorization") == "Bearer ghp_testtoken"
+        assert captured[0].get_header("Accept") == "application/octet-stream"
 
 
 # ===== Integration Tests =====
@@ -3829,6 +3894,119 @@ class TestBundledPresetLocator:
         output = strip_ansi(result.output).lower()
         assert "bundled" in output, result.output
         assert "reinstall" in output, result.output
+
+
+class TestPresetAddFromUrlResolution:
+    """CLI-level tests for preset add --from <url> GitHub release resolution."""
+
+    def test_preset_add_from_github_release_url_resolves_and_downloads(self, project_dir):
+        """'preset add --from <github-release-url>' resolves to API asset URL."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        manifest_content = yaml.dump({
+            "schema_version": "1.0",
+            "preset": {"id": "my-preset", "name": "My Preset", "version": "1.0.0", "description": "Test preset", "author": "Test", "license": "MIT"},
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {"templates": [{"type": "template", "name": "t", "file": "templates/t.md", "description": "t"}]},
+        })
+        zip_buf = __import__("io").BytesIO()
+        with zipfile.ZipFile(zip_buf, "w") as zf:
+            zf.writestr("preset.yml", manifest_content)
+        zip_bytes = zip_buf.getvalue()
+
+        captured_urls = []
+
+        class FakeResponse:
+            def __init__(self, data):
+                self._data = data
+
+            def read(self):
+                return self._data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_open_url(url, timeout=None, extra_headers=None):
+            captured_urls.append((url, extra_headers))
+            if "releases/tags/" in url:
+                return FakeResponse(json.dumps({
+                    "assets": [{"name": "preset.zip", "url": "https://api.github.com/repos/org/repo/releases/assets/42"}]
+                }).encode())
+            return FakeResponse(zip_bytes)
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli.get_speckit_version", return_value="1.0.0"), \
+             patch("specify_cli.authentication.http.open_url", side_effect=fake_open_url):
+            result = runner.invoke(app, [
+                "preset", "add",
+                "--from", "https://github.com/org/repo/releases/download/v1.0/preset.zip",
+            ])
+
+        assert result.exit_code == 0, result.output
+        assert "My Preset" in result.output
+        # First call should resolve the release tag
+        assert any("releases/tags/v1.0" in url for url, _ in captured_urls)
+        # Second call should download from the resolved asset URL with octet-stream
+        asset_calls = [(url, h) for url, h in captured_urls if "releases/assets/" in url]
+        assert len(asset_calls) >= 1
+        assert asset_calls[0][1] == {"Accept": "application/octet-stream"}
+
+    def test_preset_add_from_direct_api_asset_url_passes_through(self, project_dir):
+        """'preset add --from <api-asset-url>' uses URL directly with octet-stream."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        manifest_content = yaml.dump({
+            "schema_version": "1.0",
+            "preset": {"id": "my-preset", "name": "My Preset", "version": "1.0.0", "description": "Test preset", "author": "Test", "license": "MIT"},
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {"templates": [{"type": "template", "name": "t", "file": "templates/t.md", "description": "t"}]},
+        })
+        zip_buf = __import__("io").BytesIO()
+        with zipfile.ZipFile(zip_buf, "w") as zf:
+            zf.writestr("preset.yml", manifest_content)
+        zip_bytes = zip_buf.getvalue()
+
+        captured_urls = []
+
+        class FakeResponse:
+            def __init__(self, data):
+                self._data = data
+
+            def read(self):
+                return self._data
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        def fake_open_url(url, timeout=None, extra_headers=None):
+            captured_urls.append((url, extra_headers))
+            return FakeResponse(zip_bytes)
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli.get_speckit_version", return_value="1.0.0"), \
+             patch("specify_cli.authentication.http.open_url", side_effect=fake_open_url):
+            result = runner.invoke(app, [
+                "preset", "add",
+                "--from", "https://api.github.com/repos/org/repo/releases/assets/42",
+            ])
+
+        assert result.exit_code == 0, result.output
+        # Should go directly to the asset URL with Accept header
+        assert len(captured_urls) == 1
+        assert captured_urls[0][0] == "https://api.github.com/repos/org/repo/releases/assets/42"
+        assert captured_urls[0][1] == {"Accept": "application/octet-stream"}
 
 
 class TestWrapStrategy:
