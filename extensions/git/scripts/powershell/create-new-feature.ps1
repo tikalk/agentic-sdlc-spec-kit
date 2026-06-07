@@ -12,6 +12,10 @@ param(
     [Parameter()]
     [long]$Number = 0,
     [switch]$Timestamp,
+    [switch]$Worktree,
+    [switch]$BranchMode,
+    [string]$IsolationMode,
+    [string]$Base,
     [switch]$Help,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
@@ -19,19 +23,31 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
     Write-Host ""
     Write-Host "Options:"
-    Write-Host "  -Json               Output in JSON format"
-    Write-Host "  -DryRun             Compute branch name without creating the branch"
+    Write-Host "  -Json                 Output in JSON format"
+    Write-Host "  -DryRun               Compute branch name without creating the branch"
     Write-Host "  -AllowExistingBranch  Switch to branch if it already exists instead of failing"
-    Write-Host "  -ShortName <name>   Provide a custom short name (2-4 words) for the branch"
-    Write-Host "  -Number N           Specify branch number manually (overrides auto-detection)"
-    Write-Host "  -Timestamp          Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-    Write-Host "  -Help               Show this help message"
+    Write-Host "  -ShortName <name>     Provide a custom short name (2-4 words) for the branch"
+    Write-Host "  -Number N             Specify branch number manually (overrides auto-detection)"
+    Write-Host "  -Timestamp            Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
+    Write-Host "  -Worktree             Force worktree isolation (creates a feature-level worktree under .worktrees/<feature>/)"
+    Write-Host "  -BranchMode           Force branch isolation (default behavior; the new branch lives in the primary checkout)"
+    Write-Host "  -IsolationMode <mode> Set isolation explicitly: 'branch' or 'worktree'"
+    Write-Host "  -Base <branch>        Base branch for the new feature branch or worktree (default: current branch)"
+    Write-Host "  -Help                 Show this help message"
     Write-Host ""
     Write-Host "Environment variables:"
-    Write-Host "  GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation"
+    Write-Host "  GIT_BRANCH_NAME        Use this exact branch name, bypassing all prefix/suffix generation"
+    Write-Host "  SPECIFY_ISOLATION_MODE Override isolation mode ('branch' or 'worktree')"
+    Write-Host ""
+    Write-Host "Isolation mode resolution (highest precedence first):"
+    Write-Host "  1. -Worktree / -BranchMode (boolean shortcuts)"
+    Write-Host "  2. -IsolationMode <mode>"
+    Write-Host "  3. SPECIFY_ISOLATION_MODE env var"
+    Write-Host "  4. .specify/extensions/git/git-config.yml 'isolation_mode:' key"
+    Write-Host "  5. Default: branch"
     Write-Host ""
     exit 0
 }
@@ -149,7 +165,48 @@ function ConvertTo-CleanBranchName {
 }
 
 # ---------------------------------------------------------------------------
-# Source common.ps1 from the project's installed scripts.
+# Resolve isolation mode (branch vs worktree).
+#
+# Precedence (highest first):
+#   1. -Worktree / -BranchMode (boolean shortcuts)
+#   2. -IsolationMode <mode>
+#   3. SPECIFY_ISOLATION_MODE env var
+#   4. .specify/extensions/git/git-config.yml 'isolation_mode:' key
+#   5. Default: branch
+# ---------------------------------------------------------------------------
+function Resolve-IsolationMode {
+    if ($Worktree) { return 'worktree' }
+    if ($BranchMode) { return 'branch' }
+    if (-not [string]::IsNullOrEmpty($IsolationMode)) {
+        if ($IsolationMode -ne 'branch' -and $IsolationMode -ne 'worktree') {
+            throw "Error: -IsolationMode must be 'branch' or 'worktree' (got: $IsolationMode)"
+        }
+        return $IsolationMode
+    }
+    $envMode = $env:SPECIFY_ISOLATION_MODE
+    if (-not [string]::IsNullOrEmpty($envMode) -and ($envMode -eq 'branch' -or $envMode -eq 'worktree')) {
+        return $envMode
+    }
+    $cfgPath = Join-Path $repoRoot '.specify/extensions/git/git-config.yml'
+    if (Test-Path $cfgPath) {
+        $cfgValue = ''
+        try {
+            $lines = Get-Content -Path $cfgPath -ErrorAction SilentlyContinue
+            foreach ($line in $lines) {
+                if ($line -match '^\s*isolation_mode\s*:\s*(.+?)\s*(#.*)?$') {
+                    $cfgValue = $matches[1].Trim().Trim("'", '"')
+                }
+            }
+        } catch {}
+        if ($cfgValue -eq 'branch' -or $cfgValue -eq 'worktree') {
+            return $cfgValue
+        }
+    }
+    return 'branch'
+}
+
+# Worktree delegation block is inserted below, AFTER $repoRoot is resolved.
+
 # Search locations in priority order:
 #  1. .specify/scripts/powershell/common.ps1 under the project root
 #  2. scripts/powershell/common.ps1 under the project root (source checkout)
@@ -222,6 +279,47 @@ if (Get-Command Test-HasGit -ErrorAction SilentlyContinue) {
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
+
+# Resolve isolation mode now that $repoRoot is known.
+$isolationMode = Resolve-IsolationMode
+
+# ---------------------------------------------------------------------------
+# Worktree mode: delegate to worktree-utils.ps1 instead of git checkout -b.
+# ---------------------------------------------------------------------------
+$worktreeUtils = Join-Path $PSScriptRoot 'worktree-utils.ps1'
+
+function Invoke-WorktreeDelegation {
+    param([string]$FeatureName, [string]$BaseBranch)
+
+    $wtArgs = @('create-feature-worktree', '-Feature', $FeatureName)
+    if (-not [string]::IsNullOrEmpty($BaseBranch)) {
+        $wtArgs += @('-Base', $BaseBranch)
+    }
+
+    $wtExit = 0
+    $wtStdout = ''
+    try {
+        $wtStdout = & pwsh -NoProfile -File $worktreeUtils @wtArgs 2>$null
+        $wtExit = $LASTEXITCODE
+    } catch {
+        $wtExit = 1
+    }
+    if ($wtExit -ne 0) {
+        & pwsh -NoProfile -File $worktreeUtils @wtArgs 2>&1 | Out-Null
+        exit $wtExit
+    }
+
+    $wtJsonText = ($wtStdout -join "`n")
+    $wtData = $null
+    try {
+        $wtData = $wtJsonText | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        throw "Error: failed to parse worktree-utils.ps1 output as JSON. Raw: $wtJsonText"
+    }
+    $wtPath = if ($wtData.PSObject.Properties.Match('worktree_path').Count) { [string]$wtData.worktree_path } else { '' }
+    $mfPath = if ($wtData.PSObject.Properties.Match('manifest_path').Count) { [string]$wtData.manifest_path } else { '' }
+    return @{ WorktreePath = $wtPath; ManifestPath = $mfPath }
+}
 
 function Get-BranchName {
     param([string]$Description)
@@ -324,6 +422,47 @@ if ($branchName.Length -gt $maxBranchLength) {
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
 
+# ---------------------------------------------------------------------------
+# Worktree mode gate: when isolation_mode is worktree, delegate to
+# worktree-utils.ps1 instead of running the existing git checkout -b flow.
+# The agent is expected to cd into the worktree path before working.
+# ---------------------------------------------------------------------------
+if ($isolationMode -eq 'worktree' -and -not $DryRun) {
+    if (-not $hasGit) {
+        throw "Error: worktree mode requires a git repository."
+    }
+    if (-not (Test-Path $worktreeUtils)) {
+        throw "Error: worktree-utils.ps1 not found at $worktreeUtils (required for -Worktree mode)"
+    }
+    $wtResult = Invoke-WorktreeDelegation -FeatureName $branchName -BaseBranch $Base
+    $worktreePath = $wtResult.WorktreePath
+    $manifestPath = $wtResult.ManifestPath
+
+    if ($Json) {
+        $obj = [ordered]@{
+            BRANCH_NAME   = $branchName
+            FEATURE_NUM   = $featureNum
+            ISOLATION_MODE = 'worktree'
+            WORKTREE_PATH = $worktreePath
+            MANIFEST_PATH = $manifestPath
+        }
+        $obj | ConvertTo-Json -Compress
+    } else {
+        Write-Output "BRANCH_NAME: $branchName"
+        Write-Output "FEATURE_NUM: $featureNum"
+        Write-Output "ISOLATION_MODE: worktree"
+        Write-Output "WORKTREE_PATH: $worktreePath"
+        Write-Output "MANIFEST_PATH: $manifestPath"
+        Write-Warning "# To persist: `$env:SPECIFY_FEATURE='$branchName'"
+        Write-Warning "# To work in the worktree: cd $worktreePath"
+    }
+    exit 0
+}
+
+# ---------------------------------------------------------------------------
+# Branch mode (default): existing behavior - git checkout -b in primary.
+# ---------------------------------------------------------------------------
+
 if (-not $DryRun) {
     if ($hasGit) {
         $branchCreated = $false
@@ -385,9 +524,10 @@ if (-not $DryRun) {
 
 if ($Json) {
     $obj = [PSCustomObject]@{
-        BRANCH_NAME = $branchName
-        FEATURE_NUM = $featureNum
-        HAS_GIT = $hasGit
+        BRANCH_NAME   = $branchName
+        FEATURE_NUM   = $featureNum
+        HAS_GIT       = $hasGit
+        ISOLATION_MODE = $isolationMode
     }
     if ($DryRun) {
         $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
@@ -397,6 +537,7 @@ if ($Json) {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "FEATURE_NUM: $featureNum"
     Write-Output "HAS_GIT: $hasGit"
+    Write-Output "ISOLATION_MODE: $isolationMode"
     if (-not $DryRun) {
         Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
     }

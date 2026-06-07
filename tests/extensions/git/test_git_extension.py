@@ -111,10 +111,10 @@ def _run_bash(script_name: str, cwd: Path, *args: str, env_extra: dict | None = 
     )
 
 
-def _run_pwsh(script_name: str, cwd: Path, *args: str) -> subprocess.CompletedProcess:
+def _run_pwsh(script_name: str, cwd: Path, *args: str, env_extra: dict | None = None) -> subprocess.CompletedProcess:
     """Run an extension PowerShell script."""
     script = cwd / ".specify" / "extensions" / "git" / "scripts" / "powershell" / script_name
-    env = {**os.environ, **_GIT_ENV}
+    env = {**os.environ, **_GIT_ENV, **(env_extra or {})}
     return subprocess.run(
         ["pwsh", "-NoProfile", "-File", str(script), *args],
         cwd=cwd,
@@ -122,6 +122,15 @@ def _run_pwsh(script_name: str, cwd: Path, *args: str) -> subprocess.CompletedPr
         text=True,
         env=env,
     )
+
+
+def _last_commit_subject(cwd: Path) -> str:
+    """Return the subject of the most recent commit (empty if no commits)."""
+    result = subprocess.run(
+        ["git", "log", "-1", "--format=%s"],
+        cwd=cwd, capture_output=True, text=True, env={**os.environ, **_GIT_ENV},
+    )
+    return result.stdout.strip()
 
 
 # ── Manifest Tests ───────────────────────────────────────────────────────────
@@ -134,7 +143,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.2.6"
+        assert m.version == "1.3.0"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -149,6 +158,9 @@ class TestGitExtensionManifest:
         assert "speckit.git.commit" in names
         assert "speckit.git.workspace" in names
         assert "speckit.git.setup-ignore" in names
+        assert "speckit.git.task" in names
+        assert "speckit.git.task-merge" in names
+        assert "speckit.git.task-list" in names
 
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""
@@ -739,6 +751,458 @@ class TestAutoCommitPowerShellCRLF:
 
 
 # ── git-common.sh Tests ──────────────────────────────────────────────────────
+
+
+# ── auto-commit.sh task mode (Step 5) ─────────────────────────────────────────
+
+
+@requires_bash
+class TestAutoCommitTaskModeBash:
+    """Tests for SPECKIT_TASK_MODE / --mode flag in auto-commit.sh."""
+
+    def test_sync_default_preserves_message(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+    def test_parallel_mode_prefixes_subject(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T001", "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T001] [Spec Kit] Auto-commit after implement"
+
+    def test_async_mode_prefixes_subject(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "--mode", "async", "--task-id", "T042", "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T042] [Spec Kit] Auto-commit after implement"
+
+    def test_speckit_task_mode_env_overrides_default(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash(
+            "auto-commit.sh", project, "after_implement",
+            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
+        )
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T007] [Spec Kit] Auto-commit after implement"
+
+    def test_flag_overrides_env(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash(
+            "auto-commit.sh", project,
+            "--mode", "async", "--task-id", "T111", "after_implement",
+            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
+        )
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T111] [Spec Kit] Auto-commit after implement"
+
+    def test_parallel_mode_without_task_id_warns_no_prefix(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "after_implement")
+        assert result.returncode == 0
+        # No task-id supplied, no prefix added
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+    def test_invalid_mode_errors(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        result = _run_bash("auto-commit.sh", project, "--mode", "xyz", "after_implement")
+        assert result.returncode != 0
+        assert "sync" in result.stderr and "parallel" in result.stderr and "async" in result.stderr
+
+    def test_invalid_task_id_format_warns_and_ignores(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_bash(
+            "auto-commit.sh", project,
+            "--mode", "parallel", "--task-id", "abc", "after_implement",
+        )
+        assert result.returncode == 0
+        assert "ignoring" in result.stderr
+        # No prefix because invalid id was ignored
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+    def test_idempotent_does_not_double_prefix(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_implement:\n"
+            "    enabled: true\n"
+            '    message: "[T001] already prefixed"\n'
+        ))
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T001", "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T001] already prefixed"
+
+    def test_custom_message_with_parallel_prefix(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, (
+            "auto_commit:\n"
+            "  default: false\n"
+            "  after_implement:\n"
+            "    enabled: true\n"
+            '    message: "custom commit msg"\n'
+        ))
+        (project / "a.txt").write_text("hello")
+        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T099", "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T099] custom commit msg"
+
+    def test_help_flag_prints_usage(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        result = _run_bash("auto-commit.sh", project, "--help")
+        assert result.returncode == 0
+        assert "Usage" in result.stdout
+        assert "SPECKIT_TASK_MODE" in result.stdout
+
+
+@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
+class TestAutoCommitTaskModePowerShell:
+    """Smoke tests for SPECKIT_TASK_MODE / -Mode flag in auto-commit.ps1."""
+
+    def test_sync_default_preserves_message(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh("auto-commit.ps1", project, "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+    def test_parallel_mode_prefixes_subject(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh(
+            "auto-commit.ps1", project,
+            "-Mode", "parallel", "-TaskId", "T001", "after_implement",
+        )
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T001] [Spec Kit] Auto-commit after implement"
+
+    def test_async_mode_prefixes_subject(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh(
+            "auto-commit.ps1", project,
+            "-Mode", "async", "-TaskId", "T042", "after_implement",
+        )
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T042] [Spec Kit] Auto-commit after implement"
+
+    def test_speckit_task_mode_env_overrides_default(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh(
+            "auto-commit.ps1", project, "after_implement",
+            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
+        )
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[T007] [Spec Kit] Auto-commit after implement"
+
+    def test_parallel_mode_without_task_id_no_prefix(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh("auto-commit.ps1", project, "-Mode", "parallel", "after_implement")
+        assert result.returncode == 0
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+    def test_invalid_mode_errors(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        result = _run_pwsh("auto-commit.ps1", project, "-Mode", "xyz", "after_implement")
+        assert result.returncode != 0
+        assert "sync" in result.stderr and "parallel" in result.stderr and "async" in result.stderr
+
+    def test_invalid_task_id_format_warns_and_ignores(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        _write_config(project, "auto_commit:\n  default: true\n")
+        (project / "a.txt").write_text("hello")
+        result = _run_pwsh(
+            "auto-commit.ps1", project,
+            "-Mode", "parallel", "-TaskId", "abc", "after_implement",
+        )
+        assert result.returncode == 0
+        assert "ignoring" in result.stderr
+        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
+
+
+# ── create-new-feature.sh isolation mode (Step 4) ─────────────────────────────
+
+
+@requires_bash
+class TestCreateFeatureIsolationModeBash:
+    """Tests for --worktree / --branch-mode / --isolation-mode / --base flags."""
+
+    def test_default_branch_mode(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash("create-new-feature.sh", project, "--json", "--short-name", "alpha", "Add alpha")
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+        assert "BRANCH_NAME" in data
+
+    def test_worktree_flag_creates_worktree(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--worktree", "--json", "--short-name", "payment", "Add payment",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+        assert "WORKTREE_PATH" in data
+        wt_dir = project / data["WORKTREE_PATH"]
+        assert wt_dir.exists()
+
+    def test_branch_mode_flag(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash("create-new-feature.sh", project, "--branch-mode", "--json", "--short-name", "x", "X")
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_isolation_mode_explicit_branch(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--isolation-mode", "branch", "--json", "--short-name", "y", "Y",
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_isolation_mode_explicit_worktree(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--isolation-mode", "worktree", "--json", "--short-name", "z", "Z",
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+    def test_isolation_mode_from_config(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        (project / ".specify" / "extensions" / "git" / "git-config.yml").write_text(
+            "git:\n  isolation_mode: worktree\n"
+        )
+        result = _run_bash("create-new-feature.sh", project, "--json", "--short-name", "cfg", "Cfg")
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+    def test_speckit_isolation_mode_env(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project, "--json", "--short-name", "env", "Env",
+            env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+    def test_cli_flag_overrides_env(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--branch-mode", "--json", "--short-name", "ovr", "Ovr",
+            env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_invalid_isolation_mode_errors(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--isolation-mode", "parallel", "--json", "--short-name", "bad", "Bad",
+        )
+        assert result.returncode != 0
+        assert "branch" in result.stderr and "worktree" in result.stderr
+
+    def test_base_flag(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_bash(
+            "create-new-feature.sh", project,
+            "--worktree", "--base", "master", "--json", "--short-name", "base", "Base",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+
+@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
+class TestCreateFeatureIsolationModePowerShell:
+    """Smoke tests for -Worktree / -BranchMode / -IsolationMode / -Base params."""
+
+    def test_default_branch_mode(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh("create-new-feature.ps1", project, "-Json", "-ShortName", "alpha", "Add alpha")
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_worktree_flag_creates_worktree(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh(
+            "create-new-feature.ps1", project,
+            "-Worktree", "-Json", "-ShortName", "payment", "Add payment",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+        assert "WORKTREE_PATH" in data
+
+    def test_branch_mode_flag(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh("create-new-feature.ps1", project, "-BranchMode", "-Json", "-ShortName", "x", "X")
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_isolation_mode_explicit(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh(
+            "create-new-feature.ps1", project,
+            "-IsolationMode", "worktree", "-Json", "-ShortName", "z", "Z",
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+    def test_speckit_isolation_mode_env(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh(
+            "create-new-feature.ps1", project, "-Json", "-ShortName", "env", "Env",
+            env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "worktree"
+
+    def test_cli_overrides_env(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh(
+            "create-new-feature.ps1", project,
+            "-BranchMode", "-Json", "-ShortName", "ovr", "Ovr",
+            env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
+        )
+        assert result.returncode == 0
+        data = json.loads(result.stdout)
+        assert data["ISOLATION_MODE"] == "branch"
+
+    def test_invalid_isolation_mode_errors(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / "specs").mkdir(exist_ok=True)
+        result = _run_pwsh(
+            "create-new-feature.ps1", project,
+            "-IsolationMode", "parallel", "-Json", "-ShortName", "bad", "Bad",
+        )
+        assert result.returncode != 0
+        assert "branch" in result.stderr and "worktree" in result.stderr
+
+
+# ── setup-gitignore.sh worktree rules (Step 3) ───────────────────────────────
+
+
+@requires_bash
+class TestSetupGitignoreWorktreeBash:
+    """Tests for worktree-related gitignore rules added in Step 3."""
+
+    def test_worktrees_rule_added(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("node_modules/\n")
+        result = _run_bash("setup-gitignore.sh", project)
+        assert result.returncode == 0, result.stderr
+        content = (project / ".gitignore").read_text()
+        assert ".worktrees/" in content
+
+    def test_tasks_dag_rule_added(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("")
+        result = _run_bash("setup-gitignore.sh", project)
+        assert result.returncode == 0
+        content = (project / ".gitignore").read_text()
+        assert "tasks_dag.json" in content
+
+    def test_worktree_manifest_rule_added(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("")
+        result = _run_bash("setup-gitignore.sh", project)
+        assert result.returncode == 0
+        content = (project / ".gitignore").read_text()
+        assert "git.worktree-manifest.json" in content
+
+    def test_merge_conflict_rule_added(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("")
+        result = _run_bash("setup-gitignore.sh", project)
+        assert result.returncode == 0
+        content = (project / ".gitignore").read_text()
+        assert ".speckit-merge-conflict-" in content
+
+    def test_check_mode_idempotent(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("")
+        # First run adds rules
+        r1 = _run_bash("setup-gitignore.sh", project)
+        assert r1.returncode == 0
+        # Second run should be idempotent
+        r2 = _run_bash("setup-gitignore.sh", project, "--check")
+        assert r2.returncode == 0
+        assert "already configured" in r2.stdout or "All rules already" in r2.stdout
+
+
+@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
+class TestSetupGitignoreWorktreePowerShell:
+    """Smoke tests for worktree-related gitignore rules in setup-gitignore.ps1."""
+
+    def test_worktree_rules_present(self, tmp_path: Path):
+        project = _setup_project(tmp_path)
+        (project / ".gitignore").write_text("")
+        result = _run_pwsh("setup-gitignore.ps1", project)
+        assert result.returncode == 0, result.stderr
+        content = (project / ".gitignore").read_text()
+        assert ".worktrees/" in content
+        assert "tasks_dag.json" in content
+        assert "git.worktree-manifest.json" in content
+        assert ".speckit-merge-conflict-" in content
 
 
 @requires_bash

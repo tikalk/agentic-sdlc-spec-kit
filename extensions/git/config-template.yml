@@ -7,6 +7,62 @@ branch_numbering: sequential
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
 
+# Feature isolation mode. Controls whether `git.feature` creates a normal
+# feature branch (existing behavior) or provisions a feature-level worktree
+# at .worktrees/<feature>/. Valid values: "branch" (default), "worktree".
+#
+# Overridable per-invocation via:
+#   - --worktree / -Worktree (Bash / PowerShell)
+#   - --branch-mode / -BranchMode
+#   - --isolation-mode <branch|worktree> / -IsolationMode <branch|worktree>
+#   - SPECIFY_ISOLATION_MODE environment variable
+isolation_mode: branch
+
+# Worktree layout (only used when isolation_mode = worktree).
+# base_dir is relative to the repo root. manifest_filename is the
+# provenance-tracked file written into each worktree (gitignored by default
+# via `git.setup-ignore`).
+worktrees:
+  base_dir: .worktrees
+  manifest_filename: git.worktree-manifest.json
+  # Pattern for per-task branches created under a feature worktree.
+  # Substitutions: {feature} = feature branch name, {id} = task id with
+  # leading 'T' stripped (T007 -> 7), {task-slug} = kebab-cased task title.
+  task_branch_pattern: "{feature}--task-{id}-{task-slug}"
+
+# Task execution (consumed by adlc.spec.implement and the `git.task*` commands).
+task_execution:
+  # Default execution mode when no other signal is present.
+  #   "sync"    = one task at a time, single branch (works in both branch
+  #               and worktree mode; the canonical mode for sequential work).
+  #   "parallel"= tasks may run concurrently on separate task branches in
+  #               the same feature worktree; adlc.spec.implement dispatches
+  #               [P] tasks via subagents.
+  #   "async"   = like parallel but the calling agent does not wait for
+  #               completion; results are reconciled on the next pass.
+  default_mode: sync
+  # Below this wave size, the implementer runs tasks sequentially even if
+  # the DAG would permit parallelism. Keeps small features snappy.
+  parallel_threshold_wave_size: 2
+  # When true, the implementer aborts the feature branch on merge conflict
+  # and delegates resolution to a subagent. When false, conflicts are
+  # surfaced to the user.
+  delegate_merge_conflicts: true
+
+# Task generation (consumed by the `tasks` template and tasks-dag.{sh,ps1}).
+task_generation:
+  # Default parallel-marker for tasks that touch different files within
+  # the same story. Set false if the codebase requires strict sequential
+  # execution (e.g., single-file changes only).
+  parallel_marker_default: true
+  # Coalesce consecutive simple tasks (per the spec.tasks decomposition
+  # rules) into a single task when both are < 10 lines and touch the same
+  # file. Set true to enforce the "max 8 tasks per story" guideline.
+  coalesce_simple_tasks: true
+  # Maximum number of tasks generated per user story. The tasks template
+  # will warn (not error) when a story exceeds this threshold.
+  max_tasks_per_story: 8
+
 # Auto-commit before/after core commands.
 # Set "default" to enable for all commands, then override per-command.
 # Each key can be true/false. Message is customizable per-command.

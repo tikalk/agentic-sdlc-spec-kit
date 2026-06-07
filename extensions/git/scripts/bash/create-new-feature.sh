@@ -12,6 +12,10 @@ ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
 USE_TIMESTAMP=false
+ISOLATION_MODE=""
+WORKTREE_FLAG=false
+BRANCH_MODE_FLAG=false
+BASE_BRANCH=""
 ARGS=()
 i=1
 while [ $i -le $# ]; do
@@ -59,8 +63,44 @@ while [ $i -le $# ]; do
         --timestamp)
             USE_TIMESTAMP=true
             ;;
+        --worktree)
+            WORKTREE_FLAG=true
+            ;;
+        --branch-mode)
+            BRANCH_MODE_FLAG=true
+            ;;
+        --isolation-mode)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --isolation-mode requires a value (branch|worktree)' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --isolation-mode requires a value (branch|worktree)' >&2
+                exit 1
+            fi
+            ISOLATION_MODE="$next_arg"
+            case "$ISOLATION_MODE" in
+                branch|worktree) ;;
+                *) echo "Error: --isolation-mode must be 'branch' or 'worktree' (got: $ISOLATION_MODE)" >&2; exit 1 ;;
+            esac
+            ;;
+        --base)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --base requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --base requires a value' >&2
+                exit 1
+            fi
+            BASE_BRANCH="$next_arg"
+            ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>"
+            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json              Output in JSON format"
@@ -69,15 +109,21 @@ while [ $i -le $# ]; do
             echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
             echo "  --number N          Specify branch number manually (overrides auto-detection)"
             echo "  --timestamp         Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
+            echo "  --worktree         Shortcut for --isolation-mode worktree (creates a git worktree)"
+            echo "  --branch-mode      Shortcut for --isolation-mode branch (default; checkout -b in primary)"
+            echo "  --isolation-mode <branch|worktree>  Override the configured isolation mode"
+            echo "  --base <branch>    Base branch for worktree (defaults to current branch)"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Environment variables:"
             echo "  GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation"
+            echo "  SPECIFY_ISOLATION_MODE  Override the isolation mode (branch|worktree)"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
             echo "  $0 'Implement OAuth2 integration for API' --number 5"
             echo "  $0 --timestamp --short-name 'user-auth' 'Add user authentication'"
+            echo "  $0 --worktree 'Add user authentication system' --short-name 'user-auth'"
             echo "  GIT_BRANCH_NAME=my-branch $0 'feature description'"
             exit 0
             ;;
@@ -377,6 +423,107 @@ elif [ "$BRANCH_BYTE_LEN" -gt $MAX_BRANCH_LENGTH ]; then
     >&2 echo "[specify] Truncated to: $BRANCH_NAME (${#BRANCH_NAME} bytes)"
 fi
 
+# ---------------------------------------------------------------------------
+# Resolve isolation mode (branch vs worktree).
+#
+# Precedence:
+#   1. --worktree / --branch-mode (boolean shortcuts)
+#   2. --isolation-mode <mode>
+#   3. SPECIFY_ISOLATION_MODE env var
+#   4. .specify/extensions/git/git-config.yml `isolation_mode:` key
+#   5. Default: branch
+# ---------------------------------------------------------------------------
+_resolve_isolation_mode() {
+    if [ "$WORKTREE_FLAG" = true ]; then
+        echo "worktree"; return
+    fi
+    if [ "$BRANCH_MODE_FLAG" = true ]; then
+        echo "branch"; return
+    fi
+    if [ -n "$ISOLATION_MODE" ]; then
+        echo "$ISOLATION_MODE"; return
+    fi
+    if [ -n "${SPECIFY_ISOLATION_MODE:-}" ]; then
+        case "${SPECIFY_ISOLATION_MODE}" in
+            branch|worktree) echo "$SPECIFY_ISOLATION_MODE"; return ;;
+        esac
+    fi
+    local cfg="$REPO_ROOT/.specify/extensions/git/git-config.yml"
+    if [ -f "$cfg" ]; then
+        local val
+        val="$(grep -E '^[[:space:]]*isolation_mode[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*isolation_mode[[:space:]]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/["'"'"']//g' || true)"
+        case "$val" in
+            branch|worktree) echo "$val"; return ;;
+        esac
+    fi
+    echo "branch"
+}
+
+ISOLATION_MODE="$(_resolve_isolation_mode)"
+
+# ---------------------------------------------------------------------------
+# Worktree mode: delegate to worktree-utils.sh instead of git checkout -b.
+# The agent is expected to cd into the worktree path before working.
+# ---------------------------------------------------------------------------
+WORKTREE_UTILS="$SCRIPT_DIR/worktree-utils.sh"
+
+if [ "$ISOLATION_MODE" = "worktree" ] && [ "$DRY_RUN" != true ]; then
+    if [ "$HAS_GIT" != true ]; then
+        >&2 echo "Error: worktree mode requires a git repository."
+        exit 1
+    fi
+    if [ ! -x "$WORKTREE_UTILS" ] && [ ! -f "$WORKTREE_UTILS" ]; then
+        >&2 echo "Error: worktree-utils.sh not found at $WORKTREE_UTILS (required for --worktree mode)"
+        exit 1
+    fi
+
+    wt_args=(create-feature-worktree --feature "$BRANCH_NAME")
+    if [ -n "$BASE_BRANCH" ]; then
+        wt_args+=(--base "$BASE_BRANCH")
+    fi
+
+    set +e
+    wt_out="$(bash "$WORKTREE_UTILS" "${wt_args[@]}" 2>/dev/null)"
+    wt_rc=$?
+    set -e
+    if [ "$wt_rc" -ne 0 ]; then
+        # Re-emit stderr from the delegation for context.
+        bash "$WORKTREE_UTILS" "${wt_args[@]}" >&2 || true
+        exit "$wt_rc"
+    fi
+
+    WORKTREE_PATH="$(echo "$wt_out" | sed -n 's/.*"worktree_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+    MANIFEST_PATH="$(echo "$wt_out" | sed -n 's/.*"manifest_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+
+    if $JSON_MODE; then
+        if command -v jq >/dev/null 2>&1; then
+            jq -cn \
+                --arg branch_name "$BRANCH_NAME" \
+                --arg feature_num "$FEATURE_NUM" \
+                --arg mode "worktree" \
+                --arg wt_path "${WORKTREE_PATH:-}" \
+                --arg mf_path "${MANIFEST_PATH:-}" \
+                '{BRANCH_NAME:$branch_name, FEATURE_NUM:$feature_num, ISOLATION_MODE:$mode, WORKTREE_PATH:$wt_path, MANIFEST_PATH:$mf_path}'
+        else
+            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"worktree","WORKTREE_PATH":"%s","MANIFEST_PATH":"%s"}\n' \
+                "$BRANCH_NAME" "$FEATURE_NUM" "${WORKTREE_PATH:-}" "${MANIFEST_PATH:-}"
+        fi
+    else
+        echo "BRANCH_NAME: $BRANCH_NAME"
+        echo "FEATURE_NUM: $FEATURE_NUM"
+        echo "ISOLATION_MODE: worktree"
+        echo "WORKTREE_PATH: ${WORKTREE_PATH:-}"
+        echo "MANIFEST_PATH: ${MANIFEST_PATH:-}"
+        printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
+        printf '# To work in the worktree: cd %s\n' "${WORKTREE_PATH:-}" >&2
+    fi
+    exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# Branch mode (default): existing behavior — git checkout -b in primary.
+# ---------------------------------------------------------------------------
+
 if [ "$DRY_RUN" != true ]; then
     if [ "$HAS_GIT" = true ]; then
         branch_create_error=""
@@ -423,12 +570,14 @@ if $JSON_MODE; then
             jq -cn \
                 --arg branch_name "$BRANCH_NAME" \
                 --arg feature_num "$FEATURE_NUM" \
-                '{BRANCH_NAME:$branch_name,FEATURE_NUM:$feature_num,DRY_RUN:true}'
+                --arg mode "$ISOLATION_MODE" \
+                '{BRANCH_NAME:$branch_name,FEATURE_NUM:$feature_num,ISOLATION_MODE:$mode,DRY_RUN:true}'
         else
             jq -cn \
                 --arg branch_name "$BRANCH_NAME" \
                 --arg feature_num "$FEATURE_NUM" \
-                '{BRANCH_NAME:$branch_name,FEATURE_NUM:$feature_num}'
+                --arg mode "$ISOLATION_MODE" \
+                '{BRANCH_NAME:$branch_name,FEATURE_NUM:$feature_num,ISOLATION_MODE:$mode}'
         fi
     else
         if type json_escape >/dev/null 2>&1; then
@@ -439,14 +588,15 @@ if $JSON_MODE; then
             _je_num="$FEATURE_NUM"
         fi
         if [ "$DRY_RUN" = true ]; then
-            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","DRY_RUN":true}\n' "$_je_branch" "$_je_num"
+            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"%s","DRY_RUN":true}\n' "$_je_branch" "$_je_num" "$ISOLATION_MODE"
         else
-            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s"}\n' "$_je_branch" "$_je_num"
+            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"%s"}\n' "$_je_branch" "$_je_num" "$ISOLATION_MODE"
         fi
     fi
 else
     echo "BRANCH_NAME: $BRANCH_NAME"
     echo "FEATURE_NUM: $FEATURE_NUM"
+    echo "ISOLATION_MODE: $ISOLATION_MODE"
     if [ "$DRY_RUN" != true ]; then
         printf '# To persist in your shell: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME"
     fi

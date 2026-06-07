@@ -1,10 +1,10 @@
 ---
-description: "Create a feature branch with sequential or timestamp numbering"
+description: "Create a feature branch with sequential or timestamp numbering, optionally isolated in a worktree"
 ---
 
 # Create Feature Branch
 
-Create and switch to a new git feature branch for the given specification. This command handles **branch creation only** — the spec directory and files are created by the core `__SPECKIT_COMMAND_SPECIFY__` workflow.
+Create a new git feature branch for the given specification, optionally isolated in its own worktree. This command handles **branch creation only** — the spec directory and files are created by the core `__SPECKIT_COMMAND_SPECIFY__` workflow.
 
 ## User Input
 
@@ -34,6 +34,17 @@ Determine the branch numbering strategy by checking configuration in this order:
 2. Check `.specify/init-options.json` for `branch_numbering` value (backward compatibility)
 3. Default to `sequential` if neither exists
 
+## Isolation Mode
+
+Determine whether the feature work is isolated in a worktree or runs on a normal branch by checking configuration in this order:
+
+1. CLI flags on the script call (see Execution below): `--worktree`, `--branch-mode`, `--isolation-mode`
+2. `SPECIFY_ISOLATION_MODE` environment variable
+3. `.specify/extensions/git/git-config.yml` `isolation_mode` key
+4. Default: `branch`
+
+Valid values: `branch` (default; existing behavior — `git checkout -b` in primary), `worktree` (provenance-tracked worktree at `.worktrees/<feature>/`).
+
 ## Execution
 
 Generate a concise short name (2-4 words) for the branch:
@@ -43,16 +54,26 @@ Generate a concise short name (2-4 words) for the branch:
 
 Run the appropriate script based on your platform:
 
+**Branch mode (default)**:
 - **Bash**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" "<feature description>"`
 - **Bash (timestamp)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --timestamp --short-name "<short-name>" "<feature description>"`
 - **PowerShell**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName "<short-name>" "<feature description>"`
 - **PowerShell (timestamp)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -Timestamp -ShortName "<short-name>" "<feature description>"`
 
+**Worktree mode** (add `--worktree` / `-Worktree`; optionally `--base <branch>` / `-Base <branch>` to pin the base ref):
+- **Bash**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --json --short-name "<short-name>" "<feature description>"`
+- **Bash (with base)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --base main --json --short-name "<short-name>" "<feature description>"`
+- **PowerShell**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Json -ShortName "<short-name>" "<feature description>"`
+- **PowerShell (with base)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Base main -Json -ShortName "<short-name>" "<feature description>"`
+
+When worktree mode is used, the script returns a `WORKTREE_PATH` and `MANIFEST_PATH` in addition to `BRANCH_NAME`/`FEATURE_NUM`. **The script does NOT auto-`cd` into the worktree** — you must `cd "$WORKTREE_PATH"` separately to enter the worktree before invoking any follow-up commands. The manifest is gitignored.
+
 **IMPORTANT**:
 - Do NOT pass `--number` — the script determines the correct next number automatically
 - Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
 - You must only ever run this script once per feature
-- The JSON output will contain `BRANCH_NAME` and `FEATURE_NUM`
+- The JSON output will contain `BRANCH_NAME` and `FEATURE_NUM` (always), and `ISOLATION_MODE` (always); `WORKTREE_PATH` and `MANIFEST_PATH` are present only in worktree mode
+- PowerShell param style uses single-dash (`-Worktree`, `-BranchMode`, `-IsolationMode`, `-Base`); bash uses double-dash (`--worktree`, `--branch-mode`, `--isolation-mode`, `--base`)
 
 ## Graceful Degradation
 
@@ -65,3 +86,6 @@ If Git is not installed or the current directory is not a Git repository:
 The script outputs JSON with:
 - `BRANCH_NAME`: The branch name (e.g., `003-user-auth` or `20260319-143022-user-auth`)
 - `FEATURE_NUM`: The numeric or timestamp prefix used
+- `ISOLATION_MODE`: Either `branch` (default) or `worktree`
+- `WORKTREE_PATH` (worktree mode only): Relative path to the worktree (e.g., `.worktrees/003-user-auth`)
+- `MANIFEST_PATH` (worktree mode only): Relative path to the worktree manifest (e.g., `.worktrees/003-user-auth/git.worktree-manifest.json`)

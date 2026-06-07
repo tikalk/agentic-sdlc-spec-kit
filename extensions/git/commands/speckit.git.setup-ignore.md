@@ -21,6 +21,11 @@ These are auto-generated or local-only files:
 .specify/extensions/.backup/
 .specify/extensions/*/*.local.yml
 .specify/extensions/.registry
+# Spec Kit - Worktree / task DAG artifacts (git-extension feature-level isolation)
+.worktrees/
+tasks_dag.json
+git.worktree-manifest.json
+.speckit-merge-conflict-*.md
 ```
 
 ### Protected (ensure NOT ignored)

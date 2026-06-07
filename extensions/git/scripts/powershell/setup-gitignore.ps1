@@ -33,7 +33,12 @@ $ignoreRules = @(
     ".specify/extensions/.cache/",
     ".specify/extensions/.backup/",
     ".specify/extensions/*/*.local.yml",
-    ".specify/extensions/.registry"
+    ".specify/extensions/.registry",
+    # Spec Kit - Worktree / task DAG artifacts (git-extension feature-level isolation)
+    ".worktrees/",
+    "tasks_dag.json",
+    "git.worktree-manifest.json",
+    ".speckit-merge-conflict-*.md"
 )
 
 $negationRules = @(

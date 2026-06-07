@@ -4,11 +4,35 @@ This document describes how the tikalk fork (`tikalk/agentic-sdlc-spec-kit`) mai
 
 ## Philosophy
 
-The fork isolates all customizations into a single file (`cli_customization.py`) to minimize merge conflicts. When syncing with upstream:
+The fork isolates customizations into a small set of focused modules under `src/specify_cli/` to minimize merge conflicts. When syncing with upstream:
 
-1. Only the import block in `__init__.py` may conflict
-2. All customization logic lives in `cli_customization.py`
+1. The import block in `__init__.py` may conflict
+2. All customization logic lives in the `_*_fork.py` modules
 3. Upstream changes to other parts of `__init__.py` merge cleanly
+
+### Fork module layout
+
+| Module | Purpose | Imports from |
+|---|---|---|
+| `_extension_fork.py` | Leaf — pure constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`) | (none) |
+| `_core_fork.py` | Alias resolution, MCP config, skill naming, preinstalled extension queries | `_extension_fork` |
+| `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_extension_fork` |
+| `base_fork.py` | Fork-level helpers on `IntegrationBase` (e.g. `detect_native_worktree()`) | (none) |
+| `extensions_fork.py` | Constants and schemas for fork-specific extension features (e.g. worktree config) | (none) |
+
+**Dependency direction (locked):**
+
+```
+_extension_fork.py  (leaf)
+        ^
+        |
+_core_fork.py
+        ^
+        |
+_init_fork.py
+```
+
+Anything added to a higher-tier module must not be imported by a lower-tier module. This rule prevents circular imports.
 
 ## Fork Versioning Scheme
 
@@ -74,22 +98,31 @@ Use `agentic-sdlc-v<version>` with plus:
 | 0.8.12+adlc2 | 2026-05-16 | 0.8.12 | Architect extension comprehensive hardening: Phase execution enforcement, view file generation, sub-system detection with mandatory interactive proposal |
 | 0.8.12+adlc1 | 2026-05-15 | 0.8.12 | Git extension enhancements (workspace command with force flag, setup-ignore command) |
 
-## Customization Module
+## Customization Modules
 
-**File**: `src/specify_cli/cli_customization.py`
+The fork's customizations are split across the modules listed in [Fork module layout](#fork-module-layout). Historically these were all in a single `cli_customization.py` file; that file has been split into focused modules (as of release `0.9.5+adlc2`).
 
-This module provides:
+The split assigns each concern to the lowest tier that owns it:
 
-| Feature | Upstream Default | Fork Override |
-|---------|------------------|---------------|
-| ACCENT_COLOR | "cyan" | "#f47721" (tikalk orange) |
-| BANNER_COLORS | cyan gradient | orange gradient |
-| accent() | N/A | Helper function for theming |
-| accent_style() | N/A | Helper for Rich style= params |
-| PKG_NAMES | ("specify-cli",) | ("agentic-sdlc-specify-cli", "specify-cli") |
-| TEAM_DIRECTIVES_DIRNAME | N/A | "team-ai-directives" |
-| EXTENSION_NAMESPACES | ["speckit"] | ["speckit", "adlc"] |
-| EXTENSION_ALIAS_PATTERN_ENABLED | False | True |
+- `_extension_fork.py` — `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
+- `_core_fork.py` — `COMMAND_PREFIX`, `build_alias_map`, `resolve_command_alias`, `compute_skill_output_name`, MCP config helpers, `get_preinstalled_extensions`
+- `_init_fork.py` — `ACCENT_COLOR`, `BANNER_COLORS`, `TAGLINE`, `PKG_NAMES`, `TEAM_DIRECTIVES_DIRNAME`, `accent`, `accent_style`, `apply_theming_patches`, `pre_init`, `post_init`, `get_team_directives_path`, `sync_team_ai_directives`, `get_speckit_version`, `GITHUB_API_LATEST`
+- `base_fork.py` — `detect_native_worktree()`
+- `extensions_fork.py` — worktree constants and config schema
+
+Feature / override table:
+
+| Feature | Upstream Default | Fork Override | Module |
+|---------|------------------|---------------|--------|
+| ACCENT_COLOR | "cyan" | "#f47721" (tikalk orange) | `_init_fork` |
+| BANNER_COLORS | cyan gradient | orange gradient | `_init_fork` |
+| accent() | N/A | Helper function for theming | `_init_fork` |
+| accent_style() | N/A | Helper for Rich style= params | `_init_fork` |
+| PKG_NAMES | ("specify-cli",) | ("agentic-sdlc-specify-cli", "specify-cli") | `_init_fork` |
+| TEAM_DIRECTIVES_DIRNAME | N/A | "team-ai-directives" | `_init_fork` |
+| EXTENSION_NAMESPACES | ["speckit"] | ["speckit", "adlc"] | `_extension_fork` |
+| EXTENSION_ALIAS_PATTERN_ENABLED | False | True | `_extension_fork` |
+| COMMAND_PREFIX | "speckit" | "spec" | `_core_fork` |
 
 ## Import Block
 
@@ -98,7 +131,7 @@ The `__init__.py` file starts with this import block that you should preserve du
 ```python
 # Tikalk fork customizations - import with fallback to upstream defaults
 try:
-    from .cli_customization import (
+    from ._init_fork import (
         ACCENT_COLOR,
         BANNER_COLORS,
         TAGLINE,
@@ -108,8 +141,8 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
-        compute_skill_output_name,
     )
+    from ._core_fork import compute_skill_output_name
 except ImportError:
     ACCENT_COLOR = "cyan"
     BANNER_COLORS = ["#00ffff", "#00cccc", "cyan", "#009999", "white", "bright_white"]
@@ -150,7 +183,7 @@ In `extensions.py`, the fork configures command name patterns:
 ```python
 # Get namespaces from customization module (supports speckit and adlc)
 try:
-    from .cli_customization import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+    from ._extension_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
 except ImportError:
     EXTENSION_NAMESPACES = ["speckit"]
     EXTENSION_ALIAS_PATTERN_ENABLED = False
@@ -209,7 +242,7 @@ Upstream has extracted code from `__init__.py` into separate modules:
 | Module | Contents | Fork Action |
 |--------|----------|-------------|
 | `_console.py` | BANNER, TAGLINE, StepTracker, console | Keep upstream, fork theming overrides in `show_banner()` |
-| `_version.py` | Version checking, self-update | Override GITHUB_API_LATEST via cli_customization |
+| `_version.py` | Version checking, self-update | Override GITHUB_API_LATEST via `_init_fork` |
 | `_assets.py` | Bundled asset location | Accept as-is |
 | `_utils.py` | Utility functions | Accept as-is |
 | `catalogs.py` | Catalog config loading | Accept as-is |
@@ -218,12 +251,12 @@ Upstream has extracted code from `__init__.py` into separate modules:
 ##### __init__.py Resolution
 
 1. Keep upstream imports from extracted modules (`_console`, `_assets`, `_utils`, `_version`)
-2. Keep fork's cli_customization import block AFTER upstream imports
-3. Keep fork's custom functions that depend on cli_customization:
+2. Keep fork's `_init_fork` and `_core_fork` import blocks AFTER upstream imports
+3. Keep fork's custom functions that depend on the fork modules:
    - `show_banner()` (overrides upstream to apply theming)
-   - `TEAM_DIRECTIVES_DIRNAME` (from cli_customization)
-   - `sync_team_ai_directives()` (imported from cli_customization)
-   - `get_team_directives_path()` (imported from cli_customization)
+   - `TEAM_DIRECTIVES_DIRNAME` (from `_init_fork`)
+   - `sync_team_ai_directives()` (imported from `_init_fork`)
+   - `get_team_directives_path()` (imported from `_init_fork`)
 
 ##### pyproject.toml Resolution
 
@@ -240,7 +273,7 @@ See [Test Merge Strategy](#test-merge-strategy) section. Do NOT use `git checkou
 
 **Why this works**:
 - Upstream refactoring isolates code into stable modules
-- Fork customizations stay in cli_customization.py and import block
+- Fork customizations stay in `_init_fork.py` / `_core_fork.py` / `_extension_fork.py` and the `__init__.py` import block
 - Clear separation of concerns reduces future conflicts
 - pyproject.toml needs manual edit to preserve fork version (never use --theirs)
 
@@ -289,7 +322,7 @@ git push origin agentic-sdlc-v0.3.X
 
 When conflicts occur during merge:
 
-1. **Keep origin changes as base** - Our customizations in `cli_customization.py` and fork-specific features must be preserved
+1. **Keep origin changes as base** - Our customizations in `_init_fork.py`, `_core_fork.py`, `_extension_fork.py`, `base_fork.py`, `extensions_fork.py` and the `__init__.py` import block must be preserved
 2. **Adapt upstream changes** - Integrate upstream improvements to work with our customizations
 3. **Test after resolving** - Always run tests before committing
 
@@ -305,48 +338,66 @@ When conflicts occur during merge:
 
 These fork customizations should NEVER be modified unless intentionally updating them:
 
-- `cli_customization.py` - All theming and customization constants
+- `_init_fork.py`, `_core_fork.py`, `_extension_fork.py` - Fork customization modules
+- `base_fork.py`, `extensions_fork.py` - Fork-level helpers and feature constants
 - `extensions.py` - Extension namespace configuration
 - Bundled extensions in `pyproject.toml` - levelup, architect, quick, product, tdd
 - Bundled presets in `pyproject.toml` - agentic-sdlc
 
-## What Stays in cli_customization.py
+## What Lives in the Fork Modules
 
-The following customization categories must stay in `cli_customization.py`:
+The following customization categories live in the fork modules listed in [Fork module layout](#fork-module-layout). The mapping is:
 
-1. **Theming**: ACCENT_COLOR, BANNER_COLORS, accent(), accent_style()
-2. **Package Identity**: PKG_NAMES for version detection
-3. **Team Directives**: TEAM_DIRECTIVES_DIRNAME
-4. **Extension Namespaces**: EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+1. **Theming** (`_init_fork.py`): `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`
+2. **Package Identity** (`_init_fork.py`): `PKG_NAMES`, `TAGLINE`, `get_speckit_version()`, `GITHUB_API_LATEST`
+3. **Team Directives** (`_init_fork.py`): `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
+4. **Init hooks** (`_init_fork.py`): `pre_init()`, `post_init()`
+5. **Scaffolding** (`_init_fork.py`): `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, bundled extension/preset installation
+6. **Extension Namespaces** (`_extension_fork.py`): `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
+7. **Command aliasing** (`_core_fork.py`): `COMMAND_PREFIX`, `build_alias_map()`, `resolve_command_alias()`, `compute_skill_output_name()`, `FORK_COMMAND_NAMESPACES`
+8. **MCP config** (`_core_fork.py`): `validate_mcp_config()`, `merge_mcp_configs_report_conflicts()`, `install_mcp_config()`
+9. **Native tool detection** (`base_fork.py`): `detect_native_worktree()` on `IntegrationBase`
+10. **Worktree constants** (`extensions_fork.py`): `WORKTREE_DEFAULT_ISOLATION_MODE`, `WORKTREE_VALID_ISOLATION_MODES`, `WORKTREE_MANIFEST_FILENAME`, `WORKTREE_BASE_DIR`, `WORKTREE_TASK_BRANCH_PATTERN`, `WORKTREE_CONFIG_KEY`, `WORKTREE_CONFIG_SCHEMA`
 
-## What Can Stay in __init__.py
+## What Lives in `__init__.py`
 
-The following tikalk-specific features are implemented directly in `__init__.py` because they require access to internal functions:
+The following tikalk-specific features are still defined directly in `__init__.py` because they require access to internal functions and the central app context:
 
 1. `install_bundled_extensions()` - Installs bundled extensions during init
 2. `install_bundled_presets()` - Installs bundled presets during init
-3. `get_preinstalled_extensions()` - Returns list of pre-installed extensions
-4. `sync_team_ai_directives()` - Syncs team-ai-directives repository
+3. `sync_team_ai_directives()` - Syncs team-ai-directives repository
 
 These functions are called during init but don't conflict with upstream because they use conditional checks (e.g., `if skip_bundled:`).
+
+The re-export shim `get_preinstalled_extensions()` is also kept here because downstream consumers expect it on the top-level package; the canonical implementation now lives in `_core_fork.py`.
 
 ## Fork-Only Files and Directories
 
 The following files and directories exist **only in the fork** and were never present in upstream. During merges, git will show these as "deleted by them" — always reject the deletion.
 
-### `src/specify_cli/cli_customization.py` — Fork Customization Module
+### `src/specify_cli/_init_fork.py` — Theming, Init Hooks, Scaffolding
 
-**File**: `src/specify_cli/cli_customization.py`
+**File**: `src/specify_cli/_init_fork.py`
 
-The central customization module providing theming, team directives, and fork-specific features. This is the single source of truth for fork identity.
+The largest of the fork modules; holds theming, package identity, init hooks, team directives, and bundled extension/preset scaffolding. See [Fork module layout](#fork-module-layout) for the dependency chain.
 
 **Key exports**:
-- Theming: `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`
-- Package Identity: `PKG_NAMES`
-- Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`
-- Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`
+- Theming: `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`, `apply_theming_patches()`
+- Package Identity: `PKG_NAMES`, `TAGLINE`, `get_speckit_version()`, `GITHUB_API_LATEST`
+- Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
+- Init hooks: `pre_init()`, `post_init()`
+- Scaffolding: `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, `_install_bundled_extensions()`, `_install_bundled_presets()`
+- Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED` *(also re-exported from `_extension_fork.py`)*
 
-**Total**: ~1700 lines of fork-only code
+**Total**: ~1700 lines of fork-only code, split across five modules:
+
+| Module | Approx. size | Role |
+|---|---|---|
+| `_init_fork.py` | ~1000 | Theming, init hooks, scaffolding |
+| `_core_fork.py` | ~400 | Alias/MCP/skill helpers |
+| `_extension_fork.py` | ~30 | Leaf constants |
+| `base_fork.py` | ~15 | `detect_native_worktree()` |
+| `extensions_fork.py` | ~25 | Worktree constants |
 
 ### Test Files
 
@@ -358,6 +409,151 @@ The following test files are fork-only:
 - `tests/test_create_new_feature.py` — Feature creation tests
 - `tests/auth_helpers.py` — Authentication test helpers
 - `tests/test_team_directives.py` — Team AI directives tests
+
+## Git Extension Worktree & Task-Execution Feature (0.9.5+adlc2)
+
+The fork adds feature-level git worktree isolation and DAG-aware task execution to the bundled `git` extension. The work follows obra/superpowers `using-git-worktrees` principles (provenance-based cleanup, native tool preference) while staying inside the existing `git` extension rather than shipping a separate one.
+
+### Why enhance `git` rather than add a separate extension
+
+The `git` extension already owns `git.feature`, `git.validate`, `git.commit`, and the related hook pipeline (auto-commit before/after every core command). Feature-level isolation is a natural fit for `git.feature`, and the task-execution commands (`git.task`, `git.task-merge`, `git.task-list`) only make sense as siblings of `git.feature`. Adding a separate `worktrees` extension would have duplicated the `git.feature` hook wiring and forced an inter-extension dependency for the most common path.
+
+### What's new in `git.feature`
+
+`git.feature` now accepts worktree-isolation flags on both bash and PowerShell. Source priority is CLI flag > `SPECIFY_ISOLATION_MODE` env > `git-config.yml` `isolation_mode` key > default `branch`.
+
+| Bash flag | PowerShell param | Meaning |
+|---|---|---|
+| `--worktree` | `-Worktree` | Force worktree mode (shorthand for `--isolation-mode worktree`) |
+| `--branch-mode` | `-BranchMode` | Force branch mode (shorthand for `--isolation-mode branch`) |
+| `--isolation-mode <branch\|worktree>` | `-IsolationMode <branch\|worktree>` | Explicit mode selection |
+| `--base <branch>` | `-Base <branch>` | Pin the base ref (used by `git worktree add`); defaults to the current branch |
+
+When worktree mode is selected, the script:
+1. Calls `worktree-utils.sh create-feature-worktree --feature <branch> [--base <base>]` (or the PowerShell counterpart) instead of `git checkout -b`
+2. Writes a `git.worktree-manifest.json` to the worktree root for provenance tracking
+3. Returns `ISOLATION_MODE`, `WORKTREE_PATH`, and `MANIFEST_PATH` in the JSON output (in addition to `BRANCH_NAME`/`FEATURE_NUM`)
+4. Does **not** `cd` into the worktree — the calling agent must `cd "$WORKTREE_PATH"` separately
+
+Unrecognized isolation mode values are rejected with `Error: --isolation-mode must be 'branch' or 'worktree'`.
+
+### New commands
+
+Three new `git` extension commands were added in this release. They are worktree-mode only and refuse to run in a primary checkout.
+
+| Command | Purpose | Script |
+|---|---|---|
+| `speckit.git.task` (`git.task`) | Create/resume a task branch in the current feature worktree and dispatch the task to a subagent | `worktree-utils.sh create-task-branch` |
+| `speckit.git.task-merge` (`git.task-merge`) | Merge a completed task branch back into the feature branch (`git merge --no-ff`); delegates conflict resolution to a subagent; then unregisters the task branch via `worktree-utils.sh remove-task-branch` | `git merge` + `worktree-utils.sh remove-task-branch` |
+| `speckit.git.task-list` (`git.task-list`) | List active task branches in the current worktree (with ahead/behind counts); supports `--json` and `--ids-only` output | `worktree-utils.sh read-manifest` |
+
+These commands are declared in `extensions/git/extension.yml` and reference `.md` files under `extensions/git/commands/`. The `is-in-worktree` script (exit 0 = primary, exit 2 = inside a worktree) is the gate that all three check before proceeding.
+
+### New scripts
+
+Two new dispatcher scripts (one Bash, one PowerShell) were added. They follow the project's single-file dispatcher pattern (matching `auto-commit.sh`): the script name is a subcommand, and `<subcommand> [args...]` is dispatched via a `case` (bash) or `switch` (PS1) block.
+
+| Script | Subcommands | Purpose |
+|---|---|---|
+| `worktree-utils.{sh,ps1}` | `create-feature-worktree`, `remove-feature-worktree`, `create-task-branch`, `remove-task-branch`, `is-in-worktree`, `list-worktrees`, `read-manifest`, `finish-feature` | All worktree lifecycle operations, with JSON output to stdout and human-readable status to stderr |
+| `tasks-dag.{sh,ps1}` | `generate`, `validate`, `show`, `classify`, `coalesce` | DAG generation from `tasks.md` (wave computation, parallel-marker validation, coalescing suggestions) |
+
+Both scripts are ASCII-only. The PowerShell version uses single-dash params (`-TasksMd`, `-Dag`, `-Feature`, `-TaskId`); the bash version uses double-dash (`--tasks-md`, `--dag`, `--feature`, `--task-id`). The header comment in each PowerShell script documents this divergence.
+
+#### Worktree manifest schema
+
+Each feature worktree has a `git.worktree-manifest.json` at its root. The manifest is gitignored (`tasks_dag.json`, `git.worktree-manifest.json`, and `.worktrees/` are added to `.gitignore` by `git.setup-ignore`). Schema:
+
+```json
+{
+  "schema_version": "1.0",
+  "feature": "003-user-auth",
+  "feature_branch": "003-user-auth",
+  "worktree_path": ".worktrees/003-user-auth",
+  "created_at": "2026-06-07T15:30:00Z",
+  "task_branches": [
+    {"id": "T007", "branch": "003-user-auth--task-7-add-oauth-provider", "created_at": "2026-06-07T15:35:12Z"}
+  ],
+  "provenance": {
+    "created_by": "worktree-utils.sh create-feature-worktree",
+    "version": "1.0"
+  }
+}
+```
+
+`finish-feature` (and `remove-feature-worktree`) use this manifest to clean up: delete all listed task branches, remove the worktree, then delete the feature branch. `--keep-branch` opts out of the final feature-branch deletion; `--force` opts out of the safety checks (manifest missing, task branches remaining, dirty worktree).
+
+#### DAG JSON schema
+
+`tasks-dag.sh generate` writes `tasks_dag.json` alongside `tasks.md` (the same path with a `.dag.json` suffix). Schema:
+
+```json
+{
+  "schema_version": "1.0",
+  "feature": "003-user-auth",
+  "tasks": [
+    {"id": "T001", "title": "...", "files": ["src/auth.py"], "story": "Setup", "parallel": false, "execution_wave": 0, "depends_on": []}
+  ],
+  "execution_waves": [[0, 1, 2], [3, 4, 5], ...],
+  "stats": {"total_tasks": 12, "parallel_tasks": 8, "total_waves": 5, "stories": 2}
+}
+```
+
+`execution_wave` is 0-based per task. `execution_waves` is the canonical 1-based wave grouping. The DAG is consumed by the ADLC preset's `adlc.spec.implement` (Phase 0: read `tasks_dag.json`).
+
+### Auto-commit task-mode prefixing
+
+`auto-commit.sh` and `auto-commit.ps1` now accept `--mode <sync|parallel|async>` and `--task-id <TNNN>`. When the mode is `parallel` or `async` and a task-id is supplied, the commit subject is prefixed with `[TNNN] ` (e.g., `[T007] [Spec Kit] Auto-commit after implement`). The prefix is idempotent (re-prefixing an already-prefixed subject is a no-op). Env-var fallback: `SPECKIT_TASK_MODE` / `SPECKIT_TASK_ID` (precedence: flag > env > default `sync`).
+
+This is what makes subagent-dispatched task work show up cleanly in `git log` per-task, without forcing the implementer to construct a custom message.
+
+### Setup-ignore rules
+
+`git.setup-ignore` (and its `.ps1` sibling) was extended with four new ignore rules:
+
+| Rule | What it covers |
+|---|---|
+| `.worktrees/` | All feature worktrees (ephemeral; not for version control) |
+| `tasks_dag.json` | DAG sidecar written by `tasks-dag.sh generate` (ephemeral; rebuilt on every `tasks` run) |
+| `git.worktree-manifest.json` | Worktree manifest (ephemeral; rebuilt by `worktree-utils.sh create-feature-worktree`) |
+| `.speckit-merge-conflict-*.md` | Merge-conflict resolution prompts (ephemeral; deleted after conflict resolution) |
+
+The existing `setup-gitignore.{sh,ps1}` script was extended (not duplicated) — the markdown command file `speckit.git.setup-ignore.md` was updated in lockstep to keep the user-facing documentation and the script's actual ignore list in sync.
+
+### Configuration
+
+`extensions/git/config-template.yml` was extended with three new top-level sections:
+
+```yaml
+isolation_mode: branch                    # branch | worktree
+
+worktrees:
+  base_dir: .worktrees
+  manifest_filename: git.worktree-manifest.json
+  task_branch_pattern: "{feature}--task-{id}-{task-slug}"
+
+task_execution:
+  default_mode: sync                       # sync | parallel | async
+  parallel_threshold_wave_size: 2
+  delegate_merge_conflicts: true
+
+task_generation:
+  parallel_marker_default: true
+  coalesce_simple_tasks: true
+  max_tasks_per_story: 8
+```
+
+`isolation_mode` is the only key the `git.feature` script actually reads today (via `grep -E '^[[:space:]]*isolation_mode'`); the other sections are read by the ADLC preset's `adlc.spec.implement` and `tasks` template.
+
+### New tests
+
+Three new test files cover the worktree scripts, DAG scripts, and the new `git.feature` / `auto-commit` / `setup-gitignore` flags:
+
+- `tests/extensions/git/test_git_worktree.py` (55 tests total — bash + PowerShell)
+- `tests/extensions/git/test_tasks_dag.py` (33 tests total — bash + PowerShell)
+- Additions to `tests/extensions/git/test_git_extension.py`: `TestAutoCommitTaskModeBash/PowerShell` (18 tests), `TestCreateFeatureIsolationModeBash/PowerShell` (17 tests), `TestSetupGitignoreWorktreeBash/PowerShell` (6 tests)
+
+These tests use the existing `_setup_project` harness from `test_git_worktree.py` and require no `PKG_NAMES` skip-guards — the worktree/DAG scripts are designed to run identically upstream and in the fork (no fork-only constants referenced; defaults are hard-coded in the scripts).
 
 ## Testing
 
@@ -459,7 +655,7 @@ Upstream `_version.py` hardcodes GitHub API URLs pointing to `github/spec-kit`:
 GITHUB_API_LATEST = "https://api.github.com/repos/github/spec-kit/releases/latest"
 ```
 
-The fork should override these via `cli_customization.py`:
+The fork should override these via `_init_fork.py`:
 - `GITHUB_API_LATEST` → point to `tikalk/agentic-sdlc-spec-kit` releases
 - Install instructions → reference fork's repo URL
 
@@ -550,7 +746,7 @@ This section documents hard-won lessons from merging upstream changes.
 3. **The import block is the SINGLE SOURCE OF TRUTH**
    - All fork customizations must be in the try/except import block
    - Both the imports AND the fallback functions must be complete
-   - Missing fallbacks = runtime errors when cli_customization.py is not available
+   - Missing fallbacks = runtime errors when the fork modules are not available
 
 ### pyproject.toml Wheel Paths
 
@@ -582,7 +778,7 @@ After merging upstream, ensure these are present in __init__.py:
 2. **TEAM_DIRECTIVES_DIRNAME** - for team-ai-directives feature
 3. **_run_git_command()** - helper for git operations
 4. **sync_team_ai_directives()** - clones/updates team repo
-5. **compute_skill_output_name()** - delegates to cli_customization
+5. **compute_skill_output_name()** - delegates to `_core_fork`
 6. **TAGLINE** - fork's tagline (different from upstream)
 
 ### __init__.py Theming
