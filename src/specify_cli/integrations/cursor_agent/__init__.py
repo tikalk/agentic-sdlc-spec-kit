@@ -83,6 +83,10 @@ class CursorAgentIntegration(SkillsIntegration):
             args.extend(["--output-format", "json"])
         return args
 
+    def detect_native_worktree(self) -> bool:
+        """Return True — Cursor has native tool access and can manage worktrees directly."""
+        return True
+
     @classmethod
     def options(cls) -> list[IntegrationOption]:
         return [

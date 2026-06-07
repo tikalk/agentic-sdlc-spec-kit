@@ -52,7 +52,7 @@ class TestClaudeIntegration:
         assert skills_dir.is_dir()
 
         # In clean test env, core commands have no aliases → upstream prefix
-        from specify_cli.cli_customization import resolve_command_alias
+        from specify_cli._core_fork import resolve_command_alias
         aliased = resolve_command_alias("speckit.plan", tmp_path)
         pfx = "spec" if aliased != "speckit.plan" else "speckit"
         plan_skill = skills_dir / f"{pfx}-plan" / "SKILL.md"
@@ -522,7 +522,7 @@ class TestClaudeHookCommandNote:
         i = get_integration("claude")
         m = IntegrationManifest("claude", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        from specify_cli.cli_customization import resolve_command_alias
+        from specify_cli._core_fork import resolve_command_alias
         aliased = resolve_command_alias("speckit.specify", tmp_path)
         pfx = "spec" if aliased != "speckit.specify" else "speckit"
         specify_skill = tmp_path / ".claude/skills" / f"{pfx}-specify" / "SKILL.md"

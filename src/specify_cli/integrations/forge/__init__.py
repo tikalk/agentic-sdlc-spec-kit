@@ -58,7 +58,7 @@ def format_forge_command_name(cmd_name: str) -> str:
     
     # Use alias map to resolve to canonical form, then hyphenate
     try:
-        from ...cli_customization import resolve_command_alias
+        from ..._core_fork import resolve_command_alias
         resolved = resolve_command_alias(cmd_name)
     except Exception:
         resolved = cmd_name

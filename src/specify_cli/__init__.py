@@ -95,7 +95,7 @@ from ._init_options import (
 
 # Tikalk fork customizations - import with fallback to upstream defaults
 try:
-    from .cli_customization import (
+    from ._init_fork import (
         ACCENT_COLOR,
         BANNER_COLORS,
         TAGLINE,
@@ -105,13 +105,13 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
-        compute_skill_output_name,
         get_team_directives_path,
         sync_team_ai_directives,
         get_speckit_version,
         GITHUB_API_LATEST,
         apply_theming_patches,
     )
+    from ._core_fork import compute_skill_output_name
 except ImportError:
     from pathlib import Path
     ACCENT_COLOR = "cyan"

@@ -26,7 +26,7 @@ from typing import TYPE_CHECKING, Any
 import yaml
 
 try:
-    from ..cli_customization import accent
+    from .._init_fork import accent
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"
@@ -67,10 +67,10 @@ def _get_command_prefix() -> str:
     """Get the command prefix for __SPECKIT_COMMAND_*__ placeholder resolution.
 
     Fork uses 'spec', upstream uses 'speckit'.
-    Lazily imported to avoid issues when cli_customization isn't available at module load time.
+    Lazily imported to avoid issues when _fork modules aren't available at module load time.
     """
     try:
-        from ..cli_customization import COMMAND_PREFIX
+        from .._core_fork import COMMAND_PREFIX
         return COMMAND_PREFIX
     except ImportError:
         return "speckit"
@@ -158,6 +158,25 @@ class IntegrationBase(ABC):
     def options(cls) -> list[IntegrationOption]:
         """Return options this integration accepts. Default: none."""
         return []
+
+    def detect_native_worktree(self) -> bool:
+        """Return True if this integration's CLI tool handles worktrees natively.
+
+        Fork customization (tikalk): when True, the ``git`` extension's
+        worktree feature can defer to the agent's own worktree commands
+        rather than re-implementing worktree management via shell scripts.
+
+        Default: ``False`` (no native support). Subclasses may override.
+
+        Returns:
+            bool: Whether the CLI tool has native worktree support.
+        """
+        try:
+            from ..base_fork import detect_native_worktree
+        except ImportError:
+            # Fallback for upstream builds (no fork modules)
+            return False
+        return detect_native_worktree(self.key)
 
     def effective_invoke_separator(
         self, parsed_options: dict[str, Any] | None = None
@@ -1118,7 +1137,7 @@ class IntegrationBase(ABC):
             project_root = Path.cwd()
 
         try:
-            from ..cli_customization import build_alias_map
+            from .._core_fork import build_alias_map
 
             alias_map = build_alias_map(project_root)
         except Exception:
@@ -1890,7 +1909,7 @@ class SkillsIntegration(IntegrationBase):
 
             # Tikalk fork: use alias-aware naming — only fork prefix when alias exists
             try:
-                from specify_cli.cli_customization import resolve_command_alias
+                from specify_cli._core_fork import resolve_command_alias
                 canonical = f"speckit.{command_name}"
                 aliased = resolve_command_alias(canonical, project_root)
                 if aliased != canonical:

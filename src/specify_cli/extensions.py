@@ -30,14 +30,14 @@ from ._init_options import is_ai_skills_enabled
 
 # Tikalk fork: support multiple command namespaces (speckit + adlc)
 try:
-    from .cli_customization import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+    from ._extension_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
 except ImportError:
     EXTENSION_NAMESPACES = ["speckit"]
     EXTENSION_ALIAS_PATTERN_ENABLED = False
 
 # Tikalk fork: override reinstall command to point to fork
 try:
-    from .cli_customization import FORK_INSTALL_COMMAND
+    from ._extension_fork import FORK_INSTALL_COMMAND
     REINSTALL_COMMAND = FORK_INSTALL_COMMAND
 except ImportError:
     REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"
@@ -963,7 +963,7 @@ class ExtensionManager:
             # convention as hook rendering and preset skill registration.
             # Tikalk fork: use alias resolution for fork-specific command naming
             try:
-                from specify_cli.cli_customization import resolve_command_alias
+                from specify_cli._core_fork import resolve_command_alias
                 resolved_name = resolve_command_alias(cmd_name, self.project_root)
             except Exception:
                 resolved_name = cmd_name
@@ -1037,7 +1037,7 @@ class ExtensionManager:
             # Derive a human-friendly title from the command name
             # Tikalk fork: use alias resolution for fork-specific command naming
             try:
-                from specify_cli.cli_customization import resolve_command_alias
+                from specify_cli._core_fork import resolve_command_alias
                 resolved_name = resolve_command_alias(cmd_name, self.project_root)
             except Exception:
                 resolved_name = cmd_name
@@ -2620,7 +2620,7 @@ class HookExecutor:
 
         # Resolve alias first
         try:
-            from specify_cli.cli_customization import resolve_command_alias
+            from specify_cli._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(command_id, project_root)
         except Exception:
             resolved_name = command_id
@@ -2652,7 +2652,7 @@ class HookExecutor:
         # Only apply to non-speckit commands; upstream speckit.* stays as-is
         if not command_id.startswith("speckit."):
             try:
-                from specify_cli.cli_customization import resolve_command_alias
+                from specify_cli._core_fork import resolve_command_alias
                 resolved = resolve_command_alias(command_id, self.project_root)
                 if resolved != command_id:
                     return f"/{resolved}"

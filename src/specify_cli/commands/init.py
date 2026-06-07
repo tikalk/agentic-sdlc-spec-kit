@@ -28,16 +28,16 @@ from .._assets import (
 from .._console import StepTracker, console, select_with_arrows, show_banner
 from .._utils import check_tool, init_git_repo, is_git_repo
 
-# Tikalk fork hooks (thin calls - logic lives in cli_customization)
+# Tikalk fork hooks (thin calls - logic lives in _init_fork / _core_fork)
 try:
-    from ..cli_customization import (
+    from .._init_fork import (
         pre_init as _fork_pre_init,
         post_init as _fork_post_init,
-        should_print_project_ready as _fork_should_print_project_ready,
         accent,
         accent_style,
         PKG_NAMES,
     )
+    from .._core_fork import should_print_project_ready as _fork_should_print_project_ready
     _FORK = True
 except ImportError:
     _FORK = False

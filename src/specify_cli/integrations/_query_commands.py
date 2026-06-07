@@ -14,7 +14,7 @@ from ..integration_state import (
 )
 
 try:
-    from ..cli_customization import accent, accent_style
+    from .._init_fork import accent, accent_style
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"

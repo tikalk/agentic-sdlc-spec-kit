@@ -179,7 +179,7 @@ class CopilotIntegration(IntegrationBase):
         if self._skills_mode:
             # Use alias map to resolve to canonical form
             try:
-                from ...cli_customization import resolve_command_alias
+                from ..._core_fork import resolve_command_alias
                 resolved = resolve_command_alias(command_name)
             except Exception:
                 resolved = command_name
@@ -212,7 +212,7 @@ class CopilotIntegration(IntegrationBase):
 
         # Use alias map to resolve to canonical form
         try:
-            from ...cli_customization import resolve_command_alias
+            from ..._core_fork import resolve_command_alias
             resolved = resolve_command_alias(command_name)
         except Exception:
             resolved = command_name

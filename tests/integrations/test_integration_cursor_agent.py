@@ -271,3 +271,16 @@ class TestCursorAgentCliDispatch:
         argv = mock_run.call_args[0][0]
         assert argv[0] == "cursor-agent"
 
+
+class TestCursorAgentNativeWorktree:
+    """Verify the fork-specific ``detect_native_worktree`` override."""
+
+    def test_cursor_agent_reports_native_worktree_support(self):
+        i = get_integration("cursor-agent")
+        assert i.detect_native_worktree() is True
+
+    def test_claude_does_not_report_native_worktree_support(self):
+        """A control integration that lacks the override must return False."""
+        i = get_integration("claude")
+        assert i.detect_native_worktree() is False
+

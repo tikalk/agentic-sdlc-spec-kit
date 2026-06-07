@@ -12,7 +12,7 @@ from .integrations.base import IntegrationBase
 from .integrations.manifest import IntegrationManifest
 
 try:
-    from .cli_customization import accent
+    from ._init_fork import accent
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"
@@ -218,7 +218,7 @@ _POWERSHELL_FORMAT_COMMAND_RE = re.compile(
 
 def _format_speckit_command(command_name: str, separator: str) -> str:
     try:
-        from .cli_customization import COMMAND_PREFIX
+        from ._core_fork import COMMAND_PREFIX
     except ImportError:
         COMMAND_PREFIX = "speckit"
     name = command_name.strip().lstrip("/")

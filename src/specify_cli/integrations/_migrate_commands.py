@@ -8,7 +8,7 @@ import typer
 from .._console import console
 
 try:
-    from ..cli_customization import accent
+    from .._init_fork import accent
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"

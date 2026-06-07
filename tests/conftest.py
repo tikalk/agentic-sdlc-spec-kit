@@ -103,7 +103,7 @@ def _skill_prefix(
     """
     if command is not None:
         try:
-            from specify_cli.cli_customization import resolve_command_alias
+            from specify_cli._core_fork import resolve_command_alias
             aliased = resolve_command_alias(
                 f"speckit.{command}", project_root=project_root
             )
@@ -127,7 +127,7 @@ def _content_ref(name: str, sep: str = "-") -> str:
 def _skill_dir_name(command: str, project_root: Path | None = None) -> str:
     """Return the on-disk skill directory name for *command*.
 
-    Mirrors :func:`specify_cli.cli_customization.compute_skill_output_name`
+    Mirrors :func:`specify_cli._core_fork.compute_skill_output_name`
     for skills-based agents: when the command has a fork alias whose
     resolved form starts with ``speckit.``/``spec.``/``adlc.``, the
     fork prefix replaces the namespace; otherwise the alias is used
@@ -139,7 +139,7 @@ def _skill_dir_name(command: str, project_root: Path | None = None) -> str:
     when the test is run from inside the project under test.
     """
     try:
-        from specify_cli.cli_customization import resolve_command_alias
+        from specify_cli._core_fork import resolve_command_alias
         canonical = f"speckit.{command}"
         aliased = resolve_command_alias(canonical, project_root=project_root)
         if aliased == canonical:

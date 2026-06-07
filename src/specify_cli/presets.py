@@ -1209,7 +1209,7 @@ class PresetManager:
         """
         # Use alias map to resolve command to its alias form, then convert to skill names
         try:
-            from .cli_customization import resolve_command_alias
+            from ._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(cmd_name, self.project_root)
         except Exception:
             resolved_name = cmd_name
@@ -1222,7 +1222,7 @@ class PresetManager:
         """Return a human-friendly title for a skill command name."""
         # Use alias map to get the canonical short form, then convert to title
         try:
-            from .cli_customization import resolve_command_alias
+            from ._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(cmd_name, self.project_root)
         except Exception:
             resolved_name = cmd_name

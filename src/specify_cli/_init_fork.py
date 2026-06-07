@@ -1,26 +1,32 @@
-#!/usr/bin/env python3
 """
-Tikalk/Agentic-SDLC Fork CLI Customizations
+Init-time fork customizations: theming, init hooks, scaffolding.
 
-All customizations for the tikalk fork of spec-kit are isolated here to minimize
-merge conflicts when syncing with upstream. This module provides:
+Imports from _core_fork and _extension_fork (both lower-tier).
+This module is the top tier in the fork module dependency graph:
 
-1. THEMING - Orange accent color and banner colors
-2. HELPERS - accent() and accent_style() for consistent theming
-3. BUNDLED CONTENT - Extensions and presets that ship with the fork
-4. TEAM DIRECTIVES - Integration with team-ai-directives repository
-5. PACKAGE IDENTITY - Package names for version detection
-6. EXTENSION NAMESPACES - Support for adlc.* command prefixes
+    _extension_fork.py  (leaf, constants only)
+            ^
+            |
+    _core_fork.py        (alias/MCP/skill)
+            ^
+            |
+    _init_fork.py        (THIS MODULE - theming + init hooks + scaffolding)
 
-When merging upstream changes, only the import block in __init__.py needs attention.
-All customization logic lives here and doesn't conflict with upstream.
+Contents:
+1. Theming: orange accent color, banner colors, accent/accent_style helpers
+2. Package identity: PKG_NAMES, get_speckit_version, TAGLINE
+3. Team directives: TEAM_DIRECTIVES_DIRNAME, sync/get_team_directives_path
+4. Init hooks: pre_init, post_init, reconcilers
+5. Scaffolding: extension/preset scaffolding to project
+6. Skill installation: _install_skills_from_path
+
+Anything added here MUST NOT be imported by _core_fork or _extension_fork.
 """
 
 from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import urllib.error
 from packaging import version
@@ -28,6 +34,12 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+
+# Cross-module imports from lower-tier fork modules
+from ._core_fork import (
+    compute_skill_output_name,
+    install_mcp_config,
+)
 
 # ============================================================================
 # THEMING
@@ -121,208 +133,12 @@ def apply_theming_patches(_console_module) -> None:
     This function patches ACCENT_STYLE in _console.py to use the fork's
     accent color instead of the upstream default "cyan".
 
-    Called from __init__.py after importing cli_customization.
+    Called from __init__.py after importing _init_fork.
 
     Args:
         _console_module: The specify_cli._console module instance
     """
     _console_module.ACCENT_STYLE = ACCENT_STYLE
-
-
-# ============================================================================
-# EXTENSION NAMESPACES
-# ============================================================================
-
-# Command namespaces allowed in extension commands
-# Upstream only allows "speckit", fork also allows "adlc"
-EXTENSION_NAMESPACES = ["speckit", "adlc"]
-
-# Enable short alias format: {extension}.{command} (e.g., architect.init)
-EXTENSION_ALIAS_PATTERN_ENABLED = True
-
-# Command prefix for __SPECKIT_COMMAND_*__ placeholder resolution
-# Upstream uses "speckit", fork uses "spec"
-COMMAND_PREFIX = "spec"
-
-
-def build_alias_map(project_root: Path) -> dict[str, str]:
-    """Build a command name -> first alias map from installed extension/preset manifests.
-    
-    This function scans installed extensions and presets to find commands with aliases,
-    creating a mapping from the full command name to its first alias.
-    
-    Examples:
-        "speckit.git.commit" -> "git.commit"
-        "adlc.spec.constitution" -> "spec.constitution"
-        "adlc.architect.specify" -> "architect.specify"
-    
-    Args:
-        project_root: Path to the project root
-        
-    Returns:
-        Dictionary mapping command names to their first alias
-    """
-    alias_map: dict[str, str] = {}
-    
-    # Scan extensions (both copied and reference/top-level)
-    extensions_dir = project_root / ".specify" / "extensions"
-    scan_dirs: list[Path] = []
-    if extensions_dir.is_dir():
-        for ext_dir in extensions_dir.iterdir():
-            if ext_dir.is_dir() and not ext_dir.name.startswith("."):
-                scan_dirs.append(ext_dir)
-    # Also scan reference extensions stored at top-level paths
-    try:
-        from specify_cli.extensions import ExtensionRegistry
-        registry = ExtensionRegistry(extensions_dir)
-        for _ext_id, metadata in registry.list().items():
-            if metadata.get("source") == "reference" and metadata.get("path"):
-                ref_path = Path(metadata["path"])
-                if ref_path.is_dir() and ref_path not in scan_dirs:
-                    scan_dirs.append(ref_path)
-    except Exception:
-        pass
-    
-    for ext_dir in scan_dirs:
-        manifest_path = ext_dir / "extension.yml"
-        if not manifest_path.is_file():
-            continue
-        try:
-            import yaml
-            with open(manifest_path, 'r', encoding='utf-8') as f:
-                manifest = yaml.safe_load(f)
-            if not isinstance(manifest, dict):
-                continue
-            commands = manifest.get("provides", {}).get("commands", [])
-            for cmd in commands:
-                if not isinstance(cmd, dict):
-                    continue
-                cmd_name = cmd.get("name")
-                aliases = cmd.get("aliases", [])
-                if cmd_name and aliases and isinstance(aliases, list):
-                    alias_map[cmd_name] = aliases[0]
-                    # Also map replaced command name to the same alias
-                    replaces = cmd.get("replaces")
-                    if replaces:
-                        alias_map[replaces] = aliases[0]
-        except Exception:
-            continue
-
-    # Scan presets
-    presets_dir = project_root / ".specify" / "presets"
-    if presets_dir.is_dir():
-        for preset_dir in presets_dir.iterdir():
-            if not preset_dir.is_dir():
-                continue
-            manifest_path = preset_dir / "preset.yml"
-            if not manifest_path.is_file():
-                continue
-            try:
-                import yaml
-                with open(manifest_path, 'r', encoding='utf-8') as f:
-                    manifest = yaml.safe_load(f)
-                if not isinstance(manifest, dict):
-                    continue
-                provides = manifest.get("provides", {})
-                templates = provides.get("templates", [])
-                for tmpl in templates:
-                    if not isinstance(tmpl, dict):
-                        continue
-                    if tmpl.get("type") != "command":
-                        continue
-                    cmd_name = tmpl.get("name")
-                    aliases = tmpl.get("aliases", [])
-                    if cmd_name and aliases and isinstance(aliases, list):
-                        alias_map[cmd_name] = aliases[0]
-                        # Also map replaced command name to the same alias
-                        # so resolve_command_alias("speckit.plan") works
-                        # for the original (upstream) command name in
-                        # addition to the preset name.
-                        replaces = tmpl.get("replaces")
-                        if replaces:
-                            alias_map[replaces] = aliases[0]
-            except Exception:
-                continue
-
-    return alias_map
-
-
-def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> str:
-    """Resolve a command name to its alias if one exists.
-    
-    This is the primary function to use instead of hardcoded prefix stripping.
-    It looks up the command in the alias map and returns the alias if found,
-    otherwise returns the command name unchanged.
-    
-    Args:
-        cmd_name: The command name (e.g., "speckit.git.commit", "adlc.spec.plan")
-        project_root: Optional project root for building alias map. If None,
-                     uses current working directory.
-    
-    Returns:
-        The alias if found, otherwise the original command name
-    """
-    if project_root is None:
-        project_root = Path.cwd()
-    
-    alias_map = build_alias_map(project_root)
-    return alias_map.get(cmd_name, cmd_name)
-
-
-# ============================================================================
-# REFERENCE EXTENSION PATH RESOLUTION
-# ============================================================================
-
-
-
-# ============================================================================
-# FORK SELF CHECK - GitHub API endpoint for specify self check command
-# ============================================================================
-
-# Fork GitHub API endpoint for self check command
-FORK_GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
-
-# Install command template for fork (used in self check output)
-FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}"
-
-
-# ============================================================================
-# SKILL OUTPUT NAME COMPUTATION - Fork-specific naming for Claude Code slash commands
-# ============================================================================
-
-# Fork-specific command namespaces that should NOT have "speckit-" prefix
-FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
-
-
-def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: Path | None = None) -> str:
-    """
-    Compute the on-disk skill name for an agent with fork-specific handling.
-
-    Commands WITH aliases use the alias form (fork-appropriate naming).
-    Commands WITHOUT aliases keep upstream behavior (speckit- prefix).
-
-    Examples:
-    - "speckit.plan" -> "spec-plan" (via alias "spec.plan")
-    - "adlc.levelup.init" -> "levelup-init" (via alias "levelup.init")
-    - "speckit.taskstoissues" -> "speckit-taskstoissues" (no alias, upstream name)
-    """
-    if agent_config.get("extension") != "/SKILL.md":
-        format_name = agent_config.get("format_name")
-        return format_name(cmd_name) if format_name else cmd_name
-
-    resolved = resolve_command_alias(cmd_name, project_root)
-
-    if resolved != cmd_name:
-        # Has alias - apply fork prefix logic
-        from specify_cli.integrations.base import _get_command_prefix
-        pfx = _get_command_prefix()
-        for ns in ("speckit.", "spec.", "adlc."):
-            if resolved.startswith(ns):
-                return f"{pfx}-{resolved[len(ns):].replace('.', '-')}"
-        return resolved.replace(".", "-")
-
-    # No alias - keep upstream behavior
-    return resolved.replace(".", "-")
 
 
 # ============================================================================
@@ -379,198 +195,10 @@ TEAM_DIRECTIVES_DIRNAME = "team-ai-directives"
 
 
 # ============================================================================
-# MCP CONFIGURATION - Install .mcp.json from team-ai-directives
-# ============================================================================
-
-
-def resolve_env_placeholders(content: str) -> tuple[str, list[str], list[str]]:
-    """Replace ${VAR} with environment variable value.
-    
-    Args:
-        content: The MCP config content with ${VAR} placeholders
-        
-    Returns:
-        Tuple of (resolved_content, resolved_vars, unresolved_vars)
-    """
-    pattern = r'\$\{([^}]+)\}'
-    resolved_vars = []
-    unresolved_vars = []
-    
-    def replacer(match):
-        var_name = match.group(1)
-        env_value = os.environ.get(var_name)
-        if env_value is not None:
-            resolved_vars.append(var_name)
-            return env_value
-        else:
-            unresolved_vars.append(var_name)
-            return f"${{{var_name}}}"
-    
-    resolved_content = re.sub(pattern, replacer, content)
-    return resolved_content, resolved_vars, unresolved_vars
-
-
-def validate_mcp_config(content: str) -> tuple[bool, str]:
-    """Validate JSON structure of MCP config.
-    
-    Args:
-        content: The MCP config content as string
-        
-    Returns:
-        Tuple of (is_valid, error_message)
-    """
-    try:
-        config = json.loads(content)
-        if not isinstance(config, dict):
-            return False, "MCP config must be a JSON object"
-        
-        # Check for at least one of mcpServers or tools
-        if "mcpServers" not in config and "tools" not in config:
-            return False, "MCP config must contain 'mcpServers' or 'tools'"
-        
-        return True, ""
-    except json.JSONDecodeError as e:
-        return False, f"Invalid JSON: {e}"
-    except Exception as e:
-        return False, f"Validation error: {e}"
-
-
-def merge_mcp_configs_report_conflicts(existing: dict, incoming: dict) -> tuple[dict, list[str]]:
-    """Merge configs but report conflicts instead of overwriting.
-    
-    Args:
-        existing: The existing MCP config dict
-        incoming: The incoming MCP config dict from team-ai-directives
-        
-    Returns:
-        Tuple of (merged_config, conflict_list)
-    """
-    merged = json.loads(json.dumps(existing))  # Deep copy
-    conflicts = []
-    
-    # Merge mcpServers
-    if "mcpServers" in incoming:
-        if "mcpServers" not in merged:
-            merged["mcpServers"] = {}
-        
-        for server_name, server_config in incoming["mcpServers"].items():
-            if server_name in merged.get("mcpServers", {}):
-                conflicts.append(f"mcpServers: {server_name}")
-            else:
-                merged["mcpServers"][server_name] = server_config
-    
-    # Merge tools
-    if "tools" in incoming:
-        if "tools" not in merged:
-            merged["tools"] = {}
-        
-        for tool_name, tool_config in incoming["tools"].items():
-            if tool_name in merged.get("tools", {}):
-                conflicts.append(f"tools: {tool_name}")
-            else:
-                merged["tools"][tool_name] = tool_config
-    
-    return merged, conflicts
-
-
-def install_mcp_config(team_path: Path, project_root: Path) -> tuple[bool, list[str], list[str], list[str]]:
-    """Install .mcp.json from team-ai-directives to project root.
-    
-    Args:
-        team_path: Path to team-ai-directives directory
-        project_root: Path to project root
-        
-    Returns:
-        Tuple of (success, messages, resolved_vars, unresolved_vars)
-    """
-    messages = []
-    resolved_vars = []
-    unresolved_vars = []
-    
-    team_mcp_path = team_path / ".mcp.json"
-    project_mcp_path = project_root / ".mcp.json"
-    
-    if not team_mcp_path.exists():
-        messages.append("ℹ No .mcp.json found in team-ai-directives")
-        return True, messages, resolved_vars, unresolved_vars
-    
-    # Read team .mcp.json
-    try:
-        content = team_mcp_path.read_text()
-    except Exception as e:
-        messages.append(f"✗ Failed to read team .mcp.json: {e}")
-        return False, messages, resolved_vars, unresolved_vars
-    
-    # Resolve environment placeholders
-    content, resolved_vars, unresolved_vars = resolve_env_placeholders(content)
-    
-    # Validate JSON
-    is_valid, error_msg = validate_mcp_config(content)
-    if not is_valid:
-        messages.append("✗ Invalid MCP config in team-ai-directives/.mcp.json")
-        messages.append(f"  ℹ {error_msg}")
-        return False, messages, resolved_vars, unresolved_vars
-    
-    # Parse the config
-    try:
-        team_config = json.loads(content)
-    except Exception as e:
-        messages.append(f"✗ Failed to parse team .mcp.json: {e}")
-        return False, messages, resolved_vars, unresolved_vars
-    
-    # Check for existing project .mcp.json
-    if project_mcp_path.exists():
-        try:
-            existing_content = project_mcp_path.read_text()
-            existing_config = json.loads(existing_content)
-            
-            # Merge with conflict reporting
-            merged_config, conflicts = merge_mcp_configs_report_conflicts(existing_config, team_config)
-            
-            if conflicts:
-                messages.append("⚠ Conflicts detected (skipped, existing preserved):")
-                for conflict in conflicts:
-                    messages.append(f"    - {conflict}")
-            
-            # Write merged config
-            project_mcp_path.write_text(json.dumps(merged_config, indent=2))
-            messages.append("✓ Merged .mcp.json with existing config")
-            
-        except Exception as e:
-            messages.append(f"✗ Failed to merge with existing .mcp.json: {e}")
-            return False, messages, resolved_vars, unresolved_vars
-    else:
-        # Write new config
-        project_mcp_path.write_text(json.dumps(team_config, indent=2))
-        messages.append("✓ Installed .mcp.json")
-    
-    # Report env var resolution
-    if resolved_vars:
-        messages.append(f"  ℹ Resolved env vars: {', '.join(resolved_vars)}")
-    if unresolved_vars:
-        messages.append(f"  ⚠ Unresolved placeholders: {', '.join(f'${{{v}}}' for v in unresolved_vars)}")
-    
-    return True, messages, resolved_vars, unresolved_vars
-
-
-# ============================================================================
 # INIT HOOKS - Tikalk-specific pre/post init callbacks
 # ============================================================================
 
 console = Console()
-
-
-def should_print_project_ready(tracker: Any) -> bool:
-    """Return True if init should print the "Project ready." success message.
-
-    We consider init "not ready" if any tracked step ended in an error state.
-    This keeps the final messaging aligned with the progress view.
-    """
-    try:
-        return not any(step.get("status") == "error" for step in getattr(tracker, "steps", []))
-    except Exception:
-        # Be conservative: if we can't inspect the tracker, do not claim success.
-        return False
 
 
 def _scaffold_extensions_to_project(
@@ -958,12 +586,6 @@ def get_team_directives_path(project_path: Path) -> Path | None:
     # Fallback to installed extension
     fallback = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
     return fallback if fallback.exists() else None
-
-
-# ----------------------------------------------------------------------------
-# Reference Extension Update Helpers
-# ----------------------------------------------------------------------------
-
 
 
 def pre_init(
@@ -1577,7 +1199,7 @@ def _install_bundled_extensions(
         if installed and skipped:
             tracker.complete(
                 "extensions",
-                f"{', '.join(sorted(installed))} (skipped: {', '.join(skipped)})",
+                f"{', '.join(sorted(installed))} (skipped: {', '.join(sorted(skipped))})",
             )
         elif installed:
             tracker.complete("extensions", f"{', '.join(sorted(installed))}")
@@ -1723,7 +1345,7 @@ def _install_bundled_presets(
         if installed and skipped:
             tracker.complete(
                 "presets",
-                f"{', '.join(sorted(installed))} (skipped: {', '.join(skipped)})",
+                f"{', '.join(sorted(installed))} (skipped: {', '.join(sorted(skipped))})",
             )
         elif installed:
             tracker.complete("presets", f"{', '.join(sorted(installed))}")
@@ -1731,38 +1353,6 @@ def _install_bundled_presets(
             tracker.skip("presets", f"{', '.join(skipped)}")
         else:
             tracker.skip("presets", "none available")
-
-
-def get_preinstalled_extensions(project_path: Path) -> list[dict]:
-    """Get list of pre-installed extensions from catalog.json."""
-    extensions = []
-    catalog_paths = [
-        project_path / ".specify" / "catalog.json",
-        project_path / ".specify" / "extensions" / "catalog.json",
-        Path(__file__).parent / "bundled_extensions" / "catalog.json",
-        Path(__file__).parent.parent.parent / "extensions" / "catalog.json",
-    ]
-
-    for catalog_path in catalog_paths:
-        if catalog_path.exists():
-            try:
-                with open(catalog_path) as f:
-                    catalog_data = json.load(f)
-                for ext_id, ext_data in catalog_data.get("extensions", {}).items():
-                    if ext_data.get("preinstall", False):
-                        extensions.append(
-                            {
-                                "id": ext_id,
-                                "name": ext_data.get("name", ext_id),
-                                "description": ext_data.get("description", ""),
-                                "commands": ext_data.get("commands", []),
-                            }
-                        )
-                if extensions:
-                    break
-            except (json.JSONDecodeError, IOError):
-                continue
-    return extensions
 
 
 # ============================================================================
@@ -1777,31 +1367,31 @@ def _install_skills_from_path(
     force: bool = False,
 ) -> list[str]:
     """Install team-ai-directives skills to agent integration directory.
-    
+
     Reads skills from:
     - team-ai-directives (if configured): .specify/extensions/team-ai-directives/skills/
     - local skills: .specify/skills/
-    
+
     Args:
         team_directives_path: Path to team-ai-directives extension (or None)
         project_path: Project root
         selected_ai: Agent type (claude, windsurf, etc.)
         force: Force re-install even if skill already exists
-    
+
     Returns:
         List of installed skill names
-    
+
     Raises:
         Exception: If skill installation fails
     """
     from .integrations import INTEGRATION_REGISTRY
     from .integrations.base import SkillsIntegration
-    
+
     if selected_ai not in INTEGRATION_REGISTRY:
         raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
-    
+
     integration = INTEGRATION_REGISTRY[selected_ai]
-    
+
     # Determine skills directory based on integration type:
     # - SkillsIntegration: commands ARE skills → use skills_dest() (same dir as commands)
     # - Others: skills are separate → use folder + "skills" (agentskills.io convention)
@@ -1810,9 +1400,9 @@ def _install_skills_from_path(
     else:
         folder = integration.config.get("folder", "")
         skills_dest = project_path / folder / "skills"
-    
+
     installed = []
-    
+
     # 1. Install team-ai-directives skills (with team- prefix)
     if team_directives_path and team_directives_path.exists():
         team_skills_dir = team_directives_path / "skills"
@@ -1828,54 +1418,54 @@ def _install_skills_from_path(
                     required_skills = skills_data.get("skills", {}).get("required", {})
                 except Exception:
                     pass
-            
+
             # Get list of skill directories
             for skill_dir in team_skills_dir.iterdir():
                 if not skill_dir.is_dir():
                     continue
-                
+
                 skill_name = skill_dir.name
                 skill_md = skill_dir / "SKILL.md"
                 if not skill_md.exists():
                     continue
-                
+
                 # Check if skill is in required list (only install required)
                 skill_ref = f"local:./skills/{skill_name}"
                 if skill_ref not in required_skills and required_skills:
                     continue
-                
+
                 # Install with team- prefix
                 target_name = f"team-{skill_name}"
                 target_dir = skills_dest / target_name
                 target_file = target_dir / "SKILL.md"
-                
+
                 if target_file.exists() and not force:
                     continue
-                
+
                 # Create target directory
                 target_dir.mkdir(parents=True, exist_ok=True)
-                
+
                 # Copy SKILL.md with modified name field
                 try:
                     content = skill_md.read_text(encoding="utf-8")
-                    
+
                     # Update the name field in frontmatter to include team- prefix
                     # This ensures compliance with agentskills.io specification
                     # (name field must match parent directory name)
                     import re
-                    
+
                     # Pattern to match name: value in YAML frontmatter
                     # Matches: name: skill-name or name: "skill-name" or name: 'skill-name'
                     name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
-                    
+
                     lines = content.splitlines()
                     modified_lines = []
                     in_frontmatter = False
                     frontmatter_started = False
-                    
+
                     for line in lines:
                         stripped = line.strip()
-                        
+
                         # Track if we're in frontmatter
                         if stripped == '---':
                             if not frontmatter_started:
@@ -1885,7 +1475,7 @@ def _install_skills_from_path(
                                 in_frontmatter = False
                             modified_lines.append(line)
                             continue
-                        
+
                         # Update name field while in frontmatter
                         if in_frontmatter and stripped.startswith('name:'):
                             match = re.match(name_pattern, stripped)
@@ -1900,46 +1490,44 @@ def _install_skills_from_path(
                                 indent = line[:len(line) - len(line.lstrip())]
                                 modified_lines.append(f"{indent}name: {new_name}")
                                 continue
-                        
+
                         modified_lines.append(line)
-                    
+
                     modified_content = '\n'.join(modified_lines)
                     target_file.write_text(modified_content, encoding="utf-8")
                     installed.append(target_name)
                 except Exception as e:
                     raise Exception(f"Failed to install {target_name}: {e}")
-    
+
     # 2. Install local skills (without prefix)
     local_skills_dir = project_path / ".specify" / "skills"
     if local_skills_dir.exists():
         for skill_dir in local_skills_dir.iterdir():
             if not skill_dir.is_dir():
                 continue
-            
+
             skill_name = skill_dir.name
             skill_md = skill_dir / "SKILL.md"
             if not skill_md.exists():
                 continue
-            
+
             # Skip if it's a team-prefixed skill (already installed above)
             if skill_name.startswith("team-"):
                 continue
-            
+
             target_dir = skills_dest / skill_name
             target_file = target_dir / "SKILL.md"
-            
+
             if target_file.exists() and not force:
                 continue
-            
+
             target_dir.mkdir(parents=True, exist_ok=True)
-            
+
             try:
                 content = skill_md.read_text(encoding="utf-8")
                 target_file.write_text(content, encoding="utf-8")
                 installed.append(skill_name)
             except Exception as e:
                 raise Exception(f"Failed to install {skill_name}: {e}")
-    
+
     return installed
-
-

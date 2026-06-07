@@ -19,7 +19,7 @@ from typing import Any
 import yaml
 
 try:
-    from ...cli_customization import resolve_command_alias, COMMAND_PREFIX
+    from ..._core_fork import resolve_command_alias, COMMAND_PREFIX
 except ImportError:
     def resolve_command_alias(cmd: str, _project_root=None) -> str:
         return cmd
