@@ -2,6 +2,24 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.9.5+adlc2] - 2026-06-07
+
+### Added
+
+- **Git feature worktree isolation**: `git.feature` now supports `--worktree` / `--branch-mode` / `--isolation-mode` flags and `SPECIFY_ISOLATION_MODE` env var to create feature-level worktrees at `.worktrees/<feature>/` instead of normal branches. Worktree mode provisions a `git.worktree-manifest.json` for provenance tracking.
+- **DAG task orchestration**: `tasks-dag.{sh,ps1}` generates `tasks_dag.json` from `tasks.md` with wave-based execution ordering. Supports `generate`, `validate`, `show`, `classify`, and `coalesce` subcommands.
+- **Task execution commands**: `git.task`, `git.task-merge`, `git.task-list` (worktree-mode only) for isolated task branches, merge with `--no-ff`, and manifest-backed cleanup.
+- **Auto-commit task-mode prefixing**: `auto-commit.{sh,ps1}` now accept `--mode <sync|parallel|async>` and `--task-id <TNNN>` for `[TNNN]`-prefixed commit subjects.
+- **PowerShell parity**: all new scripts have PowerShell counterparts with single-dash params and BOM-less UTF-8 output.
+
+### Changed
+
+- **Fork module refactor**: split `cli_customization.py` into `_init_fork.py`, `_core_fork.py`, `_extension_fork.py`, `base_fork.py`, and `extensions_fork.py` to reduce merge conflicts and clarify dependency direction.
+- **Template wiring**: `templates/commands/implement.md` and `templates/commands/tasks.md` now conditionally detect `isolation_mode` and wire DAG generation / worktree dispatch when in worktree mode, while preserving existing branch-mode behavior.
+- **ADLC preset wiring**: `presets/agentic-sdlc/commands/adlc.spec.implement.md` and `adlc.spec.tasks.md` integrate the same conditional worktree + DAG flow.
+- **Git extension bumped to 1.3.0**: adds 3 new commands, `isolation_mode`, `worktrees`, `task_execution`, and `task_generation` config sections.
+- **Cursor native worktree detection**: `CursorAgentIntegration.detect_native_worktree()` returns `True` so the worktree feature can defer to Cursor's native tooling.
+
 # [0.9.2+adlc4] - 2026-06-03
 
 ### Fixed
