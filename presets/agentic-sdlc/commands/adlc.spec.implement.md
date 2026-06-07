@@ -40,18 +40,39 @@ You **MUST** consider the user input before proceeding (if not empty).
   - Reading from `./tasks.md` instead of `./specs/<BRANCH>/tasks.md`
   - Writing implementation files to root instead of feature directory
 
-2. **MANDATORY - Initialize Execution Tracking**:
+2. **Worktree + DAG detection (conditional, off by default)**:
+   - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
+   - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
+   - **If `isolation_mode: branch` (default) or config missing**: skip this entire step; proceed to step 3 (Initialize Execution Tracking). Execution continues with the existing flow: `tasks_meta.json` and `[SYNC]/[ASYNC]` markers drive task scheduling.
+   - **If `isolation_mode: worktree`**:
+     - Use the shell-appropriate script to verify you are inside a feature worktree:
+       - **Bash**: `bash .specify/extensions/git/scripts/bash/worktree-utils.sh is-in-worktree`
+       - **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 is-in-worktree`
+     - Capture exit code:
+       - Exit 0 (primary checkout): abort with message "Worktree mode requires running inside a feature worktree. Re-run this command from the WORKTREE_PATH returned by `git.feature --worktree`."
+       - Exit 2 (inside a worktree): proceed
+     - If `$FEATURE_DIR/tasks_dag.json` exists:
+       - Read it; extract `execution_waves` (1-based; each wave is a list of 0-based task indices)
+       - For each wave (in order):
+         - Dispatch each task in the wave via subagent delegation (the subagent does the implementation work, commits, and signals completion)
+         - Wait for all tasks in the wave to complete
+         - For each completed task in the wave, merge the task branch back into the feature branch:
+           - Run `git.task-merge <task_id>` (or `speckit.git.task-merge <task_id>`)
+         - On merge conflict, delegate resolution to a subagent (per `task_execution.delegate_merge_conflicts: true` in config)
+     - If `$FEATURE_DIR/tasks_dag.json` does NOT exist: log a warning and fall back to the existing sequential implementation flow in the current checkout/worktree. `tasks_meta.json` and `[SYNC]/[ASYNC]` markers continue to drive scheduling.
 
-   Run from repo root to create the execution metadata file:
-   ```bash
-   bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
-   ```
+3. **MANDATORY - Initialize Execution Tracking**:
 
-   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/levelup.trace` and quality gate tracking will not function.
+    Run from repo root to create the execution metadata file:
+    ```bash
+    bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+    ```
 
-   If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
+    **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/levelup.trace` and quality gate tracking will not function.
 
-3. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+    If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
+
+4. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
    - For each checklist, count:
      - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
@@ -76,13 +97,13 @@ You **MUST** consider the user input before proceeding (if not empty).
      - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
      - Wait for user response before continuing
      - If user says "no" or "wait" or "stop", halt execution
-     - If user says "yes" or "proceed" or "continue", proceed to step 3
+      - If user says "yes" or "proceed" or "continue", proceed to step 5
 
    - **If all checklists are complete**:
      - Display the table showing all checklists passed
-     - Automatically proceed to step 4
+     - Automatically proceed to step 5
 
-4. Load and analyze the implementation context:
+5. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
@@ -91,7 +112,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read /memory/constitution.md for governance constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
-5. **Project Setup Verification**:
+6. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup
 
    **Detection & Creation Logic**:
@@ -135,7 +156,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
    - **Kubernetes/k8s**: `*.secret.yaml`, `secrets/`, `.kube/`, `kubeconfig*`, `*.key`, `*.crt`
 
-6. Parse tasks.md structure and extract:
+7. Parse tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
@@ -143,7 +164,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Load tasks_meta.json**: Read execution modes, delegation status, and review requirements
      - Record assigned agents and job IDs for ASYNC tasks
 
-7. Execute implementation following execution approach:
+8. Execute implementation following execution approach:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **File-based coordination**: Tasks affecting the same files must run sequentially
@@ -158,14 +179,14 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
-8. Implementation execution rules:
+9. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: Write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
-9. Progress tracking and error handling:
+10. Progress tracking and error handling:
    - Report progress after each completed task
    - Halt execution if any non-parallel task fails
    - For parallel tasks [P], continue with successful tasks, report failed ones
@@ -177,16 +198,17 @@ You **MUST** consider the user input before proceeding (if not empty).
      bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$TASK_ID" "$DESCRIPTION" "$FILES" "SYNC_OR_ASYNC"
      ```
 
-10. **MANDATORY - Verify Execution Metadata**:
+11. **MANDATORY - Verify Execution Metadata**:
 
     Before reporting completion, verify execution metadata exists:
     ```bash
     test -f "$FEATURE_DIR/tasks_meta.json" || bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
     ```
-    If `tasks_meta.json` was created retroactively (not at step 2), log a warning that per-task metadata was not captured during implementation.
+    If `tasks_meta.json` was created retroactively (not at step 3), log a warning that per-task metadata was not captured during implementation.
 
-11. Completion validation:
+12. Completion validation:
    - Verify all required tasks are completed
+   - In worktree mode, verify all task branches are merged back into the feature branch with no unresolved conflicts
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan

@@ -128,6 +128,19 @@ If working in a non-git repository:
     - Parallel execution examples per story
     - Implementation strategy section (MVP first, incremental delivery)
 
+5.5. **Worktree-mode DAG generation (conditional, off by default)**:
+    - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
+    - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
+    - **If `isolation_mode: branch` (default) or config missing**: SKIP this step entirely (preserve upstream behavior)
+    - **If `isolation_mode: worktree`**:
+      - Determine feature branch name from `$FEATURE_DIR` (typically the leaf directory name, e.g., `001-user-auth`)
+      - Run the shell-appropriate DAG generator:
+        - **Bash**: `bash .specify/extensions/git/scripts/bash/tasks-dag.sh generate --tasks-md "$FEATURE_DIR/tasks.md" --feature "<branch_name>" --dag "$FEATURE_DIR/tasks_dag.json"`
+        - **PowerShell**: `.specify/extensions/git/scripts/powershell/tasks-dag.ps1 generate -TasksMd "$FEATURE_DIR/tasks.md" -Feature "<branch_name>" -Dag "$FEATURE_DIR/tasks_dag.json"`
+      - Capture the JSON output; verify `ok: true`
+      - If `ok: false`, log the error to stderr but continue (DAG is informational, not blocking)
+    - If `isolation_mode` is set to an unknown value: WARN and SKIP
+
 6. **Report**: Output path to generated tasks.md and summary:
     - Total task count
     - Task count per user story
