@@ -90,19 +90,6 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Parallel execution examples per story
    - Implementation strategy section (MVP first, incremental delivery)
 
-4.5. **Worktree-mode DAG generation (conditional, off by default)**:
-    - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
-    - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
-    - **If `isolation_mode: branch` (default) or config missing**: SKIP this step entirely (preserve upstream behavior)
-    - **If `isolation_mode: worktree`**:
-      - Determine feature branch name from `$FEATURE_DIR` (typically the leaf directory name, e.g., `001-user-auth`)
-      - Run the shell-appropriate DAG generator:
-        - **Bash**: `bash .specify/extensions/git/scripts/bash/tasks-dag.sh generate --tasks-md "$FEATURE_DIR/tasks.md" --feature "<branch_name>" --dag "$FEATURE_DIR/tasks_dag.json"`
-        - **PowerShell**: `.specify/extensions/git/scripts/powershell/tasks-dag.ps1 generate -TasksMd "$FEATURE_DIR/tasks.md" -Feature "<branch_name>" -Dag "$FEATURE_DIR/tasks_dag.json"`
-      - Capture the JSON output; verify `ok: true`
-      - If `ok: false`, log the error to stderr but continue (DAG is informational, not blocking)
-    - If `isolation_mode` is set to an unknown value: WARN and SKIP
-
 ## Mandatory Post-Execution Hooks
 
 **You MUST complete this section before reporting completion to the user.**
@@ -225,6 +212,5 @@ Every task MUST strictly follow this format:
 ## Done When
 
 - [ ] tasks.md generated with all phases, task IDs, and file paths
-- [ ] In worktree mode, `tasks_dag.json` is generated alongside `tasks.md` (or skipped with a warning if generation fails; branch mode skips silently)
 - [ ] Extension hooks dispatched or skipped according to the rules in Mandatory Post-Execution Hooks above
 - [ ] Completion reported to user with task count, story breakdown, and MVP scope

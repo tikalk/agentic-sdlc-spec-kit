@@ -136,8 +136,8 @@ specify self upgrade --dry-run
 # Upgrade in place to the latest stable release (auto-detects uv tool vs pipx install)
 specify self upgrade
 
-# Or pin a specific release tag (replace vX.Y.Z[suffix] with your desired release tag)
-specify self upgrade --tag vX.Y.Z[suffix]
+# Or pin a specific release tag (replace X.Y.Z with your desired version)
+specify self upgrade --tag agentic-sdlc-vX.Y.Z+adlcN
 ```
 
 Bare `specify self upgrade` executes immediately, matching the no-prompt behavior of commands like `pip install -U` and `npm update`. For `uv tool` installs, it runs `uv tool install specify-cli --force --from <git ref>` under the hood so pinned release tags work, including dev, alpha/beta/rc, or build metadata suffixes. `uvx` (ephemeral) runs and source checkouts are detected and produce path-specific guidance instead of running an installer. Set `SPECIFY_UPGRADE_TIMEOUT_SECS` to cap how long the installer subprocess may run (default: no timeout — interrupt with `Ctrl+C` if needed).
@@ -219,6 +219,9 @@ See Spec-Driven Development in action across different scenarios with community-
 This fork provides additional features beyond the upstream Spec Kit:
 
 - **Team AI Directives Integration** — Synchronize team-level AI instructions and context across projects
+- **Feature-level Git Worktree Isolation** — Run each feature in its own worktree with isolated task branches
+- **DAG-aware Task Orchestration** — Auto-generate `tasks_dag.json` for wave-based parallel/sequential task execution
+- **Task-branch Workflow** — Create, merge, and list task branches via `git.task`, `git.task-merge`, and `git.task-list`
 - **Dual Execution Loop** — Classify tasks as SYNC (immediate) or ASYNC (deferred) for better workflow management
 - **Levelup Command** — Analyze and improve session context with reusable knowledge packets
 - **Enhanced Extensions** — Built-in extensions for product thinking, architecture analysis, and TDD workflows
@@ -235,7 +238,7 @@ This fork includes pre-installed extensions:
 | product | Product thinking and user story refinement |
 | quick | Quick start workflows for small tasks |
 | tdd | Test-driven development workflows |
-| git | Git workflow automation |
+| git | Git workflow automation with branch or worktree isolation |
 
 ## 🔧 Team AI Directives Integration
 
@@ -251,6 +254,8 @@ specify init <project> --team-ai-directives https://github.com/your-org/team-ai-
 # Or use a local directory
 specify init <project> --team-ai-directives ~/workspace/team-ai-directives
 ```
+
+Accepted sources are a local directory, a GitHub/GitLab archive URL, or a direct `.zip`/`.tar.gz` URL. Plain `.git` clone URLs are not supported.
 
 **Private Repositories**: If your team-ai-directives repository is private, configure authentication in `~/.specify/auth.json`:
 
@@ -281,7 +286,7 @@ export GITHUB_TOKEN=ghp_your_token_here
 export GITLAB_TOKEN=glpat_your_token_here
 ```
 
-The directives are installed to `.specify/extensions/team-ai-directives/` and available to all AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
+The bundled `team-ai-directives` extension is installed to `.specify/extensions/team-ai-directives/`. The actual team knowledge-base path you provided is stored in `.specify/init-options.json` under `team_ai_directives` (for local directories the content stays at the original path; for archive URLs it is extracted into the CLI cache). All directives are available to AI agents via the extension system. Use the `levelup` extension to contribute back to team-ai-directives.
 
 See [agentic-sdlc-team-ai-directives](https://github.com/tikalk/agentic-sdlc-team-ai-directives) for the full starter kit.
 
@@ -578,23 +583,23 @@ The produced specification should contain a set of user stories and functional r
 At this stage, your project folder contents should resemble the following:
 
 ```text
-└── .specify
-    ├── memory
-    │  └── constitution.md
-    ├── scripts
-    │  └── bash
-    │      ├── check-prerequisites.sh
-    │      ├── common.sh
-    │      ├── create-new-feature.sh
-    │      ├── setup-plan.sh
-    │      └── setup-tasks.sh
-    ├── specs
-    │  └── 001-create-taskify
-    │      └── spec.md
-    └── templates
-        ├── plan-template.md
-        ├── spec-template.md
-        └── tasks-template.md
+├── .specify
+│   ├── memory
+│   │   └── constitution.md
+│   ├── scripts
+│   │   └── bash
+│   │       ├── check-prerequisites.sh
+│   │       ├── common.sh
+│   │       ├── create-new-feature.sh
+│   │       ├── setup-plan.sh
+│   │       └── setup-tasks.sh
+│   └── templates
+│       ├── plan-template.md
+│       ├── spec-template.md
+│       └── tasks-template.md
+└── specs
+    └── 001-create-taskify
+        └── spec.md
 ```
 
 ### **STEP 3:** Functional specification clarification (required before planning)
@@ -640,31 +645,32 @@ The output of this step will include a number of implementation detail documents
 
 ```text
 .
+├── .specify
+│   ├── memory
+│   │   └── constitution.md
+│   ├── scripts
+│   │   └── bash
+│   │       ├── check-prerequisites.sh
+│   │       ├── common.sh
+│   │       ├── create-new-feature.sh
+│   │       ├── setup-plan.sh
+│   │       └── setup-tasks.sh
+│   └── templates
+│       ├── CLAUDE-template.md
+│       ├── plan-template.md
+│       ├── spec-template.md
+│       └── tasks-template.md
 ├── CLAUDE.md
-├── memory
-│  └── constitution.md
-├── scripts
-│  └── bash
-│      ├── check-prerequisites.sh
-│      ├── common.sh
-│      ├── create-new-feature.sh
-│      ├── setup-plan.sh
-│      └── setup-tasks.sh
-├── specs
-│  └── 001-create-taskify
-│      ├── contracts
-│      │  ├── api-spec.json
-│      │  └── signalr-spec.md
-│      ├── data-model.md
-│      ├── plan.md
-│      ├── quickstart.md
-│      ├── research.md
-│      └── spec.md
-└── templates
-    ├── CLAUDE-template.md
-    ├── plan-template.md
-    ├── spec-template.md
-    └── tasks-template.md
+└── specs
+    └── 001-create-taskify
+        ├── contracts
+        │   ├── api-spec.json
+        │   └── signalr-spec.md
+        ├── data-model.md
+        ├── plan.md
+        ├── quickstart.md
+        ├── research.md
+        └── spec.md
 ```
 
 Check the `research.md` document to ensure that the right tech stack is used, based on your instructions. You can ask Claude Code to refine it if any of the components stand out, or even have it check the locally-installed version of the platform/framework you want to use (e.g., .NET).

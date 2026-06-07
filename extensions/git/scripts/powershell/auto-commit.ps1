@@ -55,7 +55,7 @@ if ($Mode -ne 'sync' -and $Mode -ne 'parallel' -and $Mode -ne 'async') {
 
 # Validate TaskId format (when provided)
 if (-not [string]::IsNullOrEmpty($TaskId) -and $TaskId -notmatch '^T[0-9]+$') {
-    Write-Warning "[specify] Warning: -TaskId '$TaskId' is not a valid TNNN id; ignoring"
+    [Console]::Error.WriteLine("[specify] Warning: -TaskId '$TaskId' is not a valid TNNN id; ignoring")
     $TaskId = ''
 }
 

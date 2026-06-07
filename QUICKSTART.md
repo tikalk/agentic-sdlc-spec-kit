@@ -42,7 +42,7 @@ uv tool install agentic-sdlc-specify-cli --from git+https://github.com/tikalk/ag
 
 Verify installation:
 ```bash
-specify check
+specify version
 ```
 
 ### Supported AI Coding Agents
@@ -137,11 +137,13 @@ Ask your team lead for the correct directives URL. Common formats:
 specify init . --team-ai-directives https://github.com/YOUR_ORG/team-ai-directives/archive/refs/tags/v1.0.0.zip
 
 # From main branch (latest, may change)
-specify init . --team-ai-directives https://github.com/YOUR_ORG/team-ai-directives.git
+specify init . --team-ai-directives https://github.com/YOUR_ORG/team-ai-directives/archive/refs/heads/main.zip
 
 # From a local directory (for development)
 specify init . --team-ai-directives ~/workspace/team-ai-directives
 ```
+
+Accepted sources are a local directory, a GitHub/GitLab archive URL, or a direct `.zip`/`.tar.gz` URL. Plain `.git` clone URLs are not supported.
 
 ---
 
@@ -264,6 +266,8 @@ This creates `specs/[feature]/tasks.md` with:
 - Parallel execution markers `[P]`
 - Dependencies between tasks
 
+In worktree mode, task generation also produces `specs/[feature]/tasks_dag.json` for wave-based execution.
+
 ### Step 5: Implement
 
 Execute all tasks:
@@ -271,6 +275,8 @@ Execute all tasks:
 ```
 /spec.implement
 ```
+
+In branch mode, this uses the existing `[SYNC]`/`[ASYNC]` sequential flow. In worktree mode, it reads `tasks_dag.json` to run tasks in waves with isolated task branches (`git.task`, `git.task-merge`).
 
 Or implement a specific task:
 
@@ -356,27 +362,36 @@ Package the skill and open a PR to the team-ai-directives repository:
 .specify/
 ├── memory/
 │   └── constitution.md          # Project principles
-├── specs/
-│   └── [feature-branch]/
-│       ├── spec.md              # Feature specification
-│       ├── plan.md              # Implementation plan
-│       ├── tasks.md             # Task list
-│       ├── data-model.md        # Data schemas
-│       ├── research.md          # Technical research
-│       ├── contracts/           # API contracts
-│       └── quickstart.md        # Validation guide
+├── scripts/
+│   └── bash/
+│       ├── common.sh
+│       ├── create-new-feature.sh
+│       └── setup-tasks.sh
+├── templates/
+│   ├── plan-template.md
+│   ├── spec-template.md
+│   └── tasks-template.md
 └── extensions/
     └── team-ai-directives/      # Team AI directives
         ├── context_modules/
         │   ├── constitution.md  # Team principles
         │   ├── personas/        # Role definitions
-│   │   └── rules/           # Domain rules
+        │   └── rules/           # Domain rules
         └── skills/              # Reusable skills
+specs/
+└── [feature-branch]/
+    ├── spec.md                  # Feature specification
+    ├── plan.md                  # Implementation plan
+    ├── tasks.md                 # Task list
+    ├── data-model.md            # Data schemas
+    ├── research.md              # Technical research
+    ├── contracts/               # API contracts
+    └── quickstart.md            # Validation guide
 ```
 
 ### Team AI Directives Integration
 
-Your project includes team-level directives installed at `.specify/extensions/team-ai-directives/`. These provide:
+Your project includes the bundled `team-ai-directives` extension installed at `.specify/extensions/team-ai-directives/`. The actual team knowledge-base path you provided during init is stored in `.specify/init-options.json` under `team_ai_directives`. If you supplied a local directory, the knowledge-base content remains at that original path. These provide:
 
 - **Constitution** — Team-wide principles
 - **Personas** — Role-specific guidance (DevOps, Java, Python, etc.)

@@ -436,13 +436,9 @@ function Invoke-Generate {
     [System.IO.File]::WriteAllText($Dag, $dagPretty, [System.Text.UTF8Encoding]::new($false))
 
     # Emit summary JSON to stdout.
-    $relDag = $Dag
-    if ($relDag.StartsWith($RepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
-        $relDag = $relDag.Substring($RepoRoot.Length).TrimStart('/', '\')
-    }
     $summaryObj = [ordered]@{
         dag_written    = $true
-        dag_path       = $relDag
+        dag_path       = $Dag
         feature        = $Feature
         total_tasks    = $taskRecords.Count
         parallel_tasks = $parallelCount
@@ -725,7 +721,8 @@ function Invoke-Coalesce {
         mode              = "report-only"
         ok                = $true
     }
-    Write-Output (ConvertTo-Json -InputObject $result -Compress)
+    $json = ConvertTo-Json -InputObject $result -Compress -Depth 6
+    [Console]::Out.WriteLine($json)
 }
 
 # ---------------------------------------------------------------------------
