@@ -12,6 +12,7 @@ ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
 USE_TIMESTAMP=false
+ISSUE_KEY=""
 ISOLATION_MODE=""
 WORKTREE_FLAG=false
 BRANCH_MODE_FLAG=false
@@ -63,6 +64,19 @@ while [ $i -le $# ]; do
         --timestamp)
             USE_TIMESTAMP=true
             ;;
+        --issue)
+            if [ $((i + 1)) -gt $# ]; then
+                echo 'Error: --issue requires a value' >&2
+                exit 1
+            fi
+            i=$((i + 1))
+            next_arg="${!i}"
+            if [[ "$next_arg" == --* ]]; then
+                echo 'Error: --issue requires a value' >&2
+                exit 1
+            fi
+            ISSUE_KEY="$next_arg"
+            ;;
         --worktree)
             WORKTREE_FLAG=true
             ;;
@@ -100,7 +114,7 @@ while [ $i -le $# ]; do
             BASE_BRANCH="$next_arg"
             ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>"
+            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <JIRA-123>] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json              Output in JSON format"
@@ -109,6 +123,7 @@ while [ $i -le $# ]; do
             echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
             echo "  --number N          Specify branch number manually (overrides auto-detection)"
             echo "  --timestamp         Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
+            echo "  --issue <JIRA-123>  Jira-style issue key used by branch_pattern templates"
             echo "  --worktree         Shortcut for --isolation-mode worktree (creates a git worktree)"
             echo "  --branch-mode      Shortcut for --isolation-mode branch (default; checkout -b in primary)"
             echo "  --isolation-mode <branch|worktree>  Override the configured isolation mode"
@@ -117,6 +132,7 @@ while [ $i -le $# ]; do
             echo ""
             echo "Environment variables:"
             echo "  GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation"
+            echo "  GIT_BRANCH_ISSUE    Jira-style issue key used by branch_pattern templates"
             echo "  SPECIFY_ISOLATION_MODE  Override the isolation mode (branch|worktree)"
             echo ""
             echo "Examples:"
@@ -136,7 +152,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <JIRA-123>] <feature_description>" >&2
     exit 1
 fi
 
@@ -348,6 +364,98 @@ generate_branch_name() {
     fi
 }
 
+spec_kit_branch_pattern_template_is_valid() {
+    local template="$1"
+    [ -n "$template" ] || return 1
+    [[ "$template" == *"{slug}"* ]] || return 1
+
+    local number_count=0
+    local timestamp_count=0
+    [[ "$template" == *"{number}"* ]] && number_count=1
+    [[ "$template" == *"{timestamp}"* ]] && timestamp_count=1
+    [ $((number_count + timestamp_count)) -eq 1 ] || return 1
+    return 0
+}
+
+spec_kit_branch_pattern_render() {
+    local template="$1"
+    local prefix="$2"
+    local number="$3"
+    local timestamp="$4"
+    local issue="$5"
+    local slug="$6"
+    local result="$template"
+
+    result="${result//\{prefix\}/$prefix}"
+    result="${result//\{number\}/$number}"
+    result="${result//\{timestamp\}/$timestamp}"
+    result="${result//\{issue\}/$issue}"
+    result="${result//\{slug\}/$slug}"
+    printf '%s\n' "$result"
+}
+
+spec_kit_branch_pattern_first_prefix() {
+    local repo_root="$1"
+    while IFS= read -r prefix; do
+        [ -n "$prefix" ] || continue
+        printf '%s\n' "$prefix"
+        return 0
+    done < <(spec_kit_branch_pattern_allowed_prefixes "$repo_root" 2>/dev/null || true)
+    return 1
+}
+
+spec_kit_branch_pattern_apply() {
+    local repo_root="$1"
+    local branch_suffix="$2"
+    local feature_num="$3"
+    local use_timestamp="$4"
+    local issue_key="$5"
+
+    local template number_padding prefix issue normalized_issue rendered
+    template="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.template 2>/dev/null || true)"
+    spec_kit_branch_pattern_template_is_valid "$template" || {
+        echo "Error: Invalid branch_pattern.template. It must include {slug} and exactly one of {number} or {timestamp}." >&2
+        return 1
+    }
+
+    if [[ "$template" == *"{prefix}"* ]]; then
+        prefix="$(spec_kit_branch_pattern_first_prefix "$repo_root" 2>/dev/null || true)"
+        if [ -z "$prefix" ]; then
+            echo "Error: branch_pattern.template uses {prefix}, but branch_pattern.allowed_prefixes is empty." >&2
+            return 1
+        fi
+    fi
+
+    if [[ "$template" == *"{issue}"* ]]; then
+        issue="$issue_key"
+        [ -z "$issue" ] && issue="${GIT_BRANCH_ISSUE:-}"
+        issue="$(spec_kit_normalize_issue_key "$issue")"
+        if [ -z "$issue" ]; then
+            echo "Error: branch_pattern.template uses {issue}; provide --issue or GIT_BRANCH_ISSUE." >&2
+            return 1
+        fi
+        if ! spec_kit_validate_issue_key "$issue"; then
+            echo "Error: Invalid Jira issue key '$issue'. Expected format like PROJ-123." >&2
+            return 1
+        fi
+        normalized_issue="$issue"
+    fi
+
+    if [[ "$template" == *"{number}"* ]]; then
+        number_padding="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.number_padding 2>/dev/null || true)"
+        [[ "$number_padding" =~ ^[0-9]+$ ]] || number_padding=3
+        rendered="$(spec_kit_branch_pattern_render "$template" "$prefix" "$(printf "%0${number_padding}d" "$((10#$feature_num))")" "" "$normalized_issue" "$branch_suffix")"
+    else
+        if [ "$use_timestamp" != true ]; then
+            echo "Error: branch_pattern.template requires {timestamp}; rerun with --timestamp or change the template." >&2
+            return 1
+        fi
+        rendered="$(spec_kit_branch_pattern_render "$template" "$prefix" "" "$feature_num" "$normalized_issue" "$branch_suffix")"
+    fi
+
+    printf '%s\n' "$rendered"
+}
+
 # Check for GIT_BRANCH_NAME env var override (exact branch name, no prefix/suffix)
 if [ -n "${GIT_BRANCH_NAME:-}" ]; then
     BRANCH_NAME="$GIT_BRANCH_NAME"
@@ -380,7 +488,6 @@ else
     # Determine branch prefix
     if [ "$USE_TIMESTAMP" = true ]; then
         FEATURE_NUM=$(date +%Y%m%d-%H%M%S)
-        BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
     else
         if [ -z "$BRANCH_NUMBER" ]; then
             if [ "$DRY_RUN" = true ] && [ "$HAS_GIT" = true ]; then
@@ -397,6 +504,13 @@ else
         fi
 
         FEATURE_NUM=$(printf "%03d" "$((10#$BRANCH_NUMBER))")
+    fi
+
+    if spec_kit_branch_pattern_enabled "$REPO_ROOT"; then
+        BRANCH_NAME="$(spec_kit_branch_pattern_apply "$REPO_ROOT" "$BRANCH_SUFFIX" "$FEATURE_NUM" "$USE_TIMESTAMP" "$ISSUE_KEY")" || exit 1
+    elif [ "$USE_TIMESTAMP" = true ]; then
+        BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
+    else
         BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
     fi
 fi

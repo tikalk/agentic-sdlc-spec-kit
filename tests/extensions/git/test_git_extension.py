@@ -143,7 +143,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.4.0"
+        assert m.version == "1.5.0"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -350,6 +350,61 @@ class TestCreateFeatureBash:
         data = json.loads(result.stdout)
         assert data.get("DRY_RUN") is True
         assert not (project / "specs" / data["BRANCH_NAME"]).exists()
+
+    def test_e2e_branch_pattern_with_issue_config(self, tmp_path: Path):
+        """Installed git extension honors branch_pattern config for Jira-style branches."""
+        project = _setup_project(tmp_path)
+        _write_config(
+            project,
+            "\n".join(
+                [
+                    "branch_pattern:",
+                    "  enabled: true",
+                    '  template: "{prefix}/{number}-{issue}-{slug}"',
+                    "  allowed_prefixes:",
+                    "    - feat",
+                    "  number_padding: 3",
+                    "  issue_format: jira",
+                    "",
+                ]
+            ),
+        )
+
+        result = _run_bash(
+            "create-new-feature.sh",
+            project,
+            "--json",
+            "--issue",
+            "proj-123",
+            "--short-name",
+            "user-auth",
+            "Add user authentication",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "feat/001-PROJ-123-user-auth"
+        assert data["FEATURE_NUM"] == "001"
+
+        branch = subprocess.run(
+            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+        )
+        assert branch.returncode == 0
+        assert branch.stdout.strip() == "feat/001-PROJ-123-user-auth"
+
+        validate = subprocess.run(
+            [
+                "bash",
+                "-c",
+                f'source "{project / "scripts" / "bash" / "common.sh"}" && check_feature_branch "feat/001-PROJ-123-user-auth" "true"',
+            ],
+            cwd=project,
+            capture_output=True,
+            text=True,
+        )
+        assert validate.returncode == 0, validate.stderr
 
 
 @pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")

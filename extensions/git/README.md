@@ -8,6 +8,7 @@ This extension provides Git operations as an optional, self-contained module. It
 
 - **Repository initialization** with configurable commit messages
 - **Feature branch creation** with sequential (`001-feature-name`) or timestamp (`20260319-143022-feature-name`) numbering
+- **Optional custom feature branch templates** including Jira issue keys like `feat/001-PROJ-123-user-auth`
 - **Branch validation** to ensure branches follow naming conventions
 - **Git remote detection** for GitHub integration (e.g., issue creation)
 - **Auto-commit** after core commands (configurable per-command with custom messages)
@@ -58,6 +59,15 @@ branch_numbering: sequential
 # Custom commit message for git init
 init_commit_message: "[Spec Kit] Initial commit"
 
+# Optional custom feature branch naming
+branch_pattern:
+  enabled: false
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: jira
+
 # Auto-commit per command (all disabled by default)
 # Example: enable auto-commit after specify
 auto_commit:
@@ -69,6 +79,73 @@ auto_commit:
     enabled: false
     message: "[Spec Kit] Task checkpoint"
 ```
+
+Supported placeholders in `branch_pattern.template`:
+
+- `{prefix}`: first configured prefix from `allowed_prefixes`
+- `{number}`: sequential feature number with `number_padding`
+- `{timestamp}`: `YYYYMMDD-HHMMSS`
+- `{issue}`: Jira-style issue key like `PROJ-123`
+- `{slug}`: kebab-cased feature slug
+
+Rules:
+
+- `{slug}` is required
+- exactly one of `{number}` or `{timestamp}` is required
+- if `{prefix}` is used, `allowed_prefixes` must not be empty
+- if `{issue}` is used, provide `--issue PROJ-123`, `-Issue PROJ-123`, or `GIT_BRANCH_ISSUE=PROJ-123`
+
+## Jira Branch Patterns
+
+Recommended GitFlow-style Jira template:
+
+```yaml
+branch_pattern:
+  enabled: true
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+    - fix
+    - docs
+    - chore
+  number_padding: 3
+  issue_format: jira
+```
+
+Examples:
+
+```bash
+# Bash CLI
+bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+  --issue PROJ-123 \
+  --short-name user-auth \
+  "Add user authentication"
+
+# Environment variable
+GIT_BRANCH_ISSUE=PROJ-123 bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+  --short-name user-auth \
+  "Add user authentication"
+```
+
+```powershell
+# PowerShell CLI
+pwsh -NoProfile -File .specify/extensions/git/scripts/powershell/create-new-feature.ps1 `
+  -Issue PROJ-123 `
+  -ShortName user-auth `
+  "Add user authentication"
+```
+
+Expected branch name:
+
+```text
+feat/001-PROJ-123-user-auth
+```
+
+Notes:
+
+- Jira keys are normalized to uppercase during generation.
+- Validation uses the configured template when `branch_pattern.enabled: true`.
+- Spec directory resolution still uses the `{number}` or `{timestamp}` identity, so `feat/001-PROJ-123-user-auth` maps to `specs/001-*`.
 
 ## Installation
 

@@ -7,6 +7,28 @@ branch_numbering: sequential
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
 
+# Optional custom feature branch naming.
+#
+# Supported placeholders:
+#   {prefix}    One allowed prefix (for example: feat, fix, docs)
+#   {number}    Sequential feature number using number_padding
+#   {timestamp} Timestamp in YYYYMMDD-HHMMSS format
+#   {issue}     Jira-style issue key (for example: PROJ-123)
+#   {slug}      Kebab-cased feature slug
+#
+# Rules:
+# - template must include {slug}
+# - template must include exactly one of {number} or {timestamp}
+# - if template includes {prefix}, allowed_prefixes must be non-empty
+# - if template includes {issue}, callers must supply --issue / GIT_BRANCH_ISSUE
+branch_pattern:
+  enabled: false
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: jira
+
 # Feature isolation mode. Controls whether `git.feature` creates a normal
 # feature branch (existing behavior) or provisions a feature-level worktree
 # at .worktrees/<feature>/. Valid values: "branch" (default), "worktree".

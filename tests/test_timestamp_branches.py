@@ -1144,6 +1144,31 @@ class TestGitBranchNameOverridePowerShell:
         assert result.returncode != 0
         assert "244" in result.stderr
 
+    def test_branch_pattern_with_issue(self, ext_ps_git_repo: Path):
+        write_branch_pattern_config(ext_ps_git_repo, "{prefix}/{number}-{issue}-{slug}", ["feat"])
+        script = ext_ps_git_repo / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature.ps1"
+        result = subprocess.run(
+            [
+                "pwsh",
+                "-NoProfile",
+                "-File",
+                str(script),
+                "-Json",
+                "-Issue",
+                "proj-123",
+                "-ShortName",
+                "user-auth",
+                "ignored",
+            ],
+            cwd=ext_ps_git_repo,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "feat/001-PROJ-123-user-auth"
+
 
 # ── Feature Directory Resolution Tests ───────────────────────────────────────
 

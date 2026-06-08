@@ -7,6 +7,15 @@ branch_numbering: sequential
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
 
+# Optional custom feature branch naming.
+branch_pattern:
+  enabled: false
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: jira
+
 # Auto-commit before/after core commands.
 # Set "default" to enable for all commands, then override per-command.
 # Each key can be true/false. Message is customizable per-command.

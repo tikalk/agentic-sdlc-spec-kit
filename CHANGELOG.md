@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc5] - 2026-06-08
+
+### Added
+
+- **Git extension custom branch templates with Jira issue keys**: the bundled `git` extension now supports configurable `branch_pattern` templates with placeholders like `{prefix}`, `{number}`, `{timestamp}`, `{issue}`, and `{slug}`. Jira-style issue keys are accepted from `--issue` / `-Issue` or `GIT_BRANCH_ISSUE` and normalized to uppercase during branch generation.
+
+### Changed
+
+- **CLI bumped to `0.10.0+adlc5`**: this fork release captures the shipped git extension behavior, documentation updates, and new installed-extension end-to-end coverage.
+- **Git extension bumped to 1.5.0**: the bundled `git` extension version now reflects configurable Jira-aware feature branch patterns and matching validation logic.
+
 # [0.10.0+adlc4] - 2026-06-08
 
 ### Fixed

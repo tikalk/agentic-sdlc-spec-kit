@@ -26,6 +26,19 @@ The branch name must match one of these patterns:
 
 1. **Sequential**: `^[0-9]{3,}-` (e.g., `001-feature-name`, `042-fix-bug`, `1000-big-feature`)
 2. **Timestamp**: `^[0-9]{8}-[0-9]{6}-` (e.g., `20260319-143022-feature-name`)
+3. **Configured template**: when `.specify/extensions/git/git-config.yml` enables `branch_pattern`, validate against that template instead. Example: `feat/001-PROJ-123-user-auth`
+
+Example Jira-aware configuration:
+
+```yaml
+branch_pattern:
+  enabled: true
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: jira
+```
 
 ## Execution
 
@@ -39,7 +52,9 @@ If on a feature branch (matches either pattern):
 
 If NOT on a feature branch:
 - Output: `✗ Not on a feature branch. Current branch: <branch-name>`
-- Output: `Feature branches should be named like: 001-feature-name or 20260319-143022-feature-name`
+- Output either:
+  - `Feature branches should be named like: 001-feature-name or 20260319-143022-feature-name`
+  - or the configured template guidance from `branch_pattern.template`
 
 ## Graceful Degradation
 

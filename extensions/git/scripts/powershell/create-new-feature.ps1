@@ -12,6 +12,7 @@ param(
     [Parameter()]
     [long]$Number = 0,
     [switch]$Timestamp,
+    [string]$Issue,
     [switch]$Worktree,
     [switch]$BranchMode,
     [string]$IsolationMode,
@@ -23,7 +24,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
+    Write-Host "Usage: ./create-new-feature.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Issue <JIRA-123>] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json                 Output in JSON format"
@@ -32,6 +33,7 @@ if ($Help) {
     Write-Host "  -ShortName <name>     Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N             Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp            Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
+    Write-Host "  -Issue <JIRA-123>     Jira-style issue key used by branch_pattern templates"
     Write-Host "  -Worktree             Force worktree isolation (creates a feature-level worktree under .worktrees/<feature>/)"
     Write-Host "  -BranchMode           Force branch isolation (default behavior; the new branch lives in the primary checkout)"
     Write-Host "  -IsolationMode <mode> Set isolation explicitly: 'branch' or 'worktree'"
@@ -40,6 +42,7 @@ if ($Help) {
     Write-Host ""
     Write-Host "Environment variables:"
     Write-Host "  GIT_BRANCH_NAME        Use this exact branch name, bypassing all prefix/suffix generation"
+    Write-Host "  GIT_BRANCH_ISSUE       Jira-style issue key used by branch_pattern templates"
     Write-Host "  SPECIFY_ISOLATION_MODE Override isolation mode ('branch' or 'worktree')"
     Write-Host ""
     Write-Host "Isolation mode resolution (highest precedence first):"
@@ -356,6 +359,87 @@ function Get-BranchName {
     }
 }
 
+function Test-SpecKitBranchPatternTemplate {
+    param([string]$Template)
+    if ([string]::IsNullOrWhiteSpace($Template)) { return $false }
+    if (-not $Template.Contains('{slug}')) { return $false }
+    $hasNumber = $Template.Contains('{number}')
+    $hasTimestamp = $Template.Contains('{timestamp}')
+    return (($hasNumber -and -not $hasTimestamp) -or (-not $hasNumber -and $hasTimestamp))
+}
+
+function Get-SpecKitFirstBranchPatternPrefix {
+    param([string]$RepoRoot)
+    $prefixes = @(Get-SpecKitBranchPatternAllowedPrefixes -RepoRoot $RepoRoot)
+    if ($prefixes.Count -gt 0) { return [string]$prefixes[0] }
+    return ''
+}
+
+function Render-SpecKitBranchPattern {
+    param(
+        [string]$Template,
+        [string]$Prefix,
+        [string]$Number,
+        [string]$TimestampValue,
+        [string]$IssueKey,
+        [string]$Slug
+    )
+    $result = $Template
+    $result = $result.Replace('{prefix}', $Prefix)
+    $result = $result.Replace('{number}', $Number)
+    $result = $result.Replace('{timestamp}', $TimestampValue)
+    $result = $result.Replace('{issue}', $IssueKey)
+    $result = $result.Replace('{slug}', $Slug)
+    return $result
+}
+
+function Get-SpecKitPatternBranchName {
+    param(
+        [string]$RepoRoot,
+        [string]$BranchSuffix,
+        [string]$FeatureNum,
+        [bool]$UseTimestamp,
+        [string]$IssueKey
+    )
+
+    $template = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.template'
+    if (-not (Test-SpecKitBranchPatternTemplate -Template $template)) {
+        throw 'Invalid branch_pattern.template. It must include {slug} and exactly one of {number} or {timestamp}.'
+    }
+
+    $prefix = ''
+    if ($template.Contains('{prefix}')) {
+        $prefix = Get-SpecKitFirstBranchPatternPrefix -RepoRoot $RepoRoot
+        if ([string]::IsNullOrWhiteSpace($prefix)) {
+            throw 'branch_pattern.template uses {prefix}, but branch_pattern.allowed_prefixes is empty.'
+        }
+    }
+
+    $normalizedIssue = ''
+    if ($template.Contains('{issue}')) {
+        $candidateIssue = if ($IssueKey) { $IssueKey } else { $env:GIT_BRANCH_ISSUE }
+        $normalizedIssue = Normalize-SpecKitIssueKey $candidateIssue
+        if ([string]::IsNullOrWhiteSpace($normalizedIssue)) {
+            throw 'branch_pattern.template uses {issue}; provide -Issue or GIT_BRANCH_ISSUE.'
+        }
+        if (-not (Test-SpecKitIssueKey $normalizedIssue)) {
+            throw "Invalid Jira issue key '$normalizedIssue'. Expected format like PROJ-123."
+        }
+    }
+
+    if ($template.Contains('{number}')) {
+        $padding = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.number_padding'
+        if (-not ($padding -as [int])) { $padding = 3 }
+        $numberValue = ('{0:D' + [int]$padding + '}') -f [int64]$FeatureNum
+        return Render-SpecKitBranchPattern -Template $template -Prefix $prefix -Number $numberValue -TimestampValue '' -IssueKey $normalizedIssue -Slug $BranchSuffix
+    }
+
+    if (-not $UseTimestamp) {
+        throw 'branch_pattern.template requires {timestamp}; rerun with -Timestamp or change the template.'
+    }
+    return Render-SpecKitBranchPattern -Template $template -Prefix $prefix -Number '' -TimestampValue $FeatureNum -IssueKey $normalizedIssue -Slug $BranchSuffix
+}
+
 # Check for GIT_BRANCH_NAME env var override (exact branch name, no prefix/suffix)
 if ($env:GIT_BRANCH_NAME) {
     $branchName = $env:GIT_BRANCH_NAME
@@ -387,7 +471,6 @@ if ($env:GIT_BRANCH_NAME) {
 
     if ($Timestamp) {
         $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
-        $branchName = "$featureNum-$branchSuffix"
     } else {
         if ($Number -eq 0) {
             if ($DryRun -and $hasGit) {
@@ -402,6 +485,11 @@ if ($env:GIT_BRANCH_NAME) {
         }
 
         $featureNum = ('{0:000}' -f $Number)
+    }
+
+    if (Test-SpecKitBranchPatternEnabled -RepoRoot $repoRoot) {
+        $branchName = Get-SpecKitPatternBranchName -RepoRoot $repoRoot -BranchSuffix $branchSuffix -FeatureNum $featureNum -UseTimestamp:$Timestamp -IssueKey $Issue
+    } else {
         $branchName = "$featureNum-$branchSuffix"
     }
 }

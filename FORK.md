@@ -59,12 +59,13 @@ Use `agentic-sdlc-v<version>` with plus:
 - Version: `0.10.0+adlc3`
 - Tag: `agentic-sdlc-v0.10.0+adlc3`
 
-When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.4.0`).
+When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.5.0`).
 
 ### Version History
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc5 | 2026-06-08 | 0.10.0 | Added configurable git extension `branch_pattern` support with Jira issue keys, expanded git extension docs, added installed-extension end-to-end coverage for configured Jira branch names, bumped the bundled git extension to v1.5.0, and bumped the fork CLI release to capture the shipped behavior. |
 | 0.10.0+adlc4 | 2026-06-08 | 0.10.0 | Follow-up fork release after `0.10.0+adlc3`: fixed the PowerShell `merge-task-branch` regression test to execute from the primary checkout script path while preserving worktree `cwd`, so the release tag includes the CI fix as well. Git extension remains at v1.4.0. |
 | 0.10.0+adlc3 | 2026-06-08 | 0.10.0 | Kept the CLI on the upstream 0.10.0 base while shipping the real async/[P] execution backend: script-backed `tasks-meta-utils` CLI (bash + PowerShell), feature-scoped async state, explicit `[SYNC]/[ASYNC]` parsing in `tasks-dag.{sh,ps1}`, real `implement.{sh,ps1}` executors, and `merge-task-branch` support in `worktree-utils.{sh,ps1}`. Bumped the bundled git extension to v1.4.0 for these capabilities. |
 | 0.10.0+adlc2 | 2026-06-08 | 0.10.0 | Hook command id normalization: `.specify/extensions.yml` now stores alias-normalized hook command ids; added normalization helpers in `_core_fork.py`, normalized bundled-install hook configs in init/install flows, and fixed skill-name resolution for alias-form command ids. |
@@ -327,8 +328,8 @@ git push origin agentic-sdlc-v0.3.X
 Example for this release:
 
 ```bash
-git tag -a agentic-sdlc-v0.10.0+adlc3 -m "Release agentic-sdlc-v0.10.0+adlc3"
-git push origin agentic-sdlc-v0.10.0+adlc3
+git tag -a agentic-sdlc-v0.10.0+adlc5 -m "Release agentic-sdlc-v0.10.0+adlc5"
+git push origin agentic-sdlc-v0.10.0+adlc5
 ```
 
 ### Conflict Resolution Strategy

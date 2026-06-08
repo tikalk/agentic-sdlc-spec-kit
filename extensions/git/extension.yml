@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.4.0"
+  version: "1.5.0"
   description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, multi-repo workspace submodule management, feature-level worktree isolation, and DAG-aware task execution"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
