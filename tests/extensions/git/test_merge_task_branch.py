@@ -41,6 +41,18 @@ def _run_bash_in_worktree(script_name: str, worktree: Path, project: Path, *args
     )
 
 
+def _run_pwsh_in_worktree(script_name: str, worktree: Path, project: Path, *args: str) -> subprocess.CompletedProcess:
+    """Run a PowerShell script from inside a worktree."""
+    script = project / ".specify" / "extensions" / "git" / "scripts" / "powershell" / script_name
+    return subprocess.run(
+        ["pwsh", "-NoProfile", "-File", str(script), *args],
+        cwd=worktree,
+        capture_output=True,
+        text=True,
+        env={**os.environ},
+    )
+
+
 @requires_bash
 class TestMergeTaskBranchBash:
     def test_happy_path(self, tmp_path: Path):
@@ -123,7 +135,7 @@ class TestMergeTaskBranchPowerShell:
         subprocess.run(["git", "commit", "-q", "-m", "T001 auth"], cwd=wt, check=True, env=_git_env())
         subprocess.run(["git", "checkout", "-q", "demo"], cwd=wt, check=True, env=_git_env())
 
-        result = _run_pwsh("worktree-utils.ps1", wt, "merge-task-branch", "-Feature", "demo", "-TaskId", "T001")
+        result = _run_pwsh_in_worktree("worktree-utils.ps1", wt, project, "merge-task-branch", "-Feature", "demo", "-TaskId", "T001")
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["ok"] is True
