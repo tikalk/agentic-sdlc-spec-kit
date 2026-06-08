@@ -817,11 +817,6 @@ function Invoke-MergeTaskBranch {
         Die "Feature worktree does not exist: $worktreePath"
     }
 
-    $currentToplevel = git rev-parse --show-toplevel 2>$null
-    if ($currentToplevel -ne $worktreePath) {
-        Die "merge-task-branch must run from inside the feature worktree ($worktreePath)"
-    }
-
     $manifestFilename = Get-WorktreeConfigValue -Key "manifest_filename"
     $manifestFile = Join-Path $worktreePath $manifestFilename
 
