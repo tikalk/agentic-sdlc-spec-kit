@@ -1,5 +1,12 @@
 ---
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
+handoffs:
+  - label: Generate Feature Trace
+    agent: adlc.spec.trace
+    prompt: Generate a feature execution trace from the completed implementation
+  - label: Generate Verification Evidence
+    agent: adlc.spec.verify
+    prompt: Generate a feature verification dossier from the mission brief and artifacts
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
@@ -68,7 +75,7 @@ You **MUST** consider the user input before proceeding (if not empty).
     bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
     ```
 
-    **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/levelup.trace` and quality gate tracking will not function.
+    **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/spec.trace` and quality gate tracking will not function.
 
     If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
 

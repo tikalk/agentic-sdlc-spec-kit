@@ -54,7 +54,7 @@ To document the AI session before extracting patterns:
 
 ```bash
 # 1. Generate trace from feature implementation
-/levelup.trace
+/spec.trace
 
 # 2. Extract CDRs enriched with trace context
 /levelup.specify
@@ -71,7 +71,7 @@ To document the AI session before extracting patterns:
 | `/levelup.clarify` | Resolve ambiguities in CDRs | After init/specify |
 | `/levelup.skill` | Build one skill from CDRs | Create reusable skills |
 | `/levelup.implement` | Compile CDRs into PR | Ready to contribute |
-| `/levelup.trace` | Generate session execution trace | Document AI session (optional) |
+| `/spec.trace` | Generate session execution trace | Document AI session (optional) |
 | `/levelup.validate` | Scan for rule conflicts | Check for inconsistencies |
 
 ## Key Files
@@ -343,7 +343,7 @@ After feature implementation, generate trace and extract patterns:
 
 ```bash
 /spec.implement        # Implement feature
-/levelup.trace         # Document session
+/spec.trace            # Document session
 /levelup.specify       # Refine CDRs with feature context
 /levelup.skill {pattern}
 /levelup.implement
@@ -360,7 +360,7 @@ After feature implementation, generate trace and extract patterns:
 ### Ongoing Feature Work
 
 ```
-/levelup.trace (optional) → /levelup.specify → /levelup.clarify → /levelup.skill → /levelup.implement
+/spec.trace (optional) → /levelup.specify → /levelup.clarify → /levelup.skill → /levelup.implement
 ```
 
 **Next Steps:**

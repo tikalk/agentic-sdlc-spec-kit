@@ -227,9 +227,9 @@ Analyzes results → failure patterns → cross-functional insights → optional
 ```yaml
 # .github/workflows/evals.yml
 - run: pip install deepeval pytest
-- run: python evals/deepeval/config-tier1.py
-  timeout-minutes: 1
-- run: pytest evals/deepeval/tests/ -v
+- run: python evals/deepeval/config.py
+  timeout-minutes: 5
+- run: pytest evals/tests/ -v
 ```
 
 ### PromptFoo Grader Example

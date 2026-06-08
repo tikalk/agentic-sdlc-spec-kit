@@ -76,6 +76,14 @@ log_error() {
 check_prerequisites() {
     local missing_tools=()
 
+    # In machine-readable / CI-friendly modes, do not mutate the environment by
+    # auto-installing optional backends. Commands may still succeed for flows
+    # that do not require the backend runtime yet (e.g. init/specify/clarify).
+    local noninteractive_backend_check=false
+    if [[ "$OUTPUT_FORMAT" == "json" ]] || [[ ! -t 0 ]]; then
+        noninteractive_backend_check=true
+    fi
+
     # Check git
     if ! command -v git &> /dev/null; then
         missing_tools+=("git")
@@ -83,12 +91,28 @@ check_prerequisites() {
 
     # Check PromptFoo (only if using promptfoo system)
     if [[ "$SYSTEM" == "promptfoo" ]]; then
-        check_and_install_promptfoo
+        if [[ "$noninteractive_backend_check" == "true" ]]; then
+            if ! command -v promptfoo &> /dev/null; then
+                log_warning "PromptFoo not found; skipping auto-install in non-interactive mode"
+            fi
+        else
+            check_and_install_promptfoo
+        fi
     fi
 
     # Check DeepEval (only if using deepeval system)
     if [[ "$SYSTEM" == "deepeval" ]]; then
-        check_and_install_deepeval
+        if [[ "$noninteractive_backend_check" == "true" ]]; then
+            local python_cmd="python3"
+            if ! command -v python3 &> /dev/null; then
+                python_cmd="python"
+            fi
+            if ! $python_cmd -c "import deepeval" &> /dev/null; then
+                log_warning "DeepEval not found; skipping auto-install in non-interactive mode"
+            fi
+        else
+            check_and_install_deepeval
+        fi
     fi
 
     # Check Python (for graders)
@@ -895,7 +919,7 @@ EOF
                 # Accept the draft (in real implementation, this would involve human review)
                 echo "" >> "$goldset_md"
                 cat "$draft_file" >> "$goldset_md"
-                ((accepted_count++))
+                accepted_count=$((accepted_count + 1))
             fi
         fi
     done
@@ -1459,6 +1483,7 @@ EOF
 EOF
 
     # Create failure routing scripts
+    mkdir -p "$ROOT_DIR/evals/scripts"
     cat > "$system_dir/../scripts/route_failures.py" << 'EOF'
 #!/usr/bin/env python3
 """
@@ -1571,9 +1596,9 @@ action_validate() {
     log_info "Comprehensive evaluation system validation: TPR/TNR + performance + EDD compliance"
 
     local system_dir="$ROOT_DIR/evals/$SYSTEM"
-    local goldset_md="$ROOT_DIR/evals/edd-components/goldset.md"
+    local goldset_md="$system_dir/goldset.md"
     local results_dir="$ROOT_DIR/evals/results"
-    local graders_dir="$ROOT_DIR/evals/edd-components/graders"
+    local graders_dir="$system_dir/graders"
 
     # Check prerequisites
     if [[ ! -f "$goldset_md" ]]; then
@@ -1582,7 +1607,7 @@ action_validate() {
     fi
 
     if [[ ! -d "$graders_dir" ]]; then
-        log_error "EDD graders directory not found: $graders_dir. Run 'evals.implement' first or check EDD components setup."
+        log_error "Graders directory not found: $graders_dir. Run 'evals.implement' first."
         return 1
     fi
 
@@ -1595,9 +1620,9 @@ action_validate() {
 
     # Check configuration files
     local config_files=0
-    [[ -f "$system_dir/config.js" ]] && ((config_files++))
-    [[ -f "$system_dir/config-tier1.js" ]] && ((config_files++))
-    [[ -f "$system_dir/config-tier2.js" ]] && ((config_files++))
+    [[ -f "$system_dir/config.js" ]] && config_files=$((config_files + 1))
+    [[ -f "$system_dir/config-tier1.js" ]] && config_files=$((config_files + 1))
+    [[ -f "$system_dir/config-tier2.js" ]] && config_files=$((config_files + 1))
 
     log_info "Phase 2: Statistical validation - testing grader accuracy"
 
@@ -1619,10 +1644,10 @@ action_validate() {
 
             # Test with sample pass case
             if python3 "$grader" "This is a normal, safe response with no violations." >/dev/null 2>&1; then
-                ((test_total++))
+                test_total=$((test_total + 1))
                 local result=$(python3 "$grader" "This is a normal, safe response with no violations." 2>/dev/null)
                 if echo "$result" | grep -q '"pass": true'; then
-                    ((test_passed++))
+                    test_passed=$((test_passed + 1))
                 fi
             fi
 
@@ -1650,10 +1675,10 @@ action_validate() {
             esac
 
             if [[ -n "$fail_input" ]] && python3 "$grader" "$fail_input" >/dev/null 2>&1; then
-                ((test_total++))
+                test_total=$((test_total + 1))
                 local result=$(python3 "$grader" "$fail_input" 2>/dev/null)
                 if echo "$result" | grep -q '"pass": false'; then
-                    ((test_passed++))
+                    test_passed=$((test_passed + 1))
                 fi
             fi
 
@@ -1662,7 +1687,7 @@ action_validate() {
                 local accuracy=$((test_passed * 100 / test_total))
                 grader_test_results+=("$grader_name:$accuracy%")
                 total_accuracy=$((total_accuracy + accuracy))
-                ((grader_count++))
+                grader_count=$((grader_count + 1))
             fi
         fi
     done
@@ -1688,7 +1713,12 @@ action_validate() {
                 local duration=$(echo "$end_time - $start_time" | bc 2>/dev/null || echo "0.1")
 
                 # Check if duration exceeds 30 seconds (unrealistic but checking)
-                if (( $(echo "$duration > 30" | bc -l) )); then
+                if command -v bc &> /dev/null; then
+                    if (( $(echo "$duration > 30" | bc -l 2>/dev/null || echo 0) )); then
+                        tier1_success=false
+                        log_warning "Grader $(basename "$grader") exceeded Tier 1 SLA: ${duration}s"
+                    fi
+                elif [[ ${duration%%.*} -gt 30 ]]; then
                     tier1_success=false
                     log_warning "Grader $(basename "$grader") exceeded Tier 1 SLA: ${duration}s"
                 fi
@@ -1718,9 +1748,14 @@ action_validate() {
         fi
 
         if [[ $goldset_json_examples -eq 0 ]]; then
-            log_error "Critical finding: goldset.json exists but has 0 examples"
+            log_warning "Critical finding: goldset.json exists but has 0 examples"
             log_warning "goldset.json should contain test examples for validation"
         fi
+    fi
+
+    local sla_budget_used="3.33"
+    if command -v bc &> /dev/null; then
+        sla_budget_used=$(echo "scale=2; $tier1_duration / 30 * 100" | bc 2>/dev/null || echo "3.33")
     fi
 
     # Quality thresholds
@@ -1757,19 +1792,19 @@ action_validate() {
         fi
     done
 
-    [[ "$binary_compliant" == "true" ]] && ((edd_compliance_score++))
+    [[ "$binary_compliant" == "true" ]] && edd_compliance_score=$((edd_compliance_score + 1))
 
     # Check other principles (simplified checks)
-    [[ -f "$system_dir/goldset.md" ]] && ((edd_compliance_score++))  # Principle I
-    [[ $security_graders -eq 4 ]] && ((edd_compliance_score++))     # Principle IV (security baseline)
-    [[ -f "$system_dir/config-tier1.js" ]] && ((edd_compliance_score++)) # Principle IV (tier 1)
-    [[ -f "$system_dir/config-tier2.js" ]] && ((edd_compliance_score++)) # Principle IV (tier 2)
-    [[ -d "$results_dir/fix_directives" ]] && ((edd_compliance_score++))  # Principle VIII
-    [[ -d "$results_dir/evaluator_backlog" ]] && ((edd_compliance_score++)) # Principle VIII
-    [[ -d "$results_dir/annotation_queue" ]] && ((edd_compliance_score++))  # Principle VII
+    [[ -f "$system_dir/goldset.md" ]] && edd_compliance_score=$((edd_compliance_score + 1))  # Principle I
+    [[ $security_graders -eq 4 ]] && edd_compliance_score=$((edd_compliance_score + 1))     # Principle IV (security baseline)
+    [[ -f "$system_dir/config-tier1.js" ]] && edd_compliance_score=$((edd_compliance_score + 1)) # Principle IV (tier 1)
+    [[ -f "$system_dir/config-tier2.js" ]] && edd_compliance_score=$((edd_compliance_score + 1)) # Principle IV (tier 2)
+    [[ -d "$results_dir/fix_directives" ]] && edd_compliance_score=$((edd_compliance_score + 1))  # Principle VIII
+    [[ -d "$results_dir/evaluator_backlog" ]] && edd_compliance_score=$((edd_compliance_score + 1)) # Principle VIII
+    [[ -d "$results_dir/annotation_queue" ]] && edd_compliance_score=$((edd_compliance_score + 1))  # Principle VII
     # Principle IX: Test Data as Code - goldset.json must exist AND have examples
-    [[ -f "$system_dir/goldset.json" && $goldset_json_examples -gt 0 ]] && ((edd_compliance_score++))
-    [[ $total_graders -ge 4 ]] && ((edd_compliance_score++))              # Basic implementation completeness
+    [[ -f "$system_dir/goldset.json" && $goldset_json_examples -gt 0 ]] && edd_compliance_score=$((edd_compliance_score + 1))
+    [[ $total_graders -ge 4 ]] && edd_compliance_score=$((edd_compliance_score + 1))              # Basic implementation completeness
 
     local edd_compliance_percentage=$((edd_compliance_score * 100 / edd_total_checks))
 
@@ -1813,7 +1848,7 @@ action_validate() {
         \"performance_validation\": {
             \"tier1_duration\": \"${tier1_duration}s\",
             \"tier1_sla_compliant\": $tier1_success,
-            \"sla_budget_used\": \"$(echo "scale=2; $tier1_duration / 30 * 100" | bc 2>/dev/null || echo "3.33")%\"
+            \"sla_budget_used\": \"${sla_budget_used}%\"
         },
         \"quality_assessment\": {
             \"total_criteria\": $total_criteria,
@@ -1849,7 +1884,7 @@ action_validate() {
         log_info "⚡ PERFORMANCE VALIDATION:"
         log_info "  Tier 1 Duration: ${tier1_duration}s (SLA: <30s)"
         log_info "  Tier 1 SLA Compliance: $([[ "$tier1_success" == "true" ]] && echo "✅ PASS" || echo "❌ FAIL")"
-        log_info "  SLA Budget Used: $(echo "scale=2; $tier1_duration / 30 * 100" | bc 2>/dev/null || echo "3.33")%"
+        log_info "  SLA Budget Used: ${sla_budget_used}%"
         log_info ""
         log_info "📋 QUALITY ASSESSMENT:"
         log_info "  Total Criteria: $total_criteria"
@@ -1935,9 +1970,9 @@ action_levelup() {
     local details="{\"result_files\": $result_files, \"insights_generated\": true, \"pr_needed\": $pr_needed}"
 
     if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-        json_output "success" "levelup" "Level-up analysis completed" "$details"
+        json_output "success" "analyze" "Evaluation analysis completed" "$details"
     else
-        log_success "Level-up analysis completed"
+        log_success "Evaluation analysis completed"
         log_info "Result files processed: $result_files"
         log_info "Insights generated for cross-functional collaboration"
         if [[ "$pr_needed" == "true" ]]; then
@@ -1958,13 +1993,13 @@ ACTIONS (EDD Lifecycle):
     init        Initialize evals/{system}/ directory structure
     specify     Bottom-up goldset definition from human error analysis → drafts/
     clarify     Axial coding + accept drafts → goldset.md + goldset.json
-    analyze     (Internal) Re-code + quantify + saturation + adversarial + holdout
+    analyze     Scan evals/results/ + annotation queue → team insights analysis
     tasks       Match published evals to feature tasks → [EVAL] markers
     implement   Generate PromptFoo config + graders from goldset
     validate    TPR/TNR + goldset quality + PromptFoo pass rate thresholds
-    levelup     Scan evals/results/ + annotation queue → PR to team-ai-directives
+    levelup     Alias for analyze (deprecated)
 
-NOTE: 'analyze' is an internal action not exposed as a command. Use 'clarify' instead.
+NOTE: 'levelup' remains as a compatibility action. Prefer 'analyze'.
 
 OPTIONS:
     --system SYSTEM     Evaluation system: promptfoo (default), deepeval, custom, llm-judge
@@ -2058,7 +2093,7 @@ main() {
             action_clarify
             ;;
         analyze)
-            action_analyze
+            action_levelup
             ;;
         tasks)
             action_tasks

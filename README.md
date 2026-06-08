@@ -353,6 +353,8 @@ Additional commands for enhanced quality and validation:
 | `/spec.clarify`   | `speckit-clarify`      | Clarify underspecified areas (recommended before `/spec.plan`; formerly `/quizme`)                                                |
 | `/spec.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
 | `/spec.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
+| `/spec.trace`     | `speckit-trace`        | Generate a feature-local execution trace at `specs/{branch}/trace.md` after implementation                                        |
+| `/spec.verify`    | `speckit-verify`       | Generate a feature verification dossier at `specs/{branch}/evidence.md` mapped to Goal, Success Criteria, and Constraints        |
 
 ## 🔧 Specify CLI Reference
 

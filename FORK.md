@@ -56,8 +56,8 @@ Examples:
 
 ### Tag Format
 Use `agentic-sdlc-v<version>` with plus:
-- Version: `0.10.0+adlc3`
-- Tag: `agentic-sdlc-v0.10.0+adlc3`
+- Version: `0.10.0+adlc6`
+- Tag: `agentic-sdlc-v0.10.0+adlc6`
 
 When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.5.0`).
 
@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc6 | 2026-06-08 | 0.10.0 | Repaired the bundled evals extension (PowerShell lifecycle parity, validation path fixes, non-interactive robustness) and promoted feature-local trace/verification into the preset surface: `spec.trace` owns `specs/{branch}/trace.md`, `spec.verify` defines `specs/{branch}/evidence.md`, and the Agentic SDLC preset now suggests trace/verify after implement. Evals extension bumped to v1.1.1, LevelUp stays at v1.7.1, preset bumped to v1.0.9. |
 | 0.10.0+adlc5 | 2026-06-08 | 0.10.0 | Added configurable git extension `branch_pattern` support with Jira issue keys, expanded git extension docs, added installed-extension end-to-end coverage for configured Jira branch names, bumped the bundled git extension to v1.5.0, and bumped the fork CLI release to capture the shipped behavior. |
 | 0.10.0+adlc4 | 2026-06-08 | 0.10.0 | Follow-up fork release after `0.10.0+adlc3`: fixed the PowerShell `merge-task-branch` regression test to execute from the primary checkout script path while preserving worktree `cwd`, so the release tag includes the CI fix as well. Git extension remains at v1.4.0. |
 | 0.10.0+adlc3 | 2026-06-08 | 0.10.0 | Kept the CLI on the upstream 0.10.0 base while shipping the real async/[P] execution backend: script-backed `tasks-meta-utils` CLI (bash + PowerShell), feature-scoped async state, explicit `[SYNC]/[ASYNC]` parsing in `tasks-dag.{sh,ps1}`, real `implement.{sh,ps1}` executors, and `merge-task-branch` support in `worktree-utils.{sh,ps1}`. Bumped the bundled git extension to v1.4.0 for these capabilities. |
@@ -328,8 +329,8 @@ git push origin agentic-sdlc-v0.3.X
 Example for this release:
 
 ```bash
-git tag -a agentic-sdlc-v0.10.0+adlc5 -m "Release agentic-sdlc-v0.10.0+adlc5"
-git push origin agentic-sdlc-v0.10.0+adlc5
+git tag -a agentic-sdlc-v0.10.0+adlc6 -m "Release agentic-sdlc-v0.10.0+adlc6"
+git push origin agentic-sdlc-v0.10.0+adlc6
 ```
 
 ### Conflict Resolution Strategy

@@ -125,8 +125,7 @@
         "adlc.levelup.clarify",
         "adlc.levelup.specify",
         "adlc.levelup.skills",
-        "adlc.levelup.implement",
-        "adlc.levelup.trace"
+        "adlc.levelup.implement"
       ],
       "tags": [
         "team-ai-directives",

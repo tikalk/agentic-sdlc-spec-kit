@@ -1,8 +1,5 @@
 #!/usr/bin/env python3
-"""
-Test Session Trace Command functionality
-Tests trace generation, validation, and integration with levelup
-"""
+"""Test session trace command assets and feature-trace integration."""
 
 import os
 import subprocess
@@ -44,11 +41,12 @@ def test_trace_validation_script_exists():
 
 
 def test_trace_command_template_exists():
-    """Test that trace command template exists in levelup extension"""
+    """Test that the trace command template exists in the spec preset."""
     repo_root = Path(__file__).parent.parent
 
-    # Trace command is now part of the levelup extension
-    template_file = repo_root / "extensions/levelup/commands/trace.md"
+    template_file = (
+        repo_root / "presets/agentic-sdlc/commands/adlc.spec.trace.md"
+    )
     assert template_file.exists(), f"Trace command template not found: {template_file}"
 
     # Verify template has required sections
@@ -62,7 +60,7 @@ def test_trace_command_template_exists():
     )
 
     print(
-        "✅ Trace command template exists in levelup extension with required sections"
+        "✅ Trace command template exists in spec preset with required sections"
     )
 
 
@@ -87,7 +85,7 @@ def test_trace_template_structure():
 
 
 def test_levelup_integration():
-    """Test that levelup extension spec command references trace consumption"""
+    """Test that levelup extension still references trace consumption."""
     repo_root = Path(__file__).parent.parent
 
     # Levelup is now an extension at extensions/levelup/commands/specify.md
@@ -101,6 +99,7 @@ def test_levelup_integration():
         "Levelup spec doesn't mention trace"
     )
     assert "trace.md" in content, "Levelup spec doesn't reference trace.md file"
+    assert "/spec.trace" in content, "Levelup spec should point users to /spec.trace"
 
     print("✅ Levelup extension integrates with trace consumption")
 
@@ -151,8 +150,7 @@ def test_trace_storage_location():
     """Test that trace documentation specifies correct storage location"""
     repo_root = Path(__file__).parent.parent
 
-    # Trace command is now in levelup extension
-    trace_template = repo_root / "extensions/levelup/commands/trace.md"
+    trace_template = repo_root / "presets/agentic-sdlc/commands/adlc.spec.trace.md"
     content = trace_template.read_text(encoding="utf-8")
 
     # Verify storage location documented
@@ -242,11 +240,10 @@ def test_summary_validation_in_scripts():
 
 
 def test_commands_documentation_mentions_summary():
-    """Test that levelup trace command documents the Summary section"""
+    """Test that spec.trace command documents the Summary section."""
     repo_root = Path(__file__).parent.parent
 
-    # Trace command is now in the levelup extension
-    commands_doc = repo_root / "extensions/levelup/commands/trace.md"
+    commands_doc = repo_root / "presets/agentic-sdlc/commands/adlc.spec.trace.md"
     content = commands_doc.read_text(encoding="utf-8")
 
     # Check documentation mentions Summary
@@ -258,7 +255,7 @@ def test_commands_documentation_mentions_summary():
         "Commands doc doesn't mention 3-part structure"
     )
 
-    print("✅ Commands documentation mentions Summary section")
+    print("✅ spec.trace documentation mentions Summary section")
 
 
 if __name__ == "__main__":

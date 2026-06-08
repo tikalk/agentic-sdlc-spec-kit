@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.7.0"
+  version: "1.7.1"
   description: "Discover and contribute context modules to team-ai-directives using CDRs. Features multi-agent sub-system analysis with cross-system pattern detection, inconsistency tracking, signal gate filtering, verification metadata, and freshness tracking."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -49,12 +49,6 @@ provides:
       description: "Compile accepted CDRs into a draft PR with signal gate filtering, YAML frontmatter, and verification metadata"
       aliases: ["levelup.implement"]
 
-    # Trace - Session execution tracing
-    - name: "adlc.levelup.trace"
-      file: "commands/trace.md"
-      description: "Generate and validate AI session execution traces from implementation metadata"
-      aliases: ["levelup.trace"]
-
     # Validate - Rule conflict detection and verification
     - name: "adlc.levelup.validate"
       file: "commands/validate.md"
@@ -89,12 +83,6 @@ handoffs:
       prompt: "Build one skill from accepted CDRs"
       send: false
 
-  levelup.trace:
-    - label: "Extract CDRs from Trace"
-      agent: "levelup.specify"
-      prompt: "Extract CDRs using trace.md for enriched context"
-      send: false
-
   levelup.validate:
     - label: "Resolve Conflicts"
       agent: "levelup.clarify"
@@ -112,8 +100,6 @@ tags:
   - "skills"
   - "cdr"
   - "contribution"
-  - "trace"
-  - "session-tracing"
   - "validation"
   - "memory-engineering"
   - "signal-gate"

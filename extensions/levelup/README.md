@@ -64,7 +64,6 @@ Run `/levelup.validate` to:
 | `/levelup.specify` | Refine CDRs using current feature spec context |
 | `/levelup.skill` | Build one skill from accepted CDRs |
 | `/levelup.implement` | Compile accepted CDRs into a PR to team-ai-directives |
-| `/levelup.trace` | Generate and validate AI session execution traces |
 | `/levelup.validate` | Scan team-ai-directives for rule conflicts |
 
 ## Quick Start
@@ -74,7 +73,7 @@ Run `/levelup.validate` to:
 After implementing a feature, generate a trace to document the session:
 
 ```bash
-/levelup.trace
+/spec.trace
 ```
 
 This creates `specs/{BRANCH}/trace.md` with execution summary.
@@ -307,7 +306,7 @@ levelup.init          levelup.clarify        levelup.skill        levelup.implem
                      ┌───────────────────────────────┘                      │
                      │                                                      │
                      ▼                                                      │
-              levelup.trace ◀───────────────────────────────────────────────┘
+              spec.trace ◀──────────────────────────────────────────────────┘
               (Generate Trace)
                      │
                      │ [handoff]

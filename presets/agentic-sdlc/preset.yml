@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "agentic-sdlc"
   name: "Agentic SDLC Governance"
-  version: "1.0.7"
+  version: "1.0.9"
   description: "Enhanced templates with governance, team-ai-directives integration, extension hooks, and architectural rigor for the Agentic SDLC workflow"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -101,6 +101,18 @@ provides:
       description: "Create/update project constitution (fork enhanced)"
       aliases: ["spec.constitution"]
       replaces: "speckit.constitution"
+
+    - type: "command"
+      name: "adlc.spec.trace"
+      file: "commands/adlc.spec.trace.md"
+      description: "Generate and validate feature execution trace (fork enhanced)"
+      aliases: ["spec.trace"]
+
+    - type: "command"
+      name: "adlc.spec.verify"
+      file: "commands/adlc.spec.verify.md"
+      description: "Generate feature verification evidence from mission brief and artifacts (fork enhanced)"
+      aliases: ["spec.verify"]
 
 tags:
   - "governance"

@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc6] - 2026-06-08
+
+### Changed
+
+- **CLI bumped to `0.10.0+adlc6`**: this fork release captures the evals extension repairs, the `spec.trace` command-surface move, and the new `spec.verify` verification workflow.
+- **Evals extension bumped to 1.1.1**: restored missing PowerShell lifecycle support, fixed stale validation paths, and hardened non-interactive/bash validation behavior for CI and local smoke tests.
+- **LevelUp extension remains at 1.7.1**: completed the feature trace ownership move from `levelup.trace` to `spec.trace` with LevelUp continuing to consume `trace.md` via `levelup.specify`.
+- **Agentic SDLC preset bumped to 1.0.9**: added `adlc.spec.trace` and `adlc.spec.verify`, updated `spec.implement` handoffs to suggest trace and verify, and made `spec.trace` hand off to `spec.verify`.
+
+### Added
+
+- **`spec.verify` command added**: the Agentic SDLC preset now ships `adlc.spec.verify` / `spec.verify`, which produces a feature-local verification dossier at `specs/{branch}/evidence.md` organized around the approved Mission Brief (Goal, Success Criteria, Constraints).
+- **`spec.trace` command added**: the Agentic SDLC preset now owns feature execution trace generation through `adlc.spec.trace` / `spec.trace`, while keeping the artifact path at `specs/{branch}/trace.md`.
+- **Evals extension smoke coverage**: added bash smoke tests and PowerShell CI-gated smoke tests for the public evals lifecycle.
+
 # [0.10.0+adlc5] - 2026-06-08
 
 ### Added
@@ -12,6 +27,9 @@ All notable changes to the Specify CLI and templates are documented here.
 
 - **CLI bumped to `0.10.0+adlc5`**: this fork release captures the shipped git extension behavior, documentation updates, and new installed-extension end-to-end coverage.
 - **Git extension bumped to 1.5.0**: the bundled `git` extension version now reflects configurable Jira-aware feature branch patterns and matching validation logic.
+- **LevelUp extension bumped to 1.7.1**: moved feature trace command ownership from `levelup.trace` to `spec.trace`, keeping `specs/{branch}/trace.md` as the feature-local artifact while preserving LevelUp trace consumption via `levelup.specify`.
+- **Agentic SDLC preset bumped to 1.0.8**: added the new `adlc.spec.trace` / `spec.trace` command to the preset command surface and updated core workflow guidance to reference the spec-owned trace command.
+- **`spec.verify` command added**: the Agentic SDLC preset now ships `adlc.spec.verify` / `spec.verify`, which produces a feature-local verification dossier at `specs/{branch}/evidence.md` organized around the approved Mission Brief (Goal, Success Criteria, Constraints).
 - **`/spec.specify` issue-template contract clarified**: the core and ADLC `specify` command guidance now requires resolving and passing an issue key before executing deferred `git.feature` hooks when the active `branch_pattern.template` contains `{issue}`. This closes the end-to-end gap where hook-driven branch creation could fail even though the underlying git extension scripts already supported `GIT_BRANCH_ISSUE` / `--issue` / `-Issue`.
 
 # [0.10.0+adlc4] - 2026-06-08
@@ -293,7 +311,7 @@ All notable changes to the Specify CLI and templates are documented here.
 - **ADLC preset v1.0.7: Hardened `tasks_meta.json` creation in implement and tasks commands**:
   - `adlc.spec.implement.md`: Added MANDATORY step 2 to run `tasks-meta-utils.sh init` with verification before implementation begins; added per-task metadata update instructions after each task completion; added step 10 completion verification safety net that creates `tasks_meta.json` retroactively if missing
   - `adlc.spec.tasks.md`: Hardened step 2 with MANDATORY marker, code block format, and explicit verification for `tasks_meta.json` creation; reformatted per-task `add-task` call as code block for agent reliability
-  - Root cause: AI agents were following prose instructions and skipping the shell script calls that create `tasks_meta.json`, breaking downstream `/levelup.trace` and quality gate tracking
+  - Root cause: AI agents were following prose instructions and skipping the shell script calls that create `tasks_meta.json`, breaking downstream `/spec.trace` and quality gate tracking
 
 - **LevelUp extension: Fixed `common.sh` path resolution in `generate-trace.sh` and `validate-trace.sh`**:
   - Both scripts used `source "$SCRIPT_DIR/common.sh"` which fails because `common.sh` lives in `.specify/scripts/bash/`, not in the extension's script directory

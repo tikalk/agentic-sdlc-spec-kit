@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-06-08
+
+### Fixed
+
+- **PowerShell lifecycle support**: restored missing `setup-evals.ps1` so all public evals commands now have real PowerShell entrypoints
+- **Validation path consistency**: `validate` now checks `evals/{system}/goldset.md` and `evals/{system}/graders/` instead of stale `evals/edd-components/` paths
+- **Validate command robustness**: non-interactive runs no longer try to auto-install optional backends, shell arithmetic no longer aborts under `set -e`, and missing `bc` or empty goldset examples degrade to warnings instead of hard failures in JSON mode
+- **Analyze command consistency**: Bash/PowerShell scripts now emit `analyze` action metadata and document `levelup` as a deprecated compatibility action
+
 ### Added
 - **DeepEval Integration**: Full DeepEval support as alternative to PromptFoo
   - Custom metric class generation with DeepEval v3.x API (`LLMTestCase`, async `a_measure`)
@@ -31,7 +40,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Standardized command interface across all extension commands
   - Improved consistency with framework conventions
 
-### Fixed
 - **DeepEval Import Issues**: Resolved chicken-and-egg problem in generated config.py
   - Config now generated AFTER graders exist (not before)
   - Validation step ensures all imports work before commit

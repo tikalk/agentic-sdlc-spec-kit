@@ -65,7 +65,7 @@ If working in a non-git repository:
    ```
    This creates `$FEATURE_DIR/tasks_meta.json` for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
-   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `/spec.implement` quality gates and `/levelup.trace` will not function.
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `/spec.implement` quality gates and `/spec.trace` will not function.
 
 3. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
