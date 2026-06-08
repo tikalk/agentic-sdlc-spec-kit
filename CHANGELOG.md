@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc2] - 2026-06-08
+
+### Added
+
+- **Hook command id normalization**: ``.specify/extensions.yml`` now stores alias-normalized hook command ids. After bundled presets install aliases (e.g. ``speckit.plan`` → ``spec.plan``), a post-init pass rewrites stored hook ``command`` fields to their alias form so that skill-based agents see command ids that line up with on-disk skill directory names.
+- **Fork helpers for hook normalization**: ``_core_fork.py`` adds ``normalize_hook_command_id()``, ``normalize_hook_config_commands()``, and ``normalize_stored_hook_commands()`` for idempotent alias-aware hook config rewriting.
+
+### Changed
+
+- **``_skill_name_from_command`` delegates to shared fork logic**: ``HookExecutor._skill_name_from_command()`` now uses ``compute_skill_output_name()`` from ``_core_fork.py`` instead of inline alias logic. This correctly handles both canonical form (``speckit.git.commit``) and alias form (``git.commit``) command ids, keeping skill naming consistent with installed skill directories regardless of how the command id is stored.
+
+### Fixed
+
+- **Skill-based hook invocation for aliased commands**: when hook config stores alias form (e.g. ``spec.plan``), skill-based agents (Codex, Claude skills mode, Kimi, Cursor skills mode) now receive the correct skill invocation (``$spec-plan``, ``/spec-plan``, ``/skill:spec-plan``, ``/spec-plan``) instead of an empty skill name.
+
 # [0.10.0+adlc1] - 2026-06-07
 
 ### Changed

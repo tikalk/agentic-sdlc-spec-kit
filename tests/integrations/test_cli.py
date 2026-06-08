@@ -936,6 +936,56 @@ class TestInitTeamAiDirectives:
         assert "failed to sync team ai directives" not in normalized
         assert "pre_init hook failed" not in normalized
 
+    def test_init_normalizes_hook_command_ids_to_alias_form(self, tmp_path):
+        """E2E: specify init should store alias-normalized hook command ids."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        project = tmp_path / "project"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            runner = CliRunner()
+            result = runner.invoke(app, [
+                "init", "--here",
+                "--integration", "claude",
+                "--script", "sh",
+                "--no-git",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        extensions_yml = project / ".specify" / "extensions.yml"
+        assert extensions_yml.exists(), "extensions.yml not created"
+        hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
+        assert "hooks" in hooks_data
+
+        # Collect all stored command ids
+        stored_commands = []
+        for event_name, hook_list in hooks_data.get("hooks", {}).items():
+            for hook in hook_list:
+                cmd = hook.get("command")
+                if isinstance(cmd, str):
+                    stored_commands.append(cmd)
+
+        # At least some hooks should be normalized (e.g., git.commit from speckit.git.commit)
+        # We verify that no canonical speckit.git.* form remains when an alias exists
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import resolve_command_alias
+
+        install_preset_to(project)
+        for cmd in stored_commands:
+            resolved = resolve_command_alias(cmd, project)
+            # If this command has an alias, it should already BE the alias
+            if resolved != cmd:
+                pytest.fail(
+                    f"Hook command {cmd!r} should have been normalized to {resolved!r}"
+                )
+
 
 class TestSharedInfraCommandRefs:
     """Verify _install_shared_infra resolves __SPECKIT_COMMAND_*__ in shared infra."""

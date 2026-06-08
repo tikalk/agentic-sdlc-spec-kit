@@ -776,6 +776,18 @@ def post_init(
     _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git, force=force)
     _install_bundled_presets(project_path, selected_ai, tracker, force=force)
 
+    # Normalize stored hook command ids to alias form.  Bundled presets
+    # install aliases (e.g. ``speckit.plan`` → ``spec.plan``); this pass
+    # rewrites ``.specify/extensions.yml`` so that stored hook command ids
+    # match the aliased names, keeping skill-based invocations consistent
+    # with on-disk skill directories.
+    try:
+        from ._core_fork import normalize_stored_hook_commands
+
+        normalize_stored_hook_commands(project_path)
+    except Exception:
+        pass
+
     # Reconcile RovoDev prompt wrappers — they are generated during
     # integration setup() (before aliases are available) and therefore point
     # at upstream ``speckit-<name>`` skills, but bundled presets later rename

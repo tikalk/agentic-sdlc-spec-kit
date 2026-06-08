@@ -6,16 +6,14 @@ was not being created when bundled extensions with hooks were installed
 via _install_bundled_extensions().
 """
 
-import json
 import shutil
 import tempfile
 import yaml
 from pathlib import Path
-from unittest.mock import Mock
 
 import pytest
 
-from specify_cli.extensions import ExtensionManager, ExtensionManifest, HookExecutor
+from specify_cli.extensions import ExtensionManager
 
 
 @pytest.fixture
@@ -90,7 +88,7 @@ def test_hook_registration_during_install(temp_project, extension_with_hooks):
 
     # Install extension using the manager (which should register hooks)
     manager = ExtensionManager(temp_project)
-    manifest = manager.install_from_directory(
+    manager.install_from_directory(
         extension_with_hooks, "0.3.0", register_commands=False
     )
 
@@ -231,7 +229,7 @@ def test_hook_update_replaces_existing_hook(temp_project, extension_with_hooks):
     )
 
     extensions_yml = temp_project / ".specify" / "extensions.yml"
-    config_v1 = yaml.safe_load(extensions_yml.read_text())
+    yaml.safe_load(extensions_yml.read_text())
 
     # Uninstall
     manager.remove("test-hooks")

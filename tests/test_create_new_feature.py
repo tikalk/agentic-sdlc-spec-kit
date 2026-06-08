@@ -3,7 +3,6 @@ import shutil
 import subprocess
 from pathlib import Path
 
-import pytest
 from .conftest import requires_bash
 
 
@@ -20,7 +19,6 @@ def test_create_new_feature_outputs_context_paths(tmp_path):
     (repo_root / "templates").mkdir(parents=True)
 
     project_root = Path(__file__).resolve().parent.parent
-    top_level_root = project_root.parent
 
     shutil.copy(
         project_root / "scripts" / "bash" / "create-new-feature.sh",

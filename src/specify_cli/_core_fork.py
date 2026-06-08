@@ -160,6 +160,108 @@ def resolve_command_alias(cmd_name: str, project_root: Path | None = None) -> st
     return alias_map.get(cmd_name, cmd_name)
 
 
+def normalize_hook_command_id(command_id: str, project_root: Path | None = None) -> str:
+    """Normalize a hook command id to its alias form if one exists.
+
+    For commands WITH aliases (e.g., ``speckit.git.commit`` → ``git.commit``,
+    ``adlc.spec.plan`` → ``spec.plan``), returns the alias. For commands
+    WITHOUT aliases, returns the original unchanged.
+
+    Args:
+        command_id: The command id stored in hook config.
+        project_root: Optional project root for building alias map.
+
+    Returns:
+        The alias if found, otherwise the original command id.
+    """
+    resolved = resolve_command_alias(command_id, project_root)
+    return resolved if resolved != command_id else command_id
+
+
+def normalize_hook_config_commands(config: dict, project_root: Path | None = None) -> tuple[dict, bool]:
+    """Normalize all hook command ids in an extensions.yml config dict.
+
+    Walks the ``hooks`` section and replaces each hook's ``command`` field
+    with its alias form when an alias exists.
+
+    Args:
+        config: The extensions.yml config dictionary.
+        project_root: Optional project root for alias resolution.
+
+    Returns:
+        Tuple of (normalized_config, changed).
+    """
+    import copy
+
+    if not isinstance(config, dict):
+        return config, False
+
+    normalized = copy.deepcopy(config)
+    changed = False
+    hooks = normalized.get("hooks")
+    if not isinstance(hooks, dict):
+        return normalized, False
+
+    for event_name, hook_list in hooks.items():
+        if not isinstance(hook_list, list):
+            continue
+        for hook in hook_list:
+            if not isinstance(hook, dict):
+                continue
+            cmd = hook.get("command")
+            if not isinstance(cmd, str):
+                continue
+            normalized_cmd = normalize_hook_command_id(cmd, project_root)
+            if normalized_cmd != cmd:
+                hook["command"] = normalized_cmd
+                changed = True
+
+    return normalized, changed
+
+
+def normalize_stored_hook_commands(project_root: Path) -> bool:
+    """Normalize all hook command ids in ``.specify/extensions.yml`` to alias form.
+
+    Loads the project's extensions config, normalizes hook command ids, and
+    writes the file back only when changes were made.
+
+    Args:
+        project_root: Path to the project root.
+
+    Returns:
+        True if changes were made and saved, False otherwise.
+    """
+    config_file = project_root / ".specify" / "extensions.yml"
+    if not config_file.exists():
+        return False
+
+    try:
+        import yaml
+
+        config = yaml.safe_load(config_file.read_text(encoding="utf-8"))
+        if not isinstance(config, dict):
+            return False
+    except Exception:
+        return False
+
+    normalized, changed = normalize_hook_config_commands(config, project_root)
+    if changed:
+        try:
+            config_file.write_text(
+                yaml.dump(
+                    normalized,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
+                ),
+                encoding="utf-8",
+            )
+            return True
+        except Exception:
+            pass
+    return False
+
+
 def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: Path | None = None) -> str:
     """
     Compute the on-disk skill name for an agent with fork-specific handling.

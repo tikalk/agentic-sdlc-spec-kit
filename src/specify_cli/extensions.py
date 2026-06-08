@@ -1355,6 +1355,15 @@ class ExtensionManager:
         hook_executor = HookExecutor(self.project_root)
         hook_executor.register_hooks(manifest)
 
+        # Normalize stored hook command ids to alias form so that skill-based
+        # agents see command ids that line up with installed skill names.
+        try:
+            from specify_cli._core_fork import normalize_stored_hook_commands
+
+            normalize_stored_hook_commands(self.project_root)
+        except Exception:
+            pass
+
         # Restore config files from backup when --force triggered a removal.
         # Only restore *.yml config files to match what remove() backs up,
         # so unexpected artifacts in .backup/ are not resurrected.
@@ -2587,12 +2596,16 @@ class HookExecutor:
         installed extensions/presets define the alias map). When omitted it
         falls back to the current working directory, which only works when
         the caller is running from inside the target project.
+
+        This method handles both canonical form (``speckit.git.commit``) and
+        alias form (``git.commit``) command ids, keeping skill naming
+        consistent with on-disk skill directories.
         """
         if not isinstance(command, str):
             return ""
         command_id = command.strip()
 
-        # Resolve alias first
+        # Resolve alias first (canonical -> alias)
         try:
             from specify_cli._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(command_id, project_root)
@@ -2607,6 +2620,21 @@ class HookExecutor:
                 if resolved_name.startswith(_ns):
                     return f"{_pfx}-{resolved_name[len(_ns):].replace('.', '-')}"
             return resolved_name.replace(".", "-")
+
+        # No forward alias. Maybe command_id IS an alias itself.
+        # Try reverse lookup to find canonical, then compute skill name.
+        try:
+            from specify_cli._core_fork import build_alias_map
+            alias_map = build_alias_map(project_root or Path.cwd())
+            reverse_map = {v: k for k, v in alias_map.items()}
+            canonical = reverse_map.get(command_id)
+            if canonical:
+                from specify_cli._core_fork import compute_skill_output_name
+                return compute_skill_output_name(
+                    canonical, {"extension": "/SKILL.md"}, project_root
+                )
+        except Exception:
+            pass
 
         # No alias - keep upstream behavior
         if not command_id.startswith("speckit."):

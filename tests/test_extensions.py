@@ -5458,3 +5458,149 @@ class TestArchitectExtensionCLI:
         assert updated.get("source") == "bundled", (
             f"Expected source 'bundled', got {updated.get('source')}"
         )
+
+
+class TestHookCommandNormalization:
+    """Tests for hook command id normalization to alias form."""
+
+    def test_normalize_hook_command_id_with_alias(self, tmp_path):
+        """Canonical command id should resolve to its alias."""
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import normalize_hook_command_id
+
+        install_preset_to(tmp_path)
+        result = normalize_hook_command_id("speckit.plan", tmp_path)
+        assert result == "spec.plan"
+
+    def test_normalize_hook_command_id_without_alias(self, tmp_path):
+        """Command id without alias should remain unchanged."""
+        from specify_cli._core_fork import normalize_hook_command_id
+
+        result = normalize_hook_command_id("speckit.taskstoissues", tmp_path)
+        assert result == "speckit.taskstoissues"
+
+    def test_normalize_hook_command_id_already_alias(self, tmp_path):
+        """Alias-form command id should remain unchanged."""
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import normalize_hook_command_id
+
+        install_preset_to(tmp_path)
+        result = normalize_hook_command_id("spec.plan", tmp_path)
+        assert result == "spec.plan"
+
+    def test_normalize_hook_config_commands_rewrites_aliases(self, tmp_path):
+        """Config with canonical hook commands should be rewritten to aliases."""
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import normalize_hook_config_commands
+
+        install_preset_to(tmp_path)
+        config = {
+            "installed": ["agentic-sdlc"],
+            "settings": {"auto_execute_hooks": True},
+            "hooks": {
+                "after_spec": [
+                    {
+                        "extension": "agentic-sdlc",
+                        "command": "speckit.plan",
+                        "enabled": True,
+                    }
+                ]
+            },
+        }
+        normalized, changed = normalize_hook_config_commands(config, tmp_path)
+        assert changed is True
+        assert normalized["hooks"]["after_spec"][0]["command"] == "spec.plan"
+
+    def test_normalize_hook_config_commands_idempotent(self, tmp_path):
+        """Normalizing an already-normalized config should make no changes."""
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import normalize_hook_config_commands
+
+        install_preset_to(tmp_path)
+        config = {
+            "installed": ["agentic-sdlc"],
+            "settings": {"auto_execute_hooks": True},
+            "hooks": {
+                "after_spec": [
+                    {
+                        "extension": "agentic-sdlc",
+                        "command": "spec.plan",
+                        "enabled": True,
+                    }
+                ]
+            },
+        }
+        normalized, changed = normalize_hook_config_commands(config, tmp_path)
+        assert changed is False
+        assert normalized["hooks"]["after_spec"][0]["command"] == "spec.plan"
+
+    def test_normalize_stored_hook_commands_writes_file(self, tmp_path):
+        """normalize_stored_hook_commands should rewrite .specify/extensions.yml."""
+        from tests.conftest import install_preset_to
+        from specify_cli._core_fork import normalize_stored_hook_commands
+        import yaml
+
+        install_preset_to(tmp_path)
+        config = {
+            "installed": ["agentic-sdlc"],
+            "settings": {"auto_execute_hooks": True},
+            "hooks": {
+                "after_spec": [
+                    {
+                        "extension": "agentic-sdlc",
+                        "command": "speckit.plan",
+                        "enabled": True,
+                    }
+                ]
+            },
+        }
+        ext_yml = tmp_path / ".specify" / "extensions.yml"
+        ext_yml.parent.mkdir(parents=True, exist_ok=True)
+        ext_yml.write_text(
+            yaml.dump(config, default_flow_style=False, sort_keys=False),
+            encoding="utf-8",
+        )
+
+        changed = normalize_stored_hook_commands(tmp_path)
+        assert changed is True
+
+        result = yaml.safe_load(ext_yml.read_text(encoding="utf-8"))
+        assert result["hooks"]["after_spec"][0]["command"] == "spec.plan"
+
+
+class TestSkillNameFromCommandAliasForm:
+    """Tests that _skill_name_from_command handles alias-form command ids."""
+
+    def test_skill_name_from_canonical_with_alias(self, tmp_path):
+        """Canonical form with alias should return fork-prefixed skill name."""
+        from tests.conftest import install_preset_to
+        from specify_cli.extensions import HookExecutor
+
+        install_preset_to(tmp_path)
+        result = HookExecutor._skill_name_from_command("speckit.plan", tmp_path)
+        assert result == "spec-plan"
+
+    def test_skill_name_from_alias_form(self, tmp_path):
+        """Alias form should return the same skill name as canonical."""
+        from tests.conftest import install_preset_to
+        from specify_cli.extensions import HookExecutor
+
+        install_preset_to(tmp_path)
+        result = HookExecutor._skill_name_from_command("spec.plan", tmp_path)
+        assert result == "spec-plan"
+
+    def test_skill_name_from_preset_alias(self, tmp_path):
+        """Preset alias form should return fork-prefixed skill name."""
+        from tests.conftest import install_preset_to
+        from specify_cli.extensions import HookExecutor
+
+        install_preset_to(tmp_path)
+        result = HookExecutor._skill_name_from_command("spec.tasks", tmp_path)
+        assert result == "spec-tasks"
+
+    def test_skill_name_from_unaliased_command(self, tmp_path):
+        """Unaliased command should keep upstream behavior."""
+        from specify_cli.extensions import HookExecutor
+
+        result = HookExecutor._skill_name_from_command("speckit.taskstoissues", tmp_path)
+        assert result == "speckit-taskstoissues"
