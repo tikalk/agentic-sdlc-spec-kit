@@ -180,6 +180,37 @@ def source_and_call(func_call: str, env: dict | None = None) -> subprocess.Compl
     )
 
 
+def write_branch_pattern_config(
+    repo: Path,
+    template: str,
+    prefixes: list[str] | None = None,
+    *,
+    enabled: bool = True,
+    number_padding: int = 3,
+) -> Path:
+    prefixes = prefixes or ["feat"]
+    config_dir = repo / ".specify" / "extensions" / "git"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    config = config_dir / "git-config.yml"
+    prefix_lines = "\n".join(f"    - {prefix}" for prefix in prefixes)
+    config.write_text(
+        "\n".join(
+            [
+                "branch_pattern:",
+                f"  enabled: {'true' if enabled else 'false'}",
+                f'  template: "{template}"',
+                "  allowed_prefixes:",
+                prefix_lines,
+                f"  number_padding: {number_padding}",
+                "  issue_format: jira",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return config
+
+
 # ── Timestamp Branch Tests ───────────────────────────────────────────────────
 
 
@@ -224,6 +255,52 @@ class TestTimestampBranch:
         assert branch is not None
         assert len(branch) <= 244
         assert re.match(r"^\d{8}-\d{6}-", branch)
+
+    def test_timestamp_branch_pattern_with_issue_generates_prefixed_branch(self, ext_git_repo: Path):
+        write_branch_pattern_config(ext_git_repo, "{prefix}/{timestamp}-{issue}-{slug}", ["feat"])
+        script = ext_git_repo / ".specify" / "extensions" / "git" / "scripts" / "bash" / "create-new-feature.sh"
+        result = subprocess.run(
+            [
+                "bash",
+                str(script),
+                "--timestamp",
+                "--issue",
+                "proj-123",
+                "--short-name",
+                "user-auth",
+                "Add user auth",
+            ],
+            cwd=ext_git_repo,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        branch = None
+        for line in result.stdout.splitlines():
+            if line.startswith("BRANCH_NAME:"):
+                branch = line.split(":", 1)[1].strip()
+        assert branch is not None
+        assert re.match(r"^feat/\d{8}-\d{6}-PROJ-123-user-auth$", branch), branch
+
+    def test_branch_pattern_uses_first_allowed_prefix(self, ext_git_repo: Path):
+        write_branch_pattern_config(ext_git_repo, "{prefix}/{number}-{issue}-{slug}", ["fix", "feat"])
+        script = ext_git_repo / ".specify" / "extensions" / "git" / "scripts" / "bash" / "create-new-feature.sh"
+        result = subprocess.run(
+            [
+                "bash",
+                str(script),
+                "--issue",
+                "proj-123",
+                "--short-name",
+                "user-auth",
+                "Add user auth",
+            ],
+            cwd=ext_git_repo,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "BRANCH_NAME: fix/001-PROJ-123-user-auth" in result.stdout
 
 
 # ── Sequential Branch Tests ──────────────────────────────────────────────────
@@ -341,6 +418,20 @@ class TestCheckFeatureBranch:
         result = source_and_call('check_feature_branch "feat/2026031-143022-feat" "true"')
         assert result.returncode != 0
 
+    def test_accepts_configured_timestamp_branch_pattern_with_issue(self, git_repo: Path):
+        write_branch_pattern_config(git_repo, "{prefix}/{timestamp}-{issue}-{slug}", ["feat"])
+        result = subprocess.run(
+            [
+                "bash",
+                "-c",
+                f'source "{COMMON_SH}" && check_feature_branch "feat/20260608-101530-PROJ-123-user-auth" "true"',
+            ],
+            cwd=git_repo,
+            capture_output=True,
+            text=True,
+        )
+        assert result.returncode == 0, result.stderr
+
 
 # ── find_feature_dir_by_prefix Tests ─────────────────────────────────────────
 
@@ -390,6 +481,15 @@ class TestFindFeatureDirByPrefix:
         )
         assert result.returncode == 0
         assert result.stdout.strip() == f"{tmp_path}/specs/20260319-143022-canonical"
+
+    def test_configured_timestamp_branch_pattern_with_issue_resolves_by_timestamp_prefix(self, tmp_path: Path):
+        write_branch_pattern_config(tmp_path, "{prefix}/{timestamp}-{issue}-{slug}", ["feat"])
+        (tmp_path / "specs" / "20260608-101530-canonical").mkdir(parents=True)
+        result = source_and_call(
+            f'find_feature_dir_by_prefix "{tmp_path}" "feat/20260608-101530-PROJ-123-other-suffix"'
+        )
+        assert result.returncode == 0
+        assert result.stdout.strip() == f"{tmp_path}/specs/20260608-101530-canonical"
 
 
 # ── get_feature_paths + single-prefix integration ───────────────────────────

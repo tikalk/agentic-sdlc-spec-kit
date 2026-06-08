@@ -406,6 +406,75 @@ class TestCreateFeatureBash:
         )
         assert validate.returncode == 0, validate.stderr
 
+    def test_e2e_timestamp_branch_pattern_with_issue_config(self, tmp_path: Path):
+        """Installed git extension supports timestamp+Jira branch templates."""
+        project = _setup_project(tmp_path)
+        _write_config(
+            project,
+            "\n".join(
+                [
+                    "branch_pattern:",
+                    "  enabled: true",
+                    '  template: "{prefix}/{timestamp}-{issue}-{slug}"',
+                    "  allowed_prefixes:",
+                    "    - feat",
+                    "  number_padding: 3",
+                    "  issue_format: jira",
+                    "",
+                ]
+            ),
+        )
+
+        result = _run_bash(
+            "create-new-feature.sh",
+            project,
+            "--json",
+            "--timestamp",
+            "--issue",
+            "proj-123",
+            "--short-name",
+            "user-auth",
+            "Add user authentication",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert re.match(r"^feat/\d{8}-\d{6}-PROJ-123-user-auth$", data["BRANCH_NAME"]), data["BRANCH_NAME"]
+        assert re.match(r"^\d{8}-\d{6}$", data["FEATURE_NUM"])
+
+    def test_e2e_branch_pattern_prefers_first_allowed_prefix(self, tmp_path: Path):
+        """Installed git extension uses the first configured prefix when rendering {prefix}."""
+        project = _setup_project(tmp_path)
+        _write_config(
+            project,
+            "\n".join(
+                [
+                    "branch_pattern:",
+                    "  enabled: true",
+                    '  template: "{prefix}/{number}-{issue}-{slug}"',
+                    "  allowed_prefixes:",
+                    "    - fix",
+                    "    - feat",
+                    "  number_padding: 3",
+                    "  issue_format: jira",
+                    "",
+                ]
+            ),
+        )
+
+        result = _run_bash(
+            "create-new-feature.sh",
+            project,
+            "--json",
+            "--issue",
+            "proj-123",
+            "--short-name",
+            "user-auth",
+            "Add user authentication",
+        )
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "fix/001-PROJ-123-user-auth"
+
 
 @pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
 class TestCreateFeaturePowerShell:
