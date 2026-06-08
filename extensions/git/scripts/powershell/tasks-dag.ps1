@@ -569,13 +569,25 @@ function Invoke-Classify {
     [CmdletBinding()]
     param(
         [string]$TaskId = "",
-        [string]$TasksMd = ""
+        [string]$TasksMd = "",
+        [string]$Dag = ""
     )
     if ([string]::IsNullOrEmpty($TaskId)) {
-        Die "-TaskId is required. Usage: tasks-dag.ps1 classify -TaskId <TNNN> -TasksMd <path>"
+        Die "-TaskId is required. Usage: tasks-dag.ps1 classify -TaskId <TNNN> (-TasksMd <path> | -Dag <path>)"
     }
+
+    if ([string]::IsNullOrEmpty($TasksMd) -and -not [string]::IsNullOrEmpty($Dag)) {
+        if (-not (Test-Path $Dag)) { Die "DAG file not found: $Dag" }
+        try {
+            $dagData = Get-Content -Raw $Dag | ConvertFrom-Json
+            $TasksMd = [string]$dagData.source
+        } catch {
+            Die "Failed to read DAG file: $Dag"
+        }
+    }
+
     if ([string]::IsNullOrEmpty($TasksMd)) {
-        Die "-TasksMd is required. Usage: tasks-dag.ps1 classify -TaskId <TNNN> -TasksMd <path>"
+        Die "-TasksMd or -Dag is required. Usage: tasks-dag.ps1 classify -TaskId <TNNN> (-TasksMd <path> | -Dag <path>)"
     }
     if (-not (Test-Path $TasksMd)) { Die "Tasks file not found: $TasksMd" }
 
