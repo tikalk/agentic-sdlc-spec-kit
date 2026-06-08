@@ -34,6 +34,26 @@ Determine the branch numbering strategy by checking configuration in this order:
 2. Check `.specify/init-options.json` for `branch_numbering` value (backward compatibility)
 3. Default to `sequential` if neither exists
 
+## Issue Placeholder Support
+
+If `.specify/extensions/git/git-config.yml` enables `branch_pattern` and the configured
+`template` contains `{issue}`, you MUST resolve an issue key before invoking the script.
+
+Resolution order:
+
+1. If `GIT_BRANCH_ISSUE` is already set, use it.
+2. Otherwise, if the user request or approved Mission Brief explicitly contains an issue key,
+   use that value.
+3. Otherwise, STOP and ask the user for the issue key before continuing.
+
+The value MUST match the configured `issue_format` in `git-config.yml`.
+
+- `jira`: values like `PROJ-123`
+- `numeric`: values like `1234`
+
+Pass the value through by setting `GIT_BRANCH_ISSUE` before invoking the script, or by
+passing `--issue <value>` / `-Issue <value>` when calling the script directly.
+
 ## Isolation Mode
 
 Determine whether the feature work is isolated in a worktree or runs on a normal branch by checking configuration in this order:
@@ -57,8 +77,10 @@ Run the appropriate script based on your platform:
 **Branch mode (default)**:
 - **Bash**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --short-name "<short-name>" "<feature description>"`
 - **Bash (timestamp)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --timestamp --short-name "<short-name>" "<feature description>"`
+- **Bash (issue template)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --json --issue "<issue-key>" --short-name "<short-name>" "<feature description>"`
 - **PowerShell**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -ShortName "<short-name>" "<feature description>"`
 - **PowerShell (timestamp)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -Timestamp -ShortName "<short-name>" "<feature description>"`
+- **PowerShell (issue template)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Json -Issue "<issue-key>" -ShortName "<short-name>" "<feature description>"`
 
 **Worktree mode** (add `--worktree` / `-Worktree`; optionally `--base <branch>` / `-Base <branch>` to pin the base ref):
 - **Bash**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --json --short-name "<short-name>" "<feature description>"`
@@ -70,6 +92,8 @@ When worktree mode is used, the script returns a `WORKTREE_PATH` and `MANIFEST_P
 
 **IMPORTANT**:
 - Do NOT pass `--number` — the script determines the correct next number automatically
+- If the active branch pattern template contains `{issue}`, you MUST pass the issue key via
+  `GIT_BRANCH_ISSUE`, `--issue`, or `-Issue` before invoking the script
 - Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
 - You must only ever run this script once per feature
 - The JSON output will contain `BRANCH_NAME` and `FEATURE_NUM` (always), and `ISOLATION_MODE` (always); `WORKTREE_PATH` and `MANIFEST_PATH` are present only in worktree mode

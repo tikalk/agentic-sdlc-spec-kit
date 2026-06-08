@@ -282,6 +282,28 @@ class TestAgentConfigConsistency:
             "Skills agents must use hyphen notation."
         )
 
+    def test_git_feature_command_documents_issue_placeholder_flow(self):
+        """git.feature docs should explain how {issue} templates work end-to-end."""
+        cmd_source = REPO_ROOT / "extensions" / "git" / "commands" / "speckit.git.feature.md"
+        content = cmd_source.read_text(encoding="utf-8")
+
+        assert "branch_pattern" in content
+        assert "{issue}" in content
+        assert "GIT_BRANCH_ISSUE" in content
+        assert "--issue" in content
+        assert "STOP and ask the user for the issue key before continuing" in content
+
+    def test_specify_command_documents_issue_resolution_before_git_feature(self):
+        """specify flows should require resolving branch-pattern issue keys before git.feature."""
+        core = (REPO_ROOT / "templates" / "commands" / "specify.md").read_text(encoding="utf-8")
+        preset = (REPO_ROOT / "presets" / "agentic-sdlc" / "commands" / "adlc.spec.specify.md").read_text(encoding="utf-8")
+
+        for content in (core, preset):
+            assert "Before executing any deferred `git.feature` hook" in content
+            assert "branch_pattern.template" in content
+            assert "GIT_BRANCH_ISSUE" in content
+            assert "If no issue key is available, STOP and ask the user for it" in content
+
     # --- RovoDev consistency checks ---
 
     def test_rovodev_in_agent_config(self):

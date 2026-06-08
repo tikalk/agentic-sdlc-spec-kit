@@ -12,6 +12,7 @@ All notable changes to the Specify CLI and templates are documented here.
 
 - **CLI bumped to `0.10.0+adlc5`**: this fork release captures the shipped git extension behavior, documentation updates, and new installed-extension end-to-end coverage.
 - **Git extension bumped to 1.5.0**: the bundled `git` extension version now reflects configurable Jira-aware feature branch patterns and matching validation logic.
+- **`/spec.specify` issue-template contract clarified**: the core and ADLC `specify` command guidance now requires resolving and passing an issue key before executing deferred `git.feature` hooks when the active `branch_pattern.template` contains `{issue}`. This closes the end-to-end gap where hook-driven branch creation could fail even though the underlying git extension scripts already supported `GIT_BRANCH_ISSUE` / `--issue` / `-Issue`.
 
 # [0.10.0+adlc4] - 2026-06-08
 

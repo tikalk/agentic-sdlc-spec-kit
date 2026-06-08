@@ -101,11 +101,23 @@ After collecting/extracting answers, display:
 
 **Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
 
-1. For each **mutating** hook noted in Phase A:
+1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
+   - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`,
+     resolve an issue key before running the hook.
+   - Resolution order:
+     1. Use explicit `GIT_BRANCH_ISSUE` if already provided.
+     2. Otherwise extract an issue key from the user request or approved Mission Brief.
+     3. If no issue key is available, STOP and ask the user for it before executing `git.feature`.
+   - The issue key MUST match the configured `issue_format`:
+     - `jira`: `PROJ-123`
+     - `numeric`: `1234`
+   - Pass the value through to the hook using `GIT_BRANCH_ISSUE`, or `--issue` / `-Issue`
+     if you invoke the script directly.
+2. For each **mutating** hook noted in Phase A:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
-2. State which mutating hooks were executed.
-3. If `git.feature` was executed and returned `BRANCH_NAME`/`FEATURE_NUM`, display:
+3. State which mutating hooks were executed.
+4. If `git.feature` was executed and returned `BRANCH_NAME`/`FEATURE_NUM`, display:
    ```
    Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
    ```
