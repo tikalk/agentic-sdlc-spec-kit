@@ -43,16 +43,6 @@ class TestCliDiagnosticFormatting:
 
 
 class TestInitIntegrationFlag:
-    def test_integration_and_ai_mutually_exclusive(self, tmp_path):
-        from typer.testing import CliRunner
-        from specify_cli import app
-        runner = CliRunner()
-        result = runner.invoke(app, [
-            "init", str(tmp_path / "test-project"), "--ai", "claude", "--integration", "copilot",
-        ])
-        assert result.exit_code != 0
-        assert "mutually exclusive" in result.output
-
     def test_unknown_integration_rejected(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
@@ -78,8 +68,11 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
-        assert (project / ".github" / "prompts" / "spec.plan.prompt.md").exists()
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
+        assert (project / ".github" / "prompts" / f"{prefix}.plan.prompt.md").exists()
         assert (project / ".specify" / "scripts" / "bash" / "common.sh").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -88,8 +81,8 @@ class TestInitIntegrationFlag:
         opts = json.loads((project / ".specify" / "init-options.json").read_text(encoding="utf-8"))
         assert opts["integration"] == "copilot"
         # context_file lives in the agent-context extension config, not init-options.json
-        # Fork also saves context_file to init-options for backward compatibility
         from specify_cli import PKG_NAMES
+
         if not any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
             assert "context_file" not in opts
 
@@ -129,12 +122,15 @@ class TestInitIntegrationFlag:
 
         assert result.exit_code == 0, result.output
         assert f"defaulting to '{specify_cli.DEFAULT_INIT_INTEGRATION}'" in result.output
-        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == specify_cli.DEFAULT_INIT_INTEGRATION
 
-    def test_ai_copilot_auto_promotes(self, tmp_path):
+    def test_integration_copilot_auto_promotes(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
         project = tmp_path / "promote-test"
@@ -144,65 +140,15 @@ class TestInitIntegrationFlag:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "copilot", "--script", "sh", "--no-git",
+                "init", "--here", "--integration", "copilot", "--script", "sh", "--no-git",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
+        from tests.conftest import _cmd_prefix
 
-    def test_ai_emits_deprecation_warning_with_integration_replacement(self, tmp_path):
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "warn-ai"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--ai", "copilot", "--script", "sh", "--no-git",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-
-        normalized_output = _normalize_cli_output(result.output)
-        assert result.exit_code == 0, result.output
-        assert "Deprecation Warning" in normalized_output
-        assert "--ai" in normalized_output
-        assert "deprecated" in normalized_output
-        assert "no longer be available" in normalized_output
-        assert "0.10.0" in normalized_output
-        assert "--integration copilot" in normalized_output
-        assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".github" / "agents" / "spec.plan.agent.md").exists()
-
-    def test_ai_generic_warning_suggests_integration_options_equivalent(self, tmp_path):
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "warn-generic"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            runner = CliRunner()
-            result = runner.invoke(app, [
-                "init", "--here", "--ai", "generic", "--ai-commands-dir", ".myagent/commands",
-                "--script", "sh", "--no-git",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-
-        normalized_output = _normalize_cli_output(result.output)
-        assert result.exit_code == 0, result.output
-        assert "Deprecation Warning" in normalized_output
-        assert "--integration generic" in normalized_output
-        assert "--integration-options" in normalized_output
-        assert ".myagent/commands" in normalized_output
-        assert normalized_output.index("Deprecation Warning") < normalized_output.index("Next Steps")
-        assert (project / ".myagent" / "commands" / "spec.plan.md").exists()
+        prefix = _cmd_prefix()
+        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
 
     def test_init_optional_preset_failure_reports_target_and_continues(
         self, tmp_path, monkeypatch
@@ -240,7 +186,7 @@ class TestInitIntegrationFlag:
         assert "Continuing without the optional preset" in normalized
         assert "Project ready" in normalized
 
-    def test_ai_claude_here_preserves_preexisting_commands(self, tmp_path):
+    def test_integration_claude_here_preserves_preexisting_commands(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -248,7 +194,10 @@ class TestInitIntegrationFlag:
         project.mkdir()
         commands_dir = project / ".claude" / "skills"
         commands_dir.mkdir(parents=True)
-        skill_dir = commands_dir / "spec-specify"
+        from tests.conftest import _cmd_prefix, _skill_prefix
+
+        prefix = _cmd_prefix()
+        skill_dir = commands_dir / f"{prefix}-specify"
         skill_dir.mkdir(parents=True)
         command_file = skill_dir / "SKILL.md"
         command_file.write_text("# preexisting command\n", encoding="utf-8")
@@ -258,7 +207,7 @@ class TestInitIntegrationFlag:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--force", "--ai", "claude", "--ai-skills", "--script", "sh", "--no-git", "--ignore-agent-tools",
+                "init", "--here", "--force", "--integration", "claude", "--script", "sh", "--no-git", "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -267,8 +216,9 @@ class TestInitIntegrationFlag:
         assert command_file.exists()
         # init replaces skills (not additive); verify the file has valid skill content
         assert command_file.exists()
-        assert "spec-specify" in command_file.read_text(encoding="utf-8")
-        assert (project / ".claude" / "skills" / "spec-plan" / "SKILL.md").exists()
+        assert f"{prefix}-specify" in command_file.read_text(encoding="utf-8")
+        plan_prefix = _skill_prefix("plan", project_root=project)
+        assert (project / ".claude" / "skills" / f"{plan_prefix}-plan" / "SKILL.md").exists()
 
     def test_shared_infra_skips_existing_files_without_force(self, tmp_path):
         """Pre-existing shared files are not overwritten without --force."""
@@ -803,7 +753,7 @@ class TestGitExtensionAutoInstall:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "claude", "--script", "sh",
+                "init", "--here", "--integration", "claude", "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -841,7 +791,7 @@ class TestGitExtensionAutoInstall:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "claude", "--script", "sh",
+                "init", "--here", "--integration", "claude", "--script", "sh",
                 "--no-git", "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -865,7 +815,7 @@ class TestGitExtensionAutoInstall:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "claude", "--script", "sh",
+                "init", "--here", "--integration", "claude", "--script", "sh",
                 "--no-git", "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -892,7 +842,7 @@ class TestGitExtensionAutoInstall:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "claude", "--script", "sh",
+                "init", "--here", "--integration", "claude", "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -918,7 +868,7 @@ class TestGitExtensionAutoInstall:
             os.chdir(project)
             runner = CliRunner()
             result = runner.invoke(app, [
-                "init", "--here", "--ai", "claude", "--script", "sh",
+                "init", "--here", "--integration", "claude", "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
         finally:
@@ -931,6 +881,60 @@ class TestGitExtensionAutoInstall:
         assert claude_skills.exists(), "Claude skills directory was not created"
         git_skills = [f for f in claude_skills.iterdir() if f.name.startswith("git-")]
         assert len(git_skills) > 0, "no git extension commands registered"
+
+
+class TestInitTeamAiDirectives:
+    """E2E: specify init with --team-ai-directives installs and persists."""
+
+    def test_init_here_with_team_ai_directives(self, tmp_path):
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        # Create a local team-ai-directives knowledge base
+        kb_dir = tmp_path / "team-ai-directives-src"
+        kb_dir.mkdir()
+        (kb_dir / "context_modules").mkdir()
+        (kb_dir / "context_modules" / "constitution.md").write_text("# Constitution")
+
+        project = tmp_path / "project"
+        project.mkdir()
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            runner = CliRunner()
+            result = runner.invoke(app, [
+                "init", "--here",
+                "--integration", "claude",
+                "--script", "sh",
+                "--ignore-agent-tools",
+                "--team-ai-directives", str(kb_dir),
+            ], catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        # Init options should persist the resolved team-ai-directives path
+        init_opts_path = project / ".specify" / "init-options.json"
+        assert init_opts_path.exists(), "init-options.json not created"
+        init_opts = json.loads(init_opts_path.read_text(encoding="utf-8"))
+        assert "team_ai_directives" in init_opts, "team_ai_directives not persisted"
+        assert init_opts["team_ai_directives"] == str(kb_dir)
+
+        # Team-ai-directives extension should be installed
+        ext_yml = project / ".specify" / "extensions" / "team-ai-directives" / "extension.yml"
+        assert ext_yml.exists(), "team-ai-directives extension not installed"
+
+        # Hooks should be registered
+        extensions_yml = project / ".specify" / "extensions.yml"
+        assert extensions_yml.exists(), "extensions.yml not created"
+        hooks_data = yaml.safe_load(extensions_yml.read_text(encoding="utf-8"))
+        assert "hooks" in hooks_data
+
+        # No failure warnings in output
+        normalized = _normalize_cli_output(result.output)
+        assert "failed to sync team ai directives" not in normalized
+        assert "pre_init hook failed" not in normalized
 
 
 class TestSharedInfraCommandRefs:
@@ -953,7 +957,7 @@ class TestSharedInfraCommandRefs:
         )
 
     def test_dot_separator_in_page_templates(self, tmp_path):
-        """Markdown agents get /spec.<name> in page templates (fork uses 'spec' prefix)."""
+        """Markdown agents get /<prefix>.<name> in page templates."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "dot-test"
@@ -966,15 +970,18 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/spec.plan" in content
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert f"/{prefix}.plan" in content
 
         checklist = project / ".specify" / "templates" / "checklist-template.md"
         content = checklist.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/spec.checklist" in content
+        assert f"/{prefix}.checklist" in content
 
     def test_hyphen_separator_in_page_templates(self, tmp_path):
-        """Skills agents get /spec-<name> in page templates (fork uses 'spec' prefix)."""
+        """Skills agents get /<prefix>-<name> in page templates."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / "hyphen-test"
@@ -987,17 +994,20 @@ class TestSharedInfraCommandRefs:
         assert plan.exists()
         content = plan.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content, "unresolved placeholder in plan-template.md"
-        assert "/spec-plan" in content
-        assert "/spec.plan" not in content, "dot-notation leaked into skills page template"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert f"/{prefix}-plan" in content
+        assert f"/{prefix}.plan" not in content, "dot-notation leaked into skills page template"
 
         tasks = project / ".specify" / "templates" / "tasks-template.md"
         content = tasks.read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_" not in content
-        assert "/spec-tasks" in content
+        assert f"/{prefix}-tasks" in content
 
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
     def test_dot_separator_in_shared_scripts(self, tmp_path, script_type):
-        """Markdown agents get /speckit.<name> in shared script hints."""
+        """Markdown agents get /<prefix>.<name> in shared script hints."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / f"dot-script-{script_type}"
@@ -1008,10 +1018,9 @@ class TestSharedInfraCommandRefs:
 
         content = self._combined_script_content(project, script_type)
         assert "__SPECKIT_COMMAND_" not in content
-        # Fork uses /spec.* prefix instead of /speckit.*
-        from specify_cli import PKG_NAMES
-        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if _is_fork else "speckit"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
         assert f"/{prefix}.specify" in content
         assert f"/{prefix}.plan" in content
         assert f"/{prefix}.tasks" in content
@@ -1021,7 +1030,7 @@ class TestSharedInfraCommandRefs:
 
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
     def test_hyphen_separator_in_shared_scripts(self, tmp_path, script_type):
-        """Skills agents get /speckit-<name> in shared script hints."""
+        """Skills agents get /<prefix>-<name> in shared script hints."""
         from specify_cli import _install_shared_infra
 
         project = tmp_path / f"hyphen-script-{script_type}"
@@ -1032,10 +1041,9 @@ class TestSharedInfraCommandRefs:
 
         content = self._combined_script_content(project, script_type)
         assert "__SPECKIT_COMMAND_" not in content
-        # Fork uses /spec-* prefix instead of /speckit-*
-        from specify_cli import PKG_NAMES
-        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if _is_fork else "speckit"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
         assert f"/{prefix}-specify" in content
         assert f"/{prefix}-plan" in content
         assert f"/{prefix}-tasks" in content
@@ -1067,15 +1075,15 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/spec-plan" in content, "Claude (skills) should use /spec-plan"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert f"/{prefix}-plan" in content, f"Claude (skills) should use /{prefix}-plan"
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        from specify_cli import PKG_NAMES
-        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        _pfx = "spec" if _is_fork else "speckit"
-        assert f"/{_pfx}-specify" in script_content
-        assert f"/{_pfx}.specify" not in script_content
+        assert f"/{prefix}-specify" in script_content
+        assert f"/{prefix}.specify" not in script_content
 
     def test_full_init_copilot_resolves_page_templates(self, tmp_path):
         """Full CLI init with Copilot (markdown agent) produces dot refs in page templates."""
@@ -1101,15 +1109,15 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/spec.plan" in content, "Copilot (markdown) should use /spec.plan"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert f"/{prefix}.plan" in content, f"Copilot (markdown) should use /{prefix}.plan"
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        from specify_cli import PKG_NAMES
-        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        _pfx = "spec" if _is_fork else "speckit"
-        assert f"/{_pfx}.specify" in script_content
-        assert f"/{_pfx}-specify" not in script_content
+        assert f"/{prefix}.specify" in script_content
+        assert f"/{prefix}-specify" not in script_content
 
     def test_full_init_copilot_skills_resolves_page_templates(self, tmp_path):
         """Full CLI init with Copilot --skills produces hyphen refs in page templates."""
@@ -1136,16 +1144,16 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "/spec-plan" in content, "Copilot --skills should use /spec-plan"
-        assert "/spec.plan" not in content, "dot-notation leaked into Copilot skills page template"
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        assert f"/{prefix}-plan" in content, f"Copilot --skills should use /{prefix}-plan"
+        assert f"/{prefix}.plan" not in content, "dot-notation leaked into Copilot skills page template"
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        from specify_cli import PKG_NAMES
-        _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        _pfx = "spec" if _is_fork else "speckit"
-        assert f"/{_pfx}-specify" in script_content
-        assert f"/{_pfx}.specify" not in script_content
+        assert f"/{prefix}-specify" in script_content
+        assert f"/{prefix}.specify" not in script_content
 
 
 class TestIntegrationCatalogDiscoveryCLI:

@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.9.5+adlc2"
+version = "0.10.0+adlc1"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
@@ -54,6 +54,7 @@ packages = ["src/specify_cli"]
 "extensions/git" = "specify_cli/core_pack/extensions/git"
 "extensions/catalog.json" = "specify_cli/core_pack/extensions/catalog.json"
 "extensions/agent-context" = "specify_cli/core_pack/extensions/agent-context"
+"extensions/bug" = "specify_cli/core_pack/extensions/bug"
 # Bundled workflows (auto-installed during `specify init`)
 "workflows/speckit" = "specify_cli/core_pack/workflows/speckit"
 # Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)

@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc1] - 2026-06-07
+
+### Changed
+
+- **Upstream merge**: Synced with `github/spec-kit` `main` through the upstream `0.10.0` init-flow breaking change, bringing in the bundled `bug` triage extension, private-repo preset/workflow release-asset download hardening, workflow gate prompt rendering improvements, and the upstream `0.9.6.dev0` baseline updates.
+- **Init CLI alignment**: the fork now follows upstream by removing legacy `--ai`, `--ai-commands-dir`, and `--ai-skills` flags from `specify init`, while preserving fork theming, alias-aware command guidance, team-directives hooks, and fork package identity.
+
+### Fixed
+
+- **Fork merge preservation**: retained fork-specific `spec` command prefix guidance, themed init panels/messages, fork-aware final success handling, and `team_ai_directives` / `context_file` persistence in init options after adopting upstream's simplified integration-only init path.
+- **GitHub release asset downloads**: restored the shared `_github_http.py` helper and tests so fork downloads for private or SSO-protected GitHub-hosted presets/workflows/extensions continue to resolve REST asset URLs correctly.
+
 # [0.9.5+adlc2] - 2026-06-07
 
 ### Added
@@ -2435,6 +2447,20 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.9.5] - 2026-06-05
+
+### Changed
+
+- feat(extensions): add bundled bug triage workflow extension (#2871)
+- fix: resolve GitHub release asset API URL for private repo preset and workflow downloads (#2855)
+- chore(deps): bump github/gh-aw-actions from 0.77.0 to 0.78.1 (#2860)
+- chore(deps): bump actions/checkout from 6.0.2 to 6.0.3 (#2859)
+- chore(deps): bump astral-sh/setup-uv from 8.1.0 to 8.2.0 (#2858)
+- chore(deps): bump github/codeql-action from 4.36.0 to 4.36.2 (#2857)
+- fix(workflows): render gate show_file contents in the interactive prompt (#2810)
+- feat: add support for rovodev (#2539)
+- chore: release 0.9.4, begin 0.9.5.dev0 development (#2853)
 
 ## [0.9.4] - 2026-06-04
 

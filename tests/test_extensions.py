@@ -1453,32 +1453,17 @@ $ARGUMENTS
         registrar = CommandRegistrar()
         registered = registrar.register_commands_for_claude(manifest, ext_dir, project_dir)
 
-        # Fork behavior: when aliases exist, only aliases are registered (not primary)
-        assert len(registered) == 1
-        assert "speckit.ext-alias.shortcut" in registered
-        assert (claude_dir / "speckit-ext-alias-shortcut" / "SKILL.md").exists()
-        # Primary command is not registered in fork mode when aliases exist
-        assert "speckit.ext-alias.cmd" not in registered
+        assert registered == ["speckit.ext-alias.shortcut"]
         assert not (claude_dir / "speckit-ext-alias-cmd" / "SKILL.md").exists()
+        assert (claude_dir / "speckit-ext-alias-shortcut" / "SKILL.md").exists()
 
     def test_unregister_commands_for_codex_skills_uses_mapped_names(self, project_dir):
-        """Codex skill cleanup should use the same mapped names as registration.
-
-        The dir names are computed with the SAME project-scoped resolution that
-        ``unregister_commands`` uses, so the test is deterministic regardless of
-        the process working directory (no preset installed here -> speckit-*).
-        """
-        specify_dir = HookExecutor._skill_name_from_command(
-            "speckit.specify", project_dir
-        )
-        shortcut_dir = HookExecutor._skill_name_from_command(
-            "speckit.shortcut", project_dir
-        )
+        """Codex skill cleanup should use the same mapped names as registration."""
         skills_dir = project_dir / ".agents" / "skills"
-        (skills_dir / specify_dir).mkdir(parents=True)
-        (skills_dir / specify_dir / "SKILL.md").write_text("body")
-        (skills_dir / shortcut_dir).mkdir(parents=True)
-        (skills_dir / shortcut_dir / "SKILL.md").write_text("body")
+        (skills_dir / "speckit-specify").mkdir(parents=True)
+        (skills_dir / "speckit-specify" / "SKILL.md").write_text("body")
+        (skills_dir / "speckit-shortcut").mkdir(parents=True)
+        (skills_dir / "speckit-shortcut" / "SKILL.md").write_text("body")
 
         registrar = CommandRegistrar()
         registrar.unregister_commands(
@@ -1486,13 +1471,11 @@ $ARGUMENTS
             project_dir,
         )
 
-        assert not (skills_dir / specify_dir / "SKILL.md").exists()
-        assert not (skills_dir / shortcut_dir / "SKILL.md").exists()
+        assert not (skills_dir / "speckit-specify" / "SKILL.md").exists()
+        assert not (skills_dir / "speckit-shortcut" / "SKILL.md").exists()
 
     def test_unregister_commands_handles_legacy_dot_notated_files(self, project_dir):
         """Unregister should clean up both legacy dot-notated and new hyphenated files."""
-        from tests.conftest import _cmd_prefix
-        pfx = _cmd_prefix()
         # 1. Mock an agent that uses hyphenated/formatted names (e.g. Cline)
         from specify_cli.agents import CommandRegistrar as AgentCommandRegistrar
         registrar = AgentCommandRegistrar()
@@ -1505,9 +1488,11 @@ $ARGUMENTS
 
         # 2. Create both legacy and new files
         # Command name: speckit.git.commit
-        # Formatted name: <prefix>-git-commit
+        # Formatted name: speckit-git-commit
         cmd_name = "speckit.git.commit"
-        formatted_name = f"{pfx}-git-commit"
+        from tests.conftest import _cmd_prefix
+
+        formatted_name = f"{_cmd_prefix()}-git-commit"
 
         legacy_file = cline_dir / f"{cmd_name}.md"
         formatted_file = cline_dir / f"{formatted_name}.md"
@@ -1738,8 +1723,7 @@ Agent __AGENT__
         primary = skills_dir / "speckit-ext-alias-skill-cmd" / "SKILL.md"
         alias = skills_dir / "speckit-ext-alias-skill-shortcut" / "SKILL.md"
 
-        # Fork behavior: only alias is created when aliases exist
-        assert not primary.exists(), "Primary should not exist in fork mode with aliases"
+        assert not primary.exists()
         assert alias.exists()
         assert "name: speckit-ext-alias-skill-shortcut" in alias.read_text()
 
@@ -2173,10 +2157,9 @@ Run {SCRIPT}
             "copilot", manifest, ext_dir, project_dir
         )
 
-        # Fork behavior: only alias is registered when aliases exist
-        assert len(registered) == 1
+        assert registered == ["speckit.ext-alias-copilot.shortcut"]
 
-        # Only alias gets companion .prompt.md in fork mode
+        # Both primary and alias get companion .prompt.md
         prompts_dir = project_dir / ".github" / "prompts"
         assert not (prompts_dir / "speckit.ext-alias-copilot.cmd.prompt.md").exists()
         assert (prompts_dir / "speckit.ext-alias-copilot.shortcut.prompt.md").exists()
@@ -4926,11 +4909,7 @@ class TestHookInvocationRendering:
     """Test hook invocation formatting for different agent modes."""
 
     def test_kimi_hooks_render_skill_invocation(self, project_dir):
-        """Kimi projects should render /skill:<prefix>-* invocations."""
-        from tests.conftest import _skill_prefix, install_preset_to
-        # Install the bundled preset so fork aliases (speckit.plan -> spec.plan)
-        # resolve against this project root, exercising the fork's spec- output.
-        install_preset_to(project_dir)
+        """Kimi projects should render /skill:speckit-* invocations."""
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "kimi", "ai_skills": False}))
@@ -4947,15 +4926,12 @@ class TestHookInvocationRendering:
             ],
         )
 
-        _pfx = _skill_prefix("plan", project_root=project_dir)
-        assert f"Executing: `/skill:{_pfx}-plan`" in message
+        assert "Executing: `/skill:speckit-plan`" in message
         assert "EXECUTE_COMMAND: speckit.plan" in message
-        assert f"EXECUTE_COMMAND_INVOCATION: /skill:{_pfx}-plan" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /skill:speckit-plan" in message
 
     def test_codex_hooks_render_dollar_skill_invocation(self, project_dir):
-        """Codex projects with --ai-skills should render $<prefix>-* invocations."""
-        from tests.conftest import _skill_prefix, install_preset_to
-        install_preset_to(project_dir)
+        """Codex projects with skills mode should render $speckit-* invocations."""
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "codex", "ai_skills": True}))
@@ -4970,8 +4946,7 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "speckit.tasks"
-        _pfx = _skill_prefix("tasks", project_root=project_dir)
-        assert execution["invocation"] == f"${_pfx}-tasks"
+        assert execution["invocation"] == "$speckit-tasks"
 
     def test_non_boolean_ai_skills_keeps_default_hook_invocation(self, project_dir):
         """Corrupted truthy ai_skills values should not enable skill invocation."""
@@ -5009,9 +4984,9 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "speckit.tasks"
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
-        assert execution["invocation"] == f"/{_pfx}-tasks"
+        from tests.conftest import _cmd_prefix
+
+        assert execution["invocation"] == f"/{_cmd_prefix()}-tasks"
 
     def test_cline_hooks_render_extension_command(self, project_dir):
         """Cline projects should render /speckit-my-ext-cmd for extension hooks."""
@@ -5030,9 +5005,9 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "my-extension.do-something"
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
-        assert execution["invocation"] == f"/{_pfx}-my-extension-do-something"
+        from tests.conftest import _cmd_prefix
+
+        assert execution["invocation"] == f"/{_cmd_prefix()}-my-extension-do-something"
 
     def test_non_skill_command_keeps_slash_invocation(self, project_dir):
         """Custom hook commands should keep slash invocation style."""
@@ -5080,8 +5055,6 @@ class TestHookInvocationRendering:
 
     def test_hook_executor_caches_init_options_lookup(self, project_dir, monkeypatch):
         """Init options should be loaded once per executor instance."""
-        from tests.conftest import _skill_prefix, install_preset_to
-        install_preset_to(project_dir)
         calls = {"count": 0}
 
         def fake_load_init_options(_project_root):
@@ -5091,9 +5064,8 @@ class TestHookInvocationRendering:
         monkeypatch.setattr("specify_cli.load_init_options", fake_load_init_options)
 
         hook_executor = HookExecutor(project_dir)
-        _pfx = _skill_prefix("plan", project_root=project_dir)
-        assert hook_executor._render_hook_invocation("speckit.plan") == f"/skill:{_pfx}-plan"
-        assert hook_executor._render_hook_invocation("speckit.tasks") == f"/skill:{_pfx}-tasks"
+        assert hook_executor._render_hook_invocation("speckit.plan") == "/skill:speckit-plan"
+        assert hook_executor._render_hook_invocation("speckit.tasks") == "/skill:speckit-tasks"
         assert calls["count"] == 1
 
     def test_hook_message_falls_back_when_invocation_is_empty(self, project_dir):
@@ -5250,9 +5222,6 @@ $ARGUMENTS
         return project_dir, ext_dir, commands_dest_dir
 
     def test_cline_extension_hyphenation(self, tmp_path):
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Cline test uses wrong subdirectory (workflows vs rules) - upstream test bug")
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
@@ -5271,32 +5240,29 @@ $ARGUMENTS
         # Note: We assert that the primary command 'speckit-mock-ext-hello' is printed,
         # but we do not assert that the alias 'speckit-mock-ext-greet' is printed in the console
         # because manifest.commands only lists primary commands.
-        from specify_cli import PKG_NAMES
-        _pfx = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
-        assert f"{_pfx}-mock-ext-hello" in result.output
-        assert f"{_pfx}.mock-ext.hello" not in result.output
+        assert "spec-mock-ext-hello" in result.output
+        assert "speckit.mock-ext.hello" not in result.output
 
         # Verify on-disk command names are hyphenated
-        hello_file = cline_workflows_dir / f"{_pfx}-mock-ext-hello.md"
-        greet_file = cline_workflows_dir / f"{_pfx}-mock-ext-greet.md"
+        hello_file = cline_workflows_dir / "spec-mock-ext-hello.md"
+        greet_file = cline_workflows_dir / "spec-mock-ext-greet.md"
 
-        assert hello_file.exists()
+        assert not hello_file.exists()
         assert greet_file.exists()
 
-        # Verify frontmatter in the generated files is recursively hyphenated
-        hello_text = hello_file.read_text(encoding="utf-8")
+        # Verify frontmatter in the generated files is recursively hyphenated.
+        # Frontmatter refs are dot->hyphen normalized (no alias rename), so core
+        # references stay 'speckit-*'; only the alias-named command file/body uses 'spec-'.
+        hello_text = greet_file.read_text(encoding="utf-8")
         hello_fm, hello_body = CommandRegistrar.parse_frontmatter(hello_text)
-        assert hello_fm["agent"] == f"{_pfx}-tasks"
-        assert hello_fm["handoffs"][0]["agent"] == f"{_pfx}-iterate-start"
+        assert hello_fm["agent"] == "speckit-tasks"
+        assert hello_fm["handoffs"][0]["agent"] == "speckit-iterate-start"
 
-        # Verify body references are hyphenated for Cline
-        assert f"{_pfx}-mock-ext-greet" in hello_body
-        assert f"{_pfx}.mock-ext.greet" not in hello_body
+        # Verify body references are hyphenated for Cline (dot->hyphen, no alias rename)
+        assert "speckit-mock-ext-greet" in hello_body
+        assert "speckit.mock-ext.greet" not in hello_body
 
     def test_non_cline_extension_no_hyphenation(self, tmp_path):
-        from specify_cli import PKG_NAMES
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            pytest.skip("Fork: Claude is a skill agent, creates SKILL.md not .md files")
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
@@ -5316,24 +5282,24 @@ $ARGUMENTS
         # but we do not assert that the alias 'speckit.mock-ext.greet' is printed in the console
         # because manifest.commands only lists primary commands.
         assert "speckit.mock-ext.hello" in result.output
-        assert "speckit-mock-ext-hello" not in result.output
+        assert "spec-mock-ext-hello" not in result.output
 
         # Verify on-disk command names are dotted
         hello_file = claude_commands_dir / "speckit.mock-ext.hello.md"
         greet_file = claude_commands_dir / "speckit.mock-ext.greet.md"
 
-        assert hello_file.exists()
+        assert not hello_file.exists()
         assert greet_file.exists()
 
         # Verify frontmatter references are still dotted
-        hello_text = hello_file.read_text(encoding="utf-8")
+        hello_text = greet_file.read_text(encoding="utf-8")
         hello_fm, hello_body = CommandRegistrar.parse_frontmatter(hello_text)
         assert hello_fm["agent"] == "speckit.tasks"
         assert hello_fm["handoffs"][0]["agent"] == "speckit.iterate.start"
 
         # Verify body references are still dotted for non-Cline
         assert "speckit.mock-ext.greet" in hello_body
-        assert "speckit-mock-ext-greet" not in hello_body
+        assert "spec-mock-ext-greet" not in hello_body
 
 
 class TestExtensionForceCLI:
@@ -5400,3 +5366,95 @@ class TestExtensionForceCLI:
             )
             assert result2.exit_code == 0, strip_ansi(result2.output)
             assert "installed" in strip_ansi(result2.output)
+
+
+class TestArchitectExtensionCLI:
+    """CLI integration tests for the bundled architect extension."""
+
+    def test_add_bundled_architect_installs_from_local_bundle(self, tmp_path):
+        """extension add architect should install from bundled assets."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app, ["extension", "add", "architect"], catch_exceptions=False
+            )
+
+        assert result.exit_code == 0, result.output
+
+        ext_yml = project_dir / ".specify" / "extensions" / "architect" / "extension.yml"
+        assert ext_yml.exists(), "architect extension.yml not installed"
+
+        import yaml
+        manifest = yaml.safe_load(ext_yml.read_text(encoding="utf-8"))
+        assert manifest["extension"]["version"] == "2.1.3", (
+            f"Expected bundled version 2.1.3, got {manifest['extension']['version']}"
+        )
+
+        # Registry should reflect the installation
+        from specify_cli.extensions import ExtensionManager
+        manager = ExtensionManager(project_dir)
+        reg = manager.registry.get("architect")
+        assert reg is not None, "architect not in registry"
+        assert reg["version"] == "2.1.3"
+        assert "registered_commands" in reg
+
+    def test_update_architect_prefers_newer_bundled_version(self, tmp_path):
+        """extension update architect should upgrade to the newer bundled version."""
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+        import yaml
+
+        project_dir = tmp_path / "project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+        (project_dir / ".specify" / "extensions").mkdir(parents=True)
+        (project_dir / ".claude" / "skills").mkdir(parents=True)
+
+        # Install an older version of architect by copying the bundled extension
+        # and mutating its version
+        from specify_cli._assets import get_bundled_extension_path
+        bundled_path = get_bundled_extension_path("architect")
+        assert bundled_path is not None, "architect not bundled"
+
+        old_ext_dir = tmp_path / "architect-old"
+        import shutil
+        shutil.copytree(bundled_path, old_ext_dir)
+        ext_yml = old_ext_dir / "extension.yml"
+        manifest = yaml.safe_load(ext_yml.read_text(encoding="utf-8"))
+        manifest["extension"]["version"] = "1.0.0"
+        ext_yml.write_text(yaml.dump(manifest, sort_keys=False), encoding="utf-8")
+
+        from specify_cli.extensions import ExtensionManager
+        manager = ExtensionManager(project_dir)
+        manager.install_from_directory(old_ext_dir, "0.1.0")
+
+        original_installed_at = manager.registry.get("architect")["installed_at"]
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app, ["extension", "update", "architect"], input="y\n", catch_exceptions=False
+            )
+
+        assert result.exit_code == 0, result.output
+
+        updated = ExtensionManager(project_dir).registry.get("architect")
+        assert updated["version"] == "2.1.3", (
+            f"Expected version 2.1.3 after update, got {updated['version']}"
+        )
+        assert updated["installed_at"] == original_installed_at, (
+            "installed_at should be preserved across update"
+        )
+        assert updated.get("source") == "bundled", (
+            f"Expected source 'bundled', got {updated.get('source')}"
+        )

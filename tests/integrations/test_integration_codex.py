@@ -3,7 +3,7 @@
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
 
-from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix, install_preset_to
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix
 
 
 class TestCodexIntegration(SkillsIntegrationTests):
@@ -14,20 +14,19 @@ class TestCodexIntegration(SkillsIntegrationTests):
     CONTEXT_FILE = "AGENTS.md"
 
 
-class TestCodexAutoPromote:
-    """--ai codex auto-promotes to integration path."""
+class TestCodexInitFlow:
+    """--integration codex creates expected files."""
 
-    def test_ai_codex_without_ai_skills_auto_promotes(self, tmp_path):
-        """--ai codex should work the same as --integration codex."""
+    def test_integration_codex_creates_skills(self, tmp_path):
+        """--integration codex should create skills in .agents/skills."""
         from typer.testing import CliRunner
         from specify_cli import app
 
         runner = CliRunner()
         target = tmp_path / "test-proj"
-        result = runner.invoke(app, ["init", str(target), "--ai", "codex", "--no-git", "--ignore-agent-tools", "--script", "sh"])
+        result = runner.invoke(app, ["init", str(target), "--integration", "codex", "--no-git", "--ignore-agent-tools", "--script", "sh"])
 
-        assert result.exit_code == 0, f"init --ai codex failed: {result.output}"
-        # Full init installs bundled presets (with aliases) → use global fork prefix
+        assert result.exit_code == 0, f"init --integration codex failed: {result.output}"
         assert (target / ".agents" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
 
 
@@ -42,15 +41,14 @@ class TestCodexHookCommandNote:
 
     def test_hook_note_injected_in_skills_with_hooks(self, tmp_path):
         """Skills that have hook sections should get the normalization note."""
-        install_preset_to(tmp_path)
         i = get_integration("codex")
         m = IntegrationManifest("codex", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        specify_skill = tmp_path / f".agents/skills/{_skill_prefix('specify', project_root=tmp_path)}-specify/SKILL.md"
+        specify_skill = tmp_path / ".agents/skills/speckit-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            f"{_skill_prefix('specify', project_root=tmp_path)}-specify should have dot-to-hyphen hook note"
+            "speckit-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self):

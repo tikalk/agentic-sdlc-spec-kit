@@ -2,7 +2,7 @@
 
 from specify_cli.integrations import get_integration
 
-from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix, install_preset_to
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix
 
 
 class TestAgyIntegration(SkillsIntegrationTests):
@@ -29,21 +29,19 @@ class TestAgyIntegration(SkillsIntegrationTests):
         assert i.config["install_url"] == "https://antigravity.google/"
 
 
-class TestAgyAutoPromote:
-    """--ai agy auto-promotes to integration path."""
+class TestAgyInitFlow:
+    """--integration agy creates expected files."""
 
-    def test_ai_agy_without_ai_skills_auto_promotes(self, tmp_path):
-        """--ai agy should work the same as --integration agy."""
+    def test_integration_agy_creates_skills(self, tmp_path):
+        """--integration agy should create skills directory."""
         from typer.testing import CliRunner
         from specify_cli import app
 
         runner = CliRunner()
         target = tmp_path / "test-proj"
-        result = runner.invoke(app, ["init", str(target), "--ai", "agy", "--no-git", "--script", "sh", "--ignore-agent-tools"])
+        result = runner.invoke(app, ["init", str(target), "--integration", "agy", "--no-git", "--script", "sh", "--ignore-agent-tools"])
 
-        assert result.exit_code == 0, f"init --ai agy failed: {result.output}"
-        # Full ``specify init`` installs bundled presets (which provide aliases),
-        # so use the global fork prefix rather than per-command alias resolution.
+        assert result.exit_code == 0, f"init --integration agy failed: {result.output}"
         assert (target / ".agents" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
 
     def test_agy_setup_warning(self, tmp_path):
@@ -54,7 +52,7 @@ class TestAgyAutoPromote:
         # Click >= 8.2 separates stdout and stderr natively
         runner = CliRunner()
         target = tmp_path / "test-proj2"
-        result = runner.invoke(app, ["init", str(target), "--ai", "agy", "--no-git", "--script", "sh", "--ignore-agent-tools"])
+        result = runner.invoke(app, ["init", str(target), "--integration", "agy", "--no-git", "--script", "sh", "--ignore-agent-tools"])
 
         assert result.exit_code == 0
         assert "Warning: The .agents/ layout requires Antigravity v1.20.5 or newer" in result.stderr
@@ -93,15 +91,14 @@ class TestAgyHookCommandNote:
         from specify_cli.integrations import get_integration
         from specify_cli.integrations.manifest import IntegrationManifest
 
-        install_preset_to(tmp_path)
         i = get_integration("agy")
         m = IntegrationManifest("agy", tmp_path)
         i.setup(tmp_path, m, script_type="sh")
-        specify_skill = tmp_path / f".agents/skills/{_skill_prefix('specify', project_root=tmp_path)}-specify/SKILL.md"
+        specify_skill = tmp_path / ".agents/skills/speckit-specify/SKILL.md"
         assert specify_skill.exists()
         content = specify_skill.read_text(encoding="utf-8")
         assert "replace dots" in content, (
-            f"{_skill_prefix('specify', project_root=tmp_path)}-specify should have dot-to-hyphen hook note"
+            "speckit-specify should have dot-to-hyphen hook note"
         )
 
     def test_hook_note_not_in_skills_without_hooks(self):

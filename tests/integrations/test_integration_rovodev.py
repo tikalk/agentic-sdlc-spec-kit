@@ -334,11 +334,11 @@ class TestRovodevIntegration:
         assert init_options.get("ai_skills") is True
         assert init_options.get("script") == "sh"
 
-    def test_ai_flag_auto_promotes_to_integration(self, tmp_path):
-        """``--ai rovodev`` should reach the same end-state as ``--integration rovodev``."""
-        project = tmp_path / "rovodev-ai"
+    def test_integration_flag_creates_expected_files(self, tmp_path):
+        """``--integration rovodev`` should create all expected rovodev files."""
+        project = tmp_path / "rovodev-int"
         project.mkdir()
-        result = _run_init(project, "--ai", "rovodev")
+        result = _run_init(project, "--integration", "rovodev")
         assert result.exit_code == 0, result.output
         plan_pfx = _skill_prefix('plan', project_root=project)
         assert (project / ".rovodev" / "skills" / f"{plan_pfx}-plan" / "SKILL.md").exists()

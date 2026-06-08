@@ -93,20 +93,19 @@ class TestCursorMdcFrontmatter:
         assert not ctx_path.exists()
 
 
-class TestCursorAgentAutoPromote:
-    """--ai cursor-agent auto-promotes to integration path."""
+class TestCursorAgentInitFlow:
+    """--integration cursor-agent creates expected files."""
 
-    def test_ai_cursor_agent_without_ai_skills_auto_promotes(self, tmp_path):
-        """--ai cursor-agent should work the same as --integration cursor-agent."""
+    def test_integration_cursor_agent_creates_skills(self, tmp_path):
+        """--integration cursor-agent should create skills in .cursor/skills."""
         from typer.testing import CliRunner
         from specify_cli import app
 
         runner = CliRunner()
         target = tmp_path / "test-proj"
-        result = runner.invoke(app, ["init", str(target), "--ai", "cursor-agent", "--no-git", "--ignore-agent-tools", "--script", "sh"])
+        result = runner.invoke(app, ["init", str(target), "--integration", "cursor-agent", "--no-git", "--ignore-agent-tools", "--script", "sh"])
 
-        assert result.exit_code == 0, f"init --ai cursor-agent failed: {result.output}"
-        # Full init installs bundled presets (with aliases) → use global fork prefix
+        assert result.exit_code == 0, f"init --integration cursor-agent failed: {result.output}"
         assert (target / ".cursor" / "skills" / f"{_skill_prefix()}-plan" / "SKILL.md").exists()
 
 
@@ -122,7 +121,7 @@ class TestCursorAgentCliDispatch:
     def test_requires_cli_is_false_for_ide_first_flow(self):
         """``requires_cli`` must stay False so the IDE-only flow keeps working.
 
-        ``specify init --ai cursor-agent`` (without ``--ignore-agent-tools``)
+        ``specify init --integration cursor-agent`` (without ``--ignore-agent-tools``)
         treats ``requires_cli=True`` as a hard precheck and fails when the
         ``cursor-agent`` CLI isn't on PATH — even though the Cursor IDE
         / skills flow can run without it.  Workflow dispatch support is
@@ -148,32 +147,29 @@ class TestCursorAgentCliDispatch:
         --approve-mcps --force, then prompt, then --output-format json.
         """
         i = get_integration("cursor-agent")
-        pfx = _cmd_prefix()
-        args = i.build_exec_args(f"/{pfx}-specify some-feature")
+        args = i.build_exec_args("/speckit-specify some-feature")
         assert args == [
             "cursor-agent", "-p", "--trust", "--approve-mcps", "--force",
-            f"/{pfx}-specify some-feature",
+            "/speckit-specify some-feature",
             "--output-format", "json",
         ]
 
     def test_build_exec_args_text_output_omits_format(self):
         i = get_integration("cursor-agent")
-        pfx = _cmd_prefix()
-        args = i.build_exec_args(f"/{pfx}-plan", output_json=False)
+        args = i.build_exec_args("/speckit-plan", output_json=False)
         assert args == [
             "cursor-agent", "-p", "--trust", "--approve-mcps", "--force",
-            f"/{pfx}-plan",
+            "/speckit-plan",
         ]
 
     def test_build_exec_args_with_model(self):
         i = get_integration("cursor-agent")
-        pfx = _cmd_prefix()
         args = i.build_exec_args(
-            f"/{pfx}-specify", model="sonnet-4-thinking", output_json=False
+            "/speckit-specify", model="sonnet-4-thinking", output_json=False
         )
         assert args == [
             "cursor-agent", "-p", "--trust", "--approve-mcps", "--force",
-            f"/{pfx}-specify",
+            "/speckit-specify",
             "--model", "sonnet-4-thinking",
         ]
 
@@ -188,8 +184,7 @@ class TestCursorAgentCliDispatch:
         ``claude -p`` / ``codex --exec`` from spec-kit's perspective.
         """
         i = get_integration("cursor-agent")
-        pfx = _cmd_prefix()
-        args = i.build_exec_args(f"/{pfx}-implement", output_json=False)
+        args = i.build_exec_args("/speckit-implement", output_json=False)
         for flag in ("-p", "--trust", "--approve-mcps", "--force"):
             assert flag in args, f"missing mandatory headless flag: {flag}"
 
@@ -205,17 +200,15 @@ class TestCursorAgentCliDispatch:
         """
         i = get_integration("cursor-agent")
         assert i.config.get("requires_cli") is False
-        pfx = _cmd_prefix()
-        argv = i.build_exec_args(f"/{pfx}-plan", output_json=False)
+        argv = i.build_exec_args("/speckit-plan", output_json=False)
         assert argv is not None
         assert argv[0] == "cursor-agent"
 
     def test_build_command_invocation_uses_hyphenated_skill_name(self):
-        """SkillsIntegration: /speckit-plan (not /speckit.plan)."""
+        """SkillsIntegration: /<prefix>-plan (not /<prefix>.plan)."""
         i = get_integration("cursor-agent")
-        pfx = _cmd_prefix()
-        assert i.build_command_invocation(f"{pfx}.plan", "feature-x") == f"/{pfx}-plan feature-x"
-        assert i.build_command_invocation("plan") == f"/{pfx}-plan"
+        assert i.build_command_invocation("speckit.plan", "feature-x") == f"/{_cmd_prefix()}-plan feature-x"
+        assert i.build_command_invocation("plan") == f"/{_cmd_prefix()}-plan"
 
     def test_dispatch_command_resolves_cmd_shim_for_subprocess(self):
         """``.cmd`` shims must be resolved to their full path before ``subprocess.run``.
@@ -238,18 +231,17 @@ class TestCursorAgentCliDispatch:
         mock_result.stderr = ""
 
         fake_path = r"C:\Users\foo\AppData\Local\cursor-agent\cursor-agent.CMD"
-        pfx = _cmd_prefix()
         with patch(
             "specify_cli.integrations.base.shutil.which", return_value=fake_path
         ), patch("subprocess.run", return_value=mock_result) as mock_run:
             result = i.dispatch_command(
-                f"{pfx}.plan", args="feature-x", stream=False, timeout=5
+                "speckit.plan", args="feature-x", stream=False, timeout=5
             )
 
         assert result["exit_code"] == 0
         argv = mock_run.call_args[0][0]
         assert argv[0] == fake_path, f"expected resolved .CMD path, got: {argv[0]!r}"
-        assert argv[1:6] == ["-p", "--trust", "--approve-mcps", "--force", f"/{pfx}-plan feature-x"]
+        assert argv[1:6] == ["-p", "--trust", "--approve-mcps", "--force", f"/{_cmd_prefix()}-plan feature-x"]
 
     def test_dispatch_command_passthrough_when_shutil_which_finds_nothing(self):
         """If ``shutil.which`` returns ``None``, leave argv unchanged so the
@@ -262,25 +254,10 @@ class TestCursorAgentCliDispatch:
         mock_result.stdout = ""
         mock_result.stderr = ""
 
-        pfx = _cmd_prefix()
         with patch(
             "specify_cli.integrations.base.shutil.which", return_value=None
         ), patch("subprocess.run", return_value=mock_result) as mock_run:
-            i.dispatch_command(f"{pfx}.plan", stream=False, timeout=5)
+            i.dispatch_command("speckit.plan", stream=False, timeout=5)
 
         argv = mock_run.call_args[0][0]
         assert argv[0] == "cursor-agent"
-
-
-class TestCursorAgentNativeWorktree:
-    """Verify the fork-specific ``detect_native_worktree`` override."""
-
-    def test_cursor_agent_reports_native_worktree_support(self):
-        i = get_integration("cursor-agent")
-        assert i.detect_native_worktree() is True
-
-    def test_claude_does_not_report_native_worktree_support(self):
-        """A control integration that lacks the override must return False."""
-        i = get_integration("claude")
-        assert i.detect_native_worktree() is False
-

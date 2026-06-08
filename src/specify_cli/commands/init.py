@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import os
-import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -14,8 +13,6 @@ from rich.panel import Panel
 
 from .._agent_config import (
     AGENT_CONFIG,
-    AI_ASSISTANT_ALIASES,
-    AI_ASSISTANT_HELP,
     DEFAULT_INIT_INTEGRATION,
     SCRIPT_TYPE_CHOICES,
 )
@@ -38,6 +35,7 @@ try:
         PKG_NAMES,
     )
     from .._core_fork import should_print_project_ready as _fork_should_print_project_ready
+
     _FORK = True
 except ImportError:
     _FORK = False
@@ -53,31 +51,8 @@ except ImportError:
             style = f"dim {style}"
         return f"[{style}]{text}[/]"
 
-
-def _build_integration_equivalent(
-    integration_key: str,
-    ai_commands_dir: str | None = None,
-) -> str:
-    parts = [f"--integration {integration_key}"]
-    if integration_key == "generic" and ai_commands_dir:
-        parts.append(
-            f'--integration-options="--commands-dir {shlex.quote(ai_commands_dir)}"'
-        )
-    return " ".join(parts)
-
-
-def _build_ai_deprecation_warning(
-    integration_key: str,
-    ai_commands_dir: str | None = None,
-) -> str:
-    replacement = _build_integration_equivalent(
-        integration_key,
-        ai_commands_dir=ai_commands_dir,
-    )
-    return (
-        "[bold]--ai[/bold] is deprecated and will no longer be available in version 0.10.0 or later.\n\n"
-        f"Use [bold]{replacement}[/bold] instead."
-    )
+    def accent_style() -> str:
+        return "cyan"
 
 
 def _stdin_is_interactive() -> bool:
@@ -123,8 +98,6 @@ def register(app: typer.Typer) -> None:
     @app.command()
     def init(
         project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-        ai_assistant: str = typer.Option(None, "--ai", help=AI_ASSISTANT_HELP),
-        ai_commands_dir: str = typer.Option(None, "--ai-commands-dir", help="Directory for agent command files (required with --ai generic, e.g. .myagent/commands/)"),
         script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
         ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for coding agent tools like Claude Code"),
         no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
@@ -133,11 +106,10 @@ def register(app: typer.Typer) -> None:
         skip_tls: bool = typer.Option(False, "--skip-tls", help="Deprecated (no-op). Previously: skip SSL/TLS verification.", hidden=True),
         debug: bool = typer.Option(False, "--debug", help="Deprecated. Previously: show verbose diagnostic output; currently only prints additional diagnostic details on failure.", hidden=True),
         github_token: str = typer.Option(None, "--github-token", help="Deprecated (no-op). Previously: GitHub token for API requests.", hidden=True),
-        ai_skills: bool = typer.Option(False, "--ai-skills", help="Install Prompt.MD templates as agent skills (requires --ai)"),
         offline: bool = typer.Option(False, "--offline", help="Deprecated (no-op). All scaffolding now uses bundled assets.", hidden=True),
         preset: str = typer.Option(None, "--preset", help="Install a preset during initialization (by preset ID)"),
         branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
-        integration: str = typer.Option(None, "--integration", help="Use the new integration system (e.g. --integration copilot). Mutually exclusive with --ai."),
+        integration: str = typer.Option(None, "--integration", help="AI coding agent integration to use (e.g. --integration copilot). See 'specify check' for available integrations."),
         integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
         team_ai_directives: str = typer.Option(
             None,
@@ -194,27 +166,6 @@ def register(app: typer.Typer) -> None:
         from ..integration_runtime import with_integration_setting as _with_integration_setting
 
         show_banner()
-        ai_deprecation_warning: str | None = None
-
-        if ai_assistant and ai_assistant.startswith("--"):
-            console.print(f"[red]Error:[/red] Invalid value for --ai: '{ai_assistant}'")
-            console.print("[yellow]Hint:[/yellow] Did you forget to provide a value for --ai?")
-            console.print("[yellow]Example:[/yellow] specify init --integration claude --here")
-            console.print(f"[yellow]Available agents:[/yellow] {', '.join(AGENT_CONFIG.keys())}")
-            raise typer.Exit(1)
-
-        if ai_commands_dir and ai_commands_dir.startswith("--"):
-            console.print(f"[red]Error:[/red] Invalid value for --ai-commands-dir: '{ai_commands_dir}'")
-            console.print("[yellow]Hint:[/yellow] Did you forget to provide a value for --ai-commands-dir?")
-            console.print("[yellow]Example:[/yellow] specify init --integration generic --integration-options=\"--commands-dir .myagent/commands/\"")
-            raise typer.Exit(1)
-
-        if ai_assistant:
-            ai_assistant = AI_ASSISTANT_ALIASES.get(ai_assistant, ai_assistant)
-
-        if integration and ai_assistant:
-            console.print("[red]Error:[/red] --integration and --ai are mutually exclusive")
-            raise typer.Exit(1)
 
         from ..integrations import INTEGRATION_REGISTRY, get_integration
         if integration:
@@ -224,35 +175,6 @@ def register(app: typer.Typer) -> None:
                 available = ", ".join(sorted(INTEGRATION_REGISTRY))
                 console.print(f"[yellow]Available integrations:[/yellow] {available}")
                 raise typer.Exit(1)
-            ai_assistant = integration
-        elif ai_assistant:
-            resolved_integration = get_integration(ai_assistant)
-            if not resolved_integration:
-                console.print(f"[red]Error:[/red] Unknown agent '{ai_assistant}'. Choose from: {', '.join(sorted(INTEGRATION_REGISTRY))}")
-                raise typer.Exit(1)
-            ai_deprecation_warning = _build_ai_deprecation_warning(
-                resolved_integration.key,
-                ai_commands_dir=ai_commands_dir,
-            )
-
-        if ai_assistant or integration:
-            if ai_skills:
-                from ..integrations.base import SkillsIntegration as _SkillsCheck
-                if isinstance(resolved_integration, _SkillsCheck):
-                    console.print(
-                        "[dim]Note: --ai-skills is not needed; "
-                        "skills are the default for this integration.[/dim]"
-                    )
-                else:
-                    console.print(
-                        "[dim]Note: --ai-skills has no effect with "
-                        f"{resolved_integration.key}; this integration uses commands, not skills.[/dim]"
-                    )
-            if ai_commands_dir and resolved_integration.key != "generic":
-                console.print(
-                    "[dim]Note: --ai-commands-dir is deprecated; "
-                    'use [bold]--integration generic --integration-options="--commands-dir <dir>"[/bold] instead.[/dim]'
-                )
 
         if no_git:
             console.print(
@@ -273,11 +195,6 @@ def register(app: typer.Typer) -> None:
             console.print("[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag")
             raise typer.Exit(1)
 
-        if ai_skills and not ai_assistant:
-            console.print("[red]Error:[/red] --ai-skills requires --ai to be specified")
-            console.print("[yellow]Usage:[/yellow] specify init <project> --ai <agent> --ai-skills")
-            raise typer.Exit(1)
-
         BRANCH_NUMBERING_CHOICES = {"sequential", "timestamp"}
         if branch_numbering and branch_numbering not in BRANCH_NUMBERING_CHOICES:
             console.print(f"[red]Error:[/red] Invalid --branch-numbering value '{branch_numbering}'. Choose from: {', '.join(sorted(BRANCH_NUMBERING_CHOICES))}")
@@ -294,7 +211,7 @@ def register(app: typer.Typer) -> None:
                 console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
                 console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
                 if force:
-                    console.print(accent("--force supplied: skipping confirmation and proceeding with merge"))
+                    console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
                 else:
                     response = typer.confirm("Do you want to continue?")
                     if not response:
@@ -312,10 +229,10 @@ def register(app: typer.Typer) -> None:
                     if existing_items:
                         console.print(f"[yellow]Warning:[/yellow] Directory '{project_name}' is not empty ({len(existing_items)} items)")
                         console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
-                    console.print(accent(f"--force supplied: merging into existing directory '{project_name}'"))
+                    console.print(f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]")
                 else:
                     error_panel = Panel(
-                        f"Directory already exists: '{accent(project_name)}'\n"
+                        f"Directory already exists: '[cyan]{project_name}[/cyan]'\n"
                         "Please choose a different project name or remove the existing directory.\n"
                         "Use [bold]--force[/bold] to merge into the existing directory.",
                         title="[red]Directory Conflict[/red]",
@@ -326,11 +243,11 @@ def register(app: typer.Typer) -> None:
                     console.print(error_panel)
                     raise typer.Exit(1)
 
-        if ai_assistant:
-            if ai_assistant not in AGENT_CONFIG:
-                console.print(f"[red]Error:[/red] Invalid AI assistant '{ai_assistant}'. Choose from: {', '.join(AGENT_CONFIG.keys())}")
+        if integration:
+            if integration not in AGENT_CONFIG:
+                console.print(f"[red]Error:[/red] Invalid integration '{integration}'. Choose from: {', '.join(AGENT_CONFIG.keys())}")
                 raise typer.Exit(1)
-            selected_ai = ai_assistant
+            selected_ai = integration
         elif not _stdin_is_interactive():
             console.print(
                 f"[dim]Non-interactive session detected: defaulting to '{DEFAULT_INIT_INTEGRATION}'. "
@@ -345,17 +262,16 @@ def register(app: typer.Typer) -> None:
                 DEFAULT_INIT_INTEGRATION,
             )
 
-        if not ai_assistant:
+        if not integration:
             resolved_integration = get_integration(selected_ai)
             if not resolved_integration:
                 console.print(f"[red]Error:[/red] Unknown agent '{selected_ai}'")
                 raise typer.Exit(1)
 
         if selected_ai == "generic" and not integration_options:
-            if not ai_commands_dir:
-                console.print("[red]Error:[/red] --ai-commands-dir is required when using --ai generic or --integration generic")
-                console.print('[dim]Example: specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"[/dim]')
-                raise typer.Exit(1)
+            console.print("[red]Error:[/red] --integration generic requires --integration-options with --commands-dir")
+            console.print('[dim]Example: specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"[/dim]')
+            raise typer.Exit(1)
 
         current_dir = Path.cwd()
 
@@ -412,7 +328,6 @@ def register(app: typer.Typer) -> None:
         console.print(f"{accent('Selected coding agent integration:')} {selected_ai}")
         console.print(f"{accent('Selected script type:')} {selected_script}")
 
-        # Tikalk fork: activate tracker coordination flag
         sys._specify_tracker_active = True
 
         tracker = StepTracker("Initialize Specify Project")
@@ -460,10 +375,6 @@ def register(app: typer.Typer) -> None:
                 )
 
                 integration_parsed_options: dict[str, Any] = {}
-                if ai_commands_dir:
-                    integration_parsed_options["commands_dir"] = ai_commands_dir
-                if ai_skills:
-                    integration_parsed_options["skills"] = True
                 if integration_options:
                     extra = _parse_integration_options(resolved_integration, integration_options)
                     if extra:
@@ -593,7 +504,6 @@ def register(app: typer.Typer) -> None:
                     "script": selected_script,
                     "speckit_version": get_speckit_version(),
                 }
-                # Tikalk fork: save team-ai-directives and context_file
                 if _FORK:
                     if team_ai_directives:
                         init_opts["team_ai_directives"] = team_ai_directives
@@ -701,7 +611,6 @@ def register(app: typer.Typer) -> None:
                             continuing="Continuing without the optional preset.",
                         )
 
-                # Tikalk fork: run pre_init and post_init hooks
                 if _FORK:
                     try:
                         _fork_pre_init(project_path, selected_ai, team_ai_directives, tracker=tracker)
@@ -735,7 +644,6 @@ def register(app: typer.Typer) -> None:
                 pass
 
         console.print(tracker.render())
-        # Tikalk fork: conditional success message
         if _FORK:
             if _fork_should_print_project_ready(tracker):
                 console.print(f"\n[bold {accent_style()}]Project ready.[/bold {accent_style()}]")
@@ -746,7 +654,7 @@ def register(app: typer.Typer) -> None:
 
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config:
-            agent_folder = ai_commands_dir if selected_ai == "generic" else agent_config["folder"]
+            agent_folder = agent_config["folder"] or integration_parsed_options.get("commands_dir")
             if agent_folder:
                 security_notice = Panel(
                     f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
@@ -757,16 +665,6 @@ def register(app: typer.Typer) -> None:
                 )
                 console.print()
                 console.print(security_notice)
-
-        if ai_deprecation_warning:
-            deprecation_notice = Panel(
-                ai_deprecation_warning,
-                title="[bold red]Deprecation Warning[/bold red]",
-                border_style="red",
-                padding=(1, 2),
-            )
-            console.print()
-            console.print(deprecation_notice)
 
         if git_default_notice:
             default_change_notice = Panel(
@@ -791,24 +689,24 @@ def register(app: typer.Typer) -> None:
         from ..integrations.base import SkillsIntegration as _SkillsInt
         _is_skills_integration = isinstance(resolved_integration, _SkillsInt) or getattr(resolved_integration, "_skills_mode", False)
 
-        codex_skill_mode = selected_ai == "codex" and (ai_skills or _is_skills_integration)
-        claude_skill_mode = selected_ai == "claude" and (ai_skills or _is_skills_integration)
+        codex_skill_mode = selected_ai == "codex" and _is_skills_integration
+        claude_skill_mode = selected_ai == "claude" and _is_skills_integration
         kimi_skill_mode = selected_ai == "kimi"
         agy_skill_mode = selected_ai == "agy" and _is_skills_integration
         trae_skill_mode = selected_ai == "trae"
-        cursor_agent_skill_mode = selected_ai == "cursor-agent" and (ai_skills or _is_skills_integration)
+        cursor_agent_skill_mode = selected_ai == "cursor-agent" and _is_skills_integration
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
         cline_skill_mode = selected_ai == "cline"
         native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode or trae_skill_mode or cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode
 
-        if codex_skill_mode and not ai_skills:
+        if codex_skill_mode:
             steps_lines.append(f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to {accent('.agents/skills')}")
             step_num += 1
-        if claude_skill_mode and not ai_skills:
+        if claude_skill_mode:
             steps_lines.append(f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to {accent('.claude/skills')}")
             step_num += 1
-        if cursor_agent_skill_mode and not ai_skills:
+        if cursor_agent_skill_mode:
             steps_lines.append(f"{step_num}. Start Cursor Agent in this project directory; spec-kit skills were installed to {accent('.cursor/skills')}")
             step_num += 1
         if devin_skill_mode:
@@ -816,7 +714,6 @@ def register(app: typer.Typer) -> None:
             step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
-        # Tikalk fork: detect fork identity for prefix selection
         _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         _cmd_prefix = "spec" if _is_fork else "speckit"
 
