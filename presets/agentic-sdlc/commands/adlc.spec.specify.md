@@ -13,17 +13,30 @@ scripts:
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
-## MANDATORY: Pre-Execution Hooks
+## Phase A: Pre-Approval Discovery Hooks (Read-Only)
 
-**STOP. Before reading Mission Brief, User Input, or doing ANY other work, execute extension hooks.**
+**Execute ONLY read-only discovery hooks before showing the Mission Brief.**
 
 1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to Mission Brief.
 2. Read `.specify/extensions.yml` and find `hooks.before_specify`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
-4. For each remaining hook:
-   - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
+4. **Classify each hook by mutation risk** (inspect the `{command}` name):
+   - **Read-only / discovery hooks** (safe to run before approval):
+     - `team-ai-directives.discover`, `team-ai-directives.constitution`
+     - `agent-context.update` (read-only refresh)
+     - Any command whose name contains `discover`, `verify`, `validate` (when used for read-only context gathering)
+   - **Mutating hooks** (MUST be deferred until after Mission Brief approval):
+     - `git.feature` — creates branches/worktrees
+     - `git.commit` — creates commits
+     - `git.initialize` — initializes repositories
+     - Any hook that modifies filesystem, Git state, or creates resources
+5. For each **read-only** hook:
+   - **Mandatory** (`optional: false`): Execute the command file's full instructions NOW before continuing.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
-5. State which hooks were executed, then proceed to Mission Brief.
+6. For each **mutating** hook: do NOT execute yet. Note it for Phase B.
+7. State which discovery hooks were executed, then proceed to Mission Brief.
+
+**CRITICAL RULE**: No branch, worktree, commit, file, or directory may be created before the user explicitly approves the Mission Brief with "yes".
 
 ---
 
@@ -72,15 +85,30 @@ After collecting/extracting answers, display:
 
 **STOP HERE** - Wait for explicit response.
 
-- **yes**: Proceed to Pre-Execution Checks and spec creation.
+- **yes**: Proceed to Phase B (mutating hooks) and then spec creation.
   Write the approved Goal, Success Criteria, and Constraints into the
   spec header fields (Goal, Success Criteria, Constraints).
 - **adjust**: Ask what needs changing, update the Mission Brief, re-display, ask again.
-- **no**: Stop. Do not create branch or spec.
+- **no**: Stop. Do not create branch or spec. Do not execute any deferred mutating hooks.
 
 **DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
 
 **Failure to follow these rules violates the __SPECKIT_COMMAND_SPECIFY__ contract.**
+
+---
+
+## Phase B: Post-Approval Mutating Hooks
+
+**Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
+
+1. For each **mutating** hook noted in Phase A:
+   - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
+   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+2. State which mutating hooks were executed.
+3. If `git.feature` was executed and returned `BRANCH_NAME`/`FEATURE_NUM`, display:
+   ```
+   Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
+   ```
 
 ---
 
@@ -110,21 +138,12 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Branch creation** (optional, via hook):
+2. **Branch creation** (already completed in Phase B if `git.feature` hook was present):
 
-   **Branch numbering mode**: Before running the script, check if `.specify/init-options.json` exists and read the `branch_numbering` value.
-   - If `"timestamp"`, add `--timestamp` (Bash) or `-Timestamp` (PowerShell) to the script invocation
-   - If `"sequential"` or absent, do not add any extra flag (default behavior)
+   The branch/worktree was created during Phase B mutating hooks (if applicable).
+   Note the `BRANCH_NAME` and `FEATURE_NUM` values for reference, but the branch name does **not** dictate the spec directory name.
 
-   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
-
-   **Display hook output to user**:
-   If `BRANCH_NAME` and `FEATURE_NUM` were returned, display:
-   ```
-   Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
-   ```
-
-   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
+   If the user explicitly provided `GIT_BRANCH_NAME`, it was already passed through to the hook in Phase B.
 
 3. **Create the spec feature directory**:
 
@@ -284,7 +303,7 @@ Given that feature description, do this:
    - Checklist results summary
    - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
-**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension) during **Phase B** (after Mission Brief approval). Spec directory and file creation are always handled by this core command, also after approval.
 
 ## Quick Guidelines
 
