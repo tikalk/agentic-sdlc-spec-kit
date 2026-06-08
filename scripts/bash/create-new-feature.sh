@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 
+# Delegate to git extension if installed
+_SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_REPO_ROOT="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
+_EXT_SCRIPT="$_REPO_ROOT/.specify/extensions/git/scripts/bash/create-new-feature.sh"
+if [ -f "$_EXT_SCRIPT" ] && [ -x "$_EXT_SCRIPT" ]; then
+    exec bash "$_EXT_SCRIPT" "$@"
+fi
+
 set -e
 
 JSON_MODE=false

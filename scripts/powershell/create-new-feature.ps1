@@ -1,4 +1,14 @@
 #!/usr/bin/env pwsh
+
+# Delegate to git extension if installed
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$RepoRoot = (Resolve-Path "$ScriptDir/../../..").Path
+$ExtScript = Join-Path $RepoRoot ".specify/extensions/git/scripts/powershell/create-new-feature.ps1"
+if (Test-Path $ExtScript) {
+    & $ExtScript @args
+    exit $LASTEXITCODE
+}
+
 # Create a new feature
 [CmdletBinding()]
 param(
