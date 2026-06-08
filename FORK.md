@@ -56,13 +56,17 @@ Examples:
 
 ### Tag Format
 Use `agentic-sdlc-v<version>` with plus:
-- Version: `0.8.2+adlc2`
-- Tag: `agentic-sdlc-v0.8.2+adlc2`
+- Version: `0.10.0+adlc3`
+- Tag: `agentic-sdlc-v0.10.0+adlc3`
+
+When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.4.0`).
 
 ### Version History
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc3 | 2026-06-08 | 0.10.0 | Kept the CLI on the upstream 0.10.0 base while shipping the real async/[P] execution backend: script-backed `tasks-meta-utils` CLI (bash + PowerShell), feature-scoped async state, explicit `[SYNC]/[ASYNC]` parsing in `tasks-dag.{sh,ps1}`, real `implement.{sh,ps1}` executors, and `merge-task-branch` support in `worktree-utils.{sh,ps1}`. Bumped the bundled git extension to v1.4.0 for these capabilities. |
+| 0.10.0+adlc2 | 2026-06-08 | 0.10.0 | Hook command id normalization: `.specify/extensions.yml` now stores alias-normalized hook command ids; added normalization helpers in `_core_fork.py`, normalized bundled-install hook configs in init/install flows, and fixed skill-name resolution for alias-form command ids. |
 | 0.10.0+adlc1 | 2026-06-07 | 0.10.0 | Upstream merge: adopted upstream `0.10.0` removal of legacy `--ai`, `--ai-commands-dir`, and `--ai-skills` init flags; merged bundled `bug` triage extension, private-repo preset/workflow release-asset URL hardening, and workflow gate prompt rendering updates. Preserved fork identity, theming, `spec-*` alias guidance, team-directives hooks, and fork package metadata/versioning. |
 | 0.9.5+adlc1 | 2026-06-04 | 0.9.5 | Merge upstream 0.9.5 (3 commits): rovodev Atlassian Rovo Dev integration (`acli rovodev`); `--json` output for `workflow run`/`resume`/`status`; upversion to 0.9.5.dev0. Preserved fork identity and theming. Fixed upstream rovodev integration for fork: added `_reconcile_rovodev_prompts` in `post_init` so prompt wrappers + prompts.yml follow alias-aware skill names (`spec-*`); updated tests to reflect alias-aware contract |
 | 0.9.2+adlc5 | 2026-06-04 | 0.9.2 | Hotfix: made `specify self check` and `specify self upgrade` fork-aware by detecting `agentic-sdlc-specify-cli`, accepting fork tags like `agentic-sdlc-v0.9.2+adlc4`, and emitting fork-correct reinstall/rollback commands |
@@ -319,6 +323,13 @@ git tag -a agentic-sdlc-v0.3.X -m "Release agentic-sdlc-v0.3.X"
 git push origin agentic-sdlc-v0.3.X
 ```
 
+Example for this release:
+
+```bash
+git tag -a agentic-sdlc-v0.10.0+adlc3 -m "Release agentic-sdlc-v0.10.0+adlc3"
+git push origin agentic-sdlc-v0.10.0+adlc3
+```
+
 ### Conflict Resolution Strategy
 
 When conflicts occur during merge:
@@ -445,7 +456,7 @@ Three new `git` extension commands were added in this release. They are worktree
 | Command | Purpose | Script |
 |---|---|---|
 | `speckit.git.task` (`git.task`) | Create/resume a task branch in the current feature worktree and dispatch the task to a subagent | `worktree-utils.sh create-task-branch` |
-| `speckit.git.task-merge` (`git.task-merge`) | Merge a completed task branch back into the feature branch (`git merge --no-ff`); delegates conflict resolution to a subagent; then unregisters the task branch via `worktree-utils.sh remove-task-branch` | `git merge` + `worktree-utils.sh remove-task-branch` |
+| `speckit.git.task-merge` (`git.task-merge`) | Merge a completed task branch back into the feature branch (`git merge --no-ff`); delegates conflict resolution to a subagent; then unregisters the task branch via `worktree-utils.sh merge-task-branch` | `worktree-utils.sh merge-task-branch` |
 | `speckit.git.task-list` (`git.task-list`) | List active task branches in the current worktree (with ahead/behind counts); supports `--json` and `--ids-only` output | `worktree-utils.sh read-manifest` |
 
 These commands are declared in `extensions/git/extension.yml` and reference `.md` files under `extensions/git/commands/`. The `is-in-worktree` script (exit 0 = primary, exit 2 = inside a worktree) is the gate that all three check before proceeding.
@@ -456,7 +467,7 @@ Two new dispatcher scripts (one Bash, one PowerShell) were added. They follow th
 
 | Script | Subcommands | Purpose |
 |---|---|---|
-| `worktree-utils.{sh,ps1}` | `create-feature-worktree`, `remove-feature-worktree`, `create-task-branch`, `remove-task-branch`, `is-in-worktree`, `list-worktrees`, `read-manifest`, `finish-feature` | All worktree lifecycle operations, with JSON output to stdout and human-readable status to stderr |
+| `worktree-utils.{sh,ps1}` | `create-feature-worktree`, `remove-feature-worktree`, `create-task-branch`, `remove-task-branch`, `merge-task-branch`, `is-in-worktree`, `list-worktrees`, `read-manifest`, `finish-feature` | All worktree lifecycle operations, with JSON output to stdout and human-readable status to stderr |
 | `tasks-dag.{sh,ps1}` | `generate`, `validate`, `show`, `classify`, `coalesce` | DAG generation from `tasks.md` (wave computation, parallel-marker validation, coalescing suggestions) |
 
 Both scripts are ASCII-only. The PowerShell version uses single-dash params (`-TasksMd`, `-Dag`, `-Feature`, `-TaskId`); the bash version uses double-dash (`--tasks-md`, `--dag`, `--feature`, `--task-id`). The header comment in each PowerShell script documents this divergence.

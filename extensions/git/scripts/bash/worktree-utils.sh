@@ -352,6 +352,7 @@ Subcommands:
   remove-feature-worktree   --feature <name> [--force]
   create-task-branch        --feature <name> --task-id <TNNN> --task-slug <slug>
   remove-task-branch        --feature <name> --task-id <TNNN> [--force]
+  merge-task-branch         --feature <name> --task-id <TNNN> [--delegate-conflicts]
   is-in-worktree
   list-worktrees
   read-manifest             --worktree-path <path>
@@ -971,6 +972,147 @@ Use --force to override."
 }
 
 # ---------------------------------------------------------------------------
+# Subcommand: merge-task-branch
+# Merges a completed task branch back into the feature branch with --no-ff.
+# On conflict, reports machine-readable conflict state.
+# ---------------------------------------------------------------------------
+cmd_merge_task_branch() {
+    local feature=""
+    local task_id=""
+    local delegate_conflicts=false
+
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --feature) feature="$2"; shift 2 ;;
+            --task-id) task_id="$2"; shift 2 ;;
+            --delegate-conflicts) delegate_conflicts=true; shift ;;
+            --help|-h)
+                echo "Usage: worktree-utils.sh merge-task-branch --feature <name> --task-id <TNNN> [--delegate-conflicts]"
+                exit 0
+                ;;
+            *) _die "Unknown arg: $1" ;;
+        esac
+    done
+
+    [ -n "$feature" ] || _die "--feature is required"
+    [ -n "$task_id" ] || _die "--task-id is required"
+
+    local worktree_path
+    worktree_path="$(_worktree_path_for "$feature")"
+
+    if [ ! -d "$worktree_path" ]; then
+        _die "Feature worktree does not exist: $worktree_path"
+    fi
+
+    local manifest_filename
+    manifest_filename="$(_worktree_config_value manifest_filename)"
+    local manifest_file="$worktree_path/$manifest_filename"
+
+    # Resolve task branch from manifest.
+    local task_branch=""
+    if [ -f "$manifest_file" ] && _have_jq; then
+        task_branch="$(jq -r --arg id "$task_id" '.task_branches[] | select(.id == $id) | .branch' "$manifest_file" 2>/dev/null | head -n1)"
+    fi
+
+    if [ -z "$task_branch" ]; then
+        _die "Task $task_id not found in manifest"
+    fi
+
+    # Ensure feature branch is checked out in the worktree.
+    local current_branch
+    current_branch="$(git -C "$worktree_path" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")"
+    if [ "$current_branch" != "$feature" ]; then
+        git -C "$worktree_path" checkout "$feature" >&2 2>/dev/null \
+            || _die "Failed to checkout feature branch $feature"
+    fi
+
+    # Merge with --no-ff.
+    local merge_output=""
+    local merge_rc=0
+    merge_output="$(git -C "$worktree_path" merge --no-ff "$task_branch" -m "Merge task $task_id into $feature" 2>&1)" || merge_rc=$?
+
+    local conflict_files=""
+    local has_conflict=false
+    if [ "$merge_rc" -ne 0 ]; then
+        has_conflict=true
+        conflict_files="$(git -C "$worktree_path" diff --name-only --diff-filter=U 2>/dev/null | tr '\n' ' ' | sed 's/ $//')"
+    fi
+
+    # On conflict, abort merge and report.
+    if [ "$has_conflict" = "true" ]; then
+        git -C "$worktree_path" merge --abort 2>/dev/null || true
+        if _have_jq; then
+            jq -cn \
+                --arg task_id "$task_id" \
+                --arg task_branch "$task_branch" \
+                --arg feature "$feature" \
+                --argjson has_conflict true \
+                --arg conflict_files "$conflict_files" \
+                --argjson delegate "$delegate_conflicts" \
+                --arg merge_output "$merge_output" \
+                '{
+                    task_id: $task_id,
+                    task_branch: $task_branch,
+                    feature: $feature,
+                    merged: false,
+                    has_conflict: true,
+                    conflict_files: $conflict_files,
+                    delegate_conflicts: $delegate,
+                    merge_output: $merge_output,
+                    ok: true
+                }'
+        else
+            printf '{"task_id":"%s","task_branch":"%s","feature":"%s","merged":false,"has_conflict":true,"conflict_files":"%s","delegate_conflicts":%s,"merge_output":"%s","ok":true}\n' \
+                "$(_json_escape "$task_id")" \
+                "$(_json_escape "$task_branch")" \
+                "$(_json_escape "$feature")" \
+                "$(_json_escape "$conflict_files")" \
+                "$delegate_conflicts" \
+                "$(_json_escape "$merge_output")"
+        fi
+        return 0
+    fi
+
+    # Remove task branch from git and manifest.
+    git -C "$worktree_path" branch -d "$task_branch" >&2 2>/dev/null || true
+
+    if [ -f "$manifest_file" ] && _have_jq; then
+        local tmpf
+        tmpf="$(mktemp)"
+        jq --arg id "$task_id" \
+            '.task_branches |= map(select(.id != $id))' "$manifest_file" > "$tmpf" \
+            && mv "$tmpf" "$manifest_file"
+    fi
+
+    local feature_tip
+    feature_tip="$(git -C "$worktree_path" rev-parse --short HEAD 2>/dev/null || echo "")"
+
+    if _have_jq; then
+        jq -cn \
+            --arg task_id "$task_id" \
+            --arg task_branch "$task_branch" \
+            --arg feature "$feature" \
+            --arg feature_tip "$feature_tip" \
+            --argjson has_conflict false \
+            '{
+                task_id: $task_id,
+                task_branch: $task_branch,
+                feature: $feature,
+                merged: true,
+                has_conflict: false,
+                feature_tip: $feature_tip,
+                ok: true
+            }'
+    else
+        printf '{"task_id":"%s","task_branch":"%s","feature":"%s","merged":true,"has_conflict":false,"feature_tip":"%s","ok":true}\n' \
+            "$(_json_escape "$task_id")" \
+            "$(_json_escape "$task_branch")" \
+            "$(_json_escape "$feature")" \
+            "$(_json_escape "$feature_tip")"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Main dispatcher
 # ---------------------------------------------------------------------------
 SUBCOMMAND="${1:-}"
@@ -985,6 +1127,7 @@ case "$SUBCOMMAND" in
     remove-feature-worktree)   cmd_remove_feature_worktree   "$@" ;;
     create-task-branch)        cmd_create_task_branch        "$@" ;;
     remove-task-branch)        cmd_remove_task_branch        "$@" ;;
+    merge-task-branch)         cmd_merge_task_branch         "$@" ;;
     is-in-worktree)            cmd_is_in_worktree            "$@" ;;
     list-worktrees)            cmd_list_worktrees            "$@" ;;
     read-manifest)             cmd_read_manifest             "$@" ;;

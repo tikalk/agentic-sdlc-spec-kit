@@ -143,7 +143,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.3.0"
+        assert m.version == "1.4.0"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""

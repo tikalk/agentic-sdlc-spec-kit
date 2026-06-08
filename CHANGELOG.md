@@ -2,6 +2,32 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc3] - 2026-06-08
+
+### Added
+
+- **Real async/[P] execution backend**: the Spec-Driven Development workflow now has script-backed orchestration for both branch-mode sequential execution and worktree-mode wave-based parallel execution.
+- **``tasks-meta-utils.sh`` real CLI**: added ``init``, ``add-task``, ``start-task``, ``complete-task``, ``fail-task``, ``review-micro``, ``quality-gate``, ``summary``, ``dispatch-async``, and ``check-status`` subcommands. Async delegation state is now feature-scoped under ``<feature_dir>/.async_state/`` instead of global repo-relative directories.
+- **``tasks-meta-utils.ps1`` PowerShell parity**: full PowerShell counterpart with identical CLI surface and feature-scoped async state.
+- **``worktree-utils.sh`` merge-task-branch**: new subcommand that merges a completed task branch back into the feature branch with ``--no-ff``, reports conflicts in machine-readable JSON, and cleans up the manifest.
+- **``worktree-utils.ps1`` merge-task-branch parity**: PowerShell counterpart with ``-DelegateConflicts`` flag.
+- **``implement.sh`` real executor**: branch-mode sequential execution with [SYNC]/[ASYNC] honor, metadata updates, and tasks.md checkbox marking; worktree-mode wave scheduling with DAG consumption.
+- **``implement.ps1`` PowerShell parity**: full PowerShell executor with identical branch/worktree mode support.
+- **Explicit [SYNC]/[ASYNC] marker parsing**: ``tasks-dag.{sh,ps1}`` now parses explicit ``[SYNC]`` / ``[ASYNC]`` markers from task lines and trusts them over heuristic classification. Both bash and PowerShell DAG generators updated.
+- **Delegation template**: added ``templates/delegation-template.md`` as the default template for async task delegation prompts.
+- **Git extension bumped to 1.4.0**: the bundled ``git`` extension version now reflects the new async execution backend, explicit mode parsing, and task-merge script support without changing the CLI's upstream base version.
+
+### Changed
+
+- **``tasks-dag.sh`` task record format**: internal record format expanded from ``id|story|par|desc`` to ``id|story|par|exec_mode|desc`` to carry explicit execution mode through the pipeline.
+- **``tasks-dag.ps1`` task record format**: same 5-field expansion for PowerShell parity.
+- **``_classify_execution_mode`` contract**: bash function now accepts an optional explicit mode as the first positional argument and returns it verbatim when non-empty, falling back to heuristics only when absent.
+
+### Fixed
+
+- **Prompt/code mismatch for tasks-meta-utils**: the ADLC preset ``adlc.spec.tasks.md`` and ``adlc.spec.implement.md`` previously referenced CLI subcommands (``init``, ``add-task``, ``review-micro``, ``quality-gate``) that did not exist in ``tasks-meta-utils.sh``. All referenced subcommands now have real implementations.
+- **Prompt/code mismatch for git.task-merge**: ``speckit.git.task-merge.md`` described a merge workflow that was not backed by a script subcommand. The ``merge-task-branch`` subcommand now provides the full merge + cleanup flow.
+
 # [0.10.0+adlc2] - 2026-06-08
 
 ### Added

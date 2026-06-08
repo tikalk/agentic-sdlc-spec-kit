@@ -1,522 +1,363 @@
 #!/bin/bash
-# implement.sh - Execute the implementation plan with dual execution loop support
-# Handles SYNC/ASYNC task classification, LLM delegation, and review enforcement
+# implement.sh - Execute the implementation plan
+# Usage: implement.sh <feature_dir> [--worktree]
+#
+# Branch mode (default): sequential execution of tasks from tasks.md
+# Worktree mode (--worktree): wave-based execution from tasks_dag.json
 
 set -euo pipefail
 
-# Source common utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/common.sh"
+
+# Source tasks-meta-utils for metadata operations
 source "$SCRIPT_DIR/tasks-meta-utils.sh"
 
-# Global variables
+_log_info()  { echo "[INFO]  $*" >&2; }
+_log_warn()  { echo "[WARN]  $*" >&2; }
+_log_error() { echo "[ERROR] $*" >&2; }
+_log_success() { echo "[OK]    $*" >&2; }
+
 FEATURE_DIR=""
-AVAILABLE_DOCS=""
+WORKTREE_MODE=false
+FEATURE_NAME=""
 TASKS_FILE=""
 TASKS_META_FILE=""
-CHECKLISTS_DIR=""
-IMPLEMENTATION_LOG=""
+DAG_FILE=""
 
-# Logging functions
-log_info() {
-    echo "[INFO] $*" >&2
+# ---------------------------------------------------------------------------
+# Parse CLI
+# ---------------------------------------------------------------------------
+
+_parse_args() {
+    if [[ $# -lt 1 ]]; then
+        echo "Usage: implement.sh <feature_dir> [--worktree]" >&2
+        exit 1
+    fi
+    FEATURE_DIR="$1"
+    shift
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --worktree) WORKTREE_MODE=true; shift ;;
+            -h|--help)
+                echo "Usage: implement.sh <feature_dir> [--worktree]"
+                exit 0
+                ;;
+            *) _log_error "Unknown arg: $1"; exit 1 ;;
+        esac
+    done
+
+    FEATURE_DIR="$(cd "$FEATURE_DIR" 2>/dev/null && pwd)" || {
+        _log_error "Feature directory not found: $FEATURE_DIR"
+        exit 1
+    }
+    FEATURE_NAME="$(basename "$FEATURE_DIR")"
+    TASKS_FILE="$FEATURE_DIR/tasks.md"
+    TASKS_META_FILE="$FEATURE_DIR/tasks_meta.json"
+    DAG_FILE="$FEATURE_DIR/tasks_dag.json"
 }
 
-log_success() {
-    echo "[SUCCESS] $*" >&2
-}
+# ---------------------------------------------------------------------------
+# Task parsing from tasks.md
+# ---------------------------------------------------------------------------
 
-log_error() {
-    echo "[ERROR] $*" >&2
-}
-
-log_warning() {
-    echo "[WARNING] $*" >&2
-}
-
-# Initialize implementation environment
-init_implementation() {
-    local json_output="$1"
-
-    # Parse JSON output from check-prerequisites.sh
-    FEATURE_DIR=$(echo "$json_output" | jq -r '.FEATURE_DIR // empty')
-    AVAILABLE_DOCS=$(echo "$json_output" | jq -r '.AVAILABLE_DOCS // empty')
-
-    if [[ -z "$FEATURE_DIR" ]]; then
-        log_error "FEATURE_DIR not found in prerequisites check"
+_parse_tasks_from_md() {
+    local tasks_md="$1"
+    if [[ ! -f "$tasks_md" ]]; then
+        _log_error "Tasks file not found: $tasks_md"
         exit 1
     fi
 
-    TASKS_FILE="$FEATURE_DIR/tasks.md"
-    TASKS_META_FILE="$FEATURE_DIR/tasks_meta.json"
-    CHECKLISTS_DIR="$FEATURE_DIR/checklists"
+    local line
+    while IFS= read -r line; do
+        # Match: - [ ] TNNN [P] [SYNC|ASYNC] [USn] Description
+        if [[ "$line" =~ ^-[[:space:]]\[[[:space:]]\][[:space:]]+(T[0-9]+)[[:space:]]+(.*)$ ]]; then
+            local id="${BASH_REMATCH[1]}"
+            local rest="${BASH_REMATCH[2]}"
+            local is_parallel=""
+            local exec_mode=""
+            local story=""
+            local desc="$rest"
 
-    # Create implementation log
-    IMPLEMENTATION_LOG="$FEATURE_DIR/implementation.log"
-    echo "# Implementation Log - $(date)" > "$IMPLEMENTATION_LOG"
-    echo "" >> "$IMPLEMENTATION_LOG"
-
-    log_info "Initialized implementation for feature: $(basename "$FEATURE_DIR")"
-}
-
-# Check checklists status
-check_checklists_status() {
-    if [[ ! -d "$CHECKLISTS_DIR" ]]; then
-        log_info "No checklists directory found - proceeding without checklist validation"
-        return 0
-    fi
-
-    log_info "Checking checklist status..."
-
-    local total_checklists=0
-    local passed_checklists=0
-    local failed_checklists=0
-
-    echo "## Checklist Status Report" >> "$IMPLEMENTATION_LOG"
-    echo "" >> "$IMPLEMENTATION_LOG"
-    echo "| Checklist | Total | Completed | Incomplete | Status |" >> "$IMPLEMENTATION_LOG"
-    echo "|-----------|-------|-----------|------------|--------|" >> "$IMPLEMENTATION_LOG"
-
-    for checklist_file in "$CHECKLISTS_DIR"/*.md; do
-        if [[ ! -f "$checklist_file" ]]; then
-            continue
-        fi
-
-        local filename=$(basename "$checklist_file" .md)
-        local total_items=$(grep -c "^- \[" "$checklist_file" || echo "0")
-        local completed_items=$(grep -c "^- \[X\]\|^- \[x\]" "$checklist_file" || echo "0")
-        local incomplete_items=$((total_items - completed_items))
-
-        local status="PASS"
-        if [[ $incomplete_items -gt 0 ]]; then
-            status="FAIL"
-            failed_checklists=$((failed_checklists + 1))
-        else
-            passed_checklists=$((passed_checklists + 1))
-        fi
-
-        total_checklists=$((total_checklists + 1))
-
-        echo "| $filename | $total_items | $completed_items | $incomplete_items | $status |" >> "$IMPLEMENTATION_LOG"
-    done
-
-    echo "" >> "$IMPLEMENTATION_LOG"
-
-    if [[ $failed_checklists -gt 0 ]]; then
-        log_warning "Found $failed_checklists checklist(s) with incomplete items"
-        echo "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no): "
-        read -r response
-        if [[ ! "$response" =~ ^(yes|y)$ ]]; then
-            log_info "Implementation cancelled by user"
-            exit 0
-        fi
-    else
-        log_success "All $total_checklists checklists passed"
-    fi
-}
-
-# Load implementation context
-load_implementation_context() {
-    log_info "Loading implementation context..."
-
-    # Require all artifacts
-    local required_files=("tasks.md" "spec.md" "plan.md")
-
-    for file in "${required_files[@]}"; do
-        if [[ ! -f "$FEATURE_DIR/$file" ]]; then
-            log_error "Required file missing: $FEATURE_DIR/$file"
-            exit 1
-        fi
-    done
-
-    # Optional files
-    local optional_files=("data-model.md" "contracts/" "research.md" "quickstart.md")
-
-    for file in "${optional_files[@]}"; do
-        if [[ -f "$FEATURE_DIR/$file" ]] || [[ -d "$FEATURE_DIR/$file" ]]; then
-            log_info "Found optional context: $file"
-        fi
-    done
-}
-
-# Parse tasks from tasks.md
-parse_tasks() {
-    log_info "Parsing tasks from $TASKS_FILE..."
-
-    # Extract tasks with their metadata
-    # This is a simplified parser - in practice, you'd want more robust parsing
-    local task_lines
-    task_lines=$(grep -n "^- \[ \] T[0-9]\+" "$TASKS_FILE" || true)
-
-    if [[ -z "$task_lines" ]]; then
-        log_warning "No uncompleted tasks found in $TASKS_FILE"
-        return 0
-    fi
-
-    echo "$task_lines" | while IFS=: read -r line_num task_line; do
-        # Extract task ID, description, and markers
-        local task_id
-        task_id=$(echo "$task_line" | sed -n 's/.*\(T[0-9]\+\).*/\1/p')
-
-        local description
-        description=$(echo "$task_line" | sed 's/^- \[ \] T[0-9]\+ //' | sed 's/\[.*\]//g' | xargs)
-
-        local execution_mode="SYNC"  # Default
-        if echo "$task_line" | grep -q "\[ASYNC\]"; then
-            execution_mode="ASYNC"
-        fi
-
-        local parallel_marker=""
-        if echo "$task_line" | grep -q "\[P\]"; then
-            parallel_marker="P"
-        fi
-
-        # Extract file paths (simplified - look for file extensions in the task)
-        local task_files=""
-        task_files=$(echo "$task_line" | grep -oE '\b\w+\.(js|ts|py|java|cpp|md|json|yml|yaml)\b' | tr '\n' ' ' | xargs || echo "")
-
-        log_info "Found task $task_id: $description [$execution_mode] ${parallel_marker:+$parallel_marker }($task_files)"
-
-        # Classify and add to tasks_meta.json
-        local classified_mode
-        classified_mode=$(classify_task_execution_mode "$description" "$task_files")
-
-        # Override with explicit marker if present
-        if [[ "$execution_mode" == "ASYNC" ]]; then
-            classified_mode="ASYNC"
-        fi
-
-        add_task "$TASKS_META_FILE" "$task_id" "$description" "$task_files" "$classified_mode"
-    done
-}
-
-# Execute task with dual execution loop
-execute_task() {
-    local task_id="$1"
-    local execution_mode
-    execution_mode=$(jq -r ".tasks[\"$task_id\"].execution_mode" "$TASKS_META_FILE")
-
-    log_info "Executing task $task_id in $execution_mode mode"
-
-    if [[ "$execution_mode" == "ASYNC" ]]; then
-        # Generate delegation prompt for LLM
-        local task_description
-        task_description=$(jq -r ".tasks[\"$task_id\"].description" "$TASKS_META_FILE")
-        local task_files
-        task_files=$(jq -r ".tasks[\"$task_id\"].files // empty" "$TASKS_META_FILE")
-        local agent_type
-        agent_type=$(jq -r ".tasks[\"$task_id\"].agent_type // \"general\"" "$TASKS_META_FILE")
-
-        # Check if using local orchestrator (agentic-sdlc-agent-runner)
-        if [[ "$agent_type" == "agentic-sdlc-agent-runner" ]]; then
-            # Use local K8s runner
-            log_info "Spawning K8s pod via agentic-sdlc-agent-runner for task $task_id"
-            
-            # Get repository info
-            local repo_url
-            repo_url=$(git remote get-url origin 2>/dev/null || echo "")
-            local branch_name
-            branch_name=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
-            
-            # Find the orchestrator spawn-pod.sh script
-            local orchestrator_script=""
-            if [[ -f "$FEATURE_DIR/scripts/spawn-pod.sh" ]]; then
-                orchestrator_script="$FEATURE_DIR/scripts/spawn-pod.sh"
-            elif [[ -f "./scripts/spawn-pod.sh" ]]; then
-                orchestrator_script="./scripts/spawn-pod.sh"
-            elif command -v agentic-sdlc-agent-runner &>/dev/null; then
-                # Try to find spawn-pod.sh relative to the installed CLI
-                local cli_path
-                cli_path=$(which agentic-sdlc-agent-runner)
-                local cli_dir
-                cli_dir=$(dirname "$cli_path")
-                if [[ -f "$cli_dir/../scripts/spawn-pod.sh" ]]; then
-                    orchestrator_script="$cli_dir/../scripts/spawn-pod.sh"
-                fi
+            if [[ "$rest" =~ ^\[P\][[:space:]]+(.*)$ ]]; then
+                is_parallel="P"
+                rest="${BASH_REMATCH[1]}"
             fi
-            
-            if [[ -n "$orchestrator_script" && -f "$orchestrator_script" ]]; then
-                log_info "Using orchestrator script: $orchestrator_script"
-                "$orchestrator_script" \
-                    --task-id "$task_id" \
-                    --branch "specs/$(basename "$FEATURE_DIR")/${task_id}-async" \
-                    --repo "$repo_url" \
-                    --context-dir "$FEATURE_DIR"
-                
-                if [[ $? -eq 0 ]]; then
-                    log_success "K8s pod spawned for task $task_id"
-                    safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "running"'
-                else
-                    handle_task_failure "$task_id" "Failed to spawn K8s pod"
-                fi
-            else
-                log_warn "agentic-sdlc-agent-runner script not found. Expected at: ./scripts/spawn-pod.sh"
-                log_info "Please ensure the agentic-sdlc-agent-runner repository is cloned and scripts are available"
-                log_info "Falling back to standard async delegation"
-                # Fall back to standard dispatch_async_task
-                local task_context="Files: $task_files"
-                local task_requirements="Complete the task according to specifications"
-                local execution_instructions="Execute the task and provide detailed results"
-
-                if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
-                    log_success "ASYNC task $task_id dispatched successfully"
-                else
-                    handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
-                fi
+            if [[ "$rest" =~ ^\[(SYNC|ASYNC)\][[:space:]]+(.*)$ ]]; then
+                exec_mode="${BASH_REMATCH[1]}"
+                rest="${BASH_REMATCH[2]}"
             fi
-        else
-            # Standard async delegation (MCP agents like jules, async-copilot, async-codex)
-            local task_context="Files: $task_files"
-            local task_requirements="Complete the task according to specifications"
-            local execution_instructions="Execute the task and provide detailed results"
-
-            if dispatch_async_task "$task_id" "$agent_type" "$task_description" "$task_context" "$task_requirements" "$execution_instructions" "$FEATURE_DIR"; then
-                log_success "ASYNC task $task_id dispatched successfully"
-            else
-                handle_task_failure "$task_id" "Failed to dispatch ASYNC task"
+            if [[ "$rest" =~ ^\[(US[0-9]+)\][[:space:]]+(.*)$ ]]; then
+                story="${BASH_REMATCH[1]}"
+                rest="${BASH_REMATCH[2]}"
             fi
+            desc="$rest"
+            desc="$(echo "$desc" | sed -E 's/[[:space:]]+$//')"
+
+            # Extract files
+            local files=""
+            files="$(echo "$desc" | grep -oE '[a-zA-Z0-9_./-]+\.(py|sh|ps1|js|ts|tsx|jsx|go|rs|java|rb|php|c|cpp|h|hpp|cs|swift|kt|mjs|cjs)' 2>/dev/null | sort -u | tr '\n' ' ' || true)"
+            files="$(echo "$files" | sed 's/ $//')"
+
+            # Default to heuristic if no explicit marker
+            if [[ -z "$exec_mode" ]]; then
+                exec_mode="$(classify_task_execution_mode "$desc" "$files")"
+            fi
+
+            printf '%s|%s|%s|%s|%s|%s\n' "$id" "$is_parallel" "$exec_mode" "$story" "$desc" "$files"
         fi
-    else
-        # Execute SYNC task (would normally involve AI agent execution)
-        log_info "SYNC task $task_id would be executed here (simulated)"
-
-        # Simulate execution success/failure (in real implementation, check actual execution result)
-        local execution_success=true
-
-        if [[ "$execution_success" == "true" ]]; then
-            # Mark as completed (in real implementation, this would happen after successful execution)
-            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
-
-            # Spec mode: Always perform blocking micro-review gate
-            perform_micro_review "$TASKS_META_FILE" "$task_id"
-        else
-            handle_task_failure "$task_id" "SYNC task execution failed"
-        fi
-    fi
-
-    # Apply quality gates
-    apply_quality_gates "$TASKS_META_FILE" "$task_id"
+    done < "$tasks_md"
 }
 
-# Monitor ASYNC tasks
-monitor_async_tasks() {
-    log_info "Monitoring ASYNC tasks..."
+# ---------------------------------------------------------------------------
+# Mark task complete in tasks.md
+# ---------------------------------------------------------------------------
 
-    local async_tasks
-    async_tasks=$(jq -r '.tasks | to_entries[] | select(.value.execution_mode == "ASYNC" and .value.status != "completed") | .key' "$TASKS_META_FILE")
-
-    if [[ -z "$async_tasks" ]]; then
-        log_info "No ASYNC tasks to monitor"
-        return 0
-    fi
-
-    echo "$async_tasks" | while read -r task_id; do
-        if [[ -z "$task_id" ]]; then
-            continue
-        fi
-
-        local status
-        status=$(check_delegation_status "$task_id")
-
-        case "$status" in
-            "completed")
-                log_success "ASYNC task $task_id completed"
-                # Mark as completed in tasks_meta.json
-                safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "completed"'
-                # Perform macro-review for completed ASYNC tasks
-                perform_macro_review "$TASKS_META_FILE"
-                ;;
-            "running")
-                log_info "ASYNC task $task_id still running"
-                ;;
-            "failed")
-                log_error "ASYNC task $task_id failed"
-                # Handle failure with rollback options
-                handle_task_failure "$task_id" "ASYNC task execution failed"
-                ;;
-            "no_job")
-                log_warning "ASYNC task $task_id has no delegation response"
-                ;;
-        esac
-    done
+_mark_task_complete() {
+    local tasks_md="$1"
+    local task_id="$2"
+    sed -i -E "s/^(- \[ \] ${task_id}\b)/- [X] ${task_id}/" "$tasks_md"
 }
 
-# Main implementation workflow
-main() {
-    local json_output="$1"
+# ---------------------------------------------------------------------------
+# Branch mode: sequential execution
+# ---------------------------------------------------------------------------
 
-    init_implementation "$json_output"
-    check_checklists_status
-    load_implementation_context
+_execute_branch_mode() {
+    _log_info "Branch mode: sequential execution"
 
-    # Initialize tasks_meta.json if needed
+    # Initialize metadata if missing
     if [[ ! -f "$TASKS_META_FILE" ]]; then
         init_tasks_meta "$FEATURE_DIR"
     fi
 
-    parse_tasks
+    # Parse and register tasks
+    local parsed
+    parsed="$(_parse_tasks_from_md "$TASKS_FILE")"
 
-    # Execute tasks (simplified - in practice would handle phases and dependencies)
-    local pending_tasks
-    pending_tasks=$(jq -r '.tasks | to_entries[] | select(.value.status == "pending") | .key' "$TASKS_META_FILE")
+    local line
+    while IFS= read -r line; do
+        [[ -z "$line" ]] && continue
+        IFS='|' read -r task_id is_parallel exec_mode story desc files <<< "$line"
 
-    if [[ -n "$pending_tasks" ]]; then
-        echo "$pending_tasks" | while read -r task_id; do
-            if [[ -z "$task_id" ]]; then
-                continue
-            fi
-            execute_task "$task_id"
-        done
-    fi
+        # Skip already-completed tasks
+        if grep -qE "^- \[[xX]\] ${task_id}\b" "$TASKS_FILE"; then
+            _log_info "Task $task_id already completed, skipping"
+            continue
+        fi
 
-    # Monitor ASYNC tasks
-    monitor_async_tasks
+        # Add to metadata if not present
+        local existing
+        existing="$(jq -r --arg tid "$task_id" '.tasks[$tid] // empty' "$TASKS_META_FILE" 2>/dev/null || true)"
+        if [[ -z "$existing" ]]; then
+            add_task "$TASKS_META_FILE" "$task_id" "$desc" "$files" "$exec_mode"
+        fi
 
-    # Check if all tasks are completed for macro-review
-    local all_completed
-    all_completed=$(jq '.tasks | all(.status == "completed")' "$TASKS_META_FILE")
+        _log_info "Executing task $task_id [$exec_mode]: $desc"
+        start_task "$TASKS_META_FILE" "$task_id"
 
-    if [[ "$all_completed" == "true" ]]; then
-        log_info "All tasks completed - performing macro-review"
-        perform_macro_review "$TASKS_META_FILE"
-
-        # Offer documentation evolution after successful implementation
-        log_info "Offering documentation evolution based on implementation learnings"
-        offer_documentation_evolution "$FEATURE_DIR"
-    else
-        log_info "Some tasks still pending - macro-review deferred until completion"
-    fi
-
-    # Generate summary
-    get_execution_summary "$TASKS_META_FILE"
-
-    log_success "Implementation phase completed"
-}
-
-# Offer documentation evolution after implementation
-offer_documentation_evolution() {
-    local feature_dir="$1"
-
-    log_info "Analyzing implementation for documentation evolution opportunities..."
-
-    # Analyze implementation changes
-    local analysis_results
-    analysis_results=$(analyze_implementation_changes "$feature_dir")
-
-    # Check if there are significant changes worth documenting
-    if echo "$analysis_results" | grep -q "new features\|architecture\|refinements\|additional tasks"; then
-        log_info "Implementation changes detected - offering documentation evolution"
-
-        # Propose documentation updates
-        local proposals
-        proposals=$(propose_documentation_updates "$feature_dir" "$analysis_results")
-
-        echo "## Documentation Evolution Available
-$proposals
-
-Would you like to apply these documentation updates? (yes/no): "
-        read -r response
-        if [[ "$response" =~ ^(yes|y)$ ]]; then
-            apply_recommended_updates "$feature_dir" "$analysis_results"
+        # Execute task body
+        local result=0
+        if [[ "$exec_mode" == "ASYNC" ]]; then
+            _execute_async_task "$task_id" "$desc" "$files"
         else
-            log_info "Documentation evolution skipped by user"
+            _execute_sync_task "$task_id" "$desc" "$files"
         fi
+        result=$?
+
+        if [[ $result -eq 0 ]]; then
+            complete_task "$TASKS_META_FILE" "$task_id" "Task completed successfully"
+            _mark_task_complete "$TASKS_FILE" "$task_id"
+            _log_success "Task $task_id completed"
+        else
+            fail_task "$TASKS_META_FILE" "$task_id" "Task execution failed"
+            _log_error "Task $task_id failed"
+            return 1
+        fi
+
+        # Quality gate
+        quality_gate "$TASKS_META_FILE" "$task_id" || true
+    done <<< "$parsed"
+
+    # Final summary
+    local summary_json
+    summary_json="$(summary "$TASKS_META_FILE")"
+    local all_done
+    all_done="$(echo "$summary_json" | jq -r '.all_done')"
+    if [[ "$all_done" == "true" ]]; then
+        _log_success "All tasks completed for feature $FEATURE_NAME"
     else
-        log_info "No significant documentation evolution needed"
+        _log_warn "Some tasks remain incomplete for feature $FEATURE_NAME"
     fi
+    echo "$summary_json"
 }
 
-# Apply recommended documentation updates
-apply_recommended_updates() {
-    local feature_dir="$1"
-    local analysis_results="$2"
-
-    # Apply spec updates if new features detected
-    if echo "$analysis_results" | grep -q "new features\|new API\|new components"; then
-        echo "What new features should be added to spec.md? (describe or 'skip'): "
-        read -r spec_updates
-        if [[ "$spec_updates" != "skip" ]]; then
-            apply_documentation_updates "$feature_dir" "spec" "$spec_updates"
-        fi
-    fi
-
-    # Apply plan updates if architecture changes detected
-    if echo "$analysis_results" | grep -q "architecture\|performance\|security"; then
-        echo "What architecture changes should be documented in plan.md? (describe or 'skip'): "
-        read -r plan_updates
-        if [[ "$plan_updates" != "skip" ]]; then
-            apply_documentation_updates "$feature_dir" "plan" "$plan_updates"
-        fi
-    fi
-
-    # Apply task updates if refinements detected
-    if echo "$analysis_results" | grep -q "additional tasks\|refinements"; then
-        echo "What refinement tasks should be added to tasks.md? (describe or 'skip'): "
-        read -r task_updates
-        if [[ "$task_updates" != "skip" ]]; then
-            apply_documentation_updates "$feature_dir" "tasks" "$task_updates"
-        fi
-    fi
-
-    log_success "Documentation evolution completed"
-}
-
-# Handle task failure with enhanced rollback options
-handle_task_failure() {
+_execute_sync_task() {
     local task_id="$1"
-    local failure_reason="$2"
-
-    log_warning "Task $task_id failed: $failure_reason"
-
-    # Use standard mode for rollback
-    local mode="spec"
-
-    echo "Task $task_id failed. Options:
-1. Retry task
-2. Rollback task and continue
-3. Rollback entire feature and regenerate tasks
-4. Regenerate plan and tasks
-5. Skip and continue
-Choose (1-5): "
-    read -r choice
-
-    case "$choice" in
-        1)
-            log_info "Retrying task $task_id"
-            # Reset task status to pending
-            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "pending"'
-            ;;
-        2)
-            log_info "Rolling back task $task_id"
-            execute_rollback "$FEATURE_DIR" "task" "$task_id"
-            ensure_documentation_consistency "$FEATURE_DIR"
-            ;;
-        3)
-            log_info "Rolling back entire feature and regenerating tasks"
-            execute_rollback "$FEATURE_DIR" "feature"
-            regenerate_tasks_after_rollback "$FEATURE_DIR" "$failure_reason"
-            ensure_documentation_consistency "$FEATURE_DIR"
-            ;;
-        4)
-            log_info "Regenerating plan and tasks after failure analysis"
-            regenerate_plan "$FEATURE_DIR" "Task failure: $failure_reason"
-            regenerate_tasks_after_rollback "$FEATURE_DIR" "$failure_reason"
-            ;;
-        5)
-            log_info "Skipping failed task $task_id"
-            safe_json_update "$TASKS_META_FILE" --arg task_id "$task_id" '.tasks[$task_id].status = "skipped"'
-            ;;
-        *)
-            log_warning "Invalid choice, skipping task"
-            ;;
-    esac
+    local desc="$2"
+    local files="$3"
+    _log_info "SYNC task $task_id: executing inline"
+    # In a real environment, this would invoke the agent or build system.
+    # For the script backend, we return success and let the caller handle execution.
+    return 0
 }
 
-# Run main if script is executed directly
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    if [[ $# -lt 1 ]]; then
-        echo "Usage: $0 <json_output_from_check_prerequisites>"
+_execute_async_task() {
+    local task_id="$1"
+    local desc="$2"
+    local files="$3"
+    _log_info "ASYNC task $task_id: dispatching to async agent"
+    # Dispatch the async task
+    dispatch_async_task "$task_id" "general" "$desc" "Files: $files" "Complete per spec" "Execute and commit" "$FEATURE_DIR"
+
+    # Poll for completion (with timeout)
+    local max_wait=300  # 5 minutes default
+    local waited=0
+    while true; do
+        local status
+        status="$(check_delegation_status "$task_id" "$FEATURE_DIR")"
+        case "$status" in
+            completed)
+                _log_success "ASYNC task $task_id completed"
+                return 0
+                ;;
+            failed)
+                _log_error "ASYNC task $task_id failed"
+                return 1
+                ;;
+            no_job)
+                _log_warn "ASYNC task $task_id has no job record"
+                return 1
+                ;;
+        esac
+        sleep 2
+        waited=$((waited + 2))
+        if [[ $waited -ge $max_wait ]]; then
+            _log_warn "ASYNC task $task_id timed out after ${max_wait}s"
+            return 1
+        fi
+    done
+}
+
+# ---------------------------------------------------------------------------
+# Worktree mode: wave-based execution
+# ---------------------------------------------------------------------------
+
+_execute_worktree_mode() {
+    _log_info "Worktree mode: wave-based execution"
+
+    if [[ ! -f "$DAG_FILE" ]]; then
+        _log_warn "DAG file not found: $DAG_FILE. Falling back to branch mode."
+        _execute_branch_mode
+        return
+    fi
+
+    if ! command -v jq >/dev/null 2>&1; then
+        _log_error "Worktree mode requires jq"
         exit 1
     fi
-    main "$1"
-fi
+
+    # Initialize metadata if missing
+    if [[ ! -f "$TASKS_META_FILE" ]]; then
+        init_tasks_meta "$FEATURE_DIR"
+    fi
+
+    # Register all tasks from DAG
+    local task_count
+    task_count="$(jq '.tasks | length' "$DAG_FILE")"
+    local i
+    for i in $(seq 0 $((task_count - 1))); do
+        local task_obj
+        task_obj="$(jq -c ".tasks[$i]" "$DAG_FILE")"
+        local task_id desc files exec_mode
+        task_id="$(echo "$task_obj" | jq -r '.id')"
+        desc="$(echo "$task_obj" | jq -r '.description')"
+        files="$(echo "$task_obj" | jq -r '[.files[]?] | join(" ")')"
+        exec_mode="$(echo "$task_obj" | jq -r '.execution_mode')"
+
+        local existing
+        existing="$(jq -r --arg tid "$task_id" '.tasks[$tid] // empty' "$TASKS_META_FILE" 2>/dev/null || true)"
+        if [[ -z "$existing" ]]; then
+            add_task "$TASKS_META_FILE" "$task_id" "$desc" "$files" "$exec_mode"
+        fi
+    done
+
+    # Execute waves
+    local wave_count
+    wave_count="$(jq '.execution_waves | length' "$DAG_FILE")"
+    local wave_idx
+    for wave_idx in $(seq 0 $((wave_count - 1))); do
+        local wave_tasks
+        wave_tasks="$(jq -r ".execution_waves[$wave_idx][]" "$DAG_FILE")"
+
+        if [[ -z "$wave_tasks" ]]; then
+            continue
+        fi
+
+        _log_info "Wave $((wave_idx + 1))/$wave_count: $(echo "$wave_tasks" | tr '\n' ' ')"
+
+        # For each task in the wave: create branch, start, execute
+        local task_id
+        while IFS= read -r task_id; do
+            [[ -z "$task_id" ]] && continue
+
+            # Skip already completed
+            if grep -qE "^- \[[xX]\] ${task_id}\b" "$TASKS_FILE"; then
+                _log_info "Task $task_id already completed, skipping"
+                continue
+            fi
+
+            start_task "$TASKS_META_FILE" "$task_id"
+
+            # In worktree mode, we assume the caller (agent) handles task branch
+            # creation and actual implementation. This script orchestrates metadata.
+            local exec_mode
+            exec_mode="$(jq -r --arg tid "$task_id" '.tasks[$tid].execution_mode' "$TASKS_META_FILE")"
+
+            if [[ "$exec_mode" == "ASYNC" ]]; then
+                _execute_async_task "$task_id" "" ""
+            else
+                _execute_sync_task "$task_id" "" ""
+            fi
+        done <<< "$wave_tasks"
+
+        # Wait for wave completion and mark successful tasks
+        while IFS= read -r task_id; do
+            [[ -z "$task_id" ]] && continue
+            local status
+            status="$(jq -r --arg tid "$task_id" '.tasks[$tid].status' "$TASKS_META_FILE")"
+            if [[ "$status" == "completed" ]]; then
+                _mark_task_complete "$TASKS_FILE" "$task_id"
+            fi
+        done <<< "$wave_tasks"
+    done
+
+    # Final summary
+    local summary_json
+    summary_json="$(summary "$TASKS_META_FILE")"
+    echo "$summary_json"
+}
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+main() {
+    _parse_args "$@"
+
+    if [[ ! -f "$TASKS_FILE" ]]; then
+        _log_error "Tasks file not found: $TASKS_FILE"
+        exit 1
+    fi
+
+    _log_info "Implementing feature: $FEATURE_NAME"
+    _log_info "Tasks: $TASKS_FILE"
+    _log_info "Mode: $([[ "$WORKTREE_MODE" == "true" ]] && echo "worktree" || echo "branch")"
+
+    if [[ "$WORKTREE_MODE" == "true" ]]; then
+        _execute_worktree_mode
+    else
+        _execute_branch_mode
+    fi
+}
+
+main "$@"

@@ -78,21 +78,27 @@ _json_escape() {
 _err() { echo "Error: $*" >&2; }
 _die() { _err "$@"; exit 1; }
 
-# Strip markdown checkbox, ID, [P] marker, [Story] label from a task line.
-# Echoes: id|story|is_parallel|description
+# Strip markdown checkbox, ID, [P], [SYNC]/[ASYNC], [Story] labels from a task line.
+# Echoes: id|story|is_parallel|execution_mode|description
 _parse_task_line() {
     local line="$1"
-    # Match: - [ ] TNNN [P] [US1] Description
+    # Match: - [ ] TNNN [P] [ASYNC] [US1] Description
     if [[ "$line" =~ ^-[[:space:]]\[[[:space:]]\][[:space:]]+(T[0-9]+)[[:space:]]+(.*)$ ]]; then
         local id="${BASH_REMATCH[1]}"
         local rest="${BASH_REMATCH[2]}"
         local is_parallel=0
         local story=""
+        local execution_mode=""
         local desc="$rest"
         # [P] marker
         if [[ "$rest" =~ ^\[P\][[:space:]]+(.*)$ ]]; then
             is_parallel=1
             rest="${BASH_REMATCH[1]}"
+        fi
+        # [SYNC] or [ASYNC] marker
+        if [[ "$rest" =~ ^\[(SYNC|ASYNC)\][[:space:]]+(.*)$ ]]; then
+            execution_mode="${BASH_REMATCH[1]}"
+            rest="${BASH_REMATCH[2]}"
         fi
         # [USn] or [USnn] story label
         if [[ "$rest" =~ ^\[(US[0-9]+)\][[:space:]]+(.*)$ ]]; then
@@ -102,7 +108,7 @@ _parse_task_line() {
         desc="$rest"
         # Trim trailing whitespace
         desc="$(echo "$desc" | sed -E 's/[[:space:]]+$//')"
-        printf '%s|%s|%s|%s\n' "$id" "$story" "$is_parallel" "$desc"
+        printf '%s|%s|%s|%s|%s\n' "$id" "$story" "$is_parallel" "$execution_mode" "$desc"
         return 0
     fi
     return 1
@@ -122,18 +128,23 @@ _extract_files() {
         | sort -u || true
 }
 
-# Determine execution mode (SYNC/ASYNC) from description and files.
-# ASYNC if: description contains research/analyze keywords, OR >2 files.
+# Determine execution mode (SYNC/ASYNC).
+# If explicit_mode is non-empty, trust it. Otherwise fall back to heuristics:
+#   ASYNC if description contains research/analyze keywords, OR >2 files.
 _classify_execution_mode() {
-    local desc="$1"
-    local files="$2"
+    local explicit_mode="$1"
+    local desc="$2"
+    local files="$3"
+    if [ -n "$explicit_mode" ]; then
+        echo "$explicit_mode"
+        return
+    fi
     if echo "$desc" | grep -qiE "research|analyze|design|plan|review|test|investigate|explore|prototype"; then
         echo "ASYNC"
     else
         local file_count=0
         if [ -n "$files" ]; then
             file_count="$(printf '%s\n' "$files" | grep -c . 2>/dev/null || true)"
-            # Normalize: strip whitespace, default to 0.
             file_count="${file_count//[$'\t\r\n ']/}"
             [ -z "$file_count" ] && file_count=0
         fi
@@ -176,7 +187,7 @@ _compute_waves() {
     # Parse into parallel arrays.
     local -a ids stories parallels files_list
     for line in "${lines[@]}"; do
-        IFS='|' read -r id story par fl <<< "$line"
+        IFS='|' read -r id story par exec_mode desc fl phase <<< "$line"
         ids+=("$id")
         stories+=("$story")
         parallels+=("$par")
@@ -408,12 +419,12 @@ cmd_generate() {
             continue
         fi
         if parsed="$(_parse_task_line "$line")"; then
-            IFS='|' read -r id story par desc <<< "$parsed"
+            IFS='|' read -r id story par exec_mode desc <<< "$parsed"
             local files
             files="$(_extract_files "$desc")"
-            local exec_mode
-            exec_mode="$(_classify_execution_mode "$desc" "$files")"
-            task_records+=("$id|$story|$par|$desc|$files|$exec_mode|$current_phase")
+            local final_mode
+            final_mode="$(_classify_execution_mode "$exec_mode" "$desc" "$files")"
+            task_records+=("$id|$story|$par|$final_mode|$desc|$files|$current_phase")
         fi
     done < "$tasks_md"
 
@@ -493,7 +504,7 @@ $rec"
     local tasks_json="[]"
     for i in "${!task_records[@]}"; do
         local rec="${task_records[$i]}"
-        IFS='|' read -r id story par desc files exec_mode phase <<< "$rec"
+        IFS='|' read -r id story par exec_mode desc files phase <<< "$rec"
         # Find the wave index for this task.
         local wave_index=0
         local w
@@ -801,11 +812,11 @@ cmd_classify() {
     if ! parsed="$(_parse_task_line "$task_line")"; then
         _die "Failed to parse task line: $task_line"
     fi
-    IFS='|' read -r id story par desc <<< "$parsed"
+    IFS='|' read -r id story par exec_mode desc <<< "$parsed"
     local files
     files="$(_extract_files "$desc")"
-    local exec_mode
-    exec_mode="$(_classify_execution_mode "$desc" "$files")"
+    local final_mode
+    final_mode="$(_classify_execution_mode "$exec_mode" "$desc" "$files")"
 
     local files_json
     files_json="$(echo "$files" | jq -R . | jq -s 'map(select(length > 0))')"
@@ -826,7 +837,7 @@ cmd_classify() {
     local saw_target=false
     while IFS= read -r line; do
         if parsed="$(_parse_task_line "$line")"; then
-            IFS='|' read -r tid tstory tpar tdesc <<< "$parsed"
+            IFS='|' read -r tid tstory tpar texec_mode tdesc <<< "$parsed"
             local tfl
             tfl="$(_extract_files "$tdesc")"
 
@@ -899,7 +910,7 @@ $tfl"
         --argjson story "$story_json" \
         --argjson is_parallel "$par" \
         --argjson files "$files_json" \
-        --arg exec_mode "$exec_mode" \
+        --arg exec_mode "$final_mode" \
         --argjson wave "$wave" \
         '{id: $id, description: $desc, story: $story, is_parallel: $is_parallel, files: $files, execution_mode: $exec_mode, execution_wave: $wave, ok: true}'
 }
@@ -937,7 +948,7 @@ cmd_coalesce() {
     local prev_id="" prev_story="" prev_par="" prev_desc="" prev_file=""
     while IFS= read -r line; do
         if parsed="$(_parse_task_line "$line")"; then
-            IFS='|' read -r id story par desc <<< "$parsed"
+            IFS='|' read -r id story par exec_mode desc <<< "$parsed"
             local files
             files="$(_extract_files "$desc")"
             local first_file

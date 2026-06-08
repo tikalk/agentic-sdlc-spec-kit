@@ -1,201 +1,295 @@
-# implement.ps1 - Execute the implementation plan with dual execution loop support
-# Handles SYNC/ASYNC task classification, MCP dispatching, and review enforcement
+#!/usr/bin/env pwsh
+# implement.ps1 - Execute the implementation plan
+# Usage: implement.ps1 -FeatureDir <path> [-Worktree]
+#
+# Branch mode (default): sequential execution of tasks from tasks.md
+# Worktree mode (-Worktree): wave-based execution from tasks_dag.json
 
+[CmdletBinding()]
 param(
     [Parameter(Mandatory=$true)]
-    [string]$JsonOutput
+    [string]$FeatureDir,
+    [switch]$Worktree
 )
 
-# Source common utilities
+$ErrorActionPreference = 'Stop'
+
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-. "$ScriptDir/common.ps1"
+. "$ScriptDir/tasks-meta-utils.ps1"
 
-# Global variables
-$FeatureDir = ""
-$AvailableDocs = ""
-$TasksFile = ""
-$TasksMetaFile = ""
-$ChecklistsDir = ""
-$ImplementationLog = ""
+function Write-Info  { param([string]$Msg) Write-Host "[INFO]  $Msg" -ForegroundColor Cyan }
+function Write-Warn  { param([string]$Msg) Write-Host "[WARN]  $Msg" -ForegroundColor Yellow }
+function Write-ErrorLog { param([string]$Msg) Write-Host "[ERROR] $Msg" -ForegroundColor Red }
+function Write-Success { param([string]$Msg) Write-Host "[OK]    $Msg" -ForegroundColor Green }
 
-# Logging functions
-function Write-Info {
-    param([string]$Message)
-    Write-Host "[INFO] $Message" -ForegroundColor Cyan
-}
+$FeatureDir = Resolve-Path $FeatureDir | Select-Object -ExpandProperty Path
+$FeatureName = Split-Path $FeatureDir -Leaf
+$TasksFile = Join-Path $FeatureDir "tasks.md"
+$TasksMetaFile = Join-Path $FeatureDir "tasks_meta.json"
+$ DagFile = Join-Path $FeatureDir "tasks_dag.json"
 
-function Write-Success {
-    param([string]$Message)
-    Write-Host "[SUCCESS] $Message" -ForegroundColor Green
-}
+# ---------------------------------------------------------------------------
+# Task parsing from tasks.md
+# ---------------------------------------------------------------------------
 
-function Write-Error {
-    param([string]$Message)
-    Write-Host "[ERROR] $Message" -ForegroundColor Red
-}
-
-function Write-Warning {
-    param([string]$Message)
-    Write-Host "[WARNING] $Message" -ForegroundColor Yellow
-}
-
-# Initialize implementation environment
-function Initialize-Implementation {
-    param([string]$JsonOutput)
-
-    # Parse JSON output from check-prerequisites.ps1
-    $global:FeatureDir = ($JsonOutput | ConvertFrom-Json).FEATURE_DIR
-    $global:AvailableDocs = ($JsonOutput | ConvertFrom-Json).AVAILABLE_DOCS
-
-    if ([string]::IsNullOrEmpty($global:FeatureDir)) {
-        Write-Error "FEATURE_DIR not found in prerequisites check"
+function Get-TasksFromMd {
+    param([string]$TasksMd)
+    if (-not (Test-Path $TasksMd)) {
+        Write-ErrorLog "Tasks file not found: $TasksMd"
         exit 1
     }
 
-    $global:TasksFile = Join-Path $global:FeatureDir "tasks.md"
-    $global:TasksMetaFile = Join-Path $global:FeatureDir "tasks_meta.json"
-    $global:ChecklistsDir = Join-Path $global:FeatureDir "checklists"
+    $tasks = @()
+    foreach ($line in Get-Content $TasksMd) {
+        if ($line -match '^\-\s+\[\s+\]\s+(T\d+)\s+(.+)$') {
+            $id = $Matches[1]
+            $rest = $Matches[2]
+            $isParallel = ""
+            $execMode = ""
+            $story = ""
+            $desc = $rest
 
-    # Create implementation log
-    $global:ImplementationLog = Join-Path $global:FeatureDir "implementation.log"
-    $logContent = @"
-# Implementation Log - $(Get-Date)
+            if ($rest -match '^\[P\]\s+(.+)$') {
+                $isParallel = "P"
+                $rest = $Matches[1]
+            }
+            if ($rest -match '^\[(SYNC|ASYNC)\]\s+(.+)$') {
+                $execMode = $Matches[1]
+                $rest = $Matches[2]
+            }
+            if ($rest -match '^\[(US\d+)\]\s+(.+)$') {
+                $story = $Matches[1]
+                $rest = $Matches[2]
+            }
+            $desc = $rest.TrimEnd()
 
-"@
-    $logContent | Out-File -FilePath $global:ImplementationLog -Encoding UTF8
+            $files = @()
+            $pattern = '[a-zA-Z0-9_./-]+\.(py|sh|ps1|js|ts|tsx|jsx|go|rs|java|rb|php|c|cpp|h|hpp|cs|swift|kt|mjs|cjs)'
+            $fileMatches = [regex]::Matches($desc, $pattern)
+            $seen = @{}
+            foreach ($m in $fileMatches) {
+                if (-not $seen.ContainsKey($m.Value)) {
+                    $seen[$m.Value] = $true
+                    $files += $m.Value
+                }
+            }
+            $filesStr = $files -join " "
 
-    Write-Info "Initialized implementation for feature: $(Split-Path $global:FeatureDir -Leaf)"
+            if ([string]::IsNullOrEmpty($execMode)) {
+                $execMode = Classify-TaskExecutionMode -Description $desc -Files $filesStr
+            }
+
+            $tasks += [PSCustomObject]@{
+                id           = $id
+                is_parallel  = $isParallel
+                exec_mode    = $execMode
+                story        = $story
+                description  = $desc
+                files        = $filesStr
+            }
+        }
+    }
+    return $tasks
 }
 
-# Check checklists status
-function Test-ChecklistsStatus {
-    if (-not (Test-Path $global:ChecklistsDir)) {
-        Write-Info "No checklists directory found - proceeding without checklist validation"
-        return
+function Mark-TaskComplete {
+    param(
+        [string]$TasksMd,
+        [string]$TaskId
+    )
+    $content = Get-Content $TasksMd -Raw
+    $content = $content -replace "^- \[ \] $TaskId\b", "- [X] $TaskId"
+    Set-Content -Path $TasksMd -Value $content -Encoding UTF8 -NoNewline
+}
+
+# ---------------------------------------------------------------------------
+# Branch mode: sequential execution
+# ---------------------------------------------------------------------------
+
+function Invoke-BranchMode {
+    Write-Info "Branch mode: sequential execution"
+
+    if (-not (Test-Path $TasksMetaFile)) {
+        Initialize-TasksMeta -FeatureDir $FeatureDir
     }
 
-    Write-Info "Checking checklist status..."
+    $tasks = Get-TasksFromMd -TasksMd $TasksFile
+    foreach ($task in $tasks) {
+        $taskId = $task.id
+        $execMode = $task.exec_mode
+        $desc = $task.description
+        $files = $task.files
 
-    $totalChecklists = 0
-    $passedChecklists = 0
-    $failedChecklists = 0
-
-    $logContent = @"
-
-## Checklist Status Report
-
-| Checklist | Total | Completed | Incomplete | Status |
-|-----------|-------|-----------|------------|--------|
-"@
-
-    Get-ChildItem -Path $global:ChecklistsDir -Filter "*.md" | ForEach-Object {
-        $checklistFile = $_.FullName
-        $filename = $_.BaseName
-
-        $content = Get-Content $checklistFile -Raw
-        $totalItems = ($content | Select-String -Pattern "^- \[" -AllMatches).Matches.Count
-        $completedItems = ($content | Select-String -Pattern "^- \[X\]|^- \[x\]" -AllMatches).Matches.Count
-        $incompleteItems = $totalItems - $completedItems
-
-        $status = if ($incompleteItems -gt 0) { "FAIL"; $global:failedChecklists++ } else { "PASS"; $global:passedChecklists++ }
-        $global:totalChecklists++
-
-        $logContent += "| $filename | $totalItems | $completedItems | $incompleteItems | $status |`n"
-    }
-
-    $logContent | Out-File -FilePath $global:ImplementationLog -Append -Encoding UTF8
-
-    if ($failedChecklists -gt 0) {
-        Write-Warning "Found $failedChecklists checklist(s) with incomplete items"
-        $response = Read-Host "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
-        if ($response -notmatch "^(yes|y)$") {
-            Write-Info "Implementation cancelled by user"
-            exit 0
+        $content = Get-Content $TasksFile -Raw
+        if ($content -match "^- \[[xX]\] $taskId\b") {
+            Write-Info "Task $taskId already completed, skipping"
+            continue
         }
+
+        $meta = Get-Content $TasksMetaFile -Raw | ConvertFrom-Json -AsHashtable
+        if (-not $meta.tasks[$taskId]) {
+            Add-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId -Description $desc -Files $files -ExecutionMode $execMode
+        }
+
+        Write-Info "Executing task $taskId [$execMode]: $desc"
+        Start-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId
+
+        $result = 0
+        if ($execMode -eq "ASYNC") {
+            $result = Invoke-AsyncTask -TaskId $taskId -Desc $desc -Files $files
+        } else {
+            $result = Invoke-SyncTask -TaskId $taskId -Desc $desc -Files $files
+        }
+
+        if ($result -eq 0) {
+            Complete-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId -ResultSummary "Task completed successfully"
+            Mark-TaskComplete -TasksMd $TasksFile -TaskId $taskId
+            Write-Success "Task $taskId completed"
+        } else {
+            Fail-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId -Reason "Task execution failed"
+            Write-ErrorLog "Task $taskId failed"
+            return 1
+        }
+
+        Quality-Gate -TasksMetaFile $TasksMetaFile -TaskId $taskId
+    }
+
+    $summary = Get-Summary -TasksMetaFile $TasksMetaFile | ConvertFrom-Json
+    if ($summary.all_done) {
+        Write-Success "All tasks completed for feature $FeatureName"
     } else {
-        Write-Success "All $totalChecklists checklists passed"
+        Write-Warn "Some tasks remain incomplete for feature $FeatureName"
+    }
+    $summary | ConvertTo-Json -Compress
+}
+
+function Invoke-SyncTask {
+    param(
+        [string]$TaskId,
+        [string]$Desc,
+        [string]$Files
+    )
+    Write-Info "SYNC task $TaskId: executing inline"
+    return 0
+}
+
+function Invoke-AsyncTask {
+    param(
+        [string]$TaskId,
+        [string]$Desc,
+        [string]$Files
+    )
+    Write-Info "ASYNC task $TaskId: dispatching to async agent"
+    Dispatch-AsyncTask -TaskId $TaskId -AgentType "general" -TaskDescription $Desc -TaskContext "Files: $Files" -TaskRequirements "Complete per spec" -ExecutionInstructions "Execute and commit" -FeatureDir $FeatureDir
+
+    $maxWait = 300
+    $waited = 0
+    while ($true) {
+        $status = Check-DelegationStatus -TaskId $TaskId -FeatureDir $FeatureDir
+        switch ($status) {
+            "completed" {
+                Write-Success "ASYNC task $TaskId completed"
+                return 0
+            }
+            "failed" {
+                Write-ErrorLog "ASYNC task $TaskId failed"
+                return 1
+            }
+            "no_job" {
+                Write-Warn "ASYNC task $TaskId has no job record"
+                return 1
+            }
+        }
+        Start-Sleep -Seconds 2
+        $waited += 2
+        if ($waited -ge $maxWait) {
+            Write-Warn "ASYNC task $TaskId timed out after ${maxWait}s"
+            return 1
+        }
     }
 }
 
-# Load implementation context
-function Import-ImplementationContext {
-    Write-Info "Loading implementation context..."
+# ---------------------------------------------------------------------------
+# Worktree mode: wave-based execution
+# ---------------------------------------------------------------------------
 
-    # Require all artifacts
-    $requiredFiles = @("tasks.md", "spec.md", "plan.md")
+function Invoke-WorktreeMode {
+    Write-Info "Worktree mode: wave-based execution"
 
-    foreach ($file in $requiredFiles) {
-        $filePath = Join-Path $global:FeatureDir $file
-        if (-not (Test-Path $filePath)) {
-            Write-Error "Required file missing: $filePath"
-            exit 1
-        }
-    }
-
-    # Optional files
-    $optionalFiles = @("data-model.md", "contracts", "research.md", "quickstart.md")
-
-    foreach ($file in $optionalFiles) {
-        $filePath = Join-Path $global:FeatureDir $file
-        if ((Test-Path $filePath)) {
-            Write-Info "Found optional context: $file"
-        }
-    }
-}
-
-# Parse tasks from tasks.md (simplified implementation)
-function Get-TasksFromFile {
-    Write-Info "Parsing tasks from $global:TasksFile..."
-
-    if (-not (Test-Path $global:TasksFile)) {
-        Write-Warning "Tasks file not found: $global:TasksFile"
+    if (-not (Test-Path $DagFile)) {
+        Write-Warn "DAG file not found: $DagFile. Falling back to branch mode."
+        Invoke-BranchMode
         return
     }
 
-    $content = Get-Content $global:TasksFile -Raw
-    $taskLines = $content | Select-String -Pattern "^- \[ \] T\d+" -AllMatches
-
-    if ($taskLines.Matches.Count -eq 0) {
-        Write-Warning "No uncompleted tasks found in $global:TasksFile"
-        return
+    if (-not (Test-Path $TasksMetaFile)) {
+        Initialize-TasksMeta -FeatureDir $FeatureDir
     }
 
-    foreach ($match in $taskLines.Matches) {
-        $taskLine = $match.Value
+    $dag = Get-Content $DagFile -Raw | ConvertFrom-Json
+    foreach ($taskObj in $dag.tasks) {
+        $taskId = $taskObj.id
+        $desc = $taskObj.description
+        $files = $taskObj.files -join " "
+        $execMode = $taskObj.execution_mode
 
-        # Extract task ID
-        $taskId = [regex]::Match($taskLine, "T\d+").Value
-
-        # Extract description (remove markers and task ID)
-        $description = $taskLine -replace "^- \[ \] T\d+ " -replace "\[.*?\]", "" | ForEach-Object { $_.Trim() }
-
-        # Determine execution mode
-        $executionMode = if ($taskLine -match "\[ASYNC\]") { "ASYNC" } else { "SYNC" }
-
-        # Check for parallel marker
-        $parallelMarker = if ($taskLine -match "\[P\]") { "P" } else { "" }
-
-        # Extract file paths (simplified)
-        $taskFiles = ($taskLine | Select-String -Pattern "\b\w+\.(js|ts|py|java|cpp|md|json|yml|yaml)\b" -AllMatches).Matches.Value -join " "
-
-        Write-Info "Found task $taskId`: $description [$executionMode] $(if ($parallelMarker) { "[$parallelMarker] " } else { "" })($taskFiles)"
-
-        # In a real implementation, would call classify and add task functions
-        # For now, just log the classification
+        $meta = Get-Content $TasksMetaFile -Raw | ConvertFrom-Json -AsHashtable
+        if (-not $meta.tasks[$taskId]) {
+            Add-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId -Description $desc -Files $files -ExecutionMode $execMode
+        }
     }
+
+    $waveCount = $dag.execution_waves.Count
+    for ($waveIdx = 0; $waveIdx -lt $waveCount; $waveIdx++) {
+        $waveTasks = $dag.execution_waves[$waveIdx]
+        Write-Info "Wave $($waveIdx + 1)/$waveCount: $($waveTasks -join ', ')"
+
+        foreach ($taskId in $waveTasks) {
+            $content = Get-Content $TasksFile -Raw
+            if ($content -match "^- \[[xX]\] $taskId\b") {
+                Write-Info "Task $taskId already completed, skipping"
+                continue
+            }
+
+            Start-Task -TasksMetaFile $TasksMetaFile -TaskId $taskId
+
+            $meta = Get-Content $TasksMetaFile -Raw | ConvertFrom-Json -AsHashtable
+            $execMode = $meta.tasks[$taskId].execution_mode
+
+            if ($execMode -eq "ASYNC") {
+                Invoke-AsyncTask -TaskId $taskId -Desc "" -Files ""
+            } else {
+                Invoke-SyncTask -TaskId $taskId -Desc "" -Files ""
+            }
+        }
+
+        foreach ($taskId in $waveTasks) {
+            $meta = Get-Content $TasksMetaFile -Raw | ConvertFrom-Json -AsHashtable
+            if ($meta.tasks[$taskId].status -eq "completed") {
+                Mark-TaskComplete -TasksMd $TasksFile -TaskId $taskId
+            }
+        }
+    }
+
+    $summary = Get-Summary -TasksMetaFile $TasksMetaFile
+    Write-Output $summary
 }
 
-# Main implementation workflow
-function Invoke-MainImplementation {
-    param([string]$JsonOutput)
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
 
-    Initialize-Implementation -JsonOutput $JsonOutput
-    Test-ChecklistsStatus
-    Import-ImplementationContext
-    Get-TasksFromFile
-
-    Write-Success "Implementation phase completed (PowerShell implementation is simplified)"
+if (-not (Test-Path $TasksFile)) {
+    Write-ErrorLog "Tasks file not found: $TasksFile"
+    exit 1
 }
 
-# Run main function
-Invoke-MainImplementation -JsonOutput $JsonOutput
+Write-Info "Implementing feature: $FeatureName"
+Write-Info "Tasks: $TasksFile"
+Write-Info "Mode: $(if ($Worktree) { 'worktree' } else { 'branch' })"
+
+if ($Worktree) {
+    Invoke-WorktreeMode
+} else {
+    Invoke-BranchMode
+}

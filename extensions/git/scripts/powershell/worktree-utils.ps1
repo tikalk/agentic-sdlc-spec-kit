@@ -367,6 +367,7 @@ Subcommands:
   remove-feature-worktree   -Feature <name> [-Force]
   create-task-branch        -Feature <name> -TaskId <TNNN> -TaskSlug <slug>
   remove-task-branch        -Feature <name> -TaskId <TNNN> [-Force]
+  merge-task-branch         -Feature <name> -TaskId <TNNN> [-DelegateConflicts]
   is-in-worktree
   list-worktrees
   read-manifest             -WorktreePath <path>
@@ -799,6 +800,95 @@ function Invoke-FinishFeature {
 }
 
 # ---------------------------------------------------------------------------
+# Subcommand: merge-task-branch
+# ---------------------------------------------------------------------------
+function Invoke-MergeTaskBranch {
+    [CmdletBinding()]
+    param(
+        [string]$Feature = "",
+        [string]$TaskId = "",
+        [switch]$DelegateConflicts
+    )
+    if ([string]::IsNullOrEmpty($Feature)) { Die "-Feature is required" }
+    if ([string]::IsNullOrEmpty($TaskId)) { Die "-TaskId is required" }
+
+    $worktreePath = Get-WorktreePathFor -Feature $Feature
+    if (-not (Test-Path $worktreePath)) {
+        Die "Feature worktree does not exist: $worktreePath"
+    }
+
+    $currentToplevel = git rev-parse --show-toplevel 2>$null
+    if ($currentToplevel -ne $worktreePath) {
+        Die "merge-task-branch must run from inside the feature worktree ($worktreePath)"
+    }
+
+    $manifestFilename = Get-WorktreeConfigValue -Key "manifest_filename"
+    $manifestFile = Join-Path $worktreePath $manifestFilename
+
+    $taskBranch = ""
+    if (Test-Path $manifestFile) {
+        $manifest = Get-Content $manifestFile -Raw | ConvertFrom-Json
+        $taskBranch = $manifest.task_branches | Where-Object { $_.id -eq $TaskId } | Select-Object -ExpandProperty branch -First 1
+    }
+    if ([string]::IsNullOrEmpty($taskBranch)) {
+        Die "Task $TaskId not found in manifest"
+    }
+
+    $currentBranch = git -C $worktreePath rev-parse --abbrev-ref HEAD 2>$null
+    if ($currentBranch -ne $Feature) {
+        git -C $worktreePath checkout $Feature 2>$null | Out-Null
+        if ($LASTEXITCODE -ne 0) { Die "Failed to checkout feature branch $Feature" }
+    }
+
+    $mergeOutput = ""
+    $mergeRc = 0
+    try {
+        $mergeOutput = git -C $worktreePath merge --no-ff $taskBranch -m "Merge task $TaskId into $Feature" 2>&1
+    } catch {
+        $mergeRc = 1
+    }
+
+    $hasConflict = $false
+    $conflictFiles = ""
+    if ($LASTEXITCODE -ne 0) {
+        $hasConflict = $true
+        $conflictFiles = (git -C $worktreePath diff --name-only --diff-filter=U 2>$null) -join " "
+        git -C $worktreePath merge --abort 2>$null | Out-Null
+        Emit-Json -Obj ([ordered]@{
+            task_id          = $TaskId
+            task_branch      = $taskBranch
+            feature          = $Feature
+            merged           = $false
+            has_conflict     = $true
+            conflict_files   = $conflictFiles
+            delegate_conflicts = [bool]$DelegateConflicts
+            merge_output     = $mergeOutput
+            ok               = $true
+        })
+        return
+    }
+
+    git -C $worktreePath branch -d $taskBranch 2>$null | Out-Null
+
+    if (Test-Path $manifestFile) {
+        $manifest = Get-Content $manifestFile -Raw | ConvertFrom-Json
+        $manifest.task_branches = @($manifest.task_branches | Where-Object { $_.id -ne $TaskId })
+        $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path $manifestFile -Encoding UTF8
+    }
+
+    $featureTip = git -C $worktreePath rev-parse --short HEAD 2>$null
+    Emit-Json -Obj ([ordered]@{
+        task_id      = $TaskId
+        task_branch  = $taskBranch
+        feature      = $Feature
+        merged       = $true
+        has_conflict = $false
+        feature_tip  = $featureTip
+        ok           = $true
+    })
+}
+
+# ---------------------------------------------------------------------------
 # Main dispatcher
 # ---------------------------------------------------------------------------
 if ([string]::IsNullOrEmpty($Subcommand)) {
@@ -833,6 +923,7 @@ switch ($Subcommand) {
     "remove-feature-worktree" { Invoke-Subcommand "Invoke-RemoveFeatureWorktree" $remaining }
     "create-task-branch"      { Invoke-Subcommand "Invoke-CreateTaskBranch" $remaining }
     "remove-task-branch"      { Invoke-Subcommand "Invoke-RemoveTaskBranch" $remaining }
+    "merge-task-branch"       { Invoke-Subcommand "Invoke-MergeTaskBranch" $remaining }
     "is-in-worktree"          { Invoke-Subcommand "Invoke-IsInWorktree" $remaining }
     "list-worktrees"          { Invoke-Subcommand "Invoke-ListWorktrees" $remaining }
     "read-manifest"           { Invoke-Subcommand "Invoke-ReadManifest" $remaining }

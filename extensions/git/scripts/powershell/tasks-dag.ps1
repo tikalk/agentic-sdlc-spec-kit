@@ -114,7 +114,7 @@ Subcommands:
 function Parse-TaskLine {
     param([string]$Line)
 
-    # Pattern: - [ ] TNNN [P] [USn] Description
+    # Pattern: - [ ] TNNN [P] [SYNC|ASYNC] [USn] Description
     if ($Line -notmatch '^\-\s+\[[ x]\]\s+(T\d+)\s+(.+)$') {
         return $null
     }
@@ -122,6 +122,7 @@ function Parse-TaskLine {
     $rest = $Matches[2]
     $isParallel = 0
     $story = ""
+    $execMode = ""
     $desc = $rest
 
     # [P] marker
@@ -129,13 +130,18 @@ function Parse-TaskLine {
         $isParallel = 1
         $rest = $Matches[1]
     }
+    # [SYNC] or [ASYNC] marker
+    if ($rest -match '^\[(SYNC|ASYNC)\]\s+(.+)$') {
+        $execMode = $Matches[1]
+        $rest = $Matches[2]
+    }
     # [USn] story label
     if ($rest -match '^\[(US\d+)\]\s+(.+)$') {
         $story = $Matches[1]
         $rest = $Matches[2]
     }
     $desc = $rest.TrimEnd()
-    return "$id|$story|$isParallel|$desc"
+    return "$id|$story|$isParallel|$execMode|$desc"
 }
 
 # Extract file paths from a task description.
@@ -159,13 +165,17 @@ function Extract-Files {
     return $files
 }
 
-# Determine execution mode (SYNC/ASYNC) from description and files.
-# ASYNC if: description contains research/analyze keywords, OR >2 files.
+# Determine execution mode (SYNC/ASYNC).
+# If explicit_mode is non-empty, trust it. Otherwise fall back to heuristics.
 function Get-ExecutionMode {
     param(
+        [string]$ExplicitMode,
         [string]$Desc,
         [string[]]$Files
     )
+    if (-not [string]::IsNullOrEmpty($ExplicitMode)) {
+        return $ExplicitMode
+    }
     if ($Desc -match '(?i)research|analyze|design|plan|review|test|investigate|explore|prototype') {
         return "ASYNC"
     }
@@ -209,11 +219,11 @@ function ConvertTo-TasksJson {
     )
     $tasks = @()
     foreach ($rec in $TaskRecords) {
-        $parts = $rec -split '\|', 4
-        if ($parts.Count -lt 4) { continue }
-        $id, $story, $par, $desc = $parts
+        $parts = $rec -split '\|', 5
+        if ($parts.Count -lt 5) { continue }
+        $id, $story, $par, $execMode, $desc = $parts
         $files = Extract-Files -Desc $desc
-        $mode = Get-ExecutionMode -Desc $desc -Files $files
+        $mode = Get-ExecutionMode -ExplicitMode $execMode -Desc $desc -Files $files
         $waveIndex = 0
         if ($WaveLookup.ContainsKey($id)) {
             $waveIndex = $WaveLookup[$id]
@@ -261,7 +271,7 @@ function Invoke-Generate {
         $Feature = Split-Path -Leaf (Split-Path -Parent $TasksMd)
     }
 
-    # Parse tasks.md into records: id|story|par|desc|files
+    # Parse tasks.md into records: id|story|par|exec_mode|desc
     $taskRecords = @()
     foreach ($line in Get-Content $TasksMd) {
         $parsed = Parse-TaskLine -Line $line
@@ -284,8 +294,8 @@ function Invoke-Generate {
     $waveIdsLists = @()
 
     foreach ($rec in $taskRecords) {
-        $parts = $rec -split '\|', 4
-        $id, $story, $par, $desc = $parts
+        $parts = $rec -split '\|', 5
+        $id, $story, $par, $execMode, $desc = $parts
         $files = Extract-Files -Desc $desc
 
         # Decide whether this task joins the current wave.

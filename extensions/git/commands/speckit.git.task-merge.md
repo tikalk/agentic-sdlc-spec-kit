@@ -22,9 +22,16 @@ The first argument MUST be a task ID matching `^T[0-9]+$` (e.g., `T007`, `T042`)
 
 ## Execution
 
+The preferred path is to use the `merge-task-branch` subcommand, which handles the full merge + cleanup flow:
+
+- **Bash**: `.specify/extensions/git/scripts/bash/worktree-utils.sh merge-task-branch --feature <FEATURE> --task-id <TNNN> [--delegate-conflicts]`
+- **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 merge-task-branch -Feature <FEATURE> -TaskId <TNNN> [-DelegateConflicts]`
+
+If you need to perform the merge manually (e.g. the subcommand is unavailable), follow these steps:
+
 1. **Read the manifest** to confirm the task branch is registered:
-   - **Bash**: `.specify/extensions/git/scripts/bash/worktree-utils.sh read-manifest`
-   - **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 read-manifest`
+   - **Bash**: `.specify/extensions/git/scripts/bash/worktree-utils.sh read-manifest --worktree-path <WORKTREE_PATH>`
+   - **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 read-manifest -WorktreePath <WORKTREE_PATH>`
    - If the task ID is NOT in `task_branches[]`, abort with: `[error] Task <TNNN> is not registered in the worktree manifest. Did you run \`git.task <TNNN>\` first?`
 2. **Switch to the feature branch** if not already on it:
    - `git checkout <FEATURE>`
@@ -35,6 +42,8 @@ The first argument MUST be a task ID matching `^T[0-9]+$` (e.g., `T007`, `T042`)
    - Dispatch a new subagent with a conflict-resolution prompt containing the file list, the merge state (`git status` output), and instructions to use `git checkout --ours` / `git checkout --theirs` for non-overlapping hunks or manual editing for overlapping hunks
    - After the subagent resolves, re-run `git merge --continue` (or `git add` + `git merge --continue`)
 5. **Remove the task branch** and unregister it from the manifest:
+   - This is handled automatically by `merge-task-branch` on successful merge.
+   - If you are following the manual fallback path instead, use:
    - **Bash**: `.specify/extensions/git/scripts/bash/worktree-utils.sh remove-task-branch --feature <FEATURE> --task-id <TNNN>`
    - **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 remove-task-branch -Feature <FEATURE> -TaskId <TNNN>`
 6. **Verify** the manifest no longer lists the task:

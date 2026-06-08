@@ -175,7 +175,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      - **On task failure**: Dispatch `after_task_execute` hooks before reporting the error (allows WIP checkpoint commits if git extension is configured).
    - **Dual execution mode handling**:
      - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-     - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch_async_task "$task_id" "$agent_type" "$description" ...`, send to LLM agents, monitor completion, apply macro-review after completion
+      - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch-async "$task_id" "$agent_type" "$description" "$context" "$requirements" "$instructions" "$FEATURE_DIR"`, send to LLM agents, monitor completion via `scripts/bash/tasks-meta-utils.sh check-status "$task_id" "$FEATURE_DIR"`, apply macro-review after completion
    - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
