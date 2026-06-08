@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc4] - 2026-06-08
+
+### Fixed
+
+- **PowerShell worktree merge test pathing**: `tests/extensions/git/test_merge_task_branch.py` now runs the PowerShell `merge-task-branch` test from the primary checkout script path while keeping the working directory inside the feature worktree. This matches the real execution model and fixes CI failures where the test incorrectly looked for `worktree-utils.ps1` under `.worktrees/<feature>/.specify/...`.
+
 # [0.10.0+adlc3] - 2026-06-08
 
 ### Added
