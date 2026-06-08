@@ -8,7 +8,7 @@ This extension provides Git operations as an optional, self-contained module. It
 
 - **Repository initialization** with configurable commit messages
 - **Feature branch creation** with sequential (`001-feature-name`) or timestamp (`20260319-143022-feature-name`) numbering
-- **Optional custom feature branch templates** including Jira issue keys like `feat/001-PROJ-123-user-auth`
+- **Optional custom feature branch templates** including issue-aware names like `feat/001-PROJ-123-user-auth`
 - **Branch validation** to ensure branches follow naming conventions
 - **Git remote detection** for GitHub integration (e.g., issue creation)
 - **Auto-commit** after core commands (configurable per-command with custom messages)
@@ -82,10 +82,10 @@ auto_commit:
 
 Supported placeholders in `branch_pattern.template`:
 
-- `{prefix}`: first configured prefix from `allowed_prefixes`
+- `{prefix}`: first configured prefix from `allowed_prefixes` during generation; validation accepts any configured prefix
 - `{number}`: sequential feature number with `number_padding`
 - `{timestamp}`: `YYYYMMDD-HHMMSS`
-- `{issue}`: Jira-style issue key like `PROJ-123`
+- `{issue}`: issue key whose format is controlled by `issue_format`
 - `{slug}`: kebab-cased feature slug
 
 Rules:
@@ -93,7 +93,33 @@ Rules:
 - `{slug}` is required
 - exactly one of `{number}` or `{timestamp}` is required
 - if `{prefix}` is used, `allowed_prefixes` must not be empty
-- if `{issue}` is used, provide `--issue PROJ-123`, `-Issue PROJ-123`, or `GIT_BRANCH_ISSUE=PROJ-123`
+- if `{issue}` is used, provide `--issue <value>`, `-Issue <value>`, or `GIT_BRANCH_ISSUE=<value>`
+
+`issue_format` values:
+
+- `jira`: values like `PROJ-123`
+- `numeric`: values like `1234`
+
+## Issue-Aware Hook Flow
+
+If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`, the
+`before_specify` hook path must resolve an issue key before `git.feature` runs.
+
+Resolution order used by the documented flow:
+
+1. `GIT_BRANCH_ISSUE` if it is already set
+2. an issue key explicitly present in the user request or approved Mission Brief
+3. otherwise stop and ask the user for the issue key before branch creation
+
+This matters because `git.feature` runs as a mutating `before_specify` hook after Mission Brief
+approval. If no issue key is available and the active template requires `{issue}`, branch
+creation will fail by design.
+
+The user-facing contract is now:
+
+- set `GIT_BRANCH_ISSUE` before invoking `/spec.specify`, or
+- ensure the approved Mission Brief/user request contains the issue key, or
+- provide `--issue` / `-Issue` when invoking the extension script directly
 
 ## Jira Branch Patterns
 
@@ -146,6 +172,40 @@ Notes:
 - Jira keys are normalized to uppercase during generation.
 - Validation uses the configured template when `branch_pattern.enabled: true`.
 - Spec directory resolution still uses the `{number}` or `{timestamp}` identity, so `feat/001-PROJ-123-user-auth` maps to `specs/001-*`.
+- If multiple prefixes are listed, generation uses the first prefix in `allowed_prefixes`.
+
+## Numeric Issue Patterns
+
+You can also use numeric issue identifiers instead of Jira-style keys:
+
+```yaml
+branch_pattern:
+  enabled: true
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: numeric
+```
+
+Examples:
+
+```bash
+GIT_BRANCH_ISSUE=1234 bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+  --short-name user-auth \
+  "Add user authentication"
+```
+
+Expected branch name:
+
+```text
+feat/001-1234-user-auth
+```
+
+Notes:
+
+- Numeric issue values are not uppercased.
+- Validation still uses the configured template and issue format.
 
 ## Installation
 

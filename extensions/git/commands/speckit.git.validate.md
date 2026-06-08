@@ -26,7 +26,7 @@ The branch name must match one of these patterns:
 
 1. **Sequential**: `^[0-9]{3,}-` (e.g., `001-feature-name`, `042-fix-bug`, `1000-big-feature`)
 2. **Timestamp**: `^[0-9]{8}-[0-9]{6}-` (e.g., `20260319-143022-feature-name`)
-3. **Configured template**: when `.specify/extensions/git/git-config.yml` enables `branch_pattern`, validate against that template instead. Example: `feat/001-PROJ-123-user-auth`
+3. **Configured template**: when `.specify/extensions/git/git-config.yml` enables `branch_pattern`, validate against that template instead. Examples: `feat/001-PROJ-123-user-auth` or `feat/001-1234-user-auth`
 
 Example Jira-aware configuration:
 
@@ -39,6 +39,21 @@ branch_pattern:
   number_padding: 3
   issue_format: jira
 ```
+
+Example numeric-issue configuration:
+
+```yaml
+branch_pattern:
+  enabled: true
+  template: "{prefix}/{number}-{issue}-{slug}"
+  allowed_prefixes:
+    - feat
+  number_padding: 3
+  issue_format: numeric
+```
+
+If `{prefix}` is present, generation uses the first configured prefix while validation accepts
+any configured prefix.
 
 ## Execution
 

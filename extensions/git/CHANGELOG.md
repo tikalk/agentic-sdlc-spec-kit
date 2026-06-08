@@ -14,3 +14,4 @@
 - Branch validation now honors configured feature branch templates when `branch_pattern.enabled: true`.
 - Jira issue keys are normalized to uppercase during branch generation.
 - Documentation now includes recommended Jira-aware GitFlow examples and configuration guidance.
+- Documentation now explains the end-to-end `before_specify` hook contract for `{issue}` templates, including how users provide issue keys and how prefix selection works during generation versus validation.
