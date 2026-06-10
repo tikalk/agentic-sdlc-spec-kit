@@ -9,7 +9,6 @@ param(
 
     [switch]$Json,
     [switch]$DryRun,
-    [switch]$Verbose,
     [switch]$Help,
     [switch]$Version
 )
