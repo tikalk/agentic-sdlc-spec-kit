@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc8 | 2026-06-12 | 0.10.0 | Fixed `_locate_bundled_preset()` to resolve `agentic-sdlc` from `bundled_presets/` in wheel/uv-tool installs, matching the pyproject.toml wheel path. |
 | 0.10.0+adlc7 | 2026-06-12 | 0.10.0 | Agentic SDLC preset v1.0.10: trimmed duplicate `[SYNC]`/`[ASYNC]` taxonomies in `adlc.spec.plan.md` and `adlc.spec.tasks.md`; references canonical `templates/plan-template.md` and `templates/tasks-template.md` instead of inline duplication. ~340 tokens saved, behavior-identical. |
 | 0.10.0+adlc6 | 2026-06-08 | 0.10.0 | Repaired the bundled evals extension (PowerShell lifecycle parity, validation path fixes, non-interactive robustness) and promoted feature-local trace/verification into the preset surface: `spec.trace` owns `specs/{branch}/trace.md`, `spec.verify` defines `specs/{branch}/evidence.md`, and the Agentic SDLC preset now suggests trace/verify after implement. Evals extension bumped to v1.1.1, LevelUp stays at v1.7.1, preset bumped to v1.0.9. |
 | 0.10.0+adlc5 | 2026-06-08 | 0.10.0 | Added configurable git extension `branch_pattern` support with Jira issue keys, expanded git extension docs, added installed-extension end-to-end coverage for configured Jira branch names, bumped the bundled git extension to v1.5.0, and bumped the fork CLI release to capture the shipped behavior. |
