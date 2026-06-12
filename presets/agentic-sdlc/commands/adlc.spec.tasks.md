@@ -102,9 +102,7 @@ If working in a non-git repository:
       - Same file = sequential (no [P])
       - If TDD enabled (`is_opinion_enabled tdd $MODE`): Tests before implementation (TDD order)
     - If TDD disabled: Tests optional, generated only if explicitly requested
-      - Classify execution mode:
-        - [SYNC] for: complex logic, architectural decisions, security-critical code, ambiguous requirements (requires human review)
-        - [ASYNC] for: well-defined CRUD operations, repetitive tasks, clear specifications, independent components (can be delegated to async agents)
+      - Classify execution mode per task ([SYNC] or [ASYNC])
     - Number tasks sequentially (T001, T002...)
     - Generate dependency graph showing user story completion order
     - Create parallel execution examples per user story
@@ -185,14 +183,10 @@ Every task MUST strictly follow this format:
 
 **Examples**:
 
-- ✅ CORRECT: `- [ ] T001 [ASYNC] Create project structure per implementation plan`
 - ✅ CORRECT: `- [ ] T005 [P] [SYNC] Implement authentication middleware in src/middleware/auth.py`
-- ✅ CORRECT: `- [ ] T012 [P] [ASYNC] [US1] Create User model in src/models/user.py`
-- ✅ CORRECT: `- [ ] T014 [SYNC] [US1] Implement UserService in src/services/user_service.py`
 - ❌ WRONG: `- [ ] Create User model` (missing ID, SYNC/ASYNC, and Story label)
-- ❌ WRONG: `T001 [US1] Create model` (missing checkbox and SYNC/ASYNC)
-- ❌ WRONG: `- [ ] [US1] Create User model` (missing Task ID and SYNC/ASYNC)
-- ❌ WRONG: `- [ ] T001 [US1] Create model` (missing SYNC/ASYNC and file path)
+
+See `templates/tasks-template.md` for additional examples and full phase structure.
 
 ### Task Organization
 
@@ -230,20 +224,7 @@ Every task MUST strictly follow this format:
 
 ### [SYNC]/[ASYNC] Classification
 
-- **[SYNC] Tasks**: Require human review and oversight
-  - Complex business logic or algorithms
-  - Architectural or design decisions
-  - Security-critical functionality
-  - Integration with external systems
-  - Ambiguous or unclear requirements
-  - Tasks affecting multiple components
-- **[ASYNC] Tasks**: Can be safely delegated to async coding agents
-  - Well-defined CRUD operations
-  - Repetitive or boilerplate code
-  - Clear, unambiguous specifications
-  - Independent component implementation
-  - Standard library/framework usage
-  - Tasks with comprehensive test coverage
+See `templates/tasks-template.md` for detailed classification criteria and examples.
 
 ## Post-Execution Hooks
 

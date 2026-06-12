@@ -39,7 +39,9 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. **Load context**: Read FEATURE_SPEC and `/memory/constitution.md`. Load IMPL_PLAN template (already copied).
+2. **Load context**: Read FEATURE_SPEC and `/memory/constitution.md`. If `FEATURE_DIR/team-context.json`
+   exists, load it first and treat it as the authoritative persisted `team-ai-directives` context
+   for this feature. Load IMPL_PLAN template (already copied).
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
@@ -47,10 +49,12 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Evaluate gates (ERROR if violations unjustified)
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
+   - If discovery is re-run during planning and `FEATURE_DIR` is known, overwrite
+     `FEATURE_DIR/team-context.json` with the refreshed extension-owned results
    - Phase 1: Update agent context by running the agent script
    - Re-evaluate Constitution Check post-design
 
-4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+4. **Stop and report**: Command ends after Phase 2 planning. Report branch, IMPL_PLAN path, and generated artifacts, including `team-context.json` when present.
 
 ## Phases
 
@@ -99,24 +103,8 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Triage Framework: [SYNC] vs [ASYNC] Task Classification
 
-**Purpose**: Classify implementation tasks as [SYNC] (human-reviewed) or [ASYNC] (agent-delegated).
-
-**[SYNC] - Human Execution Required:**
-- Complex business logic, algorithms, state machines
-- Security-critical code (auth, encryption, data protection)
-- External integrations, third-party APIs
-- Architectural decisions, component boundaries
-- High-risk changes (schema, API contracts, breaking changes)
-
-**[ASYNC] - Agent Delegation Suitable:**
-- Well-defined CRUD operations with clear schemas
-- Boilerplate code, standard library usage
-- Independent components with minimal dependencies
-- Standard framework/library patterns
-- Testable units with comprehensive test coverage
-
-**Triage Output:**
-Document each task with: Classification ([SYNC]/[ASYNC]), Primary Criteria, Risk Level, Rationale
+Classify all implementation tasks as [SYNC] (human review required) or [ASYNC] (agent-delegated).
+See `templates/plan-template.md` for full classification criteria, audit trail format, and examples.
 
 ## Key rules
 

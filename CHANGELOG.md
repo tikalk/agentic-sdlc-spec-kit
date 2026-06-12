@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [1.0.10] - 2026-06-12
+
+### Changed
+
+- **Agentic SDLC preset bumped to 1.0.10**: trimmed duplicate `[SYNC]`/`[ASYNC]` classification guidance in `adlc.spec.plan.md` and `adlc.spec.tasks.md`, replacing inline taxonomies with references to canonical `templates/plan-template.md` and `templates/tasks-template.md`. Saves ~340 tokens with no behavior change.
+
+# [0.10.0+adlc7] - 2026-06-12
+
+### Changed
+
+- **CLI bumped to `0.10.0+adlc7`**: this fork release captures the Agentic SDLC preset v1.0.10 token-reduction trim.
+- **Agentic SDLC preset bumped to 1.0.10**: trimmed duplicate `[SYNC]`/`[ASYNC]` classification guidance in `adlc.spec.plan.md` and `adlc.spec.tasks.md`, replacing inline taxonomies with references to canonical `templates/plan-template.md` and `templates/tasks-template.md`. Saves ~340 tokens with no behavior change.
+
 # [0.10.0+adlc6] - 2026-06-08
 
 ### Changed
