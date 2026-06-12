@@ -5,6 +5,15 @@ All notable changes to the Team AI Directives extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.9] - 2026-06-09
+
+### Changed
+
+- Clarified that `team-ai-directives.discover` owns persistence for discovered feature context.
+- Standardized the canonical persisted artifact name to `team-context.json`.
+- Standardized the staging artifact location to `.specify/discovery/team-context.json` when the
+  feature directory is not known yet.
+
 ## [1.7.8] - 2026-05-29
 
 ### Added

@@ -2,6 +2,7 @@
 
 import urllib.error
 from unittest.mock import patch, MagicMock
+from pathlib import Path
 import pytest
 from specify_cli import sync_team_ai_directives
 
@@ -151,3 +152,15 @@ def test_sync_force_reinstalls_extension(tmp_path):
     sync_team_ai_directives(str(kb_dir), tmp_path, force=True)
     assert ext_dir.exists()
     assert (ext_dir / "extension.yml").exists()
+
+
+def test_discover_command_documents_team_context_json_contract():
+    """Discover command should define extension-owned team-context.json persistence."""
+    repo_root = Path(__file__).resolve().parent.parent
+    discover_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "discover.md"
+    content = discover_md.read_text(encoding="utf-8")
+
+    assert "team-context.json" in content
+    assert "SPECIFY_FEATURE_DIRECTORY/team-context.json" in content
+    assert ".specify/discovery/team-context.json" in content
+    assert "authoritative machine-readable artifact" in content

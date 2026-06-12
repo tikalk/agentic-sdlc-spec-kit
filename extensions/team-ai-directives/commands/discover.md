@@ -79,9 +79,36 @@ Output structured discovery results in this exact format:
 }
 ```
 
-### Step 6: Populate Feature Context
+### Step 6: Persist Team Context (Extension-Owned)
+
+The `team-ai-directives` extension owns persistence for discovered feature context.
+
+Canonical artifact name:
+
+- `team-context.json`
+
+Persistence rules:
+
+1. If the feature directory is already known, write the discovered payload to:
+   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
+2. If the feature directory is not known yet, write the same payload to the staging location:
+   - `.specify/discovery/team-context.json`
+3. Once the feature directory exists, the `specify` workflow should move or copy the staged file to:
+   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
+4. During `plan`, if `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it first and treat it
+   as the authoritative discovered team context for that feature.
+5. If discovery is re-run later and the feature directory is known, overwrite the feature-scoped
+   `team-context.json` with the refreshed results.
+
+`team-context.json` is the authoritative machine-readable artifact. If a markdown summary is added
+later, it should be derived from this JSON rather than treated as the source of truth.
+
+### Step 7: Populate Feature Context
 
 The preset commands will use this output to populate the context template with discovered directives.
+
+When `team-context.json` exists, they should load that persisted artifact instead of relying solely
+on transient command output.
 
 ## Usage
 

@@ -69,11 +69,14 @@ team-ai-directives/
 }
 ```
 
-## Layer 1: Script-Based Discovery
+## Layer 1: Extension-Owned Discovery
 
-### Context Auto-Discovery (`discover_directives()`)
+### Team AI Directives Discovery (`adlc.team-ai-directives.discover`)
 
-**Function:** `scripts/bash/create-new-feature.sh` (`discover_directives()`)
+**Primary owner:** `extensions/team-ai-directives/commands/discover.md`
+
+The discovery contract belongs to the `team-ai-directives` extension. Core scripts may still emit
+transient discovery JSON today, but they are not the authoritative persisted feature context.
 
 **Algorithm:**
 
@@ -110,9 +113,26 @@ team-ai-directives/
 
 **PowerShell Equivalent:** `scripts/powershell/discovery-functions.ps1` (`Discover-Directives`)
 
-### Skills Discovery (`discover_skills()`)
+### Persisted Team Context
 
-**Function:** `scripts/bash/create-new-feature.sh` (`discover_skills()`)
+Canonical feature-scoped artifact:
+
+- `specs/<feature>/team-context.json`
+
+Staging artifact before the feature directory exists:
+
+- `.specify/discovery/team-context.json`
+
+The feature-scoped `team-context.json` file is the canonical persisted output for team context.
+Commands like `specify` and `plan` should consume it when present instead of relying only on
+transient hook output.
+
+### Legacy Script-Based Discovery (`discover_skills()` / `discover_directives()`)
+
+**Functions:** `scripts/bash/create-new-feature.sh`, `scripts/powershell/create-new-feature.ps1`
+
+These still emit `DISCOVERED_DIRECTIVES` / `DISCOVERED_SKILLS` today, but those values should be
+treated as transient outputs rather than the durable persisted feature context.
 
 **5-Layer Discovery Algorithm:**
 
@@ -288,7 +308,7 @@ specify init . --team-ai-directives https://github.com/my-org/team-ai-directives
 
 # Create feature
 ./create-new-feature.sh --json "Add user authentication with OAuth2"
-# Output includes DISCOVERED_DIRECTIVES and DISCOVERED_SKILLS JSON
+# Output includes DISCOVERED_DIRECTIVES and DISCOVERED_SKILLS JSON (transient legacy output)
 
 # Use Claude Code to enhance discoveries
 claude
@@ -371,7 +391,7 @@ echo "# Test Constitution" > team-ai-directives/constitutions/constitution.md
 
 # Run feature creation
 scripts/create-new-feature.sh "Test feature"
-# Verify DISCOVERED_DIRECTIVES output
+# Verify transient DISCOVERED_DIRECTIVES output
 ```
 
 ## Performance Considerations
