@@ -137,6 +137,11 @@ def _locate_bundled_preset(preset_id: str) -> Path | None:
     if (candidate / "preset.yml").is_file():
         return candidate
 
+    # Wheel / uv tool install: Tikalk fork presets land in bundled_presets/
+    candidate = Path(__file__).parent / "bundled_presets" / preset_id
+    if (candidate / "preset.yml").is_file():
+        return candidate
+
     return None
 
 

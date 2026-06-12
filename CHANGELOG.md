@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc8] - 2026-06-12
+
+### Fixed
+
+- **`specify preset add agentic-sdlc` now works from wheel/uv-tool installs**: `_locate_bundled_preset()` was missing a fallback for the `bundled_presets/` directory where the fork's `agentic-sdlc` preset is packaged during wheel builds. Previously the command only succeeded in editable/source installs.
+
 # [1.0.10] - 2026-06-12
 
 ### Changed

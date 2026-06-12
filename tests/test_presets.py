@@ -3847,6 +3847,14 @@ class TestBundledPresetLocator:
         assert _locate_bundled_preset("UPPERCASE") is None
         assert _locate_bundled_preset("has spaces") is None
 
+    def test_locate_bundled_agentic_sdlc_preset(self):
+        """_locate_bundled_preset finds the agentic-sdlc preset (fork bundled)."""
+        from specify_cli import _locate_bundled_preset
+
+        path = _locate_bundled_preset("agentic-sdlc")
+        assert path is not None
+        assert (path / "preset.yml").is_file()
+
     def test_bundled_preset_add_via_cli(self, project_dir):
         """Test that 'specify preset add lean' installs the bundled preset."""
         from typer.testing import CliRunner
