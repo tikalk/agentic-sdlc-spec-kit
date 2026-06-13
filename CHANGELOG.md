@@ -16,6 +16,12 @@ All notable changes to the Specify CLI and templates are documented here.
 - **Team AI Directives extension bumped to 1.8.0**: `/team.discover` uses CDR index as search surface, `/team.repair` re-indexer updated for Descriptor column, `agents-template.md` updated.
 - **CLI bumped to `0.10.0+adlc9`**: this fork release captures the CDR-index-as-search-surface changes across both team-ai-directives and levelup extensions.
 
+# [0.10.0+adlc8] - 2026-06-12
+
+### Fixed
+
+- **`specify preset add agentic-sdlc` now works from wheel/uv-tool installs**: `_locate_bundled_preset()` was missing a fallback for the `bundled_presets/` directory where the fork's `agentic-sdlc` preset is packaged during wheel builds. Previously the command only succeeded in editable/source installs.
+
 # [1.0.10] - 2026-06-12
 
 ### Changed
