@@ -94,7 +94,8 @@ You **MUST** consider the user input before proceeding (if not empty).
    Output the questions (label Q1/Q2/Q3). After answers: if ≥2 scenario classes (Alternate / Exception / Recovery / Non-Functional domain) remain unclear, you MAY ask up to TWO more targeted follow‑ups (Q4/Q5) with a one-line justification each (e.g., "Unresolved recovery path risk"). Do not exceed five total questions. Skip escalation if user explicitly declines more.
 
 3. **Understand user request**: Combine `$ARGUMENTS` + clarifying answers:
-   - Derive checklist theme (e.g., security, review, deploy, ux)
+   - Derive checklist theme (e.g., security, review, deploy, ux, mission-brief)
+   - **Default domain**: If no specific domain is requested, default to `mission-brief` for oracle adequacy validation
    - Consolidate explicit must-have items mentioned by user
    - Map focus selections to category scaffolding
    - Infer any missing context from spec/plan/tasks (do NOT hallucinate)
@@ -113,12 +114,47 @@ You **MUST** consider the user input before proceeding (if not empty).
 5. **Generate checklist** - Create "Unit Tests for Requirements":
    - Create `FEATURE_DIR/checklists/` directory if it doesn't exist
    - Generate unique checklist filename:
-     - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`)
+     - Use short, descriptive name based on domain (e.g., `ux.md`, `api.md`, `security.md`, `mission-brief.md`)
      - Format: `[domain].md`
    - File handling behavior:
      - If file does NOT exist: Create new file and number items starting from CHK001
      - If file exists: Append new items to existing file, continuing from the last CHK ID (e.g., if last item is CHK015, start new items at CHK016)
-   - Never delete or replace existing checklist content - always preserve and append
+     - **Mission-brief exception**: If `mission-brief.md` exists, overwrite it (the oracle adequacy check must reflect the current spec state)
+   - Never delete or replace existing checklist content - always preserve and append (except `mission-brief.md`)
+
+   **MISSION-BRIEF DOMAIN — Oracle Adequacy Checklist**:
+   When the domain is `mission-brief`, generate exactly these 6 items:
+
+   ```markdown
+   - [ ] CHK001 - Goal is specific enough to verify completion [Clarity]
+   - [ ] CHK002 - Every Success Criterion has a quantified metric [Measurability]
+   - [ ] CHK003 - Constraints explicitly bound the solution space [Completeness]
+   - [ ] CHK004 - Every user story maps to at least one Success Criterion [Coverage]
+   - [ ] CHK005 - No vague adjectives ("fast", "secure") without quantified thresholds [Clarity]
+   - [ ] CHK006 - Demo Sentence is filled with an observable outcome [Completeness]
+   ```
+
+   Then evaluate the spec against each item:
+   - Read `spec.md` Mission Brief section (Goal, Success Criteria, Constraints)
+   - Read User Stories and Acceptance Scenarios
+   - Read the Demo Sentence
+   - For each item, determine PASS or FAIL
+   - Compute score: `PASS count / 6`
+
+   Append the score section:
+
+   ```markdown
+   ## Mission Brief Adequacy: {pass_count}/6 ({percentage}%)
+   **Verdict**: [Ready for implementation / Needs refinement]
+   **Gaps**: [list unchecked items with specific references to spec sections]
+   ```
+
+   Example:
+   ```markdown
+   ## Mission Brief Adequacy: 5/6 (83%)
+   **Verdict**: Needs refinement
+   **Gaps**: CHK002 — SC-003 "Reduce support tickets" lacks baseline or target %
+   ```
 
    **CORE PRINCIPLE - Test the Requirements, Not the Implementation**:
    Every checklist item MUST evaluate the REQUIREMENTS THEMSELVES for:

@@ -8,6 +8,10 @@ handoffs:
     agent: adlc.spec.clarify
     prompt: Clarify specification requirements
     send: true
+  - label: Validate Mission Brief Adequacy
+    agent: adlc.spec.checklist
+    prompt: Run /spec.checklist mission-brief to validate oracle adequacy before planning
+    send: true
 scripts:
   sh: scripts/bash/create-new-feature.sh "{ARGS}"
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
