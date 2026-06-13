@@ -207,7 +207,7 @@ Parse the CDR.md index table to build a mapping of `{relative_file_path → cdr_
 # Read existing CDR.md and extract file path -> CDR reference mappings
 CDR_LOOKUP=()
 if [[ -f "{TEAM_DIRECTIVES}/CDR.md" ]]; then
-    while IFS='|' read -r _ id module _ _ _ _; do
+    while IFS='|' read -r _ id module _ _ _ _ _; do
         id="${id// /}"
         module="${module// /}"
         if [[ -n "$id" && -n "$module" && "$id" =~ ^CDR- ]]; then
@@ -279,7 +279,8 @@ Create index structure:
       "type": "Rule",
       "created": "2026-04-15",
       "verified": "2026-05-18",
-      "age_days": 33
+      "age_days": 33,
+      "descriptor": "Python error handling patterns and best practices"
     }
   ],
   "orphans": [
@@ -390,10 +391,10 @@ Context Directive Records (CDRs) track decisions about contributing context modu
 
 ## CDR Index
 
-| ID | Target Module | Type | Status | Created | Verified | Age |
-|----|---------------|------|--------|---------|----------|-----|
-| CDR-2026-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-04-15 | 2026-05-18 | 33d |
-| rule-python-new-pattern | context_modules/rules/python/new-pattern.md | Rule | Auto-generated | 2026-05-22 | 2026-05-22 | 0d |
+| ID | Target Module | Type | Status | Created | Verified | Age | Descriptor |
+|----|---------------|------|--------|---------|----------|-----|------------|
+| CDR-2026-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-04-15 | 2026-05-18 | 33d | Python error handling patterns and best practices |
+| rule-python-new-pattern | context_modules/rules/python/new-pattern.md | Rule | Auto-generated | 2026-05-22 | 2026-05-22 | 0d | (auto-generated — edit descriptor at first publish) |
 
 **Stats**: {N} entries | Last Updated: {date}
 
@@ -415,6 +416,9 @@ Context Directive Records (CDRs) track decisions about contributing context modu
 
 ### Context Type
 Rule
+
+### Descriptor
+{One-line "when to use" summary derived from file content or frontmatter description. This becomes the search surface for the `adlc.team-ai-directives.discover` command.}
 
 ### Evidence
 {From YAML frontmatter}

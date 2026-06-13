@@ -164,3 +164,56 @@ def test_discover_command_documents_team_context_json_contract():
     assert "SPECIFY_FEATURE_DIRECTORY/team-context.json" in content
     assert ".specify/discovery/team-context.json" in content
     assert "authoritative machine-readable artifact" in content
+
+
+def test_discover_command_uses_cdr_index_as_search_surface():
+    """Discover command should document CDR.md as the search surface with fallback."""
+    repo_root = Path(__file__).resolve().parent.parent
+    discover_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "discover.md"
+    content = discover_md.read_text(encoding="utf-8")
+
+    assert "CDR Index as Search Surface" in content
+    assert "loads the index first, matches against it" in content or "index first" in content or "read the index first" in content or "CDR Index" in content
+    assert "Fallback" in content or "fallback" in content or "legacy" in content
+    assert "cdr_id" in content or "cdr_id" in content
+
+
+def test_discover_command_references_descriptor_column():
+    """Discover command should reference the Descriptor column for relevance matching."""
+    repo_root = Path(__file__).resolve().parent.parent
+    discover_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "discover.md"
+    content = discover_md.read_text(encoding="utf-8")
+
+    assert "Descriptor" in content
+    assert "descriptor" in content
+
+
+def test_implement_command_emits_descriptor_column():
+    """Implement command should emit Descriptor column in CDR index table."""
+    repo_root = Path(__file__).resolve().parent.parent
+    implement_md = repo_root / "extensions" / "levelup" / "commands" / "implement.md"
+    content = implement_md.read_text(encoding="utf-8")
+
+    assert "| ID | Target Module | Type | Status | Created | Verified | Age | Descriptor |" in content
+    assert "### Descriptor" in content
+    assert "when to use" in content
+
+
+def test_repair_command_emits_descriptor_column():
+    """Repair command should emit Descriptor column in CDR index table."""
+    repo_root = Path(__file__).resolve().parent.parent
+    repair_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "repair.md"
+    content = repair_md.read_text(encoding="utf-8")
+
+    assert "| ID | Target Module | Type | Status | Created | Verified | Age | Descriptor |" in content
+    assert "### Descriptor" in content
+
+
+def test_repair_command_parser_handles_descriptor_column():
+    """Repair CDR lookup parser should account for the extra Descriptor column."""
+    repo_root = Path(__file__).resolve().parent.parent
+    repair_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "repair.md"
+    content = repair_md.read_text(encoding="utf-8")
+
+    # Parser should have the right number of positional fields for the new column
+    assert "IFS='|' read -r _ id module _ _ _ _ _" in content or "IFS='|' read -r _ id module _ _ _ _ _" in content

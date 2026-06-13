@@ -5,10 +5,25 @@ All notable changes to the Team AI Directives extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.9] - 2026-06-09
+## [1.8.0] - 2026-06-13
+
+### Added
+
+- **Descriptor column in CDR.md index**: New `Descriptor` column in the published CDR.md index
+  table provides a "when to use" summary for each context module, enabling LLM-driven relevance
+  matching without scanning every file.
+- **CDR.md as search surface**: `/team.discover` now loads `CDR.md` as the primary search index
+  (analogous to `.skills.json` for skills). Relevance matching uses the `Descriptor` column +
+  target module path + type. Full file content is loaded on-demand only for selected modules.
+  Falls back to legacy `context_modules/` scan when `CDR.md` is unavailable.
+- **cdr_id in output**: Each entry in `team-context.json` now includes a `cdr_id` field linking
+  back to its originating CDR.
 
 ### Changed
 
+- `/team.repair` re-indexer updated to emit the `Descriptor` column and per-CDR `### Descriptor`
+  field. The CDR table parser (`IFS='|' read`) updated for the new column.
+- `agents-template.md` updated to document CDR.md as the searchable context index.
 - Clarified that `team-ai-directives.discover` owns persistence for discovered feature context.
 - Standardized the canonical persisted artifact name to `team-context.json`.
 - Standardized the staging artifact location to `.specify/discovery/team-context.json` when the

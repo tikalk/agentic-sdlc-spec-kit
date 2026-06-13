@@ -605,9 +605,9 @@ Context Directive Records tracking approved contributions to team-ai-directives.
 
 ## CDR Index
 
-| ID | Target Module | Type | Status | Created | Verified | Age |
-|----|---------------|------|--------|---------|----------|-----|
-| CDR-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-04-15 | 2026-05-18 | 33d |
+| ID | Target Module | Type | Status | Created | Verified | Age | Descriptor |
+|----|---------------|------|--------|---------|----------|-----|------------|
+| CDR-001 | context_modules/rules/python/error-handling.md | Rule | Accepted | 2026-04-15 | 2026-05-18 | 33d | Python error handling patterns and best practices |
 
 **Stats**: {N} CDRs | Last Updated: {date}
 
@@ -637,6 +637,10 @@ Context Directive Records tracking approved contributions to team-ai-directives.
 ### Context Type
 
 Rule | Persona | Example | Constitution Creation | Constitution Amendment
+
+### Descriptor
+
+One-line "when to use" summary. This becomes the search surface in the CDR Index table for the `adlc.team-ai-directives.discover` command. Derive from the `### Context` and `### Decision` sections — e.g., "SQL injection prevention patterns for all languages" or "Java Google style guide conventions for new projects".
 
 ### Signal Gate
 

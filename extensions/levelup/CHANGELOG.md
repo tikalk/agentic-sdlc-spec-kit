@@ -5,6 +5,15 @@ All notable changes to the LevelUp extension will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-06-13
+
+### Added
+
+- **Descriptor column in CDR.md index**: `/levelup.implement` now emits a `Descriptor` column
+  in the published CDR.md index table, providing a "when to use" summary for each context module.
+  The per-CDR block includes a new `### Descriptor` field derived from the CDR's `### Context`
+  and `### Decision` sections.
+
 ## [1.7.1] - 2026-06-08
 
 ### Changed
