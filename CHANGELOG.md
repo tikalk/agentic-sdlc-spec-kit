@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [1.0.11] - 2026-06-13
+
+### Added
+
+- **`mission-brief` checklist domain**: `spec.checklist` now defaults to `mission-brief` when no domain is specified, generating a 6-item Oracle Adequacy Checklist that validates whether the Mission Brief (Goal, Success Criteria, Constraints) is sufficient to serve as its own verification oracle. Auto-fills a score (e.g., "5/6 (83%)") and verdict ("Ready for implementation / Needs refinement").
+- **`spec.specify` handoff to `spec.checklist mission-brief`**: after Mission Brief approval, the specify command now suggests running the oracle adequacy check before proceeding to planning.
+- **`spec.implement` pre-flight Mission Brief Adequacy check**: before execution tracking initialization, checks if `checklists/mission-brief.md` exists and warns if the adequacy score is < 80%, asking the user whether to proceed.
+
+# [0.10.0+adlc11] - 2026-06-13
+
+### Changed
+
+- **CLI bumped to `0.10.0+adlc11`**: this fork release captures the Agentic SDLC preset v1.0.11 mission-brief oracle adequacy changes.
+- **Agentic SDLC preset bumped to 1.0.11**: added `mission-brief` checklist domain, `spec.specify` handoff to `spec.checklist mission-brief`, and `spec.implement` pre-flight adequacy warning.
+
 # [0.10.0+adlc10] - 2026-06-13
 
 ### Added
