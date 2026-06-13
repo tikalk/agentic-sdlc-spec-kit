@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "quick"
   name: "Quick - Session-Based Ad-Hoc Task Execution"
-  version: "1.1.0"
+  version: "1.2.0"
   description: "One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology: Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -13,12 +13,21 @@ extension:
 requires:
   speckit_version: ">=0.0.107"
 
+handoffs:
+  - from: quick.levelup
+    to: [levelup.validate]
+    send: false
+
 provides:
   commands:
     - name: "adlc.quick.implement"
       file: "commands/implement.md"
       description: "Session-based ad-hoc task execution (no file artifacts)"
       aliases: ["quick.implement"]
+    - name: "adlc.quick.levelup"
+      file: "commands/levelup.md"
+      description: "Quick-contribute a directive to team-ai-directives"
+      aliases: ["quick.levelup"]
 
 tags:
   - "quick"

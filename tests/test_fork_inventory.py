@@ -41,27 +41,20 @@ class ForkInventoryMixin:
         ext_files = []
 
         for ext in ["architect", "evals", "levelup", "product", "quick", "tdd"]:
-            ext_files.extend(
-                [
-                    f".specify/extensions/{ext}/extension.yml",
-                    f".specify/extensions/{ext}/CHANGELOG.md",
-                    f".specify/extensions/{ext}/README.md",
-                    f".specify/extensions/{ext}/config-template.yml",
-                    f".specify/extensions/{ext}/commands/analyze.md",
-                    f".specify/extensions/{ext}/commands/clarify.md",
-                    f".specify/extensions/{ext}/commands/implement.md",
-                    f".specify/extensions/{ext}/commands/init.md",
-                    f".specify/extensions/{ext}/commands/specify.md",
-                    f".specify/extensions/{ext}/commands/validate.md",
-                    f".specify/extensions/{ext}/commands/plan.md",
-                    f".specify/extensions/{ext}/commands/tasks.md",
-                    f".specify/extensions/{ext}/commands/trace.md",
-                    f".specify/extensions/{ext}/commands/link.md",
-                    f".specify/extensions/{ext}/commands/roadmap.md",
-                    f".specify/extensions/{ext}/commands/skills.md",
-                    f".specify/templates/{ext}-template.md",
-                ]
-            )
+            extra_commands = []
+            if ext == "quick":
+                extra_commands = ["levelup"]
+
+            base_commands = [
+                "analyze", "clarify", "implement", "init",
+                "specify", "validate", "plan", "tasks",
+                "trace", "link", "roadmap", "skills",
+            ] + extra_commands
+
+            for cmd in base_commands:
+                ext_files.append(f".specify/extensions/{ext}/commands/{cmd}.md")
+
+            ext_files.append(f".specify/templates/{ext}-template.md")
 
         ext_files.extend(
             [
@@ -134,6 +127,7 @@ class ForkInventoryMixin:
         skill_files.extend(
             [
                 ".agent/skills/adlc-quick-implement/SKILL.md",
+                ".agent/skills/adlc-quick-levelup/SKILL.md",
             ]
         )
 

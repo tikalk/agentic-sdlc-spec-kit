@@ -2,6 +2,13 @@
 
 All notable changes to the Quick Extension will be documented in this file.
 
+## [1.2.0] - 2026-06-13
+
+### Added
+
+- **`quick.levelup` command**: Low-friction directive contribution to team-ai-directives. 6 verifiable phases with automated gates: Signal Gate (team-wide, high-value, unique, evidence), Cross-System Conflict Detection, CDR completeness check, Output Artifact Verification. Generates CDRs with Descriptor column matching `levelup.implement` format. Companion skill auto-detection offered inline during Phase 2 review. Single mandatory interactive stop (Phase 4 User Review).
+- **Handoff to `/levelup.validate`**: After publishing, suggests running `/levelup.validate` for verification metadata tracking.
+
 ## [1.1.0] - 2026-05-15
 
 ### Changed

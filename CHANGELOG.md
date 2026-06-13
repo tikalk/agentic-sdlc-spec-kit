@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc10] - 2026-06-13
+
+### Added
+
+- **`quick.levelup` command**: New low-friction command for contributing directives to team-ai-directives. Single-session flow with 6 verifiable phases (Parse & Classify, Structure CDR, Signal Gate + Cross-System Validation, User Review, Publish, PR). Generates CDRs matching `levelup.implement` format with Descriptor column. Includes companion skill auto-detection, output artifact verification, and handoff to `/levelup.validate`. Quick extension bumped to v1.2.0.
+
 # [0.10.0+adlc9] - 2026-06-13
 
 ### Added
