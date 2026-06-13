@@ -108,6 +108,7 @@ Quick shows completion status:
 | Command | Purpose |
 |---------|---------|
 | `/quick.implement` | Session-based ad-hoc task execution |
+| `/quick.levelup` | Quick-contribute a directive to team-ai-directives |
 
 ## Key Differences from Full Workflow
 
