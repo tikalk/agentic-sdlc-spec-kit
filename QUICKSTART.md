@@ -411,6 +411,15 @@ specify run adlc.team-ai-directives.discover
 specify run adlc.team-ai-directives.constitution
 ```
 
+When discovery is used as part of the spec workflow, the extension-owned persisted artifact should
+live at:
+
+- `specs/<feature>/team-context.json`
+
+If discovery runs before the feature directory exists, the workflow can stage the payload at:
+
+- `.specify/discovery/team-context.json`
+
 ### Getting Help
 
 1. **Check project documentation**: Look for `AGENTS.md` and `README.md` in your project

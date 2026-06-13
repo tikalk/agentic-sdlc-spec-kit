@@ -59,6 +59,8 @@ Access rules via:
 
 ## CDR.md
 
+`CDR.md` is the searchable context module index — it serves the same role for context modules as `.skills.json` serves for skills. Its index table acts as the primary matching surface for the `adlc.team-ai-directives.discover` command, which reads the `Descriptor` column to select relevant modules without scanning every file.
+
 Context Directive Records track approved contributions from various projects. Review to:
 
 - Find patterns added by other teams

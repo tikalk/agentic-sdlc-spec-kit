@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc9] - 2026-06-13
+
+### Added
+
+- **CDR.md as context module search surface**: `/team.discover` now loads `CDR.md` as the primary search index (skills-style), matching relevance from the new `Descriptor` column + path + type. Full file content loaded on-demand only for matched modules. Legacy `context_modules/` scan retained as fallback.
+- **Descriptor column in CDR.md index**: New `Descriptor` column in the published CDR.md index table provides a "when to use" summary for each context module, analogous to `.skills.json` for skills. Backfilled for all 27 existing CDRs.
+- **cdr_id in team-context.json**: Each entry now links back to its originating CDR for full traceability.
+
+### Changed
+
+- **LevelUp extension bumped to 1.8.0**: `/levelup.implement` emits the Descriptor column and `### Descriptor` per-CDR field.
+- **Team AI Directives extension bumped to 1.8.0**: `/team.discover` uses CDR index as search surface, `/team.repair` re-indexer updated for Descriptor column, `agents-template.md` updated.
+- **CLI bumped to `0.10.0+adlc9`**: this fork release captures the CDR-index-as-search-surface changes across both team-ai-directives and levelup extensions.
+
 # [0.10.0+adlc8] - 2026-06-12
 
 ### Fixed

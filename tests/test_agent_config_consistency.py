@@ -304,6 +304,19 @@ class TestAgentConfigConsistency:
             assert "GIT_BRANCH_ISSUE" in content
             assert "If no issue key is available, STOP and ask the user for it" in content
 
+    def test_specify_and_plan_commands_reference_team_context_json(self):
+        """specify/plan command contracts should use extension-owned team-context.json artifacts."""
+        core_specify = (REPO_ROOT / "templates" / "commands" / "specify.md").read_text(encoding="utf-8")
+        adlc_specify = (REPO_ROOT / "presets" / "agentic-sdlc" / "commands" / "adlc.spec.specify.md").read_text(encoding="utf-8")
+        adlc_plan = (REPO_ROOT / "presets" / "agentic-sdlc" / "commands" / "adlc.spec.plan.md").read_text(encoding="utf-8")
+
+        for content in (core_specify, adlc_specify):
+            assert "team-context.json" in content
+            assert ".specify/discovery/team-context.json" in content
+            assert "SPECIFY_FEATURE_DIRECTORY/team-context.json" in content
+
+        assert "FEATURE_DIR/team-context.json" in adlc_plan
+
     # --- RovoDev consistency checks ---
 
     def test_rovodev_in_agent_config(self):
