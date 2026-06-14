@@ -1723,13 +1723,13 @@ def run_preset_update(
                 # Install new version
                 if update["source"] == "bundled":
                     bundled_path = update["bundled_path"]
-                    manifest = manager.install_from_directory(
+                    manager.install_from_directory(
                         bundled_path, speckit_version, priority=priority
                     )
                 else:
                     zip_path = catalog.download_pack(preset_id)
                     try:
-                        manifest = manager.install_from_zip(
+                        manager.install_from_zip(
                             zip_path, speckit_version, priority=priority
                         )
                     finally:
