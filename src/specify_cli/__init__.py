@@ -56,11 +56,13 @@ from ._console import (
 )
 from ._assets import (
     _locate_bundled_extension,
-    _locate_bundled_preset,
     _locate_bundled_workflow as _locate_bundled_workflow,
     _locate_core_pack,
     _repo_root,
     get_speckit_version as _upstream_get_speckit_version,
+)
+from ._assets_fork import (
+    _locate_bundled_preset,
 )
 from ._utils import (
     CLAUDE_LOCAL_PATH as CLAUDE_LOCAL_PATH,
@@ -835,7 +837,13 @@ def preset_add(
                 pack_info = catalog.get_pack_info(preset_id)
 
                 if not pack_info:
+                    from ._init_fork import suggest_preset_names
+
+                    suggestions = suggest_preset_names(preset_id, project_root)
                     console.print(f"[red]Error:[/red] Preset '{preset_id}' not found in catalog")
+                    if suggestions:
+                        did_you_mean = "', '".join(suggestions)
+                        console.print(f"[yellow]Did you mean:[/yellow] '{did_you_mean}'?")
                     raise typer.Exit(1)
 
                 # Bundled presets should have been caught above; if we reach
@@ -1176,6 +1184,23 @@ def preset_disable(
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]")
     console.print(f"To re-enable: {accent(f'specify preset enable {preset_id}')}")
+
+
+@preset_app.command("update")
+def preset_update(
+    preset: str = typer.Argument(None, help="Preset ID to update (or omit for all)"),
+):
+    """Update preset(s) to latest version.
+
+    Checks both bundled CLI presets and remote catalog for updates.
+    Compares versions and picks the highest available.
+    """
+    from ._init_fork import run_preset_update
+
+    project_root = _require_specify_project()
+    exit_code = run_preset_update(preset=preset, project_root=project_root, console=console)
+    if exit_code:
+        raise typer.Exit(exit_code)
 
 
 # ===== Preset Catalog Commands =====
@@ -2235,7 +2260,7 @@ def extension_update(
     )
     from packaging import version as pkg_version
     import shutil
-    from ._assets import get_bundled_extension_version, get_bundled_extension_path
+    from ._assets_fork import get_bundled_extension_version, get_bundled_extension_path
 
     project_root = _require_specify_project()
     manager = ExtensionManager(project_root)

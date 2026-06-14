@@ -1543,3 +1543,325 @@ def _install_skills_from_path(
                 raise Exception(f"Failed to install {skill_name}: {e}")
 
     return installed
+
+
+# ============================================================================
+# PRESET UPDATE (fork-specific CLI command logic)
+# ============================================================================
+
+
+def run_preset_update(
+    preset: str | None,
+    project_root: Path,
+    console,
+) -> int:
+    """Update preset(s) to latest version.
+
+    Checks both bundled CLI presets and remote catalog for updates.
+    Compares versions and picks the highest available.
+
+    Args:
+        preset: Preset ID to update, or None for all installed presets.
+        project_root: Project root directory.
+        console: Rich Console instance for output.
+
+    Returns:
+        Exit code: 0 on success, 1 on failure.
+    """
+    from .presets import (
+        PresetManager,
+        PresetCatalog,
+        PresetError,
+        PresetValidationError,
+        PresetManifest,
+    )
+    from packaging import version as pkg_version
+    import shutil
+    import tempfile
+    from ._assets_fork import get_bundled_preset_version, get_bundled_preset_path
+
+    manager = PresetManager(project_root)
+    catalog = PresetCatalog(project_root)
+    speckit_version = get_speckit_version()
+
+    try:
+        installed = manager.list_installed()
+        if preset:
+            preset_ids = [p["id"] for p in installed if p["id"] == preset]
+            if not preset_ids:
+                console.print(f"[red]Error:[/red] Preset '{preset}' is not installed")
+                return 1
+        else:
+            preset_ids = [p["id"] for p in installed]
+
+        if not preset_ids:
+            console.print("[yellow]No presets installed[/yellow]")
+            return 0
+
+        console.print("🔄 Checking for updates...\n")
+
+        updates_available = []
+
+        for preset_id in preset_ids:
+            metadata = manager.registry.get(preset_id)
+            if metadata is None or not isinstance(metadata, dict) or "version" not in metadata:
+                console.print(f"⚠  {preset_id}: Registry entry corrupted or missing (skipping)")
+                continue
+            try:
+                installed_version = pkg_version.Version(metadata["version"])
+            except pkg_version.InvalidVersion:
+                console.print(
+                    f"⚠  {preset_id}: Invalid installed version '{metadata.get('version')}' in registry (skipping)"
+                )
+                continue
+
+            update_source = None
+            update_version = None
+            update_info = {}
+
+            # 1. Check bundled version
+            bundled_version_str = get_bundled_preset_version(preset_id)
+            bundled_path = get_bundled_preset_path(preset_id)
+            if bundled_version_str and bundled_path:
+                try:
+                    bundled_version = pkg_version.Version(bundled_version_str)
+                    if bundled_version > installed_version:
+                        update_source = "bundled"
+                        update_version = bundled_version
+                        update_info = {
+                            "bundled_path": bundled_path,
+                            "bundled_version": bundled_version_str,
+                        }
+                except pkg_version.InvalidVersion:
+                    console.print(
+                        f"⚠  {preset_id}: Invalid bundled version '{bundled_version_str}' (skipping bundled)"
+                    )
+
+            # 2. Check remote catalog
+            pack_info = catalog.get_pack_info(preset_id)
+            if pack_info and pack_info.get("_install_allowed", True):
+                try:
+                    catalog_version = pkg_version.Version(pack_info["version"])
+                    current_best = update_version if update_version else installed_version
+                    if catalog_version > current_best:
+                        update_source = "remote"
+                        update_version = catalog_version
+                        update_info = {
+                            "download_url": pack_info.get("download_url"),
+                            "catalog_name": pack_info.get("_catalog_name", "catalog"),
+                            "pack_info": pack_info,
+                        }
+                except pkg_version.InvalidVersion:
+                    console.print(
+                        f"⚠  {preset_id}: Invalid catalog version '{pack_info.get('version')}' (skipping catalog)"
+                    )
+
+            if update_source:
+                updates_available.append(
+                    {
+                        "id": preset_id,
+                        "name": pack_info.get("name", preset_id) if pack_info else preset_id,
+                        "installed": str(installed_version),
+                        "available": str(update_version),
+                        "source": update_source,
+                        **update_info,
+                    }
+                )
+                if update_source == "bundled":
+                    source_label = "bundled"
+                else:
+                    source_label = update_info.get("catalog_name", "remote")
+                console.print(
+                    f"📦 {preset_id}: Update available (v{installed_version} → v{update_version} from {source_label})"
+                )
+            else:
+                console.print(f"✓ {preset_id}: Up to date (v{installed_version})")
+
+        if not updates_available:
+            console.print("\n[green]All presets are up to date![/green]")
+            return 0
+
+        console.print("\n[bold]Updates available:[/bold]\n")
+        for update in updates_available:
+            console.print(f"  • {update['id']}: {update['installed']} → {update['available']}")
+        console.print()
+
+        import typer
+
+        confirm = typer.confirm("Update these presets?")
+        if not confirm:
+            console.print("Cancelled")
+            return 0
+
+        console.print()
+        updated_presets = []
+        failed_updates = []
+
+        for update in updates_available:
+            preset_id = update["id"]
+            preset_name = update["name"]
+            console.print(f"📦 Updating {preset_name}...")
+
+            # Backup
+            backup_entry = manager.registry.get(preset_id)
+            backup_dir = manager.presets_dir / preset_id
+            backup_temp = Path(tempfile.mkdtemp()) / f"preset-backup-{preset_id}"
+            backup_copied = False
+            if backup_dir.exists():
+                shutil.copytree(backup_dir, backup_temp)
+                backup_copied = True
+
+            try:
+                # Determine priority to preserve
+                priority = 10
+                if backup_entry and isinstance(backup_entry, dict):
+                    priority = backup_entry.get("priority", 10)
+
+                # Remove old preset
+                manager.remove(preset_id)
+
+                # Install new version
+                if update["source"] == "bundled":
+                    bundled_path = update["bundled_path"]
+                    manifest = manager.install_from_directory(
+                        bundled_path, speckit_version, priority=priority
+                    )
+                else:
+                    zip_path = catalog.download_pack(preset_id)
+                    try:
+                        manifest = manager.install_from_zip(
+                            zip_path, speckit_version, priority=priority
+                        )
+                    finally:
+                        if zip_path.exists():
+                            zip_path.unlink(missing_ok=True)
+
+                # Restore enabled state if previously disabled
+                if backup_entry and isinstance(backup_entry, dict):
+                    if not backup_entry.get("enabled", True):
+                        manager.registry.update(preset_id, {"enabled": False})
+
+                console.print(f"   [green]✓[/green] Updated to v{update['available']}")
+                updated_presets.append(preset_name)
+
+            except Exception as e:
+                console.print(f"   [red]✗[/red] Failed: {e}")
+                failed_updates.append((preset_name, str(e)))
+
+                # Rollback
+                console.print(f"   [yellow]↩[/yellow] Rolling back {preset_name}...")
+                try:
+                    # Remove any partially installed new version
+                    new_dir = manager.presets_dir / preset_id
+                    if new_dir.exists():
+                        shutil.rmtree(new_dir)
+
+                    # Restore old directory
+                    if backup_copied and backup_temp.exists():
+                        new_dir.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copytree(backup_temp, new_dir)
+
+                        # Restore registry entry
+                        if backup_entry and isinstance(backup_entry, dict):
+                            try:
+                                manager.registry.restore(preset_id, backup_entry)
+                            except Exception:
+                                pass
+
+                        # Re-register commands from restored manifest
+                        try:
+                            restored_manifest = PresetManifest(new_dir / "preset.yml")
+                            registered_commands = manager._register_commands(
+                                restored_manifest, new_dir
+                            )
+                            manager.registry.update(
+                                preset_id, {"registered_commands": registered_commands}
+                            )
+                            registered_skills = manager._register_skills(
+                                restored_manifest, new_dir
+                            )
+                            manager.registry.update(
+                                preset_id, {"registered_skills": registered_skills}
+                            )
+                        except Exception:
+                            pass
+
+                    console.print("   [green]✓[/green] Rollback successful")
+                except Exception as rollback_error:
+                    console.print(f"   [red]✗[/red] Rollback failed: {rollback_error}")
+
+                # Clean up backup temp dir
+                try:
+                    if backup_temp.exists():
+                        shutil.rmtree(backup_temp.parent)
+                except Exception:
+                    pass
+
+        console.print()
+        if updated_presets:
+            console.print(f"[green]✓[/green] Successfully updated {len(updated_presets)} preset(s)")
+        if failed_updates:
+            console.print(f"[red]✗[/red] Failed to update {len(failed_updates)} preset(s):")
+            for preset_name, error in failed_updates:
+                console.print(f"   • {preset_name}: {error}")
+            return 1
+
+    except PresetValidationError as e:
+        console.print(f"\n[red]Validation Error:[/red] {e}")
+        return 1
+    except PresetError as e:
+        console.print(f"\n[red]Error:[/red] {e}")
+        return 1
+
+    return 0
+
+
+# ============================================================================
+# PRESET NAME SUGGESTIONS (fuzzy-match helper for preset_add error)
+# ============================================================================
+
+
+def suggest_preset_names(preset_id: str, project_root: Path) -> list[str]:
+    """Suggest similar preset names when a preset ID is not found.
+
+    Scans the catalog, bundled presets directory, and source presets directory.
+
+    Args:
+        preset_id: The preset ID that was not found.
+        project_root: Project root directory.
+
+    Returns:
+        List of up to 3 suggested preset names.
+    """
+    import difflib
+    from ._assets import _locate_core_pack, _repo_root
+
+    known_presets: list[str] = []
+
+    try:
+        from .presets import PresetCatalog
+        catalog = PresetCatalog(project_root)
+        catalog_packs = catalog._get_merged_packs()
+        known_presets.extend(catalog_packs.keys())
+    except Exception:
+        pass
+
+    for candidate_dir in [
+        Path(__file__).parent / "bundled_presets",
+        _repo_root() / "presets",
+        (_locate_core_pack() or Path()) / "presets",
+    ]:
+        if candidate_dir.is_dir():
+            for subdir in candidate_dir.iterdir():
+                if subdir.is_dir() and (subdir / "preset.yml").is_file():
+                    known_presets.append(subdir.name)
+
+    # Deduplicate while preserving order
+    seen = set()
+    unique_known = []
+    for name in known_presets:
+        if name not in seen:
+            seen.add(name)
+            unique_known.append(name)
+
+    return difflib.get_close_matches(preset_id, unique_known, n=3, cutoff=0.5)

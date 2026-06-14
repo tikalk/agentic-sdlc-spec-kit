@@ -10,6 +10,18 @@ All notable changes to the Specify CLI and templates are documented here.
 - **`spec.specify` handoff to `spec.checklist mission-brief`**: after Mission Brief approval, the specify command now suggests running the oracle adequacy check before proceeding to planning.
 - **`spec.implement` pre-flight Mission Brief Adequacy check**: before execution tracking initialization, checks if `checklists/mission-brief.md` exists and warns if the adequacy score is < 80%, asking the user whether to proceed.
 
+# [0.10.0+adlc12] - 2026-06-14
+
+### Added
+
+- **`specify preset update` command**: New CLI command mirroring `specify extension update`. Checks bundled CLI presets and remote catalogs for newer versions, performs atomic updates with automatic backup/rollback, and preserves user settings (priority, enabled/disabled state).
+- **Fork `_assets_fork.py` module**: Consolidates all fork-specific bundled-asset helpers (previously scattered in `_assets.py` since adlc4/adlc8) into a new leaf module, restoring `_assets.py` to clean-upstream. Contains `get_bundled_extension/preset_version/_path` and the `bundled_presets/` locator fallback.
+- **Fuzzy-match suggestions on `specify preset add`**: When a preset ID is not found, the CLI now suggests close matches (e.g., "Did you mean 'agentic-sdlc'?") using `difflib.get_close_matches` against bundled presets and catalog entries.
+
+### Fixed
+
+- **Better error message for preset typos**: The bare "Preset 'X' not found in catalog" error now includes actionable suggestions when a similar preset name exists.
+
 # [0.10.0+adlc11] - 2026-06-13
 
 ### Changed

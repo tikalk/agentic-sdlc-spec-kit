@@ -14,15 +14,17 @@ The fork isolates customizations into a small set of focused modules under `src/
 
 | Module | Purpose | Imports from |
 |---|---|---|
+| `_assets_fork.py` | Leaf — bundled-asset helpers (`get_bundled_*_version`/`_path`, fork `_locate_bundled_preset`) | `_assets` (clean upstream) |
 | `_extension_fork.py` | Leaf — pure constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`) | (none) |
 | `_core_fork.py` | Alias resolution, MCP config, skill naming, preinstalled extension queries | `_extension_fork` |
-| `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_extension_fork` |
+| `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_extension_fork`, `_assets_fork` |
 | `base_fork.py` | Fork-level helpers on `IntegrationBase` (e.g. `detect_native_worktree()`) | (none) |
 | `extensions_fork.py` | Constants and schemas for fork-specific extension features (e.g. worktree config) | (none) |
 
 **Dependency direction (locked):**
 
 ```
+_assets_fork.py     (leaf)
 _extension_fork.py  (leaf)
         ^
         |
@@ -378,6 +380,7 @@ The following customization categories live in the fork modules listed in [Fork 
 8. **MCP config** (`_core_fork.py`): `validate_mcp_config()`, `merge_mcp_configs_report_conflicts()`, `install_mcp_config()`
 9. **Native tool detection** (`base_fork.py`): `detect_native_worktree()` on `IntegrationBase`
 10. **Worktree constants** (`extensions_fork.py`): `WORKTREE_DEFAULT_ISOLATION_MODE`, `WORKTREE_VALID_ISOLATION_MODES`, `WORKTREE_MANIFEST_FILENAME`, `WORKTREE_BASE_DIR`, `WORKTREE_TASK_BRANCH_PATTERN`, `WORKTREE_CONFIG_KEY`, `WORKTREE_CONFIG_SCHEMA`
+11. **Bundled-asset helpers** (`_assets_fork.py`): `get_bundled_extension_version()`, `get_bundled_extension_path()`, `get_bundled_preset_version()`, `get_bundled_preset_path()`, fork `_locate_bundled_preset()`
 
 ## What Lives in `__init__.py`
 
@@ -415,9 +418,21 @@ The largest of the fork modules; holds theming, package identity, init hooks, te
 |---|---|---|
 | `_init_fork.py` | ~1000 | Theming, init hooks, scaffolding |
 | `_core_fork.py` | ~400 | Alias/MCP/skill helpers |
+| `_assets_fork.py` | ~150 | Bundled-asset version/path helpers |
 | `_extension_fork.py` | ~30 | Leaf constants |
 | `base_fork.py` | ~15 | `detect_native_worktree()` |
 | `extensions_fork.py` | ~25 | Worktree constants |
+
+### `src/specify_cli/_assets_fork.py` — Bundled-Asset Fork Helpers
+
+**File**: `src/specify_cli/_assets_fork.py`
+
+Leaf fork module that wraps `_assets.py` (clean upstream) with fork-specific bundled-asset discovery. Moved here in `0.10.0+adlc12` to restore `_assets.py` to clean-upstream.
+
+**Key exports**:
+- `_locate_bundled_preset()`: upstream locator + `bundled_presets/` fallback for wheel/uv-tool installs
+- `get_bundled_extension_version()`, `get_bundled_extension_path()` (relocated from adlc4)
+- `get_bundled_preset_version()`, `get_bundled_preset_path()`
 
 ### Test Files
 

@@ -55,45 +55,6 @@ def _locate_bundled_extension(extension_id: str) -> Path | None:
     return None
 
 
-def get_bundled_extension_version(extension_id: str) -> str | None:
-    """Get version of bundled extension from CLI wheel or source checkout.
-
-    Args:
-        extension_id: Extension identifier (e.g., "architect")
-
-    Returns:
-        Version string if extension is bundled, None otherwise
-    """
-    bundled_path = _locate_bundled_extension(extension_id)
-    if not bundled_path:
-        return None
-
-    # Read extension.yml from bundled location
-    ext_yml = bundled_path / "extension.yml"
-    if not ext_yml.is_file():
-        return None
-
-    try:
-        import yaml
-        with open(ext_yml, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        return data.get("extension", {}).get("version")
-    except Exception:
-        return None
-
-
-def get_bundled_extension_path(extension_id: str) -> Path | None:
-    """Get filesystem path to bundled extension in CLI wheel or source checkout.
-
-    Args:
-        extension_id: Extension identifier (e.g., "architect")
-
-    Returns:
-        Path to bundled extension directory, None if not found
-    """
-    return _locate_bundled_extension(extension_id)
-
-
 def _locate_bundled_workflow(workflow_id: str) -> Path | None:
     """Return the path to a bundled workflow directory, or None.
 
@@ -134,11 +95,6 @@ def _locate_bundled_preset(preset_id: str) -> Path | None:
 
     # Source-checkout / editable install: look relative to repo root
     candidate = _repo_root() / "presets" / preset_id
-    if (candidate / "preset.yml").is_file():
-        return candidate
-
-    # Wheel / uv tool install: Tikalk fork presets land in bundled_presets/
-    candidate = Path(__file__).parent / "bundled_presets" / preset_id
     if (candidate / "preset.yml").is_file():
         return candidate
 

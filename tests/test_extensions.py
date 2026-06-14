@@ -5422,7 +5422,7 @@ class TestArchitectExtensionCLI:
 
         # Install an older version of architect by copying the bundled extension
         # and mutating its version
-        from specify_cli._assets import get_bundled_extension_path
+        from specify_cli._assets_fork import get_bundled_extension_path
         bundled_path = get_bundled_extension_path("architect")
         assert bundled_path is not None, "architect not bundled"
 

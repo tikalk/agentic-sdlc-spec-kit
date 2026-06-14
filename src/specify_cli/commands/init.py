@@ -18,9 +18,11 @@ from .._agent_config import (
 )
 from .._assets import (
     _locate_bundled_extension,
-    _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
+)
+from .._assets_fork import (
+    _locate_bundled_preset,
 )
 from .._console import StepTracker, console, select_with_arrows, show_banner
 from .._utils import check_tool, init_git_repo, is_git_repo
