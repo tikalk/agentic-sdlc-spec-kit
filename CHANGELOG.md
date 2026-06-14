@@ -7,13 +7,14 @@ All notable changes to the Specify CLI and templates are documented here.
 ### Added
 
 - **EDD Extension v1.0.0** (`extensions/edd/`): New Evaluation-Driven Development extension that adds a verification layer to the SDLC cycle. Includes:
-  - `edd.verify` command: runs deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping, analyze findings), grades all gates, and generates a corrective `next-prompt.md` on failure
-  - Deterministic check runners with project-type auto-detection (Python/pytest, Node/npm, Go, Rust, etc.)
-  - `grade.json` schema for machine-readable PASS/FAIL verdict
-  - `sdd-loop.yml` workflow: `do-while` loop wrapping specify → plan → tasks → implement → verify → grade check
-  - Quality Gates reference template for per-feature criteria definition
-  - Config template for thresholds and check toggles
-  - `after_implement` hook registration for automatic evaluation
+  - `edd.verify` command: unified deterministic checks (lint, tests, smoke) with project-type auto-detection + AI-driven evaluation (oracle adequacy, evidence mapping, findings analysis), grades all gates (Quality, Oracle, Evidence, Analyze, Deterministic), and generates a corrective `next-prompt.md` on failure
+  - Guardrails (P0-P2): no-progress detection (STALL exit + next-prompt.md), budget ceiling (BUDGET exit with cost tracking), regression detection (REVERT suggestion in next-prompt.md), escalation sections in evidence.md, exit codes (0=PASS, 1=FAIL, 2=STALL, 3=BUDGET)
+  - `.eval/loop-state.yml` spine: loop metadata (iteration, cost, started_at, budget), exit conditions, current eval (gates, verdict, score), full iteration history, lifecycle phases
+  - `sdd-loop.yml` workflow: `do-while` loop wrapping specify → plan → tasks → implement, condition: `file_exists('next-prompt.md')`, no explicit verify step (hook-driven)
+  - Hook-driven verify: `after_implement` hook registered with `optional: false` — fires automatically after implement, no explicit verify step in workflow
+  - Deterministic check runners (`run-deterministic.{sh,ps1}`): auto-detects Python (pytest --cov), Node (npm test), Go (go test), Rust (cargo test), Rust workspace; single-capture pattern, --cov flags, smoke scenario parsing
+  - Quality Gates reference template (`templates/quality-gates-section.md`) for per-feature criteria definition
+  - Config template (`config-template.yml`) for thresholds (score, coverage, lint error/smoke ceilings) and guardrails (no_progress_threshold, max_cost_usd, check toggles)
 
 ### Changed
 
@@ -22,6 +23,16 @@ All notable changes to the Specify CLI and templates are documented here.
   - Removed `adlc.spec.implement` step 3 (Mission Brief pre-flight adequacy check) — redundant with EDD loop gating
   - Updated handoffs in `adlc.spec.implement` and `adlc.spec.trace` to reference `adlc.edd.verify`
   - `spec-template.md` unchanged: Quality Gates section remains (EDD reads it when present)
+
+### Fixed
+
+- **Review bug fixes**: Fixed all issues from initial PR review:
+  - `{SCRIPT}` overload: removed redundant `{SCRIPT}` references from verify.md (scripts resolved via config)
+  - Script paths: corrected `run-deterministic.{sh,ps1}` path references to `.specify/extensions/edd/` prefix
+  - Workflow grade step removed: `sdd-loop.yml` no longer has explicit grade step (grade integrated into verify)
+  - Double-run: deterministic scripts use single-capture pattern (output written once)
+  - `--cov` flags restored in bash runner (Python coverage collection)
+  - Smoke scenario parsing: fixed executable check logic, scenario-only mode emits correct exit codes
 
 # [1.0.11] - 2026-06-13
 
