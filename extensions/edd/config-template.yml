@@ -1,0 +1,35 @@
+# EDD Extension Configuration
+
+# Thresholds for gate grading
+gates:
+  oracle_adequacy:
+    threshold: 80        # Minimum mission-brief oracle score (%)
+    enabled: true
+  critical_findings:
+    max_critical: 0      # Max CRITICAL issues allowed
+    max_high: 0          # Max HIGH issues allowed
+    enabled: true
+  tests:
+    enabled: true
+    command: "auto"      # "auto" = discover from project, or explicit command string
+    threshold: 100       # % of tests that must pass (0-100)
+  lint:
+    enabled: true
+    command: "auto"      # "auto" = discover from project, or explicit command string
+    max_errors: 0        # Max lint errors allowed
+  smoke:
+    enabled: false       # Disabled by default; enable if project has smoke tests
+    command: "auto"
+
+# Loop behavior
+loop:
+  max_iterations: 5
+  no_progress_threshold: 2    # iterations without score improvement before STALL
+  max_cost_usd: 20            # rough budget ceiling (~$4/iteration)
+  stop_on_first_fail: false   # false = run all gates and report all failures
+
+# Output paths (relative to FEATURE_DIR)
+output:
+  evidence: "evidence.md"
+  state: ".eval/loop-state.yml"
+  next_prompt: "next-prompt.md"

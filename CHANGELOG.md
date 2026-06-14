@@ -2,6 +2,27 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc13] - 2026-06-14
+
+### Added
+
+- **EDD Extension v1.0.0** (`extensions/edd/`): New Evaluation-Driven Development extension that adds a verification layer to the SDLC cycle. Includes:
+  - `edd.verify` command: runs deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping, analyze findings), grades all gates, and generates a corrective `next-prompt.md` on failure
+  - Deterministic check runners with project-type auto-detection (Python/pytest, Node/npm, Go, Rust, etc.)
+  - `grade.json` schema for machine-readable PASS/FAIL verdict
+  - `sdd-loop.yml` workflow: `do-while` loop wrapping specify → plan → tasks → implement → verify → grade check
+  - Quality Gates reference template for per-feature criteria definition
+  - Config template for thresholds and check toggles
+  - `after_implement` hook registration for automatic evaluation
+
+### Changed
+
+- **Agentic SDLC preset v1.1.0** (breaking):
+  - Removed `adlc.spec.verify` preset command — replaced by `adlc.edd.verify` in the EDD extension
+  - Removed `adlc.spec.implement` step 3 (Mission Brief pre-flight adequacy check) — redundant with EDD loop gating
+  - Updated handoffs in `adlc.spec.implement` and `adlc.spec.trace` to reference `adlc.edd.verify`
+  - `spec-template.md` unchanged: Quality Gates section remains (EDD reads it when present)
+
 # [1.0.11] - 2026-06-13
 
 ### Added

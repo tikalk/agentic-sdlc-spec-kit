@@ -5,8 +5,8 @@ handoffs:
     agent: adlc.spec.trace
     prompt: Generate a feature execution trace from the completed implementation
   - label: Generate Verification Evidence
-    agent: adlc.spec.verify
-    prompt: Generate a feature verification dossier from the mission brief and artifacts
+    agent: adlc.edd.verify
+    prompt: Run EDD verification to evaluate implementation against Mission Brief and generate evidence dossier
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
@@ -68,29 +68,18 @@ You **MUST** consider the user input before proceeding (if not empty).
          - On merge conflict, delegate resolution to a subagent (per `task_execution.delegate_merge_conflicts: true` in config)
       - If `$FEATURE_DIR/tasks_dag.json` does NOT exist: log a warning and fall back to the existing sequential implementation flow in the current checkout/worktree. `tasks_meta.json` and `[SYNC]/[ASYNC]` markers continue to drive scheduling.
 
-3. **Check Mission Brief Adequacy** (if `FEATURE_DIR/checklists/mission-brief.md` exists):
-   - Read `mission-brief.md` and extract the Mission Brief Adequacy score
-   - If score is present and < 80%:
-     - Display: "Mission Brief Adequacy: X/6 (Y%). Some oracle checks failed."
-     - Display the unchecked items and their specific gaps
-     - **Ask**: "Proceed with implementation anyway? (yes/no)"
-     - Wait for user response
-     - If "no" or "wait" or "stop": halt execution
-     - If "yes" or "proceed" or "continue": proceed to step 4
-   - If score >= 80% or file does not exist: proceed to step 4 automatically
+  3. **MANDATORY - Initialize Execution Tracking**:
 
-4. **MANDATORY - Initialize Execution Tracking**:
+      Run from repo root to create the execution metadata file:
+      ```bash
+      bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+      ```
 
-     Run from repo root to create the execution metadata file:
-     ```bash
-     bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
-     ```
+      **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/spec.trace` and quality gate tracking will not function.
 
-     **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/spec.trace` and quality gate tracking will not function.
+      If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
 
-     If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
-
-5. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+  4. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
     - Scan all checklist files in the checklists/ directory
     - For each checklist, count:
       - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
@@ -115,13 +104,13 @@ You **MUST** consider the user input before proceeding (if not empty).
       - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
       - Wait for user response before continuing
       - If user says "no" or "wait" or "stop", halt execution
-       - If user says "yes" or "proceed" or "continue", proceed to step 6
+       - If user says "yes" or "proceed" or "continue", proceed to step 5
 
     - **If all checklists are complete**:
       - Display the table showing all checklists passed
-      - Automatically proceed to step 6
+      - Automatically proceed to step 5
 
-6. Load and analyze the implementation context:
+  5. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships

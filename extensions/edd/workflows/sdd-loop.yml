@@ -1,0 +1,54 @@
+schema_version: "1.0"
+workflow:
+  id: "sdd-loop"
+  name: "SDD Loop — Spec-Driven Development with Evaluation"
+  version: "1.0.0"
+  author: "Agentic SDLC Team"
+  description: "Runs specify → plan → tasks → implement (with EDD verify hook) in a loop until all quality gates pass or max iterations reached"
+
+requires:
+  speckit_version: ">=0.10.0"
+  integrations:
+    any:
+      - "claude"
+      - "copilot"
+      - "gemini"
+      - "opencode"
+
+inputs:
+  spec:
+    type: string
+    required: true
+    prompt: "Describe what you want to build"
+  integration:
+    type: string
+    default: "auto"
+    prompt: "Integration to use (e.g. claude, copilot, gemini; 'auto' uses the project's initialized integration)"
+  max_iterations:
+    type: number
+    default: 5
+    prompt: "Maximum loop iterations"
+
+steps:
+  - id: sdd-loop
+    type: do-while
+    condition: "{{ file_exists('next-prompt.md') }}"
+    max_iterations: "{{ inputs.max_iterations }}"
+    steps:
+      - id: specify
+        command: adlc.spec.specify
+        integration: "{{ inputs.integration }}"
+        input:
+          args: "{{ file_exists('next-prompt.md') and read('next-prompt.md') or inputs.spec }}"
+
+      - id: plan
+        command: adlc.spec.plan
+        integration: "{{ inputs.integration }}"
+
+      - id: tasks
+        command: adlc.spec.tasks
+        integration: "{{ inputs.integration }}"
+
+      - id: implement
+        command: adlc.spec.implement
+        integration: "{{ inputs.integration }}"
