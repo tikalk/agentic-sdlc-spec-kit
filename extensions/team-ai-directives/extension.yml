@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "team-ai-directives"
   name: "Team AI Directives"
-  version: "1.8.0"
+  version: "1.9.0"
   description: "Team-specific AI agent context, skills, and conventions for Spec-Driven Development"
   author: "Team"
   repository: "https://github.com/tikalk/agentic-sdlc-team-ai-directives"

@@ -1,4 +1,9 @@
 ---
+type: Rule
+title: {rule-title}
+description: {rule-description}
+tags: {rule-tags}
+timestamp: {timestamp}
 id: {rule-id}
 cdr_ref: {cdr-id}
 created: {created-date}

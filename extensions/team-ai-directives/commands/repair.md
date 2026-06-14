@@ -239,16 +239,24 @@ For each orphan:
 3. Compute the file's relative path from `TEAM_DIRECTIVES` (e.g., `context_modules/rules/style-guides/java/google_style_guide.md`) and look it up in `CDR_LOOKUP`:
    - If found, use the existing `cdr_ref` (e.g., `CDR-2026-023`)
    - If not found, set `cdr_ref: null`
-4. Set default metadata:
-   ```yaml
-   id: {generated-id}
-   cdr_ref: {from CDR_LOOKUP or null}  # Preserve existing CDR ref if available
-   created: {today}
-   modified: {today}
-   verified: {today}
-   age_days: 0
-   evidence: []
-   ```
+4. Generate `title` from filename (humanize the basename)
+5. Generate `description` from first paragraph or filename
+6. Generate `tags` from path segments (e.g., `rules/python/` → `[python]`)
+7. Set default metadata:
+    ```yaml
+    type: {context-type}
+    title: {generated-title}
+    description: {generated-description}
+    tags: {generated-tags}
+    timestamp: {today}T00:00:00Z
+    id: {generated-id}
+    cdr_ref: {from CDR_LOOKUP or null}  # Preserve existing CDR ref if available
+    created: {today}
+    modified: {today}
+    verified: {today}
+    age_days: 0
+    evidence: []
+    ```
 
 If `--dry-run`:
 ```markdown

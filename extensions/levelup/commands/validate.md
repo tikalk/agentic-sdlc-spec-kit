@@ -242,18 +242,22 @@ For each loaded rule/persona/example/skill:
 Extract from each valid directive file:
 ```yaml
 ---
+type: Rule
 verified: 2026-04-15
 age_days: 33
 ---
 ```
+
+**Validation**: If `type` field is missing, flag as `[WARN] Missing OKF type field` but still proceed with verification update.
 
 #### Step 3: Update Verification Metadata
 
 For each valid directive:
 
 1. Update `verified` to today's date (YYYY-MM-DD)
-2. Reset `age_days` to 0
-3. Append to verification log table:
+2. Update `timestamp` to current ISO 8601 datetime
+3. Reset `age_days` to 0
+4. Append to verification log table:
    ```markdown
    | Date | Verified By | Notes |
    |------|-------------|-------|
@@ -267,6 +271,7 @@ Write updated frontmatter back to directive files:
 ---
 verified: 2026-05-18
 age_days: 0
+timestamp: 2026-05-18T12:00:00Z
 ---
 ```
 

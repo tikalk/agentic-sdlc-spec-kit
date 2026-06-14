@@ -1,4 +1,10 @@
 ---
+type: Skill
+name: {skill-name}
+title: {skill-title}
+description: {skill-description}
+tags: {skill-tags}
+timestamp: {timestamp}
 id: {skill-id}
 cdr_ref: {cdr-id}
 created: {created-date}

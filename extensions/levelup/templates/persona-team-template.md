@@ -1,4 +1,9 @@
 ---
+type: Persona
+title: {persona-title}
+description: {persona-description}
+tags: {persona-tags}
+timestamp: {timestamp}
 id: {persona-id}
 cdr_ref: {cdr-id}
 created: {created-date}

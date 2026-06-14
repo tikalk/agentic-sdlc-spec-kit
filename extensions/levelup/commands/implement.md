@@ -338,6 +338,11 @@ fi
 For each CDR that passed signal gate, create/update the target file with YAML frontmatter and verification metadata.
 
 **Metadata Variables**:
+- `{type}`: OKF concept type (Rule, Persona, Example, Skill, Constitution)
+- `{title}`: Human-readable display name
+- `{description}`: One-line summary
+- `{tags}`: YAML list of categorization tags
+- `{timestamp}`: ISO 8601 datetime (YYYY-MM-DDTHH:MM:SSZ)
 - `{id}`: Unique identifier (e.g., `rule-python-error-handling`)
 - `{cdr_ref}`: Original CDR ID (e.g., `CDR-2026-001`)
 - `{created}`: Evidence date (YYYY-MM-DD)
@@ -350,6 +355,11 @@ For each CDR that passed signal gate, create/update the target file with YAML fr
 **Rules** (`context_modules/rules/{domain}/{file}.md`):
 ```markdown
 ---
+type: Rule
+title: {title}
+description: {description}
+tags: {tags}
+timestamp: {timestamp}
 id: {id}
 cdr_ref: {cdr_ref}
 created: {created}
@@ -393,6 +403,11 @@ Date: {modified}
 **Personas** (`context_modules/personas/{file}.md`):
 ```markdown
 ---
+type: Persona
+title: {title}
+description: {description}
+tags: {tags}
+timestamp: {timestamp}
 id: {id}
 cdr_ref: {cdr_ref}
 created: {created}
@@ -423,6 +438,11 @@ Date: {modified}
 **Examples** (`context_modules/examples/{category}/{file}.md`):
 ```markdown
 ---
+type: Example
+title: {title}
+description: {description}
+tags: {tags}
+timestamp: {timestamp}
 id: {id}
 cdr_ref: {cdr_ref}
 created: {created}
@@ -456,6 +476,11 @@ Date: {modified}
 Create new constitution file:
 ```markdown
 ---
+type: Constitution
+title: {title}
+description: {description}
+tags: {tags}
+timestamp: {timestamp}
 id: {id}
 cdr_ref: {cdr_ref}
 created: {created}
@@ -465,9 +490,6 @@ age_days: {age_days}
 evidence:
   principles:
     - name: {principle_1_name}
-      source: {pattern_source}
-      evidence: {file_paths}
-    - name: {principle_2_name}
       source: {pattern_source}
       evidence: {file_paths}
 ---

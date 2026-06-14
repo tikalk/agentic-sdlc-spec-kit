@@ -60,6 +60,16 @@ Output: `[OK]` or `[FAIL]` with reason
 4. If project constitution doesn't exist:
    - `[INFO]` - Project constitution doesn't exist yet (first-time setup)
 
+### Check 7: OKF Type Field Presence
+
+1. Scan all `.md` files in `context_modules/` (excluding `index.md`, `log.md`)
+2. Parse YAML frontmatter from each file
+3. Verify `type` field is present and has a valid value:
+   - Valid types: `Constitution`, `Persona`, `Rule`, `Example`, `Skill`
+4. Output:
+   - `[OK]` - All concept files have valid `type` fields
+   - `[WARN]` - Some files missing `type` field (list files)
+
 ## Output
 
 Print verification status for each check:

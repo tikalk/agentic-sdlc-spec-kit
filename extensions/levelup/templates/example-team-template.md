@@ -1,4 +1,9 @@
 ---
+type: Example
+title: {example-title}
+description: {example-description}
+tags: {example-tags}
+timestamp: {timestamp}
 id: {example-id}
 cdr_ref: {cdr-id}
 created: {created-date}

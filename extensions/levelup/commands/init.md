@@ -665,6 +665,21 @@ Create new team constitution with principles derived from codebase patterns.
 
 **Proposed Content:**
 ```markdown
+---
+type: Constitution
+title: Team Constitution
+description: Core principles governing all AI agent behavior and team interactions
+tags: [governance, principles, constitution]
+timestamp: {today}T00:00:00Z
+id: constitution
+cdr_ref: CDR-CONST-001
+created: {today}
+modified: {today}
+verified: {today}
+age_days: 0
+evidence: []
+---
+
 # Team Constitution
 
 ## Core Principles

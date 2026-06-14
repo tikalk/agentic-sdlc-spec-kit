@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "levelup"
   name: "LevelUp - Team AI Directives Contributor"
-  version: "1.8.0"
+  version: "1.9.0"
   description: "Discover and contribute context modules to team-ai-directives using CDRs. Features multi-agent sub-system analysis with cross-system pattern detection, inconsistency tracking, signal gate filtering, verification metadata, and freshness tracking."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
