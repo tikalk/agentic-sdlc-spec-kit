@@ -105,6 +105,36 @@
       "verified": false,
       "featured": true
     },
+    "edd": {
+      "id": "edd",
+      "name": "EDD — Evaluation-Driven Development",
+      "version": "1.0.0",
+      "bundled": true,
+      "preinstall": false,
+      "description": "Adds a verification layer to the SDLC cycle: deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping, analyze findings) + grading + corrective prompt generation. Enables loop-driven development workflows.",
+      "author": "Agentic SDLC Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/edd",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-edd-{{VERSION}}.zip",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.10.0"
+      },
+      "commands": [
+        "adlc.edd.verify"
+      ],
+      "tags": [
+        "evaluation",
+        "verify",
+        "grading",
+        "quality-gates",
+        "loop-driven",
+        "deterministic",
+        "evidence"
+      ],
+      "verified": false,
+      "featured": false
+    },
     "levelup": {
       "id": "levelup",
       "name": "LevelUp - Team AI Directives Contributor",

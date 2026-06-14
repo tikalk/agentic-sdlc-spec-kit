@@ -2,8 +2,8 @@
 description: Generate and validate feature execution traces from implementation metadata.
 handoffs:
   - label: Generate Verification Evidence
-    agent: adlc.spec.verify
-    prompt: Generate a feature verification dossier using the mission brief and trace evidence
+    agent: adlc.edd.verify
+    prompt: Run EDD verification to evaluate implementation against Mission Brief using trace evidence
 scripts:
     sh: .specify/extensions/levelup/scripts/bash/generate-trace.sh --json
     ps: .specify/extensions/levelup/scripts/powershell/generate-trace.ps1 -Json

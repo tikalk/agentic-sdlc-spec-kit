@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.10.0+adlc12"
+version = "0.10.0+adlc13"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 requires-python = ">=3.11"
 dependencies = [
@@ -35,6 +35,7 @@ packages = ["src/specify_cli"]
 "extensions/quick" = "specify_cli/core_pack/extensions/quick"
 "extensions/product" = "specify_cli/core_pack/extensions/product"
 "extensions/tdd" = "specify_cli/core_pack/extensions/tdd"
+"extensions/edd" = "specify_cli/core_pack/extensions/edd"
 "extensions/team-ai-directives" = "specify_cli/core_pack/extensions/team-ai-directives"
 # Tikalk bundled presets
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"

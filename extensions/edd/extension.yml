@@ -1,0 +1,52 @@
+schema_version: "1.0"
+
+extension:
+  id: "edd"
+  name: "EDD — Evaluation-Driven Development"
+  version: "1.0.0"
+  description: "Adds a verification layer to the SDLC cycle: deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping, analyze findings) + grading + corrective prompt generation. Enables loop-driven development workflows."
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/edd"
+
+requires:
+  speckit_version: ">=0.10.0"
+  tools:
+    - name: "git"
+      required: true
+
+provides:
+  commands:
+    - name: "adlc.edd.verify"
+      file: "commands/verify.md"
+      description: "Run deterministic + AI evaluation, grade gates, write evidence.md + grade.json + next-prompt.md"
+      aliases: ["edd.verify"]
+
+  config:
+    - name: "edd-config.yml"
+      template: "config-template.yml"
+      description: "EDD extension configuration"
+      required: false
+
+hooks:
+  after_implement:
+    command: "adlc.edd.verify"
+    optional: true
+    description: "Evaluate implementation against Mission Brief with deterministic + AI checks"
+
+tags:
+  - "evaluation"
+  - "verify"
+  - "grading"
+  - "quality-gates"
+  - "loop-driven"
+  - "deterministic"
+  - "evidence"
+
+defaults:
+  edd:
+    oracle_adequacy_threshold: 80
+    max_criticals: 0
+    max_highs: 0
+    max_iterations: 5
