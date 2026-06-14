@@ -57,5 +57,3 @@ steps:
         command: adlc.edd.verify
         integration: "{{ inputs.integration }}"
         continue_on_error: true
-
-
