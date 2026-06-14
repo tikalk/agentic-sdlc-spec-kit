@@ -4,7 +4,7 @@ workflow:
   name: "SDD Loop — Spec-Driven Development with Evaluation"
   version: "1.0.0"
   author: "Agentic SDLC Team"
-  description: "Runs specify → plan → tasks → implement → verify in a loop until all quality gates pass or max iterations reached"
+  description: "Runs specify → plan → tasks → implement (with EDD verify hook) in a loop until all quality gates pass or max iterations reached"
 
 requires:
   speckit_version: ">=0.10.0"
@@ -32,7 +32,7 @@ inputs:
 steps:
   - id: sdd-loop
     type: do-while
-    condition: "{{ steps.verify.output.exit_code != 0 }}"
+    condition: "{{ file_exists('next-prompt.md') }}"
     max_iterations: "{{ inputs.max_iterations }}"
     steps:
       - id: specify
@@ -53,7 +53,3 @@ steps:
         command: adlc.spec.implement
         integration: "{{ inputs.integration }}"
 
-      - id: verify
-        command: adlc.edd.verify
-        integration: "{{ inputs.integration }}"
-        continue_on_error: true

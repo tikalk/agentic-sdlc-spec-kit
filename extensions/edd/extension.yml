@@ -32,7 +32,7 @@ provides:
 hooks:
   after_implement:
     command: "adlc.edd.verify"
-    optional: true
+    optional: false
     description: "Evaluate implementation against Mission Brief with deterministic + AI checks"
 
 tags:
