@@ -1,5 +1,5 @@
 ---
-description: "Run deterministic + AI evaluation, grade quality gates, write evidence.md, grade.json, and next-prompt.md"
+description: "Run deterministic + AI evaluation, grade quality gates, write evidence.md, loop-state.yml, and next-prompt.md"
 scripts:
   sh: .specify/extensions/edd/scripts/bash/run-deterministic.sh
   ps: .specify/extensions/edd/scripts/powershell/run-deterministic.ps1
@@ -25,9 +25,9 @@ This command is invoked as `/edd.verify`.
 
 ## Operating Constraints
 
-- Write exactly three feature-local artifacts:
+- Write feature-local artifacts:
   - `FEATURE_DIR/evidence.md` — verification dossier (human-readable)
-  - `FEATURE_DIR/.eval/grade.json` — structured machine verdict (exit code relay)
+  - `FEATURE_DIR/.eval/loop-state.yml` — structured machine state spine with history (replaces grade.json)
   - `FEATURE_DIR/next-prompt.md` — corrective prompt (only on FAIL)
 - Be conservative: if proof is missing, mark the item as `Not Validated`
 - Do not invent evidence from implication or stylistic confidence
@@ -50,7 +50,7 @@ Once identified, list the feature directory contents and derive these absolute p
 - `TASKS_META = FEATURE_DIR/tasks_meta.json`
 - `CHECKLIST_DIR = FEATURE_DIR/checklists/`
 - `EVAL_DIR = FEATURE_DIR/.eval/`
-- `GRADE = EVAL_DIR/grade.json`
+- `LOOP_STATE = EVAL_DIR/loop-state.yml`
 - `NEXT_PROMPT = FEATURE_DIR/next-prompt.md`
 
 Create `EVAL_DIR` if it does not exist.
@@ -165,6 +165,32 @@ Compute overall verdict:
 
 Score format: `{pass_count}/{total_gates} ({percentage}%)`
 
+### 7a. Guardrail Checks
+
+After computing the grade, load or create `.eval/loop-state.yml` to extract history. Determine the current iteration number:
+- If `loop-state.yml` does not exist, this is **iteration 1**, history is empty
+- If it exists, read the `history` array; the current iteration is `last_iteration + 1`
+
+Append the current record to the in-memory history:
+```json
+{"iteration": 1, "score_pct": 67, "verdict": "FAIL", "timestamp": "2026-06-14T10:00:00Z"}
+```
+
+Read `no_progress_threshold` and `max_cost_usd` from `.specify/extensions/edd/edd-config.yml` (or use defaults: threshold=2, cost=20).
+
+**No-progress detection** — if history has at least `threshold + 1` entries:
+- Check if the last `threshold` scores are all ≤ the score at position `-(threshold + 1)`
+- If yes: override verdict to `"STALL"`. Write escalation section in evidence.md (see section 8). Delete `next-prompt.md` if it exists. Stop — do not generate a corrective prompt.
+
+**Budget ceiling** — compute cumulative cost as `iteration * 4` (heuristic $4/iteration):
+- If cumulative cost exceeds `max_cost_usd`: override verdict to `"BUDGET"`. Write escalation section in evidence.md. Delete `next-prompt.md` if it exists. Stop — do not generate a corrective prompt.
+
+**Regression detection** — if history has at least 2 entries:
+- Compare current `score_pct` with the previous iteration's `score_pct`
+- If current < previous: flag `REGRESSION` for use in next-prompt.md
+
+The updated history (including the new record) will be written to `loop-state.yml` in section 9.
+
 ### 8. Generate `evidence.md`
 
 Write `FEATURE_DIR/evidence.md` with this exact structure:
@@ -231,6 +257,29 @@ Write `FEATURE_DIR/evidence.md` with this exact structure:
 
 - ...
 
+## Loop Termination (only present on STALL or BUDGET)
+
+If verdict is STALL or BUDGET, include this section:
+
+```markdown
+## Loop Termination
+
+**Status**: STALLED | BUDGET_EXCEEDED
+
+**Reason**: [Explanation of why the loop was terminated — no-progress or budget]
+
+**Iteration**: [N]
+
+**Last Score**: [score]
+
+**History**:
+- [iteration 1]: [score] — [verdict]
+- [iteration 2]: [score] — [verdict]
+- ...
+
+**Recommendation**: [Guidance for the human reviewing this — e.g., "Consider adjusting quality gates, reducing scope, or investigating the root cause of stagnation."]
+```
+
 ## Provenance
 
 - CLI Version: ...
@@ -238,62 +287,72 @@ Write `FEATURE_DIR/evidence.md` with this exact structure:
 - Generated At: ...
 ```
 
-### 9. Write `grade.json`
+### 9. Write `loop-state.yml`
 
-Write `FEATURE_DIR/.eval/grade.json` with this exact schema:
+Write `FEATURE_DIR/.eval/loop-state.yml` with this exact schema (replaces the old `grade.json`):
 
-```json
-{
-  "schema_version": "1.0",
-  "eval_timestamp": "2026-06-14T10:00:00Z",
-  "feature": "003-user-auth",
-  "verdict": "PASS",
-  "score": "6/6 (100%)",
-  "threshold": "6/6 (100%)",
-  "deterministic_passed": true,
-  "ai_passed": true,
-  "gates": [
-    {
-      "id": "lint",
-      "type": "deterministic",
-      "description": "Lint checks pass",
-      "status": "PASS",
-      "detail": "0 errors, 2 warnings"
-    },
-    {
-      "id": "tests",
-      "type": "deterministic",
-      "description": "All tests pass",
-      "status": "PASS",
-      "detail": "42 pass, 0 fail, 85% coverage"
-    },
-    {
-      "id": "oracle",
-      "type": "ai",
-      "description": "Mission Brief oracle adequacy",
-      "status": "PASS",
-      "detail": "6/6 (100%)"
-    },
-    {
-      "id": "evidence",
-      "type": "ai",
-      "description": "All Success Criteria validated",
-      "status": "PASS",
-      "detail": "3/3 SCs validated"
-    },
-    {
-      "id": "criticals",
-      "type": "ai",
-      "description": "No CRITICAL/HIGH findings",
-      "status": "PASS",
-      "detail": "0 critical, 0 high"
-    }
-  ],
-  "next_prompt_file": "next-prompt.md"
-}
+```yaml
+schema_version: "1.0"
+loop:
+  id: "sdd-loop-<run-id>"
+  started_at: "2026-06-14T10:00:00Z"
+  status: "running"           # running | passed | stalled | budget_exceeded
+  phase: "verifying"          # specifying | planning | tasking | implementing | verifying
+  iteration: 3
+exit_conditions:
+  max_iterations: 5
+  max_cost_usd: 20
+current_eval:
+  iteration: 3
+  score: "5/6 (83%)"
+  score_pct: 83
+  verdict: "FAIL"             # PASS | FAIL | STALL | BUDGET
+  score_threshold: "6/6 (100%)"
+  deterministic_passed: true
+  ai_passed: false
+  next_prompt_file: "next-prompt.md"
+  gates:
+    - id: lint
+      type: deterministic
+      description: "Lint checks pass"
+      status: "PASS"
+      detail: "0 errors, 2 warnings"
+    - id: tests
+      type: deterministic
+      description: "All tests pass"
+      status: "PASS"
+      detail: "42 pass, 0 fail, 85% coverage"
+    - id: oracle
+      type: ai
+      description: "Mission Brief oracle adequacy"
+      status: "FAIL"
+      detail: "4/6 (67%)"
+    - id: evidence
+      type: ai
+      description: "All Success Criteria validated"
+      status: "FAIL"
+      detail: "2/3 SCs validated"
+    - id: criticals
+      type: ai
+      description: "No CRITICAL/HIGH findings"
+      status: "PASS"
+      detail: "0 critical, 0 high"
+history:
+  - iteration: 1
+    score_pct: 50
+    verdict: "FAIL"
+    timestamp: "2026-06-14T10:00:00Z"
+  - iteration: 2
+    score_pct: 58
+    verdict: "FAIL"
+    timestamp: "2026-06-14T11:00:00Z"
+  - iteration: 3
+    score_pct: 83
+    verdict: "FAIL"
+    timestamp: "2026-06-14T12:00:00Z"
 ```
 
-If FAIL, set `verdict` to `"FAIL"`, `deterministic_passed` or `ai_passed` to `false` as appropriate, and populate the failing gates.
+If the verdict is `"FAIL"` (not overridden by STALL/BUDGET), populate the failing gates. For STALL or BUDGET, set the appropriate status and skip detailed gate output.
 
 ### 10. Generate `next-prompt.md` (on FAIL only)
 
@@ -308,6 +367,13 @@ Structure:
 
 - [Gate ID]: [description] — [detail]
 - ...
+
+## Regression (only if score dropped from previous iteration)
+
+⚠️ **REVERT SUGGESTION**: Score dropped from [X]% (iteration [N-1]) to [Y]% (iteration [N]). Consider reverting the changes from this iteration before continuing.
+
+The following may have caused the regression:
+- [List changes that may have caused the regression]
 
 ## Action Items
 
@@ -333,19 +399,24 @@ If `verdict` is `"PASS"`, delete `next-prompt.md` if it exists (the loop is done
 
 After writing all files, summarize:
 
-- path written (`evidence.md`, `grade.json`, `next-prompt.md` if applicable)
-- verdict (PASS or FAIL)
+- path written (`evidence.md`, `loop-state.yml`, `next-prompt.md` if applicable)
+- verdict (PASS, FAIL, STALL, or BUDGET)
 - score (e.g., "5/6 (83%)")
 - which gates passed and which failed, with detail
 - count of residual risks
+- if STALL: iteration, last score, threshold, and degradation pattern
+- if BUDGET: cumulative cost estimate and ceiling
 
 ## Exit Code
 
 - **0** if `verdict` is `"PASS"`
 - **1** if `verdict` is `"FAIL"`
+- **2** if `verdict` is `"STALL"` — no progress detected, human intervention needed
+- **3** if `verdict` is `"BUDGET"` — budget ceiling hit, human intervention needed
 
 ## Notes
 
 - This command replaces the old `spec.verify` preset command
-- It produces both the human-readable evidence dossier AND the machine-readable grade for workflow loops
+- `loop-state.yml` is the unified machine state spine — replaces the old `grade.json` and tracks history across iterations
 - The `next-prompt.md` is the bridge that enables loop-driven development: on failure, feed it back to `spec.specify` for the next iteration
+- Guardrails (no-progress, budget, regression) prevent runaway loops per Loop Engineering principles (Van Horn, Osmani, prateek, Campos, Chawla 2026)

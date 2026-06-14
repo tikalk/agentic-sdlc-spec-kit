@@ -24,10 +24,12 @@ gates:
 # Loop behavior
 loop:
   max_iterations: 5
+  no_progress_threshold: 2    # iterations without score improvement before STALL
+  max_cost_usd: 20            # rough budget ceiling (~$4/iteration)
   stop_on_first_fail: false   # false = run all gates and report all failures
 
 # Output paths (relative to FEATURE_DIR)
 output:
   evidence: "evidence.md"
-  grade: ".eval/grade.json"
+  state: ".eval/loop-state.yml"
   next_prompt: "next-prompt.md"
