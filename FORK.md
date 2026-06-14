@@ -637,6 +637,16 @@ git push origin --dry-run --tags
 git tag -l "agentic-sdlc-*"
 ```
 
+### Re-tagging and GitHub Release State
+
+When a tag is force-replaced (deleted and re-created), the associated GitHub Release becomes a **draft** and must be manually published:
+
+1. After pushing the re-created tag, visit: `https://github.com/tikalk/agentic-sdlc-spec-kit/releases`
+2. Find the draft release for the tag
+3. Click **Edit** → verify content → **Publish release**
+
+This is required because GitHub does not auto-publish releases on tag re-creation — the release stays in draft state until manually confirmed.
+
 ### Removing Stray Tags
 
 If upstream tags get pushed to origin by mistake, remove them:

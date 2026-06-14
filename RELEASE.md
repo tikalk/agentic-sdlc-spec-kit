@@ -105,6 +105,8 @@ git tag agentic-sdlc-vX.Y.Z
 git push origin agentic-sdlc-vX.Y.Z
 ```
 
+> **Note**: Re-tagging causes the GitHub Release to revert to **draft** state. After pushing the re-created tag, manually visit `https://github.com/tikalk/agentic-sdlc-spec-kit/releases` and **Publish release** if needed.
+
 ### Step 6: Verify Installation
 ```bash
 # Install from git to verify
