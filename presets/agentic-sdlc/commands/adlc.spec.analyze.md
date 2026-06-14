@@ -77,7 +77,6 @@ Determine analysis mode based on project state:
 Load only the minimal necessary context from each artifact:
 
 **From spec.md:**
-
 - Overview/Context
 - Functional Requirements
 - Success Criteria (measurable outcomes — e.g., performance, security, availability, user success, business impact)
@@ -85,14 +84,12 @@ Load only the minimal necessary context from each artifact:
 - Edge Cases (if present)
 
 **From plan.md:**
-
 - Architecture/stack choices
 - Data Model references
 - Phases
 - Technical constraints
 
 **From tasks.md:**
-
 - Task IDs
 - Descriptions
 - Phase grouping
@@ -100,14 +97,13 @@ Load only the minimal necessary context from each artifact:
 - Referenced file paths
 
 **From constitution:**
-
 - Load `/memory/constitution.md` for principle validation
 
 ### 4. Build Semantic Models
 
 Create internal representations (do not include raw artifacts in output):
 
-- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
+- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability. Include only Success Criteria items that require buildable work, and exclude post-launch outcome metrics and business KPIs.
 - **User story/action inventory**: Discrete user actions with acceptance criteria
 - **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
@@ -119,34 +115,28 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 #### Pre-Implementation Detection Passes
 
 **A. Duplication Detection**
-
 - Identify near-duplicate requirements
 - Mark lower-quality phrasing for consolidation
 
 **B. Ambiguity Detection**
-
 - Flag vague adjectives (fast, scalable, secure, intuitive, robust) lacking measurable criteria
 - Flag unresolved placeholders (TODO, TKTK, ???, `<placeholder>`, etc.)
 
 **C. Underspecification**
-
 - Requirements with verbs but missing object or measurable outcome
 - User stories missing acceptance criteria alignment
 - Tasks referencing files or components not defined in spec/plan
 
 **D. Constitution Alignment**
-
 - Any requirement or plan element conflicting with a MUST principle
 - Missing mandated sections or quality gates from constitution
 
 **E. Coverage Gaps**
-
 - Requirements with zero associated tasks
 - Tasks with no mapped requirement/story
-- Success Criteria requiring buildable work (performance, security, availability) not reflected in tasks
+- Success Criteria requiring buildable work not reflected in tasks
 
 **F. Inconsistency**
-
 - Terminology drift (same concept named differently across files)
 - Data entities referenced in plan but absent in spec (or vice versa)
 - Task ordering contradictions (e.g., integration tasks before foundational setup tasks without dependency note)
@@ -155,25 +145,21 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 #### Post-Implementation Detection Passes
 
 **G. Documentation Drift**
-
 - Code artifacts not documented in spec/plan
 - Spec requirements not implemented
 - Implementation details not reflected in tasks
 
 **H. Implementation Quality**
-
 - Code follows project conventions
 - Error handling consistency
 - Test coverage alignment
 
 **I. Real-World Usage Gaps**
-
 - Missing error paths in implementation
 - Edge cases not handled
 - Performance bottlenecks
 
 **J. Refinement Opportunities**
-
 - Code patterns that could be simplified
 - Duplication that emerged during implementation
 - Architecture improvements suggested by actual usage
@@ -182,10 +168,12 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 
 Use this heuristic to prioritize findings:
 
-- **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
-- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
-- **LOW**: Style/wording improvements, minor redundancy not affecting execution order
+| Severity | Criteria |
+|----------|----------|
+| **CRITICAL** | Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality |
+| **HIGH** | Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion |
+| **MEDIUM** | Terminology drift, missing non-functional task coverage, underspecified edge case |
+| **LOW** | Style/wording improvements, minor redundancy not affecting execution order |
 
 ### 7. Produce Compact Analysis Report
 
@@ -209,7 +197,6 @@ Output a Markdown report (no file writes) with the following structure:
 **Unmapped Tasks:** (if any)
 
 **Metrics:**
-
 - Total Requirements
 - Total Tasks
 - Coverage % (requirements with >=1 task)

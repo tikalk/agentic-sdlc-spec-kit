@@ -73,79 +73,79 @@ If working in a non-git repository:
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
 4. **Execute task generation workflow** (follow the template structure):
-    - Load plan.md and extract tech stack, libraries, project structure
-    - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
-    - If data-model.md exists: Extract entities → map to user stories
-    - If contracts/ exists: Each file → map endpoints to user stories
-    - If research.md exists: Extract decisions → generate setup tasks
-    - **If risk-based testing is enabled in mode configuration**:
-      - Run `scripts/bash/generate-risk-tests.sh` with combined SPEC_RISKS and PLAN_RISKS from {SCRIPT} output
-      - Parse the generated risk-based test tasks
-      - Append them as a dedicated "Risk Mitigation" phase at the end of tasks.md
-    - **Generate tasks ORGANIZED BY USER STORY**:
-      - Setup tasks (shared infrastructure needed by all stories)
-      - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
-      - For each user story (in priority order P1, P2, P3...):
-        - Group all tasks needed to complete JUST that story
-        - Include models, services, endpoints, UI components specific to that story
-        - Mark which tasks are [P] parallelizable within each story
-        - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
-        - **For each task**, classify and register in execution metadata by running:
-          ```bash
-          MODE=$(bash .specify/scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files")
-          bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$MODE"
-          ```
-        - If tests requested: Include tests specific to that story
-    - **Tests are CONFIGURABLE**: Check current mode opinion settings - if TDD enabled, generate test tasks before implementation; if disabled, tests are optional
-    - Apply task rules:
-      - Different files = mark [P] for parallel within story
-      - Same file = sequential (no [P])
-      - If TDD enabled (`is_opinion_enabled tdd $MODE`): Tests before implementation (TDD order)
-    - If TDD disabled: Tests optional, generated only if explicitly requested
-      - Classify execution mode per task ([SYNC] or [ASYNC])
-    - Number tasks sequentially (T001, T002...)
-    - Generate dependency graph showing user story completion order
-    - Create parallel execution examples per user story
-    - Validate task completeness (each user story has all needed tasks, independently testable)
+   - Load plan.md and extract tech stack, libraries, project structure
+   - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
+   - If data-model.md exists: Extract entities → map to user stories
+   - If contracts/ exists: Each file → map endpoints to user stories
+   - If research.md exists: Extract decisions → generate setup tasks
+   - **If risk-based testing is enabled in mode configuration**:
+     - Run `scripts/bash/generate-risk-tests.sh` with combined SPEC_RISKS and PLAN_RISKS from {SCRIPT} output
+     - Parse the generated risk-based test tasks
+     - Append them as a dedicated "Risk Mitigation" phase at the end of tasks.md
+   - **Generate tasks ORGANIZED BY USER STORY**:
+     - Setup tasks (shared infrastructure needed by all stories)
+     - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
+     - For each user story (in priority order P1, P2, P3...):
+       - Group all tasks needed to complete JUST that story
+       - Include models, services, endpoints, UI components specific to that story
+       - Mark which tasks are [P] parallelizable within each story
+       - Classify tasks as [SYNC] (complex, requires human review) or [ASYNC] (routine, can be delegated to async agents)
+       - **For each task**, classify and register in execution metadata:
+         ```bash
+         MODE=$(bash .specify/scripts/bash/tasks-meta-utils.sh classify "$task_description" "$task_files")
+         bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "$task_description" "$task_files" "$MODE"
+         ```
+       - If tests requested: Include tests specific to that story
+     - **Tests are CONFIGURABLE**: Check current mode opinion settings - if TDD enabled, generate test tasks before implementation; if disabled, tests are optional
+     - Apply task rules:
+       - Different files = mark [P] for parallel within story
+       - Same file = sequential (no [P])
+       - If TDD enabled (`is_opinion_enabled tdd $MODE`): Tests before implementation (TDD order)
+     - If TDD disabled: Tests optional, generated only if explicitly requested
+       - Classify execution mode per task ([SYNC] or [ASYNC])
+     - Number tasks sequentially (T001, T002...)
+     - Generate dependency graph showing user story completion order
+     - Create parallel execution examples per user story
+     - Validate task completeness (each user story has all needed tasks, independently testable)
 
 5. **Generate tasks.md**: Use `templates/tasks-template.md` as structure, fill with:
-    - Correct feature name from plan.md
-    - Phase 1: Setup tasks (project initialization)
-    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
-    - Phase 3+: One phase per user story (in priority order from spec.md)
-      - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
-      - Clear [Story] labels (US1, US2, US3...) for each task
-      - [P] markers for parallelizable tasks within each story
-      - [SYNC]/[ASYNC] markers for execution mode classification
-      - Checkpoint markers after each story phase
-    - Final Phase: Polish & cross-cutting concerns
-    - **If risk tests enabled**: Add "Risk Mitigation Phase" with generated risk-based test tasks
-    - Numbered tasks (T001, T002...) in execution order
-    - Clear file paths for each task
-    - Dependencies section showing story completion order
-    - Parallel execution examples per story
-    - Implementation strategy section (MVP first, incremental delivery)
+   - Correct feature name from plan.md
+   - Phase 1: Setup tasks (project initialization)
+   - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
+   - Phase 3+: One phase per user story (in priority order from spec.md)
+     - Each phase includes: story goal, independent test criteria, tests (if requested), implementation tasks
+     - Clear [Story] labels (US1, US2, US3...) for each task
+     - [P] markers for parallelizable tasks within each story
+     - [SYNC]/[ASYNC] markers for execution mode classification
+     - Checkpoint markers after each story phase
+   - Final Phase: Polish & cross-cutting concerns
+   - **If risk tests enabled**: Add "Risk Mitigation Phase" with generated risk-based test tasks
+   - Numbered tasks (T001, T002...) in execution order
+   - Clear file paths for each task
+   - Dependencies section showing story completion order
+   - Parallel execution examples per story
+   - Implementation strategy section (MVP first, incremental delivery)
 
 5.5. **Worktree-mode DAG generation (conditional, off by default)**:
-    - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
-    - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
-    - **If `isolation_mode: branch` (default) or config missing**: SKIP this step entirely (preserve upstream behavior)
-    - **If `isolation_mode: worktree`**:
-      - Determine feature branch name from `$FEATURE_DIR` (typically the leaf directory name, e.g., `001-user-auth`)
-      - Run the shell-appropriate DAG generator:
-        - **Bash**: `bash .specify/extensions/git/scripts/bash/tasks-dag.sh generate --tasks-md "$FEATURE_DIR/tasks.md" --feature "<branch_name>" --dag "$FEATURE_DIR/tasks_dag.json"`
-        - **PowerShell**: `.specify/extensions/git/scripts/powershell/tasks-dag.ps1 generate -TasksMd "$FEATURE_DIR/tasks.md" -Feature "<branch_name>" -Dag "$FEATURE_DIR/tasks_dag.json"`
-      - Capture the JSON output; verify `ok: true`
-      - If `ok: false`, log the error to stderr but continue (DAG is informational, not blocking)
-    - If `isolation_mode` is set to an unknown value: WARN and SKIP
+   - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
+   - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
+   - **If `isolation_mode: branch` (default) or config missing**: SKIP this step entirely (preserve upstream behavior)
+   - **If `isolation_mode: worktree`**:
+     - Determine feature branch name from `$FEATURE_DIR` (typically the leaf directory name, e.g., `001-user-auth`)
+     - Run the shell-appropriate DAG generator:
+       - **Bash**: `bash .specify/extensions/git/scripts/bash/tasks-dag.sh generate --tasks-md "$FEATURE_DIR/tasks.md" --feature "<branch_name>" --dag "$FEATURE_DIR/tasks_dag.json"`
+       - **PowerShell**: `.specify/extensions/git/scripts/powershell/tasks-dag.ps1 generate -TasksMd "$FEATURE_DIR/tasks.md" -Feature "<branch_name>" -Dag "$FEATURE_DIR/tasks_dag.json"`
+     - Capture the JSON output; verify `ok: true`
+     - If `ok: false`, log the error to stderr but continue (DAG is informational, not blocking)
+   - If `isolation_mode` is set to an unknown value: WARN and SKIP
 
 6. **Report**: Output path to generated tasks.md and summary:
-    - Total task count
-    - Task count per user story
-    - Parallel opportunities identified
-    - Independent test criteria for each story
-    - Suggested MVP scope (typically just User Story 1)
-    - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
+   - Total task count
+   - Task count per user story
+   - Parallel opportunities identified
+   - Independent test criteria for each story
+   - Suggested MVP scope (typically just User Story 1)
+   - Format validation: Confirm ALL tasks follow the checklist format (checkbox, ID, labels, file paths)
 
 Context for task generation: {ARGS}
 
@@ -171,14 +171,14 @@ Every task MUST strictly follow this format:
 2. **Task ID**: Sequential number (T001, T002, T003...) in execution order
 3. **[P] marker**: Include ONLY if task is parallelizable (different files, no dependencies on incomplete tasks)
 4. **[SYNC]/[ASYNC] marker**: REQUIRED for all tasks
-    - **[SYNC]**: Requires human review (complex logic, security-critical, ambiguous requirements)
-    - **[ASYNC]**: Can be delegated to async agents (well-defined CRUD, repetitive tasks, clear specs)
+   - **[SYNC]**: Requires human review (complex logic, security-critical, ambiguous requirements)
+   - **[ASYNC]**: Can be delegated to async agents (well-defined CRUD, repetitive tasks, clear specs)
 5. **[Story] label**: REQUIRED for user story phase tasks only
-    - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
-    - Setup phase: NO story label
-    - Foundational phase: NO story label
-    - User Story phases: MUST have story label
-    - Polish phase: NO story label
+   - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
+   - Setup phase: NO story label
+   - Foundational phase: NO story label
+   - User Story phases: MUST have story label
+   - Polish phase: NO story label
 6. **Description**: Clear action with exact file path
 
 **Examples**:

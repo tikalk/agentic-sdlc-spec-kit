@@ -2,6 +2,13 @@
 
 All notable changes to the Quick Extension will be documented in this file.
 
+## [1.3.0] - 2026-06-14
+
+### Changed
+
+- **Hook execution aligned to preset protocol**: Added manifest resolution (`extension.yml` → `provides.commands.{command}.file`) and condition filtering (non-empty `condition` now skipped). Previously read `{command}.md` directly from extension commands dir without manifest lookup.
+- **Non-hook content compression**: ~95 lines removed from `implement.md` through tightened pedagogical phrasing and consolidated examples.
+
 ## [1.2.0] - 2026-06-13
 
 ### Added

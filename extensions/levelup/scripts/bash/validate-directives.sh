@@ -110,9 +110,9 @@ extract_frontmatter_field() {
         NR == 1 && $0 != "---" { exit }
         NR > 1 && $0 == "---" { exit }
         $0 ~ "^" field ":" {
-            sub(/^[^:]+:[[:space:]]*/, ""); 
-            print; 
-            exit 
+            sub(/^[^:]+:[[:space:]]*/, "");
+            print;
+            exit
         }
     ' "$file" 2>/dev/null || echo ""
 }

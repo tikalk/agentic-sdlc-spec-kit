@@ -50,67 +50,58 @@ You **MUST** consider the user input before proceeding (if not empty).
 2. **Worktree + DAG detection (conditional, off by default)**:
    - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
    - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
-   - **If `isolation_mode: branch` (default) or config missing**: skip this entire step; proceed to step 3 (Initialize Execution Tracking). Execution continues with the existing flow: `tasks_meta.json` and `[SYNC]/[ASYNC]` markers drive task scheduling.
+   - **If `isolation_mode: branch` (default) or config missing**: skip this entire step; proceed to step 3. Execution continues with `tasks_meta.json` and `[SYNC]/[ASYNC]` markers driving scheduling.
    - **If `isolation_mode: worktree`**:
-     - Use the shell-appropriate script to verify you are inside a feature worktree:
+     - Verify you are inside a feature worktree:
        - **Bash**: `bash .specify/extensions/git/scripts/bash/worktree-utils.sh is-in-worktree`
        - **PowerShell**: `.specify/extensions/git/scripts/powershell/worktree-utils.ps1 is-in-worktree`
-     - Capture exit code:
-       - Exit 0 (primary checkout): abort with message "Worktree mode requires running inside a feature worktree. Re-run this command from the WORKTREE_PATH returned by `git.feature --worktree`."
-       - Exit 2 (inside a worktree): proceed
+     - Exit 0 (primary checkout): abort with message "Worktree mode requires running inside a feature worktree. Re-run this command from the WORKTREE_PATH returned by `git.feature --worktree`."
+     - Exit 2 (inside a worktree): proceed
      - If `$FEATURE_DIR/tasks_dag.json` exists:
        - Read it; extract `execution_waves` (1-based; each wave is a list of 0-based task indices)
        - For each wave (in order):
-         - Dispatch each task in the wave via subagent delegation (the subagent does the implementation work, commits, and signals completion)
+         - Dispatch each task in the wave via subagent delegation
          - Wait for all tasks in the wave to complete
-         - For each completed task in the wave, merge the task branch back into the feature branch:
-           - Run `git.task-merge <task_id>` (or `speckit.git.task-merge <task_id>`)
+         - For each completed task, merge back into the feature branch: `git.task-merge <task_id>` (or `speckit.git.task-merge <task_id>`)
          - On merge conflict, delegate resolution to a subagent (per `task_execution.delegate_merge_conflicts: true` in config)
-      - If `$FEATURE_DIR/tasks_dag.json` does NOT exist: log a warning and fall back to the existing sequential implementation flow in the current checkout/worktree. `tasks_meta.json` and `[SYNC]/[ASYNC]` markers continue to drive scheduling.
+     - If `$FEATURE_DIR/tasks_dag.json` does NOT exist: log a warning and fall back to sequential implementation flow. `tasks_meta.json` and `[SYNC]/[ASYNC]` markers continue to drive scheduling.
 
-  3. **MANDATORY - Initialize Execution Tracking**:
+3. **MANDATORY - Initialize Execution Tracking**:
 
-      Run from repo root to create the execution metadata file:
-      ```bash
-      bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
-      ```
+   Run from repo root:
+   ```bash
+   bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
+   ```
 
-      **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If this file is missing, `/spec.trace` and quality gate tracking will not function.
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding. If missing, `/spec.trace` and quality gate tracking will not function.
 
-      If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
+   If `tasks_meta.json` already exists (e.g., created by `/spec.tasks`), skip this step.
 
-  4. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
-    - Scan all checklist files in the checklists/ directory
-    - For each checklist, count:
-      - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
-      - Completed items: Lines matching `- [X]` or `- [x]`
-      - Incomplete items: Lines matching `- [ ]`
-    - Create a status table:
+4. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+   - Scan all checklist files in the checklists/ directory
+   - Count: total items (`- [ ]` / `- [X]` / `- [x]`), completed (`- [X]` / `- [x]`), incomplete (`- [ ]`)
+   - Create status table:
 
-      ```text
-      | Checklist | Total | Completed | Incomplete | Status |
-      |-----------|-------|-----------|------------|--------|
-      | ux.md     | 12    | 12        | 0          | ✓ PASS |
-      | test.md   | 8     | 5         | 3          | ✗ FAIL |
-      | security.md | 6   | 6         | 0          | ✓ PASS |
-      ```
+     ```text
+     | Checklist | Total | Completed | Incomplete | Status |
+     |-----------|-------|-----------|------------|--------|
+     | ux.md     | 12    | 12        | 0          | ✓ PASS |
+     | test.md   | 8     | 5         | 3          | ✗ FAIL |
+     ```
 
-    - Calculate overall status:
-      - **PASS**: All checklists have 0 incomplete items
-      - **FAIL**: One or more checklists have incomplete items
+   - **PASS**: All checklists have 0 incomplete items
+   - **FAIL**: One or more checklists have incomplete items
 
-    - **If any checklist is incomplete**:
-      - Display the table with incomplete item counts
-      - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
-      - Wait for user response before continuing
-      - If user says "no" or "wait" or "stop", halt execution
-       - If user says "yes" or "proceed" or "continue", proceed to step 5
+   - **If any checklist is incomplete**:
+     - Display the table with incomplete item counts
+     - **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
+     - Wait for user response before continuing
+     - If user says "no" / "wait" / "stop", halt execution
+     - If user says "yes" / "proceed" / "continue", proceed to step 5
 
-    - **If all checklists are complete**:
-      - Display the table showing all checklists passed
-      - Automatically proceed to step 5
+   - **If all checklists are complete**: Display the table and automatically proceed to step 5
 
-  5. Load and analyze the implementation context:
+5. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
@@ -178,11 +169,11 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Per-task extension hooks**: For each individual task:
      - **Before task**: Check `.specify/extensions.yml` for `hooks.before_task_execute` entries. Filter out disabled hooks. Execute mandatory hooks immediately; for optional hooks, skip silently to maintain flow. If no hooks registered, continue silently.
      - **Execute the task**
-     - **After task**: Check `.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute. This enables per-task auto-commits, linting, test runs, etc. via extensions.
+     - **After task**: Check `.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute.
      - **On task failure**: Dispatch `after_task_execute` hooks before reporting the error (allows WIP checkpoint commits if git extension is configured).
    - **Dual execution mode handling**:
      - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
-      - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch-async "$task_id" "$agent_type" "$description" "$context" "$requirements" "$instructions" "$FEATURE_DIR"`, send to LLM agents, monitor completion via `scripts/bash/tasks-meta-utils.sh check-status "$task_id" "$FEATURE_DIR"`, apply macro-review after completion
+     - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch-async "$task_id" "$agent_type" "$description" "$context" "$requirements" "$instructions" "$FEATURE_DIR"`, send to LLM agents, monitor completion via `scripts/bash/tasks-meta-utils.sh check-status "$task_id" "$FEATURE_DIR"`, apply macro-review after completion
    - **Quality gates**: Apply differentiated validation based on execution mode via `scripts/bash/tasks-meta-utils.sh quality-gate "$FEATURE_DIR/tasks_meta.json" "$task_id"`
    - **Validation checkpoints**: Verify each phase completion before proceeding
 
@@ -194,32 +185,32 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 10. Progress tracking and error handling:
-   - Report progress after each completed task
-   - Halt execution if any non-parallel task fails
-   - For parallel tasks [P], continue with successful tasks, report failed ones
-   - Provide clear error messages with context for debugging
-   - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
-   - **IMPORTANT** After completing each task, update execution metadata by running:
-     ```bash
-     bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$TASK_ID" "$DESCRIPTION" "$FILES" "SYNC_OR_ASYNC"
-     ```
+    - Report progress after each completed task
+    - Halt execution if any non-parallel task fails
+    - For parallel tasks [P], continue with successful tasks, report failed ones
+    - Provide clear error messages with context for debugging
+    - Suggest next steps if implementation cannot proceed
+    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+    - **IMPORTANT** After completing each task, update execution metadata:
+      ```bash
+      bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$TASK_ID" "$DESCRIPTION" "$FILES" "SYNC_OR_ASYNC"
+      ```
 
 11. **MANDATORY - Verify Execution Metadata**:
 
-    Before reporting completion, verify execution metadata exists:
+    Before reporting completion:
     ```bash
     test -f "$FEATURE_DIR/tasks_meta.json" || bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
     ```
     If `tasks_meta.json` was created retroactively (not at step 4), log a warning that per-task metadata was not captured during implementation.
 
 12. Completion validation:
-   - Verify all required tasks are completed
-   - In worktree mode, verify all task branches are merged back into the feature branch with no unresolved conflicts
-   - Check that implemented features match the original specification
-   - Validate that tests pass and coverage meets requirements
-   - Confirm the implementation follows the technical plan
-   - Report final status with comprehensive summary of completed work
+    - Verify all required tasks are completed
+    - In worktree mode, verify all task branches are merged back into the feature branch with no unresolved conflicts
+    - Check that implemented features match the original specification
+    - Validate that tests pass and coverage meets requirements
+    - Confirm the implementation follows the technical plan
+    - Report final status with comprehensive summary of completed work
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `__SPECKIT_COMMAND_TASKS__` first to regenerate the task list.
 

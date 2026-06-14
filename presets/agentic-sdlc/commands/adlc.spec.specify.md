@@ -90,8 +90,7 @@ After collecting/extracting answers, display:
 **STOP HERE** - Wait for explicit response.
 
 - **yes**: Proceed to Phase B (mutating hooks) and then spec creation.
-  Write the approved Goal, Success Criteria, and Constraints into the
-  spec header fields (Goal, Success Criteria, Constraints).
+  Write the approved Goal, Success Criteria, and Constraints into the spec header fields.
 - **adjust**: Ask what needs changing, update the Mission Brief, re-display, ask again.
 - **no**: Stop. Do not create branch or spec. Do not execute any deferred mutating hooks.
 
@@ -106,8 +105,7 @@ After collecting/extracting answers, display:
 **Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
 
 1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
-   - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`,
-     resolve an issue key before running the hook.
+   - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`, resolve an issue key before running the hook.
    - Resolution order:
      1. Use explicit `GIT_BRANCH_ISSUE` if already provided.
      2. Otherwise extract an issue key from the user request or approved Mission Brief.
@@ -115,8 +113,7 @@ After collecting/extracting answers, display:
    - The issue key MUST match the configured `issue_format`:
      - `jira`: `PROJ-123`
      - `numeric`: `1234`
-   - Pass the value through to the hook using `GIT_BRANCH_ISSUE`, or `--issue` / `-Issue`
-     if you invoke the script directly.
+   - Pass the value through to the hook using `GIT_BRANCH_ISSUE`, or `--issue` / `-Issue` if you invoke the script directly.
 2. For each **mutating** hook noted in Phase A:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
@@ -125,10 +122,7 @@ After collecting/extracting answers, display:
    ```
    Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
    ```
-5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature
-   directory is now known, persist the feature-scoped artifact at:
-   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
-   - the JSON content should remain the same unless path normalization is required
+5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature directory is now known, persist the feature-scoped artifact at `SPECIFY_FEATURE_DIRECTORY/team-context.json` (content unchanged unless path normalization required).
 
 ---
 
@@ -151,12 +145,9 @@ Given that feature description, do this:
    - Create a 2-4 word short name that captures the essence of the feature
    - Use action-noun format when possible (e.g., "add-user-auth", "fix-payment-bug")
    - Preserve technical terms and acronyms (OAuth2, API, JWT, etc.)
-   - Keep it concise but descriptive enough to understand the feature at a glance
    - Examples:
      - "I want to add user authentication" → "user-auth"
      - "Implement OAuth2 integration for the API" → "oauth2-api-integration"
-     - "Create a dashboard for analytics" → "analytics-dashboard"
-     - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
 2. **Branch creation** (already completed in Phase B if `git.feature` hook was present):
 
@@ -170,17 +161,17 @@ Given that feature description, do this:
    Specs live under the default `specs/` directory unless the user explicitly provides `SPECIFY_FEATURE_DIRECTORY`.
 
    **Resolution order for `SPECIFY_FEATURE_DIRECTORY`**:
-   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY` (e.g., via environment variable, argument, or configuration), use it as-is
+   1. If the user explicitly provided `SPECIFY_FEATURE_DIRECTORY`, use it as-is
    2. Otherwise, auto-generate it under `specs/`:
       - Check `.specify/init-options.json` for `branch_numbering`
-      - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS` (current timestamp)
-      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number after scanning existing directories in `specs/`)
-      - Construct the directory name: `<prefix>-<short-name>` (e.g., `003-user-auth` or `20260319-143022-user-auth`)
+      - If `"timestamp"`: prefix is `YYYYMMDD-HHMMSS`
+      - If `"sequential"` or absent: prefix is `NNN` (next available 3-digit number)
+      - Construct: `<prefix>-<short-name>` (e.g., `003-user-auth`)
       - Set `SPECIFY_FEATURE_DIRECTORY` to `specs/<directory-name>`
 
    **Create the directory and spec file**:
    - `mkdir -p SPECIFY_FEATURE_DIRECTORY`
-   - Copy `templates/spec-template.md` to `SPECIFY_FEATURE_DIRECTORY/spec.md` as the starting point
+   - Copy `templates/spec-template.md` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Set `SPEC_FILE` to `SPECIFY_FEATURE_DIRECTORY/spec.md`
    - Persist the resolved path to `.specify/feature.json`:
      ```json
@@ -188,137 +179,101 @@ Given that feature description, do this:
        "feature_directory": "<resolved feature dir>"
      }
      ```
-     Write the actual resolved directory path value (for example, `specs/003-user-auth`), not the literal string `SPECIFY_FEATURE_DIRECTORY`.
-     This allows downstream commands (`__SPECKIT_COMMAND_PLAN__`, `__SPECKIT_COMMAND_TASKS__`, etc.) to locate the feature directory without relying on git branch name conventions.
+     Write the actual resolved directory path, not the literal string `SPECIFY_FEATURE_DIRECTORY`.
 
    **IMPORTANT**:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
-   - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
+   - The spec directory name and the git branch name are independent
    - The spec directory and file are always created by this command, never by the hook
-   - If `.specify/discovery/team-context.json` exists after the discovery hook, promote it to
-     `SPECIFY_FEATURE_DIRECTORY/team-context.json` once the feature directory exists
+   - If `.specify/discovery/team-context.json` exists after the discovery hook, promote it to `SPECIFY_FEATURE_DIRECTORY/team-context.json`
 
 4. Load `templates/spec-template.md` to understand required sections.
 
-5. If `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it and use it as the persisted
-   extension-owned team context for this feature.
+5. If `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it and use it as the persisted extension-owned team context for this feature.
 
 6. Follow this execution flow:
-    1. Parse user description from arguments
-       If empty: ERROR "No feature description provided"
-    2. Extract key concepts from description
-       Identify: actors, actions, data, constraints
-    3. For unclear aspects:
-       - Make informed guesses based on context and industry standards
-       - Only mark with [NEEDS CLARIFICATION: specific question] if:
-         - The choice significantly impacts feature scope or user experience
-         - Multiple reasonable interpretations exist with different implications
-         - No reasonable default exists
-       - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
-       - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
-    4. Fill User Scenarios & Testing section
-       If no clear user flow: ERROR "Cannot determine user scenarios"
-    5. Generate Functional Requirements
-       Each requirement must be testable
-       Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
-    6. Define Success Criteria
-       Create measurable, technology-agnostic outcomes
-       Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
-       Each criterion must be verifiable without implementation details
-    7. Identify Key Entities (if data involved)
-    8. Return: SUCCESS (spec ready for planning)
+   1. Parse user description from arguments. If empty: ERROR "No feature description provided"
+   2. Extract key concepts from description: actors, actions, data, constraints
+   3. For unclear aspects:
+      - Make informed guesses based on context and industry standards
+      - Only mark with [NEEDS CLARIFICATION: specific question] if:
+        - The choice significantly impacts feature scope or user experience
+        - Multiple reasonable interpretations exist with different implications
+        - No reasonable default exists
+      - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+      - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+   4. Fill User Scenarios & Testing section. If no clear user flow: ERROR "Cannot determine user scenarios"
+   5. Generate Functional Requirements: Each requirement must be testable. Use reasonable defaults for unspecified details (document assumptions in Assumptions section).
+   6. Define Success Criteria: Create measurable, technology-agnostic outcomes. Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion). Each criterion must be verifiable without implementation details.
+   7. Identify Key Entities (if data involved)
+   8. Return: SUCCESS (spec ready for planning)
 
-6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
+6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
 7. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
-   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using the checklist template structure with these validation items:
+   a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using this structure:
 
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
 
-      **Purpose**: Validate specification completeness and quality before proceeding to planning
-      **Created**: [DATE]
-      **Feature**: [Link to spec.md]
-
       ## Content Quality
-
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
 
       ## Requirement Completeness
-
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
-      - [ ] Success criteria are measurable
-      - [ ] Success criteria are technology-agnostic (no implementation details)
+      - [ ] Success criteria are measurable and technology-agnostic
       - [ ] All acceptance scenarios are defined
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
 
       ## Feature Readiness
-
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
-
-      ## Notes
-
-      - Items marked incomplete require spec updates before `__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`
       ```
 
-   b. **Run Validation Check**: Review the spec against each checklist item:
-      - For each item, determine if it passes or fails
-      - Document specific issues found (quote relevant spec sections)
+   b. **Run Validation Check**: Review the spec against each checklist item. For each item, determine if it passes or fails. Document specific issues found (quote relevant spec sections).
 
    c. **Handle Validation Results**:
-
       - **If all items pass**: Mark checklist complete and proceed to step 7
-
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
         2. Update the spec to address each issue
         3. Re-run validation until all items pass (max 3 iterations)
         4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
-
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. **LIMIT CHECK**: If more than 3 markers exist, keep only the 3 most critical (by scope/security/UX impact) and make informed guesses for the rest
-        3. For each clarification needed (max 3), present options to user in this format:
+        3. For each clarification needed (max 3), present options to user:
 
            ```markdown
            ## Question [N]: [Topic]
 
            **Context**: [Quote relevant spec section]
-
-           **What we need to know**: [Specific question from NEEDS CLARIFICATION marker]
-
-           **Suggested Answers**:
+           **What we need to know**: [Specific question]
 
            | Option | Answer | Implications |
-           |--------|--------|---------------|
-           | A      | [First suggested answer] | [What this means for the feature] |
-           | B      | [Second suggested answer] | [What this means for the feature] |
-           | C      | [Third suggested answer] | [What this means for the feature] |
-           | Custom | Provide your own answer | [Explain how to provide custom input] |
+           |--------|--------|--------------|
+           | A | [First answer] | [What this means] |
+           | B | [Second answer] | [What this means] |
+           | C | [Third answer] | [What this means] |
+           | Custom | Provide your own | [How to provide input] |
 
            **Your choice**: _[Wait for user response]_
            ```
 
-        4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
-           - Use consistent spacing with pipes aligned
-           - Each cell should have spaces around content: `| Content |` not `|Content|`
-           - Header separator must have at least 3 dashes: `|--------|`
-           - Test that the table renders correctly in markdown preview
-        5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
-        6. Present all questions together before waiting for responses
-        7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
-        8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
-        9. Re-run validation after all clarifications are resolved
+        4. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
+        5. Present all questions together before waiting for responses
+        6. Wait for user to respond with their choices for all questions
+        7. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
+        8. Re-run validation after all clarifications are resolved
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
@@ -356,7 +311,7 @@ When creating this spec from a user prompt:
 4. **Prioritize clarifications**: scope > security/privacy > user experience > technical details
 5. **Think like a tester**: Every vague requirement should fail the "testable and unambiguous" checklist item
 6. **Common areas needing clarification** (only if no reasonable default exists):
-   - Feature scope and boundaries (include/exclude specific use cases)
+   - Feature scope and boundaries
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)
 
@@ -382,14 +337,12 @@ Success criteria must be:
 - "Users can complete checkout in under 3 minutes"
 - "System supports 10,000 concurrent users"
 - "95% of searches return results in under 1 second"
-- "Task completion rate improves by 40%"
 
 **Bad examples** (implementation-focused):
 
-- "API response time is under 200ms" (too technical, use "Users see results instantly")
-- "Database can handle 1000 TPS" (implementation detail, use user-facing metric)
+- "API response time is under 200ms" (too technical)
+- "Database can handle 1000 TPS" (implementation detail)
 - "React components render efficiently" (framework-specific)
-- "Redis cache hit rate above 80%" (technology-specific)
 
 ## Post-Execution Hooks
 

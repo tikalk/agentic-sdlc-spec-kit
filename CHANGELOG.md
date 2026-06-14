@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc14] - 2026-06-14
+
+### Changed
+
+- **Agentic SDLC preset bumped to 1.2.0**: Token compression across all 9 preset commands (~236 lines, ~9.4% reduction). Reduced verbose example lists, consolidated generated file templates to structural outlines, tightened pedagogical phrasing. Explicit hook instructions preserved for cross-agent compatibility.
+- **Quick extension bumped to 1.3.0**: Hook execution aligned to preset protocol — added manifest resolution (`extension.yml` → `provides.commands.{command}.file`) and condition filtering (non-empty `condition` now skipped). Compressed non-hook content (~95 lines).
+
+### Fixed
+
+- **Quick extension hook protocol**: Previously read `{command}.md` directly from extension commands dir without manifest lookup. Now resolves command files via `extension.yml` manifest with fallback to `{command}.md`, consistent with all preset commands. Added missing non-empty `condition` skip logic.
+
 # [0.10.0+adlc13] - 2026-06-14
 
 ### Added
