@@ -33,11 +33,12 @@ function Run-Lint {
         return '{"passed": null, "errors": null, "warnings": null, "detail": "No linter detected"}'
     }
 
-    try {
-        $null = Invoke-Expression $cmd 2>&1
+    $out = Invoke-Expression $cmd 2>&1 -ErrorAction SilentlyContinue
+    $exitCode = $LASTEXITCODE
+
+    if ($exitCode -eq 0) {
         return '{"passed": true, "errors": 0, "warnings": 0, "detail": "Lint clean"}'
-    } catch {
-        $out = Invoke-Expression $cmd 2>&1 -ErrorAction SilentlyContinue
+    } else {
         $errors = ([regex]::Matches($out, "error", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
         $warnings = ([regex]::Matches($out, "warning", [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)).Count
         if ($errors -eq 0) { $errors = 1 }
@@ -48,8 +49,10 @@ function Run-Lint {
 # ─── TESTS ────────────────────────────────────────────────────────────────────
 function Run-Tests {
     $cmd = $null
+    $coverage = "null"
     if (Test-Path "pyproject.toml" -and (Get-Command pytest -ErrorAction SilentlyContinue)) {
-        $cmd = "pytest -x --tb=short"
+        $cmd = "pytest -x --tb=short --cov"
+        $coverage = "0"
     } elseif (Test-Path "package.json" -and (Get-Command npm -ErrorAction SilentlyContinue)) {
         $pkg = Get-Content "package.json" -Raw
         if ($pkg -match '"test"') {
@@ -59,6 +62,7 @@ function Run-Tests {
         }
     } elseif (Test-Path "go.mod" -and (Get-Command go -ErrorAction SilentlyContinue)) {
         $cmd = "go test ./..."
+        $coverage = "0"
     } elseif (Test-Path "Cargo.toml" -and (Get-Command cargo -ErrorAction SilentlyContinue)) {
         $cmd = "cargo test"
     }
@@ -67,15 +71,22 @@ function Run-Tests {
         return '{"passed": null, "pass_count": null, "fail_count": null, "coverage": null, "detail": "No test runner detected"}'
     }
 
-    try {
-        $out = Invoke-Expression $cmd 2>&1
-        $passCount = if ($out -match '(\d+) passed') { [int]$matches[1] } else { 0 }
-        return "{`"passed`": true, `"pass_count`": $passCount, `"fail_count`": 0, `"coverage`": null, `"detail`": `"All tests pass`"}"
-    } catch {
-        $out = Invoke-Expression $cmd 2>&1 -ErrorAction SilentlyContinue
-        $passCount = if ($out -match '(\d+) passed') { [int]$matches[1] } else { 0 }
-        $failCount = if ($out -match '(\d+) failed') { [int]$matches[1] } else { 1 }
-        return "{`"passed`": false, `"pass_count`": $passCount, `"fail_count`": $failCount, `"coverage`": null, `"detail`": `"Some tests failed`"}"
+    $out = Invoke-Expression $cmd 2>&1 -ErrorAction SilentlyContinue
+    $exitCode = $LASTEXITCODE
+
+    $passCount = if ($out -match '(\d+) passed') { [int]$matches[1] } else { 0 }
+    $failCount = if ($out -match '(\d+) failed') { [int]$matches[1] } else { 0 }
+
+    if ($coverage -eq "0") {
+        $covMatch = [regex]::Match($out, '(\d+)%')
+        $coverage = if ($covMatch.Success) { $covMatch.Groups[1].Value } else { "null" }
+    }
+
+    if ($exitCode -eq 0) {
+        return "{`"passed`": true, `"pass_count`": $passCount, `"fail_count`": 0, `"coverage`": $coverage, `"detail`": `"All tests pass`"}"
+    } else {
+        if ($failCount -eq 0) { $failCount = 1 }
+        return "{`"passed`": false, `"pass_count`": $passCount, `"fail_count`": $failCount, `"coverage`": $coverage, `"detail`": `"Some tests failed`"}"
     }
 }
 
@@ -98,11 +109,15 @@ function Run-Smoke {
         return '{"passed": null, "scenarios": null, "detail": "No smoke tests detected"}'
     }
 
-    try {
-        $null = Invoke-Expression $cmd 2>&1
-        return '{"passed": true, "scenarios": 0, "detail": "Smoke tests pass"}'
-    } catch {
-        return '{"passed": false, "scenarios": 0, "detail": "Smoke tests failed"}'
+    $out = Invoke-Expression $cmd 2>&1 -ErrorAction SilentlyContinue
+    $exitCode = $LASTEXITCODE
+
+    $scenarios = if ($out -match '(\d+) (scenario|test)') { [int]$matches[1] } else { 0 }
+
+    if ($exitCode -eq 0) {
+        return "{`"passed`": true, `"scenarios`": $scenarios, `"detail`": `"Smoke tests pass`"}"
+    } else {
+        return "{`"passed`": false, `"scenarios`": $scenarios, `"detail`": `"Smoke tests failed`"}"
     }
 }
 

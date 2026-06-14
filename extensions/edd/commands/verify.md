@@ -1,8 +1,8 @@
 ---
 description: "Run deterministic + AI evaluation, grade quality gates, write evidence.md, grade.json, and next-prompt.md"
 scripts:
-  sh: scripts/bash/run-deterministic.sh
-  ps: scripts/powershell/run-deterministic.ps1
+  sh: .specify/extensions/edd/scripts/bash/run-deterministic.sh
+  ps: .specify/extensions/edd/scripts/powershell/run-deterministic.ps1
 ---
 
 ## User Input
@@ -38,9 +38,9 @@ This command is invoked as `/edd.verify`.
 
 ### 0. Resolve Feature Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for `FEATURE_DIR` and `AVAILABLE_DOCS`.
+Determine the feature directory path (`FEATURE_DIR`). Features live under `specs/<branch-name>/` — list `specs/` in the repo root to find it. Use the AI tool `Bash` or `Glob` to locate the active feature directory.
 
-Derive absolute paths:
+Once identified, list the feature directory contents and derive these absolute paths:
 
 - `SPEC = FEATURE_DIR/spec.md`
 - `PLAN = FEATURE_DIR/plan.md`

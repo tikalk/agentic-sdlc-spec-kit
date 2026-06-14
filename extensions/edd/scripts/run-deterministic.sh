@@ -36,16 +36,16 @@ run_lint() {
         return
     fi
 
-    local errors=0 warnings=0
-    if eval "$cmd" >/dev/null 2>&1; then
+    local out rc
+    out=$(eval "$cmd" 2>&1) && rc=0 || rc=$?
+
+    if [ "$rc" -eq 0 ]; then
         echo '{"passed": true, "errors": 0, "warnings": 0, "detail": "Lint clean"}'
     else
-        # Best-effort parse: count "error" and "warning" in output
-        local out
-        out=$(eval "$cmd" 2>&1 || true)
+        local errors=0 warnings=0
         errors=$(echo "$out" | grep -ci "error" || true)
         warnings=$(echo "$out" | grep -ci "warning" || true)
-        [ "$errors" -eq 0 ] && errors=1  # At least 1 if it failed
+        [ "$errors" -eq 0 ] && errors=1
         printf '{"passed": false, "errors": %s, "warnings": %s, "detail": "Lint failed"}\n' "$errors" "$warnings"
     fi
 }
@@ -53,8 +53,10 @@ run_lint() {
 # ─── TESTS ────────────────────────────────────────────────────────────────────
 run_tests() {
     local cmd=""
+    local coverage="null"
     if [ -f "pyproject.toml" ] && command -v pytest &>/dev/null; then
-        cmd="pytest -x --tb=short"
+        cmd="pytest -x --tb=short --cov"
+        coverage="0"
     elif [ -f "package.json" ] && command -v npm &>/dev/null; then
         if grep -q '"test"' package.json 2>/dev/null; then
             cmd="npm test"
@@ -63,6 +65,7 @@ run_tests() {
         fi
     elif [ -f "go.mod" ] && command -v go &>/dev/null; then
         cmd="go test ./..."
+        coverage="0"
     elif [ -f "Cargo.toml" ] && command -v cargo &>/dev/null; then
         cmd="cargo test"
     fi
@@ -72,18 +75,20 @@ run_tests() {
         return
     fi
 
-    local pass_count=0 fail_count=0 coverage="null"
-    if eval "$cmd" >/dev/null 2>&1; then
-        pass_count=$(eval "$cmd" 2>&1 | grep -oP '\d+(?= passed)' | tail -1 || echo "0")
-        [ -z "$pass_count" ] && pass_count=0
+    local out rc pass_count=0 fail_count=0
+    out=$(eval "$cmd" 2>&1) && rc=0 || rc=$?
+
+    pass_count=$(echo "$out" | grep -oP '\d+(?= passed)' | tail -1 || echo "0")
+    fail_count=$(echo "$out" | grep -oP '\d+(?= failed)' | tail -1 || echo "0")
+
+    if [ "$coverage" = "0" ]; then
+        coverage=$(echo "$out" | grep -oP '\d+(?=%)' | tail -1 || echo "null")
+    fi
+
+    if [ "$rc" -eq 0 ]; then
         printf '{"passed": true, "pass_count": %s, "fail_count": 0, "coverage": %s, "detail": "All tests pass"}\n' "$pass_count" "$coverage"
     else
-        local out
-        out=$(eval "$cmd" 2>&1 || true)
-        pass_count=$(echo "$out" | grep -oP '\d+(?= passed)' | tail -1 || echo "0")
-        fail_count=$(echo "$out" | grep -oP '\d+(?= failed)' | tail -1 || echo "1")
-        [ -z "$pass_count" ] && pass_count=0
-        [ -z "$fail_count" ] && fail_count=1
+        [ "$fail_count" -eq 0 ] && fail_count=1
         printf '{"passed": false, "pass_count": %s, "fail_count": %s, "coverage": %s, "detail": "Some tests failed"}\n' "$pass_count" "$fail_count" "$coverage"
     fi
 }
@@ -104,10 +109,14 @@ run_smoke() {
         return
     fi
 
-    if eval "$cmd" >/dev/null 2>&1; then
-        echo '{"passed": true, "scenarios": 0, "detail": "Smoke tests pass"}'
+    local out rc scenarios=0
+    out=$(eval "$cmd" 2>&1) && rc=0 || rc=$?
+    scenarios=$(echo "$out" | grep -oP '\d+(?= (scenario|test))' | tail -1 || echo "0")
+
+    if [ "$rc" -eq 0 ]; then
+        printf '{"passed": true, "scenarios": %s, "detail": "Smoke tests pass"}\n' "$scenarios"
     else
-        echo '{"passed": false, "scenarios": 0, "detail": "Smoke tests failed"}'
+        printf '{"passed": false, "scenarios": %s, "detail": "Smoke tests failed"}\n' "$scenarios"
     fi
 }
 

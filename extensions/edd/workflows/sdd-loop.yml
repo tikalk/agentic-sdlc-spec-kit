@@ -32,7 +32,7 @@ inputs:
 steps:
   - id: sdd-loop
     type: do-while
-    condition: "{{ steps.grade.output.exit_code != 0 }}"
+    condition: "{{ steps.verify.output.exit_code != 0 }}"
     max_iterations: "{{ inputs.max_iterations }}"
     steps:
       - id: specify
@@ -58,8 +58,4 @@ steps:
         integration: "{{ inputs.integration }}"
         continue_on_error: true
 
-      - id: grade
-        type: shell
-        run: |
-          V=$(python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('verdict','FAIL'))" < .eval/grade.json 2>/dev/null || echo "FAIL")
-          [ "$V" = "PASS" ] && exit 0 || exit 1
+
