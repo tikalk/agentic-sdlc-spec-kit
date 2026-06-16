@@ -2,6 +2,22 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.11.0] - 2026-06-16
+
+### Changed
+
+- Add workflow step catalog — community-installable step types (#2394)
+- feat(dev): add integration scaffolder (#2685)
+- Add Command Density preset to community catalog (#3006)
+- fix(tests): don't run PowerShell tests via WSL-interop powershell.exe (#2971)
+- Add Zed integration (#2780)
+- Update architecture-governance preset to v0.5.0 (#2929)
+- Update Superpowers Implementation Bridge extension to v1.1.0 (#3011)
+- Update isaqb-architecture-governance preset to v0.2.0 (#2984)
+- Update security-governance preset to v0.6.0 (#2932)
+- chore: update CITATION.cff to v0.10.2 (2026-06-11) (#2966)
+- chore: release 0.10.4, begin 0.10.5.dev0 development (#3010)
+
 ## [0.10.4] - 2026-06-16
 
 ### Changed
