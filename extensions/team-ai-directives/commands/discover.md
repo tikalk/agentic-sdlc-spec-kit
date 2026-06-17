@@ -1,5 +1,6 @@
 ---
 description: Discover relevant context from team-ai-directives for current feature
+arguments: --no-write (optional, skip file persistence)
 ---
 
 ## Goal
@@ -86,69 +87,103 @@ For every module selected as relevant in Step 4, read the full file content from
 
 Include the full content in the output so the AI agent has the complete directive text without needing a second file read.
 
+### Modes
+
+The command supports two modes:
+
+- **Persist mode** (default): Writes the discovered context to a `team-context.md` file for reuse.
+- **No-write mode** (`--no-write` in `$ARGUMENTS`): Outputs the discovery table inline only.
+  No files are created or modified. Used by the `before_implement` hook where feature directories
+  may not exist and Quick workflows forbid file artifacts.
+
+Mode is detected in this order:
+1. If `$ARGUMENTS` contains `--no-write`: no-write mode.
+2. If the environment variable `SPECIFY_FEATURE_DIRECTORY` is set: persist mode to feature dir.
+3. If run via `before_specify` hook (feature dir unknown): persist mode to staging path.
+4. If run via `before_implement` hook (Quick context): no-write mode.
+
 ### Step 5: Output Discovered Context
 
-Output structured discovery results in this exact format:
+Output structured discovery results as a markdown table:
 
-```json
-{
-  "constitution": "/path/to/constitution.md",
-  "personas": [
-    {"name": "Admin User", "file": "personas/admin.md", "relevance": "high", "cdr_id": "CDR-2026-003"}
-  ],
-  "rules": [
-    {"name": "API Security", "file": "rules/security/api-security.md", "relevance": "high", "category": "security", "cdr_id": "CDR-2026-020"}
-  ],
-  "examples": [
-    {"name": "Payment Flow", "file": "examples/payment-flow.md", "relevance": "medium", "cdr_id": "CDR-2026-001"}
-  ],
-  "search_metadata": {
-    "files_searched": 42,
-    "files_with_matches": 8
-  }
-}
+```markdown
+## Discovered Team Context
+
+| ID | Module | Type | Descriptor | Relevance |
+|----|--------|------|------------|-----------|
+| CDR-2026-003 | context_modules/personas/admin.md | Persona | Admin user persona for backend features | High |
+| CDR-2026-020 | context_modules/rules/security/api-security.md | Rule | API security patterns for web services | High |
 ```
 
-The `cdr_id` field links each entry back to its CDR in `CDR.md` for traceability. When using the legacy fallback (no CDR.md), `cdr_id` is omitted.
+- **ID**: The CDR identifier from `CDR.md` (omitted in legacy fallback mode).
+- **Module**: Path to the full context module file relative to knowledge base root.
+- **Type**: Rule, Persona, or Example.
+- **Descriptor**: The "when to use" summary from the CDR index.
+- **Relevance**: High / Medium / Low based on keyword overlap.
 
-Include the full file content inline with each entry so the agent has the complete directive text.
+For personas and rules with **High** relevance, load the full module file content and
+include it directly under the table so the agent has the complete directive text
+without a second file read.
+
+Include a `search_metadata` section after the table:
+
+```markdown
+_Searched 42 CDR entries, 8 matches found._
+```
 
 ### Step 6: Persist Team Context (Extension-Owned)
 
-The `team-ai-directives` extension owns persistence for discovered feature context.
+The `team-ai-directives` extension owns the entire lifecycle for discovered context.
 
-Canonical artifact name:
+**Canonical artifact**: `team-context.md`
 
-- `team-context.json`
+**Persistence rules (in order of priority)**:
 
-Persistence rules:
+1. **If `--no-write` detected**: Skip all file persistence. Output inline only.
+2. **If feature directory is known** (`SPECIFY_FEATURE_DIRECTORY` is set):
+   Write to `SPECIFY_FEATURE_DIRECTORY/team-context.md`.
+   If `.specify/drafts/team-context.md` exists, delete it after successful write.
+3. **Otherwise** (feature directory not yet known, e.g. `before_specify`):
+   Write to `.specify/drafts/team-context.md`.
 
-1. If the feature directory is already known, write the discovered payload to:
-   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
-2. If the feature directory is not known yet, write the same payload to the staging location:
-   - `.specify/discovery/team-context.json`
-3. Once the feature directory exists, the `specify` workflow should move or copy the staged file to:
-   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
-4. During `plan`, if `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it first and treat it
-   as the authoritative discovered team context for that feature.
-5. If discovery is re-run later and the feature directory is known, overwrite the feature-scoped
-   `team-context.json` with the refreshed results.
+**Delta awareness**: Before writing, read the existing `team-context.md` file from the
+target location (staging or feature dir, whichever is applicable). Compare the new
+discovery results against the previous file. Include a delta section in the output:
 
-`team-context.json` is the authoritative machine-readable artifact. If a markdown summary is added
-later, it should be derived from this JSON rather than treated as the source of truth.
+```markdown
+### Changes from Previous Discovery
 
-### Step 7: Populate Feature Context
+- **New**: CDR-2026-042 — Python logging patterns (Rule)
+- **Dropped**: CDR-2026-015 — Deprecated ORM rules (Rule)
+- **Changed**: CDR-2026-003 — relevance Medium → High
+```
 
-The preset commands will use this output to populate the context template with discovered directives.
+This enables the agent to quickly understand what's new or changed without re-reading
+the entire context.
 
-When `team-context.json` exists, they should load that persisted artifact instead of relying solely
-on transient command output.
+### Step 7: Agent Integration
+
+The discovered context is available to the agent through the persisted `team-context.md`
+file (in persist mode) or inline output (in no-write mode). The agent should use the
+relevance scores to prioritize which modules to read in full.
+
+The `before_plan` and `before_specify` hooks automatically run discover before their
+respective workflows. Quick workflows invoke discover via `before_implement` in
+no-write mode — the agent receives inline context without file artifacts.
 
 ## Usage
 
 This command is automatically executed via extension hooks:
 - **before_specify**: Runs before `/spec.specify` to discover context for specification
 - **before_plan**: Runs before `/spec.plan` to discover context for planning
+- **before_implement** (optional): Runs before `/quick.implement` — no-write mode,
+  outputs inline context without file persistence
+
+Manual invocation:
+```
+/team.discover               # Persist mode (writes team-context.md)
+/team.discover --no-write    # Inline only, no file persistence
+```
 
 ## Failure Handling
 

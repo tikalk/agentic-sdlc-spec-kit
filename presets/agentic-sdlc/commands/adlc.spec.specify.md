@@ -122,12 +122,9 @@ After collecting/extracting answers, display:
    ```
    Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
    ```
-5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature directory is now known, persist the feature-scoped artifact at `SPECIFY_FEATURE_DIRECTORY/team-context.json` (content unchanged unless path normalization required).
-
 ---
 
 ## User Input
-
 ```text
 $ARGUMENTS
 ```
@@ -185,13 +182,9 @@ Given that feature description, do this:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent
    - The spec directory and file are always created by this command, never by the hook
-   - If `.specify/discovery/team-context.json` exists after the discovery hook, promote it to `SPECIFY_FEATURE_DIRECTORY/team-context.json`
-
 4. Load `templates/spec-template.md` to understand required sections.
 
-5. If `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it and use it as the persisted extension-owned team context for this feature.
-
-6. Follow this execution flow:
+5. Follow this execution flow:
    1. Parse user description from arguments. If empty: ERROR "No feature description provided"
    2. Extract key concepts from description: actors, actions, data, constraints
    3. For unclear aspects:

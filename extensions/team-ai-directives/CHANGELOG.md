@@ -5,6 +5,39 @@ All notable changes to the Team AI Directives extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-06-17
+
+### Added
+
+- **`--no-write` mode**: Discover command supports inline-only output with `--no-write`
+  flag, used by the optional `before_implement` hook for Quick workflows.
+- **`before_implement` hook**: New optional hook in `extension.yml` for discover to run
+  before Quick task execution in no-write mode.
+- **Delta awareness**: Discover reads existing `team-context.md` before re-evaluation and
+  reports what's new, dropped, or changed.
+- **Draft cleanup**: After writing `team-context.md` to the feature directory, the staging
+  draft at `.specify/drafts/team-context.md` is automatically deleted.
+
+### Changed
+
+- **Output format**: Discover now outputs a markdown table (ID, Module, Type, Descriptor,
+  Relevance) instead of JSON. Full module content included inline for High relevance entries.
+- **Artifact format**: Changed from `team-context.json` to `team-context.md` — markdown is
+  the canonical output format.
+- **Staging path**: Changed from `.specify/discovery/team-context.json` to
+  `.specify/drafts/team-context.md`.
+- **Feature dir path**: Changed from `SPECIFY_FEATURE_DIRECTORY/team-context.json` to
+  `SPECIFY_FEATURE_DIRECTORY/team-context.md`.
+- **Lifecycle self-contained**: All persistence and cleanup logic lives in the discover
+  command — no external promotion needed from preset commands.
+- **Removed preset references**: `adlc.spec.specify.md` and `adlc.spec.plan.md` no longer
+  reference team-context artifacts. The extension owns its entire lifecycle via hooks.
+
+### Removed
+
+- JSON output format (replaced by markdown table).
+- `.specify/discovery/` staging directory (replaced by `.specify/drafts/`).
+
 ## [1.8.0] - 2026-06-13
 
 ### Added

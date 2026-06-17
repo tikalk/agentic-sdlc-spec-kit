@@ -2,6 +2,39 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc16] - 2026-06-17
+
+### Added
+
+- **Team AI Directives extension v2.0.0**: Discover command now outputs markdown table
+  (ID, Module, Type, Descriptor, Relevance) instead of JSON. New `--no-write` mode for
+  Quick workflows outputs inline context without file persistence. Delta awareness reads
+  existing `team-context.md` before re-evaluation and reports what's new/changed/dropped.
+  Draft cleanup removes `.specify/drafts/team-context.md` after writing to feature dir.
+- **before_implement hook**: New optional hook in team-ai-directives extension for
+  auto-discovery before Quick task execution (no-write mode).
+
+### Changed
+
+- **Lifecycle separation**: team-context.md lifecycle moved entirely into the
+  team-ai-directives extension. Presets (`adlc.spec.specify.md`, `adlc.spec.plan.md`)
+  no longer reference team-context artifacts — the extension owns its entire lifecycle
+  via hooks.
+- **Artifact format**: Changed from `team-context.json` to `team-context.md`. Staging
+  path changed from `.specify/discovery/team-context.json` to `.specify/drafts/team-context.md`.
+
+# [0.10.0+adlc15] - 2026-06-14
+
+### Added
+
+- **OKF v0.1 conformance**: Added `type`, `title`, `description`, `tags`, `timestamp`
+  fields to all context module frontmatter (constitution, personas, rules, examples,
+  skills). Updated LevelUp templates (rule, persona, example, skill) and command docs
+  (implement, validate, init) to generate OKF-compliant frontmatter. Updated
+  team-ai-directives extension commands (repair, verify) for OKF field validation
+  and orphan repair. LevelUp extension bumped to v1.9.0, team-ai-directives
+  extension bumped to v1.9.0.
+
 # [0.10.0+adlc14] - 2026-06-14
 
 ### Changed

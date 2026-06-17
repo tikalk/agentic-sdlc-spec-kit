@@ -154,16 +154,17 @@ def test_sync_force_reinstalls_extension(tmp_path):
     assert (ext_dir / "extension.yml").exists()
 
 
-def test_discover_command_documents_team_context_json_contract():
-    """Discover command should define extension-owned team-context.json persistence."""
+def test_discover_command_documents_team_context_md_persistence():
+    """Discover command should define extension-owned team-context.md persistence."""
     repo_root = Path(__file__).resolve().parent.parent
     discover_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "discover.md"
     content = discover_md.read_text(encoding="utf-8")
 
-    assert "team-context.json" in content
-    assert "SPECIFY_FEATURE_DIRECTORY/team-context.json" in content
-    assert ".specify/discovery/team-context.json" in content
-    assert "authoritative machine-readable artifact" in content
+    assert "team-context.md" in content
+    assert "SPECIFY_FEATURE_DIRECTORY/team-context.md" in content
+    assert ".specify/drafts/team-context.md" in content
+    assert "Canonical artifact" in content
+    assert "--no-write" in content
 
 
 def test_discover_command_uses_cdr_index_as_search_surface():
@@ -175,7 +176,7 @@ def test_discover_command_uses_cdr_index_as_search_surface():
     assert "CDR Index as Search Surface" in content
     assert "loads the index first, matches against it" in content or "index first" in content or "read the index first" in content or "CDR Index" in content
     assert "Fallback" in content or "fallback" in content or "legacy" in content
-    assert "cdr_id" in content or "cdr_id" in content
+    assert "CDR identifier" in content
 
 
 def test_discover_command_references_descriptor_column():

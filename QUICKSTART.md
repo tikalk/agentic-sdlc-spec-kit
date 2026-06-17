@@ -411,14 +411,14 @@ specify run adlc.team-ai-directives.discover
 specify run adlc.team-ai-directives.constitution
 ```
 
-When discovery is used as part of the spec workflow, the extension-owned persisted artifact should
-live at:
+When discovery is used as part of the spec workflow, the extension-owned persisted artifact
+lives at:
 
-- `specs/<feature>/team-context.json`
+- `specs/<feature>/team-context.md`
 
-If discovery runs before the feature directory exists, the workflow can stage the payload at:
+If discovery runs before the feature directory exists, the workflow stages the payload at:
 
-- `.specify/discovery/team-context.json`
+- `.specify/drafts/team-context.md`
 
 ### Getting Help
 

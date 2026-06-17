@@ -85,47 +85,30 @@ transient discovery JSON today, but they are not the authoritative persisted fea
 3. Rank by keyword overlap and content analysis
 4. Output JSON with file paths and search metadata
 
-**JSON Output:**
+**Markdown Table Output:**
 
-```json
-{
-  "DISCOVERED_DIRECTIVES": {
-    "candidates": {
-      "constitution": "team-ai-directives/constitutions/constitution.md",
-      "personas": [
-        "team-ai-directives/personas/security-expert.md"
-      ],
-      "rules": [
-        "team-ai-directives/rules/api-security.md",
-        "team-ai-directives/rules/code-quality.md"
-      ],
-      "skills": [],
-      "examples": []
-    },
-    "search_metadata": {
-      "keywords": ["authentication", "security", "oauth"],
-      "files_searched": 15,
-      "files_with_matches": 5
-    }
-  }
-}
+```markdown
+## Discovered Team Context
+
+| ID | Module | Type | Descriptor | Relevance |
+|----|--------|------|------------|-----------|
+| CDR-2026-003 | context_modules/personas/admin.md | Persona | Admin user persona | High |
 ```
 
-**PowerShell Equivalent:** `scripts/powershell/discovery-functions.ps1` (`Discover-Directives`)
+_Searched 42 CDR entries, 8 matches found._
 
 ### Persisted Team Context
 
 Canonical feature-scoped artifact:
 
-- `specs/<feature>/team-context.json`
+- `specs/<feature>/team-context.md`
 
 Staging artifact before the feature directory exists:
 
-- `.specify/discovery/team-context.json`
+- `.specify/drafts/team-context.md`
 
-The feature-scoped `team-context.json` file is the canonical persisted output for team context.
-Commands like `specify` and `plan` should consume it when present instead of relying only on
-transient hook output.
+The extension owns its entire lifecycle via hooks — promote and cleanup happen automatically
+within the discover command.
 
 ### Legacy Script-Based Discovery (`discover_skills()` / `discover_directives()`)
 
