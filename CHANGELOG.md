@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc17] - 2026-06-18
+
+### Fixed
+
+- **Agentic SDLC preset v1.2.1**: Constitution handoff agent naming consistency
+  (`speckit.specify` → `adlc.spec.specify`). Registered missing
+  `delegation-template` in preset manifest. Refactored `tasks-meta-utils.sh` to
+  use `resolve_template` for preset/extension override stack. Aligned preset
+  delegation-template placeholders with core version (`{TASK_ID}`, `{AGENT_TYPE}`,
+  `{TIMESTAMP}`).
+
 # [0.10.0+adlc16] - 2026-06-17
 
 ### Added

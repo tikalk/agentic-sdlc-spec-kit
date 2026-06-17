@@ -1,13 +1,17 @@
-Please complete the following task autonomously using your available tools and capabilities:
+# Delegation Request
 
-**Task**: {TASK_DESCRIPTION}
+**Task ID:** {TASK_ID}
+**Agent Type:** {AGENT_TYPE}
+**Timestamp:** {TIMESTAMP}
 
-**Context**: {TASK_CONTEXT}
+## Description
+{TASK_DESCRIPTION}
 
-**Requirements**: {TASK_REQUIREMENTS}
+## Context
+{TASK_CONTEXT}
 
-**Instructions**: {EXECUTION_INSTRUCTIONS}
+## Requirements
+{TASK_REQUIREMENTS}
 
-Please execute this task completely and provide a summary of what was accomplished, including any code changes, tests written, or other deliverables produced.
-
-When finished, provide a brief status update indicating completion.
+## Execution Instructions
+{EXECUTION_INSTRUCTIONS}

@@ -305,11 +305,14 @@ generate_delegation_prompt() {
 
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    local template_file="$script_dir/../../templates/delegation-template.md"
-    if [[ ! -f "$template_file" ]]; then
-        _log_error "Delegation template not found at $template_file" >&2
+    source "$script_dir/common.sh" 2>/dev/null || true
+    local repo_root
+    repo_root="$(cd "$script_dir/../.." && pwd)"
+    local template_file
+    template_file=$(resolve_template "delegation-template" "$repo_root") || {
+        _log_error "Delegation template not found" >&2
         return 1
-    fi
+    }
 
     local template_content
     template_content=$(cat "$template_file")
