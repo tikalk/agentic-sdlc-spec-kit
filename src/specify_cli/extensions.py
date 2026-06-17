@@ -1337,6 +1337,22 @@ class ExtensionManager:
         # Reject manifests that would shadow core commands or installed extensions.
         self._validate_install_conflicts(manifest)
 
+        # Refuse to install an extension from its own install destination — with
+        # --force this would delete the source before copying it (issue #2990).
+        dest_dir = self.extensions_dir / manifest.id
+        try:
+            same_location = source_dir.resolve(strict=False) == dest_dir.resolve(
+                strict=False
+            )
+        except (OSError, RuntimeError):
+            same_location = source_dir.absolute() == dest_dir.absolute()
+        if same_location:
+            raise ValidationError(
+                f"Source path is the install destination for '{manifest.id}' "
+                f"({dest_dir}). Refusing to proceed to avoid deleting the "
+                f"extension. Install from a copy in a different location instead."
+            )
+
         # Remove existing installation AFTER all validations pass so that a
         # validation failure doesn't leave the user with a half-uninstalled
         # extension (configs stranded in .backup/).
@@ -1355,8 +1371,7 @@ class ExtensionManager:
                 backup_config_dir.unlink()
             did_remove = self.remove(manifest.id)
 
-        # Install extension
-        dest_dir = self.extensions_dir / manifest.id
+        # Install extension (dest_dir computed above during self-install guard)
         if dest_dir.exists():
             shutil.rmtree(dest_dir)
 
