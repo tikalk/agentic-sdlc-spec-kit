@@ -17,19 +17,19 @@ scripts:
   ps: scripts/powershell/create-new-feature.ps1 "{ARGS}"
 ---
 
-## Phase A: Pre-Approval Discovery Hooks (Read-Only)
+## Phase A: Discovery Hooks (Read-Only)
 
-**Execute ONLY read-only discovery hooks before showing the Mission Brief.**
+**Execute ONLY read-only discovery hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to Mission Brief.
+1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to Mission Brief Extraction.
 2. Read `.specify/extensions.yml` and find `hooks.before_specify`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. **Classify each hook by mutation risk** (inspect the `{command}` name):
-   - **Read-only / discovery hooks** (safe to run before approval):
+   - **Read-only / discovery hooks** (safe to run before Phase B):
      - `team-ai-directives.discover`, `team-ai-directives.constitution`
      - `agent-context.update` (read-only refresh)
      - Any command whose name contains `discover`, `verify`, `validate` (when used for read-only context gathering)
-   - **Mutating hooks** (MUST be deferred until after Mission Brief approval):
+   - **Mutating hooks** (MUST be deferred until after discovery hooks):
      - `git.feature` — creates branches/worktrees
      - `git.commit` — creates commits
      - `git.initialize` — initializes repositories
@@ -38,77 +38,31 @@ scripts:
    - **Mandatory** (`optional: false`): Execute the command file's full instructions NOW before continuing.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
 6. For each **mutating** hook: do NOT execute yet. Note it for Phase B.
-7. State which discovery hooks were executed, then proceed to Mission Brief.
+7. State which discovery hooks were executed, then proceed to Mission Brief Extraction.
 
-**CRITICAL RULE**: No branch, worktree, commit, file, or directory may be created before the user explicitly approves the Mission Brief with "yes".
 
----
+## Mission Brief Extraction
 
-## ⚠️ MANDATORY STOP: Mission Brief
+### Automatic Extraction
 
-### Collect Mission Brief
+If user input ($ARGUMENTS) is substantial (10+ words), extract Goal, Success Criteria, and Constraints from it and populate them directly into the spec header fields.
 
-If user input ($ARGUMENTS) is substantial (10+ words), extract the Mission Brief elements from it.
-If minimal (< 10 words) or empty, ask the user these questions:
+If minimal (< 10 words) or empty, derive a best-effort Goal from the generated short name. Leave Success Criteria and Constraints as template placeholders — they will be validated and finalized by `__SPECKIT_COMMAND_CLARIFY__`.
 
-```markdown
-## Mission Brief
-
-**Question 1: What needs to be done?**
-What is the primary feature or change you need?
-
-**Question 2: What defines success?**
-How will we know this is complete? 2-3 measurable outcomes.
-
-**Question 3: Any constraints?**
-Technical, business, or regulatory limitations?
-```
-
-### Display Mission Brief
-
-After collecting/extracting answers, display:
-
-```markdown
-## Mission Brief
-
-**Goal**: {goal}
-
-**Success Criteria**:
-- {criterion 1}
-- {criterion 2}
-
-**Constraints**:
-- {constraint 1}
-```
-
-### ⚠️ STOP: Get User Confirmation
-
-```markdown
-**Proceed with this Mission Brief?** (yes / no / adjust)
-```
-
-**STOP HERE** - Wait for explicit response.
-
-- **yes**: Proceed to Phase B (mutating hooks) and then spec creation.
-  Write the approved Goal, Success Criteria, and Constraints into the spec header fields.
-- **adjust**: Ask what needs changing, update the Mission Brief, re-display, ask again.
-- **no**: Stop. Do not create branch or spec. Do not execute any deferred mutating hooks.
-
-**DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
-
-**Failure to follow these rules violates the __SPECKIT_COMMAND_SPECIFY__ contract.**
+### Behavior
+- Always populate what you can from the available input.
+- No confirmation prompt. Approval is deferred to `__SPECKIT_COMMAND_CLARIFY__`.
+- Proceed directly to Phase B after extraction.
 
 ---
 
-## Phase B: Post-Approval Mutating Hooks
-
-**Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
+## Phase B: Mutating Hooks
 
 1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
    - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`, resolve an issue key before running the hook.
    - Resolution order:
      1. Use explicit `GIT_BRANCH_ISSUE` if already provided.
-     2. Otherwise extract an issue key from the user request or approved Mission Brief.
+      2. Otherwise extract an issue key from the user request or the extracted Mission Brief.
      3. If no issue key is available, STOP and ask the user for it before executing `git.feature`.
    - The issue key MUST match the configured `issue_format`:
      - `jira`: `PROJ-123`
@@ -276,7 +230,7 @@ Given that feature description, do this:
    - Checklist results summary
    - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
-**NOTE:** Branch creation is handled by the `before_specify` hook (git extension) during **Phase B** (after Mission Brief approval). Spec directory and file creation are always handled by this core command, also after approval.
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension) during **Phase B** (mutating hooks). Spec directory and file creation are always handled by this core command, also during Phase B.
 
 ## Quick Guidelines
 

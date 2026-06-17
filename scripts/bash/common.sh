@@ -996,9 +996,13 @@ except Exception:
         done
     fi
 
-    # Priority 4: Core templates
+    # Priority 4: Core templates (initialized projects)
     local core="$base/${template_name}.md"
     [ -f "$core" ] && echo "$core" && return 0
+
+    # Priority 5: Repo-root templates (source repo / development fallback)
+    local repo_templates="$repo_root/templates/${template_name}.md"
+    [ -f "$repo_templates" ] && echo "$repo_templates" && return 0
 
     # Template not found in any location.
     # Return 1 so callers can distinguish "not found" from "found".

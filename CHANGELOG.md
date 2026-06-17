@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc18] - 2026-06-18
+
+### Changed
+
+- **Agentic SDLC preset v1.3.0**: Moved Mission Brief interactive hard stop from
+  `spec.specify` to `spec.clarify`. `spec.specify` now performs non-blocking
+  extraction/population of Mission Brief fields from user input. `spec.clarify`
+  becomes the sole interactive gate for Mission Brief validation and confirmation.
+
+### Fixed
+
+- **`resolve_template`** in `scripts/bash/common.sh`: Added Priority 5 fallback
+  to search `$repo_root/templates/` when `.specify/templates/` resolution fails.
+  Fixes template resolution for the source repo / development environment
+  (previously, templates only resolved in initialized projects with `.specify/`
+  directories).
+
 # [0.10.0+adlc17] - 2026-06-18
 
 ### Fixed

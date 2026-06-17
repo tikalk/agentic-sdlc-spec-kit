@@ -39,7 +39,7 @@ Note: This clarification workflow is expected to run (and be completed) BEFORE i
 
 ## Mission Brief Validation
 
-Before proceeding with clarification, validate that the spec has a complete Mission Brief.
+Before proceeding with clarification, validate that the spec has a complete and confirmed Mission Brief.
 
 **Mission Brief Fields** (in spec header):
 - **Goal**: One-sentence objective - core purpose
@@ -53,9 +53,44 @@ Before proceeding with clarification, validate that the spec has a complete Miss
 
 ### Required Behavior
 
-If any Mission Brief field is missing or empty, **block** and prompt user to provide it before proceeding:
-- Output the Mission Brief prompt template and wait for user input
-- Do NOT proceed until Mission Brief is complete
+**If any Mission Brief field is missing or contains placeholder text:**
+
+1. **Block** and prompt user to provide it before proceeding:
+   - Output the Mission Brief prompt template and wait for user input
+   - Do NOT proceed until Mission Brief is complete
+2. When user provides content, update the spec.md header with the provided values.
+3. Proceed to the confirmation step below.
+
+**If all Mission Brief fields are populated:**
+
+1. Display the current Mission Brief:
+
+   ```markdown
+   ## Mission Brief
+
+   **Goal**: {goal}
+
+   **Success Criteria**:
+   - {criterion 1}
+   - {criterion 2}
+
+   **Constraints**:
+   - {constraint 1}
+   ```
+
+2. Ask for confirmation:
+
+   ```
+   **Proceed with this Mission Brief?** (yes / no / adjust)
+   ```
+
+3. **STOP HERE** - Wait for explicit response.
+
+   - **yes**: Proceed to clarification questions.
+   - **adjust**: Ask what needs changing, update the Mission Brief fields in the spec header, re-display, ask again.
+   - **no**: Stop. Do not proceed to clarification. Recommend re-running `__SPECKIT_COMMAND_SPECIFY__` or revising the feature description.
+
+4. **Do NOT proceed to clarification until Mission Brief is confirmed with "yes".**
 
 ### Mission Brief Prompt Template
 
@@ -77,14 +112,6 @@ Before proceeding with clarification, the spec needs a Mission Brief:
 
 Please provide the Mission Brief fields before proceeding.
 ```
-
-### Recording Mission Brief
-
-When user provides Mission Brief content:
-1. Update the spec.md header with the provided values
-2. Replace placeholder text with actual content
-3. Save the spec file
-4. Proceed to clarification
 
 Execution steps:
 
