@@ -544,7 +544,9 @@ if ($isolationMode -eq 'worktree' -and -not $DryRun) {
         Write-Output "MANIFEST_PATH: $manifestPath"
         Write-Warning "# To persist: `$env:SPECIFY_FEATURE='$branchName'"
     }
-    Write-Output "cd $worktreePath"
+    if (-not $Json) {
+        Write-Output "cd $worktreePath"
+    }
     exit 0
 }
 

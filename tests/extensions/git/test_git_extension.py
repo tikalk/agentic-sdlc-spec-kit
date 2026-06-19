@@ -143,7 +143,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.5.0"
+        assert m.version == "1.6.0"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -158,9 +158,8 @@ class TestGitExtensionManifest:
         assert "speckit.git.commit" in names
         assert "speckit.git.workspace" in names
         assert "speckit.git.setup-ignore" in names
-        assert "speckit.git.task" in names
-        assert "speckit.git.task-merge" in names
-        assert "speckit.git.task-list" in names
+        assert "speckit.git.worktree-list" in names
+        assert "speckit.git.worktree-cleanup" in names
 
     def test_manifest_hooks(self):
         """Manifest declares expected hooks."""
@@ -875,198 +874,6 @@ class TestAutoCommitPowerShellCRLF:
 
 
 # ── git-common.sh Tests ──────────────────────────────────────────────────────
-
-
-# ── auto-commit.sh task mode (Step 5) ─────────────────────────────────────────
-
-
-@requires_bash
-class TestAutoCommitTaskModeBash:
-    """Tests for SPECKIT_TASK_MODE / --mode flag in auto-commit.sh."""
-
-    def test_sync_default_preserves_message(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
-
-    def test_parallel_mode_prefixes_subject(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T001", "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T001] [Spec Kit] Auto-commit after implement"
-
-    def test_async_mode_prefixes_subject(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "--mode", "async", "--task-id", "T042", "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T042] [Spec Kit] Auto-commit after implement"
-
-    def test_speckit_task_mode_env_overrides_default(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash(
-            "auto-commit.sh", project, "after_implement",
-            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
-        )
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T007] [Spec Kit] Auto-commit after implement"
-
-    def test_flag_overrides_env(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash(
-            "auto-commit.sh", project,
-            "--mode", "async", "--task-id", "T111", "after_implement",
-            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
-        )
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T111] [Spec Kit] Auto-commit after implement"
-
-    def test_parallel_mode_without_task_id_warns_no_prefix(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "after_implement")
-        assert result.returncode == 0
-        # No task-id supplied, no prefix added
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
-
-    def test_invalid_mode_errors(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        result = _run_bash("auto-commit.sh", project, "--mode", "xyz", "after_implement")
-        assert result.returncode != 0
-        assert "sync" in result.stderr and "parallel" in result.stderr and "async" in result.stderr
-
-    def test_invalid_task_id_format_warns_and_ignores(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_bash(
-            "auto-commit.sh", project,
-            "--mode", "parallel", "--task-id", "abc", "after_implement",
-        )
-        assert result.returncode == 0
-        assert "ignoring" in result.stderr
-        # No prefix because invalid id was ignored
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
-
-    def test_idempotent_does_not_double_prefix(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, (
-            "auto_commit:\n"
-            "  default: false\n"
-            "  after_implement:\n"
-            "    enabled: true\n"
-            '    message: "[T001] already prefixed"\n'
-        ))
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T001", "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T001] already prefixed"
-
-    def test_custom_message_with_parallel_prefix(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, (
-            "auto_commit:\n"
-            "  default: false\n"
-            "  after_implement:\n"
-            "    enabled: true\n"
-            '    message: "custom commit msg"\n'
-        ))
-        (project / "a.txt").write_text("hello")
-        result = _run_bash("auto-commit.sh", project, "--mode", "parallel", "--task-id", "T099", "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T099] custom commit msg"
-
-    def test_help_flag_prints_usage(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash("auto-commit.sh", project, "--help")
-        assert result.returncode == 0
-        assert "Usage" in result.stdout
-        assert "SPECKIT_TASK_MODE" in result.stdout
-
-
-@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
-class TestAutoCommitTaskModePowerShell:
-    """Smoke tests for SPECKIT_TASK_MODE / -Mode flag in auto-commit.ps1."""
-
-    def test_sync_default_preserves_message(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh("auto-commit.ps1", project, "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
-
-    def test_parallel_mode_prefixes_subject(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh(
-            "auto-commit.ps1", project,
-            "-Mode", "parallel", "-TaskId", "T001", "after_implement",
-        )
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T001] [Spec Kit] Auto-commit after implement"
-
-    def test_async_mode_prefixes_subject(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh(
-            "auto-commit.ps1", project,
-            "-Mode", "async", "-TaskId", "T042", "after_implement",
-        )
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T042] [Spec Kit] Auto-commit after implement"
-
-    def test_speckit_task_mode_env_overrides_default(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh(
-            "auto-commit.ps1", project, "after_implement",
-            env_extra={"SPECKIT_TASK_MODE": "parallel", "SPECKIT_TASK_ID": "T007"},
-        )
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[T007] [Spec Kit] Auto-commit after implement"
-
-    def test_parallel_mode_without_task_id_no_prefix(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh("auto-commit.ps1", project, "-Mode", "parallel", "after_implement")
-        assert result.returncode == 0
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
-
-    def test_invalid_mode_errors(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        result = _run_pwsh("auto-commit.ps1", project, "-Mode", "xyz", "after_implement")
-        assert result.returncode != 0
-        assert "sync" in result.stderr and "parallel" in result.stderr and "async" in result.stderr
-
-    def test_invalid_task_id_format_warns_and_ignores(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _write_config(project, "auto_commit:\n  default: true\n")
-        (project / "a.txt").write_text("hello")
-        result = _run_pwsh(
-            "auto-commit.ps1", project,
-            "-Mode", "parallel", "-TaskId", "abc", "after_implement",
-        )
-        assert result.returncode == 0
-        assert "ignoring" in result.stderr
-        assert _last_commit_subject(project) == "[Spec Kit] Auto-commit after implement"
 
 
 # ── create-new-feature.sh isolation mode (Step 4) ─────────────────────────────

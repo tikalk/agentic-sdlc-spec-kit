@@ -631,7 +631,9 @@ if [ "$ISOLATION_MODE" = "worktree" ] && [ "$DRY_RUN" != true ]; then
         echo "MANIFEST_PATH: ${MANIFEST_PATH:-}"
         printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
     fi
-    echo "cd ${WORKTREE_PATH:-}"
+    if ! $JSON_MODE; then
+        echo "cd ${WORKTREE_PATH:-}"
+    fi
     exit 0
 fi
 
