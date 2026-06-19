@@ -1,13 +1,3 @@
-# Architecture Decision Records
-
-## ADR Index
-
-| ID | Sub-System | Decision | Status | Date | Owner |
-|----|------------|----------|--------|------|-------|
-| ADR-001 | System | [First decision title] | Proposed | YYYY-MM-DD | [Owner] |
-
----
-
 ## ADR-001: [Decision Title]
 
 ### Status
@@ -124,6 +114,8 @@ State the decision that was made. Use active voice: "We will..." or "The system 
 
 **Integration with Architecture:**
 
-- System-level ADRs go in `.specify/memory/adr.md`
+- System-level ADRs go in `.specify/memory/adr/ADR-{NNN}.md` (hybrid format)
+- Auto-generated index at `.specify/memory/adr/index.md`
+- Legacy `.specify/memory/adr.md` is auto-generated for backward compatibility
 - System-level ADRs should reference the Architecture Description (AD.md)
 - This template is for system-level architectural decisions only

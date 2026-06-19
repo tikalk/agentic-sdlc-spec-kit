@@ -34,14 +34,16 @@ Reverse-engineer architecture from an **existing codebase** (brownfield) to crea
 
 **Output**:
 
-1. **ADRs** documenting inferred architectural decisions in `{REPO_ROOT}/.specify/drafts/adr.md`
-2. **Validate Findings**: Run `/architect.clarify` to validate discovered decisions
+1. **ADRs** documenting inferred architectural decisions in `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md` (hybrid format)
+2. **Auto-generated index** at `{REPO_ROOT}/.specify/drafts/adr/index.md`
+3. **Validate Findings**: Run `/architect.clarify` to validate discovered decisions
 
 **IMPORTANT - Path Resolution**:
 
 - The setup script outputs `REPO_ROOT` - use this to determine the correct paths
 - REPO_ROOT is found by searching upward from current directory for `.specify` directory
-- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
+- The setup script auto-generates `index.md` and the legacy `adr.md` monolith after ADR writes
 - When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 **Key Difference from `/architect.specify`**:
@@ -113,7 +115,8 @@ Even in brownfield discovery, the **Functional structure is foundational**:
 4. **Pattern Detection**: Identify architectural patterns in use
 5. **ADR Generation**: Create ADRs for discovered decisions (marked "Discovered"), organized by sub-system
 6. **Gap Analysis**: Identify areas where decisions are unclear
-7. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr.md` (NO AD.md creation)
+7. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md` (NO AD.md creation)
+   - After writing all ADRs, the setup script auto-generates `index.md` and legacy `adr.md`
 8. **Validate Findings**: Run `/architect.clarify` to validate brownfield findings
 
 ## Execution Steps
@@ -582,17 +585,17 @@ After scanning, report:
 
 **Before Writing - Check for Existing ADRs:**
 
-1. **Check if drafts file exists**: `{REPO_ROOT}/.specify/drafts/adr.md`
-2. **If file exists**:
-   - Read existing ADRs from the file
+1. **Check if hybrid ADR directory exists**: `{REPO_ROOT}/.specify/drafts/adr/`
+2. **If directory exists**:
+   - Read existing ADRs from individual files
    - DO NOT overwrite or delete existing ADRs
-   - Merge new discoveries with existing content
+   - Write new discoveries as new `ADR-{NNN}.md` files
    - Report: "Found N existing ADRs, adding M new discoveries"
-3. **If file doesn't exist**: Create new file
+3. **If directory doesn't exist**: The setup script will create it
 
 **Write ADRs**:
 
-1. **Create or update** `{REPO_ROOT}/.specify/drafts/adr.md` with discovered ADRs
+1. **Create** `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md` for each discovered ADR
 2. **Mark ADRs as "Discovered (Inferred)" status** ← USE THIS STATUS ONLY
 3. **Use "Common Alternatives"** section with neutral trade-offs (no "Rejected because")
 4. **Note confidence level** for each ADR
@@ -694,7 +697,7 @@ Run `/architect.clarify` to refine ADRs based on your input, then run `/architec
 
 After clarification completes:
 
-1. **Review Validated ADRs**: Check `{REPO_ROOT}/.specify/drafts/adr.md` for accuracy
+1. **Review Validated ADRs**: Check `{REPO_ROOT}/.specify/drafts/adr/index.md` for accuracy
 2. **Approve ADRs**: Run `/architect.clarify` Phase 5.5 to change status to "Accepted"
 3. **Run `/architect.implement`**: Generate full AD.md from Accepted ADRs
 
@@ -705,7 +708,7 @@ After clarification completes:
     ↓
 [Scan codebase] → Detect technologies, patterns
     ↓
-[Generate ADRs] → Write to {REPO_ROOT}/.specify/drafts/adr.md (marked "Discovered")
+[Generate ADRs] → Write to {REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md (marked "Discovered")
     ↓
 [Run /architect.clarify] → Ask to validate decisions
     ↓

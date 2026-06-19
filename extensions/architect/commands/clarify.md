@@ -51,13 +51,14 @@ Each ADR should have:
 
 ## Outline
 
-1. **Load Current State**: Parse `{REPO_ROOT}/.specify/drafts/adr.md` and `{REPO_ROOT}/.specify/memory/constitution.md`
+1. **Load Current State**: Parse ADRs from `{REPO_ROOT}/.specify/drafts/adr/` (hybrid format) and `{REPO_ROOT}/.specify/memory/constitution.md`
 
 **IMPORTANT - Path Resolution**:
 
 - The setup script outputs `REPO_ROOT` - use this to determine the correct paths
 - REPO_ROOT is found by searching upward from current directory for `.specify` directory
-- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
+- The setup script auto-detects legacy monolith vs hybrid format and transparently migrates
 - When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 2. **Analyze ADRs**: Check each ADR against quality checklist
@@ -77,8 +78,8 @@ Each ADR should have:
    - Handle errors gracefully if files don't exist
 
 2. **Load ADR File**:
-   - Read `{REPO_ROOT}/.specify/drafts/adr.md`
-   - Parse ADR index and individual ADR sections
+   - Read `{REPO_ROOT}/.specify/drafts/adr/index.md` for the ADR list
+   - Read individual ADRs from `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
    - Count total ADRs and identify status distribution
 
 3. **Load Constitution**:
@@ -318,8 +319,9 @@ Reply with: "A [amendment text]" or "B/C/D [reasoning]"
    - Update status if applicable
 
 4. **Write File**:
-   - Atomic write to `{REPO_ROOT}/.specify/drafts/adr.md`
-   - Preserve any ADRs that weren't modified
+    - Atomic write to individual `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md` files
+    - Preserve any ADRs that weren't modified
+    - The setup script auto-regenerates `index.md` and legacy `adr.md` after updates
 
 ### Phase 5.5: ADR Approval ⭐
 
@@ -488,7 +490,7 @@ After clarification ends (all gaps addressed or user signals "done"):
 - References added: [N]
 
 **Recommended Next Steps**:
-1. Review updated ADRs in `{REPO_ROOT}/.specify/drafts/adr.md`
+1. Review updated ADRs in `{REPO_ROOT}/.specify/drafts/adr/index.md`
 2. Run `/architect.implement` to generate AD.md
 3. Or run `/spec.specify` to start feature development
 ```

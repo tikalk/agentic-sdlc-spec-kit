@@ -140,7 +140,7 @@ You are acting as an **Architecture Orchestrator** managing a multi-phase docume
 
 | Document | Purpose | Location |
 |----------|---------|----------|
-| `{REPO_ROOT}/.specify/drafts/adr.md` | Architectural decisions with rationale | Input |
+| `{REPO_ROOT}/.specify/drafts/adr/` | Architectural decisions with rationale (hybrid format) | Input |
 | `{REPO_ROOT}/.specify/architect/state.json` | DAG execution state | State |
 | `{REPO_ROOT}/.specify/architect/views/{subsystem}/{view}.md` | Per-view outputs | Reference |
 | `{REPO_ROOT}/AD.md` | Full Architecture Description | Output |
@@ -149,7 +149,8 @@ You are acting as an **Architecture Orchestrator** managing a multi-phase docume
 **IMPORTANT - Path Resolution**:
 - The setup script outputs `REPO_ROOT` - use this to determine the correct paths
 - REPO_ROOT is found by searching upward from current directory for `.specify` directory
-- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
+- The setup script auto-detects legacy monolith vs hybrid format and transparently migrates
 - When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 ### View Templates
@@ -281,7 +282,7 @@ Located in the extension's `templates/` directory:
 
 ### ADR Status Check
 
-2. **Check ADRs exist**: Verify `{REPO_ROOT}/.specify/drafts/adr.md` or `{REPO_ROOT}/.specify/memory/adr.md` exists
+2. **Check ADRs exist**: Verify `{REPO_ROOT}/.specify/drafts/adr/` or `{REPO_ROOT}/.specify/memory/adr/` exists (hybrid format)
 3. **Check for Accepted ADRs**: Count ADRs with status "Accepted"
    - If **zero Accepted ADRs**: **STOP** and output:
      ```
@@ -380,8 +381,8 @@ Located in the extension's `templates/` directory:
 
 ### Step 1.1: Load and Analyze ADRs
 
-1. **Read ADR File**: Load `{REPO_ROOT}/.specify/drafts/adr.md` (and check `{REPO_ROOT}/.specify/memory/adr.md` if drafts is empty)
-2. **Parse ADR Index**: Extract sub-systems from the ADR index table
+1. **Read ADR Directory**: Load ADRs from `{REPO_ROOT}/.specify/drafts/adr/` (and check `{REPO_ROOT}/.specify/memory/adr/` if drafts is empty)
+2. **Parse ADR Index**: Extract sub-systems from `{REPO_ROOT}/.specify/drafts/adr/index.md` or individual ADR files
 3. **Group ADRs by Sub-system**: Create mapping of sub-system → ADRs
 4. **Validate ADR Status** (MANDATORY):
    - Count ADRs by status: Accepted / Proposed / Discovered
@@ -1068,12 +1069,12 @@ After generating AD.md, perform ALL of the following steps:
 - **VERIFY**: Read the file back and confirm ADRs are present
 
 **Step 3: Clean Up Drafts (MANDATORY)**
-- Edit `{REPO_ROOT}/.specify/drafts/adr.md`
-- Remove each ADR that was promoted to memory
-- If no ADRs remain → **DELETE** the drafts file entirely
-- **VERIFY**: Re-read the drafts file and confirm:
-  - No duplicate ADRs exist (same ID in both locations)
-  - Remaining ADRs (if any) are Proposed/Discovered only
+ - Move each promoted ADR file from `{REPO_ROOT}/.specify/drafts/adr/` to `{REPO_ROOT}/.specify/memory/adr/`
+ - If no ADRs remain in drafts → the setup script cleans up empty directories
+ - **VERIFY**: Confirm:
+   - No duplicate ADRs exist (same ID in both locations)
+   - Remaining ADRs (if any) are Proposed/Discovered only
+   - `index.md` and legacy `adr.md` regenerated for both scopes
 
 **Step 4: Report Lifecycle Changes (MANDATORY)**
 Output this summary to the user:

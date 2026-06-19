@@ -80,7 +80,7 @@ You are acting as an **Architecture Analyst** validating architecture documentat
    - Read `AD.md` (project root) if exists
    - Read ADRs from all locations (priority order):
      1. `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
-     2. `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
+      2. `{REPO_ROOT}/.specify/drafts/adr/` (working copy - Proposed/Discovered, hybrid format)
    - Read `{REPO_ROOT}/.specify/memory/constitution.md` if exists
 
 3. **Load Feature-Level Artifacts** (if analyzing features):
@@ -93,7 +93,7 @@ You are acting as an **Architecture Analyst** validating architecture documentat
    |----------|------|--------|
    | System AD | `AD.md` | Found/Missing |
    | System ADRs (canonical) | `{REPO_ROOT}/.specify/memory/adr.md` | Found/Missing |
-   | System ADRs (drafts) | `{REPO_ROOT}/.specify/drafts/adr.md` | Found/Missing |
+    | System ADRs (drafts) | `{REPO_ROOT}/.specify/drafts/adr/` | Found/Missing |
    | Constitution | `{REPO_ROOT}/.specify/memory/constitution.md` | Found/Missing |
    | Feature ADs | `specs/*/AD.md` | Count: N |
    | Feature ADRs | `specs/*/adr.md` | Count: N |

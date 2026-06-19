@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "architect"
   name: "Architect - ADR & Architecture Description"
-  version: "2.1.3"
+  version: "2.2.0"
   description: "Create and manage Architecture Decision Records (ADRs) and Architecture Descriptions (AD.md) using Rozanski & Woods Viewpoints and Perspectives methodology"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -137,8 +137,11 @@ hooks:
 defaults:
   adr:
     heuristic: "surprising"  # surprising | all | minimal
-    drafts_location: ".specify/drafts/adr.md"      # Working copy (init/specify/clarify)
-    memory_location: ".specify/memory/adr.md"      # Accepted ADRs (project canonical)
+    format: "hybrid"         # hybrid (individual files + index) | legacy (monolith)
+    drafts_location: ".specify/drafts/adr.md"      # Legacy monolith (auto-generated)
+    drafts_dir: ".specify/drafts/adr/"             # Hybrid: individual ADR files
+    memory_location: ".specify/memory/adr.md"      # Legacy monolith (auto-generated)
+    memory_dir: ".specify/memory/adr/"             # Hybrid: individual ADR files
   ad:
     location: "AD.md"
   views: "core"  # core | all | comma-separated
@@ -178,8 +181,8 @@ defaults:
     view_templates: "templates/views/"                # Extension templates (relative to extension dir)
     perspective_templates: "templates/perspectives/"  # Extension templates (relative to extension dir)
 
-# ADR Lifecycle:
-# 1. init/specify -> drafts (Proposed/Discovered status)
-# 2. clarify -> drafts (refines in place)
-# 3. implement -> Accepted ADRs to memory (.specify/memory)
-# 4. analyze/validate -> read from all locations
+# ADR Lifecycle (Hybrid Format):
+# 1. init/specify -> drafts/adr/ADR-{NNN}.md (Proposed/Discovered status)
+# 2. clarify -> drafts/adr/ (refines individual files; auto-regenerates index.md + adr.md)
+# 3. implement -> move Accepted ADRs to memory/adr/ (auto-regenerates both indices)
+# 4. analyze/validate -> read from all locations (auto-detects legacy vs hybrid)

@@ -2,6 +2,22 @@
 
 All notable changes to the Architect extension will be documented in this file.
 
+## [2.2.0] - 2026-06-19
+
+### Added
+
+- **Hybrid ADR storage**: Individual ADR files + auto-generated index
+  - New directory layout: `.specify/{drafts,memory}/adr/ADR-{NNN}.md` per ADR
+  - Auto-generated `index.md` preserves human-readable ADR index table with links
+  - Legacy `adr.md` monolith kept as auto-generated artifact for backward compatibility
+  - Transparent lazy migration: splits legacy monolith into individual files on next command run
+  - New script helpers: `detect_adr_format()`, `split_legacy_adr()`, `generate_adr_index()`, `regenerate_legacy_monolith()`, `get_adr_by_id()`, `list_adrs()`
+
+### Changed
+
+- `adr-template.md` no longer contains the ADR index table (moved to auto-generated `index.md`)
+- All commands (`init`, `specify`, `clarify`, `implement`, `analyze`, `validate`) now auto-detect and support both legacy monolith and hybrid formats
+
 ## [2.1.3] - 2026-05-30
 
 ### Changed

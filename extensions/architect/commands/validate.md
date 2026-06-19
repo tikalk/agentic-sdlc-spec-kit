@@ -33,8 +33,9 @@ This is a **READ-ONLY** validation command. It does not modify any files.
 If ADRs exist in any location (check all three):
 
 1. Load ADRs from all locations (priority order):
-   - `{REPO_ROOT}/.specify/memory/adr.md` (canonical - Accepted ADRs)
-   - `{REPO_ROOT}/.specify/drafts/adr.md` (working copy - Proposed/Discovered)
+   - `{REPO_ROOT}/.specify/memory/adr/` (canonical - Accepted ADRs, hybrid format)
+   - `{REPO_ROOT}/.specify/drafts/adr/` (working copy - Proposed/Discovered, hybrid format)
+   - Legacy `{REPO_ROOT}/.specify/memory/adr.md` and `{REPO_ROOT}/.specify/drafts/adr.md` are auto-generated artifacts
 2. Load architecture description from `AD.md` (if present)
 3. Load the generated plan from `{REPO_ROOT}/.specify/memory/plan.md`
 4. Execute 7 PILLAR 3 checks:
@@ -142,8 +143,8 @@ Warnings: 5
   "status": "success",
   "action": "validate",
   "adr_locations": {
-    "memory": "{REPO_ROOT}/.specify/memory/adr.md",
-    "drafts": "{REPO_ROOT}/.specify/drafts/adr.md"
+    "memory": "{REPO_ROOT}/.specify/memory/adr/",
+    "drafts": "{REPO_ROOT}/.specify/drafts/adr/"
   },
   "adr_count": 12,
   "findings": {

@@ -5395,8 +5395,8 @@ class TestArchitectExtensionCLI:
 
         import yaml
         manifest = yaml.safe_load(ext_yml.read_text(encoding="utf-8"))
-        assert manifest["extension"]["version"] == "2.1.3", (
-            f"Expected bundled version 2.1.3, got {manifest['extension']['version']}"
+        assert manifest["extension"]["version"] == "2.2.0", (
+            f"Expected bundled version 2.2.0, got {manifest['extension']['version']}"
         )
 
         # Registry should reflect the installation
@@ -5404,7 +5404,7 @@ class TestArchitectExtensionCLI:
         manager = ExtensionManager(project_dir)
         reg = manager.registry.get("architect")
         assert reg is not None, "architect not in registry"
-        assert reg["version"] == "2.1.3"
+        assert reg["version"] == "2.2.0"
         assert "registered_commands" in reg
 
     def test_update_architect_prefers_newer_bundled_version(self, tmp_path):
@@ -5449,8 +5449,8 @@ class TestArchitectExtensionCLI:
         assert result.exit_code == 0, result.output
 
         updated = ExtensionManager(project_dir).registry.get("architect")
-        assert updated["version"] == "2.1.3", (
-            f"Expected version 2.1.3 after update, got {updated['version']}"
+        assert updated["version"] == "2.2.0", (
+            f"Expected version 2.2.0 after update, got {updated['version']}"
         )
         assert updated["installed_at"] == original_installed_at, (
             "installed_at should be preserved across update"

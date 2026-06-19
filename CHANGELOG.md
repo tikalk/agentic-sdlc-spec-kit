@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc19] - 2026-06-19
+
+### Added
+
+- **Architect extension v2.2.0**: Hybrid ADR storage (index + individual files).
+  - New `adr/` directory layout: individual `ADR-{NNN}.md` files + auto-generated `index.md`
+  - Legacy `.specify/{drafts,memory}/adr.md` monolith kept as auto-generated artifact for backward compatibility
+  - Lazy/auto migration: transparently splits legacy monolith into individual files on next command invocation
+  - All commands (`init`, `specify`, `clarify`, `implement`, `analyze`, `validate`) auto-detect legacy vs hybrid format
+  - New bash helper functions in `setup-architect.sh`: `detect_adr_format()`, `split_legacy_adr()`, `generate_adr_index()`, `regenerate_legacy_monolith()`, `get_adr_by_id()`, `list_adrs()`
+
+### Changed
+
+- **Architect extension bumped to 2.2.0**: ADR template (`adr-template.md`) no longer contains index table (now auto-generated in `index.md`)
+
 # [0.10.0+adlc18] - 2026-06-18
 
 ### Changed

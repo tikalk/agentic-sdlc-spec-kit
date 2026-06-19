@@ -557,6 +557,335 @@ parse_views() {
     esac
 }
 
+# ============================================================================
+# Hybrid ADR Storage Helpers (v2.2.0)
+# ============================================================================
+
+# Detect whether ADRs are stored as individual files (hybrid) or monolith (legacy)
+detect_adr_format() {
+    local scope="${1:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+
+    if [[ -d "$adr_dir" ]] && [[ -f "$adr_dir/ADR-001.md" || -n "$(ls "$adr_dir"/ADR-*.md 2>/dev/null)" ]]; then
+        echo "hybrid"
+    else
+        echo "legacy"
+    fi
+}
+
+# Split legacy monolith adr.md into individual ADR-{NNN}.md files
+split_legacy_adr() {
+    local scope="${1:-drafts}"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+
+    if [[ ! -f "$adr_file" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$adr_dir"
+
+    local in_adr=false
+    local adr_id=""
+    local adr_content=""
+    local header_buffer=""
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Detect start of an ADR section
+        if [[ "$line" =~ ^##[[:space:]]+ADR-([0-9]+):[[:space:]]*(.*)$ ]]; then
+            # Write previous ADR if any
+            if [[ -n "$adr_id" && -n "$adr_content" ]]; then
+                echo "$adr_content" > "$adr_dir/ADR-$adr_id.md"
+            fi
+            adr_id="${BASH_REMATCH[1]}"
+            adr_content="$line"
+            in_adr=true
+            continue
+        fi
+
+        # Detect end of ADR content (next major section or EOF)
+        if $in_adr && [[ "$line" =~ ^##[[:space:]]+ADR-[0-9]+: ]]; then
+            # This is handled by the start-detection above
+            continue
+        fi
+
+        if $in_adr; then
+            adr_content+=$'\n'"$line"
+        fi
+    done < "$adr_file"
+
+    # Write final ADR
+    if [[ -n "$adr_id" && -n "$adr_content" ]]; then
+        echo "$adr_content" > "$adr_dir/ADR-$adr_id.md"
+    fi
+
+    # Generate index from the newly split files
+    generate_adr_index "$scope"
+
+    echo "Migrated legacy adr.md to hybrid format ($adr_dir/)" >&2
+}
+
+# Auto-migrate: if legacy exists and no hybrid dir, do transparent migration
+auto_migrate_adr() {
+    local scope="${1:-drafts}"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+
+    if [[ -f "$adr_file" ]] && [[ ! -d "$adr_dir" ]]; then
+        split_legacy_adr "$scope"
+    fi
+}
+
+# Generate index.md from individual ADR files
+generate_adr_index() {
+    local scope="${1:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+    local index_file="$adr_dir/index.md"
+
+    if [[ ! -d "$adr_dir" ]]; then
+        return 0
+    fi
+
+    local index_content="# Architecture Decision Records
+
+## ADR Index
+
+| ID | Sub-System | Decision | Status | Date | Owner | File |
+|----|------------|----------|--------|------|-------|------|
+"
+
+    local quick_links=$'\n---\n\n## Quick Links\n\n'
+
+    # Sort ADR files numerically
+    for f in $(ls -1 "$adr_dir"/ADR-*.md 2>/dev/null | sort -t'-' -k2 -n); do
+        local fname
+        fname=$(basename "$f")
+        local id
+        id=$(echo "$fname" | sed -E 's/ADR-([0-9]+)\.md/\1/')
+
+        # Extract metadata from individual ADR file
+        local title=""
+        local subsystem=""
+        local status=""
+        local date=""
+        local owner=""
+
+        # Parse title from first header line
+        title=$(head -1 "$f" | sed -E 's/^## ADR-[0-9]+:[[:space:]]*//')
+
+        # Parse fields from ADR content
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^###[[:space:]]+Status ]]; then
+                local next_line
+                next_line=$(grep -A1 "^### Status" "$f" | tail -1)
+                status=$(echo "$next_line" | sed -E 's/^[[:space:]]*\*\*//' | sed -E 's/\*\*[[:space:]]*$//' | awk '{print $1}')
+            fi
+            if [[ "$line" =~ ^###[[:space:]]+Date ]]; then
+                local next_line
+                next_line=$(grep -A1 "^### Date" "$f" | tail -1)
+                date=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+            fi
+            if [[ "$line" =~ ^###[[:space:]]+Owner ]]; then
+                local next_line
+                next_line=$(grep -A1 "^### Owner" "$f" | tail -1)
+                owner=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+            fi
+            if [[ "$line" =~ ^###[[:space:]]+Sub-System ]]; then
+                local next_line
+                next_line=$(grep -A1 "^### Sub-System" "$f" | tail -1)
+                subsystem=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+            fi
+        done < "$f"
+
+        # Defaults
+        [[ -z "$status" ]] && status="Proposed"
+        [[ -z "$date" ]] && date="YYYY-MM-DD"
+        [[ -z "$owner" ]] && owner=""
+        [[ -z "$subsystem" ]] && subsystem="System"
+
+        index_content+="| ADR-$(printf "%03d" "$id") | $subsystem | $title | $status | $date | $owner | [$fname]($fname) |\n"
+        quick_links+="- [ADR-$(printf "%03d" "$id"): $title]($fname)\n"
+    done
+
+    echo -e "${index_content}\n${quick_links}" > "$index_file"
+}
+
+# Regenerate legacy monolith adr.md from individual files (backward compatibility)
+regenerate_legacy_monolith() {
+    local scope="${1:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+
+    if [[ ! -d "$adr_dir" ]]; then
+        return 0
+    fi
+
+    local monolith="# Architecture Decision Records\n\n"
+    monolith+="## ADR Index\n\n"
+    monolith+="| ID | Sub-System | Decision | Status | Date | Owner |\n"
+    monolith+="|----|------------|----------|--------|------|-------|\n"
+
+    # Build index rows and content sections
+    local sections=""
+    for f in $(ls -1 "$adr_dir"/ADR-*.md 2>/dev/null | sort -t'-' -k2 -n); do
+        local fname
+        fname=$(basename "$f")
+        local id
+        id=$(echo "$fname" | sed -E 's/ADR-([0-9]+)\.md/\1/')
+
+        # Extract metadata
+        local title=""
+        local subsystem=""
+        local status=""
+        local date=""
+        local owner=""
+
+        title=$(head -1 "$f" | sed -E 's/^## ADR-[0-9]+:[[:space:]]*//')
+
+        local next_line
+        next_line=$(grep -A1 "^### Status" "$f" 2>/dev/null | tail -1)
+        status=$(echo "$next_line" | sed -E 's/^[[:space:]]*\*\*//' | sed -E 's/\*\*[[:space:]]*$//' | awk '{print $1}')
+        next_line=$(grep -A1 "^### Date" "$f" 2>/dev/null | tail -1)
+        date=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+        next_line=$(grep -A1 "^### Owner" "$f" 2>/dev/null | tail -1)
+        owner=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+        next_line=$(grep -A1 "^### Sub-System" "$f" 2>/dev/null | tail -1)
+        subsystem=$(echo "$next_line" | sed -E 's/^[[:space:]]*//')
+
+        [[ -z "$status" ]] && status="Proposed"
+        [[ -z "$date" ]] && date="YYYY-MM-DD"
+        [[ -z "$owner" ]] && owner=""
+        [[ -z "$subsystem" ]] && subsystem="System"
+
+        monolith+="| ADR-$(printf "%03d" "$id") | $subsystem | $title | $status | $date | $owner |\n"
+
+        sections+=$'\n---\n\n'
+        sections+=$(cat "$f")
+        sections+=$'\n'
+    done
+
+    monolith+=$'\n'
+    monolith+="---"
+    monolith+="$sections"
+
+    echo -e "$monolith" > "$adr_file"
+}
+
+# Read a single ADR by ID (works in both legacy and hybrid modes)
+get_adr_by_id() {
+    local adr_id="$1"
+    local scope="${2:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+
+    # Normalize ID
+    local numeric_id
+    numeric_id=$(echo "$adr_id" | sed -E 's/[^0-9]//g')
+    local padded_id
+    padded_id=$(printf "%03d" "$numeric_id")
+
+    # Try hybrid first
+    local hybrid_file="$adr_dir/ADR-$padded_id.md"
+    if [[ -f "$hybrid_file" ]]; then
+        cat "$hybrid_file"
+        return 0
+    fi
+
+    # Fall back to legacy monolith extraction
+    if [[ -f "$adr_file" ]]; then
+        awk -v id="$padded_id" '
+            BEGIN { found=0; buf="" }
+            /^## ADR-0*id:/ { found=1; buf=$0; next }
+            found && /^## ADR-/ { found=0; print buf; exit }
+            found { buf=buf"\n"$0 }
+            END { if(found) print buf }
+        ' "$adr_file"
+        return 0
+    fi
+
+    return 1
+}
+
+# List all ADR IDs (works in both legacy and hybrid modes)
+list_adrs() {
+    local scope="${1:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+
+    if [[ -d "$adr_dir" ]]; then
+        ls -1 "$adr_dir"/ADR-*.md 2>/dev/null | sed -E 's/.*ADR-([0-9]+)\.md/\1/' | sort -n
+    elif [[ -f "$adr_file" ]]; then
+        grep -oE '^## ADR-[0-9]+' "$adr_file" | sed -E 's/## ADR-//'
+    fi
+}
+
+# Get ADR count (works in both modes)
+get_adr_count() {
+    local scope="${1:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+    local adr_file="$REPO_ROOT/.specify/$scope/adr.md"
+
+    if [[ -d "$adr_dir" ]]; then
+        ls -1 "$adr_dir"/ADR-*.md 2>/dev/null | wc -l
+    elif [[ -f "$adr_file" ]]; then
+        grep -cE '^## ADR-[0-9]+' "$adr_file" 2>/dev/null || echo "0"
+    else
+        echo "0"
+    fi
+}
+
+# Write a single ADR to disk (hybrid mode; regenerates index + monolith)
+write_adr() {
+    local adr_id="$1"
+    local adr_content="$2"
+    local scope="${3:-drafts}"
+    local adr_dir="$REPO_ROOT/.specify/$scope/adr"
+
+    mkdir -p "$adr_dir"
+
+    local numeric_id
+    numeric_id=$(echo "$adr_id" | sed -E 's/[^0-9]//g')
+    local padded_id
+    padded_id=$(printf "%03d" "$numeric_id")
+
+    echo "$adr_content" > "$adr_dir/ADR-$padded_id.md"
+
+    # Regenerate derived artifacts
+    generate_adr_index "$scope"
+    regenerate_legacy_monolith "$scope"
+}
+
+# Move ADR from one scope to another (e.g., drafts -> memory)
+move_adr() {
+    local adr_id="$1"
+    local from_scope="${2:-drafts}"
+    local to_scope="${3:-memory}"
+
+    local from_dir="$REPO_ROOT/.specify/$from_scope/adr"
+    local to_dir="$REPO_ROOT/.specify/$to_scope/adr"
+
+    local numeric_id
+    numeric_id=$(echo "$adr_id" | sed -E 's/[^0-9]//g')
+    local padded_id
+    padded_id=$(printf "%03d" "$numeric_id")
+
+    mkdir -p "$to_dir"
+
+    if [[ -f "$from_dir/ADR-$padded_id.md" ]]; then
+        mv "$from_dir/ADR-$padded_id.md" "$to_dir/ADR-$padded_id.md"
+    fi
+
+    # Regenerate both scopes
+    generate_adr_index "$from_scope"
+    regenerate_legacy_monolith "$from_scope"
+    generate_adr_index "$to_scope"
+    regenerate_legacy_monolith "$to_scope"
+}
+
+# ============================================================================
+# Diagram generation
+# ============================================================================
+
 # Function to generate and insert diagrams into architecture.md
 generate_and_insert_diagrams() {
     local arch_file="$1"
@@ -626,13 +955,17 @@ $diagram_code
 # Action: Specify (greenfield - interactive PRD exploration to create ADRs)
 action_specify() {
     local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/drafts/adr"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
-    
+
     echo "📐 Setting up for interactive ADR creation..." >&2
-    
+
     # Ensure drafts directory exists
     mkdir -p "$REPO_ROOT/.specify/drafts"
-    
+
+    # Auto-migrate legacy monolith to hybrid if needed
+    auto_migrate_adr "drafts"
+
     # Show decomposition status
     if [[ "$DECOMPOSE" == "true" ]]; then
         echo "" >&2
@@ -643,32 +976,25 @@ action_specify() {
         echo "⚠️  Sub-system decomposition: DISABLED (--no-decompose flag)" >&2
         echo "   (AI agent will generate monolithic ADRs)" >&2
     fi
-    
-    # Initialize ADR file from template if it doesn't exist
-    if [[ ! -f "$adr_file" ]]; then
+
+    # Initialize hybrid ADR directory if empty
+    local adr_count
+    adr_count=$(get_adr_count "drafts")
+    if [[ "$adr_count" -eq 0 ]]; then
         if [[ -f "$adr_template" ]]; then
-            echo "Creating ADR file from template..." >&2
-            cp "$adr_template" "$adr_file"
-            echo "✅ Created: $adr_file" >&2
+            echo "Creating ADR template for hybrid storage..." >&2
+            # Write template as a placeholder ADR-000 that agents will replace
+            mkdir -p "$adr_dir"
+            cp "$adr_template" "$adr_dir/ADR-000.md"
+            echo "✅ Initialized hybrid ADR directory: $adr_dir" >&2
         else
-            # Create minimal ADR file
-            cat > "$adr_file" << 'EOF'
-# Architecture Decision Records
-
-## ADR Index
-
-| ID | Sub-System | Decision | Status | Date | Owner |
-|----|------------|----------|--------|------|-------|
- 
----
-
-EOF
-            echo "✅ Created minimal ADR file: $adr_file" >&2
+            mkdir -p "$adr_dir"
+            echo "✅ Created hybrid ADR directory: $adr_dir" >&2
         fi
     else
-        echo "✅ ADR file already exists: $adr_file" >&2
+        echo "✅ Found $adr_count existing ADR(s)" >&2
     fi
-    
+
     echo "" >&2
     echo "Ready for interactive PRD exploration." >&2
     echo "The AI agent will:" >&2
@@ -679,54 +1005,72 @@ EOF
     echo "  1. Analyze your PRD/requirements input" >&2
     echo "  2. Ask clarifying questions about architecture" >&2
     echo "  3. Create ADRs for each key decision" >&2
-    echo "  4. Save decisions to .specify/drafts/adr.md (Proposed status)" >&2
+    echo "  4. Save decisions to .specify/drafts/adr/ADR-{NNN}.md (Proposed status)" >&2
     echo "     (ADRs will be moved to memory/team after /architect.implement)" >&2
     if [[ "$DECOMPOSE" == "true" ]]; then
         echo "  5. Organize ADRs by sub-system" >&2
     fi
     echo "" >&2
     echo "After completion, run '/architect.implement' to generate full AD.md" >&2
-    
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"specify\",\"adr_file\":\"$adr_file\",\"context\":\"${ARGS[*]}\",\"decomposition\":\"$DECOMPOSE\"}"
+        echo "{\"status\":\"success\",\"action\":\"specify\",\"adr_file\":\"$adr_file\",\"adr_dir\":\"$adr_dir\",\"context\":\"${ARGS[*]}\",\"decomposition\":\"$DECOMPOSE\"}"
     fi
 }
 
 # Action: Clarify (refine existing ADRs)
 action_clarify() {
+    # Auto-migrate both scopes before loading
+    auto_migrate_adr "drafts"
+    auto_migrate_adr "memory"
+
     # Check drafts first (primary working location), fall back to memory if drafts is empty
     local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/drafts/adr"
     local fallback_adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local fallback_adr_dir="$REPO_ROOT/.specify/memory/adr"
 
-    if [[ ! -f "$adr_file" ]]; then
-        # Drafts doesn't exist - check memory as fallback
-        if [[ -f "$fallback_adr_file" ]]; then
+    local active_file="$adr_file"
+    local active_dir="$adr_dir"
+    local active_scope="drafts"
+
+    local draft_count
+    draft_count=$(get_adr_count "drafts")
+    local memory_count
+    memory_count=$(get_adr_count "memory")
+
+    if [[ "$draft_count" -eq 0 ]]; then
+        if [[ "$memory_count" -gt 0 ]]; then
             echo "ℹ️  Drafts ADR file not found, using memory ADRs" >&2
-            adr_file="$fallback_adr_file"
+            active_file="$fallback_adr_file"
+            active_dir="$fallback_adr_dir"
+            active_scope="memory"
         else
             echo "❌ ADR file does not exist: $adr_file" >&2
             echo "Run '/architect.specify' or '/architect.init' first" >&2
             exit 1
         fi
     fi
-    
-    echo "🔍 Loading existing ADRs for clarification..." >&2
-    
-    # Count existing ADRs
+
     local adr_count
-    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
-    echo "Found $adr_count ADR(s) in $adr_file" >&2
-    
+    adr_count=$(get_adr_count "$active_scope")
+    local format
+    format=$(detect_adr_format "$active_scope")
+
+    echo "🔍 Loading existing ADRs for clarification..." >&2
+    echo "Found $adr_count ADR(s) in $active_dir (format: $format)" >&2
+
     echo "" >&2
     echo "Ready for ADR refinement." >&2
     echo "The AI agent will:" >&2
     echo "  1. Review existing ADRs" >&2
     echo "  2. Ask targeted clarification questions" >&2
     echo "  3. Update ADRs based on your responses" >&2
-    echo "  4. Flag any inconsistencies or gaps" >&2
-    
+    echo "  4. Regenerate index.md and adr.md after updates" >&2
+    echo "  5. Flag any inconsistencies or gaps" >&2
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"clarify\",\"adr_file\":\"$adr_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+        echo "{\"status\":\"success\",\"action\":\"clarify\",\"adr_file\":\"$active_file\",\"adr_dir\":\"$active_dir\",\"adr_count\":$adr_count,\"format\":\"$format\",\"context\":\"${ARGS[*]}\"}"
     fi
 }
 
@@ -736,14 +1080,20 @@ action_implement() {
     local ad_file="$REPO_ROOT/AD.md"
     local ad_template="$REPO_ROOT/.specify/templates/AD-template.md"
     
-    if [[ ! -f "$adr_file" ]]; then
-        echo "❌ ADR drafts file does not exist: $adr_file" >&2
+    # Auto-migrate before checking
+    auto_migrate_adr "drafts"
+
+    local adr_count
+    adr_count=$(get_adr_count "drafts")
+
+    if [[ "$adr_count" -eq 0 ]]; then
+        echo "❌ No ADR drafts found" >&2
         echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
-    
+
     echo "📐 Setting up for Architecture Description generation..." >&2
-    
+
     # Initialize AD.md from template if it doesn't exist
     if [[ ! -f "$ad_file" ]]; then
         if [[ -f "$ad_template" ]]; then
@@ -757,37 +1107,38 @@ action_implement() {
     else
         echo "✅ AD.md already exists, will be updated: $ad_file" >&2
     fi
-    
-    # Count ADRs for context
-    local adr_count
-    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
-    
+
     echo "" >&2
     echo "Ready for Architecture Description generation." >&2
     echo "The AI agent will:" >&2
-    echo "  1. Read all $adr_count ADR(s) from .specify/drafts/adr.md" >&2
+    echo "  1. Read all $adr_count ADR(s) from .specify/drafts/adr/" >&2
     echo "  2. Generate 7 Rozanski & Woods viewpoints" >&2
     echo "  3. Apply Security and Performance perspectives" >&2
     echo "  4. Create Mermaid diagrams for each view" >&2
     echo "  5. Write complete AD.md to project root" >&2
-    echo "  6. Move Accepted ADRs to canonical location (.specify/memory/adr.md)" >&2
-    echo "  7. Clean up drafts if all ADRs are Accepted" >&2
-    
+    echo "  6. Move Accepted ADRs to canonical location (.specify/memory/adr/)" >&2
+    echo "  7. Regenerate index.md and adr.md for both scopes" >&2
+    echo "  8. Clean up drafts if all ADRs are Accepted" >&2
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"implement\",\"adr_file\":\"$adr_file\",\"ad_file\":\"$ad_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+        echo "{\"status\":\"success\",\"action\":\"implement\",\"adr_file\":\"$adr_file\",\"adr_dir\":\"$REPO_ROOT/.specify/drafts/adr\",\"ad_file\":\"$ad_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
     fi
 }
 
 # Action: Initialize (brownfield - reverse-engineer from codebase, ADRs only)
 action_init() {
     local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/drafts/adr"
     local adr_template="$REPO_ROOT/.specify/templates/adr-template.md"
-    
+
     echo "🔍 Initializing brownfield architecture discovery..." >&2
-    
+
     # Ensure drafts directory exists
     mkdir -p "$REPO_ROOT/.specify/drafts"
-    
+
+    # Auto-migrate legacy monolith to hybrid if needed
+    auto_migrate_adr "drafts"
+
     # Scan existing docs for deduplication
     local existing_docs
     existing_docs=$(scan_existing_docs "$REPO_ROOT")
@@ -798,25 +1149,25 @@ action_init() {
         done
         echo "" >&2
     fi
-    
+
     # Detect tech stack for context
     echo "🔍 Scanning codebase..." >&2
     local tech_stack
     tech_stack=$(detect_tech_stack)
-    
+
     local dir_structure
     dir_structure=$(map_directory_structure)
-    
+
     # Phase 0: Sub-system detection (if decomposition enabled)
     local subsystems_json=""
     local decompose_status="disabled"
-    
+
     if [[ "$DECOMPOSE" == "true" ]]; then
         echo "" >&2
         echo "🔄 Phase 0: Sub-System Detection" >&2
         subsystems_json=$(detect_subsystems)
         decompose_status="enabled"
-        
+
         if [[ -n "$subsystems_json" ]] && [[ "$subsystems_json" != "[]" ]]; then
             echo "" >&2
             echo "📦 Sub-systems will be used to organize ADRs" >&2
@@ -826,38 +1177,29 @@ action_init() {
         echo "" >&2
         echo "⚠️  Sub-system decomposition disabled (--no-decompose flag)" >&2
     fi
-    
-    # Initialize ADR file from template if it doesn't exist
-    if [[ ! -f "$adr_file" ]]; then
+
+    # Initialize hybrid ADR directory if empty
+    local adr_count
+    adr_count=$(get_adr_count "drafts")
+    if [[ "$adr_count" -eq 0 ]]; then
+        mkdir -p "$adr_dir"
         if [[ -f "$adr_template" ]]; then
-            echo "Creating ADR file from template..." >&2
-            cp "$adr_template" "$adr_file"
-            echo "✅ Created: $adr_file" >&2
+            echo "Creating ADR template for hybrid storage..." >&2
+            cp "$adr_template" "$adr_dir/ADR-000.md"
+            echo "✅ Initialized hybrid ADR directory: $adr_dir" >&2
         else
-            # Create minimal ADR file
-            cat > "$adr_file" << 'EOF'
-# Architecture Decision Records
-
-## ADR Index
-
-| ID | Sub-System | Decision | Status | Date | Owner |
-|----|------------|----------|--------|------|-------|
-
----
-
-EOF
-            echo "✅ Created minimal ADR file: $adr_file" >&2
+            echo "✅ Created hybrid ADR directory: $adr_dir" >&2
         fi
     else
-        echo "✅ ADR file already exists: $adr_file" >&2
+        echo "✅ Found $adr_count existing ADR(s)" >&2
     fi
-    
+
     echo "" >&2
     echo "📊 Codebase Analysis Summary:" >&2
     echo "$tech_stack" >&2
     echo "" >&2
     echo "$dir_structure" >&2
-    
+
     echo "" >&2
     echo "Ready for brownfield architecture discovery." >&2
     echo "The AI agent will:" >&2
@@ -875,9 +1217,9 @@ EOF
     echo "" >&2
     echo "NOTE: AD.md will NOT be created until ADRs are validated." >&2
     echo "      After clarification, run /architect.implement to generate AD.md" >&2
-    
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"init\",\"adr_file\":\"$adr_file\",\"tech_stack\":\"$tech_stack\",\"existing_docs\":\"$existing_docs\",\"source\":\"brownfield\",\"decomposition\":\"$decompose_status\",\"subsystems\":$subsystems_json}"
+        echo "{\"status\":\"success\",\"action\":\"init\",\"adr_file\":\"$adr_file\",\"adr_dir\":\"$adr_dir\",\"tech_stack\":\"$tech_stack\",\"existing_docs\":\"$existing_docs\",\"source\":\"brownfield\",\"decomposition\":\"$decompose_status\",\"subsystems\":$subsystems_json}"
     fi
 }
 
@@ -1063,49 +1405,54 @@ action_review() {
 action_analyze() {
     echo "🔍 Architecture Analysis Mode" >&2
     echo ""
-    
+
+    # Auto-migrate before analysis
+    auto_migrate_adr "memory"
+    auto_migrate_adr "drafts"
+
     local ad_file="$REPO_ROOT/AD.md"
     local adr_file="$REPO_ROOT/.specify/memory/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/memory/adr"
     local constitution_file="$REPO_ROOT/.specify/memory/constitution.md"
-    
+
     local ad_exists=false
     local adr_exists=false
     local constitution_exists=false
-    
+
     if [[ -f "$ad_file" ]]; then
         ad_exists=true
         echo "📄 AD.md found: $ad_file" >&2
     else
         echo "⚠️  AD.md not found at $ad_file" >&2
     fi
-    
-    if [[ -f "$adr_file" ]]; then
+
+    local adr_count
+    adr_count=$(get_adr_count "memory")
+    if [[ "$adr_count" -gt 0 ]]; then
         adr_exists=true
-        local adr_count
-        adr_count=$(grep -c "^### ADR-" "$adr_file" 2>/dev/null || echo "0")
-        echo "📋 ADR file found: $adr_file ($adr_count ADRs)" >&2
+        echo "📋 ADR file found: $adr_dir ($adr_count ADRs)" >&2
     else
-        echo "⚠️  ADR file not found at $adr_file" >&2
+        echo "⚠️  ADR file not found at $adr_file or $adr_dir" >&2
     fi
-    
+
     if [[ -f "$constitution_file" ]]; then
         constitution_exists=true
         echo "📜 Constitution found: $constitution_file" >&2
     fi
-    
+
     # Scan for feature-level architecture
     local feature_ads=()
     local feature_adrs=()
-    
+
     if [[ -d "$REPO_ROOT/specs" ]]; then
         while IFS= read -r -d '' f; do
             feature_ads+=("$f")
         done < <(find "$REPO_ROOT/specs" -name "AD.md" -print0 2>/dev/null)
-        
+
         while IFS= read -r -d '' f; do
             feature_adrs+=("$f")
         done < <(find "$REPO_ROOT/specs" -name "adr.md" -print0 2>/dev/null)
-        
+
         if [[ ${#feature_ads[@]} -gt 0 ]]; then
             echo "📁 Feature ADs found: ${#feature_ads[@]}" >&2
         fi
@@ -1113,7 +1460,7 @@ action_analyze() {
             echo "📁 Feature ADRs found: ${#feature_adrs[@]}" >&2
         fi
     fi
-    
+
     echo "" >&2
     echo "Ready for architecture consistency analysis." >&2
     echo "The AI agent will:" >&2
@@ -1122,55 +1469,56 @@ action_analyze() {
     echo "  3. Assign severity levels to findings" >&2
     echo "  4. Generate structured analysis report" >&2
     echo "  5. Suggest remediation actions" >&2
-    
+
     if $JSON_MODE; then
         local feature_ads_json="[]"
         local feature_adrs_json="[]"
-        
+
         if [[ ${#feature_ads[@]} -gt 0 ]]; then
             feature_ads_json=$(printf '%s\n' "${feature_ads[@]}" | jq -R . | jq -s .)
         fi
         if [[ ${#feature_adrs[@]} -gt 0 ]]; then
             feature_adrs_json=$(printf '%s\n' "${feature_adrs[@]}" | jq -R . | jq -s .)
         fi
-        
-        echo "{\"status\":\"success\",\"action\":\"analyze\",\"ad_file\":\"$ad_file\",\"ad_exists\":$ad_exists,\"adr_file\":\"$adr_file\",\"adr_exists\":$adr_exists,\"constitution_file\":\"$constitution_file\",\"constitution_exists\":$constitution_exists,\"feature_ads\":$feature_ads_json,\"feature_adrs\":$feature_adrs_json,\"context\":\"${ARGS[*]}\"}"
+
+        echo "{\"status\":\"success\",\"action\":\"analyze\",\"ad_file\":\"$ad_file\",\"ad_exists\":$ad_exists,\"adr_file\":\"$adr_file\",\"adr_dir\":\"$adr_dir\",\"adr_exists\":$adr_exists,\"constitution_file\":\"$constitution_file\",\"constitution_exists\":$constitution_exists,\"feature_ads\":$feature_ads_json,\"feature_adrs\":$feature_adrs_json,\"context\":\"${ARGS[*]}\"}"
     fi
 }
 
 # Action: Plan DAG (Phase 1 of implement - generate execution plan)
 action_plan_dag() {
     local adr_file="$REPO_ROOT/.specify/drafts/adr.md"
+    local adr_dir="$REPO_ROOT/.specify/drafts/adr"
     local state_file="$REPO_ROOT/.specify/architect/state.json"
     local views_dir="$REPO_ROOT/.specify/architect/views"
-    
+
     echo "📐 DAG Planning Phase" >&2
     echo "" >&2
-    
-    # Check if ADR file exists
-    if [[ ! -f "$adr_file" ]]; then
-        echo "❌ ADR drafts file does not exist: $adr_file" >&2
+
+    # Auto-migrate before planning
+    auto_migrate_adr "drafts"
+
+    local adr_count
+    adr_count=$(get_adr_count "drafts")
+
+    if [[ "$adr_count" -eq 0 ]]; then
+        echo "❌ No ADR drafts found" >&2
         echo "Run '/architect.specify' or '/architect.init' first" >&2
         exit 1
     fi
-    
+
     # Ensure directories exist
     mkdir -p "$REPO_ROOT/.specify/architect"
     mkdir -p "$views_dir"
-    
-    # Count ADRs and extract sub-systems
-    local adr_count
-    adr_count=$(grep -c "^### ADR-" "$adr_file" 2>/dev/null || grep -c "^## ADR-" "$adr_file" 2>/dev/null || echo "0")
-    
-    # Extract unique sub-systems from ADR index table
+
+    # Extract unique sub-systems from hybrid ADR files or legacy monolith
     local subsystems=()
-    while IFS= read -r line; do
-        # Parse ADR index table rows: | ADR-XXX | SubSystem | ...
-        if [[ "$line" =~ ^\|[[:space:]]*ADR-[0-9]+[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\| ]]; then
-            local subsystem="${BASH_REMATCH[1]}"
-            subsystem=$(echo "$subsystem" | xargs)  # Trim whitespace
+    if [[ -d "$adr_dir" ]]; then
+        for f in "$adr_dir"/ADR-*.md; do
+            [[ -f "$f" ]] || continue
+            local subsystem=""
+            subsystem=$(grep -A1 "^### Sub-System" "$f" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*//')
             if [[ -n "$subsystem" && "$subsystem" != "Sub-System" ]]; then
-                # Add to array if not already present
                 local found=false
                 for s in "${subsystems[@]}"; do
                     if [[ "$s" == "$subsystem" ]]; then
@@ -1182,15 +1530,34 @@ action_plan_dag() {
                     subsystems+=("$subsystem")
                 fi
             fi
-        fi
-    done < "$adr_file"
-    
+        done
+    elif [[ -f "$adr_file" ]]; then
+        while IFS= read -r line; do
+            if [[ "$line" =~ ^\|[[:space:]]*ADR-[0-9]+[[:space:]]*\|[[:space:]]*([^|]+)[[:space:]]*\| ]]; then
+                local subsystem="${BASH_REMATCH[1]}"
+                subsystem=$(echo "$subsystem" | xargs)
+                if [[ -n "$subsystem" && "$subsystem" != "Sub-System" ]]; then
+                    local found=false
+                    for s in "${subsystems[@]}"; do
+                        if [[ "$s" == "$subsystem" ]]; then
+                            found=true
+                            break
+                        fi
+                    done
+                    if [[ "$found" == "false" ]]; then
+                        subsystems+=("$subsystem")
+                    fi
+                fi
+            fi
+        done < "$adr_file"
+    fi
+
     # Default to "System" if no sub-systems found
     if [[ ${#subsystems[@]} -eq 0 ]]; then
         subsystems=("System")
     fi
-    
-    echo "📋 ADR file found: $adr_file" >&2
+
+    echo "📋 ADR directory found: $adr_dir" >&2
     echo "   Found $adr_count ADR(s)" >&2
     echo "   Sub-systems detected: ${subsystems[*]}" >&2
     echo "" >&2
@@ -1200,7 +1567,7 @@ action_plan_dag() {
     echo "  2. Generate customized DAG per sub-system" >&2
     echo "  3. Present execution plan for user approval" >&2
     echo "  4. Save approved plan to state.json" >&2
-    
+
     if $JSON_MODE; then
         # Build subsystems JSON array
         local subsystems_json="["
@@ -1214,8 +1581,8 @@ action_plan_dag() {
             subsystems_json+="{\"id\":\"$(echo "$s" | tr '[:upper:]' '[:lower:]' | tr ' ' '-')\",\"name\":\"$s\"}"
         done
         subsystems_json+="]"
-        
-        echo "{\"status\":\"success\",\"action\":\"plan-dag\",\"adr_file\":\"$adr_file\",\"state_file\":\"$state_file\",\"views_dir\":\"$views_dir\",\"adr_count\":$adr_count,\"subsystems\":$subsystems_json,\"context\":\"${ARGS[*]}\"}"
+
+        echo "{\"status\":\"success\",\"action\":\"plan-dag\",\"adr_file\":\"$adr_file\",\"adr_dir\":\"$adr_dir\",\"state_file\":\"$state_file\",\"views_dir\":\"$views_dir\",\"adr_count\":$adr_count,\"subsystems\":$subsystems_json,\"context\":\"${ARGS[*]}\"}"
     fi
 }
 
@@ -1326,24 +1693,28 @@ action_summarize() {
 # Action: Validate (READ-ONLY architecture validation for plan alignment)
 action_validate() {
     local adr_file="$REPO_ROOT/.specify/memory/adr.md"
-    
+    local adr_dir="$REPO_ROOT/.specify/memory/adr"
+
     echo "🔍 Architecture Validation Mode (READ-ONLY)" >&2
     echo ""
-    
+
+    # Auto-migrate before validation
+    auto_migrate_adr "memory"
+
+    local adr_count
+    adr_count=$(get_adr_count "memory")
+
     # Check if architecture exists
-    if [[ ! -f "$adr_file" ]]; then
-        echo "⏭️  Architecture not found: $adr_file" >&2
+    if [[ "$adr_count" -eq 0 ]]; then
+        echo "⏭️  Architecture not found: $adr_file or $adr_dir" >&2
         echo "     Skipping validation gracefully" >&2
         if $JSON_MODE; then
             echo "{\"status\":\"skipped\",\"action\":\"validate\",\"reason\":\"architecture_not_found\"}"
         fi
         exit 0
     fi
-    
-    local adr_count
-    adr_count=$(grep -c "^## ADR-" "$adr_file" 2>/dev/null || grep -c "^### ADR-" "$adr_file" 2>/dev/null || echo "0")
-    
-    echo "📋 ADR file found: $adr_file" >&2
+
+    echo "📋 ADR directory found: $adr_dir" >&2
     echo "   Found $adr_count ADR(s)" >&2
     echo "" >&2
     echo "Ready for READ-ONLY architecture validation." >&2
@@ -1352,9 +1723,9 @@ action_validate() {
     echo "  2. Validate plan alignment with architecture" >&2
     echo "  3. Identify blocking/high-severity issues" >&2
     echo "  4. Report findings (READ-ONLY, no modifications)" >&2
-    
+
     if $JSON_MODE; then
-        echo "{\"status\":\"success\",\"action\":\"validate\",\"adr_file\":\"$adr_file\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
+        echo "{\"status\":\"success\",\"action\":\"validate\",\"adr_file\":\"$adr_file\",\"adr_dir\":\"$adr_dir\",\"adr_count\":$adr_count,\"context\":\"${ARGS[*]}\"}"
     fi
 }
 

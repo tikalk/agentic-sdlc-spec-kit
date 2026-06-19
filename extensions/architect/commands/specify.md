@@ -87,15 +87,16 @@ These decisions drive all subsequent architectural views.
 
 | Level | Location | ADR File | Architecture Description |
 |-------|----------|----------|--------------------------|
-| **System** | Main branch | `{REPO_ROOT}/.specify/drafts/adr.md` | `{REPO_ROOT}/AD.md` |
+| **System** | Main branch | `{REPO_ROOT}/.specify/drafts/adr/` | `{REPO_ROOT}/AD.md` |
 
-This command operates at the **System level**, creating ADRs in `{REPO_ROOT}/.specify/drafts/adr.md`.
+This command operates at the **System level**, creating ADRs in `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`.
 
 **IMPORTANT - Path Resolution**:
 
 - The setup script outputs `REPO_ROOT` - use this to determine the correct paths
 - REPO_ROOT is found by searching upward from current directory for `.specify` directory
-- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr.md`
+- NEVER use relative paths like `.specify/drafts/adr.md` - always use `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
+- The setup script auto-generates `index.md` and the legacy `adr.md` monolith after ADR writes
 - When running from a subdirectory (e.g., `hermes-project/`), `.specify` may be in the parent directory
 
 ## Outline
@@ -107,7 +108,7 @@ Given the PRD input, execute this workflow:
 3. **Load Governance**: Check `{REPO_ROOT}/.specify/memory/constitution.md` for architectural constraints
 4. **Exploration Phase**: Interactive discussion to surface trade-offs and options (per sub-system)
 5. **Decision Phase**: Document decisions as ADRs with full rationale (organized by sub-system)
-6. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr.md` with sub-system organization
+6. **Output**: Write ADRs to `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md` with sub-system organization
 
 **NOTE:** This is an interactive command. You will engage the user in conversation before finalizing ADRs.
 
@@ -511,12 +512,13 @@ Proposed
 **Objective**: Write finalized ADRs to file
 
 1. **Run Setup Script**:
-   - Execute `{SCRIPT}` to ensure `{REPO_ROOT}/.specify/drafts/adr.md` exists
-   - Script creates from template if file doesn't exist
+   - Execute `{SCRIPT}` to ensure `{REPO_ROOT}/.specify/drafts/adr/` directory exists
+   - Script creates from template if directory is empty
    - Pass `--no-decompose` if decomposition was disabled
 
 2. **Write ADRs**:
-   - Append new ADRs to `{REPO_ROOT}/.specify/drafts/adr.md`
+   - Write each new ADR as `{REPO_ROOT}/.specify/drafts/adr/ADR-{NNN}.md`
+   - The setup script auto-generates `index.md` and legacy `adr.md` after writes
    - Update ADR index table at top of file (include Sub-System column)
    - Preserve any existing ADRs (don't overwrite)
    - **If decomposed**: Add section headers for each sub-system
