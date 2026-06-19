@@ -65,6 +65,18 @@ Determine whether the feature work is isolated in a worktree or runs on a normal
 
 Valid values: `branch` (default; existing behavior — `git checkout -b` in primary), `worktree` (provenance-tracked worktree at `.worktrees/<feature>/`).
 
+## Working Directory
+
+**Branch mode**: Continue working in the current directory (no change needed).
+
+**Worktree mode**: Immediately after the script returns, change into the worktree directory. All subsequent work (spec creation, planning, implementation, commits) happens inside the worktree — the CWD is now the worktree root.
+
+1. Parse the `cd` field from the JSON output, or capture the last line of stdout (which contains `cd <WORKTREE_PATH>`).
+2. Execute `cd <WORKTREE_PATH>` now, before doing anything else.
+3. Print a confirmation: `Working in worktree: <WORKTREE_PATH>`
+
+This shifts the working directory so that spec files, plans, tasks, implementation, and commits all land in the worktree automatically.
+
 ## Execution
 
 Generate a concise short name (2-4 words) for the branch:
@@ -87,12 +99,6 @@ Run the appropriate script based on your platform:
 - **Bash (with base)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --base origin/main --json --short-name "<short-name>" "<feature description>"`
 - **PowerShell**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Json -ShortName "<short-name>" "<feature description>"`
 - **PowerShell (with base)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Base origin/main -Json -ShortName "<short-name>" "<feature description>"`
-
-## Working Directory
-
-**Branch mode**: Continue working in the current directory (no change needed).
-
-**Worktree mode**: After the script returns, execute `cd <WORKTREE_PATH>` to enter the worktree before running subsequent commands.
 
 ## Idempotency
 

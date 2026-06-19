@@ -62,8 +62,6 @@ You **MUST** consider the user input before proceeding (if not empty).
        - For each wave (in order):
          - Dispatch each task in the wave via subagent delegation
          - Wait for all tasks in the wave to complete
-         - For each completed task, merge back into the feature branch: `git.task-merge <task_id>` (or `speckit.git.task-merge <task_id>`)
-         - On merge conflict, delegate resolution to a subagent (per `task_execution.delegate_merge_conflicts: true` in config)
      - If `$FEATURE_DIR/tasks_dag.json` does NOT exist: log a warning and fall back to sequential implementation flow. `tasks_meta.json` and `[SYNC]/[ASYNC]` markers continue to drive scheduling.
 
 3. **MANDATORY - Initialize Execution Tracking**:
@@ -206,7 +204,6 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 12. Completion validation:
     - Verify all required tasks are completed
-    - In worktree mode, verify all task branches are merged back into the feature branch with no unresolved conflicts
     - Check that implemented features match the original specification
     - Validate that tests pass and coverage meets requirements
     - Confirm the implementation follows the technical plan

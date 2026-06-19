@@ -1,10 +1,9 @@
 """
 Tests for the worktree-utils script (extensions/git/scripts/{bash,powershell}/).
 
-Validates all 8 subcommands:
+Validates subcommands:
   create-feature-worktree, remove-feature-worktree,
-  create-task-branch, remove-task-branch,
-  is-in-worktree, list-worktrees, read-manifest, finish-feature
+  is-in-worktree, list-worktrees, read-manifest
 
 Bash tests cover happy-path + error-path + --help.
 PowerShell tests are smoke tests (--help + 1 happy-path) per Phase 1 Step 6 plan.
@@ -163,7 +162,8 @@ class TestCreateFeatureWorktreeBash:
         )
         assert show.returncode == 0
 
-    def test_refuses_when_path_exists(self, tmp_path: Path):
+    def test_idempotent_when_path_exists(self, tmp_path: Path):
+        """Idempotent: returns existing path with already_exists=true."""
         project = _setup_project(tmp_path)
         _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
 
@@ -171,20 +171,25 @@ class TestCreateFeatureWorktreeBash:
             "worktree-utils.sh", project,
             "create-feature-worktree", "--feature", "demo",
         )
-        assert result.returncode != 0
-        assert "already exists" in result.stderr.lower()
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["already_exists"] is True
+        assert data["ok"] is True
+        assert data["worktree_path"] == ".worktrees/demo"
 
-    def test_refuses_when_feature_branch_exists(self, tmp_path: Path):
+    def test_idempotent_when_branch_exists(self, tmp_path: Path):
+        """Idempotent: branch exists but no worktree — attaches new worktree."""
         project = _setup_project(tmp_path)
-        # Pre-create a branch named "demo" in the primary checkout.
         subprocess.run(["git", "branch", "demo"], cwd=project, check=True, env={**os.environ, **_GIT_ENV})
 
         result = _run_bash(
             "worktree-utils.sh", project,
             "create-feature-worktree", "--feature", "demo",
         )
-        assert result.returncode != 0
-        assert "already exists" in result.stderr.lower()
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["ok"] is True
+        assert data["worktree_path"] == ".worktrees/demo"
 
     def test_missing_feature_arg(self, tmp_path: Path):
         project = _setup_project(tmp_path)
@@ -195,7 +200,6 @@ class TestCreateFeatureWorktreeBash:
     def test_honors_base_branch_flag(self, tmp_path: Path):
         """--base lets caller pick the starting branch for the worktree."""
         project = _setup_project(tmp_path)
-        # Create a base branch with a different commit.
         subprocess.run(["git", "checkout", "-q", "-b", "other"], cwd=project, check=True, env={**os.environ, **_GIT_ENV})
         subprocess.run(
             ["git", "commit", "--allow-empty", "-m", "on other", "-q"],
@@ -208,7 +212,6 @@ class TestCreateFeatureWorktreeBash:
             "create-feature-worktree", "--feature", "featb", "--base", "other",
         )
         assert result.returncode == 0, result.stderr
-        # The feature branch should descend from `other` (HEAD of `other` is on the feature branch).
         log = subprocess.run(
             ["git", "log", "featb", "--oneline"],
             cwd=project, capture_output=True, text=True,
@@ -249,7 +252,7 @@ class TestRemoveFeatureWorktreeBash:
         assert "Usage" in result.stdout
 
     def test_happy_path(self, tmp_path: Path):
-        """Removes worktree + feature branch when manifest exists and no task branches remain."""
+        """Removes worktree + feature branch when manifest exists."""
         project = _setup_project(tmp_path)
         _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
 
@@ -279,49 +282,14 @@ class TestRemoveFeatureWorktreeBash:
         assert result.returncode != 0
         assert "does not exist" in result.stderr.lower()
 
-    def test_refuses_when_task_branches_remain(self, tmp_path: Path):
-        """Provenance guard: with task branches in manifest, must use finish-feature or --force."""
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "task",
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "remove-feature-worktree", "--feature", "demo",
-        )
-        assert result.returncode != 0
-        assert "task branch" in result.stderr.lower() or "finish-feature" in result.stderr.lower()
-
-    def test_force_overrides_task_branch_guard(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "task",
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "remove-feature-worktree", "--feature", "demo", "--force",
-        )
-        assert result.returncode == 0, result.stderr
-        assert json.loads(result.stdout)["ok"] is True
-
     def test_refuses_when_manifest_missing_without_force(self, tmp_path: Path):
         """A worktree directory exists but has no manifest — refuses unless --force."""
         project = _setup_project(tmp_path)
         wt = project / ".worktrees" / "orphan"
-        # `git worktree add` will create the directory itself; we don't pre-mkdir.
         subprocess.run(
             ["git", "worktree", "add", "--detach", str(wt), "main"],
             cwd=project, check=True, env={**os.environ, **_GIT_ENV},
         )
-        # No manifest written — provenance missing.
 
         result = _run_bash(
             "worktree-utils.sh", project,
@@ -344,211 +312,6 @@ class TestRemoveFeatureWorktreePowerShell:
         result = _run_pwsh(
             "worktree-utils.ps1", project,
             "remove-feature-worktree", "-Feature", "demo",
-        )
-        assert result.returncode == 0, result.stderr
-        assert json.loads(result.stdout)["ok"] is True
-
-
-# ── create-task-branch ───────────────────────────────────────────────────────
-
-
-@requires_bash
-class TestCreateTaskBranchBash:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash("worktree-utils.sh", project, "create-task-branch", "--help")
-        assert result.returncode == 0, result.stderr
-        assert "Usage" in result.stdout
-
-    def test_happy_path(self, tmp_path: Path):
-        """Creates task branch inside the feature worktree + manifest entry."""
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "auth-middleware",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["ok"] is True
-        assert data["manifest_updated"] is True
-        # {id} substitution strips the leading "T" (T001 -> 1) per AGENTS.md.
-        assert data["task_branch"] == "demo--task-1-auth-middleware"
-
-        # Verify the task branch exists inside the worktree.
-        show = subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", "refs/heads/demo--task-1-auth-middleware"],
-            cwd=project / ".worktrees" / "demo", capture_output=True,
-        )
-        assert show.returncode == 0
-
-        # Verify manifest was updated.
-        manifest = json.loads(
-            (project / ".worktrees" / "demo" / "git.worktree-manifest.json").read_text()
-        )
-        ids = [tb["id"] for tb in manifest["task_branches"]]
-        assert "T001" in ids
-
-    def test_refuses_invalid_task_id(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "001abc", "--task-slug", "x",
-        )
-        assert result.returncode != 0
-        assert "invalid" in result.stderr.lower() or "task_id" in result.stderr.lower()
-
-    def test_refuses_missing_worktree(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "ghost",
-            "--task-id", "T001", "--task-slug", "x",
-        )
-        assert result.returncode != 0
-        assert "worktree" in result.stderr.lower() or "does not exist" in result.stderr.lower()
-
-    def test_refuses_duplicate_task_branch(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "auth",
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "auth",
-        )
-        assert result.returncode != 0
-        assert "already exists" in result.stderr.lower()
-
-    def test_missing_required_args(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash("worktree-utils.sh", project, "create-task-branch")
-        assert result.returncode != 0
-
-
-@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
-class TestCreateTaskBranchPowerShell:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_pwsh("worktree-utils.ps1", project, "help")
-        assert result.returncode == 0, result.stderr
-
-    def test_happy_path(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_pwsh("worktree-utils.ps1", project, "create-feature-worktree", "-Feature", "demo")
-        result = _run_pwsh(
-            "worktree-utils.ps1", project,
-            "create-task-branch", "-Feature", "demo",
-            "-TaskId", "T001", "-TaskSlug", "auth-middleware",
-        )
-        assert result.returncode == 0, result.stderr
-        assert json.loads(result.stdout)["ok"] is True
-
-
-# ── remove-task-branch ───────────────────────────────────────────────────────
-
-
-@requires_bash
-class TestRemoveTaskBranchBash:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash("worktree-utils.sh", project, "remove-task-branch", "--help")
-        assert result.returncode == 0, result.stderr
-        assert "Usage" in result.stdout
-
-    def test_happy_path(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "x",
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "remove-task-branch", "--feature", "demo", "--task-id", "T001",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["ok"] is True
-        assert data["removed"] is True
-        assert data["manifest_updated"] is True
-
-        # Manifest entry should be gone.
-        manifest = json.loads(
-            (project / ".worktrees" / "demo" / "git.worktree-manifest.json").read_text()
-        )
-        assert all(tb["id"] != "T001" for tb in manifest["task_branches"])
-
-    def test_refuses_not_fully_merged_without_force(self, tmp_path: Path):
-        """A task branch with unmerged commits cannot be `-d` deleted without --force."""
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "x",
-        )
-        # Add a divergent commit on the task branch.
-        wt = project / ".worktrees" / "demo"
-        subprocess.run(
-            ["git", "checkout", "-q", "demo--task-1-x"],
-            cwd=wt, check=True, env={**os.environ, **_GIT_ENV},
-        )
-        subprocess.run(
-            ["git", "commit", "--allow-empty", "-m", "diverge", "-q"],
-            cwd=wt, check=True, env={**os.environ, **_GIT_ENV},
-        )
-        subprocess.run(
-            ["git", "checkout", "-q", "demo"],
-            cwd=wt, check=True, env={**os.environ, **_GIT_ENV},
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "remove-task-branch", "--feature", "demo", "--task-id", "T001",
-        )
-        assert result.returncode != 0
-        assert "not fully merged" in result.stderr.lower() or "--force" in result.stderr.lower()
-
-    def test_refuses_missing_worktree(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "remove-task-branch", "--feature", "ghost", "--task-id", "T001",
-        )
-        assert result.returncode != 0
-
-
-@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
-class TestRemoveTaskBranchPowerShell:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_pwsh("worktree-utils.ps1", project, "help")
-        assert result.returncode == 0, result.stderr
-
-    def test_happy_path(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_pwsh("worktree-utils.ps1", project, "create-feature-worktree", "-Feature", "demo")
-        _run_pwsh(
-            "worktree-utils.ps1", project,
-            "create-task-branch", "-Feature", "demo",
-            "-TaskId", "T001", "-TaskSlug", "x",
-        )
-        result = _run_pwsh(
-            "worktree-utils.ps1", project,
-            "remove-task-branch", "-Feature", "demo", "-TaskId", "T001",
         )
         assert result.returncode == 0, result.stderr
         assert json.loads(result.stdout)["ok"] is True
@@ -662,7 +425,6 @@ class TestReadManifestBash:
         assert data["feature"] == "demo"
         assert data["feature_branch"] == "demo"
         assert data["worktree_path"].endswith(".worktrees/demo")
-        assert data["task_branches"] == []
         assert data["schema_version"] == "1.0"
 
     def test_refuses_missing_path_arg(self, tmp_path: Path):
@@ -699,119 +461,3 @@ class TestReadManifestPowerShell:
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["feature"] == "demo"
-
-
-# ── finish-feature ───────────────────────────────────────────────────────────
-
-
-@requires_bash
-class TestFinishFeatureBash:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_bash("worktree-utils.sh", project, "finish-feature", "--help")
-        assert result.returncode == 0, result.stderr
-        assert "Usage" in result.stdout
-
-    def test_happy_path_removes_everything(self, tmp_path: Path):
-        """Provenance-based cleanup: deletes task branches, worktree, and feature branch."""
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T001", "--task-slug", "x",
-        )
-        _run_bash(
-            "worktree-utils.sh", project,
-            "create-task-branch", "--feature", "demo",
-            "--task-id", "T002", "--task-slug", "y",
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "finish-feature", "--feature", "demo",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["ok"] is True
-        assert data["task_branches_removed"] == 2
-        assert data["worktree_removed"] is True
-        assert data["branch_deleted"] is True
-
-        assert not (project / ".worktrees" / "demo").exists()
-        show = subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", "refs/heads/demo"],
-            cwd=project, capture_output=True,
-        )
-        assert show.returncode != 0
-
-    def test_keep_branch_preserves_feature_branch(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_bash("worktree-utils.sh", project, "create-feature-worktree", "--feature", "demo")
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "finish-feature", "--feature", "demo", "--keep-branch",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["keep_branch"] is True
-        assert data["branch_deleted"] is False
-        show = subprocess.run(
-            ["git", "show-ref", "--verify", "--quiet", "refs/heads/demo"],
-            cwd=project, capture_output=True,
-        )
-        assert show.returncode == 0
-
-    def test_refuses_without_manifest(self, tmp_path: Path):
-        """No manifest in worktree dir — provenance missing, refuses without --force."""
-        project = _setup_project(tmp_path)
-        wt = project / ".worktrees" / "orphan"
-        subprocess.run(
-            ["git", "worktree", "add", "--detach", str(wt), "main"],
-            cwd=project, check=True, env={**os.environ, **_GIT_ENV},
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "finish-feature", "--feature", "orphan",
-        )
-        assert result.returncode != 0
-        assert "manifest" in result.stderr.lower() or "refusing" in result.stderr.lower()
-
-    def test_force_skips_task_branch_cleanup(self, tmp_path: Path):
-        """With --force and no manifest, task branches are not enumerated (manifest is the source of truth)."""
-        project = _setup_project(tmp_path)
-        wt = project / ".worktrees" / "orphan"
-        subprocess.run(
-            ["git", "worktree", "add", "--detach", str(wt), "main"],
-            cwd=project, check=True, env={**os.environ, **_GIT_ENV},
-        )
-
-        result = _run_bash(
-            "worktree-utils.sh", project,
-            "finish-feature", "--feature", "orphan", "--force",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["task_branches_removed"] == 0
-
-
-@pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
-class TestFinishFeaturePowerShell:
-    def test_help(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        result = _run_pwsh("worktree-utils.ps1", project, "help")
-        assert result.returncode == 0, result.stderr
-
-    def test_happy_path(self, tmp_path: Path):
-        project = _setup_project(tmp_path)
-        _run_pwsh("worktree-utils.ps1", project, "create-feature-worktree", "-Feature", "demo")
-        result = _run_pwsh(
-            "worktree-utils.ps1", project,
-            "finish-feature", "-Feature", "demo",
-        )
-        assert result.returncode == 0, result.stderr
-        data = json.loads(result.stdout)
-        assert data["ok"] is True
-        assert not (project / ".worktrees" / "demo").exists()

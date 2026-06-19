@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc22] - 2026-06-19
+
+### Changed
+
+- **Decoupled worktree cd from specify**: worktree directory entry now handled exclusively by the git extension (`speckit.git.feature.md` Working Directory section), keeping `adlc.spec.specify.md` decoupled from git concerns.
+- **Cleaned stale task-machinery refs**: Removed `git.task-merge` and `delegate_merge_conflicts` instructions from `adlc.spec.implement.md` (per-task branch model removed in v1.6.0).
+
+### Fixed
+
+- **24 CI test failures**: Updated worktree idempotency tests to expect success (already_exists, ok). Removed 8 test classes for removed subcommands (create-task-branch, remove-task-branch, finish-feature). Deleted `test_merge_task_branch.py`.
+
 # [0.10.0+adlc21] - 2026-06-19
 
 ### Fixed
