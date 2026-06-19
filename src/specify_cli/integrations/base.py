@@ -353,6 +353,7 @@ class IntegrationBase(ABC):
             try:
                 result = subprocess.run(
                     exec_args,
+                    capture_output=True,
                     text=True,
                     cwd=cwd,
                 )
@@ -364,8 +365,8 @@ class IntegrationBase(ABC):
                 }
             return {
                 "exit_code": result.returncode,
-                "stdout": "",
-                "stderr": "",
+                "stdout": result.stdout,
+                "stderr": result.stderr,
             }
 
         result = subprocess.run(

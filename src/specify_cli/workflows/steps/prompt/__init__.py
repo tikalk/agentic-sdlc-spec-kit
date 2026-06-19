@@ -9,6 +9,12 @@ from typing import Any
 from specify_cli.workflows.base import StepBase, StepContext, StepResult, StepStatus
 from specify_cli.workflows.expressions import evaluate_expression
 
+try:
+    from specify_cli._workflows_fork import get_workflow_stream_default
+    _workflow_stream = get_workflow_stream_default()
+except ImportError:
+    _workflow_stream = True
+
 
 class PromptStep(StepBase):
     """Send a free-form prompt to an integration CLI.
@@ -139,11 +145,12 @@ class PromptStep(StepBase):
                 exec_args,
                 text=True,
                 cwd=str(project_root),
+                capture_output=(not _workflow_stream),
             )
             return {
                 "exit_code": result.returncode,
-                "stdout": "",
-                "stderr": "",
+                "stdout": result.stdout if not _workflow_stream else "",
+                "stderr": result.stderr if not _workflow_stream else "",
             }
         except KeyboardInterrupt:
             return {

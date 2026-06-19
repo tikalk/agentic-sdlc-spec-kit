@@ -649,6 +649,7 @@ class TestCommandStep:
         assert result.status == StepStatus.COMPLETED
         assert result.output["dispatched"] is True
         assert result.output["exit_code"] == 0
+        assert result.output["stdout"] == '{"result": "done"}'
         # Verify the CLI was called with the resolved path (via shutil.which,
         # which honors PATHEXT for ``.cmd``/``.bat`` shims on Windows), then
         # ``-p`` and the skill invocation.
@@ -809,6 +810,7 @@ class TestPromptStep:
         assert result.status == StepStatus.COMPLETED
         assert result.output["dispatched"] is True
         assert result.output["exit_code"] == 0
+        assert result.output["stdout"] == "Here is the explanation"
 
     def test_validate_missing_prompt(self):
         from specify_cli.workflows.steps.prompt import PromptStep

@@ -9,6 +9,12 @@ from typing import Any
 from specify_cli.workflows.base import StepBase, StepContext, StepResult, StepStatus
 from specify_cli.workflows.expressions import evaluate_expression
 
+try:
+    from specify_cli._workflows_fork import get_workflow_stream_default
+    _workflow_stream = get_workflow_stream_default()
+except ImportError:
+    _workflow_stream = True
+
 
 class CommandStep(StepBase):
     """Default step type — invokes a Spec Kit command via the integration CLI.
@@ -145,6 +151,7 @@ class CommandStep(StepBase):
                 args=args,
                 project_root=project_root,
                 model=model,
+                stream=_workflow_stream,
             )
         except (NotImplementedError, OSError):
             return None

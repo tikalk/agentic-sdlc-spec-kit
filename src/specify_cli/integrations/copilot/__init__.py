@@ -260,6 +260,7 @@ class CopilotIntegration(IntegrationBase):
             try:
                 result = subprocess.run(
                     cli_args,
+                    capture_output=True,
                     text=True,
                     cwd=cwd,
                 )
@@ -271,8 +272,8 @@ class CopilotIntegration(IntegrationBase):
                 }
             return {
                 "exit_code": result.returncode,
-                "stdout": "",
-                "stderr": "",
+                "stdout": result.stdout,
+                "stderr": result.stderr,
             }
 
         result = subprocess.run(

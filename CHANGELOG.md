@@ -2,6 +2,26 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc21] - 2026-06-19
+
+### Fixed
+
+- **Workflow output capture**: All six workflow steps (command, prompt, shell,
+  gate, if/switch, while/do-while) now populate `stdout`/`stderr` in
+  `state.json` instead of returning empty strings.  The bug affected three
+  locations:
+  - `integrations/base.py`: `stream=True` branch in `dispatch_command()` was
+    missing `capture_output=True`, causing `subprocess.run` to discard output.
+  - `integrations/copilot/__init__.py`: Same issue in Copilot's override of
+    `dispatch_command()`.
+  - `workflows/steps/command/__init__.py` and `workflows/steps/prompt/__init__.py`:
+    Called `dispatch_command` with the default `stream=True`, triggering the
+    bug.  The fork now overrides the default to `False` via
+    `_workflows_fork.get_workflow_stream_default()`.
+- **`_workflows_fork.py`**: New leaf fork module that sets the workflow stream
+  default to `False` (captured output), following the canonical fork-module
+  import pattern.
+
 # [0.10.0+adlc19] - 2026-06-19
 
 ### Added
