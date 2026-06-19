@@ -127,7 +127,7 @@ while [ $i -le $# ]; do
             echo "  --worktree         Shortcut for --isolation-mode worktree (creates a git worktree)"
             echo "  --branch-mode      Shortcut for --isolation-mode branch (default; checkout -b in primary)"
             echo "  --isolation-mode <branch|worktree>  Override the configured isolation mode"
-            echo "  --base <branch>    Base branch for worktree (defaults to current branch)"
+            echo "  --base <branch>    Base branch for worktree (defaults to origin/main)"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Environment variables:"
@@ -617,10 +617,11 @@ if [ "$ISOLATION_MODE" = "worktree" ] && [ "$DRY_RUN" != true ]; then
                 --arg mode "worktree" \
                 --arg wt_path "${WORKTREE_PATH:-}" \
                 --arg mf_path "${MANIFEST_PATH:-}" \
-                '{BRANCH_NAME:$branch_name, FEATURE_NUM:$feature_num, ISOLATION_MODE:$mode, WORKTREE_PATH:$wt_path, MANIFEST_PATH:$mf_path}'
+                --arg cd_cmd "cd ${WORKTREE_PATH:-}" \
+                '{BRANCH_NAME:$branch_name, FEATURE_NUM:$feature_num, ISOLATION_MODE:$mode, WORKTREE_PATH:$wt_path, MANIFEST_PATH:$mf_path, cd:$cd_cmd}'
         else
-            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"worktree","WORKTREE_PATH":"%s","MANIFEST_PATH":"%s"}\n' \
-                "$BRANCH_NAME" "$FEATURE_NUM" "${WORKTREE_PATH:-}" "${MANIFEST_PATH:-}"
+            printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"worktree","WORKTREE_PATH":"%s","MANIFEST_PATH":"%s","cd":"%s"}\n' \
+                "$BRANCH_NAME" "$FEATURE_NUM" "${WORKTREE_PATH:-}" "${MANIFEST_PATH:-}" "cd ${WORKTREE_PATH:-}"
         fi
     else
         echo "BRANCH_NAME: $BRANCH_NAME"
@@ -629,8 +630,8 @@ if [ "$ISOLATION_MODE" = "worktree" ] && [ "$DRY_RUN" != true ]; then
         echo "WORKTREE_PATH: ${WORKTREE_PATH:-}"
         echo "MANIFEST_PATH: ${MANIFEST_PATH:-}"
         printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
-        printf '# To work in the worktree: cd %s\n' "${WORKTREE_PATH:-}" >&2
     fi
+    echo "cd ${WORKTREE_PATH:-}"
     exit 0
 fi
 

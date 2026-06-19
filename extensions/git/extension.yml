@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.5.0"
-  description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, multi-repo workspace submodule management, feature-level worktree isolation, and DAG-aware task execution"
+  version: "1.6.0"
+  description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, multi-repo workspace submodule management, and feature-level worktree isolation"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
   license: MIT
@@ -45,23 +45,19 @@ provides:
       file: commands/speckit.git.setup-ignore.md
       aliases: ["git.setup-ignore"]
       description: "Configure .gitignore with proper rules for Spec Kit directories"
-    - name: speckit.git.task
-      file: commands/speckit.git.task.md
-      aliases: ["git.task"]
-      description: "Execute a single task on an isolated task branch within a feature worktree (worktree mode only)"
-    - name: speckit.git.task-merge
-      file: commands/speckit.git.task-merge.md
-      aliases: ["git.task-merge"]
-      description: "Merge a completed task branch back into the feature branch (worktree mode only)"
-    - name: speckit.git.task-list
-      file: commands/speckit.git.task-list.md
-      aliases: ["git.task-list"]
-      description: "List active task branches in the current feature worktree (worktree mode only)"
+    - name: speckit.git.worktree-list
+      file: commands/speckit.git.worktree-list.md
+      aliases: ["git.worktree-list"]
+      description: "List feature worktrees with provenance metadata"
+    - name: speckit.git.worktree-cleanup
+      file: commands/speckit.git.worktree-cleanup.md
+      aliases: ["git.worktree-cleanup"]
+      description: "Remove a feature worktree and optionally delete the feature branch"
 
   config:
     - name: "git-config.yml"
       template: "config-template.yml"
-      description: "Git branching, worktree, and task-execution configuration"
+      description: "Git branching and worktree configuration"
       required: false
 
 hooks:
@@ -153,16 +149,6 @@ hooks:
     optional: true
     prompt: "Commit after syncing issues?"
     description: "Auto-commit after tasks-to-issues conversion"
-  before_task_execute:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit outstanding changes before task?"
-    description: "Auto-commit before each individual task execution"
-  after_task_execute:
-    command: speckit.git.commit
-    optional: true
-    prompt: "Commit task changes?"
-    description: "Auto-commit after each individual task execution"
 
 tags:
   - "git"

@@ -37,7 +37,7 @@ if ($Help) {
     Write-Host "  -Worktree             Force worktree isolation (creates a feature-level worktree under .worktrees/<feature>/)"
     Write-Host "  -BranchMode           Force branch isolation (default behavior; the new branch lives in the primary checkout)"
     Write-Host "  -IsolationMode <mode> Set isolation explicitly: 'branch' or 'worktree'"
-    Write-Host "  -Base <branch>        Base branch for the new feature branch or worktree (default: current branch)"
+    Write-Host "  -Base <branch>        Base branch for the new feature branch or worktree (default: origin/main)"
     Write-Host "  -Help                 Show this help message"
     Write-Host ""
     Write-Host "Environment variables:"
@@ -533,6 +533,7 @@ if ($isolationMode -eq 'worktree' -and -not $DryRun) {
             ISOLATION_MODE = 'worktree'
             WORKTREE_PATH = $worktreePath
             MANIFEST_PATH = $manifestPath
+            cd            = "cd $worktreePath"
         }
         $obj | ConvertTo-Json -Compress
     } else {
@@ -542,8 +543,8 @@ if ($isolationMode -eq 'worktree' -and -not $DryRun) {
         Write-Output "WORKTREE_PATH: $worktreePath"
         Write-Output "MANIFEST_PATH: $manifestPath"
         Write-Warning "# To persist: `$env:SPECIFY_FEATURE='$branchName'"
-        Write-Warning "# To work in the worktree: cd $worktreePath"
     }
+    Write-Output "cd $worktreePath"
     exit 0
 }
 

@@ -3,96 +3,14 @@
 # Automatically commit changes after a Spec Kit command completes.
 # Checks per-command config keys in git-config.yml before committing.
 #
-# Usage: auto-commit.sh [--mode <sync|parallel|async>] [--task-id <TNNN>] <event_name>
+# Usage: auto-commit.sh <event_name>
 #   e.g.: auto-commit.sh after_specify
-#         auto-commit.sh --mode parallel --task-id T001 after_implement
-#
-# Environment variables (used when flags are not provided):
-#   SPECKIT_TASK_MODE    sync (default) | parallel | async
-#                        - parallel / async prefix commit messages with [TNNN]
-#                          so concurrent agents' commits can be distinguished
-#                        - sync preserves the original commit message format
-#   SPECKIT_TASK_ID      Task id (TNNN) used to prefix the commit subject when
-#                        SPECKIT_TASK_MODE is parallel or async
-#
-# Precedence:  --mode / --task-id flags > SPECKIT_TASK_MODE / SPECKIT_TASK_ID env > default
 
 set -e
 
-# ---------------------------------------------------------------------------
-# Parse optional flags
-# ---------------------------------------------------------------------------
-TASK_MODE=""
-TASK_ID=""
-
-while [ $# -gt 0 ]; do
-    case "$1" in
-        --mode)
-            TASK_MODE="${2:-}"
-            if [ -z "$TASK_MODE" ]; then
-                echo "Error: --mode requires a value (sync, parallel, async)" >&2
-                exit 1
-            fi
-            shift 2
-            ;;
-        --task-id)
-            TASK_ID="${2:-}"
-            if [ -z "$TASK_ID" ]; then
-                echo "Error: --task-id requires a value (e.g., T001)" >&2
-                exit 1
-            fi
-            shift 2
-            ;;
-        --help|-h)
-            echo "Usage: $0 [--mode <sync|parallel|async>] [--task-id <TNNN>] <event_name>"
-            echo ""
-            echo "Options:"
-            echo "  --mode <mode>     sync (default) | parallel | async"
-            echo "                    parallel/async prefix commit subject with [TNNN]"
-            echo "  --task-id <TNNN>  Task id used to prefix commit subject when mode is parallel/async"
-            echo "  -h, --help        Show this help message"
-            echo ""
-            echo "Environment variables (used when flags are not provided):"
-            echo "  SPECKIT_TASK_MODE    Same as --mode"
-            echo "  SPECKIT_TASK_ID      Same as --task-id"
-            echo ""
-            echo "Arguments:"
-            echo "  <event_name>       Event that triggered the auto-commit (e.g., after_specify)"
-            echo ""
-            exit 0
-            ;;
-        --*)
-            echo "Error: Unknown flag: $1" >&2
-            exit 1
-            ;;
-        *)
-            break
-            ;;
-    esac
-done
-
-# Defaults: read env if flags not provided
-: "${TASK_MODE:=${SPECKIT_TASK_MODE:-sync}}"
-: "${TASK_ID:=${SPECKIT_TASK_ID:-}}"
-
-# Validate TASK_MODE
-case "$TASK_MODE" in
-    sync|parallel|async) ;;
-    *)
-        echo "Error: --mode/SPECIFY_TASK_MODE must be 'sync', 'parallel', or 'async' (got: $TASK_MODE)" >&2
-        exit 1
-        ;;
-esac
-
-# Validate TASK_ID format (when provided)
-if [ -n "$TASK_ID" ] && ! echo "$TASK_ID" | grep -Eq '^T[0-9]+$'; then
-    echo "[specify] Warning: --task-id '$TASK_ID' is not a valid TNNN id; ignoring" >&2
-    TASK_ID=""
-fi
-
 EVENT_NAME="${1:-}"
 if [ -z "$EVENT_NAME" ]; then
-    echo "Usage: $0 [--mode <sync|parallel|async>] [--task-id <TNNN>] <event_name>" >&2
+    echo "Usage: $0 <event_name>" >&2
     exit 1
 fi
 
@@ -191,7 +109,7 @@ if [ -f "$_config_file" ]; then
         fi
     fi
 else
-    # No config file — auto-commit disabled by default
+    # No config file -- auto-commit disabled by default
     exit 0
 fi
 
@@ -213,14 +131,6 @@ _phase=$(echo "$EVENT_NAME" | grep -q '^before_' && echo 'before' || echo 'after
 # Use custom message if configured, otherwise default
 if [ -z "$_commit_msg" ]; then
     _commit_msg="[Spec Kit] Auto-commit ${_phase} ${_command_name}"
-fi
-
-# When SPECKIT_TASK_MODE is parallel or async, prefix the subject with the
-# task id so concurrent agents' commits stay distinguishable.
-if [ "$TASK_MODE" != "sync" ] && [ -n "$TASK_ID" ]; then
-    if ! echo "$_commit_msg" | head -1 | grep -q "^\[${TASK_ID}\]"; then
-        _commit_msg="[${TASK_ID}] ${_commit_msg}"
-    fi
 fi
 
 # Stage and commit

@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.6.0] - 2026-06-19
+
+### Added
+
+- `speckit.git.worktree-list` command to list feature worktrees with provenance metadata.
+- `speckit.git.worktree-cleanup` command to remove worktrees with safety checks (refuses uncommitted changes unless `--force`).
+- Idempotent worktree creation: if worktree exists → return path; if branch exists remotely → attach worktree.
+- Hardened "MUST cd into worktree" instruction in `speckit.git.feature.md` to prevent agents from skipping the directory change.
+
+### Changed
+
+- **Simplified worktree model**: removed per-task branch machinery. Worktrees are now feature-only — all task work happens directly on the feature branch inside the worktree.
+- Default base branch changed from current branch to `origin/main` (falls back to `origin/master` or current branch).
+- Removed `git.task`, `git.task-merge`, `git.task-list` commands and all task-branch subcommands from `worktree-utils.{sh,ps1}`.
+- Removed `task_branch_pattern`, `task_execution`, and `task_generation` config sections.
+- Removed `--mode` / `--task-id` flags and `[TNNN]` commit prefixes from `auto-commit.{sh,ps1}`.
+- Removed `before_task_execute` and `after_task_execute` hooks from `extension.yml`.
+- Simplified manifest schema: removed `task_branches[]` array.
+
 ## [1.5.0] - 2026-06-08
 
 ### Added

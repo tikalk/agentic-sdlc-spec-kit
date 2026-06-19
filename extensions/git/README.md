@@ -1,6 +1,6 @@
 # Git Branching Workflow Extension
 
-Git repository initialization, feature branch creation, numbering (sequential/timestamp), validation, remote detection, and auto-commit for Spec Kit.
+Git repository initialization, feature branch creation, numbering (sequential/timestamp), validation, remote detection, feature-level worktree isolation, and auto-commit for Spec Kit.
 
 ## Overview
 
@@ -11,6 +11,7 @@ This extension provides Git operations as an optional, self-contained module. It
 - **Optional custom feature branch templates** including issue-aware names like `feat/001-PROJ-123-user-auth`
 - **Branch validation** to ensure branches follow naming conventions
 - **Git remote detection** for GitHub integration (e.g., issue creation)
+- **Feature-level worktree isolation** — each feature gets its own working directory at `.worktrees/<feature>/`
 - **Auto-commit** after core commands (configurable per-command with custom messages)
 
 ## Commands
@@ -18,10 +19,12 @@ This extension provides Git operations as an optional, self-contained module. It
 | Command | Description |
 |---------|-------------|
 | `speckit.git.initialize` | Initialize a Git repository with a configurable commit message |
-| `speckit.git.feature` | Create a feature branch with sequential or timestamp numbering |
+| `speckit.git.feature` | Create a feature branch with sequential or timestamp numbering, optionally in a worktree |
 | `speckit.git.validate` | Validate current branch follows feature branch naming conventions |
 | `speckit.git.remote` | Detect Git remote URL for GitHub integration |
 | `speckit.git.commit` | Auto-commit changes (configurable per-command enable/disable and messages) |
+| `speckit.git.worktree-list` | List feature worktrees with provenance metadata |
+| `speckit.git.worktree-cleanup` | Remove a feature worktree and optionally delete the branch |
 
 ## Hooks
 
@@ -45,8 +48,6 @@ This extension provides Git operations as an optional, self-contained module. It
 | `after_checklist` | `speckit.git.commit` | Yes | Auto-commit after checklist |
 | `after_analyze` | `speckit.git.commit` | Yes | Auto-commit after analysis |
 | `after_taskstoissues` | `speckit.git.commit` | Yes | Auto-commit after issue sync |
-| `before_task_execute` | `speckit.git.commit` | Yes | Auto-commit before each individual task execution |
-| `after_task_execute` | `speckit.git.commit` | Yes | Auto-commit after each individual task execution |
 
 ## Configuration
 
@@ -68,6 +69,13 @@ branch_pattern:
   number_padding: 3
   issue_format: jira
 
+# Worktree isolation configuration
+isolation_mode: branch  # "branch" or "worktree"
+
+worktrees:
+  base_dir: .worktrees
+  manifest_filename: git.worktree-manifest.json
+
 # Auto-commit per command (all disabled by default)
 # Example: enable auto-commit after specify
 auto_commit:
@@ -75,9 +83,6 @@ auto_commit:
   after_specify:
     enabled: true
     message: "[Spec Kit] Add specification"
-  after_task_execute:
-    enabled: false
-    message: "[Spec Kit] Task checkpoint"
 ```
 
 Supported placeholders in `branch_pattern.template`:
@@ -207,6 +212,43 @@ Notes:
 - Numeric issue values are not uppercased.
 - Validation still uses the configured template and issue format.
 
+## Worktree Isolation
+
+When `isolation_mode: worktree` is configured (or `--worktree` is passed), `git.feature` creates
+a separate working directory for the feature at `.worktrees/<feature>/`.
+
+### Idempotency
+
+The worktree creation is **idempotent**:
+- If the worktree already exists → returns the existing path
+- If the branch exists remotely but worktree is missing → attaches a new worktree to the remote branch
+- If nothing exists → creates both branch and worktree from `origin/main`
+
+### Entering the Worktree
+
+**Important**: The script does NOT auto-`cd` into the worktree. You must do this manually:
+
+```bash
+cd .worktrees/003-user-auth
+```
+
+### Listing Worktrees
+
+```bash
+# List all feature worktrees
+/speckit.git.worktree-list
+```
+
+### Cleaning Up
+
+```bash
+# Remove worktree (keeps branch)
+/speckit.git.worktree-cleanup 003-user-auth
+
+# Remove worktree and delete branch
+/speckit.git.worktree-cleanup 003-user-auth --delete-branch
+```
+
 ## Installation
 
 ```bash
@@ -236,7 +278,11 @@ When Git is not installed or the directory is not a Git repository:
 
 The extension bundles cross-platform scripts:
 
-- `scripts/bash/create-new-feature.sh` — Bash implementation
+- `scripts/bash/create-new-feature.sh` — Feature branch/worktree creation (Bash)
+- `scripts/bash/worktree-utils.sh` — Worktree lifecycle utilities (Bash)
+- `scripts/bash/worktree-cleanup.sh` — Worktree removal (Bash)
 - `scripts/bash/git-common.sh` — Shared Git utilities (Bash)
-- `scripts/powershell/create-new-feature.ps1` — PowerShell implementation
+- `scripts/powershell/create-new-feature.ps1` — Feature branch/worktree creation (PowerShell)
+- `scripts/powershell/worktree-utils.ps1` — Worktree lifecycle utilities (PowerShell)
+- `scripts/powershell/worktree-cleanup.ps1` — Worktree removal (PowerShell)
 - `scripts/powershell/git-common.ps1` — Shared Git utilities (PowerShell)

@@ -213,9 +213,7 @@ function Get-UtcTimestamp {
     return (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
 }
 
-# Write a manifest JSON file. Takes feature and worktree_path; the task
-# branches list starts empty (create-task-branch appends via
-# Update-ManifestTask).
+# Write a manifest JSON file. Takes feature and worktree_path.
 function Write-WorktreeManifest {
     param(
         [string]$Feature,
@@ -230,7 +228,6 @@ function Write-WorktreeManifest {
         feature_branch  = $Feature
         worktree_path   = $WorktreePath
         created_at      = $createdAt
-        task_branches   = @()
         provenance      = [ordered]@{
             created_by = "worktree-utils.ps1"
             version    = "1.0"
@@ -365,13 +362,9 @@ Usage: worktree-utils.ps1 <subcommand> [options]
 Subcommands:
   create-feature-worktree   -Feature <name> [-Base <branch>]
   remove-feature-worktree   -Feature <name> [-Force]
-  create-task-branch        -Feature <name> -TaskId <TNNN> -TaskSlug <slug>
-  remove-task-branch        -Feature <name> -TaskId <TNNN> [-Force]
-  merge-task-branch         -Feature <name> -TaskId <TNNN> [-DelegateConflicts]
   is-in-worktree
   list-worktrees
   read-manifest             -WorktreePath <path>
-  finish-feature            -Feature <name> [-KeepBranch] [-Force]
 
 Run `worktree-utils.ps1 <subcommand> -Help` for subcommand-specific options.
 "@
@@ -400,25 +393,48 @@ function Invoke-CreateFeatureWorktree {
     $baseDir = $baseDir -replace '^\./', '' -replace '^/', ''
     $worktreePath = Join-Path (Join-Path $RepoRoot $baseDir) $Feature
 
-    # Default base: current branch (whatever the user is on when they invoke
-    # git.feature). If on a feature branch, base off main/master to avoid
-    # nested feature worktrees.
+    # Default base: origin/main. Fall back to current branch if origin/main
+    # does not exist.
     if ([string]::IsNullOrEmpty($Base)) {
-        try {
-            $Base = (git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null).Trim()
-        } catch { $Base = "HEAD" }
-        if ($Base -eq $Feature) {
-            # Self-referencing -- just use HEAD.
-            $Base = "HEAD"
+        $originMain = git -C $RepoRoot show-ref --verify --quiet "refs/remotes/origin/main" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $Base = "origin/main"
+        } else {
+            $originMaster = git -C $RepoRoot show-ref --verify --quiet "refs/remotes/origin/master" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $Base = "origin/master"
+            } else {
+                try {
+                    $Base = (git -C $RepoRoot rev-parse --abbrev-ref HEAD 2>$null).Trim()
+                } catch { $Base = "HEAD" }
+            }
         }
     }
 
-    # Refuse if a worktree already exists at the target path.
-    if (Test-Path $worktreePath) { Die "Worktree path already exists: $worktreePath" }
+    # Idempotency: if worktree already exists, return existing path.
+    if (Test-Path $worktreePath) {
+        $manifestFilename = Get-WorktreeConfigValue -Key "manifest_filename"
+        $relPath = ConvertTo-RelativePath -Path $worktreePath
+        Emit-Json -Obj ([ordered]@{
+            worktree_path    = $relPath
+            worktree_branch  = $Feature
+            manifest_written = $false
+            manifest_path    = "$relPath/$manifestFilename"
+            base_dir         = $baseDir
+            already_exists   = $true
+            ok               = $true
+        })
+        return
+    }
 
-    # Refuse if the feature branch already exists in the primary checkout.
-    $branchRef = git -C $RepoRoot show-ref --verify --quiet "refs/heads/$Feature" 2>$null
-    if ($LASTEXITCODE -eq 0) { Die "Branch '$Feature' already exists in primary checkout" }
+    # If branch exists locally or remotely, attach worktree to it instead of
+    # creating a new branch.
+    $branchExistsLocal = $false
+    $branchExistsRemote = $false
+    $localRef = git -C $RepoRoot show-ref --verify --quiet "refs/heads/$Feature" 2>$null
+    if ($LASTEXITCODE -eq 0) { $branchExistsLocal = $true }
+    $remoteRef = git -C $RepoRoot show-ref --verify --quiet "refs/remotes/origin/$Feature" 2>$null
+    if ($LASTEXITCODE -eq 0) { $branchExistsRemote = $true }
 
     # Create the .worktrees directory if needed.
     $basePath = Join-Path $RepoRoot $baseDir
@@ -426,9 +442,17 @@ function Invoke-CreateFeatureWorktree {
         New-Item -ItemType Directory -Path $basePath -Force | Out-Null
     }
 
-    # Add the worktree with a new branch.
-    git -C $RepoRoot worktree add $worktreePath -b $Feature $Base 2>&1 | Out-Null
-    if ($LASTEXITCODE -ne 0) { Die "git worktree add failed for $worktreePath" }
+    if ($branchExistsLocal) {
+        git -C $RepoRoot worktree add $worktreePath $Feature 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Die "git worktree add failed for $worktreePath (existing local branch)" }
+    } elseif ($branchExistsRemote) {
+        git -C $RepoRoot branch $Feature "origin/$Feature" 2>$null | Out-Null
+        git -C $RepoRoot worktree add $worktreePath $Feature 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Die "git worktree add failed for $worktreePath (existing remote branch)" }
+    } else {
+        git -C $RepoRoot worktree add $worktreePath -b $Feature $Base 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { Die "git worktree add failed for $worktreePath" }
+    }
 
     # Write initial manifest (no task branches yet).
     Write-WorktreeManifest -Feature $Feature -WorktreePath $worktreePath
@@ -916,13 +940,9 @@ if ($Rest) { $remaining = @($Rest) }
 switch ($Subcommand) {
     "create-feature-worktree" { Invoke-Subcommand "Invoke-CreateFeatureWorktree" $remaining }
     "remove-feature-worktree" { Invoke-Subcommand "Invoke-RemoveFeatureWorktree" $remaining }
-    "create-task-branch"      { Invoke-Subcommand "Invoke-CreateTaskBranch" $remaining }
-    "remove-task-branch"      { Invoke-Subcommand "Invoke-RemoveTaskBranch" $remaining }
-    "merge-task-branch"       { Invoke-Subcommand "Invoke-MergeTaskBranch" $remaining }
     "is-in-worktree"          { Invoke-Subcommand "Invoke-IsInWorktree" $remaining }
     "list-worktrees"          { Invoke-Subcommand "Invoke-ListWorktrees" $remaining }
     "read-manifest"           { Invoke-Subcommand "Invoke-ReadManifest" $remaining }
-    "finish-feature"          { Invoke-Subcommand "Invoke-FinishFeature" $remaining }
     "-h" { Show-Usage; exit 0 }
     "--help" { Show-Usage; exit 0 }
     "help" { Show-Usage; exit 0 }

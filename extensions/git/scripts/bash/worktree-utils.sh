@@ -172,8 +172,7 @@ _json_escape() {
     printf '%s' "$s"
 }
 
-# Write a manifest JSON file. Takes feature, worktree_path, and a list of
-# task branch records on stdin (one JSON object per line).
+# Write a manifest JSON file. Takes feature and worktree_path.
 _write_manifest() {
     local feature="$1"
     local worktree_path="$2"
@@ -183,23 +182,7 @@ _write_manifest() {
     local created_at
     created_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
-    # Read task branch records from stdin (one per line, each is a JSON object).
-    local task_records=()
-    while IFS= read -r line; do
-        [ -n "$line" ] && task_records+=("$line")
-    done
-
-    local tasks_json
     if _have_jq; then
-        # Build tasks array from records.
-        local tmpf
-        tmpf="$(mktemp)"
-        : > "$tmpf"
-        for rec in "${task_records[@]}"; do
-            echo "$rec" >> "$tmpf"
-        done
-        tasks_json="$(jq -s '.' "$tmpf")"
-        rm -f "$tmpf"
         jq -n \
             --arg schema "1.0" \
             --arg feature "$feature" \
@@ -207,26 +190,15 @@ _write_manifest() {
             --arg wpath "$worktree_path" \
             --arg created_at "$created_at" \
             --arg created_by "worktree-utils.sh" \
-            --argjson tasks "$tasks_json" \
             '{
                 schema_version: $schema,
                 feature: $feature,
                 feature_branch: $branch,
                 worktree_path: $wpath,
                 created_at: $created_at,
-                task_branches: $tasks,
                 provenance: {created_by: $created_by, version: $schema}
             }' > "$manifest_file"
     else
-        # Manual JSON build (no jq).
-        local tasks_str="["
-        local first=1
-        for rec in "${task_records[@]}"; do
-            [ $first -eq 0 ] && tasks_str+=","
-            tasks_str+="$rec"
-            first=0
-        done
-        tasks_str+="]"
         local esc_feature esc_path esc_branch esc_created esc_creator
         esc_feature="$(_json_escape "$feature")"
         esc_path="$(_json_escape "$worktree_path")"
@@ -240,7 +212,6 @@ _write_manifest() {
   "feature_branch": "${esc_branch}",
   "worktree_path": "${esc_path}",
   "created_at": "${esc_created}",
-  "task_branches": ${tasks_str},
   "provenance": {"created_by": "${esc_creator}", "version": "1.0"}
 }
 EOF
@@ -350,13 +321,9 @@ Usage: worktree-utils.sh <subcommand> [options]
 Subcommands:
   create-feature-worktree   --feature <name> [--base <branch>]
   remove-feature-worktree   --feature <name> [--force]
-  create-task-branch        --feature <name> --task-id <TNNN> --task-slug <slug>
-  remove-task-branch        --feature <name> --task-id <TNNN> [--force]
-  merge-task-branch         --feature <name> --task-id <TNNN> [--delegate-conflicts]
   is-in-worktree
   list-worktrees
   read-manifest             --worktree-path <path>
-  finish-feature            --feature <name> [--keep-branch] [--force]
 
 Run `worktree-utils.sh <subcommand> --help` for subcommand-specific options.
 EOF
@@ -392,35 +359,70 @@ cmd_create_feature_worktree() {
     base_dir="${base_dir#/}"
     local worktree_path="$REPO_ROOT/$base_dir/$feature"
 
-    # Default base: current branch (whatever the user is on when they invoke
-    # git.feature). If on a feature branch, base off main/master to avoid
-    # nested feature worktrees.
+    # Default base: origin/main. Fall back to current branch if origin/main
+    # does not exist.
     if [ -z "$base_branch" ]; then
-        base_branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
-        # If currently on a feature branch, use main/master if it exists.
-        if [ "$base_branch" = "$feature" ]; then
-            # Self-referencing — just use HEAD.
-            base_branch="HEAD"
+        if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/main" 2>/dev/null; then
+            base_branch="origin/main"
+        elif git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/master" 2>/dev/null; then
+            base_branch="origin/master"
+        else
+            base_branch="$(git -C "$REPO_ROOT" rev-parse --abbrev-ref HEAD)"
         fi
     fi
 
-    # Refuse if a worktree already exists at the target path.
+    # Idempotency: if worktree already exists, return existing path.
     if [ -d "$worktree_path" ]; then
-        _die "Worktree path already exists: $worktree_path"
+        local manifest_filename
+        manifest_filename="$(_worktree_config_value manifest_filename)"
+        local rel_path="${worktree_path#"$REPO_ROOT/"}"
+        if _have_jq; then
+            jq -cn \
+                --arg worktree_path "$rel_path" \
+                --arg worktree_branch "$feature" \
+                --arg manifest "$(echo "$rel_path/$manifest_filename")" \
+                --arg base_dir "$base_dir" \
+                '{worktree_path:$worktree_path, worktree_branch:$worktree_branch, manifest_written:false, manifest_path:$manifest, base_dir:$base_dir, already_exists:true, ok:true}'
+        else
+            printf '{"worktree_path":"%s","worktree_branch":"%s","manifest_written":false,"manifest_path":"%s","base_dir":"%s","already_exists":true,"ok":true}\n' \
+                "$(_json_escape "$rel_path")" \
+                "$(_json_escape "$feature")" \
+                "$(_json_escape "$rel_path/$manifest_filename")" \
+                "$(_json_escape "$base_dir")"
+        fi
+        exit 0
     fi
 
-    # Refuse if the feature branch already exists in the primary checkout.
-    if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$feature"; then
-        _die "Branch '$feature' already exists in primary checkout"
+    # If branch exists locally or remotely, attach worktree to it instead of
+    # creating a new branch.
+    local branch_exists_local=false
+    local branch_exists_remote=false
+    if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/heads/$feature" 2>/dev/null; then
+        branch_exists_local=true
+    fi
+    if git -C "$REPO_ROOT" show-ref --verify --quiet "refs/remotes/origin/$feature" 2>/dev/null; then
+        branch_exists_remote=true
     fi
 
     # Create the .worktrees directory if needed.
     mkdir -p "$REPO_ROOT/$base_dir"
 
-    # Add the worktree with a new branch. Route git's informational output to
-    # stderr so stdout carries only the final JSON.
-    if ! git -C "$REPO_ROOT" worktree add "$worktree_path" -b "$feature" "$base_branch" >&2; then
-        _die "git worktree add failed for $worktree_path"
+    if [ "$branch_exists_local" = "true" ]; then
+        # Attach worktree to existing local branch.
+        if ! git -C "$REPO_ROOT" worktree add "$worktree_path" "$feature" >&2; then
+            _die "git worktree add failed for $worktree_path (existing local branch)"
+        fi
+    elif [ "$branch_exists_remote" = "true" ]; then
+        # Create local branch tracking remote, then attach worktree.
+        git -C "$REPO_ROOT" branch "$feature" "origin/$feature" >&2 2>/dev/null || true
+        if ! git -C "$REPO_ROOT" worktree add "$worktree_path" "$feature" >&2; then
+            _die "git worktree add failed for $worktree_path (existing remote branch)"
+        fi
+    else
+        # Add the worktree with a new branch.
+        if ! git -C "$REPO_ROOT" worktree add "$worktree_path" -b "$feature" "$base_branch" >&2; then
+            _die "git worktree add failed for $worktree_path"
+        fi
     fi
 
     # Write initial manifest (no task branches yet).
@@ -1125,13 +1127,9 @@ shift
 case "$SUBCOMMAND" in
     create-feature-worktree)   cmd_create_feature_worktree   "$@" ;;
     remove-feature-worktree)   cmd_remove_feature_worktree   "$@" ;;
-    create-task-branch)        cmd_create_task_branch        "$@" ;;
-    remove-task-branch)        cmd_remove_task_branch        "$@" ;;
-    merge-task-branch)         cmd_merge_task_branch         "$@" ;;
     is-in-worktree)            cmd_is_in_worktree            "$@" ;;
     list-worktrees)            cmd_list_worktrees            "$@" ;;
     read-manifest)             cmd_read_manifest             "$@" ;;
-    finish-feature)            cmd_finish_feature            "$@" ;;
     -h|--help|help)            _usage; exit 0 ;;
     *) _err "Unknown subcommand: $SUBCOMMAND"; _usage; exit 1 ;;
 esac

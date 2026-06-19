@@ -84,20 +84,22 @@ Run the appropriate script based on your platform:
 
 **Worktree mode** (add `--worktree` / `-Worktree`; optionally `--base <branch>` / `-Base <branch>` to pin the base ref):
 - **Bash**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --json --short-name "<short-name>" "<feature description>"`
-- **Bash (with base)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --base main --json --short-name "<short-name>" "<feature description>"`
+- **Bash (with base)**: `.specify/extensions/git/scripts/bash/create-new-feature.sh --worktree --base origin/main --json --short-name "<short-name>" "<feature description>"`
 - **PowerShell**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Json -ShortName "<short-name>" "<feature description>"`
-- **PowerShell (with base)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Base main -Json -ShortName "<short-name>" "<feature description>"`
+- **PowerShell (with base)**: `.specify/extensions/git/scripts/powershell/create-new-feature.ps1 -Worktree -Base origin/main -Json -ShortName "<short-name>" "<feature description>"`
 
-When worktree mode is used, the script returns a `WORKTREE_PATH` and `MANIFEST_PATH` in addition to `BRANCH_NAME`/`FEATURE_NUM`. **The script does NOT auto-`cd` into the worktree** — you must `cd "$WORKTREE_PATH"` separately to enter the worktree before invoking any follow-up commands. The manifest is gitignored.
+## Working Directory
 
-**IMPORTANT**:
-- Do NOT pass `--number` — the script determines the correct next number automatically
-- If the active branch pattern template contains `{issue}`, you MUST pass the issue key via
-  `GIT_BRANCH_ISSUE`, `--issue`, or `-Issue` before invoking the script
-- Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
-- You must only ever run this script once per feature
-- The JSON output will contain `BRANCH_NAME` and `FEATURE_NUM` (always), and `ISOLATION_MODE` (always); `WORKTREE_PATH` and `MANIFEST_PATH` are present only in worktree mode
-- PowerShell param style uses single-dash (`-Worktree`, `-BranchMode`, `-IsolationMode`, `-Base`); bash uses double-dash (`--worktree`, `--branch-mode`, `--isolation-mode`, `--base`)
+**Branch mode**: Continue working in the current directory (no change needed).
+
+**Worktree mode**: After the script returns, execute `cd <WORKTREE_PATH>` to enter the worktree before running subsequent commands.
+
+## Idempotency
+
+The script is **idempotent** for worktree mode:
+- If the worktree already exists → returns the existing path (no error)
+- If the branch exists remotely but worktree is missing → attaches a new worktree to the existing branch
+- If nothing exists → creates both branch and worktree
 
 ## Graceful Degradation
 
@@ -113,3 +115,14 @@ The script outputs JSON with:
 - `ISOLATION_MODE`: Either `branch` (default) or `worktree`
 - `WORKTREE_PATH` (worktree mode only): Relative path to the worktree (e.g., `.worktrees/003-user-auth`)
 - `MANIFEST_PATH` (worktree mode only): Relative path to the worktree manifest (e.g., `.worktrees/003-user-auth/git.worktree-manifest.json`)
+- `cd` (worktree mode only): The shell command to enter the worktree (e.g., `cd .worktrees/003-user-auth`)
+
+The `cd` value is also printed as the final line of the non-JSON output in worktree mode for easy `eval`.
+
+**IMPORTANT**:
+- Do NOT pass `--number` — the script determines the correct next number automatically
+- If the active branch pattern template contains `{issue}`, you MUST pass the issue key via
+  `GIT_BRANCH_ISSUE`, `--issue`, or `-Issue` before invoking the script
+- Always include the JSON flag (`--json` for Bash, `-Json` for PowerShell) so the output can be parsed reliably
+- The JSON output will contain `BRANCH_NAME` and `FEATURE_NUM` (always), and `ISOLATION_MODE` (always); `WORKTREE_PATH` and `MANIFEST_PATH` are present only in worktree mode
+- PowerShell param style uses single-dash (`-Worktree`, `-BranchMode`, `-IsolationMode`, `-Base`); bash uses double-dash (`--worktree`, `--branch-mode`, `--isolation-mode`, `--base`)
