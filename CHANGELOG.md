@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc24] - 2026-06-20
+
+### Fixed
+
+- **Workflow stream UX regression**: Replaced `subprocess.run(capture_output=True)` with Popen+threading tee runner that both streams output live to the terminal AND captures stdout/stderr for state persistence. All three dispatch paths fixed: `integrations/base.py`, `integrations/copilot/__init__.py`, and `workflows/steps/prompt/__init__.py`. Tee helper lives in `_workflows_fork.py`.
+
 # [0.10.0+adlc23] - 2026-06-20
 
 ### Added

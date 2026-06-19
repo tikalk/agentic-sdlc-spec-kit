@@ -258,9 +258,14 @@ class CopilotIntegration(IntegrationBase):
 
         if stream:
             try:
+                from specify_cli._workflows_fork import run_and_tee
+
+                return run_and_tee(cli_args, cwd=cwd)
+            except ImportError:
+                pass
+            try:
                 result = subprocess.run(
                     cli_args,
-                    capture_output=True,
                     text=True,
                     cwd=cwd,
                 )
@@ -272,8 +277,8 @@ class CopilotIntegration(IntegrationBase):
                 }
             return {
                 "exit_code": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stdout": "",
+                "stderr": "",
             }
 
         result = subprocess.run(

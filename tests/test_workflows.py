@@ -22,6 +22,16 @@ from pathlib import Path
 import pytest
 import yaml
 
+# Fork tee runner detection — used to select the correct mock target in
+# dispatch tests.  When ``run_and_tee`` is available (fork), it replaces
+# ``subprocess.run`` in the dispatch paths.
+try:
+    from specify_cli._workflows_fork import run_and_tee
+
+    _FORK_HAS_TEE = True
+except ImportError:
+    _FORK_HAS_TEE = False
+
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -522,14 +532,20 @@ class TestCommandStep:
             "input": {"args": "add OAuth"},
         }
 
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ""
-        mock_result.stderr = ""
+        if _FORK_HAS_TEE:
+            mock_return = {"exit_code": 0, "stdout": "", "stderr": ""}
+            mock_target = "specify_cli._workflows_fork.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch("specify_cli.workflows.steps.command.shutil.which",
                     lambda name: "/usr/bin/acli" if name == "acli" else None), \
-             patch("subprocess.run", return_value=mock_result):
+             patch(mock_target, return_value=mock_return):
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED
@@ -636,14 +652,24 @@ class TestCommandStep:
             "input": {"args": "{{ inputs.name }}"},
         }
 
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = '{"result": "done"}'
-        mock_result.stderr = ""
+        if _FORK_HAS_TEE:
+            mock_return = {
+                "exit_code": 0,
+                "stdout": '{"result": "done"}',
+                "stderr": "",
+            }
+            mock_target = "specify_cli._workflows_fork.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = '{"result": "done"}'
+            mock_result.stderr = ""
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch("specify_cli.workflows.steps.command.shutil.which", return_value="/usr/local/bin/claude"), \
              patch("specify_cli.integrations.base.shutil.which", return_value="/usr/local/bin/claude"), \
-             patch("subprocess.run", return_value=mock_result) as mock_run:
+             patch(mock_target, return_value=mock_return) as mock_run:
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED
@@ -677,14 +703,20 @@ class TestCommandStep:
             "input": {"args": "test"},
         }
 
-        mock_result = MagicMock()
-        mock_result.returncode = 1
-        mock_result.stdout = ""
-        mock_result.stderr = "API error"
+        if _FORK_HAS_TEE:
+            mock_return = {"exit_code": 1, "stdout": "", "stderr": "API error"}
+            mock_target = "specify_cli._workflows_fork.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 1
+            mock_result.stdout = ""
+            mock_result.stderr = "API error"
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch("specify_cli.workflows.steps.command.shutil.which", return_value="/usr/local/bin/claude"), \
              patch("specify_cli.integrations.base.shutil.which", return_value="/usr/local/bin/claude"), \
-             patch("subprocess.run", return_value=mock_result):
+             patch(mock_target, return_value=mock_return):
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.FAILED
@@ -768,14 +800,20 @@ class TestPromptStep:
             "prompt": "Explain this code",
         }
 
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ""
-        mock_result.stderr = ""
+        if _FORK_HAS_TEE:
+            mock_return = {"exit_code": 0, "stdout": "", "stderr": ""}
+            mock_target = "specify_cli.workflows.steps.prompt.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch("specify_cli.workflows.steps.prompt.shutil.which",
                     lambda name: "/usr/bin/acli" if name == "acli" else None), \
-             patch("subprocess.run", return_value=mock_result):
+             patch(mock_target, return_value=mock_return):
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED
@@ -798,13 +836,23 @@ class TestPromptStep:
             "prompt": "Explain this code",
         }
 
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = "Here is the explanation"
-        mock_result.stderr = ""
+        if _FORK_HAS_TEE:
+            mock_return = {
+                "exit_code": 0,
+                "stdout": "Here is the explanation",
+                "stderr": "",
+            }
+            mock_target = "specify_cli.workflows.steps.prompt.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = "Here is the explanation"
+            mock_result.stderr = ""
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch("specify_cli.workflows.steps.prompt.shutil.which", return_value="/usr/local/bin/claude"), \
-             patch("subprocess.run", return_value=mock_result):
+             patch(mock_target, return_value=mock_return):
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED

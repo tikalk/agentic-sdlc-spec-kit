@@ -347,13 +347,18 @@ class IntegrationBase(ABC):
         cwd = str(project_root) if project_root else None
 
         if stream:
-            # No timeout when streaming — the user sees live output and
-            # can Ctrl+C at any time.  The timeout parameter is only
-            # applied in the captured (non-streaming) branch below.
+            # When the fork's ``_workflows_fork`` module is available, use
+            # the tee runner that both streams live output to the terminal
+            # AND captures stdout/stderr for state persistence.
+            try:
+                from specify_cli._workflows_fork import run_and_tee
+
+                return run_and_tee(exec_args, cwd=cwd)
+            except ImportError:
+                pass
             try:
                 result = subprocess.run(
                     exec_args,
-                    capture_output=True,
                     text=True,
                     cwd=cwd,
                 )
@@ -365,8 +370,8 @@ class IntegrationBase(ABC):
                 }
             return {
                 "exit_code": result.returncode,
-                "stdout": result.stdout,
-                "stderr": result.stderr,
+                "stdout": "",
+                "stderr": "",
             }
 
         result = subprocess.run(

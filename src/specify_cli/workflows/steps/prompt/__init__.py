@@ -10,10 +10,9 @@ from specify_cli.workflows.base import StepBase, StepContext, StepResult, StepSt
 from specify_cli.workflows.expressions import evaluate_expression
 
 try:
-    from specify_cli._workflows_fork import get_workflow_stream_default
-    _workflow_stream = get_workflow_stream_default()
+    from specify_cli._workflows_fork import run_and_tee
 except ImportError:
-    _workflow_stream = True
+    run_and_tee = None
 
 
 class PromptStep(StepBase):
@@ -134,23 +133,28 @@ class PromptStep(StepBase):
         if not exec_args:
             return None
 
-        import subprocess
-
         project_root = (
             Path(context.project_root) if context.project_root else Path.cwd()
         )
+
+        if run_and_tee is not None:
+            try:
+                return run_and_tee(exec_args, cwd=str(project_root))
+            except OSError:
+                return None
+
+        import subprocess
 
         try:
             result = subprocess.run(
                 exec_args,
                 text=True,
                 cwd=str(project_root),
-                capture_output=(not _workflow_stream),
             )
             return {
                 "exit_code": result.returncode,
-                "stdout": result.stdout if not _workflow_stream else "",
-                "stderr": result.stderr if not _workflow_stream else "",
+                "stdout": "",
+                "stderr": "",
             }
         except KeyboardInterrupt:
             return {
