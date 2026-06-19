@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 
 from typer.testing import CliRunner
 
@@ -902,7 +903,9 @@ class TestIntegrationSwitch:
 
         # Verify Copilot skill frontmatter does NOT contain mode: — VS Code Copilot does not support it
         skill_content = copilot_git_feature.read_text(encoding="utf-8")
-        assert "mode:" not in skill_content, (
+        fm_match = re.search(r"^---\s*\n(.*?)\n---", skill_content, re.DOTALL)
+        frontmatter = fm_match.group(1) if fm_match else ""
+        assert "mode:" not in frontmatter, (
             "Copilot skill frontmatter must not contain unsupported 'mode' field"
         )
 
