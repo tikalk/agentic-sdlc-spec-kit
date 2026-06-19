@@ -218,3 +218,42 @@ def test_repair_command_parser_handles_descriptor_column():
 
     # Parser should have the right number of positional fields for the new column
     assert "IFS='|' read -r _ id module _ _ _ _ _" in content or "IFS='|' read -r _ id module _ _ _ _ _" in content
+
+
+# ── init.md & evolve.md Command Tests ─────────────────────────────────────────
+
+
+def test_init_command_exists():
+    """team.init command file exists and has correct structure."""
+    repo_root = Path(__file__).resolve().parent.parent
+    init_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "init.md"
+    assert init_md.exists(), "init.md command file must exist"
+    content = init_md.read_text(encoding="utf-8")
+    assert "traces" in content.lower(), "init.md must reference traces/ directory"
+    assert "cdr" in content.lower(), "init.md must reference CDR drafts"
+    assert "team.evolve" in content or "team.evolve" in content, "init.md must reference team.evolve"
+
+
+def test_evolve_command_exists():
+    """team.evolve command file exists and has correct structure."""
+    repo_root = Path(__file__).resolve().parent.parent
+    evolve_md = repo_root / "extensions" / "team-ai-directives" / "commands" / "evolve.md"
+    assert evolve_md.exists(), "evolve.md command file must exist"
+    content = evolve_md.read_text(encoding="utf-8")
+    assert "regression gate" in content.lower(), "evolve.md must reference regression gate"
+    assert "git" not in content.split("---")[2] if content.count("---") >= 2 else True, \
+        "evolve.md must NOT reference git operations in its execution (pure file transformer)"
+    assert "team.init" in content or "team.init" in content, "evolve.md must reference team.init"
+
+
+def test_extension_manifest_includes_init_and_evolve():
+    """Extension manifest declares team.init and team.evolve commands."""
+    from specify_cli.extensions import ExtensionManifest
+
+    repo_root = Path(__file__).resolve().parent.parent
+    ext_yml = repo_root / "extensions" / "team-ai-directives" / "extension.yml"
+    m = ExtensionManifest(ext_yml)
+    names = [c["name"] for c in m.commands]
+    assert "adlc.team-ai-directives.init" in names, "Extension manifest must declare team.init"
+    assert "adlc.team-ai-directives.evolve" in names, "Extension manifest must declare team.evolve"
+    assert m.version == "3.0.0", "Extension version must be 3.0.0"

@@ -515,3 +515,38 @@ class TestForgeCommandRegistrar:
             "Found dot notation command reference in generated Forge git.feature command body. "
             "Forge requires hyphen notation for ZSH compatibility."
         )
+
+    def test_git_publish_command_uses_hyphen_notation(self, tmp_path):
+        """Verify the git extension's publish command uses hyphen notation for Forge."""
+        from pathlib import Path
+        from specify_cli.agents import CommandRegistrar
+
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        ext_dir = repo_root / "extensions" / "git"
+        cmd_source = ext_dir / "commands" / "publish.md"
+        assert cmd_source.exists(), (
+            f"Git extension publish command source not found at {cmd_source}. "
+            "Ensure extensions/git/commands/publish.md exists."
+        )
+
+        registrar = CommandRegistrar()
+        commands = [
+            {
+                "name": "speckit.git.publish",
+                "file": "commands/publish.md",
+            }
+        ]
+
+        registered = registrar.register_commands(
+            "forge",
+            commands,
+            "git",
+            ext_dir,
+            tmp_path,
+        )
+
+        assert "speckit.git.publish" in registered
+
+        expected_name = format_forge_command_name("speckit.git.publish") + ".md"
+        forge_cmd = tmp_path / ".forge" / "commands" / expected_name
+        assert forge_cmd.exists(), "Expected Forge publish command file was not created"

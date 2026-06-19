@@ -40,11 +40,11 @@ Compile accepted CDRs into a **draft PR** to the team-ai-directives repository. 
 
 **⚠️ CRITICAL**: You must create ALL of the above. Do NOT create CDR.md first and skip the actual module files.
 
-**MCP Integration**:
+**Git Extension Integration**:
 
-This command uses MCP tools for Git operations:
-- `create_pull_request` / `create_merge_request` (GitHub/GitLab)
-- If MCP unavailable, provides manual instructions
+This command delegates Git operations to the git extension:
+- `git.commit --message` — Commit changes with explicit message
+- `git.publish` — Push branch and create PR (GitHub) or MR (GitLab)
 
 ## Role & Context
 
@@ -711,18 +711,65 @@ git status --porcelain
 
 **If any check fails, you MUST go back and create the missing files before proceeding.**
 
-### Phase 4: Commit Changes
+### Phase 4: Record Execution Trace
 
-**Objective**: Stage and commit all changes
+**Objective**: Preserve execution trace for curation agent consumption
 
-#### Step 1: Stage Files
+Copy the execution log as a trace file to `{REPO_ROOT}/traces/`:
 
 ```bash
-cd "$TEAM_DIRECTIVES"
-git add context_modules/ skills/ .skills.json CDR.md AGENTS.md
+mkdir -p "{REPO_ROOT}/traces"
+TRACE_FILE="{REPO_ROOT}/traces/$(date -u +%Y%m%d-%H%M%S)-${PROJECT_NAME}-levelup-implement.md"
 ```
 
-#### Step 2: Generate Commit Message
+Write the trace content:
+
+```markdown
+# LevelUp Implement Trace
+
+**Timestamp**: {timestamp}
+**Project**: {project-name}
+**Branch**: {BRANCH_NAME}
+**Team Directives**: {TEAM_DIRECTIVES}
+
+## Summary
+
+- **CDRs Implemented**: {N}
+- **CDRs Skipped (Signal Gate)**: {M}
+- **Skills Published**: {S}
+- **Target Branch**: {BRANCH_NAME} → main
+
+## CDRs Implemented
+
+| CDR | Type | Target Module |
+|-----|------|---------------|
+| CDR-{N} | {type} | {module} |
+
+## Evidence
+
+- Project: {project-repo-url}
+- Implementation branch: {BRANCH_NAME}
+```
+
+After writing, optionally stage it:
+
+```bash
+cd "{REPO_ROOT}"
+git add traces/
+```
+
+### Phase 5: Commit and Publish
+
+**Objective**: Commit changes in team-ai-directives and create PR/MR using git extension commands
+
+#### Step 1: Commit with `git.commit --message`
+
+Use the git extension command with an explicit message:
+
+- **slash command**: `git.commit --message "Add context modules from {project-name}"`
+- **hook equivalent**: `.specify/extensions/git/scripts/bash/auto-commit.sh --message "Add context modules from {project-name}" after_implement`
+
+Generate the commit message:
 
 ```
 Add context modules from {project-name}
@@ -737,23 +784,19 @@ Skills added:
 Source: {project-repo-url}
 ```
 
-#### Step 3: Commit
+#### Step 2: Publish with `git.publish`
 
-```bash
-git commit -m "{commit-message}"
-```
+Use the git extension command to push and create PR/MR:
 
-### Phase 4: Push and Create PR
+- **slash command**: `git.publish --title "Add context modules from {project-name}" [--draft]`
+- **script equivalent**: `.specify/extensions/git/scripts/bash/publish.sh --title "Add context modules from {project-name}" [--draft]`
 
-**Objective**: Push branch and create PR
+The command accepts:
+- `--draft` — Create as draft PR (default unless `--ready` flag)
+- `--title "..."` — PR title (generated from branch name if absent)
+- `--body "..."` — PR description
 
-#### Step 1: Push Branch
-
-```bash
-git push -u origin "$BRANCH_NAME"
-```
-
-#### Step 2: Generate PR Description
+**PR Body Template**:
 
 ```markdown
 ## Summary
@@ -796,37 +839,14 @@ These contributions were discovered and validated through:
 - Branch: {branch-name}
 ```
 
-#### Step 3: Create PR via MCP
+#### Step 3: Stage Trace File (in source repo)
 
-Use MCP tools if available:
-
-```
-Tool: create_pull_request (GitHub) or create_merge_request (GitLab)
-Parameters:
-  - title: "Add context modules from {project-name}"
-  - body: {PR description}
-  - source_branch: "{BRANCH_NAME}"
-  - target_branch: "main"
-  - draft: true (unless --ready flag)
+```bash
+cd "{REPO_ROOT}"
+git add traces/
 ```
 
-If MCP unavailable, provide manual instructions:
-
-```markdown
-### Manual PR Creation
-
-MCP tools not available. Create PR manually:
-
-1. Go to: {team-ai-directives repo URL}
-2. Create PR from branch: `{BRANCH_NAME}`
-3. Target: `main`
-4. Title: "Add context modules from {project-name}"
-5. Body: {copy PR description above}
-```
-
-### Phase 5: Summary
-
-**Objective**: Present implementation results
+### Phase 6: Summary
 
 **Objective**: Present implementation results
 
@@ -843,9 +863,9 @@ MCP tools not available. Create PR manually:
 |-----------|--------|
 | Branch created | `{BRANCH_NAME}` |
 | Files changed | {N} |
-| Commit | `{commit-sha}` |
-| Push | Success |
-| PR | {PR-URL or "Manual instructions provided"} |
+| Commit | via `git.commit --message` |
+| Push + PR | via `git.publish` |
+| Trace | `traces/{trace-file}` |
 
 ### CDRs Implemented
 
@@ -884,7 +904,7 @@ MCP tools not available. Create PR manually:
    ```
 ```
 
-### Phase 6: Cleanup (when NOT configured)
+### Phase 7: Cleanup (when NOT configured)
 
 **When team-ai-directives is NOT configured:**
 

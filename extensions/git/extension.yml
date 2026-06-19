@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: git
   name: "Git Branching Workflow"
-  version: "1.6.0"
+  version: "1.7.0"
   description: "Feature branch creation, numbering (sequential/timestamp), validation, Git remote detection, multi-repo workspace submodule management, and feature-level worktree isolation"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
@@ -37,6 +37,10 @@ provides:
       file: commands/speckit.git.commit.md
       aliases: ["git.commit"]
       description: "Auto-commit changes after a Spec Kit command completes"
+    - name: speckit.git.publish
+      file: commands/publish.md
+      aliases: ["git.publish"]
+      description: "Push current branch and create a PR (GitHub) or MR (GitLab)"
     - name: speckit.git.workspace
       file: commands/speckit.git.workspace.md
       aliases: ["git.workspace"]

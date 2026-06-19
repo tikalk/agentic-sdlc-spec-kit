@@ -848,6 +848,8 @@ class TestIntegrationSwitch:
         # (primary speckit.git.feature is skipped because alias git.feature exists)
         opencode_git_feature = project / ".opencode" / "commands" / "git.feature.md"
         assert opencode_git_feature.exists(), "Git extension command should exist for opencode"
+        opencode_git_publish = project / ".opencode" / "commands" / "git.publish.md"
+        assert opencode_git_publish.exists(), "Git extension publish command should exist for opencode"
 
         # Old kimi extension skills should be removed
         assert not kimi_git_feature.exists(), "Old kimi extension skill should be removed"
@@ -873,6 +875,7 @@ class TestIntegrationSwitch:
 
         # Old opencode extension commands should be removed
         assert not opencode_git_feature.exists(), "Old opencode extension command should be removed"
+        assert not opencode_git_publish.exists(), "Old opencode git.publish command should be removed"
 
         # Extension registry should be updated
         registry = json.loads(

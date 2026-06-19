@@ -2,6 +2,31 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc23] - 2026-06-20
+
+### Added
+
+- **`speckit.git.publish` command**: Push current branch and create PR (GitHub `gh`) or MR (GitLab `glab`) — platform-neutral, replaces inline MCP PR creation across all extensions and workflows.
+- **`git.commit --message` flag**: Optional `--message` parameter overrides the configured or default commit message. Used by levelup.implement and curation workflow for explicit messages.
+- **`team.init` command** (team-ai-directives ext v3.0.0): Scan `traces/` directory and propose CDR drafts in `.specify/drafts/cdr.md`.
+- **`team.evolve` command** (team-ai-directives ext v3.0.0): Regression-gate proposed CDRs (dedup, evidence, team-wide, evals), implement passing ones as file modifications. Pure file transformer — no git operations.
+- **Trace recording in levelup.implement**: Phase 4 copies execution trace to `{REPO_ROOT}/traces/{timestamp}-{project}-levelup-implement.md`, enabling curation agent consumption.
+- **Curation workflow** (`tikal-team-ai-directives/`): `workflows/curation/workflow.yml` — team.init → team.evolve → evals → git.commit → git.publish pipeline.
+- **CI/CD templates** (`tikal-team-ai-directives/`): `.github/workflows/curation.yml` (GitHub Actions) and `.gitlab-ci/curation.yml` (GitLab CI) triggered on `traces/*.md` push.
+- **Workflow catalog entries**: spec-kit `workflows/catalog.community.json` and tikal `workflows/catalog.json` both list the curation workflow.
+
+### Changed
+
+- **Git extension manifest**: v1.6.0 → v1.7.0 with new `speckit.git.publish` command.
+- **Levelup extension manifest**: v1.9.0 → v1.10.0.
+- **Team-ai-directives extension manifest**: v2.0.0 → v3.0.0 with `team.init` + `team.evolve`.
+- **spec-kit CLI**: 0.10.0+adlc22 → 0.10.0+adlc23.
+- **levelup.implement**: Refactored raw `git commit` / `git push` / MCP PR creation to use `git.commit --message` and `git.publish` commands.
+
+### Fixed
+
+- **Duplicate Phase 4 header** in levelup implement.md: Renamed to Phase 5 (Commit and Publish) and Phase 6 (Summary), Phase 7 (Cleanup).
+
 # [0.10.0+adlc22] - 2026-06-19
 
 ### Changed

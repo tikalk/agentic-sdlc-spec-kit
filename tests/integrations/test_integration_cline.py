@@ -63,6 +63,7 @@ class TestClineIntegration(MarkdownIntegrationTests):
             ("plan", "plan"),
             ("speckit.plan", "plan"),
             ("speckit.git.commit", "git-commit"),
+            ("speckit.git.publish", "git-publish"),
             ("speckit", "speckit"),
             ("speckitfoo", "speckitfoo"),
         ],

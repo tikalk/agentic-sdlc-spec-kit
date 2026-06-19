@@ -3,14 +3,32 @@
 # Automatically commit changes after a Spec Kit command completes.
 # Checks per-command config keys in git-config.yml before committing.
 #
-# Usage: auto-commit.sh <event_name>
+# Usage: auto-commit.sh [--message "commit message"] <event_name>
 #   e.g.: auto-commit.sh after_specify
+#   e.g.: auto-commit.sh --message "feat: add login" after_implement
 
 set -e
 
-EVENT_NAME="${1:-}"
+CUSTOM_MESSAGE=""
+PASSTHROUGH_ARGS=()
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --message)
+            shift
+            CUSTOM_MESSAGE="$1"
+            shift
+            ;;
+        *)
+            PASSTHROUGH_ARGS+=("$1")
+            shift
+            ;;
+    esac
+done
+
+EVENT_NAME="${PASSTHROUGH_ARGS[0]:-}"
 if [ -z "$EVENT_NAME" ]; then
-    echo "Usage: $0 <event_name>" >&2
+    echo "Usage: $0 [--message \"commit message\"] <event_name>" >&2
     exit 1
 fi
 
@@ -128,8 +146,10 @@ fi
 _command_name=$(echo "$EVENT_NAME" | sed 's/^after_//' | sed 's/^before_//')
 _phase=$(echo "$EVENT_NAME" | grep -q '^before_' && echo 'before' || echo 'after')
 
-# Use custom message if configured, otherwise default
-if [ -z "$_commit_msg" ]; then
+# Use custom message if provided via --message flag, or configured, otherwise default
+if [ -n "$CUSTOM_MESSAGE" ]; then
+    _commit_msg="$CUSTOM_MESSAGE"
+elif [ -z "$_commit_msg" ]; then
     _commit_msg="[Spec Kit] Auto-commit ${_phase} ${_command_name}"
 fi
 

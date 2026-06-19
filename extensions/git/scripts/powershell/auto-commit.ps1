@@ -8,7 +8,9 @@
 
 param(
     [Parameter(Position = 0, Mandatory = $true)]
-    [string]$EventName
+    [string]$EventName,
+    [Parameter(Mandatory = $false)]
+    [string]$Message = ""
 )
 $ErrorActionPreference = 'Stop'
 
@@ -145,8 +147,10 @@ if ($d1 -eq 0 -and $d2 -eq 0 -and -not $untracked) {
 $commandName = $EventName -replace '^after_', '' -replace '^before_', ''
 $phase = if ($EventName -match '^before_') { 'before' } else { 'after' }
 
-# Use custom message if configured, otherwise default
-if (-not $commitMsg) {
+# Use custom message if provided via -Message flag, or configured, otherwise default
+if ($Message) {
+    $commitMsg = $Message
+} elseif (-not $commitMsg) {
     $commitMsg = "[Spec Kit] Auto-commit $phase $commandName"
 }
 

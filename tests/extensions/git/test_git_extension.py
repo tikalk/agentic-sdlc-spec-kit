@@ -143,7 +143,7 @@ class TestGitExtensionManifest:
 
         m = ExtensionManifest(EXT_DIR / "extension.yml")
         assert m.id == "git"
-        assert m.version == "1.6.0"
+        assert m.version == "1.7.0"
 
     def test_manifest_commands(self):
         """Manifest declares expected commands."""
@@ -156,6 +156,7 @@ class TestGitExtensionManifest:
         assert "speckit.git.remote" in names
         assert "speckit.git.initialize" in names
         assert "speckit.git.commit" in names
+        assert "speckit.git.publish" in names
         assert "speckit.git.workspace" in names
         assert "speckit.git.setup-ignore" in names
         assert "speckit.git.worktree-list" in names
@@ -210,10 +211,12 @@ class TestGitExtensionInstall:
         assert (ext_installed / "scripts" / "bash" / "initialize-repo.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "auto-commit.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "git-common.sh").is_file()
+        assert (ext_installed / "scripts" / "bash" / "publish.sh").is_file()
         assert (ext_installed / "scripts" / "powershell" / "create-new-feature.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "initialize-repo.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "auto-commit.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "git-common.ps1").is_file()
+        assert (ext_installed / "scripts" / "powershell" / "publish.ps1").is_file()
 
     def test_bundled_extension_locator(self):
         """_locate_bundled_extension finds the git extension."""
