@@ -67,6 +67,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc25 | 2026-06-20 | 0.10.0 | Fixed per-task metadata lifecycle in `adlc.spec.implement.md` (start-task/complete-task/fail-task instead of stale add-task with SYNC_OR_ASYNC placeholder). Downstream workflow steps (plan/tasks/implement) no longer receive full raw prompt as args. |
 | 0.10.0+adlc22 | 2026-06-19 | 0.10.0 | Decoupled worktree cd from specify (git extension handles entry). Removed stale `git.task-merge`/`delegate_merge_conflicts` refs from `adlc.spec.implement.md`. Fixed 24 CI test failures — updated idempotency tests, removed task-branch test classes, deleted `test_merge_task_branch.py`. |
 | 0.10.0+adlc20 | 2026-06-19 | 0.10.0 | Git extension v1.6.0: simplified worktree model to feature-only isolation (removed per-task branches), added `git.worktree-list` and `git.worktree-cleanup` commands, idempotent worktree creation with `origin/main` default base, hardened cd instruction for agents. Removed task-mode auto-commit prefixes. |
 | 0.10.0+adlc17 | 2026-06-18 | 0.10.0 | Agentic SDLC preset v1.2.1: fixed constitution handoff agent naming (`speckit.specify` → `adlc.spec.specify`), registered missing `delegation-template` in preset manifest, refactored `tasks-meta-utils.sh` to use `resolve_template` for preset override support, aligned preset delegation-template placeholders with core version. |

@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc25] - 2026-06-20
+
+### Fixed
+
+- **Per-task metadata lifecycle**: `adlc.spec.implement.md` now calls `start-task` before each task, `complete-task`/`fail-task` after, instead of `add-task` with `"SYNC_OR_ASYNC"` placeholder. Tasks transition `pending → in_progress → completed|failed` in `tasks_meta.json`. Added final `summary` call. (Issue 2)
+- **Workflow args redundancy**: Downstream workflow steps (`plan`, `tasks`, `implement`) no longer receive the full raw prompt as `$ARGUMENTS` — empty string dispatched instead. Only `specify` keeps `{{ inputs.spec }}`. (Issue 5)
+
+### Changed
+
+- **spec-kit CLI**: 0.10.0+adlc24 → 0.10.0+adlc25.
+
 # [0.10.0+adlc24] - 2026-06-20
 
 ### Fixed

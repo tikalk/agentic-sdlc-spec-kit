@@ -164,11 +164,23 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **File-based coordination**: Tasks affecting the same files must run sequentially
-   - **Per-task extension hooks**: For each individual task:
-     - **Before task**: Check `.specify/extensions.yml` for `hooks.before_task_execute` entries. Filter out disabled hooks. Execute mandatory hooks immediately; for optional hooks, skip silently to maintain flow. If no hooks registered, continue silently.
-     - **Execute the task**
-     - **After task**: Check `.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute.
-     - **On task failure**: Dispatch `after_task_execute` hooks before reporting the error (allows WIP checkpoint commits if git extension is configured).
+    - **Per-task extension hooks**: For each individual task:
+      - **Before task**: Check `.specify/extensions.yml` for `hooks.before_task_execute` entries. Filter out disabled hooks. Execute mandatory hooks immediately; for optional hooks, skip silently to maintain flow. If no hooks registered, continue silently.
+      - **Start task**: Mark task as in-progress:
+        ```bash
+        bash .specify/scripts/bash/tasks-meta-utils.sh start-task "$FEATURE_DIR/tasks_meta.json" "$task_id"
+        ```
+      - **Execute the task**
+      - **Complete task** (on success): Update metadata and record summary:
+        ```bash
+        bash .specify/scripts/bash/tasks-meta-utils.sh complete-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "<brief-result-summary>"
+        ```
+      - **After task**: Check `.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute.
+      - **On task failure**: Mark task as failed first, then dispatch after_task_execute hooks:
+        ```bash
+        bash .specify/scripts/bash/tasks-meta-utils.sh fail-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "<failure-reason>"
+        ```
+        Then dispatch `after_task_execute` hooks before reporting the error (allows WIP checkpoint commits if git extension is configured).
    - **Dual execution mode handling**:
      - **SYNC tasks**: Execute immediately with human oversight, require micro-review via `scripts/bash/tasks-meta-utils.sh review-micro "$FEATURE_DIR/tasks_meta.json" "$task_id"`
      - **ASYNC tasks**: Generate delegation prompts via `scripts/bash/tasks-meta-utils.sh dispatch-async "$task_id" "$agent_type" "$description" "$context" "$requirements" "$instructions" "$FEATURE_DIR"`, send to LLM agents, monitor completion via `scripts/bash/tasks-meta-utils.sh check-status "$task_id" "$FEATURE_DIR"`, apply macro-review after completion
@@ -189,10 +201,7 @@ You **MUST** consider the user input before proceeding (if not empty).
     - Provide clear error messages with context for debugging
     - Suggest next steps if implementation cannot proceed
     - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
-    - **IMPORTANT** After completing each task, update execution metadata:
-      ```bash
-      bash .specify/scripts/bash/tasks-meta-utils.sh add-task "$FEATURE_DIR/tasks_meta.json" "$TASK_ID" "$DESCRIPTION" "$FILES" "SYNC_OR_ASYNC"
-      ```
+    - Per-task metadata lifecycle (`start-task` → execute → `complete-task`/`fail-task`) is handled automatically in step 8. Do NOT call `add-task` — tasks are already registered by `/spec.tasks`.
 
 11. **MANDATORY - Verify Execution Metadata**:
 
@@ -200,7 +209,11 @@ You **MUST** consider the user input before proceeding (if not empty).
     ```bash
     test -f "$FEATURE_DIR/tasks_meta.json" || bash .specify/scripts/bash/tasks-meta-utils.sh init "$FEATURE_DIR"
     ```
-    If `tasks_meta.json` was created retroactively (not at step 4), log a warning that per-task metadata was not captured during implementation.
+
+    Print final task summary:
+    ```bash
+    bash .specify/scripts/bash/tasks-meta-utils.sh summary "$FEATURE_DIR/tasks_meta.json"
+    ```
 
 12. Completion validation:
     - Verify all required tasks are completed
