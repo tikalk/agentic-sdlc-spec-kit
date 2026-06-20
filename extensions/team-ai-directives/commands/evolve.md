@@ -199,5 +199,5 @@ Run **evals** (pytest / promptfoo) then create a PR:
 ## Related
 
 - `/team.init` — Create CDR proposals from traces
-- `/levelup.clarify` — Manual CDR refinement before implementation
-- `/levelup.implement` — Full pipeline to team-ai-directives PR
+- `/levelup.clarify` — Manual CDR refinement before implementation (in levelup extension)
+- `/levelup.skill` — Build skills from accepted CDRs (in levelup extension)

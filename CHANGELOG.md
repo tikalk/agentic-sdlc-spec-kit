@@ -6,7 +6,7 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Added
 
-- **Project skills init step**: New `install_project_skills()` function extracted from `_install_skills_from_path()`. Project-root `.skills.json` required skills and `.specify/skills/` local skills now install during every init regardless of `--team-ai-directives`. Skills are installed with `adlc-` prefix (target dir and frontmatter `name:` field), matching the `team-` prefix convention used by team-directives. Added `("project-skills", "Install project skills")` tracker step as the first fork init step.
+- **Project skills init step**: New `install_project_skills()` function extracted from `_install_skills_from_path()`. Project-root `.skills.json` required skills and `.specify/skills/` local skills now install during every init regardless of `--team-ai-directives`. Skills are installed with `adlc-` prefix (target dir and frontmatter `name:` field), matching the `team-` prefix convention used by team-directives. Added `("project-skills", "Install Projects skills")` tracker step as the first fork init step.
 
 ### Changed
 

@@ -351,7 +351,7 @@ def register(app: typer.Typer) -> None:
         _fork_steps = []
         if _FORK:
             _fork_steps = [
-                ("project-skills", "Install project skills"),
+                ("project-skills", "Install Projects skills"),
                 ("team-directives", "Team AI Directives setup"),
                 ("team-mcp", "Team AI mcp setup"),
                 ("team-skills", "Install Team AI skills"),
@@ -625,7 +625,7 @@ def register(app: typer.Typer) -> None:
                         if _fork_installed:
                             tracker.complete("project-skills", f"{len(_fork_installed)} skills")
                         else:
-                            tracker.skip("project-skills", "no skills found")
+                            tracker.skip("project-skills", "no skills found (see .skills.json)")
                     except Exception as skills_err:
                         tracker.error("project-skills", str(skills_err))
                         console.print(f"[yellow]Warning: project skills installation failed: {skills_err}[/yellow]")

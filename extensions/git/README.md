@@ -25,6 +25,9 @@ This extension provides Git operations as an optional, self-contained module. It
 | `speckit.git.commit` | Auto-commit changes (configurable per-command enable/disable and messages) |
 | `speckit.git.worktree-list` | List feature worktrees with provenance metadata |
 | `speckit.git.worktree-cleanup` | Remove a feature worktree and optionally delete the branch |
+| `speckit.git.workspace` | Register child repos as Git submodules for multi-repo workspaces |
+| `speckit.git.publish` | Push current branch and create a PR (GitHub) or MR (GitLab) |
+| `speckit.git.setup-ignore` | Configure `.gitignore` with proper Spec Kit rules |
 
 ## Hooks
 

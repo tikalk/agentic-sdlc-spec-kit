@@ -149,5 +149,5 @@ Run **team.evolve** to review and implement proposed CDRs.
 ## Related
 
 - `/team.evolve` — Review, gate, and implement CDRs
-- `/levelup.clarify` — Manual CDR refinement before implementation
-- `/levelup.implement` — Compile CDRs to team-ai-directives PR
+- `/levelup.clarify` — Manual CDR refinement before implementation (in levelup extension)
+- `/levelup.skill` — Build skills from accepted CDRs (in levelup extension)

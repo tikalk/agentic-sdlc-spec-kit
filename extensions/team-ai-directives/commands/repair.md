@@ -500,7 +500,7 @@ EOF
 **Objective**: Present repair results
 
 ```markdown
-## LevelUp Repair Summary
+## Team Repair Summary
 
 **Date**: {date}
 **Team Directives**: {path}

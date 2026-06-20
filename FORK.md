@@ -67,7 +67,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
-| 0.10.0+adlc30 | 2026-06-20 | 0.10.0 | Extracted project-root `.skills.json` and `.specify/skills/` install from `_install_skills_from_path()` into new standalone `install_project_skills()` function. Project skills now install during every init as a dedicated fork step (not only with `--team-ai-directives`). Added `("project-skills", "Install project skills")` tracker step. |
+| 0.10.0+adlc30 | 2026-06-20 | 0.10.0 | Extracted project-root `.skills.json` and `.specify/skills/` install from `_install_skills_from_path()` into new standalone `install_project_skills()` function. Project skills now install during every init as a dedicated fork step (not only with `--team-ai-directives`). Added `("project-skills", "Install Projects skills")` tracker step. |
 | 0.10.0+adlc29 | 2026-06-20 | 0.10.0 | Removed extensions/quick. Added agentic-change and agentic-quick bundled presets (force-included in wheel, catalog entries with preinstall:true). agentic-change provides 4 commands (change.specify/implement/verify/levelup) for lightweight OpenSpec-inspired change proposals; agentic-quick provides 2 commands (quick.implement/levelup) replacing the deleted quick extension with identical content. pyproject.toml, README.md, QUICKSTART.md, CHANGELOG.md, FORK.md, catalog.json updated. |
 | 0.10.0+adlc28 | 2026-06-20 | 0.10.0 | Added brainstorm lifecycle stage (adlc.spec.brainstorm) — structured exploration before specification, outputs .specify/drafts/brainstorm-context.md, consumed by adlc.spec.specify (Mission Brief seeding + promotion). Added verify lifecycle stage (adlc.spec.verify) — hard test gate + 4-pillar compliance assessment (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence), outputs SPECIFY_FEATURE_DIRECTORY/verify.md. 8 new hook events: before_brainstorm/after_brainstorm, before_verify/after_verify, before_levelup/after_levelup, before_trace/after_trace. Agentic SDLC preset v1.3.0→v1.4.0. README updated (4 locations). |
 | 0.10.0+adlc27 | 2026-06-20 | 0.10.0 | Fixed TEAM_DIRECTIVES sentinel bug in quick.levelup (boolean flag guard). Replaced raw git with git extension commands (git.commit --message, git.publish --draft). Aligned CDR ID format to CDR-{NNN} (year-scoped, no year prefix). Added OKF v0.1 frontmatter (type, title, description, tags, timestamp). Structured evidence as YAML list. Added constitution amendment safety instruction. Quick extension v1.4.0→v1.5.0. |
@@ -857,7 +857,7 @@ The init flow must include these steps in order:
 ```python
 for key, label in [
     ("chmod", "Ensure scripts executable"),
-    ("project-skills", "Install project skills"),
+    ("project-skills", "Install Projects skills"),
     ("constitution", "Constitution setup"),
     ("git", "Install git extension"),
     ("workflow", "Install bundled workflow"),
