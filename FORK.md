@@ -67,6 +67,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc26 | 2026-06-20 | 0.10.0 | Model-invocation opt-in for skills agents (`model-invocation: true` on `quick.implement`, `quick.levelup`, `team.discover`, `team.skills`). Removed Claude's unconditional `disable-model-invocation: false`. Added project-root `.skills.json` support in init and `team.skills`. |
 | 0.10.0+adlc25 | 2026-06-20 | 0.10.0 | Fixed per-task metadata lifecycle in `adlc.spec.implement.md` (start-task/complete-task/fail-task instead of stale add-task with SYNC_OR_ASYNC placeholder). Downstream workflow steps (plan/tasks/implement) no longer receive full raw prompt as args. |
 | 0.10.0+adlc22 | 2026-06-19 | 0.10.0 | Decoupled worktree cd from specify (git extension handles entry). Removed stale `git.task-merge`/`delegate_merge_conflicts` refs from `adlc.spec.implement.md`. Fixed 24 CI test failures — updated idempotency tests, removed task-branch test classes, deleted `test_merge_task_branch.py`. |
 | 0.10.0+adlc20 | 2026-06-19 | 0.10.0 | Git extension v1.6.0: simplified worktree model to feature-only isolation (removed per-task branches), added `git.worktree-list` and `git.worktree-cleanup` commands, idempotent worktree creation with `origin/main` default base, hardened cd instruction for agents. Removed task-mode auto-commit prefixes. |
