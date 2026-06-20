@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "agentic-sdlc"
   name: "Agentic SDLC Governance"
-  version: "1.3.0"
+  version: "1.4.0"
   description: "Enhanced templates with governance, team-ai-directives integration, extension hooks, and architectural rigor for the Agentic SDLC workflow"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -107,6 +107,18 @@ provides:
       description: "Create/update project constitution (fork enhanced)"
       aliases: ["spec.constitution"]
       replaces: "speckit.constitution"
+
+    - type: "command"
+      name: "adlc.spec.brainstorm"
+      file: "commands/adlc.spec.brainstorm.md"
+      description: "Structured exploration of approaches, tradeoffs, and architecture before specification"
+      aliases: ["spec.brainstorm"]
+
+    - type: "command"
+      name: "adlc.spec.verify"
+      file: "commands/adlc.spec.verify.md"
+      description: "Verify feature completeness — test gate, diff analysis, and 4-pillar compliance assessment"
+      aliases: ["spec.verify"]
 
     - type: "command"
       name: "adlc.spec.trace"

@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc28] - 2026-06-20
+
+### Added
+
+- **Brainstorm lifecycle stage** (`adlc.spec.brainstorm`): Structured exploration of approaches, tradeoffs, and architecture before specification creation. Three phases: pre-execution hooks → exploration (model-of-understanding, approaches, tradeoffs, architecture, risk) → `.specify/drafts/brainstorm-context.md` output → user gate → post-execution hooks. Draft automatically consumed by `adlc.spec.specify` (Mission Brief Extraction seeding + promotion to feature directory after Outline step 3).
+- **Verify lifecycle stage** (`adlc.spec.verify`): Feature completeness gate with hard test gate, diff analysis, and 4-pillar assessment (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence). Output at `SPECIFY_FEATURE_DIRECTORY/verify.md` with scored verdict (all pillars >= 70 to pass). Handoffs to `adlc.spec.trace` and `levelup.specify`.
+- **8 new hook events** in extension API: `before_brainstorm`/`after_brainstorm`, `before_verify`/`after_verify`, `before_levelup`/`after_levelup`, `before_trace`/`after_trace`. Documented in EXTENSION-API-REFERENCE.md. Zero wired initially.
+
+### Changed
+
+- **Agentic SDLC preset**: v1.3.0 → v1.4.0 — registered brainstorm and verify commands with `spec.brainstorm` / `spec.verify` aliases.
+- **adlc.spec.specify**: Enhanced to detect and consume `.specify/drafts/brainstorm-context.md` in Mission Brief Extraction (seeds Goal, Success Criteria, Constraints, Risk Register). Promotes draft to feature directory after Outline step 3.
+- **README.md**: Updated 4 locations — command availability check, command reference tables (core + optional), Quick Start (brainstorm + verify steps), Detailed Process (STEP 2.5 brainstorm, STEP 8 verify).
+- **spec-kit CLI**: 0.10.0+adlc27 → 0.10.0+adlc28.
+
 # [0.10.0+adlc27] - 2026-06-20
 
 ### Fixed

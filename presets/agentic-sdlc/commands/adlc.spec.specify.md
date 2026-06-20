@@ -43,14 +43,27 @@ scripts:
 
 ## Mission Brief Extraction
 
+### Brainstorm Draft Detection
+
+Before extracting from user input, check if `.specify/drafts/brainstorm-context.md` exists:
+
+1. If it exists, read it in full to extract Goal, Success Criteria, Constraints, and Risk Register items.
+2. Use the **Recommended Direction** section as the primary signal for Goal and approach.
+3. Use the **Risk Register** to pre-populate the spec's Risk Register section.
+4. Use the **Architecture Notes** and **Key Concepts** to seed the spec context.
+5. Use the **Problem Statement** to inform the spec's Goal.
+6. The draft content takes **priority** over automatic extraction from $ARGUMENTS for overlapping fields.
+7. Note in the output: `Brainstorm context consumed from .specify/drafts/brainstorm-context.md`
+
 ### Automatic Extraction
 
-If user input ($ARGUMENTS) is substantial (10+ words), extract Goal, Success Criteria, and Constraints from it and populate them directly into the spec header fields.
+If user input ($ARGUMENTS) is substantial (10+ words) and no brainstorm draft was consumed, extract Goal, Success Criteria, and Constraints from it and populate them directly into the spec header fields.
 
-If minimal (< 10 words) or empty, derive a best-effort Goal from the generated short name. Leave Success Criteria and Constraints as template placeholders — they will be validated and finalized by `__SPECKIT_COMMAND_CLARIFY__`.
+If minimal (< 10 words) or empty (and no brainstorm draft), derive a best-effort Goal from the generated short name. Leave Success Criteria and Constraints as template placeholders — they will be validated and finalized by `__SPECKIT_COMMAND_CLARIFY__`.
 
 ### Behavior
 - Always populate what you can from the available input.
+- Brainstorm draft content takes precedence over auto-extraction from $ARGUMENTS.
 - No confirmation prompt. Approval is deferred to `__SPECKIT_COMMAND_CLARIFY__`.
 - Proceed directly to Phase B after extraction.
 
@@ -136,9 +149,16 @@ Given that feature description, do this:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent
    - The spec directory and file are always created by this command, never by the hook
-4. Load `templates/spec-template.md` to understand required sections.
 
-5. Follow this execution flow:
+4. **Brainstorm draft promotion**:
+   If `.specify/drafts/brainstorm-context.md` exists:
+   1. Copy it to `SPECIFY_FEATURE_DIRECTORY/brainstorm-context.md`
+   2. Delete the draft: `rm .specify/drafts/brainstorm-context.md`
+   3. State `Brainstorm context promoted to feature directory`
+
+5. Load `templates/spec-template.md` to understand required sections.
+
+6. Follow this execution flow:
    1. Parse user description from arguments. If empty: ERROR "No feature description provided"
    2. Extract key concepts from description: actors, actions, data, constraints
    3. For unclear aspects:
@@ -155,9 +175,9 @@ Given that feature description, do this:
    7. Identify Key Entities (if data involved)
    8. Return: SUCCESS (spec ready for planning)
 
-6. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
-7. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using this structure:
 
@@ -189,7 +209,7 @@ Given that feature description, do this:
    b. **Run Validation Check**: Review the spec against each checklist item. For each item, determine if it passes or fails. Document specific issues found (quote relevant spec sections).
 
    c. **Handle Validation Results**:
-      - **If all items pass**: Mark checklist complete and proceed to step 7
+      - **If all items pass**: Mark checklist complete and proceed to step 8
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
         2. Update the spec to address each issue
@@ -224,7 +244,7 @@ Given that feature description, do this:
 
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
-8. **Report completion** to the user with:
+9. **Report completion** to the user with:
    - `SPECIFY_FEATURE_DIRECTORY` — the feature directory path
    - `SPEC_FILE` — the spec file path
    - Checklist results summary

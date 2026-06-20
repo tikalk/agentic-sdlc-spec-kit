@@ -569,6 +569,14 @@ Standard events (defined by core):
 - `after_clarify` - After spec clarification
 - `before_constitution` - Before constitution update
 - `after_constitution` - After constitution update
+- `before_brainstorm` - Before structured exploration (spec.brainstorm)
+- `after_brainstorm` - After structured exploration (spec.brainstorm)
+- `before_verify` - Before feature verification (spec.verify)
+- `after_verify` - After feature verification (spec.verify)
+- `before_levelup` - Before CDR extraction and pattern learning (levelup.specify)
+- `after_levelup` - After CDR extraction and pattern learning (levelup.specify)
+- `before_trace` - Before execution trace generation (spec.trace)
+- `after_trace` - After execution trace generation (spec.trace)
 - `before_taskstoissues` - Before tasks-to-issues conversion
 - `after_taskstoissues` - After tasks-to-issues conversion
 

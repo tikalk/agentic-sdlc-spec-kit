@@ -152,7 +152,17 @@ Use the **`/spec.constitution`** command to create your project's governing prin
 /spec.constitution Create principles focused on code quality, testing standards, user experience consistency, and performance requirements
 ```
 
-### 4. Create the spec
+### 4. Explore approaches
+
+For complex features, use **`/spec.brainstorm`** to explore the problem space, identify approaches, surface tradeoffs, and document architectural context before creating the specification.
+
+```bash
+/spec.brainstorm I need to add real-time collaboration to the photo albums app so multiple users can edit the same album simultaneously
+```
+
+The output is saved to `.specify/drafts/brainstorm-context.md` and automatically consumed by `/spec.specify` to seed the specification.
+
+### 5. Create the spec
 
 Use the **`/spec.specify`** command to describe what you want to build. Focus on the **what** and **why**, not the tech stack.
 
@@ -160,7 +170,7 @@ Use the **`/spec.specify`** command to describe what you want to build. Focus on
 /spec.specify Build an application that can help me organize my photos in separate photo albums. Albums are grouped by date and can be re-organized by dragging and dropping on the main page. Albums are never in other nested albums. Within each album, photos are previewed in a tile-like interface.
 ```
 
-### 5. Create a technical implementation plan
+### 6. Create a technical implementation plan
 
 Use the **`/spec.plan`** command to provide your tech stack and architecture choices.
 
@@ -168,7 +178,7 @@ Use the **`/spec.plan`** command to provide your tech stack and architecture cho
 /spec.plan The application uses Vite with minimal number of libraries. Use vanilla HTML, CSS, and JavaScript as much as possible. Images are not uploaded anywhere and metadata is stored in a local SQLite database.
 ```
 
-### 6. Break down into tasks
+### 7. Break down into tasks
 
 Use **`/spec.tasks`** to create an actionable task list from your implementation plan.
 
@@ -176,12 +186,20 @@ Use **`/spec.tasks`** to create an actionable task list from your implementation
 /spec.tasks
 ```
 
-### 7. Execute implementation
+### 8. Execute implementation
 
 Use **`/spec.implement`** to execute all tasks and build your feature according to the plan.
 
 ```bash
 /spec.implement
+```
+
+### 9. Verify completeness
+
+After implementation, use **`/spec.verify`** to run the test gate, analyze diffs, and assess feature completeness against the specification's 4 pillars (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence).
+
+```bash
+/spec.verify
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -335,14 +353,16 @@ After running `specify init`, your AI coding agent will have access to these sla
 
 Essential commands for the Spec-Driven Development workflow:
 
-| Command                  | Agent Skill            | Description                                                                |
-| ------------------------ | ---------------------- | -------------------------------------------------------------------------- |
-| `/spec.constitution`  | `speckit-constitution` | Create or update project governing principles and development guidelines   |
-| `/spec.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)              |
-| `/spec.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack          |
-| `/spec.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                          |
-| `/spec.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution |
-| `/spec.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan               |
+| Command                  | Agent Skill            | Description                                                                        |
+| ------------------------ | ---------------------- | ---------------------------------------------------------------------------------- |
+| `/spec.constitution`  | `speckit-constitution` | Create or update project governing principles and development guidelines           |
+| `/spec.brainstorm`    | `speckit-brainstorm`   | Structured exploration of approaches, tradeoffs, and architecture before specifying|
+| `/spec.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)                      |
+| `/spec.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack                  |
+| `/spec.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                                  |
+| `/spec.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution         |
+| `/spec.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan                       |
+| `/spec.verify`        | `speckit-verify`       | Verify feature completeness — test gate, diff analysis, and 4-pillar assessment    |
 
 ### Optional Commands
 
@@ -354,7 +374,6 @@ Additional commands for enhanced quality and validation:
 | `/spec.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
 | `/spec.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 | `/spec.trace`     | `speckit-trace`        | Generate a feature-local execution trace at `specs/{branch}/trace.md` after implementation                                        |
-| `/spec.verify`    | `speckit-verify`       | Generate a feature verification dossier at `specs/{branch}/evidence.md` mapped to Goal, Success Criteria, and Constraints        |
 
 ## 🔧 Specify CLI Reference
 
@@ -538,7 +557,7 @@ Go to the project folder and run your coding agent. In our example, we're using 
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, and `/spec.implement` commands available.
+You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, `/spec.implement`, `/spec.brainstorm`, and `/spec.verify` commands available.
 
 The first step should be establishing your project's governing principles using the `/spec.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
@@ -603,6 +622,29 @@ At this stage, your project folder contents should resemble the following:
     └── 001-create-taskify
         └── spec.md
 ```
+
+### **STEP 2.5:** Explore approaches with /spec.brainstorm (optional, recommended for complex features)
+
+Before creating the specification, you can explore the problem space using the **`/spec.brainstorm`** command. This is optional but recommended when:
+
+- The problem space is complex or novel
+- Multiple approaches exist with meaningful tradeoffs
+- Architecture decisions need upfront exploration
+
+```text
+/spec.brainstorm I need to add real-time collaboration to the photo albums app so multiple users can edit the same album simultaneously
+```
+
+The command produces `.specify/drafts/brainstorm-context.md` with:
+
+- **Problem statement** and key concepts
+- **Approaches considered** with tradeoffs, risks, and fit analysis
+- **Architecture notes** and integration points
+- **Risk register** with mitigations
+- **Open questions** for further research
+- **Recommended direction** with rationale
+
+This draft is automatically consumed by `/spec.specify` in the next step to seed the specification's Goal, Success Criteria, Constraints, and Risk Register sections.
 
 ### **STEP 3:** Functional specification clarification (required before planning)
 
@@ -760,6 +802,28 @@ The `/spec.implement` command will:
 > The coding agent will execute local CLI commands (such as `dotnet`, `npm`, etc.) - make sure you have the required tools installed on your machine.
 
 Once the implementation is complete, test the application and resolve any runtime errors that may not be visible in CLI logs (e.g., browser console errors). You can copy and paste such errors back to your coding agent for resolution.
+
+### **STEP 8:** Verify completeness with /spec.verify
+
+After implementation, use the **`/spec.verify`** command to run a structured verification against the specification:
+
+```text
+/spec.verify
+```
+
+The `/spec.verify` command performs:
+
+- **Test Gate** — Runs the project's test suite. Tests must pass before assessment proceeds
+- **Diff Analysis** — Categorizes changed files (spec, implementation, tests, docs)
+- **4-Pillar Assessment** — Full compliance check with scored evaluation:
+  1. **Spec Compliance** (0-100): Goal alignment, Success Criteria coverage, Constraint adherence, all FRs/NFRs addressed, Risk Register mitigation
+  2. **Code Quality** (0-100): Structure, error handling, edge cases, consistency
+  3. **Test Adequacy** (0-100): Coverage, quality, edge cases, regression risk
+  4. **Risk & Evidence** (0-100): Unverified assumptions, technical debt, integration risk
+
+The report is saved to `SPECIFY_FEATURE_DIRECTORY/verify.md` and includes an overall VERIFIED / NOT VERIFIED verdict (all pillars >= 70 to pass).
+
+If verification fails, the report includes specific actions to address each failing pillar. Run the recommended fixes and re-verify.
 
 </details>
 
