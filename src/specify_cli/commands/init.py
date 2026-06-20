@@ -217,7 +217,7 @@ def register(app: typer.Typer) -> None:
                 console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
                 console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
                 if force:
-                    console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
+                    console.print(f"{accent('--force supplied:')} skipping confirmation and proceeding with merge")
                 else:
                     response = typer.confirm("Do you want to continue?")
                     if not response:
@@ -235,10 +235,10 @@ def register(app: typer.Typer) -> None:
                     if existing_items:
                         console.print(f"[yellow]Warning:[/yellow] Directory '{project_name}' is not empty ({len(existing_items)} items)")
                         console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
-                    console.print(f"[cyan]--force supplied: merging into existing directory '[cyan]{project_name}[/cyan]'[/cyan]")
+                    console.print(f"{accent('--force supplied:')} merging into existing directory '{accent(project_name)}'")
                 else:
                     error_panel = Panel(
-                        f"Directory already exists: '[cyan]{project_name}[/cyan]'\n"
+                        f"Directory already exists: '{accent(project_name)}'\n"
                         "Please choose a different project name or remove the existing directory.\n"
                         "Use [bold]--force[/bold] to merge into the existing directory.",
                         title="[red]Directory Conflict[/red]",

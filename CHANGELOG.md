@@ -2,20 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
-# [0.10.0+adlc30] - 2026-06-20
+# [0.10.0+adlc31] - 2026-06-20
 
 ### Added
 
-- **Project skills init step**: New `install_project_skills()` function extracted from `_install_skills_from_path()`. Project-root `.skills.json` required skills and `.specify/skills/` local skills now install during every init regardless of `--team-ai-directives`. Skills are installed with `adlc-` prefix (target dir and frontmatter `name:` field), matching the `team-` prefix convention used by team-directives. Added `("project-skills", "Install Projects skills")` tracker step as the first fork init step.
+- **`make_typer()` helper** (`_init_fork.py`): New function that creates `typer.Typer` with `cls=BannerGroup` by default, so all sub-command groups inherit the themed orange banner on `--help` without duplicating `cls=BannerGroup` at every call site. Supports explicit `cls` override for callers that need a different group class. Imported with fallback in both `__init__.py` and `integrations/_commands.py`.
 
 ### Changed
 
-- **`_install_skills_from_path()` trimmed**: No longer installs project-root `.skills.json` or `.specify/skills/` skills — only team-ai-directives skills. Project skills moved to standalone `install_project_skills()` function.
-- **spec-kit CLI**: 0.10.0+adlc29 → 0.10.0+adlc30.
+- **9 sub-app Typer definitions converted to `make_typer()`**: `extension_app`, `catalog_app`, `preset_app`, `preset_catalog_app`, `workflow_app`, `workflow_catalog_app` (in `__init__.py`); `integration_app`, `integration_catalog_app` (in `integrations/_commands.py`); `self_app` in `_version.py` uses `cls=BannerGroup` directly to keep the module thin. All sub-command groups now show the themed banner on `--help`.
+- **4 hardcoded `[cyan]` markup references replaced** with `accent()`: install path in `--force` message (`__init__.py:1777`), `--force` confirmation (`commands/init.py:220`), merge directory message (`commands/init.py:238`), and directory name in conflict panel (`commands/init.py:241`).
+- **spec-kit CLI**: 0.10.0+adlc30 → 0.10.0+adlc31.
 
 ### Fixed
 
-- **Project skills without `--team-ai-directives`**: Project-root `.skills.json` required skills now install even when `--team-ai-directives` is not passed.
+- **Sub-app `--help` missing fork theming**: All sub-command groups (extension, preset, workflow, integration, self) previously used plain `typer.Typer()` and showed no banner. Now use `BannerGroup` via `make_typer()` for consistent themed output.
 
 # [0.10.0+adlc29] - 2026-06-20
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import typer
 
 from .._assets import get_speckit_version  # noqa: F401 — re-exported for monkeypatching in tests
+from .._init_fork import make_typer
 
 # Re-export helpers used by commands/init.py and tests
 from ._helpers import (  # noqa: F401
@@ -13,16 +14,14 @@ from ._helpers import (  # noqa: F401
     _write_integration_json,
 )
 
-integration_app = typer.Typer(
+integration_app = make_typer(
     name="integration",
     help="Manage coding agent integrations",
-    add_completion=False,
 )
 
-integration_catalog_app = typer.Typer(
+integration_catalog_app = make_typer(
     name="catalog",
     help="Manage integration catalog sources",
-    add_completion=False,
 )
 integration_app.add_typer(integration_catalog_app, name="catalog")
 

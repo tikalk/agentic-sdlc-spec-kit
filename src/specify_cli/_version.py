@@ -28,7 +28,7 @@ from pathlib import Path
 import typer
 from packaging.version import InvalidVersion, Version
 
-from ._console import console
+from ._console import BannerGroup, console
 
 GITHUB_API_LATEST = "https://api.github.com/repos/tikalk/agentic-sdlc-spec-kit/releases/latest"
 _PACKAGE_NAMES = ("agentic-sdlc-specify-cli", "specify-cli")
@@ -1153,6 +1153,7 @@ def _emit_failure(
 # ===== Self Commands =====
 self_app = typer.Typer(
     name="self",
+    cls=BannerGroup,
     help=(
         "Manage the specify CLI itself: check for newer releases, "
         "preview upgrades with --dry-run, and upgrade in place."

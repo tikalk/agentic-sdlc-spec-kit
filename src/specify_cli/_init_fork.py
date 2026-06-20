@@ -35,6 +35,10 @@ from typing import Any
 
 from rich.console import Console
 
+import typer
+
+from ._console import BannerGroup
+
 # Cross-module imports from lower-tier fork modules
 from ._core_fork import (
     compute_skill_output_name,
@@ -47,6 +51,23 @@ from ._core_fork import (
 
 # Tikalk orange accent color (replaces upstream cyan)
 ACCENT_COLOR = "#f47721"
+
+
+def make_typer(
+    *,
+    name: str | None = None,
+    help: str | None = None,
+    **kwargs: Any,
+) -> typer.Typer:
+    """Create a :class:`typer.Typer` with the fork's :class:`BannerGroup`.
+
+    All sub-command groups should use this helper to inherit the themed
+    orange banner on ``--help``, avoiding ``cls=BannerGroup`` boilerplate
+    across the codebase.
+    """
+    kwargs.setdefault("cls", BannerGroup)
+    kwargs.setdefault("add_completion", False)
+    return typer.Typer(name=name, help=help, **kwargs)
 
 # Banner gradient colors for the CLI header
 BANNER_COLORS = ["#ff6b35", "#ff8c42", "#f47721", "#ff5722", "white", "bright_white"]

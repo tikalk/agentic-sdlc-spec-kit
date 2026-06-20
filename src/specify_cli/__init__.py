@@ -103,6 +103,7 @@ try:
         accent_style,
         TEAM_DIRECTIVES_DIRNAME,
         PKG_NAMES,
+        make_typer,
         pre_init,
         post_init,
         install_project_skills,
@@ -126,6 +127,16 @@ except ImportError:
     def apply_theming_patches(_console_module):
         """Fallback: no theming patches applied."""
         pass
+
+    def make_typer(
+        *,
+        name: str | None = None,
+        help: str | None = None,
+        **kwargs: Any,
+    ) -> typer.Typer:
+        """Fallback: plain Typer without BannerGroup."""
+        kwargs.setdefault("add_completion", False)
+        return typer.Typer(name=name, help=help, **kwargs)
 
     def accent(
         text: str, bold: bool = False, italic: bool = False, dim: bool = False
@@ -682,31 +693,27 @@ app.add_typer(_self_app, name="self")
 
 # ===== Extension Commands =====
 
-extension_app = typer.Typer(
+extension_app = make_typer(
     name="extension",
     help="Manage spec-kit extensions",
-    add_completion=False,
 )
 app.add_typer(extension_app, name="extension")
 
-catalog_app = typer.Typer(
+catalog_app = make_typer(
     name="catalog",
     help="Manage extension catalogs",
-    add_completion=False,
 )
 extension_app.add_typer(catalog_app, name="catalog")
 
-preset_app = typer.Typer(
+preset_app = make_typer(
     name="preset",
     help="Manage spec-kit presets",
-    add_completion=False,
 )
 app.add_typer(preset_app, name="preset")
 
-preset_catalog_app = typer.Typer(
+preset_catalog_app = make_typer(
     name="catalog",
     help="Manage preset catalogs",
-    add_completion=False,
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
 
@@ -1767,7 +1774,7 @@ def extension_add(
                     raise typer.Exit(1)
 
                 if force:
-                    console.print(f"[yellow]--force:[/yellow] Installing from [cyan]{source_path}[/cyan] (will overwrite if already installed)...")
+                    console.print(f"[yellow]--force:[/yellow] Installing from {accent(source_path)} (will overwrite if already installed)...")
 
                 manifest = manager.install_from_directory(
                     source_path,
@@ -2886,17 +2893,15 @@ def extension_set_priority(
 
 # ===== Workflow Commands =====
 
-workflow_app = typer.Typer(
+workflow_app = make_typer(
     name="workflow",
     help="Manage and run automation workflows",
-    add_completion=False,
 )
 app.add_typer(workflow_app, name="workflow")
 
-workflow_catalog_app = typer.Typer(
+workflow_catalog_app = make_typer(
     name="catalog",
     help="Manage workflow catalogs",
-    add_completion=False,
 )
 workflow_app.add_typer(workflow_catalog_app, name="catalog")
 
