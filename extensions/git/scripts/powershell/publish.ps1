@@ -143,7 +143,7 @@ Write-Host "|-----------|--------|"
 Write-Host "| Push | Success |"
 Write-Host "| PR/MR URL | $prUrl |"
 Write-Host "| Title | $Title |"
-Write-Host "| Branch | $branch → $TargetBranch |"
+Write-Host "| Branch | $branch -> $TargetBranch |"
 Write-Host "| Draft | $Draft |"
 Write-Host ""
 
