@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc30] - 2026-06-20
+
+### Added
+
+- **Project skills init step**: New `install_project_skills()` function extracted from `_install_skills_from_path()`. Project-root `.skills.json` required skills and `.specify/skills/` local skills now install during every init regardless of `--team-ai-directives`. Skills are installed with `adlc-` prefix (target dir and frontmatter `name:` field), matching the `team-` prefix convention used by team-directives. Added `("project-skills", "Install project skills")` tracker step as the first fork init step.
+
+### Changed
+
+- **`_install_skills_from_path()` trimmed**: No longer installs project-root `.skills.json` or `.specify/skills/` skills — only team-ai-directives skills. Project skills moved to standalone `install_project_skills()` function.
+- **spec-kit CLI**: 0.10.0+adlc29 → 0.10.0+adlc30.
+
+### Fixed
+
+- **Project skills without `--team-ai-directives`**: Project-root `.skills.json` required skills now install even when `--team-ai-directives` is not passed.
+
 # [0.10.0+adlc29] - 2026-06-20
 
 ### Added

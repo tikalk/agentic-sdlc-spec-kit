@@ -32,6 +32,7 @@ try:
     from .._init_fork import (
         pre_init as _fork_pre_init,
         post_init as _fork_post_init,
+        install_project_skills as _fork_install_project_skills,
         accent,
         accent_style,
         PKG_NAMES,
@@ -42,6 +43,9 @@ try:
 except ImportError:
     _FORK = False
     PKG_NAMES = ["specify-cli"]
+
+    def _fork_install_project_skills(project_path, selected_ai, force=False):
+        return []
 
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"
@@ -347,6 +351,7 @@ def register(app: typer.Typer) -> None:
         _fork_steps = []
         if _FORK:
             _fork_steps = [
+                ("project-skills", "Install project skills"),
                 ("team-directives", "Team AI Directives setup"),
                 ("team-mcp", "Team AI mcp setup"),
                 ("team-skills", "Install Team AI skills"),
@@ -614,6 +619,17 @@ def register(app: typer.Typer) -> None:
                         )
 
                 if _FORK:
+                    tracker.start("project-skills")
+                    try:
+                        _fork_installed = _fork_install_project_skills(project_path, selected_ai)
+                        if _fork_installed:
+                            tracker.complete("project-skills", f"{len(_fork_installed)} skills")
+                        else:
+                            tracker.skip("project-skills", "no skills found")
+                    except Exception as skills_err:
+                        tracker.error("project-skills", str(skills_err))
+                        console.print(f"[yellow]Warning: project skills installation failed: {skills_err}[/yellow]")
+
                     try:
                         _fork_pre_init(project_path, selected_ai, team_ai_directives, tracker=tracker)
                     except Exception as pre_err:

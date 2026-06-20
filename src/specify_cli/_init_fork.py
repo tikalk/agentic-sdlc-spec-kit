@@ -1372,6 +1372,22 @@ def _install_bundled_presets(
 # ============================================================================
 
 
+def _resolve_skills_dest(project_path: Path, selected_ai: str) -> Path:
+    from .integrations import INTEGRATION_REGISTRY
+    from .integrations.base import SkillsIntegration
+
+    if selected_ai not in INTEGRATION_REGISTRY:
+        raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
+
+    integration = INTEGRATION_REGISTRY[selected_ai]
+
+    if isinstance(integration, SkillsIntegration):
+        return integration.skills_dest(project_path)
+    else:
+        folder = integration.config.get("folder", "")
+        return project_path / folder / "skills"
+
+
 def _install_skills_from_path(
     team_directives_path: Path | None,
     project_path: Path,
@@ -1382,7 +1398,6 @@ def _install_skills_from_path(
 
     Reads skills from:
     - team-ai-directives (if configured): .specify/extensions/team-ai-directives/skills/
-    - local skills: .specify/skills/
 
     Args:
         team_directives_path: Path to team-ai-directives extension (or None)
@@ -1396,30 +1411,12 @@ def _install_skills_from_path(
     Raises:
         Exception: If skill installation fails
     """
-    from .integrations import INTEGRATION_REGISTRY
-    from .integrations.base import SkillsIntegration
-
-    if selected_ai not in INTEGRATION_REGISTRY:
-        raise ValueError(f"Unknown agent: {selected_ai}. Available: {', '.join(INTEGRATION_REGISTRY.keys())}")
-
-    integration = INTEGRATION_REGISTRY[selected_ai]
-
-    # Determine skills directory based on integration type:
-    # - SkillsIntegration: commands ARE skills → use skills_dest() (same dir as commands)
-    # - Others: skills are separate → use folder + "skills" (agentskills.io convention)
-    if isinstance(integration, SkillsIntegration):
-        skills_dest = integration.skills_dest(project_path)
-    else:
-        folder = integration.config.get("folder", "")
-        skills_dest = project_path / folder / "skills"
-
     installed = []
+    skills_dest = _resolve_skills_dest(project_path, selected_ai)
 
-    # 1. Install team-ai-directives skills (with team- prefix)
     if team_directives_path and team_directives_path.exists():
         team_skills_dir = team_directives_path / "skills"
         if team_skills_dir.exists():
-            # Parse .skills.json to get required skills
             skills_json_path = team_directives_path / ".skills.json"
             required_skills = []
             if skills_json_path.exists():
@@ -1431,54 +1428,32 @@ def _install_skills_from_path(
                 except Exception:
                     pass
 
-            # Get list of skill directories
             for skill_dir in team_skills_dir.iterdir():
                 if not skill_dir.is_dir():
                     continue
-
                 skill_name = skill_dir.name
                 skill_md = skill_dir / "SKILL.md"
                 if not skill_md.exists():
                     continue
-
-                # Check if skill is in required list (only install required)
                 skill_ref = f"local:./skills/{skill_name}"
                 if skill_ref not in required_skills and required_skills:
                     continue
-
-                # Install with team- prefix
                 target_name = f"team-{skill_name}"
                 target_dir = skills_dest / target_name
                 target_file = target_dir / "SKILL.md"
-
                 if target_file.exists() and not force:
                     continue
-
-                # Create target directory
                 target_dir.mkdir(parents=True, exist_ok=True)
-
-                # Copy SKILL.md with modified name field
                 try:
                     content = skill_md.read_text(encoding="utf-8")
-
-                    # Update the name field in frontmatter to include team- prefix
-                    # This ensures compliance with agentskills.io specification
-                    # (name field must match parent directory name)
                     import re
-
-                    # Pattern to match name: value in YAML frontmatter
-                    # Matches: name: skill-name or name: "skill-name" or name: 'skill-name'
                     name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
-
                     lines = content.splitlines()
                     modified_lines = []
                     in_frontmatter = False
                     frontmatter_started = False
-
                     for line in lines:
                         stripped = line.strip()
-
-                        # Track if we're in frontmatter
                         if stripped == '---':
                             if not frontmatter_started:
                                 frontmatter_started = True
@@ -1487,31 +1462,97 @@ def _install_skills_from_path(
                                 in_frontmatter = False
                             modified_lines.append(line)
                             continue
-
-                        # Update name field while in frontmatter
                         if in_frontmatter and stripped.startswith('name:'):
                             match = re.match(name_pattern, stripped)
                             if match:
                                 original_name = match.group(3).strip()
-                                # Add team- prefix if not already present
                                 if not original_name.startswith('team-'):
                                     new_name = f"team-{original_name}"
                                 else:
                                     new_name = original_name
-                                # Preserve original indentation and quotes
                                 indent = line[:len(line) - len(line.lstrip())]
                                 modified_lines.append(f"{indent}name: {new_name}")
                                 continue
-
                         modified_lines.append(line)
-
                     modified_content = '\n'.join(modified_lines)
                     target_file.write_text(modified_content, encoding="utf-8")
                     installed.append(target_name)
                 except Exception as e:
                     raise Exception(f"Failed to install {target_name}: {e}")
 
-    # 1b. Install required skills from project-root .skills.json
+    return installed
+
+
+def install_project_skills(
+    project_path: Path,
+    selected_ai: str,
+    force: bool = False,
+) -> list[str]:
+    """Install project-level skills to agent integration directory.
+
+    Reads skills from:
+    - project-root .skills.json (required entries)
+    - .specify/skills/ (local skills)
+
+    Args:
+        project_path: Project root
+        selected_ai: Agent type (claude, windsurf, etc.)
+        force: Force re-install even if skill already exists
+
+    Returns:
+        List of installed skill names
+
+    Raises:
+        Exception: If skill installation fails
+    """
+    skills_dest = _resolve_skills_dest(project_path, selected_ai)
+    installed = []
+    prefix = "adlc-"
+
+    def _install_with_prefix(skill_name: str, skill_md: Path, skills_dest: Path, prefix: str, force: bool) -> str | None:
+        target_name = f"{prefix}{skill_name}"
+        target_dir = skills_dest / target_name
+        target_file = target_dir / "SKILL.md"
+        if target_file.exists() and not force:
+            return None
+        target_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            content = skill_md.read_text(encoding="utf-8")
+            import re
+            name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
+            lines = content.splitlines()
+            modified_lines = []
+            in_frontmatter = False
+            frontmatter_started = False
+            for line in lines:
+                stripped = line.strip()
+                if stripped == '---':
+                    if not frontmatter_started:
+                        frontmatter_started = True
+                        in_frontmatter = True
+                    else:
+                        in_frontmatter = False
+                    modified_lines.append(line)
+                    continue
+                if in_frontmatter and stripped.startswith('name:'):
+                    match = re.match(name_pattern, stripped)
+                    if match:
+                        original_name = match.group(3).strip()
+                        if not original_name.startswith(prefix):
+                            new_name = f"{prefix}{original_name}"
+                        else:
+                            new_name = original_name
+                        indent = line[:len(line) - len(line.lstrip())]
+                        modified_lines.append(f"{indent}name: {new_name}")
+                        continue
+                modified_lines.append(line)
+            modified_content = '\n'.join(modified_lines)
+            target_file.write_text(modified_content, encoding="utf-8")
+            return target_name
+        except Exception as e:
+            raise Exception(f"Failed to install {target_name}: {e}")
+
+    # 1. Install required skills from project-root .skills.json
     project_skills_json = project_path / ".skills.json"
     if project_skills_json.exists():
         try:
@@ -1528,79 +1569,25 @@ def _install_skills_from_path(
                 if not _skill_md.exists():
                     continue
                 _skill_name = _skill_dir.name
-                _target_name = f"team-{_skill_name}"
-                _target_dir = skills_dest / _target_name
-                _target_file = _target_dir / "SKILL.md"
-                if _target_file.exists() and not force:
-                    continue
-                _target_dir.mkdir(parents=True, exist_ok=True)
-                try:
-                    _content = _skill_md.read_text(encoding="utf-8")
-                    # Update name field in frontmatter
-                    import re as _re
-                    _lines = _content.splitlines()
-                    _modified = []
-                    _in_fm = False
-                    _fm_started = False
-                    for _line in _lines:
-                        _s = _line.strip()
-                        if _s == "---":
-                            if not _fm_started:
-                                _fm_started = True
-                                _in_fm = True
-                            else:
-                                _in_fm = False
-                            _modified.append(_line)
-                            continue
-                        if _in_fm and _s.startswith("name:"):
-                            _m = _re.match(r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$', _s)
-                            if _m:
-                                _orig = _m.group(3).strip()
-                                if not _orig.startswith("team-"):
-                                    _new_name = f"team-{_orig}"
-                                else:
-                                    _new_name = _orig
-                                _indent = _line[:len(_line) - len(_line.lstrip())]
-                                _modified.append(f"{_indent}name: {_new_name}")
-                                continue
-                        _modified.append(_line)
-                    _target_file.write_text("\n".join(_modified), encoding="utf-8")
-                    installed.append(_target_name)
-                except Exception as _e:
-                    raise Exception(f"Failed to install project skill {_target_name}: {_e}")
+                _installed = _install_with_prefix(_skill_name, _skill_md, skills_dest, prefix, force)
+                if _installed:
+                    installed.append(_installed)
         except Exception:
             pass
 
-    # 2. Install local skills (without prefix)
+    # 2. Install local skills (with adlc- prefix)
     local_skills_dir = project_path / ".specify" / "skills"
     if local_skills_dir.exists():
         for skill_dir in local_skills_dir.iterdir():
             if not skill_dir.is_dir():
                 continue
-
             skill_name = skill_dir.name
             skill_md = skill_dir / "SKILL.md"
             if not skill_md.exists():
                 continue
-
-            # Skip if it's a team-prefixed skill (already installed above)
-            if skill_name.startswith("team-"):
-                continue
-
-            target_dir = skills_dest / skill_name
-            target_file = target_dir / "SKILL.md"
-
-            if target_file.exists() and not force:
-                continue
-
-            target_dir.mkdir(parents=True, exist_ok=True)
-
-            try:
-                content = skill_md.read_text(encoding="utf-8")
-                target_file.write_text(content, encoding="utf-8")
-                installed.append(skill_name)
-            except Exception as e:
-                raise Exception(f"Failed to install {skill_name}: {e}")
+            _installed = _install_with_prefix(skill_name, skill_md, skills_dest, prefix, force)
+            if _installed:
+                installed.append(_installed)
 
     return installed
 

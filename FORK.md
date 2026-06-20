@@ -67,6 +67,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.10.0+adlc30 | 2026-06-20 | 0.10.0 | Extracted project-root `.skills.json` and `.specify/skills/` install from `_install_skills_from_path()` into new standalone `install_project_skills()` function. Project skills now install during every init as a dedicated fork step (not only with `--team-ai-directives`). Added `("project-skills", "Install project skills")` tracker step. |
 | 0.10.0+adlc29 | 2026-06-20 | 0.10.0 | Removed extensions/quick. Added agentic-change and agentic-quick bundled presets (force-included in wheel, catalog entries with preinstall:true). agentic-change provides 4 commands (change.specify/implement/verify/levelup) for lightweight OpenSpec-inspired change proposals; agentic-quick provides 2 commands (quick.implement/levelup) replacing the deleted quick extension with identical content. pyproject.toml, README.md, QUICKSTART.md, CHANGELOG.md, FORK.md, catalog.json updated. |
 | 0.10.0+adlc28 | 2026-06-20 | 0.10.0 | Added brainstorm lifecycle stage (adlc.spec.brainstorm) — structured exploration before specification, outputs .specify/drafts/brainstorm-context.md, consumed by adlc.spec.specify (Mission Brief seeding + promotion). Added verify lifecycle stage (adlc.spec.verify) — hard test gate + 4-pillar compliance assessment (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence), outputs SPECIFY_FEATURE_DIRECTORY/verify.md. 8 new hook events: before_brainstorm/after_brainstorm, before_verify/after_verify, before_levelup/after_levelup, before_trace/after_trace. Agentic SDLC preset v1.3.0→v1.4.0. README updated (4 locations). |
 | 0.10.0+adlc27 | 2026-06-20 | 0.10.0 | Fixed TEAM_DIRECTIVES sentinel bug in quick.levelup (boolean flag guard). Replaced raw git with git extension commands (git.commit --message, git.publish --draft). Aligned CDR ID format to CDR-{NNN} (year-scoped, no year prefix). Added OKF v0.1 frontmatter (type, title, description, tags, timestamp). Structured evidence as YAML list. Added constitution amendment safety instruction. Quick extension v1.4.0→v1.5.0. |
@@ -385,7 +386,7 @@ The following customization categories live in the fork modules listed in [Fork 
 1. **Theming** (`_init_fork.py`): `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`
 2. **Package Identity** (`_init_fork.py`): `PKG_NAMES`, `TAGLINE`, `get_speckit_version()`, `GITHUB_API_LATEST`
 3. **Team Directives** (`_init_fork.py`): `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
-4. **Init hooks** (`_init_fork.py`): `pre_init()`, `post_init()`
+4. **Init hooks** (`_init_fork.py`): `pre_init()`, `post_init()`, `install_project_skills()`
 5. **Scaffolding** (`_init_fork.py`): `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, bundled extension/preset installation
 6. **Extension Namespaces** (`_extension_fork.py`): `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
 7. **Command aliasing** (`_core_fork.py`): `COMMAND_PREFIX`, `build_alias_map()`, `resolve_command_alias()`, `compute_skill_output_name()`, `FORK_COMMAND_NAMESPACES`
@@ -420,7 +421,7 @@ The largest of the fork modules; holds theming, package identity, init hooks, te
 - Theming: `ACCENT_COLOR`, `BANNER_COLORS`, `accent()`, `accent_style()`, `apply_theming_patches()`
 - Package Identity: `PKG_NAMES`, `TAGLINE`, `get_speckit_version()`, `GITHUB_API_LATEST`
 - Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
-- Init hooks: `pre_init()`, `post_init()`
+- Init hooks: `pre_init()`, `post_init()`, `install_project_skills()`
 - Scaffolding: `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, `_install_bundled_extensions()`, `_install_bundled_presets()`
 - Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED` *(also re-exported from `_extension_fork.py`)*
 
@@ -456,6 +457,7 @@ The following test files are fork-only:
 - `tests/test_create_new_feature.py` — Feature creation tests
 - `tests/auth_helpers.py` — Authentication test helpers
 - `tests/test_team_directives.py` — Team AI directives tests
+- `tests/test_project_skills.py` — Project skills install tests
 
 ## Git Extension Worktree & Task-Execution Feature (0.9.5+adlc2)
 
@@ -855,6 +857,7 @@ The init flow must include these steps in order:
 ```python
 for key, label in [
     ("chmod", "Ensure scripts executable"),
+    ("project-skills", "Install project skills"),
     ("constitution", "Constitution setup"),
     ("git", "Install git extension"),
     ("workflow", "Install bundled workflow"),

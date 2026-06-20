@@ -105,6 +105,7 @@ try:
         PKG_NAMES,
         pre_init,
         post_init,
+        install_project_skills,
         get_team_directives_path,
         sync_team_ai_directives,
         get_speckit_version,
@@ -146,6 +147,9 @@ except ImportError:
 
     def post_init(project_path, selected_ai, tracker=None, no_git=False):
         pass
+
+    def install_project_skills(project_path, selected_ai, force=False):
+        return []
 
     def compute_skill_output_name():
         return None
