@@ -40,10 +40,8 @@ class ForkInventoryMixin:
         """Files from bundled extensions (architect, evals, levelup, product, quick, tdd)."""
         ext_files = []
 
-        for ext in ["architect", "evals", "levelup", "product", "quick", "tdd"]:
+        for ext in ["architect", "evals", "levelup", "product", "tdd"]:
             extra_commands = []
-            if ext == "quick":
-                extra_commands = ["levelup"]
 
             base_commands = [
                 "analyze", "clarify", "implement", "init",
@@ -67,7 +65,7 @@ class ForkInventoryMixin:
         return ext_files
 
     def _fork_bundled_preset_files(self) -> list[str]:
-        """Files from bundled presets (agentic-sdlc, lean)."""
+        """Files from bundled presets (agentic-sdlc, lean, agentic-change, agentic-quick)."""
         return [
             ".specify/presets/.registry",
             ".specify/presets/catalog.json",
@@ -94,6 +92,14 @@ class ForkInventoryMixin:
             ".specify/presets/lean/commands/speckit.plan.md",
             ".specify/presets/lean/commands/speckit.specify.md",
             ".specify/presets/lean/commands/speckit.tasks.md",
+            ".specify/presets/agentic-change/preset.yml",
+            ".specify/presets/agentic-change/commands/adlc.change.specify.md",
+            ".specify/presets/agentic-change/commands/adlc.change.implement.md",
+            ".specify/presets/agentic-change/commands/adlc.change.verify.md",
+            ".specify/presets/agentic-change/commands/adlc.change.levelup.md",
+            ".specify/presets/agentic-quick/preset.yml",
+            ".specify/presets/agentic-quick/commands/adlc.quick.implement.md",
+            ".specify/presets/agentic-quick/commands/adlc.quick.levelup.md",
         ]
 
     def _fork_bundled_skills_files(self) -> list[str]:
@@ -126,8 +132,12 @@ class ForkInventoryMixin:
 
         skill_files.extend(
             [
-                ".agent/skills/adlc-quick-implement/SKILL.md",
-                ".agent/skills/adlc-quick-levelup/SKILL.md",
+                ".agent/skills/quick-implement/SKILL.md",
+                ".agent/skills/quick-levelup/SKILL.md",
+                ".agent/skills/change-specify/SKILL.md",
+                ".agent/skills/change-implement/SKILL.md",
+                ".agent/skills/change-verify/SKILL.md",
+                ".agent/skills/change-levelup/SKILL.md",
             ]
         )
 

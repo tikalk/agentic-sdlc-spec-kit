@@ -2,6 +2,26 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc29] - 2026-06-20
+
+### Added
+
+- **Agentic Change Workflow preset** (`presets/agentic-change/`): New bundled preset providing `adlc.change.specify`, `adlc.change.implement`, `adlc.change.verify`, `adlc.change.levelup` commands (+ `change.*` aliases) for lightweight change proposal workflow. Creates `changes/NNN-name/spec.md` (+ optional plan.md + tasks.md). Modeled on OpenSpec delta-spec concepts.
+- **Agentic Quick Workflow preset** (`presets/agentic-quick/`): New bundled preset replacing the deleted `extensions/quick/` extension. Provides `adlc.quick.implement` and `adlc.quick.levelup` commands (+ `quick.*` aliases) for session-based ad-hoc task execution.
+- **Both presets in catalog**: `presets/catalog.json` now lists `agentic-change` (v1.0.0, 4 commands) and `agentic-quick` (v1.0.0, 2 commands) with `bundled: true` and `preinstall: true`.
+
+### Changed
+
+- **`extensions/quick/` deleted**: The `quick` extension has been removed. Its functionality lives on as the `agentic-quick` bundled preset with identical command content (`adlc.quick.implement.md`, `adlc.quick.levelup.md`).
+- **`pyproject.toml`**: Removed `extensions/quick` force-include, added `presets/agentic-change` and `presets/agentic-quick` force-includes to wheel.
+- **spec-kit CLI**: 0.10.0+adlc28 → 0.10.0+adlc29.
+- **README.md**: Removed `quick` from Bundled Extensions table. Added Bundled Presets table with agentic-sdlc, agentic-change, agentic-quick. Added Change Workflow and Quick Workflow command tables. Added migration note for existing quick extension users.
+- **QUICKSTART.md**: Updated Quick Reference table and File Structure with change.* commands and changes/ directory.
+
+### Migration
+
+- **Existing `quick` extension users**: Run `specify extension remove quick && specify init` to migrate from the old extension to the new `agentic-quick` and `agentic-change` bundled presets. The `quick.implement` and `quick.levelup` commands remain available with identical behavior.
+
 # [0.10.0+adlc28] - 2026-06-20
 
 ### Added

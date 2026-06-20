@@ -355,6 +355,10 @@ Package the skill and open a PR to the team-ai-directives repository:
 | `/spec.implement` | Execute implementation | During development |
 | `/spec.analyze` | Validate implementation | After implementation |
 | `/levelup.specify` | Capture team knowledge | After significant decisions |
+| `/change.specify` | Create lightweight change proposal | Non-feature code changes |
+| `/change.implement` | Execute change proposal tasks | After change spec creation |
+| `/change.verify` | Verify change completeness | After change implementation |
+| `/change.levelup` | Levelup from a completed change | After change completion |
 
 ### File Structure
 
@@ -387,6 +391,11 @@ specs/
     ├── research.md              # Technical research
     ├── contracts/               # API contracts
     └── quickstart.md            # Validation guide
+changes/
+└── [NNN-name]/
+    ├── spec.md                  # Change proposal spec
+    ├── plan.md                  # Technical approach (optional)
+    └── tasks.md                 # Implementation tasks
 ```
 
 ### Team AI Directives Integration

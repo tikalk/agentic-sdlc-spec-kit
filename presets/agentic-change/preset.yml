@@ -1,0 +1,45 @@
+schema_version: "1.0"
+
+preset:
+  id: "agentic-change"
+  name: "Agentic Change Workflow"
+  version: "1.0.0"
+  description: "Lightweight change proposal workflow — create, implement, verify, and contribute lessons from iterative changes"
+  author: "Tikal"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.6.0"
+
+provides:
+  templates:
+    - type: "command"
+      name: "adlc.change.specify"
+      file: "commands/adlc.change.specify.md"
+      description: "Create a change proposal with spec, optional plan, and task breakdown"
+      aliases: ["change.specify"]
+
+    - type: "command"
+      name: "adlc.change.implement"
+      file: "commands/adlc.change.implement.md"
+      description: "Execute tasks from a change proposal"
+      aliases: ["change.implement"]
+
+    - type: "command"
+      name: "adlc.change.verify"
+      file: "commands/adlc.change.verify.md"
+      description: "Verify change completeness and hand off to levelup"
+      aliases: ["change.verify"]
+
+    - type: "command"
+      name: "adlc.change.levelup"
+      file: "commands/adlc.change.levelup.md"
+      description: "Contribute lessons from a completed change to team-ai-directives"
+      aliases: ["change.levelup"]
+
+tags:
+  - "change"
+  - "lightweight"
+  - "iterative"
+  - "workflow"

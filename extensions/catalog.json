@@ -202,33 +202,6 @@
       "verified": false,
       "featured": false
     },
-    "quick": {
-      "id": "quick",
-      "name": "Quick - Session-Based Ad-Hoc Task Execution",
-      "version": "1.0.4",
-      "bundled": true,
-      "preinstall": true,
-      "description": "One-command, session-based workflow for ad-hoc task execution without file artifacts. Follows 12-factors methodology: Mission Brief → Context Discovery → Plan Generation → Task Breakdown → Execution",
-      "author": "Agentic SDLC Team",
-      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
-      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/quick",
-      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-quick-{{VERSION}}.zip",
-      "license": "MIT",
-      "requires": {
-        "speckit_version": ">=0.0.107"
-      },
-      "commands": [
-        "adlc.quick.implement"
-      ],
-      "tags": [
-        "quick",
-        "session-based",
-        "ad-hoc",
-        "no-artifacts"
-      ],
-      "verified": false,
-      "featured": false
-    },
     "product": {
       "id": "product",
       "name": "Product - PRD & PDR Management",

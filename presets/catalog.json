@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-06-14T00:00:00Z",
+  "updated_at": "2026-06-20T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/presets/catalog.json",
   "presets": {
     "lean": {
@@ -50,6 +50,52 @@
         "architecture",
         "product",
         "tdd"
+      ]
+    },
+    "agentic-change": {
+      "name": "Agentic Change Workflow",
+      "id": "agentic-change",
+      "version": "1.0.0",
+      "description": "Lightweight change proposal workflow with spec + tasks artifacts",
+      "author": "Tikal",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "license": "MIT",
+      "bundled": true,
+      "preinstall": true,
+      "requires": {
+        "speckit_version": ">=0.6.0"
+      },
+      "provides": {
+        "commands": 4,
+        "templates": 0
+      },
+      "tags": [
+        "change",
+        "workflow",
+        "lightweight"
+      ]
+    },
+    "agentic-quick": {
+      "name": "Agentic Quick Workflow",
+      "id": "agentic-quick",
+      "version": "1.0.0",
+      "description": "Session-based ad-hoc task execution with levelup",
+      "author": "Tikal",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "license": "MIT",
+      "bundled": true,
+      "preinstall": true,
+      "requires": {
+        "speckit_version": ">=0.6.0"
+      },
+      "provides": {
+        "commands": 2,
+        "templates": 0
+      },
+      "tags": [
+        "quick",
+        "ad-hoc",
+        "workflow"
       ]
     }
   }

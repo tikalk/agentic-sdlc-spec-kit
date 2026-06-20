@@ -1,0 +1,33 @@
+schema_version: "1.0"
+
+preset:
+  id: "agentic-quick"
+  name: "Agentic Quick Workflow"
+  version: "1.0.0"
+  description: "Session-based ad-hoc task execution — mission brief, implement, levelup, no file artifacts"
+  author: "Tikal"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+
+requires:
+  speckit_version: ">=0.6.0"
+
+provides:
+  templates:
+    - type: "command"
+      name: "adlc.quick.implement"
+      file: "commands/adlc.quick.implement.md"
+      description: "Session-based ad-hoc task execution (no file artifacts)"
+      aliases: ["quick.implement"]
+
+    - type: "command"
+      name: "adlc.quick.levelup"
+      file: "commands/adlc.quick.levelup.md"
+      description: "Quick-contribute a directive to team-ai-directives"
+      aliases: ["quick.levelup"]
+
+tags:
+  - "quick"
+  - "session-based"
+  - "ad-hoc"
+  - "workflow"

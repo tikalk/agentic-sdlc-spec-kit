@@ -190,8 +190,6 @@ Structured list of commits and file paths:
 
 If no concrete evidence, use: `- type: note
   value: "User-provided rationale"`
-
----
 ```
 
 ### Step 3: Generate Descriptor
@@ -559,7 +557,7 @@ git push origin quick.levelup/{timestamp}
 ║  ✓ CDR.md updated                                            ║
 ║  {✓ Skill: {name} → skills/{name}/ (if applicable)}          ║
 ║                                                              ║
-║  Branch: quick.levelup/{timestamp}                           ║
+║  Branch: quick.levelup/{timestamp}                          ║
 ║  {✓ PR created: {pr_url}}                                    ║
 ║  {→ Push + create PR at: {manual_url}}                       ║
 ║                                                              ║

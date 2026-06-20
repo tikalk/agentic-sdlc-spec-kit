@@ -254,9 +254,20 @@ This fork includes pre-installed extensions:
 | evals | Evaluation criteria and test generation |
 | levelup | Session context improvement and knowledge management |
 | product | Product thinking and user story refinement |
-| quick | Quick start workflows for small tasks |
 | tdd | Test-driven development workflows |
 | git | Git workflow automation with branch or worktree isolation |
+
+## 📦 Bundled Presets
+
+This fork includes pre-installed presets (auto-installed during `specify init`):
+
+| Preset | Commands | Purpose |
+|--------|----------|---------|
+| agentic-sdlc | `/spec.*` | Full Agentic SDLC lifecycle — specify, plan, tasks, implement, verify |
+| agentic-change | `/change.specify`, `/change.implement`, `/change.verify`, `/change.levelup` | Lightweight change proposal workflow with spec + tasks artifacts |
+| agentic-quick | `/quick.implement`, `/quick.levelup` | Session-based ad-hoc task execution with CDR levelup |
+
+> **Migration note:** The `quick` extension has been replaced by the `agentic-change` and `agentic-quick` bundled presets. If you have the old `quick` extension installed, run `specify extension remove quick && specify init` to migrate.
 
 ## 🔧 Team AI Directives Integration
 
@@ -374,6 +385,26 @@ Additional commands for enhanced quality and validation:
 | `/spec.analyze`   | `speckit-analyze`      | Cross-artifact consistency & coverage analysis (run after `/spec.tasks`, before `/spec.implement`)                             |
 | `/spec.checklist` | `speckit-checklist`    | Generate custom quality checklists that validate requirements completeness, clarity, and consistency (like "unit tests for English") |
 | `/spec.trace`     | `speckit-trace`        | Generate a feature-local execution trace at `specs/{branch}/trace.md` after implementation                                        |
+
+### Change Workflow Commands
+
+Lightweight alternative for non-feature changes affecting existing code:
+
+| Command | Agent Skill | Description |
+|---------|-------------|-------------|
+| `/change.specify` | `adlc-change-specify` | Create a change proposal — mission brief → `changes/NNN-name/spec.md` (+ optional plan.md + tasks.md) |
+| `/change.implement` | `adlc-change-implement` | Execute tasks from a change proposal with per-task hook dispatch |
+| `/change.verify` | `adlc-change-verify` | Verify change completeness against acceptance criteria |
+| `/change.levelup` | `adlc-change-levelup` | Contribute lessons from a completed change to team-ai-directives |
+
+### Quick Workflow Commands
+
+Session-based ad-hoc task execution (no file artifacts):
+
+| Command | Agent Skill | Description |
+|---------|-------------|-------------|
+| `/quick.implement` | `adlc-quick-implement` | Session-based ad-hoc implementation with per-task hooks |
+| `/quick.levelup` | `adlc-quick-levelup` | Quick-contribute a directive to team-ai-directives (CDR-based) |
 
 ## 🔧 Specify CLI Reference
 
