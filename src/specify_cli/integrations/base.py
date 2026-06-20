@@ -1987,6 +1987,13 @@ class SkillsIntegration(IntegrationBase):
             )
 
             skill_content = self.post_process_skill_content(skill_content)
+            try:
+                from specify_cli import inject_model_invocation_flag
+                skill_content = inject_model_invocation_flag(
+                    skill_content, frontmatter, self.key
+                )
+            except Exception:
+                pass
 
             # Write speckit-<name>/SKILL.md
             skill_dir = skills_dir / skill_name

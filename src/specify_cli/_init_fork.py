@@ -1511,6 +1511,66 @@ def _install_skills_from_path(
                 except Exception as e:
                     raise Exception(f"Failed to install {target_name}: {e}")
 
+    # 1b. Install required skills from project-root .skills.json
+    project_skills_json = project_path / ".skills.json"
+    if project_skills_json.exists():
+        try:
+            import json as _json
+            with open(project_skills_json) as _f:
+                _project_skills = _json.load(_f)
+            _required = _project_skills.get("skills", {}).get("required", {})
+            for _skill_ref, _skill_meta in _required.items():
+                if not _skill_ref.startswith("local:"):
+                    continue
+                _rel_path = _skill_ref[len("local:"):].lstrip("./")
+                _skill_dir = project_path / _rel_path
+                _skill_md = _skill_dir / "SKILL.md"
+                if not _skill_md.exists():
+                    continue
+                _skill_name = _skill_dir.name
+                _target_name = f"team-{_skill_name}"
+                _target_dir = skills_dest / _target_name
+                _target_file = _target_dir / "SKILL.md"
+                if _target_file.exists() and not force:
+                    continue
+                _target_dir.mkdir(parents=True, exist_ok=True)
+                try:
+                    _content = _skill_md.read_text(encoding="utf-8")
+                    # Update name field in frontmatter
+                    import re as _re
+                    _lines = _content.splitlines()
+                    _modified = []
+                    _in_fm = False
+                    _fm_started = False
+                    for _line in _lines:
+                        _s = _line.strip()
+                        if _s == "---":
+                            if not _fm_started:
+                                _fm_started = True
+                                _in_fm = True
+                            else:
+                                _in_fm = False
+                            _modified.append(_line)
+                            continue
+                        if _in_fm and _s.startswith("name:"):
+                            _m = _re.match(r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$', _s)
+                            if _m:
+                                _orig = _m.group(3).strip()
+                                if not _orig.startswith("team-"):
+                                    _new_name = f"team-{_orig}"
+                                else:
+                                    _new_name = _orig
+                                _indent = _line[:len(_line) - len(_line.lstrip())]
+                                _modified.append(f"{_indent}name: {_new_name}")
+                                continue
+                        _modified.append(_line)
+                    _target_file.write_text("\n".join(_modified), encoding="utf-8")
+                    installed.append(_target_name)
+                except Exception as _e:
+                    raise Exception(f"Failed to install project skill {_target_name}: {_e}")
+        except Exception:
+            pass
+
     # 2. Install local skills (without prefix)
     local_skills_dir = project_path / ".specify" / "skills"
     if local_skills_dir.exists():

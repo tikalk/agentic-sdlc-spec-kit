@@ -1,5 +1,6 @@
 ---
 description: Quick-contribute a directive to team-ai-directives (LOW-FRICTION MODE)
+model-invocation: true
 mode: quick
 scripts:
   sh: |
@@ -13,15 +14,20 @@ scripts:
     echo "REPO_ROOT='$REPO_ROOT'"
     echo "CURRENT_BRANCH='$CURRENT_BRANCH'"
     # Resolve TEAM_DIRECTIVES
+    TEAM_DIRECTIVES_RESOLVED=false
     if [[ -n "${SPECIFY_TEAM_DIRECTIVES:-}" ]]; then
-        echo "TEAM_DIRECTIVES='$SPECIFY_TEAM_DIRECTIVES'"
-    elif [[ -f "$REPO_ROOT/.specify/init-options.json" ]]; then
-        TD_PATH=$(python3 -c "import json; d=json.load(open('$REPO_ROOT/.specify/init-options.json')); print(d.get('team_ai_directives',''))" 2>/dev/null)
-        echo "TEAM_DIRECTIVES='$TD_PATH'"
-    elif [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
-        echo "TEAM_DIRECTIVES='$REPO_ROOT/.specify/team-ai-directives'"
+        echo "TEAM_DIRECTIVES='$SPECIFY_TEAM_DIRECTIVES'"; TEAM_DIRECTIVES_RESOLVED=true
     fi
-    if [[ -z "${TEAM_DIRECTIVES:-}" ]]; then
+    if ! $TEAM_DIRECTIVES_RESOLVED && [[ -f "$REPO_ROOT/.specify/init-options.json" ]]; then
+        TD_PATH=$(python3 -c "import json; d=json.load(open('$REPO_ROOT/.specify/init-options.json')); print(d.get('team_ai_directives',''))" 2>/dev/null)
+        if [[ -n "$TD_PATH" ]]; then
+            echo "TEAM_DIRECTIVES='$TD_PATH'"; TEAM_DIRECTIVES_RESOLVED=true
+        fi
+    fi
+    if ! $TEAM_DIRECTIVES_RESOLVED && [[ -d "$REPO_ROOT/.specify/team-ai-directives" ]]; then
+        echo "TEAM_DIRECTIVES='$REPO_ROOT/.specify/team-ai-directives'"; TEAM_DIRECTIVES_RESOLVED=true
+    fi
+    if ! $TEAM_DIRECTIVES_RESOLVED; then
         echo "TEAM_DIRECTIVES=''"
     fi
   ps: |
@@ -103,7 +109,7 @@ Extract from user input:
   - Rules: `context_modules/rules/{domain}/{slug}.md` (e.g., `security/sql-injection-prevention.md`)
   - Personas: `context_modules/personas/{slug}.md`
   - Examples: `context_modules/examples/{category}/{slug}.md`
-  - Constitution: `context_modules/constitution.md`
+  - Constitution: `context_modules/constitution.md` (for amendments, append to existing file — do not replace)
 - **Description**: One-sentence summary of what the directive covers
 - **Rationale**: Why this directive matters (from user input)
 - **Initial Evidence**: Any commits, files, or code references the user provides
@@ -120,25 +126,25 @@ Extract from user input:
 
 ### Step 1: Assign CDR ID
 
-Format: `CDR-{YYYY}-{NNN}`
+Format: `CDR-{NNN}` (3-digit zero-padded, e.g., `CDR-001`)
 
-Check `{TEAM_DIRECTIVES}/CDR.md` for the highest existing number; increment from there. If CDR.md doesn't exist, start at `CDR-2026-001`.
+Check `{TEAM_DIRECTIVES}/CDR.md` for the highest existing `CDR-{NNN}` number for the **current year**; increment from there. If CDR.md doesn't exist, start at `CDR-001`.
 
 ### Step 2: Build Full CDR Schema
 
 Generate the complete CDR entry matching the canonical `levelup.implement` format:
 
 ```markdown
-## CDR-{YYYY}-{NNN}: {Title}
+## CDR-{NNN}: {Title}
 
 ### Status
-**Accepted**
+**Accepted** | Proposed | Rejected
 
 ### Dates
 - **Created**: {today} (from evidence)
 - **Modified**: {today} (publication date)
 - **Verified**: {today} (initial verification)
-- **Age**: 0 days
+- **Age**: {age_days} days
 
 ### Source
 {project-name}
@@ -172,7 +178,18 @@ Derive the Descriptor from the Context and Decision sections — e.g., "SQL inje
 
 ### Evidence
 
-{Commits, file paths, code snippets, or references provided by user — or note "User-provided rationale" if none given}
+Structured list of commits and file paths:
+
+```yaml
+- type: commit
+  value: {commit_sha}
+  description: "{description}"
+- type: file
+  value: {file_path}
+```
+
+If no concrete evidence, use: `- type: note
+  value: "User-provided rationale"`
 
 ---
 ```
@@ -192,14 +209,24 @@ Build the YAML frontmatter for the target module file (matches `levelup.implemen
 
 ```yaml
 ---
+type: {type}
 id: {id}
+title: "{title}"
+description: "{description}"
 cdr_ref: {cdr_ref}
 created: {today}
 modified: {today}
 verified: {today}
-age_days: 0
+timestamp: {today}
+tags:
+  - {tag}
+age_days: {age_days}
 evidence:
-{evidence}
+  - type: commit
+    value: {commit_sha}
+    description: "{description}"
+  - type: file
+    value: {file_path}
 ---
 ```
 
@@ -371,6 +398,8 @@ git pull origin main
 git checkout -b quick.levelup/{timestamp}
 ```
 
+If the git extension is installed, use `git.feature` instead: `git.feature --name quick.levelup/{timestamp} --base main`.
+
 ### Step 3: Create Context Module File
 
 Write the target module file with YAML frontmatter + directive content:
@@ -379,18 +408,28 @@ Write the target module file with YAML frontmatter + directive content:
 
 ```markdown
 ---
+type: {type}
 id: {id}
+title: "{title}"
+description: "{description}"
 cdr_ref: {cdr_ref}
 created: {today}
 modified: {today}
 verified: {today}
-age_days: 0
+timestamp: {today}
+tags:
+  - {tag}
+age_days: {age_days}
 evidence:
-{evidence}
+  - type: commit
+    value: {commit_sha}
+    description: "{description}"
+  - type: file
+    value: {file_path}
 ---
 
 > ⚠️ **Memory Verification**
-> This directive is 0 days old. Before applying:
+> This directive is {age_days} days old. Before applying:
 > - [ ] Rule is actively followed by team
 > - [ ] No conflicting rules introduced
 
@@ -446,6 +485,14 @@ If a skill companion was approved:
 
 ### Step 6: Commit
 
+Use the git extension or raw git if extension is unavailable:
+
+```
+git.commit --message "quick.levelup: {cdr_ref} - {title}"
+```
+
+If git extension is unavailable:
+
 ```bash
 cd "$TEAM_DIRECTIVES"
 git add -A
@@ -479,14 +526,20 @@ If ANY check fails → **STOP**, report which artifacts are missing, and fix bef
 
 ### Step 1: Push + Create PR
 
-If MCP `create_pull_request` (GitHub) or `create_merge_request` (GitLab) is available:
+Use the git extension or raw git if extension is unavailable:
+
+```
+git.publish --title "quick.levelup: {cdr_ref} - {title}" --draft
+```
+
+If git extension is unavailable and MCP `create_pull_request` (GitHub) or `create_merge_request` (GitLab) is available:
 1. Push the branch: `git push origin quick.levelup/{timestamp}`
 2. Create a PR with:
    - Title: `quick.levelup: {cdr_ref} - {title}`
    - Body: Summary of what was contributed, including the Descriptor
    - Type: Draft (not ready for review until `/levelup.validate` ran)
 
-If MCP unavailable:
+If both git extension and MCP unavailable:
 1. Print manual push instructions:
 
 ```bash

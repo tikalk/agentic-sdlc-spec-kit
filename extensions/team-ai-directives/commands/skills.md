@@ -1,5 +1,6 @@
 ---
 description: Browse and install team skills from team-ai-directives knowledge base
+model-invocation: true
 scripts:
   sh: .specify/extensions/team-ai-directives/scripts/bash/setup-team.sh --json
   ps: .specify/extensions/team-ai-directives/scripts/powershell/setup-team.ps1 -Json
@@ -35,7 +36,7 @@ Run: specify init --team-ai-directives <path-or-url>
 
 ### Step 1: Read Skills Manifest
 
-Read `{TEAM_AI_DIRECTIVES}/.skills.json` and parse the `skills` section. Group by category:
+Read `<project_root>/.skills.json` (project-root manifest) and `{TEAM_AI_DIRECTIVES}/.skills.json` (team-ai-directives manifest). Merge both, with project-root entries taking precedence. Parse the `skills` section. Group by category:
 
 | Category | Description | Auto-installed? |
 |----------|-------------|-----------------|

@@ -1160,6 +1160,13 @@ class PresetManager:
                     integration = get_integration(selected_ai) if isinstance(selected_ai, str) else None
                     if integration is not None and hasattr(integration, "post_process_skill_content"):
                         skill_content = integration.post_process_skill_content(skill_content)
+                    try:
+                        from specify_cli import inject_model_invocation_flag
+                        skill_content = inject_model_invocation_flag(
+                            skill_content, fm, selected_ai
+                        )
+                    except Exception:
+                        pass
                     skill_file.write_text(skill_content, encoding="utf-8")
                 except Exception:
                     pass  # best-effort override skill restoration
@@ -1477,6 +1484,13 @@ class PresetManager:
                     skill_content = integration.post_process_skill_content(
                         skill_content
                     )
+                try:
+                    from specify_cli import inject_model_invocation_flag
+                    skill_content = inject_model_invocation_flag(
+                        skill_content, frontmatter, selected_ai
+                    )
+                except Exception:
+                    pass
 
                 skill_file = skill_subdir / "SKILL.md"
                 skill_file.write_text(skill_content, encoding="utf-8")
@@ -1574,6 +1588,13 @@ class PresetManager:
                     skill_content = integration.post_process_skill_content(
                         skill_content
                     )
+                try:
+                    from specify_cli import inject_model_invocation_flag
+                    skill_content = inject_model_invocation_flag(
+                        skill_content, frontmatter, selected_ai
+                    )
+                except Exception:
+                    pass
                 skill_file.write_text(skill_content, encoding="utf-8")
                 continue
 
@@ -1610,6 +1631,13 @@ class PresetManager:
                     skill_content = integration.post_process_skill_content(
                         skill_content
                     )
+                try:
+                    from specify_cli import inject_model_invocation_flag
+                    skill_content = inject_model_invocation_flag(
+                        skill_content, frontmatter, selected_ai
+                    )
+                except Exception:
+                    pass
                 skill_file.write_text(skill_content, encoding="utf-8")
             else:
                 # No core or extension template — remove the skill entirely

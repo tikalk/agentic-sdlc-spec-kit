@@ -506,3 +506,67 @@ def get_preinstalled_extensions(project_path: Path) -> list[dict]:
             except (json.JSONDecodeError, IOError):
                 continue
     return extensions
+
+
+# ============================================================================
+# MODEL-INVOCATION FLAG INJECTION
+# ============================================================================
+
+
+def _inject_frontmatter_flag(content: str, key: str, value: str = "true") -> str:
+    """Insert ``key: value`` before the closing ``---`` if not already present."""
+    lines = content.splitlines(keepends=True)
+
+    dash_count = 0
+    for line in lines:
+        stripped = line.rstrip("\n\r")
+        if stripped == "---":
+            dash_count += 1
+            if dash_count == 2:
+                break
+            continue
+        if dash_count == 1 and stripped.startswith(f"{key}:"):
+            return content
+
+    out: list[str] = []
+    dash_count = 0
+    injected = False
+    for line in lines:
+        stripped = line.rstrip("\n\r")
+        if stripped == "---":
+            dash_count += 1
+            if dash_count == 2 and not injected:
+                if line.endswith("\r\n"):
+                    eol = "\r\n"
+                elif line.endswith("\n"):
+                    eol = "\n"
+                else:
+                    eol = ""
+                out.append(f"{key}: {value}{eol}")
+                injected = True
+        out.append(line)
+    return "".join(out)
+
+
+def inject_model_invocation_flag(
+    content: str, source_frontmatter: dict, agent_name: str
+) -> str:
+    """Inject ``disable-model-invocation: false`` when source has ``model-invocation: true``.
+
+    Only applies to skills-based agents (extension == "/SKILL.md").
+    Returns content unchanged otherwise.
+    """
+    if not isinstance(source_frontmatter, dict):
+        return content
+    if not source_frontmatter.get("model-invocation"):
+        return content
+
+    try:
+        from specify_cli.integrations import INTEGRATION_REGISTRY
+
+        integration = INTEGRATION_REGISTRY.get(agent_name)
+        if integration and integration.registrar_config and integration.registrar_config.get("extension") == "/SKILL.md":
+            return _inject_frontmatter_flag(content, "disable-model-invocation", "false")
+    except Exception:
+        pass
+    return content

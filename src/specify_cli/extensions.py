@@ -1057,6 +1057,13 @@ class ExtensionManager:
                 skill_content = integration.post_process_skill_content(
                     skill_content
                 )
+            try:
+                from specify_cli import inject_model_invocation_flag
+                skill_content = inject_model_invocation_flag(
+                    skill_content, frontmatter, selected_ai
+                )
+            except Exception:
+                pass
 
             if link_outputs:
                 try:

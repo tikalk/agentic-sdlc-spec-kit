@@ -121,19 +121,19 @@ def test_extension_manifest_handoff():
 
 
 def test_extension_manifest_version_bump():
-    """Test that extension version bumped to 1.3.0."""
+    """Test that extension version bumped to 1.5.0."""
     ext_file = REPO / "extensions/quick/extension.yml"
     content = ext_file.read_text(encoding="utf-8")
-    assert 'version: "1.3.0"' in content, "Extension version not bumped to 1.3.0"
-    print("✅ Quick extension version bumped to 1.3.0")
+    assert 'version: "1.5.0"' in content, "Extension version not bumped to 1.5.0"
+    print("✅ Quick extension version bumped to 1.5.0")
 
 
 def test_changelog_has_entry():
-    """Test that CHANGELOG.md has 1.3.0 entry."""
+    """Test that CHANGELOG.md has 1.5.0 entry."""
     changelog = REPO / "extensions/quick/CHANGELOG.md"
     content = changelog.read_text(encoding="utf-8")
-    assert "## [1.3.0]" in content, "Missing 1.3.0 changelog entry"
-    print("✅ quick CHANGELOG has 1.3.0 entry")
+    assert "## [1.5.0]" in content, "Missing 1.5.0 changelog entry"
+    print("✅ quick CHANGELOG has 1.5.0 entry")
 
 
 def test_readme_lists_command():

@@ -1,5 +1,6 @@
 ---
 description: Session-based ad-hoc task execution with per-task extension hooks (LOW-FRICTION MODE)
+model-invocation: true
 mode: quick
 scripts:
   sh: |

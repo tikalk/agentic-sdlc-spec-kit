@@ -2,6 +2,24 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc27] - 2026-06-20
+
+### Fixed
+
+- **TEAM_DIRECTIVES sentinel bug in quick.levelup**: Bash inline script emitted bare `TEAM_DIRECTIVES=''` even after resolving the value, because it checked `${TEAM_DIRECTIVES:-}` at script start before any export occurred. Fixed with boolean flag guard.
+- **Raw git replaced with git extension in quick.levelup**: Phases 5/6 now use `git.commit --message` and `git.publish --draft` from the git extension as primary path, matching `levelup.implement` conventions.
+- **CDR ID format aligned**: `quick.levelup` now uses `CDR-{NNN}` (3-digit, year-scoped) instead of `CDR-{YYYY}-{NNN}`, matching `levelup.init`/`levelup.implement` scheme.
+- **OKF v0.1 frontmatter compliance**: Added `type`, `title`, `description`, `tags`, `timestamp` fields to context module frontmatter in `quick.levelup`.
+- **Evidence as structured YAML list**: Frontmatter evidence in `quick.levelup` now uses `type`/`value`/`description` format.
+- **Constitution amendment safety**: `quick.levelup` now instructs agents to append to existing constitution files rather than replacing them.
+
+### Changed
+
+- **Quick extension**: v1.4.0 → v1.5.0 (TEAM_DIRECTIVES fix, git extension integration, CDR format alignment, OKF frontmatter, structured evidence).
+- **spec-kit CLI**: 0.10.0+adlc26 → 0.10.0+adlc27.
+
+# [0.10.0+adlc26] - 2026-06-20
+
 # [0.10.0+adlc25] - 2026-06-20
 
 ### Fixed

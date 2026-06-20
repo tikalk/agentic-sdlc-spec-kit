@@ -2,6 +2,25 @@
 
 All notable changes to the Quick Extension will be documented in this file.
 
+## [1.5.0] - 2026-06-20
+
+### Fixed
+
+- **TEAM_DIRECTIVES sentinel bug**: Bash inline script no longer emits `TEAM_DIRECTIVES=''` when a value was already resolved. Uses a boolean flag (`TEAM_DIRECTIVES_RESOLVED`) to guard the empty fallback instead of checking `${TEAM_DIRECTIVES:-}` (which was always empty at script start).
+- **Raw git replaced with git extension**: Phase 5/6 now uses `git.commit --message` and `git.publish --draft` from the git extension as primary path, falling back to raw git only when extension is unavailable.
+- **CDR ID format aligned to levelup.\***: Changed from `CDR-{YYYY}-{NNN}` to `CDR-{NNN}` (3-digit zero-padded, no year prefix) to match `levelup.init`/`levelup.implement` scheme. CDR ID selection now scoped to current year.
+- **OKF v0.1 frontmatter**: Added `type`, `title`, `description`, `tags`, `timestamp` fields to context module YAML frontmatter, matching `levelup.implement` Phase 2 Step 4 template.
+- **age_days computed variable**: Replaced hardcoded `age_days: 0` with `{age_days}` placeholder in CDR template.
+- **Status field shows all states**: Replaced `**Accepted**` with `**Accepted** | Proposed | Rejected` to show all possible status options.
+- **Evidence as structured YAML list**: Frontmatter evidence now uses `type`/`value`/`description` format instead of free-text.
+- **Constitution amendment instruction**: Added "(for amendments, append to existing file — do not replace)" note in Phase 1 Step 2.
+
+## [1.4.0] - 2026-06-20
+
+### Added
+
+- **Model-invocation flag**: `implement.md` and `levelup.md` now include `model-invocation: true`, enabling automatic AI invocation of these commands in skills-based agents that support `disable-model-invocation`.
+
 ## [1.3.0] - 2026-06-14
 
 ### Changed

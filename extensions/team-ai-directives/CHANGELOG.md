@@ -5,6 +5,13 @@ All notable changes to the Team AI Directives extension will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-06-20
+
+### Added
+
+- **Model-invocation flag**: `discover.md` and `skills.md` now include `model-invocation: true`, enabling automatic AI invocation in skills-based agents.
+- **Project-root `.skills.json` support**: `skills.md` instructions now reference `<project_root>/.skills.json` as an additional skill manifest source alongside the team-ai-directives `.skills.json`.
+
 ## [2.0.0] - 2026-06-17
 
 ### Added

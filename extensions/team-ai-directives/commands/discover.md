@@ -1,5 +1,6 @@
 ---
 description: Discover relevant context from team-ai-directives for current feature
+model-invocation: true
 arguments: --no-write (optional, skip file persistence)
 ---
 

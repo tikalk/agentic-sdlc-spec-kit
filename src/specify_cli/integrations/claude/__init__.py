@@ -153,7 +153,6 @@ class ClaudeIntegration(SkillsIntegration):
         """Inject Claude-specific frontmatter flags and hook notes."""
         updated = super().post_process_skill_content(content)
         updated = self._inject_frontmatter_flag(updated, "user-invocable")
-        updated = self._inject_frontmatter_flag(updated, "disable-model-invocation", "false")
         return updated
 
     def setup(

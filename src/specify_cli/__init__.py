@@ -111,7 +111,10 @@ try:
         GITHUB_API_LATEST,
         apply_theming_patches,
     )
-    from ._core_fork import compute_skill_output_name
+    from ._core_fork import (
+        compute_skill_output_name,
+        inject_model_invocation_flag,
+    )
 except ImportError:
     from pathlib import Path
     ACCENT_COLOR = "cyan"
@@ -146,6 +149,9 @@ except ImportError:
 
     def compute_skill_output_name():
         return None
+
+    def inject_model_invocation_flag(content, source_frontmatter, agent_name):
+        return content
 
     def get_team_directives_path(project_path: Path) -> Path | None:
         """Fallback - team-ai-directives not supported in upstream."""

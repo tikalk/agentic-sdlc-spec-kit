@@ -335,7 +335,13 @@ class CommandRegistrar:
             description,
             f"{source_id}:{source_file}",
         )
-        return self.render_frontmatter(skill_frontmatter) + "\n" + body
+        content = self.render_frontmatter(skill_frontmatter) + "\n" + body
+        try:
+            from specify_cli import inject_model_invocation_flag
+            content = inject_model_invocation_flag(content, frontmatter, agent_name)
+        except Exception:
+            pass
+        return content
 
     @staticmethod
     def build_skill_frontmatter(

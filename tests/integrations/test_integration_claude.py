@@ -69,7 +69,6 @@ class TestClaudeIntegration:
         parsed = yaml.safe_load(parts[1])
         assert parsed["name"] == f"{pfx}-plan"
         assert parsed["user-invocable"] is True
-        assert parsed["disable-model-invocation"] is False
         assert parsed["metadata"]["source"] == "templates/commands/plan.md"
 
     def test_setup_upserts_context_section(self, tmp_path):
@@ -233,7 +232,6 @@ class TestClaudeIntegration:
         assert skill_file.exists()
         skill_content = skill_file.read_text(encoding="utf-8")
         assert "user-invocable: true" in skill_content
-        assert "disable-model-invocation: false" in skill_content
 
         init_options = json.loads(
             (project / ".specify" / "init-options.json").read_text(encoding="utf-8")
@@ -338,7 +336,6 @@ class TestClaudeIntegration:
         assert "preset:claude-skill-command" in content
         assert "name: speckit-research" in content
         assert "user-invocable: true" in content
-        assert "disable-model-invocation: false" in content
 
         metadata = manager.registry.get("claude-skill-command")
         assert "speckit-research" in metadata.get("registered_skills", [])
@@ -466,19 +463,13 @@ class TestClaudeDisableModelInvocation:
     """Verify disable-model-invocation is false for Claude skills."""
 
     def test_setup_sets_disable_model_invocation_false(self, tmp_path):
-        """Generated SKILL.md files must have disable-model-invocation: false."""
-        i = get_integration("claude")
-        m = IntegrationManifest("claude", tmp_path)
-        created = i.setup(tmp_path, m, script_type="sh")
-        skill_files = [f for f in created if f.name == "SKILL.md"]
-        assert len(skill_files) > 0
-        for f in skill_files:
-            content = f.read_text(encoding="utf-8")
-            parts = content.split("---", 2)
-            parsed = yaml.safe_load(parts[1])
-            assert parsed["disable-model-invocation"] is False, (
-                f"{f.parent.name}: expected disable-model-invocation: false"
-            )
+        """Commands with model-invocation: true get disable-model-invocation: false."""
+        from specify_cli._core_fork import _inject_frontmatter_flag, inject_model_invocation_flag
+        content = (
+            "---\nname: test\ndescription: test\nmodel-invocation: true\n---\n\nBody\n"
+        )
+        result = inject_model_invocation_flag(content, {"model-invocation": True}, "claude")
+        assert "disable-model-invocation: false" in result
 
     def test_disable_model_invocation_not_true(self, tmp_path):
         """No Claude skill should have disable-model-invocation: true."""
@@ -594,7 +585,6 @@ class TestClaudeHookCommandNote:
         )
         result = i.post_process_skill_content(content)
         assert "user-invocable: true" in result
-        assert "disable-model-invocation: false" in result
         assert "replace dots" in result
 
 
