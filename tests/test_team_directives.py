@@ -256,4 +256,4 @@ def test_extension_manifest_includes_init_and_evolve():
     names = [c["name"] for c in m.commands]
     assert "adlc.team-ai-directives.init" in names, "Extension manifest must declare team.init"
     assert "adlc.team-ai-directives.evolve" in names, "Extension manifest must declare team.evolve"
-    assert m.version == "3.0.0", "Extension version must be 3.0.0"
+    assert m.version == "3.1.0", "Extension version must be 3.1.0"
