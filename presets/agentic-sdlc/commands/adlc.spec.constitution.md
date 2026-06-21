@@ -10,8 +10,9 @@ handoffs:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
-2. Read `.specify/extensions.yml` and find `hooks.before_constitution`.
+0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_constitution`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
@@ -99,7 +100,7 @@ Do not create a new template; always operate on the existing `.specify/memory/co
 
 ## Post-Execution Hooks
 
-1. If `.specify/extensions.yml` does not exist, skip silently.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_constitution`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:

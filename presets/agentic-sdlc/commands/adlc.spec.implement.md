@@ -16,8 +16,9 @@ scripts:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
-2. Read `.specify/extensions.yml` and find `hooks.before_implement`.
+0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_implement`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
@@ -105,7 +106,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **IF EXISTS**: Read data-model.md for entities and relationships
    - **IF EXISTS**: Read contracts/ for API specifications and test requirements
    - **IF EXISTS**: Read research.md for technical decisions and constraints
-   - **IF EXISTS**: Read /memory/constitution.md for governance constraints
+    - **IF EXISTS**: Read {REPO_ROOT}/.specify/memory/constitution.md for governance constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
 6. **Project Setup Verification**:
@@ -165,7 +166,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **File-based coordination**: Tasks affecting the same files must run sequentially
     - **Per-task extension hooks**: For each individual task:
-      - **Before task**: Check `.specify/extensions.yml` for `hooks.before_task_execute` entries. Filter out disabled hooks. Execute mandatory hooks immediately; for optional hooks, skip silently to maintain flow. If no hooks registered, continue silently.
+      - **Before task**: Check `{REPO_ROOT}/.specify/extensions.yml` for `hooks.before_task_execute` entries. Filter out disabled hooks. Execute mandatory hooks immediately; for optional hooks, skip silently to maintain flow. If no hooks registered, continue silently.
       - **Start task**: Mark task as in-progress:
         ```bash
         bash .specify/scripts/bash/tasks-meta-utils.sh start-task "$FEATURE_DIR/tasks_meta.json" "$task_id"
@@ -175,7 +176,7 @@ You **MUST** consider the user input before proceeding (if not empty).
         ```bash
         bash .specify/scripts/bash/tasks-meta-utils.sh complete-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "<brief-result-summary>"
         ```
-      - **After task**: Check `.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute.
+      - **After task**: Check `{REPO_ROOT}/.specify/extensions.yml` for `hooks.after_task_execute` entries. Same dispatch logic as before_task_execute.
       - **On task failure**: Mark task as failed first, then dispatch after_task_execute hooks:
         ```bash
         bash .specify/scripts/bash/tasks-meta-utils.sh fail-task "$FEATURE_DIR/tasks_meta.json" "$task_id" "<failure-reason>"
@@ -226,7 +227,7 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
 
 ## Post-Execution Hooks
 
-1. If `.specify/extensions.yml` does not exist, skip silently.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_implement`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:

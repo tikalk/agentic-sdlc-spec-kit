@@ -66,8 +66,8 @@ Display:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
-2. Read `.specify/extensions.yml` and find `hooks.before_implement`.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_implement`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
@@ -87,6 +87,12 @@ Any specific files to examine? (optional)
 ```
 
 Wait briefly, then proceed (can be empty).
+
+---
+
+## Constitution Alignment (Auto)
+
+**IF EXISTS**: Load `{REPO_ROOT}/.specify/memory/constitution.md` for project principles and governance constraints.
 
 ---
 
@@ -113,7 +119,7 @@ Generate and display:
 1. **Display task**: `## Task {N}: {description}`
 
 2. **Dispatch `before_task_execute` hooks**:
-   - Read `.specify/extensions.yml`, locate `hooks.before_task_execute`
+   - Read `{REPO_ROOT}/.specify/extensions.yml`, locate `hooks.before_task_execute`
    - Skip `enabled: false` and non-empty `condition`
    - **Mandatory**: Resolve command file via manifest (`provides.commands.{command}.file`), fallback to `{command}.md`. Execute immediately.
    - **Optional**: Skip silently (maintain low-friction flow)
@@ -145,7 +151,7 @@ Display summary:
 
 ## Post-Execution Hooks
 
-1. If `.specify/extensions.yml` does not exist, skip silently.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_implement`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:

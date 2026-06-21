@@ -15,8 +15,9 @@ handoffs:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
-2. Read `.specify/extensions.yml` and find `hooks.before_specify`.
+0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_specify`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
@@ -64,6 +65,8 @@ Create a concise 2-4 word kebab-case name from the goal (e.g., `fix-login-redire
 Create `changes/NNN-{name}/` where `NNN` is the next available 3-digit number (scan `changes/` directory for existing numbers, increment from highest).
 
 ### Step 4: Create Artifacts
+
+**IF EXISTS**: Load `{REPO_ROOT}/.specify/memory/constitution.md` for project principles and governance constraints. Ensure artifacts align with constitutional requirements.
 
 Create the following files in the change directory:
 
@@ -113,7 +116,7 @@ Ready for implementation: /change.implement
 
 ## Post-Execution Hooks
 
-1. If `.specify/extensions.yml` does not exist, skip silently.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_specify`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:

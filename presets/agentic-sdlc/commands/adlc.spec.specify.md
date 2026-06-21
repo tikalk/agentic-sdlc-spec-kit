@@ -21,8 +21,9 @@ scripts:
 
 **Execute ONLY read-only discovery hooks.**
 
-1. If `.specify/extensions.yml` does not exist, state `No hooks file found` and skip to Mission Brief Extraction.
-2. Read `.specify/extensions.yml` and find `hooks.before_specify`.
+0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to Mission Brief Extraction.
+2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_specify`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. **Classify each hook by mutation risk** (inspect the `{command}` name):
    - **Read-only / discovery hooks** (safe to run before Phase B):
@@ -313,7 +314,7 @@ Success criteria must be:
 
 ## Post-Execution Hooks
 
-1. If `.specify/extensions.yml` does not exist, skip silently.
+1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_specify`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:

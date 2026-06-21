@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "team-ai-directives"
   name: "Team AI Directives"
-  version: "3.1.0"
+  version: "3.2.0"
   description: "Team-specific AI agent context, skills, and conventions for Spec-Driven Development"
   author: "Team"
   repository: "https://github.com/tikalk/agentic-sdlc-team-ai-directives"
@@ -67,7 +67,7 @@ hooks:
 
   before_implement:
     command: adlc.team-ai-directives.discover
-    optional: true
+    optional: false
     description: "Auto-discover team context before quick task execution (no-write mode)"
 
 tags:

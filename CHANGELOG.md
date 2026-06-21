@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc32] - 2026-06-22
+
+### Changed
+
+- **Constitution path resolution**: All preset commands now use `{REPO_ROOT}/.specify/memory/constitution.md` instead of the broken `/memory/constitution.md` absolute path — fixes governance load when agent runs from a subdirectory. Affects `agentic-sdlc` (analyze, plan, implement, verify), plus new constitution alignment in `agentic-quick` and `agentic-change`.
+- **Constitution alignment added to agentic-quick and agentic-change**: Both presets now reference the project constitution via `IF EXISTS` pattern in implement, specify, and verify commands — matching upstream template convention but with corrected paths. Quick workflow runs silently (no stop). Change workflow loads before artifact creation and verification.
+- **Agentic SDLC preset**: v1.4.0 → v1.5.0 (constitution path fix).
+- **Agentic Quick preset**: v1.0.0 → v1.1.0 (constitution alignment).
+- **Agentic Change preset**: v1.0.0 → v1.1.0 (constitution alignment).
+- **Team AI Directives extension**: v3.1.0 → v3.2.0 (catch-up for prior `before_implement` optionality change).
+- **spec-kit CLI**: 0.10.0+adlc31 → 0.10.0+adlc32.
+
 # [0.10.0+adlc31] - 2026-06-20
 
 ### Added
