@@ -3541,6 +3541,44 @@
       "created_at": "2026-03-02T00:00:00Z",
       "updated_at": "2026-03-02T00:00:00Z"
     },
+    "tasks-to-project": {
+      "name": "Tasks to GitHub Project",
+      "id": "tasks-to-project",
+      "description": "Publish and synchronize Spec Kit tasks as cards on a GitHub Project (v2) kanban board, with priority and status sync between spec.md/tasks.md and the board.",
+      "author": "Alessandro Mancini",
+      "version": "0.2.0",
+      "download_url": "https://github.com/mancioshell/spec-kit-tasks-to-project/archive/refs/tags/v0.2.0.zip",
+      "repository": "https://github.com/mancioshell/spec-kit-tasks-to-project",
+      "homepage": "https://github.com/mancioshell/spec-kit-tasks-to-project",
+      "documentation": "https://github.com/mancioshell/spec-kit-tasks-to-project/blob/main/README.md",
+      "changelog": "https://github.com/mancioshell/spec-kit-tasks-to-project/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "category": "integration",
+      "effect": "read-write",
+      "requires": {
+        "speckit_version": ">=0.2.0",
+        "tools": [
+          { "name": "gh", "required": true },
+          { "name": "python3", "required": true }
+        ]
+      },
+      "provides": {
+        "commands": 2,
+        "hooks": 2
+      },
+      "tags": [
+        "github",
+        "project",
+        "kanban",
+        "automation",
+        "tasks"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-06-22T00:00:00Z",
+      "updated_at": "2026-06-22T00:00:00Z"
+    },
     "team-assign": {
       "name": "Team Assign",
       "id": "team-assign",
