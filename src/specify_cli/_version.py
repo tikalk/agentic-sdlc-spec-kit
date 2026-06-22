@@ -1172,6 +1172,8 @@ def self_check() -> None:
     installer command without running it.
     """
 
+    from ._init_fork import accent
+
     installed = _get_installed_version()
     tag, failure_reason = _fetch_latest_release_tag()
 
@@ -1218,7 +1220,7 @@ def self_check() -> None:
 
     latest_normalized = _normalize_tag(manual_tag)
     if _is_newer(latest_normalized, installed):
-        console.print(f"[green]Update available:[/green] {installed} → {latest_display}")
+        console.print(f"{accent('Update available:')} {installed} → {latest_display}")
         console.print("\nTo upgrade:")
         console.print("  specify self upgrade")
         console.print("\nManual fallback:")
@@ -1232,7 +1234,7 @@ def self_check() -> None:
     # already returned at the `manual_tag is None` branch above — and installed
     # is parseable AND >= latest → "up to date" (FR-006). Do not reintroduce an
     # InvalidVersion-fallback assumption here.
-    console.print(f"[green]Up to date:[/green] {installed}")
+    console.print(f"{accent('Up to date:')} {installed}")
 
 
 @self_app.command("upgrade")

@@ -284,7 +284,7 @@ def register(app: typer.Typer) -> None:
         setup_lines = [
             accent("Specify Project Setup", bold=True),
             "",
-            f"{'Project':<15} [green]{project_path.name}[/green]",
+            f"{'Project':<15} {accent(project_path.name)}",
             f"{'Working Path':<15} [dim]{current_dir}[/dim]",
         ]
 

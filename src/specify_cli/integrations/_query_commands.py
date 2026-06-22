@@ -77,9 +77,9 @@ def integration_list(
             cat_name = entry.get("_catalog_name", "")
             install_allowed = entry.get("_install_allowed", True)
             if eid == default_key:
-                status = "[green]installed (default)[/green]"
+                status = f"{accent('installed (default)')}"
             elif eid in installed_keys:
-                status = "[green]installed[/green]"
+                status = f"{accent('installed')}"
             elif eid in INTEGRATION_REGISTRY:
                 status = "built-in"
             elif install_allowed is False:
@@ -118,9 +118,9 @@ def integration_list(
         name = cfg.get("name", key)
         requires_cli = cfg.get("requires_cli", False)
         if key == default_key:
-            status = "[green]installed (default)[/green]"
+            status = f"{accent('installed (default)')}"
         elif key in installed_keys:
-            status = "[green]installed[/green]"
+            status = f"{accent('installed')}"
         else:
             status = ""
         cli_req = "yes" if requires_cli else "no (IDE)"
@@ -177,7 +177,7 @@ def integration_use(
             f"{accent(f'specify integration use {key} --force')}."
         ),
     )
-    console.print(f"[green]✓[/green] Default integration set to [bold]{key}[/bold].")
+    console.print(f"{accent('✓')} Default integration set to [bold]{key}[/bold].")
 
 
 # ===== Integration catalog discovery commands =====
@@ -239,7 +239,7 @@ def integration_search(
             console.print("  • specify integration search (show all)")
         return
 
-    console.print(f"\n[green]Found {len(results)} integration(s):[/green]\n")
+    console.print(f"\n{accent(f'Found {len(results)} integration(s):')}\n")
     for integ in sorted(results, key=lambda e: e.get("id", "")):
         iid = integ.get("id", "?")
         name = integ.get("name", iid)
@@ -266,7 +266,7 @@ def integration_search(
                 )
 
         if iid == installed_key:
-            console.print("\n  [green]✓ Installed[/green] (currently active)")
+            console.print(f"\n  {accent('✓ Installed')} (currently active)")
         elif iid in INTEGRATION_REGISTRY:
             console.print(f"\n  {accent('Install:')} specify integration install {iid}")
         elif install_allowed:
@@ -334,7 +334,7 @@ def integration_info(
             console.print(f"  [dim]Repository:[/dim] {info['repository']}")
 
         if integration_id == installed_key:
-            console.print("\n  [green]✓ Installed[/green] (currently active)")
+            console.print(f"\n  {accent('✓ Installed')} (currently active)")
         elif integration_id in INTEGRATION_REGISTRY:
             console.print("\n  [dim]Built-in integration (not currently active)[/dim]")
         return
@@ -346,7 +346,7 @@ def integration_info(
         console.print(f"\n{accent(name, bold=True)} ({integration_id})")
         console.print("  [dim]Built-in integration (not listed in catalog)[/dim]")
         if integration_id == installed_key:
-            console.print("\n  [green]✓ Installed[/green] (currently active)")
+            console.print(f"\n  {accent('✓ Installed')} (currently active)")
         if catalog_error:
             console.print(f"\n[yellow]Catalog unavailable:[/yellow] {catalog_error}")
         return
@@ -410,7 +410,7 @@ def integration_catalog_list():
 
     for i, cfg in enumerate(configs):
         install_status = (
-            "[green]install allowed[/green]"
+            f"{accent('install allowed')}"
             if cfg.get("install_allowed")
             else "[yellow]discovery only[/yellow]"
         )
@@ -458,7 +458,7 @@ def integration_catalog_add(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source added: {normalized_url}")
+    console.print(f"{accent('✓')} Catalog source added: {normalized_url}")
 
 
 @integration_catalog_app.command("remove")
@@ -478,4 +478,4 @@ def integration_catalog_remove(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source '{removed_name}' removed")
+    console.print(f"{accent('✓')} Catalog source '{removed_name}' removed")

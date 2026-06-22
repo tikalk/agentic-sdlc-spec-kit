@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc33] - 2026-06-22
+
+### Changed
+
+- **Orange accent theming sweep**: Replaced all 54 `[green]` Rich markup references with `accent()` calls — every success message, checkmark symbol, and status indicator now uses `#f47721` orange instead of green. Affected files: `__init__.py` (37 locations — preset/extension/workflow/catalog commands), `_init_fork.py` (4 — preset update flow), `_version.py` (2 — self-check messages), `_utils.py` (1 — git init success), `_console.py` (2 — StepTracker status symbols), `commands/init.py` (1 — project name), `integrations/_install_commands.py` (2 — install/uninstall), `integrations/_migrate_commands.py` (4 — switch/upgrade), `integrations/_query_commands.py` (12 — list/search/info/catalog).
+- **spec-kit CLI**: 0.10.0+adlc32 → 0.10.0+adlc33.
+
 # [0.10.0+adlc32] - 2026-06-22
 
 ### Changed

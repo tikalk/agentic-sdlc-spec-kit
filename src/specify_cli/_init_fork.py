@@ -1746,7 +1746,7 @@ def run_preset_update(
                 console.print(f"✓ {preset_id}: Up to date (v{installed_version})")
 
         if not updates_available:
-            console.print("\n[green]All presets are up to date![/green]")
+            console.print(f"\n{accent('All presets are up to date!')}")
             return 0
 
         console.print("\n[bold]Updates available:[/bold]\n")
@@ -1809,7 +1809,7 @@ def run_preset_update(
                     if not backup_entry.get("enabled", True):
                         manager.registry.update(preset_id, {"enabled": False})
 
-                console.print(f"   [green]✓[/green] Updated to v{update['available']}")
+                console.print(f"   {accent('✓')} Updated to v{update['available']}")
                 updated_presets.append(preset_name)
 
             except Exception as e:
@@ -1854,7 +1854,7 @@ def run_preset_update(
                         except Exception:
                             pass
 
-                    console.print("   [green]✓[/green] Rollback successful")
+                    console.print(f"   {accent('✓')} Rollback successful")
                 except Exception as rollback_error:
                     console.print(f"   [red]✗[/red] Rollback failed: {rollback_error}")
 
@@ -1867,7 +1867,7 @@ def run_preset_update(
 
         console.print()
         if updated_presets:
-            console.print(f"[green]✓[/green] Successfully updated {len(updated_presets)} preset(s)")
+            console.print(f"{accent('✓')} Successfully updated {len(updated_presets)} preset(s)")
         if failed_updates:
             console.print(f"[red]✗[/red] Failed to update {len(failed_updates)} preset(s):")
             for preset_name, error in failed_updates:

@@ -93,9 +93,9 @@ class StepTracker:
 
             status = step["status"]
             if status == "done":
-                symbol = "[green]●[/green]"
+                symbol = f"[{ACCENT_STYLE}]●[/{ACCENT_STYLE}]"
             elif status == "pending":
-                symbol = "[green dim]○[/green dim]"
+                symbol = f"[{ACCENT_STYLE} dim]○[/{ACCENT_STYLE} dim]"
             elif status == "running":
                 symbol = f"[{ACCENT_STYLE}]○[/{ACCENT_STYLE}]"
             elif status == "error":

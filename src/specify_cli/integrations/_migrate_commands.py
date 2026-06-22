@@ -102,7 +102,7 @@ def integration_switch(
                 refresh_templates_force=True,
             )
             console.print(
-                f"\n[green]✓[/green] Default integration remains [bold]{target}[/bold]; "
+                f"\n{accent('✓')} Default integration remains [bold]{target}[/bold]; "
                 "shared infrastructure refreshed."
             )
             raise typer.Exit(0)
@@ -133,7 +133,7 @@ def integration_switch(
             parsed_options=parsed_options,
             refresh_templates_force=force,
         )
-        console.print(f"\n[green]✓[/green] Default integration set to [bold]{target}[/bold].")
+        console.print(f"\n{accent('✓')} Default integration set to [bold]{target}[/bold].")
         raise typer.Exit(0)
 
     selected_script = _resolve_script_type(project_root, script)
@@ -347,7 +347,7 @@ def integration_switch(
         raise typer.Exit(1)
 
     name = (target_integration.config or {}).get("name", target)
-    console.print(f"\n[green]✓[/green] Switched to integration '{name}'")
+    console.print(f"\n{accent('✓')} Switched to integration '{name}'")
 
 
 @integration_app.command("upgrade")
@@ -501,4 +501,4 @@ def integration_upgrade(
             console.print(f"  Removed {len(stale_removed)} stale file(s) from previous install")
 
     name = (integration.config or {}).get("name", key)
-    console.print(f"\n[green]✓[/green] Integration '{name}' upgraded successfully")
+    console.print(f"\n{accent('✓')} Integration '{name}' upgraded successfully")

@@ -203,7 +203,7 @@ def integration_install(
         raise typer.Exit(1)
 
     name = (integration.config or {}).get("name", key)
-    console.print(f"\n[green]✓[/green] Integration '{name}' installed successfully")
+    console.print(f"\n{accent('✓')} Integration '{name}' installed successfully")
     if default_key:
         console.print(f"[dim]Default integration remains:[/dim] {accent(default_key)}")
 
@@ -313,7 +313,7 @@ def integration_uninstall(
         _clear_init_options_for_integration(project_root, key)
 
     name = (integration.config or {}).get("name", key) if integration else key
-    console.print(f"\n[green]✓[/green] Integration '{name}' uninstalled")
+    console.print(f"\n{accent('✓')} Integration '{name}' uninstalled")
     if removed:
         console.print(f"  Removed {len(removed)} file(s)")
     if skipped:

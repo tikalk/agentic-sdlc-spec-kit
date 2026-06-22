@@ -121,7 +121,7 @@ def init_git_repo(project_path: Path, quiet: bool = False) -> tuple[bool, str | 
         subprocess.run(["git", "add", "."], check=True, capture_output=True, text=True)
         subprocess.run(["git", "commit", "-m", "Initial commit from Specify template"], check=True, capture_output=True, text=True)
         if not quiet:
-            console.print("[green]✓[/green] Git repository initialized")
+            console.print(f"{accent('✓')} Git repository initialized")
         return True, None
     except subprocess.CalledProcessError as e:
         error_msg = f"Command: {' '.join(e.cmd)}\nExit code: {e.returncode}"

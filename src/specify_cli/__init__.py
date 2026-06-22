@@ -759,7 +759,7 @@ def preset_list():
 
     console.print(f"\n{accent('Installed Presets:', bold=True)}\n")
     for pack in installed:
-        status = "[green]enabled[/green]" if pack.get("enabled", True) else "[red]disabled[/red]"
+        status = f"{accent('enabled')}" if pack.get("enabled", True) else "[red]disabled[/red]"
         pri = pack.get('priority', 10)
         console.print(f"  [bold]{pack['name']}[/bold] ({pack['id']}) v{pack['version']} — {status} — priority {pri}")
         console.print(f"    {pack['description']}")
@@ -804,7 +804,7 @@ def preset_add(
 
             console.print(f"Installing preset from {accent(dev_path)}...")
             manifest = manager.install_from_directory(dev_path, speckit_version, priority)
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
 
         elif from_url:
             # Validate URL scheme before downloading
@@ -840,7 +840,7 @@ def preset_add(
 
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
 
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
 
         elif preset_id:
             # Try bundled preset first, then catalog
@@ -848,7 +848,7 @@ def preset_add(
             if bundled_path:
                 console.print(f"Installing bundled preset {accent(preset_id)}...")
                 manifest = manager.install_from_directory(bundled_path, speckit_version, priority)
-                console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+                console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
             else:
                 catalog = PresetCatalog(project_root)
                 pack_info = catalog.get_pack_info(preset_id)
@@ -889,7 +889,7 @@ def preset_add(
                 try:
                     zip_path = catalog.download_pack(preset_id)
                     manifest = manager.install_from_zip(zip_path, speckit_version, priority)
-                    console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+                    console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
                 finally:
                     if 'zip_path' in locals() and zip_path.exists():
                         zip_path.unlink(missing_ok=True)
@@ -923,7 +923,7 @@ def preset_remove(
         raise typer.Exit(1)
 
     if manager.remove(preset_id):
-        console.print(f"[green]✓[/green] Preset '{preset_id}' removed successfully")
+        console.print(f"{accent('✓')} Preset '{preset_id}' removed successfully")
     else:
         console.print(f"[red]Error:[/red] Failed to remove preset '{preset_id}'")
         raise typer.Exit(1)
@@ -1055,7 +1055,7 @@ def preset_info(
         license_val = local_pack.data.get("preset", {}).get("license")
         if license_val:
             console.print(f"  License:     {license_val}")
-        console.print("\n  [green]Status: installed[/green]")
+        console.print(f"\n  {accent('Status: installed')}")
         # Get priority from registry
         pack_metadata = manager.registry.get(preset_id)
         priority = normalize_priority(pack_metadata.get("priority") if isinstance(pack_metadata, dict) else None)
@@ -1132,7 +1132,7 @@ def preset_set_priority(
     # Update priority
     manager.registry.update(preset_id, {"priority": priority})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' priority changed: {old_priority} → {priority}")
+    console.print(f"{accent('✓')} Preset '{preset_id}' priority changed: {old_priority} → {priority}")
     console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
@@ -1164,7 +1164,7 @@ def preset_enable(
     # Enable the preset
     manager.registry.update(preset_id, {"enabled": True})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' enabled")
+    console.print(f"{accent('✓')} Preset '{preset_id}' enabled")
     console.print("\nTemplates from this preset will now be included in resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active.[/dim]")
 
@@ -1197,7 +1197,7 @@ def preset_disable(
     # Disable the preset
     manager.registry.update(preset_id, {"enabled": False})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' disabled")
+    console.print(f"{accent('✓')} Preset '{preset_id}' disabled")
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]")
     console.print(f"To re-enable: {accent(f'specify preset enable {preset_id}')}")
@@ -1240,7 +1240,7 @@ def preset_catalog_list():
     console.print(f"\n{accent('Active Preset Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
-            "[green]install allowed[/green]"
+            f"{accent('install allowed')}"
             if entry.install_allowed
             else "[yellow]discovery only[/yellow]"
         )
@@ -1338,7 +1338,7 @@ def preset_catalog_add(
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})")
+    console.print(f"\n{accent('✓')} Added catalog '[bold]{name}[/bold]' ({install_label})")
     console.print(f"  URL: {url}")
     console.print(f"  Priority: {priority}")
     console.print(f"\nConfig saved to {_display_project_path(project_root, config_path)}")
@@ -1377,7 +1377,7 @@ def preset_catalog_remove(
     config["catalogs"] = catalogs
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
-    console.print(f"[green]✓[/green] Removed catalog '{name}'")
+    console.print(f"{accent('✓')} Removed catalog '{name}'")
     if not catalogs:
         console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
 
@@ -1558,7 +1558,7 @@ def catalog_list():
     console.print(f"\n{accent('Active Extension Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
-            "[green]install allowed[/green]"
+            f"{accent('install allowed')}"
             if entry.install_allowed
             else "[yellow]discovery only[/yellow]"
         )
@@ -1656,7 +1656,7 @@ def catalog_add(
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})")
+    console.print(f"\n{accent('✓')} Added catalog '[bold]{name}[/bold]' ({install_label})")
     console.print(f"  URL: {url}")
     console.print(f"  Priority: {priority}")
     console.print(f"\nConfig saved to {_display_project_path(project_root, config_path)}")
@@ -1695,7 +1695,7 @@ def catalog_remove(
     config["catalogs"] = catalogs
     config_path.write_text(yaml.dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
-    console.print(f"[green]✓[/green] Removed catalog '{name}'")
+    console.print(f"{accent('✓')} Removed catalog '{name}'")
     if not catalogs:
         console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
 
@@ -1883,7 +1883,7 @@ def extension_add(
                             if zip_path.exists():
                                 zip_path.unlink()
 
-        console.print("\n[green]✓[/green] Extension installed successfully!")
+        console.print(f"\n{accent('✓')} Extension installed successfully!")
         console.print(f"\n[bold]{manifest.name}[/bold] (v{manifest.version})")
         console.print(f"  {manifest.description}")
 
@@ -1909,7 +1909,7 @@ def extension_add(
         if not isinstance(reg_skills, list):
             reg_skills = []
         if reg_skills:
-            console.print(f"\n[green]✓[/green] {len(reg_skills)} agent skill(s) auto-registered")
+            console.print(f"\n{accent('✓')} {len(reg_skills)} agent skill(s) auto-registered")
 
         console.print("\n[yellow]⚠[/yellow]  Configuration may be required")
         console.print(f"   Check: .specify/extensions/{manifest.id}/")
@@ -1981,7 +1981,7 @@ def extension_remove(
     success = manager.remove(extension_id, keep_config=keep_config)
 
     if success:
-        console.print(f"\n[green]✓[/green] Extension '{display_name}' removed successfully")
+        console.print(f"\n{accent('✓')} Extension '{display_name}' removed successfully")
         if keep_config:
             console.print(f"\nConfig files preserved in .specify/extensions/{extension_id}/")
         else:
@@ -2018,11 +2018,11 @@ def extension_search(
                 console.print(f"  • {accent('specify extension search')} (show all)")
             raise typer.Exit(0)
 
-        console.print(f"\n[green]Found {len(results)} extension(s):[/green]\n")
+        console.print(f"\n{accent(f'Found {len(results)} extension(s):')}\n")
 
         for ext in results:
             # Extension header
-            verified_badge = " [green]✓ Verified[/green]" if ext.get("verified") else ""
+            verified_badge = f" {accent('✓ Verified')}" if ext.get("verified") else ""
             console.print(f"[bold]{ext['name']}[/bold] (v{ext['version']}){verified_badge}")
             console.print(f"  {ext['description']}")
 
@@ -2141,7 +2141,7 @@ def extension_info(
             console.print("[yellow]Note:[/yellow] Not found in catalog (custom/local extension)")
 
         console.print()
-        console.print("[green]✓ Installed[/green]")
+        console.print(f"{accent('✓ Installed')}")
         priority = normalize_priority(metadata.get("priority") if metadata_is_dict else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
         console.print(f"\nTo remove: {accent(f'specify extension remove {resolved_installed_id}')}")
@@ -2162,7 +2162,7 @@ def _print_extension_info(ext_info: dict, manager):
     from .extensions import normalize_priority
 
     # Header
-    verified_badge = " [green]✓ Verified[/green]" if ext_info.get("verified") else ""
+    verified_badge = f" {accent('✓ Verified')}" if ext_info.get("verified") else ""
     console.print(f"\n[bold]{ext_info['name']}[/bold] (v{ext_info['version']}){verified_badge}")
     console.print(f"ID: {ext_info['id']}")
     console.print()
@@ -2238,7 +2238,7 @@ def _print_extension_info(ext_info: dict, manager):
     is_installed = manager.registry.is_installed(ext_info['id'])
     install_allowed = ext_info.get("_install_allowed", True)
     if is_installed:
-        console.print("[green]✓ Installed[/green]")
+        console.print(f"{accent('✓ Installed')}")
         metadata = manager.registry.get(ext_info['id'])
         priority = normalize_priority(metadata.get("priority") if isinstance(metadata, dict) else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
@@ -2377,7 +2377,7 @@ def extension_update(
                 console.print(f"✓ {ext_id}: Up to date (v{installed_version})")
 
         if not updates_available:
-            console.print("\n[green]All extensions are up to date![/green]")
+            console.print(f"\n{accent('All extensions are up to date!')}")
             raise typer.Exit(0)
 
         # Show available updates
@@ -2627,7 +2627,7 @@ def extension_update(
                 if backup_base.exists():
                     shutil.rmtree(backup_base)
 
-                console.print(f"   [green]✓[/green] Updated to v{update['available']}")
+                console.print(f"   {accent('✓')} Updated to v{update['available']}")
                 updated_extensions.append(ext_name)
 
             except KeyboardInterrupt:
@@ -2742,7 +2742,7 @@ def extension_update(
                     if backup_registry_entry:
                         manager.registry.restore(extension_id, backup_registry_entry)
 
-                    console.print("   [green]✓[/green] Rollback successful")
+                    console.print(f"   {accent('✓')} Rollback successful")
                     # Clean up backup directory only on successful rollback
                     if backup_base.exists():
                         shutil.rmtree(backup_base)
@@ -2753,7 +2753,7 @@ def extension_update(
         # Summary
         console.print()
         if updated_extensions:
-            console.print(f"[green]✓[/green] Successfully updated {len(updated_extensions)} extension(s)")
+            console.print(f"{accent('✓')} Successfully updated {len(updated_extensions)} extension(s)")
         if failed_updates:
             console.print(f"[red]✗[/red] Failed to update {len(failed_updates)} extension(s):")
             for ext_name, error in failed_updates:
@@ -2804,7 +2804,7 @@ def extension_enable(
                     hook["enabled"] = True
         hook_executor.save_project_config(config)
 
-    console.print(f"[green]✓[/green] Extension '{display_name}' enabled")
+    console.print(f"{accent('✓')} Extension '{display_name}' enabled")
 
 
 @extension_app.command("disable")
@@ -2843,7 +2843,7 @@ def extension_disable(
                     hook["enabled"] = False
         hook_executor.save_project_config(config)
 
-    console.print(f"[green]✓[/green] Extension '{display_name}' disabled")
+    console.print(f"{accent('✓')} Extension '{display_name}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: {accent(f'specify extension enable {extension_id}')}")
 
@@ -2887,7 +2887,7 @@ def extension_set_priority(
     # Update priority
     manager.registry.update(extension_id, {"priority": priority})
 
-    console.print(f"[green]✓[/green] Extension '{display_name}' priority changed: {old_priority} → {priority}")
+    console.print(f"{accent('✓')} Extension '{display_name}' priority changed: {old_priority} → {priority}")
     console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
@@ -3272,7 +3272,7 @@ def workflow_add(
             "description": definition.description,
             "source": source_label,
         })
-        console.print(f"[green]✓[/green] Workflow '{definition.name}' ({definition.id}) installed")
+        console.print(f"{accent('✓')} Workflow '{definition.name}' ({definition.id}) installed")
 
     # Try as URL (http/https)
     if source.startswith("http://") or source.startswith("https://"):
@@ -3475,7 +3475,7 @@ def workflow_add(
         "catalog_name": info.get("_catalog_name", ""),
         "url": workflow_url,
     })
-    console.print(f"[green]✓[/green] Workflow '{info.get('name', source)}' installed from catalog")
+    console.print(f"{accent('✓')} Workflow '{info.get('name', source)}' installed from catalog")
 
 
 @workflow_app.command("remove")
@@ -3499,7 +3499,7 @@ def workflow_remove(
         shutil.rmtree(workflow_dir)
 
     registry.remove(workflow_id)
-    console.print(f"[green]✓[/green] Workflow '{workflow_id}' removed")
+    console.print(f"{accent('✓')} Workflow '{workflow_id}' removed")
 
 
 @workflow_app.command("search")
@@ -3569,7 +3569,7 @@ def workflow_info(
         if definition.default_integration:
             console.print(f"  Integration: {definition.default_integration}")
         if installed:
-            console.print("  [green]Installed[/green]")
+            console.print(f"  {accent('Installed')}")
 
         if definition.inputs:
             console.print("\n  [bold]Inputs:[/bold]")
@@ -3621,7 +3621,7 @@ def workflow_catalog_list():
 
     console.print(f"\n{accent('Workflow Catalog Sources:', bold=True)}\n")
     for i, cfg in enumerate(configs):
-        install_status = "[green]install allowed[/green]" if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
+        install_status = f"{accent('install allowed')}" if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
         console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")
         console.print(f"      {cfg['url']}")
         if cfg.get("description"):
@@ -3645,7 +3645,7 @@ def workflow_catalog_add(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source added: {url}")
+    console.print(f"{accent('✓')} Catalog source added: {url}")
 
 
 @workflow_catalog_app.command("remove")
@@ -3663,7 +3663,7 @@ def workflow_catalog_remove(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source '{removed_name}' removed")
+    console.print(f"{accent('✓')} Catalog source '{removed_name}' removed")
 
 
 def main():
