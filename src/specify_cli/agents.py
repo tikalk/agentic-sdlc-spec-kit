@@ -16,6 +16,7 @@ from typing import Any, Dict, List, Optional
 import yaml
 
 from ._init_options import is_ai_skills_enabled, load_init_options
+from ._utils import relative_extension_path_violation
 
 
 def _build_agent_configs() -> dict[str, Any]:
@@ -567,17 +568,42 @@ class CommandRegistrar:
 
         registered = []
         is_cline_ext = agent_name == "cline" and source_id != "core"
+        source_root = source_dir.resolve()
 
         for cmd_info in commands:
             cmd_name = cmd_info["name"]
             aliases = cmd_info.get("aliases", [])
             cmd_file = cmd_info["file"]
 
-            source_file = source_dir / cmd_file
-            if not source_file.exists():
+            # Guard against path traversal using the single shared policy in
+            # relative_extension_path_violation(), so the runtime guard stays
+            # aligned with ExtensionManifest._validate() and the skill/preset
+            # readers. Skip a malformed/unsafe ``file`` (non-string, empty,
+            # whitespace, absolute/anchored, or ``..`` traversal); the
+            # resolve()/relative_to() check below is the final containment
+            # backstop.
+            if relative_extension_path_violation(cmd_file):
+                continue
+            try:
+                source_file = (source_root / cmd_file).resolve()
+                source_file.relative_to(source_root)  # raises ValueError if outside
+            except (OSError, ValueError):
                 continue
 
-            content = source_file.read_text(encoding="utf-8")
+            if not source_file.is_file():
+                continue
+
+            try:
+                content = source_file.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError) as exc:
+                import warnings
+
+                warnings.warn(
+                    f"Skipping command '{cmd_name}': could not read source file "
+                    f"'{cmd_file}' ({exc.__class__.__name__}: {exc}).",
+                    stacklevel=2,
+                )
+                continue
             frontmatter, body = self.parse_frontmatter(content)
 
             if frontmatter.get("strategy") == "wrap":

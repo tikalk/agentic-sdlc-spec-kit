@@ -28,7 +28,7 @@ from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from ._init_options import is_ai_skills_enabled
 from ._invocation_style import is_slash_skills_agent
-from ._utils import dump_frontmatter
+from ._utils import dump_frontmatter, relative_extension_path_violation
 from .catalogs import CatalogEntry as BaseCatalogEntry
 from .catalogs import CatalogStackBase
 
@@ -289,6 +289,18 @@ class ExtensionManifest:
                 )
             if "name" not in cmd or "file" not in cmd:
                 raise ValidationError("Command missing 'name' or 'file'")
+
+            # Validate the 'file' field at manifest-load time using the single
+            # shared policy in relative_extension_path_violation(), so manifest
+            # validation cannot drift from the runtime registrar guard. This is
+            # defense-in-depth: the command/skill/preset readers also contain
+            # the resolved path, but rejecting an unsafe value here surfaces a
+            # clear error instead of silently skipping the command.
+            cmd_file = cmd["file"]
+            reason = relative_extension_path_violation(cmd_file)
+            if reason:
+                label = repr(cmd_file) if isinstance(cmd_file, str) else f"for command '{cmd.get('name')}'"
+                raise ValidationError(f"Invalid command 'file' {label}: {reason}")
 
             # Validate command name format
             if not EXTENSION_COMMAND_NAME_PATTERN.match(cmd["name"]):
