@@ -2,6 +2,21 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.11.5] - 2026-06-22
+
+### Changed
+
+- fix: register enabled extensions for agent on integration use/upgrade (#2949)
+- Add SicarioSpec Core preset to community catalog (#3102)
+- Update Game Narrative Writing preset to v1.1.0 (#3099)
+- feat: add PyPI publishing workflow and readme metadata (#2915)
+- refactor: move extension command handlers to extensions/_commands.py (PR-7/8) (#3014)
+- feat: add ZCode (Z.AI) integration (#3063)
+- fix(agent-context): support multiple context files safely (#2969)
+- Update DocGuard — CDD Enforcement extension to v0.27.0 (#3094)
+- fix(presets): use _repo_root() for bundled-core source-checkout fallback (#3086) (#3091)
+- chore: release 0.11.4, begin 0.11.5.dev0 development (#3092)
+
 ## [0.11.4] - 2026-06-22
 
 ### Changed
