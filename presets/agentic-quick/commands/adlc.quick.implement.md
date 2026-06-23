@@ -157,6 +157,7 @@ Display summary:
 4. For each remaining hook:
    - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions immediately.
    - **Optional** (`optional: true`): Display hook info for user decision.
+     **STOP** — Wait for user decision before proceeding.
 5. If no hooks registered, skip silently.
 
 ---

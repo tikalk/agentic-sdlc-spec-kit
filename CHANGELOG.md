@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.10.0+adlc34] - 2026-06-24
+
+### Changed
+
+- **Agentic Change preset**: v1.1.0 → v1.2.0. Aligned `adlc.change.specify.md` with `spec.specify.md` patterns: two-phase hook execution (Phase A: discovery read-only, Phase B: mutating deferred), automatic mission brief extraction from `$ARGUMENTS`, `.specify/feature.json` persistence from `git.feature` output, FEATURE_NUM-based directory numbering when available, conflict guard for existing change directories, `Draft`→`Active`→... status lifecycle, constitution irrelevance gap note, and `**STOP**` directive after post-execution optional hooks. Canonical handoff names (`adlc.spec.clarify`/`adlc.spec.checklist`).
+- **Agentic Quick preset**: v1.1.0 → v1.2.0. Added `**STOP**` directive after optional post-execution hooks in `adlc.quick.implement.md` for consistency.
+- **spec-kit CLI**: 0.10.0+adlc33 → 0.10.0+adlc34.
+
 # [0.10.0+adlc33] - 2026-06-22
 
 ### Changed
