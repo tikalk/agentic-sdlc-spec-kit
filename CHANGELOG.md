@@ -2,6 +2,21 @@
 
 <!-- insert new changelog below this comment -->
 
+## [0.11.7] - 2026-06-24
+
+### Changed
+
+- feat(extensions): verify catalog archive sha256 before install (#3080)
+- fix(workflows): validate requires keys and reject phantom permissions gate (#3079)
+- fix(scripts): use case-sensitive match for acronym retention in PS branch names (#3130)
+- feat(integrations): add omp support (#3107)
+- fix: render valid TOML when a command body contains backslashes (#3135)
+- harden: reject shell=True in run_command (#3132)
+- docs: add monorepo guide (#3084)
+- fix(scripts): send check-prerequisites.ps1 errors to stderr (#3123)
+- fix: write Codex dev skills as files (#2988)
+- chore: release 0.11.6, begin 0.11.7.dev0 development (#3121)
+
 ## [0.11.6] - 2026-06-23
 
 ### Changed
