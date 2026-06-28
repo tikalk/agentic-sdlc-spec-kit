@@ -773,7 +773,7 @@ class CommandRegistrar:
                 if agent_name == "copilot":
                     self.write_copilot_prompt(project_root, cmd_name)
 
-            registered.append(cmd_name)
+                registered.append(cmd_name)
 
             for alias in aliases:
                 alias_output_name = self._compute_output_name(

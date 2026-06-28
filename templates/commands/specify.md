@@ -57,6 +57,7 @@ You **MUST** consider the user input before proceeding (if not empty).
      Executing: `/{command}`
      EXECUTE_COMMAND: {command}
      ```
+     After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
 8. For each **mutating** hook: do NOT execute yet. Note it for Phase B.
 9. If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
@@ -126,7 +127,7 @@ After collecting/extracting answers, display:
    ```
    Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
    ```
-5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature
+ 5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature
    directory is now known, persist the feature-scoped artifact at:
    - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
    - the JSON content should remain the same unless path normalization is required
@@ -336,6 +337,7 @@ Check if `.specify/extensions.yml` exists in the project root.
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
     ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
   - **Optional hook** (`optional: true`):
     ```
     ## Extension Hooks
