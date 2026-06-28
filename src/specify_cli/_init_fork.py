@@ -778,13 +778,11 @@ def post_init(
     project_path: Path,
     selected_ai: str,
     tracker: Any = None,
-    no_git: bool = False,
     force: bool = False,
 ) -> None:
     """Post-init hook - bundled extensions and presets.
 
     Args:
-        no_git: If True, skip installing the git extension (user passed --no-git).
         force: If True, re-register command files even when extension/preset
                version and hash are unchanged (used with ``--force`` reinit).
     """
@@ -794,7 +792,7 @@ def post_init(
             tracker.skip("presets", "skipped (SPECKIT_SKIP_BUNDLED)")
         return
 
-    _install_bundled_extensions(project_path, selected_ai, tracker, skip_git=no_git, force=force)
+    _install_bundled_extensions(project_path, selected_ai, tracker, force=force)
     _install_bundled_presets(project_path, selected_ai, tracker, force=force)
 
     # Normalize stored hook command ids to alias form.  Bundled presets
@@ -1043,13 +1041,11 @@ def _install_bundled_extensions(
     project_path: Path,
     selected_ai: str,
     tracker: Any = None,
-    skip_git: bool = False,
     force: bool = False,
 ) -> None:
     """Install bundled extensions with scaffolding support.
 
     Args:
-        skip_git: If True, skip installing the 'git' extension (used when --no-git is passed).
         force: If True, always re-register command files even when version/hash
                are unchanged (ensures files exist on disk after ``--force`` reinit).
     """
@@ -1095,10 +1091,8 @@ def _install_bundled_extensions(
         return
 
     if bundled_extensions_dir != project_extensions_dir:
-        # Build list of extensions to skip during scaffolding
-        skip_list = ["git"] if skip_git else []
         scaffolded = _scaffold_extensions_to_project(
-            bundled_extensions_dir, project_extensions_dir, skip_extensions=skip_list
+            bundled_extensions_dir, project_extensions_dir
         )
         if scaffolded:
             console.print(f"[dim]Scaffolded extensions: {', '.join(scaffolded)}[/dim]")
@@ -1139,11 +1133,6 @@ def _install_bundled_extensions(
     skipped = []
 
     for ext_name in bundled_extensions:
-        # Skip git extension if --no-git was passed
-        if skip_git and ext_name == "git":
-            skipped.append(f"{ext_name} (--no-git)")
-            continue
-
         ext_dir = bundled_extensions_dir / ext_name
         if not ext_dir.exists() or not (ext_dir / "extension.yml").exists():
             skipped.append(f"{ext_name} (not found)")

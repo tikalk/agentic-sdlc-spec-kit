@@ -257,70 +257,38 @@ rm spec.old-command-name.md
 # Restart your IDE
 ```
 
-### Scenario 4: "I'm working on a project without Git"
+### Scenario 4: "I don't want the git extension"
 
-If you initialized your project with `--no-git`, you can still upgrade:
+The git extension is now opt-in, so upgrades do not install it unless you add it explicitly.
 
 ```bash
 # Manually back up files you customized
-cp .specify/memory/constitution.md /tmp/constitution-backup.md
+cp .specify/memory/constitution.md .specify/memory/constitution.backup.md
 
 # Run upgrade
-specify init --here --force --integration copilot --no-git
+specify init --here --force --integration copilot
 
 # Restore customizations
-mv /tmp/constitution-backup.md .specify/memory/constitution.md
+mv .specify/memory/constitution.backup.md .specify/memory/constitution.md
 ```
 
-The `--no-git` flag skips git initialization but doesn't affect file updates.
-
----
-
-## Using `--no-git` Flag
-
-The `--no-git` flag tells Spec Kit to **skip git repository initialization**. This is useful when:
-
-- You manage version control differently (Mercurial, SVN, etc.)
-- Your project is part of a larger monorepo with existing git setup
-- You're experimenting and don't want version control yet
-
-**During initial setup:**
+If you later decide you want the git extension's commands and hooks, install it explicitly:
 
 ```bash
-specify init my-project --integration copilot --no-git
+specify extension add git
 ```
 
-**During upgrade:**
-
-```bash
-specify init --here --force --integration copilot --no-git
-```
-
-### What `--no-git` does NOT do
-
-❌ Does NOT prevent file updates
-❌ Does NOT skip slash command installation
-❌ Does NOT affect template merging
-
-It **only** skips running `git init` and creating the initial commit.
-
-### Working without Git
-
-If you use `--no-git`, you'll need to manage feature directories manually:
-
-**Set the `SPECIFY_FEATURE` environment variable** before using planning commands:
+Projects that do not use Git can still work with Spec Kit by setting `SPECIFY_FEATURE_DIRECTORY` to the feature directory path before planning commands:
 
 ```bash
 # Bash/Zsh
-export SPECIFY_FEATURE="001-my-feature"
+export SPECIFY_FEATURE_DIRECTORY="specs/001-my-feature"
 
 # PowerShell
-$env:SPECIFY_FEATURE = "001-my-feature"
+$env:SPECIFY_FEATURE_DIRECTORY = "specs/001-my-feature"
 ```
 
-This tells Spec Kit which feature directory to use when creating specs, plans, and tasks.
-
-**Why this matters:** Without git, Spec Kit can't detect your current branch name to determine the active feature. The environment variable provides that context manually.
+Alternatively, run the `/speckit.specify` command which creates `.specify/feature.json` automatically.
 
 ---
 
@@ -337,8 +305,10 @@ This tells Spec Kit which feature directory to use when creating specs, plans, a
 
    ```bash
    ls -la .claude/commands/      # Claude Code
-   ls -la .gemini/commands/       # Gemini
-   ls -la .cursor/commands/       # Cursor
+   ls -la .gemini/commands/      # Gemini
+   ls -la .cursor/skills/      # Cursor
+   ls -la .pi/prompts/           # Pi Coding Agent
+   ls -la .omp/commands/         # Oh My Pi
    ```
 
 3. **Check agent-specific setup:**
@@ -458,7 +428,7 @@ The `specify` CLI tool is used for:
 - **Upgrades:** `specify init --here --force` to update templates and commands
 - **Diagnostics:** `specify check` to verify tool installation
 
-Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/speckit.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, `.cursor/commands/`, `.windsurf/workflows/`, etc.). Your AI coding agent reads these command files directly—no need to run `specify` again.
+Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/speckit.plan`, etc.) are **permanently installed** in your project's agent folder (`.claude/`, `.github/prompts/`, `.pi/prompts/`, `.omp/commands/`, etc.). Your AI coding agent reads these command files directly—no need to run `specify` again.
 
 **If your agent isn't recognizing slash commands:**
 
@@ -470,6 +440,12 @@ Once you've run `specify init`, the slash commands (like `/speckit.specify`, `/s
 
    # For Claude
    ls -la .claude/commands/
+
+   # For Pi
+   ls -la .pi/prompts/
+
+   # For Oh My Pi
+   ls -la .omp/commands/
    ```
 
 2. **Restart your IDE/editor completely** (not just reload window)

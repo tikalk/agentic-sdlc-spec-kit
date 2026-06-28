@@ -111,9 +111,42 @@ find_specify_root() {
     return 1
 }
 
-# Get repository root, prioritizing .specify directory over git
-# This prevents using a parent git repo when spec-kit is initialized in a subdirectory
+# Resolve an explicit SPECIFY_INIT_DIR project override (the directory that
+# *contains* .specify/), for non-interactive / CI use — e.g. running a Spec Kit
+# command against a member project from a monorepo root without cd.
+#
+# Precondition: SPECIFY_INIT_DIR is non-empty. Echoes the validated absolute
+# project root, or prints an error and returns 1. Strict by design: the path
+# must exist and contain .specify/, with no silent fallback to cwd or the
+# script-location default (which would silently write to the wrong project).
+#
+# This is the single resolver: bundled extensions inherit it by sourcing core
+# (e.g. the git extension's create-new-feature-branch) rather than duplicating it.
+resolve_specify_init_dir() {
+    local init_root
+    # Normalize: relative paths resolve against $(pwd); a trailing slash collapses.
+    # CDPATH="" so a relative value cannot be resolved against the caller's CDPATH
+    # (which would also echo to stdout and corrupt the captured path).
+    if ! init_root="$(CDPATH="" cd -- "$SPECIFY_INIT_DIR" 2>/dev/null && pwd)"; then
+        echo "ERROR: SPECIFY_INIT_DIR does not point to an existing directory: $SPECIFY_INIT_DIR" >&2
+        return 1
+    fi
+    if [[ ! -d "$init_root/.specify" ]]; then
+        echo "ERROR: SPECIFY_INIT_DIR is not a Spec Kit project (no .specify/ directory): $init_root" >&2
+        return 1
+    fi
+    printf '%s\n' "$init_root"
+}
+
+# Get repository root, prioritizing .specify directory
+# This prevents using a parent repository when spec-kit is initialized in a subdirectory
 get_repo_root() {
+    # Explicit project override wins (see resolve_specify_init_dir).
+    if [[ -n "${SPECIFY_INIT_DIR:-}" ]]; then
+        resolve_specify_init_dir
+        return
+    fi
+
     # First, look for .specify directory (spec-kit's own marker)
     local specify_root
     if specify_root=$(find_specify_root); then
@@ -121,71 +154,36 @@ get_repo_root() {
         return
     fi
 
-    # Fallback to git if no .specify found
-    if git rev-parse --show-toplevel >/dev/null 2>&1; then
-        git rev-parse --show-toplevel
-        return
-    fi
-
-    # Final fallback to script location for non-git repos
+    # Final fallback to script location
     local script_dir="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     (cd "$script_dir/../../.." && pwd)
 }
 
-# Get current branch, with fallback for non-git repositories
+# Get current feature name from explicit state only.
+# Returns the feature identifier or empty string if none is set.
+# Feature state is set by SPECIFY_FEATURE (from create-new-feature or
+# the git extension) or implicitly via .specify/feature.json.
 get_current_branch() {
-    # First check if SPECIFY_FEATURE environment variable is set
     if [[ -n "${SPECIFY_FEATURE:-}" ]]; then
         echo "$SPECIFY_FEATURE"
         return
     fi
 
-    # Then check git if available at the spec-kit root (not parent)
+    # Then check git if available at the spec-kit root (not parent).
+    # The fork uses real git branches/worktrees, so prefer the current HEAD.
     local repo_root=$(get_repo_root)
     if has_git; then
-        git -C "$repo_root" rev-parse --abbrev-ref HEAD
-        return
-    fi
-
-    # For non-git repos, try to find the latest feature directory
-    local specs_dir="$repo_root/specs"
-
-    if [[ -d "$specs_dir" ]]; then
-        local latest_feature=""
-        local highest=0
-        local latest_timestamp=""
-
-        for dir in "$specs_dir"/*; do
-            if [[ -d "$dir" ]]; then
-                local dirname=$(basename "$dir")
-                if [[ "$dirname" =~ ^([0-9]{8}-[0-9]{6})- ]]; then
-                    # Timestamp-based branch: compare lexicographically
-                    local ts="${BASH_REMATCH[1]}"
-                    if [[ "$ts" > "$latest_timestamp" ]]; then
-                        latest_timestamp="$ts"
-                        latest_feature=$dirname
-                    fi
-                elif [[ "$dirname" =~ ^([0-9]{3,})- ]]; then
-                    local number=${BASH_REMATCH[1]}
-                    number=$((10#$number))
-                    if [[ "$number" -gt "$highest" ]]; then
-                        highest=$number
-                        # Only update if no timestamp branch found yet
-                        if [[ -z "$latest_timestamp" ]]; then
-                            latest_feature=$dirname
-                        fi
-                    fi
-                fi
-            fi
-        done
-
-        if [[ -n "$latest_feature" ]]; then
-            echo "$latest_feature"
+        local git_branch
+        git_branch=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
+        if [[ -n "$git_branch" && "$git_branch" != "HEAD" ]]; then
+            echo "$git_branch"
             return
         fi
     fi
 
-    echo "main"  # Final fallback
+    # No explicit feature or git branch context — caller must handle this via
+    # feature.json in get_feature_paths(). Return empty to signal "unknown".
+    echo ""
 }
 
 # Check if we have git available at the spec-kit root level
@@ -521,103 +519,70 @@ read_feature_json_feature_directory() {
     return 0
 }
 
-# Returns 0 when .specify/feature.json lists feature_directory that exists as a directory
-# and matches the resolved active FEATURE_DIR (so __SPECKIT_COMMAND_PLAN__ can skip git branch pattern checks).
-# Delegates parsing to read_feature_json_feature_directory, which is safe under `set -e`.
-feature_json_matches_feature_dir() {
+# Persist a feature_directory value to .specify/feature.json.
+# Writes only when the file is missing or the value differs from what's stored.
+# Accepts the raw (possibly relative) path — callers should pass the original
+# user-supplied value, not the normalized absolute path.
+_persist_feature_json() {
     local repo_root="$1"
-    local active_feature_dir="$2"
+    local feature_dir_value="$2"
+    local fj="$repo_root/.specify/feature.json"
 
-    local _fd
-    _fd=$(read_feature_json_feature_directory "$repo_root")
-
-    [[ -n "$_fd" ]] || return 1
-    [[ "$_fd" != /* ]] && _fd="$repo_root/$_fd"
-    [[ -d "$_fd" ]] || return 1
-
-    local norm_json norm_active
-    norm_json="$(cd -- "$_fd" 2>/dev/null && pwd -P)" || return 1
-    norm_active="$(cd -- "$active_feature_dir" 2>/dev/null && pwd -P)" || return 1
-
-    [[ "$norm_json" == "$norm_active" ]]
-}
-
-# Find feature directory by numeric prefix instead of exact branch match
-# This allows multiple branches to work on the same spec (e.g., 004-fix-bug, 004-add-feature)
-find_feature_dir_by_prefix() {
-    local repo_root="$1"
-    local branch_name
-    branch_name=$(spec_kit_effective_branch_name "$2")
-    local specs_dir="$repo_root/specs"
-
-    # Extract prefix from branch (e.g., "004" from "004-whatever" or "20260319-143022" from timestamp branches)
-    local prefix=""
-    if prefix="$(spec_kit_extract_feature_identity "$2" 2>/dev/null || true)" && [ -n "$prefix" ]; then
-        :
-    else
-        # If branch doesn't have a recognized prefix, fall back to exact match
-        echo "$specs_dir/$branch_name"
-        return
+    # Strip repo_root prefix if the value is absolute and under repo_root
+    if [[ "$feature_dir_value" == "$repo_root/"* ]]; then
+        feature_dir_value="${feature_dir_value#"$repo_root/"}"
     fi
 
-    # Search for directories in specs/ that start with this prefix
-    local matches=()
-    if [[ -d "$specs_dir" ]]; then
-        for dir in "$specs_dir"/"$prefix"-*; do
-            if [[ -d "$dir" ]]; then
-                matches+=("$(basename "$dir")")
-            fi
-        done
+    # Read current value (if any) and skip write when unchanged
+    local current_val
+    current_val=$(read_feature_json_feature_directory "$repo_root")
+    if [[ "$current_val" == "$feature_dir_value" ]]; then
+        return 0
     fi
 
-    # Handle results
-    if [[ ${#matches[@]} -eq 0 ]]; then
-        # No match found - return the branch name path (will fail later with clear error)
-        echo "$specs_dir/$branch_name"
-    elif [[ ${#matches[@]} -eq 1 ]]; then
-        # Exactly one match - perfect!
-        echo "$specs_dir/${matches[0]}"
+    # Ensure .specify/ directory exists
+    mkdir -p "$repo_root/.specify"
+
+    # Write feature.json — prefer jq for safe JSON, fall back to printf
+    if command -v jq >/dev/null 2>&1; then
+        jq -cn --arg fd "$feature_dir_value" '{feature_directory:$fd}' > "$fj"
     else
-        # Multiple matches - this shouldn't happen with proper naming convention
-        echo "ERROR: Multiple spec directories found with prefix '$prefix': ${matches[*]}" >&2
-        echo "Please ensure only one spec directory exists per prefix." >&2
-        return 1
+        printf '{"feature_directory":"%s"}\n' "$(json_escape "$feature_dir_value")" > "$fj"
     fi
 }
 
 get_feature_paths() {
-    local repo_root=$(get_repo_root)
-    local current_branch=$(get_current_branch)
-    local has_git_repo="false"
-
-    if has_git; then
-        has_git_repo="true"
-    fi
+    # Split decl/assignment so a SPECIFY_INIT_DIR validation failure in
+    # get_repo_root propagates as a hard error instead of being masked by `local`.
+    local repo_root
+    repo_root=$(get_repo_root) || return 1
+    local current_branch
+    current_branch=$(get_current_branch)
 
     # Resolve feature directory.  Priority:
     #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
-    #   2. .specify/feature.json "feature_directory" key (persisted by __SPECKIT_COMMAND_SPECIFY__)
-    #   3. Branch-name-based prefix lookup (legacy fallback)
+    #   2. .specify/feature.json "feature_directory" key (persisted by specify command)
+    #   3. Error — no feature context available
     local feature_dir
     if [[ -n "${SPECIFY_FEATURE_DIRECTORY:-}" ]]; then
         feature_dir="$SPECIFY_FEATURE_DIRECTORY"
         # Normalize relative paths to absolute under repo root
         [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
+        # Persist to feature.json so future sessions without the env var still work
+        _persist_feature_json "$repo_root" "$SPECIFY_FEATURE_DIRECTORY"
     elif [[ -f "$repo_root/.specify/feature.json" ]]; then
-        # Shared, set -e-safe parser: jq -> python3 -> grep/sed. Returns empty on
-        # missing/unparseable/unset so we fall through to the branch-prefix lookup.
         local _fd
         _fd=$(read_feature_json_feature_directory "$repo_root")
         if [[ -n "$_fd" ]]; then
             feature_dir="$_fd"
             # Normalize relative paths to absolute under repo root
             [[ "$feature_dir" != /* ]] && feature_dir="$repo_root/$feature_dir"
-        elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
-            echo "ERROR: Failed to resolve feature directory" >&2
+        else
+            echo "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or ensure .specify/feature.json contains feature_directory." >&2
             return 1
         fi
-    elif ! feature_dir=$(find_feature_dir_by_prefix "$repo_root" "$current_branch"); then
-        echo "ERROR: Failed to resolve feature directory" >&2
+    else
+        echo "ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .specify/feature.json." >&2
         return 1
     fi
 
@@ -629,7 +594,6 @@ get_feature_paths() {
     # via crafted branch names or paths containing special characters
     printf 'REPO_ROOT=%q\n' "$repo_root"
     printf 'CURRENT_BRANCH=%q\n' "$current_branch"
-    printf 'HAS_GIT=%q\n' "$has_git_repo"
     printf 'FEATURE_DIR=%q\n' "$feature_dir"
     printf 'FEATURE_SPEC=%q\n' "$feature_dir/spec.md"
     printf 'IMPL_PLAN=%q\n' "$feature_dir/plan.md"

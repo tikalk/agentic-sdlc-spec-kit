@@ -15,6 +15,7 @@ The Specify CLI supports a wide range of AI coding agents. When you run `specify
 | [Codex CLI](https://github.com/openai/codex)                                         | `codex`          | Skills-based integration; installs skills into `.agents/skills` and invokes them as `$speckit-<command>` |
 | [Cursor](https://cursor.sh/)                                                         | `cursor-agent`   |                                                                                                                                           |
 | [Devin for Terminal](https://cli.devin.ai/docs)                                      | `devin`          | Skills-based integration; installs skills into `.devin/skills/` and invokes them as `/speckit-<command>` |
+| [Firebender](https://firebender.com/)                                                | `firebender`     | IDE-based agent for Android Studio / IntelliJ                                                                                             |
 | [Forge](https://forgecode.dev/)                                                      | `forge`          |                                                                                                                                           |
 | [Gemini CLI](https://github.com/google-gemini/gemini-cli)                            | `gemini`         |                                                                                                                                           |
 | [GitHub Copilot](https://code.visualstudio.com/)                                     | `copilot`        |                                                                                                                                           |
@@ -24,10 +25,11 @@ The Specify CLI supports a wide range of AI coding agents. When you run `specify
 | [iFlow CLI](https://docs.iflow.cn/en/cli/quickstart)                                 | `iflow`          |                                                                                                                                           |
 | [Junie](https://junie.jetbrains.com/)                                                | `junie`          |                                                                                                                                           |
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)                                    | `kilocode`       |                                                                                                                                           |
-| [Kimi Code](https://code.kimi.com/)                                                  | `kimi`           | Skills-based integration; supports `--migrate-legacy` for dotted→hyphenated directory migration                                            |
+| [Kimi Code](https://code.kimi.com/)                                                  | `kimi`           | Skills-based integration; installs into `.kimi-code/skills/`. `--migrate-legacy` moves old `.kimi/skills/` installs to the new paths, and (when the `agent-context` extension is enabled) migrates `KIMI.md` context into `AGENTS.md` |
 | [Kiro CLI](https://kiro.dev/docs/cli/)                                               | `kiro-cli`       | Kiro CLI does not substitute `$ARGUMENTS` in file-based prompts, so Spec Kit ships a prose fallback at render time (see [Manage prompts](https://kiro.dev/docs/cli/chat/manage-prompts/) and issue [#1926](https://github.com/github/spec-kit/issues/1926)). Alias: `--integration kiro` |
 | [Lingma](https://lingma.aliyun.com/)                                                 | `lingma`         | Skills-based integration; skills are installed automatically                                                                               |
 | [Mistral Vibe](https://github.com/mistralai/mistral-vibe)                            | `vibe`           |                                                                                                                                           |
+| [Oh My Pi](https://www.npmjs.com/package/@oh-my-pi/pi-coding-agent)                  | `omp`            | Installs slash commands into `.omp/commands`                                                                                               |
 | [opencode](https://opencode.ai/)                                                     | `opencode`       |                                                                                                                                           |
 | [Pi Coding Agent](https://pi.dev)                                                    | `pi`             | Pi doesn't have MCP support out of the box, so `taskstoissues` won't work as intended. MCP support can be added via [extensions](https://github.com/badlogic/pi-mono/tree/main/packages/coding-agent#extensions) |
 | [Qoder CLI](https://qoder.com/cli)                                                   | `qodercli`       |                                                                                                                                           |
@@ -38,6 +40,8 @@ The Specify CLI supports a wide range of AI coding agents. When you run `specify
 | [Tabnine CLI](https://docs.tabnine.com/main/getting-started/tabnine-cli)             | `tabnine`        |                                                                                                                                           |
 | [Trae](https://www.trae.ai/)                                                         | `trae`           | Skills-based integration; skills are installed automatically                                                                               |
 | [Windsurf](https://windsurf.com/)                                                    | `windsurf`       |                                                                                                                                           |
+| [ZCode](https://zcode.z.ai/)                                                         | `zcode`          | Skills-based integration; installs skills into `.zcode/skills/` and invokes them as `$speckit-<command>`                                  |
+| [Zed](https://zed.dev/)                                                              | `zed`            | Skills-based integration; installs skills into `.agents/skills` and invokes them as `/speckit-<command>`                                  |
 | Generic                                                                              | `generic`        | Bring your own agent — use `--integration generic --integration-options="--commands-dir <path>"` for AI coding agents not listed above     |
 
 ## List Available Integrations
@@ -126,6 +130,27 @@ specify integration upgrade [<key>]
 
 Reinstalls an installed integration with updated templates and commands (e.g., after upgrading Spec Kit). Defaults to the default integration; if a key is provided, it must be one of the installed integrations. Detects locally modified files and blocks the upgrade unless `--force` is used. Stale files from the previous install that are no longer needed are removed automatically. Shared templates stay aligned with the default integration even when upgrading a non-default integration.
 
+## Report Integration Status
+
+```bash
+specify integration status
+specify integration status --json
+```
+
+Reports the current project's integration status without changing files. The
+status report includes the default integration, installed integrations,
+multi-install safety, missing managed files, modified managed files, invalid
+manifest paths, shared Spec Kit infrastructure health, unchecked manifests, and
+the target integration for default-sensitive shared templates. The JSON form is
+intended for CI and coding agents that need stable machine-readable status data;
+it also reports the raw recorded integrations and the integration manifests that
+were checked when state repair heuristics differ from the recorded file.
+The command exits 0 when the report status is `ok` or `warning`; it exits 1
+only when the report status is `error`. In JSON output, `multi_install_safe`
+is `null` when no installed integration set can be evaluated, such as when the
+integration state is missing, unreadable, lacks a valid recorded integration
+list, or records no installed integrations.
+
 ## Integration-Specific Options
 
 Some integrations accept additional options via `--integration-options`:
@@ -133,7 +158,7 @@ Some integrations accept additional options via `--integration-options`:
 | Integration | Option              | Description                                                    |
 | ----------- | ------------------- | -------------------------------------------------------------- |
 | `generic`   | `--commands-dir`    | Required. Directory for command files                          |
-| `kimi`      | `--migrate-legacy`  | Migrate legacy dotted skill directories to hyphenated format   |
+| `kimi`      | `--migrate-legacy`  | Migrate legacy `.kimi/skills/` installs to `.kimi-code/skills/` (including dotted→hyphenated directory names); when the `agent-context` extension is enabled, also migrates `KIMI.md` to `AGENTS.md` |
 
 Example:
 
@@ -162,11 +187,11 @@ The currently declared multi-install safe integrations are:
 | `codebuddy` | `.codebuddy/commands`, `CODEBUDDY.md` |
 | `codex` | `.agents/skills`, `AGENTS.md` |
 | `cursor-agent` | `.cursor/skills`, `.cursor/rules/specify-rules.mdc` |
+| `firebender` | `.firebender/commands`, `.firebender/rules/specify-rules.mdc` |
 | `gemini` | `.gemini/commands`, `GEMINI.md` |
 | `iflow` | `.iflow/commands`, `IFLOW.md` |
 | `junie` | `.junie/commands`, `.junie/AGENTS.md` |
 | `kilocode` | `.kilocode/workflows`, `.kilocode/rules/specify-rules.md` |
-| `kimi` | `.kimi/skills`, `KIMI.md` |
 | `qodercli` | `.qoder/commands`, `QODER.md` |
 | `qwen` | `.qwen/commands`, `QWEN.md` |
 | `roo` | `.roo/commands`, `.roo/rules/specify-rules.md` |

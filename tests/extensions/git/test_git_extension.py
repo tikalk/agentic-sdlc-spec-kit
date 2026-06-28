@@ -3,7 +3,7 @@ Tests for the bundled git extension (extensions/git/).
 
 Validates:
 - extension.yml manifest
-- Bash scripts (create-new-feature.sh, initialize-repo.sh, auto-commit.sh, git-common.sh)
+- Bash scripts (create-new-feature-branch.sh, initialize-repo.sh, auto-commit.sh, git-common.sh)
 - PowerShell scripts (where pwsh is available)
 - Config reading from git-config.yml
 - Extension install via ExtensionManager
@@ -87,6 +87,17 @@ def _write_config(project: Path, content: str) -> Path:
     config_path = project / ".specify" / "extensions" / "git" / "git-config.yml"
     config_path.write_text(content, encoding="utf-8")
     return config_path
+
+
+def _add_sibling_worktree(project: Path, path: Path, branch: str) -> None:
+    """Add a sibling worktree so `git branch -a` marks it with `+`."""
+    subprocess.run(
+        ["git", "worktree", "add", "-q", "-b", branch, str(path), "HEAD"],
+        cwd=project,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 # Git identity env vars for CI runners without global git config
@@ -207,12 +218,12 @@ class TestGitExtensionInstall:
         manager.install_from_directory(EXT_DIR, "0.5.0", register_commands=False)
 
         ext_installed = tmp_path / ".specify" / "extensions" / "git"
-        assert (ext_installed / "scripts" / "bash" / "create-new-feature.sh").is_file()
+        assert (ext_installed / "scripts" / "bash" / "create-new-feature-branch.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "initialize-repo.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "auto-commit.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "git-common.sh").is_file()
         assert (ext_installed / "scripts" / "bash" / "publish.sh").is_file()
-        assert (ext_installed / "scripts" / "powershell" / "create-new-feature.ps1").is_file()
+        assert (ext_installed / "scripts" / "powershell" / "create-new-feature-branch.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "initialize-repo.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "auto-commit.ps1").is_file()
         assert (ext_installed / "scripts" / "powershell" / "git-common.ps1").is_file()
@@ -286,16 +297,16 @@ class TestInitializeRepoPowerShell:
         assert result.returncode == 0
 
 
-# ── create-new-feature.sh Tests ──────────────────────────────────────────────
+# ── create-new-feature-branch.sh Tests ──────────────────────────────────────────────
 
 
 @requires_bash
 class TestCreateFeatureBash:
     def test_creates_branch_sequential(self, tmp_path: Path):
-        """Extension create-new-feature.sh creates sequential branch."""
+        """Extension create-new-feature-branch.sh creates sequential branch."""
         project = _setup_project(tmp_path)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--json", "--short-name", "user-auth", "Add user authentication",
         )
         assert result.returncode == 0, result.stderr
@@ -304,10 +315,10 @@ class TestCreateFeatureBash:
         assert data["FEATURE_NUM"] == "001"
 
     def test_creates_branch_timestamp(self, tmp_path: Path):
-        """Extension create-new-feature.sh creates timestamp branch."""
+        """Extension create-new-feature-branch.sh creates timestamp branch."""
         project = _setup_project(tmp_path)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--json", "--timestamp", "--short-name", "feat", "Feature",
         )
         assert result.returncode == 0, result.stderr
@@ -321,18 +332,52 @@ class TestCreateFeatureBash:
         (project / "specs" / "002-second").mkdir(parents=True)
 
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--json", "--short-name", "third", "Third feature",
         )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["FEATURE_NUM"] == "003"
 
+    def test_dry_run_counts_branches_checked_out_in_worktrees(self, tmp_path: Path):
+        """Branches checked out in sibling worktrees still reserve their prefix."""
+        project = _setup_project(tmp_path / "project")
+        _add_sibling_worktree(project, tmp_path / "sibling-worktree", "007-worktree-feature")
+
+        result = _run_bash(
+            "create-new-feature-branch.sh", project,
+            "--json", "--dry-run", "--short-name", "next", "Next feature",
+        )
+
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "008-next"
+        assert data["FEATURE_NUM"] == "008"
+
+    def test_dry_run_preserves_literal_plus_branch_prefix(self, tmp_path: Path):
+        """A literal leading plus in a branch name is not a git worktree marker."""
+        project = _setup_project(tmp_path)
+        subprocess.run(
+            ["git", "branch", "+007-plus-prefix"],
+            cwd=project,
+            check=True,
+        )
+
+        result = _run_bash(
+            "create-new-feature-branch.sh", project,
+            "--json", "--dry-run", "--short-name", "next", "Next feature",
+        )
+
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "001-next"
+        assert data["FEATURE_NUM"] == "001"
+
     def test_no_git_graceful_degradation(self, tmp_path: Path):
-        """create-new-feature.sh works without git (outputs branch name, skips branch creation)."""
+        """create-new-feature-branch.sh works without git (outputs branch name, skips branch creation)."""
         project = _setup_project(tmp_path, git=False)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--json", "--short-name", "no-git", "No git feature",
         )
         assert result.returncode == 0, result.stderr
@@ -345,7 +390,7 @@ class TestCreateFeatureBash:
         """--dry-run computes branch name without creating anything."""
         project = _setup_project(tmp_path)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--json", "--dry-run", "--short-name", "dry", "Dry run test",
         )
         assert result.returncode == 0, result.stderr
@@ -373,7 +418,7 @@ class TestCreateFeatureBash:
         )
 
         result = _run_bash(
-            "create-new-feature.sh",
+            "create-new-feature-branch.sh",
             project,
             "--json",
             "--issue",
@@ -428,7 +473,7 @@ class TestCreateFeatureBash:
         )
 
         result = _run_bash(
-            "create-new-feature.sh",
+            "create-new-feature-branch.sh",
             project,
             "--json",
             "--timestamp",
@@ -464,7 +509,7 @@ class TestCreateFeatureBash:
         )
 
         result = _run_bash(
-            "create-new-feature.sh",
+            "create-new-feature-branch.sh",
             project,
             "--json",
             "--issue",
@@ -477,25 +522,39 @@ class TestCreateFeatureBash:
         data = json.loads(result.stdout)
         assert data["BRANCH_NAME"] == "fix/001-PROJ-123-user-auth"
 
-
 @pytest.mark.skipif(not HAS_PWSH, reason="pwsh not available")
 class TestCreateFeaturePowerShell:
     def test_creates_branch_sequential(self, tmp_path: Path):
-        """Extension create-new-feature.ps1 creates sequential branch."""
+        """Extension create-new-feature-branch.ps1 creates sequential branch."""
         project = _setup_project(tmp_path)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-Json", "-ShortName", "user-auth", "Add user authentication",
         )
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["BRANCH_NAME"] == "001-user-auth"
 
+    def test_dry_run_counts_branches_checked_out_in_worktrees(self, tmp_path: Path):
+        """Branches checked out in sibling worktrees still reserve their prefix."""
+        project = _setup_project(tmp_path / "project")
+        _add_sibling_worktree(project, tmp_path / "sibling-worktree", "007-worktree-feature")
+
+        result = _run_pwsh(
+            "create-new-feature-branch.ps1", project,
+            "-Json", "-DryRun", "-ShortName", "next", "Next feature",
+        )
+
+        assert result.returncode == 0, result.stderr
+        data = json.loads(result.stdout)
+        assert data["BRANCH_NAME"] == "008-next"
+        assert data["FEATURE_NUM"] == "008"
+
     def test_creates_branch_timestamp(self, tmp_path: Path):
-        """Extension create-new-feature.ps1 creates timestamp branch."""
+        """Extension create-new-feature-branch.ps1 creates timestamp branch."""
         project = _setup_project(tmp_path)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-Json", "-Timestamp", "-ShortName", "feat", "Feature",
         )
         assert result.returncode == 0, result.stderr
@@ -503,10 +562,10 @@ class TestCreateFeaturePowerShell:
         assert re.match(r"^\d{8}-\d{6}-feat$", data["BRANCH_NAME"])
 
     def test_no_git_graceful_degradation(self, tmp_path: Path):
-        """create-new-feature.ps1 works without git."""
+        """create-new-feature-branch.ps1 works without git."""
         project = _setup_project(tmp_path, git=False)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-Json", "-ShortName", "no-git", "No git feature",
         )
         assert result.returncode == 0, result.stderr
@@ -516,6 +575,43 @@ class TestCreateFeaturePowerShell:
         data = json.loads(json_line[-1])
         assert "BRANCH_NAME" in data
         assert "FEATURE_NUM" in data
+
+    def test_specify_init_dir_without_core_errors(self, tmp_path: Path):
+        """With no core scripts (only git-common.ps1 loaded), a set SPECIFY_INIT_DIR
+        hard-errors instead of silently falling back to the walk-up project root."""
+        project = _setup_project(tmp_path, git=False)
+        (project / "scripts" / "powershell" / "common.ps1").unlink()
+        script = project / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
+        env = {**os.environ, **_GIT_ENV, "SPECIFY_INIT_DIR": str(project)}
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-File", str(script), "-Json", "-ShortName", "x", "X feature"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "requires updated Spec Kit core scripts" in result.stderr
+
+    def test_specify_init_dir_with_stale_core_errors(self, tmp_path: Path):
+        """With an older core common.ps1, a set SPECIFY_INIT_DIR must hard-error
+        instead of calling the stale Get-RepoRoot that ignores the override."""
+        project = _setup_project(tmp_path, git=False)
+        (project / "scripts" / "powershell" / "common.ps1").write_text(
+            "function Get-RepoRoot { return (Get-Location).Path }\n",
+            encoding="utf-8",
+        )
+        script = project / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
+        env = {**os.environ, **_GIT_ENV, "SPECIFY_INIT_DIR": str(tmp_path / "missing")}
+        result = subprocess.run(
+            ["pwsh", "-NoProfile", "-File", str(script), "-Json", "-ShortName", "x", "X feature"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+        assert result.returncode != 0
+        assert "requires updated Spec Kit core scripts" in result.stderr
 
 
 # ── auto-commit.sh Tests ─────────────────────────────────────────────────────
@@ -889,7 +985,7 @@ class TestCreateFeatureIsolationModeBash:
     def test_default_branch_mode(self, tmp_path: Path):
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
-        result = _run_bash("create-new-feature.sh", project, "--json", "--short-name", "alpha", "Add alpha")
+        result = _run_bash("create-new-feature-branch.sh", project, "--json", "--short-name", "alpha", "Add alpha")
         assert result.returncode == 0
         data = json.loads(result.stdout)
         assert data["ISOLATION_MODE"] == "branch"
@@ -899,7 +995,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--worktree", "--json", "--short-name", "payment", "Add payment",
         )
         assert result.returncode == 0, result.stderr
@@ -912,7 +1008,7 @@ class TestCreateFeatureIsolationModeBash:
     def test_branch_mode_flag(self, tmp_path: Path):
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
-        result = _run_bash("create-new-feature.sh", project, "--branch-mode", "--json", "--short-name", "x", "X")
+        result = _run_bash("create-new-feature-branch.sh", project, "--branch-mode", "--json", "--short-name", "x", "X")
         assert result.returncode == 0
         data = json.loads(result.stdout)
         assert data["ISOLATION_MODE"] == "branch"
@@ -921,7 +1017,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--isolation-mode", "branch", "--json", "--short-name", "y", "Y",
         )
         assert result.returncode == 0
@@ -932,7 +1028,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--isolation-mode", "worktree", "--json", "--short-name", "z", "Z",
         )
         assert result.returncode == 0
@@ -945,7 +1041,7 @@ class TestCreateFeatureIsolationModeBash:
         (project / ".specify" / "extensions" / "git" / "git-config.yml").write_text(
             "git:\n  isolation_mode: worktree\n"
         )
-        result = _run_bash("create-new-feature.sh", project, "--json", "--short-name", "cfg", "Cfg")
+        result = _run_bash("create-new-feature-branch.sh", project, "--json", "--short-name", "cfg", "Cfg")
         assert result.returncode == 0
         data = json.loads(result.stdout)
         assert data["ISOLATION_MODE"] == "worktree"
@@ -954,7 +1050,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project, "--json", "--short-name", "env", "Env",
+            "create-new-feature-branch.sh", project, "--json", "--short-name", "env", "Env",
             env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
         )
         assert result.returncode == 0
@@ -965,7 +1061,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--branch-mode", "--json", "--short-name", "ovr", "Ovr",
             env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
         )
@@ -977,7 +1073,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--isolation-mode", "parallel", "--json", "--short-name", "bad", "Bad",
         )
         assert result.returncode != 0
@@ -987,7 +1083,7 @@ class TestCreateFeatureIsolationModeBash:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_bash(
-            "create-new-feature.sh", project,
+            "create-new-feature-branch.sh", project,
             "--worktree", "--base", "master", "--json", "--short-name", "base", "Base",
         )
         assert result.returncode == 0, result.stderr
@@ -1002,7 +1098,7 @@ class TestCreateFeatureIsolationModePowerShell:
     def test_default_branch_mode(self, tmp_path: Path):
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
-        result = _run_pwsh("create-new-feature.ps1", project, "-Json", "-ShortName", "alpha", "Add alpha")
+        result = _run_pwsh("create-new-feature-branch.ps1", project, "-Json", "-ShortName", "alpha", "Add alpha")
         assert result.returncode == 0, result.stderr
         data = json.loads(result.stdout)
         assert data["ISOLATION_MODE"] == "branch"
@@ -1011,7 +1107,7 @@ class TestCreateFeatureIsolationModePowerShell:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-Worktree", "-Json", "-ShortName", "payment", "Add payment",
         )
         assert result.returncode == 0, result.stderr
@@ -1022,7 +1118,7 @@ class TestCreateFeatureIsolationModePowerShell:
     def test_branch_mode_flag(self, tmp_path: Path):
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
-        result = _run_pwsh("create-new-feature.ps1", project, "-BranchMode", "-Json", "-ShortName", "x", "X")
+        result = _run_pwsh("create-new-feature-branch.ps1", project, "-BranchMode", "-Json", "-ShortName", "x", "X")
         assert result.returncode == 0
         data = json.loads(result.stdout)
         assert data["ISOLATION_MODE"] == "branch"
@@ -1031,7 +1127,7 @@ class TestCreateFeatureIsolationModePowerShell:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-IsolationMode", "worktree", "-Json", "-ShortName", "z", "Z",
         )
         assert result.returncode == 0
@@ -1042,7 +1138,7 @@ class TestCreateFeatureIsolationModePowerShell:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_pwsh(
-            "create-new-feature.ps1", project, "-Json", "-ShortName", "env", "Env",
+            "create-new-feature-branch.ps1", project, "-Json", "-ShortName", "env", "Env",
             env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
         )
         assert result.returncode == 0
@@ -1053,7 +1149,7 @@ class TestCreateFeatureIsolationModePowerShell:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-BranchMode", "-Json", "-ShortName", "ovr", "Ovr",
             env_extra={"SPECIFY_ISOLATION_MODE": "worktree"},
         )
@@ -1065,7 +1161,7 @@ class TestCreateFeatureIsolationModePowerShell:
         project = _setup_project(tmp_path)
         (project / "specs").mkdir(exist_ok=True)
         result = _run_pwsh(
-            "create-new-feature.ps1", project,
+            "create-new-feature-branch.ps1", project,
             "-IsolationMode", "parallel", "-Json", "-ShortName", "bad", "Bad",
         )
         assert result.returncode != 0

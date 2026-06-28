@@ -121,6 +121,7 @@ class HermesIntegration(SkillsIntegration):
         global_skills_dir.mkdir(parents=True, exist_ok=True)
 
         created: list[Path] = []
+        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
@@ -151,7 +152,7 @@ class HermesIntegration(SkillsIntegration):
                 self.key,
                 script_type,
                 arg_placeholder,
-                context_file=self.context_file or "",
+                context_file=context_file_display,
                 invoke_separator=self.invoke_separator,
             )
             # Strip the processed frontmatter — we rebuild it for skills.

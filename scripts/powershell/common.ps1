@@ -24,42 +24,76 @@ function Find-SpecifyRoot {
     }
 }
 
-# Get repository root, prioritizing .specify directory over git
-# This prevents using a parent git repo when spec-kit is initialized in a subdirectory
+# Resolve an explicit SPECIFY_INIT_DIR project override (the directory that
+# *contains* .specify/), for non-interactive / CI use -- e.g. running a Spec Kit
+# command against a member project from a monorepo root without cd.
+#
+# Precondition: $env:SPECIFY_INIT_DIR is set. Returns the validated project root,
+# or writes an error and exits 1. Strict by design: the path must exist and
+# contain .specify/, with no silent fallback. (An empty string is falsy, so the
+# caller's `if ($env:SPECIFY_INIT_DIR)` guard treats empty as unset.)
+#
+# This is the single resolver: bundled extensions inherit it by sourcing core
+# (e.g. the git extension's create-new-feature-branch) rather than duplicating it.
+function Resolve-SpecifyInitDir {
+    $initDir = $env:SPECIFY_INIT_DIR
+    # Normalize: relative paths resolve against the current directory.
+    if (-not [System.IO.Path]::IsPathRooted($initDir)) {
+        $initDir = Join-Path (Get-Location).Path $initDir
+    }
+    $resolved = Resolve-Path -LiteralPath $initDir -ErrorAction SilentlyContinue
+    # Resolve-Path also succeeds for files, so check the resolved path is a
+    # directory; otherwise a file value would slip through to the less accurate
+    # "not a Spec Kit project" error below.
+    if (-not $resolved -or -not (Test-Path -LiteralPath $resolved.Path -PathType Container)) {
+        [Console]::Error.WriteLine("ERROR: SPECIFY_INIT_DIR does not point to an existing directory: $($env:SPECIFY_INIT_DIR)")
+        exit 1
+    }
+    # Resolve-Path echoes back any trailing separator from the input; trim it so
+    # the returned root matches the bash resolver, whose `cd && pwd` never yields
+    # one. TrimEndingDirectorySeparator is a no-op on a bare root and on a path
+    # that already has no trailing separator.
+    $initRoot = [System.IO.Path]::TrimEndingDirectorySeparator($resolved.Path)
+    if (-not (Test-Path -LiteralPath (Join-Path $initRoot '.specify') -PathType Container)) {
+        [Console]::Error.WriteLine("ERROR: SPECIFY_INIT_DIR is not a Spec Kit project (no .specify/ directory): $initRoot")
+        exit 1
+    }
+    return $initRoot
+}
+
+# Get repository root, prioritizing .specify directory
+# This prevents using a parent repository when spec-kit is initialized in a subdirectory
 function Get-RepoRoot {
+    # Explicit project override wins (see Resolve-SpecifyInitDir).
+    if ($env:SPECIFY_INIT_DIR) {
+        return (Resolve-SpecifyInitDir)
+    }
+
     # First, look for .specify directory (spec-kit's own marker)
     $specifyRoot = Find-SpecifyRoot
     if ($specifyRoot) {
         return $specifyRoot
     }
 
-    # Fallback to git if no .specify found
-    try {
-        $result = git rev-parse --show-toplevel 2>$null
-        if ($LASTEXITCODE -eq 0) {
-            return $result
-        }
-    } catch {
-        # Git command failed
-    }
-
-    # Final fallback to script location for non-git repos
+    # Final fallback to script location
     # Use -LiteralPath to handle paths with wildcard characters
     return (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot "../../..")).Path
 }
 
 function Get-CurrentBranch {
-    # First check if SPECIFY_FEATURE environment variable is set
+    # Feature state is set by SPECIFY_FEATURE (from create-new-feature or
+    # the git extension) or implicitly via .specify/feature.json.
     if ($env:SPECIFY_FEATURE) {
         return $env:SPECIFY_FEATURE
     }
 
-    # Then check git if available at the spec-kit root (not parent)
+    # Then check git if available at the spec-kit root (not parent).
+    # The fork uses real git branches/worktrees, so prefer the current HEAD.
     $repoRoot = Get-RepoRoot
     if (Test-HasGit) {
         try {
             $result = git -C $repoRoot rev-parse --abbrev-ref HEAD 2>$null
-            if ($LASTEXITCODE -eq 0) {
+            if ($LASTEXITCODE -eq 0 -and $result -and $result -ne 'HEAD') {
                 return $result
             }
         } catch {
@@ -67,41 +101,59 @@ function Get-CurrentBranch {
         }
     }
 
-    # For non-git repos, try to find the latest feature directory
-    $specsDir = Join-Path $repoRoot "specs"
-    
-    if (Test-Path $specsDir) {
-        $latestFeature = ""
-        $highest = 0
-        $latestTimestamp = ""
+    # No explicit feature or git branch context - return empty to signal
+    # "unknown"; the caller resolves the feature via feature.json.
+    return ""
+}
 
-        Get-ChildItem -Path $specsDir -Directory | ForEach-Object {
-            if ($_.Name -match '^(\d{8}-\d{6})-') {
-                # Timestamp-based branch: compare lexicographically
-                $ts = $matches[1]
-                if ($ts -gt $latestTimestamp) {
-                    $latestTimestamp = $ts
-                    $latestFeature = $_.Name
-                }
-            } elseif ($_.Name -match '^(\d{3,})-') {
-                $num = [long]$matches[1]
-                if ($num -gt $highest) {
-                    $highest = $num
-                    # Only update if no timestamp branch found yet
-                    if (-not $latestTimestamp) {
-                        $latestFeature = $_.Name
-                    }
-                }
+
+
+# Persist a feature_directory value to .specify/feature.json.
+# Writes only when the file is missing or the value differs from what's stored.
+function Save-FeatureJson {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$FeatureDirectory
+    )
+
+    # Strip repo root prefix if the value is absolute and under repo root.
+    # Use case-insensitive comparison on Windows only (case-sensitive filesystems elsewhere).
+    $prefix = $RepoRoot + [System.IO.Path]::DirectorySeparatorChar
+    if ($null -ne $IsWindows) { $onWin = $IsWindows } else { $onWin = $true }
+    if ($onWin) {
+        $cmp = [System.StringComparison]::OrdinalIgnoreCase
+    } else {
+        $cmp = [System.StringComparison]::Ordinal
+    }
+    if ($FeatureDirectory.StartsWith($prefix, $cmp)) {
+        $FeatureDirectory = $FeatureDirectory.Substring($prefix.Length)
+    }
+
+    $fjPath = Join-Path (Join-Path $RepoRoot '.specify') 'feature.json'
+
+    # Read current value and skip write when unchanged
+    if (Test-Path -LiteralPath $fjPath -PathType Leaf) {
+        try {
+            $raw = Get-Content -LiteralPath $fjPath -Raw
+            $cfg = $raw | ConvertFrom-Json
+            if ($cfg.feature_directory -eq $FeatureDirectory) {
+                return
             }
-        }
-
-        if ($latestFeature) {
-            return $latestFeature
+        } catch {
+            # File is corrupt or unreadable - overwrite it
         }
     }
-    
-    # Final fallback
-    return "main"
+
+    # Ensure .specify/ directory exists
+    $specifyDir = Join-Path $RepoRoot '.specify'
+    if (-not (Test-Path -LiteralPath $specifyDir -PathType Container)) {
+        New-Item -ItemType Directory -Path $specifyDir -Force | Out-Null
+    }
+
+    # Write feature.json
+    $json = @{ feature_directory = $FeatureDirectory } | ConvertTo-Json -Compress
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($fjPath, $json, $utf8NoBom)
 }
 
 # Check if we have git available at the spec-kit root level
@@ -489,12 +541,11 @@ function Get-FeatureDirFromBranchPrefixOrExit {
 function Get-FeaturePathsEnv {
     $repoRoot = Get-RepoRoot
     $currentBranch = Get-CurrentBranch
-    $hasGit = Test-HasGit
 
     # Resolve feature directory.  Priority:
     #   1. SPECIFY_FEATURE_DIRECTORY env var (explicit override)
-    #   2. .specify/feature.json "feature_directory" key (persisted by __SPECKIT_COMMAND_SPECIFY__)
-    #   3. Branch-name-based prefix lookup (same as scripts/bash/common.sh)
+    #   2. .specify/feature.json "feature_directory" key (persisted by specify command)
+    #   3. Error - no feature context available
     $featureJson = Join-Path $repoRoot '.specify/feature.json'
     if ($env:SPECIFY_FEATURE_DIRECTORY) {
         $featureDir = $env:SPECIFY_FEATURE_DIRECTORY
@@ -502,6 +553,8 @@ function Get-FeaturePathsEnv {
         if (-not [System.IO.Path]::IsPathRooted($featureDir)) {
             $featureDir = Join-Path $repoRoot $featureDir
         }
+        # Persist to feature.json so future sessions without the env var still work
+        Save-FeatureJson -RepoRoot $repoRoot -FeatureDirectory $env:SPECIFY_FEATURE_DIRECTORY
     } elseif (Test-Path $featureJson) {
         $featureJsonRaw = Get-Content -LiteralPath $featureJson -Raw
         try {
@@ -517,16 +570,17 @@ function Get-FeaturePathsEnv {
                 $featureDir = Join-Path $repoRoot $featureDir
             }
         } else {
-            $featureDir = Get-FeatureDirFromBranchPrefixOrExit -RepoRoot $repoRoot -CurrentBranch $currentBranch
+            [Console]::Error.WriteLine("ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or ensure .specify/feature.json contains feature_directory.")
+            exit 1
         }
     } else {
-        $featureDir = Get-FeatureDirFromBranchPrefixOrExit -RepoRoot $repoRoot -CurrentBranch $currentBranch
+        [Console]::Error.WriteLine("ERROR: Feature directory not found. Set SPECIFY_FEATURE_DIRECTORY or run the specify command to create .specify/feature.json.")
+        exit 1
     }
     
     [PSCustomObject]@{
         REPO_ROOT     = $repoRoot
         CURRENT_BRANCH = $currentBranch
-        HAS_GIT       = $hasGit
         FEATURE_DIR   = $featureDir
         FEATURE_SPEC  = Join-Path $featureDir 'spec.md'
         IMPL_PLAN     = Join-Path $featureDir 'plan.md'

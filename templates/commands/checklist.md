@@ -57,10 +57,15 @@ You **MUST** consider the user input before proceeding (if not empty).
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed to the Execution Steps
-    - If the hook command file cannot be found, log a warning and proceed anyway
+    ```
+    ## Extension Hooks
+
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
+
+    Wait for the result of the hook command before proceeding to the Execution Steps.
+    ```
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Execution Steps
@@ -351,8 +356,11 @@ Check if `.specify/extensions.yml` exists in the project root.
     To execute: `/{command}`
     ```
   - **Mandatory hook** (`optional: false`):
-    - Read the command file for `{command}` from the installed extension commands directory
-    - Execute the instructions in that command file immediately (run any referenced scripts)
-    - Once the hook completes (successfully or with a graceful skip), proceed
-    - If the hook command file cannot be found or execution fails, log a warning and continue
+    ```
+    ## Extension Hooks
+
+    **Automatic Hook**: {{extension}}
+    Executing: `/{{command}}`
+    EXECUTE_COMMAND: {{command}}
+    ```
 - If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently

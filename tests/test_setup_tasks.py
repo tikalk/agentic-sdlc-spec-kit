@@ -1,4 +1,4 @@
-"""Tests for setup-tasks.{sh,ps1} template resolution and branch validation."""
+"""Tests for setup-tasks.{sh,ps1} template resolution and feature resolution."""
  
 import json
 import os
@@ -20,7 +20,7 @@ CHECK_PREREQ_PS = PROJECT_ROOT / "scripts" / "powershell" / "check-prerequisites
 TASKS_TEMPLATE = PROJECT_ROOT / "templates" / "tasks-template.md"
  
 HAS_PWSH = shutil.which("pwsh") is not None
-_POWERSHELL = shutil.which("powershell.exe") or shutil.which("powershell")
+_WINDOWS_POWERSHELL = (shutil.which("powershell.exe") or shutil.which("powershell")) if os.name == "nt" else None
  
  
 # ---------------------------------------------------------------------------
@@ -50,6 +50,15 @@ def _install_core_tasks_template(repo: Path) -> None:
     shutil.copy(TASKS_TEMPLATE, tdir / "tasks-template.md")
  
  
+def _write_feature_json(
+    repo: Path, feature_directory: str = "specs/001-my-feature"
+) -> None:
+    (repo / ".specify" / "feature.json").write_text(
+        json.dumps({"feature_directory": feature_directory}),
+        encoding="utf-8",
+    )
+
+
 def _minimal_feature(repo: Path) -> Path:
     """
     Create a numbered branch-style feature directory with spec.md and plan.md
@@ -60,6 +69,7 @@ def _minimal_feature(repo: Path) -> Path:
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
     (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    _write_feature_json(repo)
     return feat
 
 
@@ -85,7 +95,7 @@ def _write_integration_state(repo: Path, integration: str = "claude", separator:
 def _clean_env() -> dict[str, str]:
     """
     Return os.environ with all SPECIFY_* variables stripped so the scripts
-    rely purely on git branch + feature.json state set up by each fixture.
+    rely purely on feature.json and on-disk feature directories set up by each fixture.
     """
     env = os.environ.copy()
     for key in list(env):
@@ -108,7 +118,7 @@ def _run_bash_format_command(repo: Path, command_name: str) -> subprocess.Comple
 
 def _run_powershell_format_command(repo: Path, command_name: str) -> subprocess.CompletedProcess:
     script = repo / ".specify" / "scripts" / "powershell" / "common.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
     return subprocess.run(
         [
             exe,
@@ -153,7 +163,8 @@ def tasks_repo(tmp_path: Path) -> Path:
     repo.mkdir()
     _git_init(repo)
  
-    # Switch to a numbered branch so branch validation passes without feature.json
+    # Keep a numbered branch name in this repo fixture; setup-tasks now resolves
+    # feature directories from repository state rather than validating git branches.
     subprocess.run(
         ["git", "checkout", "-q", "-b", "001-my-feature"],
         cwd=repo,
@@ -492,6 +503,7 @@ def test_setup_tasks_bash_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _write_feature_json(tasks_repo)
 
     script = tasks_repo / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
 
@@ -550,11 +562,7 @@ def test_setup_tasks_bash_passes_custom_branch_when_feature_json_valid(
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
     (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
- 
-    (tasks_repo / ".specify" / "feature.json").write_text(
-        json.dumps({"feature_directory": "specs/001-my-feature"}),
-        encoding="utf-8",
-    )
+    _write_feature_json(tasks_repo)
  
     script = tasks_repo / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
  
@@ -571,21 +579,17 @@ def test_setup_tasks_bash_passes_custom_branch_when_feature_json_valid(
  
  
 @requires_bash
-def test_setup_tasks_bash_fails_custom_branch_without_feature_json(
+def test_setup_tasks_bash_errors_without_feature_context(
     tasks_repo: Path,
 ) -> None:
-    """
-    On a non-standard branch with no feature.json, setup-tasks.sh must fail
-    and report that we are not on a feature branch.
-    """
-    subprocess.run(
-        ["git", "checkout", "-q", "-b", "feature/custom-branch"],
-        cwd=tasks_repo,
-        check=True,
-    )
- 
+    """Without feature.json or SPECIFY_FEATURE_DIRECTORY, setup-tasks.sh must error."""
+    main_feat = tasks_repo / "specs" / "main"
+    main_feat.mkdir(parents=True, exist_ok=True)
+    (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (main_feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+
     script = tasks_repo / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
- 
+
     result = subprocess.run(
         ["bash", str(script), "--json"],
         cwd=tasks_repo,
@@ -596,13 +600,13 @@ def test_setup_tasks_bash_fails_custom_branch_without_feature_json(
     )
 
     assert result.returncode != 0
-    assert "Not on a feature branch" in result.stderr
+    assert "Feature directory not found" in result.stderr
  
 # ===========================================================================
 # POWERSHELL TESTS
 # ===========================================================================
  
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_setup_tasks_ps_core_template_resolved(tasks_repo: Path) -> None:
     """
     When the core tasks-template.md is present and all prerequisites are met,
@@ -611,7 +615,7 @@ def test_setup_tasks_ps_core_template_resolved(tasks_repo: Path) -> None:
     """
     _minimal_feature(tasks_repo)
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
  
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
@@ -631,7 +635,7 @@ def test_setup_tasks_ps_core_template_resolved(tasks_repo: Path) -> None:
     assert tasks_tmpl.name == "tasks-template.md"
  
  
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_setup_tasks_ps_override_wins(tasks_repo: Path) -> None:
     """
     When an override exists at .specify/templates/overrides/tasks-template.md,
@@ -645,7 +649,7 @@ def test_setup_tasks_ps_override_wins(tasks_repo: Path) -> None:
     override_file.write_text("# override tasks template\n", encoding="utf-8")
  
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
  
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
@@ -667,7 +671,7 @@ def test_setup_tasks_ps_override_wins(tasks_repo: Path) -> None:
     )
  
  
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_setup_tasks_ps_missing_template_errors(tasks_repo: Path) -> None:
     """
     When tasks-template.md is absent from all locations, setup-tasks.ps1 must
@@ -679,7 +683,7 @@ def test_setup_tasks_ps_missing_template_errors(tasks_repo: Path) -> None:
     core.unlink()
  
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
  
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
@@ -694,7 +698,7 @@ def test_setup_tasks_ps_missing_template_errors(tasks_repo: Path) -> None:
     assert "tasks-template" in result.stderr.lower() or "tasks-template" in result.stdout.lower()
  
  
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_powershell_command_hint_normalizes_mixed_separators(
     tasks_repo: Path,
 ) -> None:
@@ -713,7 +717,7 @@ def test_powershell_command_hint_normalizes_mixed_separators(
     assert result.stdout.strip() == "/speckit-git-commit"
 
 
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_powershell_command_hint_preserves_hyphens_inside_segments(
     tasks_repo: Path,
 ) -> None:
@@ -725,15 +729,16 @@ def test_powershell_command_hint_preserves_hyphens_inside_segments(
     assert result.stdout.strip() == "/speckit.jira.sync-status"
 
 
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_setup_tasks_ps_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -> None:
     _write_integration_state(tasks_repo, "claude", "-")
     feat = tasks_repo / "specs" / "001-my-feature"
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    _write_feature_json(tasks_repo)
 
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
 
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
@@ -750,7 +755,7 @@ def test_setup_tasks_ps_uses_invoke_separator_in_plan_hint(tasks_repo: Path) -> 
     assert "/speckit.plan" not in output
 
 
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_check_prerequisites_ps_uses_invoke_separator_in_tasks_hint(
     tasks_repo: Path,
 ) -> None:
@@ -758,7 +763,7 @@ def test_check_prerequisites_ps_uses_invoke_separator_in_tasks_hint(
     _minimal_feature(tasks_repo)
 
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "check-prerequisites.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
 
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-RequireTasks"],
@@ -775,7 +780,7 @@ def test_check_prerequisites_ps_uses_invoke_separator_in_tasks_hint(
     assert "/speckit.tasks" not in output
 
 
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
 def test_setup_tasks_ps_passes_custom_branch_when_feature_json_valid(
     tasks_repo: Path,
 ) -> None:
@@ -793,14 +798,10 @@ def test_setup_tasks_ps_passes_custom_branch_when_feature_json_valid(
     feat.mkdir(parents=True, exist_ok=True)
     (feat / "spec.md").write_text("# spec\n", encoding="utf-8")
     (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
- 
-    (tasks_repo / ".specify" / "feature.json").write_text(
-        json.dumps({"feature_directory": "specs/001-my-feature"}),
-        encoding="utf-8",
-    )
+    _write_feature_json(tasks_repo)
  
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
  
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
@@ -814,23 +815,19 @@ def test_setup_tasks_ps_passes_custom_branch_when_feature_json_valid(
     assert result.returncode == 0, result.stderr + result.stdout
  
  
-@pytest.mark.skipif(not (HAS_PWSH or _POWERSHELL), reason="no PowerShell available")
-def test_setup_tasks_ps_fails_custom_branch_without_feature_json(
+@pytest.mark.skipif(not (HAS_PWSH or _WINDOWS_POWERSHELL), reason="no PowerShell available")
+def test_setup_tasks_ps_errors_without_feature_context(
     tasks_repo: Path,
 ) -> None:
-    """
-    On a non-standard branch with no feature.json, setup-tasks.ps1 must fail
-    and report that we are not on a feature branch.
-    """
-    subprocess.run(
-        ["git", "checkout", "-q", "-b", "feature/custom-branch"],
-        cwd=tasks_repo,
-        check=True,
-    )
- 
+    """Without feature.json or SPECIFY_FEATURE_DIRECTORY, setup-tasks.ps1 must error."""
+    main_feat = tasks_repo / "specs" / "main"
+    main_feat.mkdir(parents=True, exist_ok=True)
+    (main_feat / "spec.md").write_text("# spec\n", encoding="utf-8")
+    (main_feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+
     script = tasks_repo / ".specify" / "scripts" / "powershell" / "setup-tasks.ps1"
-    exe = "pwsh" if HAS_PWSH else _POWERSHELL
- 
+    exe = "pwsh" if HAS_PWSH else _WINDOWS_POWERSHELL
+
     result = subprocess.run(
         [exe, "-NoProfile", "-File", str(script), "-Json"],
         cwd=tasks_repo,
@@ -839,6 +836,7 @@ def test_setup_tasks_ps_fails_custom_branch_without_feature_json(
         check=False,
         env=_clean_env(),
     )
- 
+
+    output = result.stderr + result.stdout
     assert result.returncode != 0
-    assert "Not on a feature branch" in result.stderr
+    assert "Feature directory not found" in output

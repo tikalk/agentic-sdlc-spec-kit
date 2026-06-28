@@ -1,4 +1,5 @@
 """specify init command."""
+
 from __future__ import annotations
 
 import os
@@ -25,7 +26,7 @@ from .._assets_fork import (
     _locate_bundled_preset,
 )
 from .._console import StepTracker, console, select_with_arrows, show_banner
-from .._utils import check_tool, init_git_repo, is_git_repo
+from .._utils import check_tool
 
 # Tikalk fork hooks (thin calls - logic lives in _init_fork / _core_fork)
 try:
@@ -70,7 +71,9 @@ def ensure_constitution_from_template(
 ) -> None:
     """Copy constitution template to memory if it doesn't exist."""
     memory_constitution = project_path / ".specify" / "memory" / "constitution.md"
-    template_constitution = project_path / ".specify" / "templates" / "constitution-template.md"
+    template_constitution = (
+        project_path / ".specify" / "templates" / "constitution-template.md"
+    )
 
     if memory_constitution.exists():
         if tracker:
@@ -97,26 +100,80 @@ def ensure_constitution_from_template(
             tracker.add("constitution", "Constitution setup")
             tracker.error("constitution", str(e))
         else:
-            console.print(f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]")
+            console.print(
+                f"[yellow]Warning: Could not initialize constitution: {e}[/yellow]"
+            )
 
 
 def register(app: typer.Typer) -> None:
     @app.command()
     def init(
-        project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here, or use '.' for current directory)"),
-        script_type: str = typer.Option(None, "--script", help="Script type to use: sh or ps"),
-        ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for coding agent tools like Claude Code"),
-        no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
-        here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
-        force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
-        skip_tls: bool = typer.Option(False, "--skip-tls", help="Deprecated (no-op). Previously: skip SSL/TLS verification.", hidden=True),
-        debug: bool = typer.Option(False, "--debug", help="Deprecated. Previously: show verbose diagnostic output; currently only prints additional diagnostic details on failure.", hidden=True),
-        github_token: str = typer.Option(None, "--github-token", help="Deprecated (no-op). Previously: GitHub token for API requests.", hidden=True),
-        offline: bool = typer.Option(False, "--offline", help="Deprecated (no-op). All scaffolding now uses bundled assets.", hidden=True),
-        preset: str = typer.Option(None, "--preset", help="Install a preset during initialization (by preset ID)"),
-        branch_numbering: str = typer.Option(None, "--branch-numbering", help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)"),
-        integration: str = typer.Option(None, "--integration", help="AI coding agent integration to use (e.g. --integration copilot). See 'specify check' for available integrations."),
-        integration_options: str = typer.Option(None, "--integration-options", help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")'),
+        project_name: str = typer.Argument(
+            None,
+            help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
+        ),
+        script_type: str = typer.Option(
+            None, "--script", help="Script type to use: sh or ps"
+        ),
+        ignore_agent_tools: bool = typer.Option(
+            False,
+            "--ignore-agent-tools",
+            help="Skip checks for coding agent tools like Claude Code",
+        ),
+        here: bool = typer.Option(
+            False,
+            "--here",
+            help="Initialize project in the current directory instead of creating a new one",
+        ),
+        force: bool = typer.Option(
+            False,
+            "--force",
+            help="Force merge/overwrite when using --here (skip confirmation)",
+        ),
+        skip_tls: bool = typer.Option(
+            False,
+            "--skip-tls",
+            help="Deprecated (no-op). Previously: skip SSL/TLS verification.",
+            hidden=True,
+        ),
+        debug: bool = typer.Option(
+            False,
+            "--debug",
+            help="Deprecated. Previously: show verbose diagnostic output; currently only prints additional diagnostic details on failure.",
+            hidden=True,
+        ),
+        github_token: str = typer.Option(
+            None,
+            "--github-token",
+            help="Deprecated (no-op). Previously: GitHub token for API requests.",
+            hidden=True,
+        ),
+        offline: bool = typer.Option(
+            False,
+            "--offline",
+            help="Deprecated (no-op). All scaffolding now uses bundled assets.",
+            hidden=True,
+        ),
+        preset: str = typer.Option(
+            None,
+            "--preset",
+            help="Install a preset during initialization (by preset ID)",
+        ),
+        branch_numbering: str = typer.Option(
+            None,
+            "--branch-numbering",
+            help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)",
+        ),
+        integration: str = typer.Option(
+            None,
+            "--integration",
+            help="AI coding agent integration to use (e.g. --integration copilot). See 'specify check' for available integrations.",
+        ),
+        integration_options: str = typer.Option(
+            None,
+            "--integration-options",
+            help='Options for the integration (e.g. --integration-options="--commands-dir .myagent/cmds")',
+        ),
         team_ai_directives: str = typer.Option(
             None,
             "--team-ai-directives",
@@ -131,18 +188,16 @@ def register(app: typer.Typer) -> None:
         match the installed CLI version.
 
         This command will:
-        1. Check that required tools are installed (git is optional)
+        1. Check that required tools are installed
         2. Let you choose your coding agent integration, or default to Copilot
            in non-interactive sessions
         3. Install bundled Spec Kit templates, scripts, workflow, and shared
            project infrastructure
-        4. Initialize a fresh git repository (if not --no-git and no existing repo)
-        5. Set up coding agent integration commands and optional presets
+        4. Set up coding agent integration commands and optional presets
 
         Examples:
             specify init my-project
             specify init my-project --integration claude
-            specify init my-project --integration copilot --no-git
             specify init --ignore-agent-tools my-project
             specify init . --integration claude         # Initialize in current directory
             specify init .                     # Initialize in current directory (interactive integration selection)
@@ -165,15 +220,18 @@ def register(app: typer.Typer) -> None:
             ensure_executable_scripts,
             save_init_options,
         )
+        from ..integration_runtime import (
+            with_integration_setting as _with_integration_setting,
+        )
         from ..integrations._commands import (
             _parse_integration_options,
             _write_integration_json,
         )
-        from ..integration_runtime import with_integration_setting as _with_integration_setting
 
         show_banner()
 
         from ..integrations import INTEGRATION_REGISTRY, get_integration
+
         if integration:
             resolved_integration = get_integration(integration)
             if not resolved_integration:
@@ -182,28 +240,27 @@ def register(app: typer.Typer) -> None:
                 console.print(f"[yellow]Available integrations:[/yellow] {available}")
                 raise typer.Exit(1)
 
-        if no_git:
-            console.print(
-                "[yellow]⚠️  --no-git is deprecated and will be removed in v0.10.0.[/yellow]\n"
-                "[yellow]The git extension will no longer be enabled by default "
-                "— use the [bold]specify extension[/bold] commands to install or enable the git extension if needed.[/yellow]"
-            )
-
         if project_name == ".":
             here = True
             project_name = None
 
         if here and project_name:
-            console.print("[red]Error:[/red] Cannot specify both project name and --here flag")
+            console.print(
+                "[red]Error:[/red] Cannot specify both project name and --here flag"
+            )
             raise typer.Exit(1)
 
         if not here and not project_name:
-            console.print("[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag")
+            console.print(
+                "[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag"
+            )
             raise typer.Exit(1)
 
         BRANCH_NUMBERING_CHOICES = {"sequential", "timestamp"}
         if branch_numbering and branch_numbering not in BRANCH_NUMBERING_CHOICES:
-            console.print(f"[red]Error:[/red] Invalid --branch-numbering value '{branch_numbering}'. Choose from: {', '.join(sorted(BRANCH_NUMBERING_CHOICES))}")
+            console.print(
+                f"[red]Error:[/red] Invalid --branch-numbering value '{branch_numbering}'. Choose from: {', '.join(sorted(BRANCH_NUMBERING_CHOICES))}"
+            )
             raise typer.Exit(1)
 
         dir_existed_before = False
@@ -214,8 +271,12 @@ def register(app: typer.Typer) -> None:
 
             existing_items = list(project_path.iterdir())
             if existing_items:
-                console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
-                console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
+                console.print(
+                    f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)"
+                )
+                console.print(
+                    "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
+                )
                 if force:
                     console.print(f"{accent('--force supplied:')} skipping confirmation and proceeding with merge")
                 else:
@@ -228,7 +289,9 @@ def register(app: typer.Typer) -> None:
             dir_existed_before = project_path.exists()
             if project_path.exists():
                 if not project_path.is_dir():
-                    console.print(f"[red]Error:[/red] '{project_name}' exists but is not a directory.")
+                    console.print(
+                        f"[red]Error:[/red] '{project_name}' exists but is not a directory."
+                    )
                     raise typer.Exit(1)
                 existing_items = list(project_path.iterdir())
                 if force:
@@ -243,7 +306,7 @@ def register(app: typer.Typer) -> None:
                         "Use [bold]--force[/bold] to merge into the existing directory.",
                         title="[red]Directory Conflict[/red]",
                         border_style="red",
-                        padding=(1, 2)
+                        padding=(1, 2),
                     )
                     console.print()
                     console.print(error_panel)
@@ -251,7 +314,9 @@ def register(app: typer.Typer) -> None:
 
         if integration:
             if integration not in AGENT_CONFIG:
-                console.print(f"[red]Error:[/red] Invalid integration '{integration}'. Choose from: {', '.join(AGENT_CONFIG.keys())}")
+                console.print(
+                    f"[red]Error:[/red] Invalid integration '{integration}'. Choose from: {', '.join(AGENT_CONFIG.keys())}"
+                )
                 raise typer.Exit(1)
             selected_ai = integration
         elif not _stdin_is_interactive():
@@ -275,8 +340,12 @@ def register(app: typer.Typer) -> None:
                 raise typer.Exit(1)
 
         if selected_ai == "generic" and not integration_options:
-            console.print("[red]Error:[/red] --integration generic requires --integration-options with --commands-dir")
-            console.print('[dim]Example: specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"[/dim]')
+            console.print(
+                "[red]Error:[/red] --integration generic requires --integration-options with --commands-dir"
+            )
+            console.print(
+                '[dim]Example: specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"[/dim]'
+            )
             raise typer.Exit(1)
 
         current_dir = Path.cwd()
@@ -294,12 +363,6 @@ def register(app: typer.Typer) -> None:
         _border = accent_style() if _FORK else "cyan"
         console.print(Panel("\n".join(setup_lines), border_style=_border, padding=(1, 2)))
 
-        should_init_git = False
-        if not no_git:
-            should_init_git = check_tool("git")
-            if not should_init_git:
-                console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
-
         if not ignore_agent_tools:
             agent_config = AGENT_CONFIG.get(selected_ai)
             if agent_config and agent_config["requires_cli"]:
@@ -312,7 +375,7 @@ def register(app: typer.Typer) -> None:
                         f"Tip: Use {accent('--ignore-agent-tools')} to skip this check",
                         title="[red]Agent Detection Error[/red]",
                         border_style="red",
-                        padding=(1, 2)
+                        padding=(1, 2),
                     )
                     console.print()
                     console.print(error_panel)
@@ -320,14 +383,20 @@ def register(app: typer.Typer) -> None:
 
         if script_type:
             if script_type not in SCRIPT_TYPE_CHOICES:
-                console.print(f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}")
+                console.print(
+                    f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"
+                )
                 raise typer.Exit(1)
             selected_script = script_type
         else:
             default_script = "ps" if os.name == "nt" else "sh"
 
             if _stdin_is_interactive():
-                selected_script = select_with_arrows(SCRIPT_TYPE_CHOICES, "Choose script type (or press Enter)", default_script)
+                selected_script = select_with_arrows(
+                    SCRIPT_TYPE_CHOICES,
+                    "Choose script type (or press Enter)",
+                    default_script,
+                )
             else:
                 selected_script = default_script
 
@@ -362,7 +431,6 @@ def register(app: typer.Typer) -> None:
         for key, label in [
             ("chmod", "Ensure scripts executable"),
             ("constitution", "Constitution setup"),
-            ("git", "Install git extension"),
             ("workflow", "Install bundled workflow"),
             ("agent-context", "Install agent-context extension"),
             *_fork_steps,
@@ -370,25 +438,35 @@ def register(app: typer.Typer) -> None:
         ]:
             tracker.add(key, label)
 
-        git_default_notice = False
+        # Disable transient mode on Windows: PowerShell 5.1's legacy console
+        # hangs when Rich tries to restore cursor state via VT escape sequences.
+        _transient = sys.platform != "win32"
 
-        with Live(tracker.render(), console=console, refresh_per_second=8, transient=True) as live:
+        with Live(
+            tracker.render(), console=console, refresh_per_second=8, transient=_transient
+        ) as live:
             tracker.attach_refresh(lambda: live.update(tracker.render()))
             try:
                 from ..integrations.manifest import IntegrationManifest
+
                 tracker.start("integration")
                 manifest = IntegrationManifest(
-                    resolved_integration.key, project_path, version=get_speckit_version()
+                    resolved_integration.key,
+                    project_path,
+                    version=get_speckit_version(),
                 )
 
                 integration_parsed_options: dict[str, Any] = {}
                 if integration_options:
-                    extra = _parse_integration_options(resolved_integration, integration_options)
+                    extra = _parse_integration_options(
+                        resolved_integration, integration_options
+                    )
                     if extra:
                         integration_parsed_options.update(extra)
 
                 resolved_integration.setup(
-                    project_path, manifest,
+                    project_path,
+                    manifest,
                     parsed_options=integration_parsed_options or None,
                     script_type=selected_script,
                     raw_options=integration_options,
@@ -410,7 +488,10 @@ def register(app: typer.Typer) -> None:
                     integration_settings,
                 )
 
-                tracker.complete("integration", resolved_integration.config.get("name", resolved_integration.key))
+                tracker.complete(
+                    "integration",
+                    resolved_integration.config.get("name", resolved_integration.key),
+                )
 
                 tracker.start("shared-infra")
                 _install_shared_infra_or_exit(
@@ -418,97 +499,61 @@ def register(app: typer.Typer) -> None:
                     selected_script,
                     tracker=tracker,
                     force=force,
-                    invoke_separator=resolved_integration.effective_invoke_separator(integration_parsed_options),
+                    invoke_separator=resolved_integration.effective_invoke_separator(
+                        integration_parsed_options
+                    ),
                 )
-                tracker.complete("shared-infra", f"scripts ({selected_script}) + templates")
+                tracker.complete(
+                    "shared-infra", f"scripts ({selected_script}) + templates"
+                )
 
                 ensure_constitution_from_template(project_path, tracker=tracker)
-
-                if not no_git:
-                    tracker.start("git")
-                    git_messages = []
-                    git_has_error = False
-                    if is_git_repo(project_path):
-                        git_messages.append("existing repo detected")
-                    elif should_init_git:
-                        success, error_msg = init_git_repo(project_path, quiet=True)
-                        if success:
-                            git_messages.append("initialized")
-                        else:
-                            git_has_error = True
-                            if error_msg:
-                                sanitized = error_msg.replace('\n', ' ').strip()
-                                git_messages.append(f"init failed: {sanitized[:120]}")
-                            else:
-                                git_messages.append("init failed")
-                    else:
-                        git_messages.append("git not available")
-                    try:
-                        from ..extensions import ExtensionManager
-                        bundled_path = _locate_bundled_extension("git")
-                        if bundled_path:
-                            manager = ExtensionManager(project_path)
-                            if manager.registry.is_installed("git"):
-                                git_messages.append("extension already installed")
-                            else:
-                                manager.install_from_directory(
-                                    bundled_path, get_speckit_version()
-                                )
-                                git_default_notice = True
-                                git_messages.append("extension installed")
-                        else:
-                            git_has_error = True
-                            git_messages.append("bundled extension not found")
-                    except Exception as ext_err:
-                        git_has_error = True
-                        sanitized_ext = str(ext_err).replace('\n', ' ').strip()
-                        git_messages.append(
-                            f"extension install failed: {sanitized_ext[:120]}"
-                        )
-                    summary = "; ".join(git_messages)
-                    if git_has_error:
-                        tracker.error("git", summary)
-                    else:
-                        tracker.complete("git", summary)
-                else:
-                    tracker.skip("git", "--no-git flag")
 
                 try:
                     bundled_wf = _locate_bundled_workflow("speckit")
                     if bundled_wf:
                         from ..workflows.catalog import WorkflowRegistry
                         from ..workflows.engine import WorkflowDefinition
+
                         wf_registry = WorkflowRegistry(project_path)
                         if wf_registry.is_installed("speckit"):
                             tracker.complete("workflow", "already installed")
                         else:
                             import shutil as _shutil
-                            dest_wf = project_path / ".specify" / "workflows" / "speckit"
+
+                            dest_wf = (
+                                project_path / ".specify" / "workflows" / "speckit"
+                            )
                             dest_wf.mkdir(parents=True, exist_ok=True)
                             _shutil.copy2(
                                 bundled_wf / "workflow.yml",
                                 dest_wf / "workflow.yml",
                             )
-                            definition = WorkflowDefinition.from_yaml(dest_wf / "workflow.yml")
-                            wf_registry.add("speckit", {
-                                "name": definition.name,
-                                "version": definition.version,
-                                "description": definition.description,
-                                "source": "bundled",
-                            })
+                            definition = WorkflowDefinition.from_yaml(
+                                dest_wf / "workflow.yml"
+                            )
+                            wf_registry.add(
+                                "speckit",
+                                {
+                                    "name": definition.name,
+                                    "version": definition.version,
+                                    "description": definition.description,
+                                    "source": "bundled",
+                                },
+                            )
                             tracker.complete("workflow", "speckit installed")
                     else:
                         tracker.skip("workflow", "bundled workflow not found")
                 except Exception as wf_err:
-                    sanitized_wf = str(wf_err).replace('\n', ' ').strip()
+                    sanitized_wf = str(wf_err).replace("\n", " ").strip()
                     tracker.error("workflow", f"install failed: {sanitized_wf[:120]}")
 
                 init_opts = {
                     "ai": selected_ai,
                     "integration": resolved_integration.key,
-                    "branch_numbering": branch_numbering or "sequential",
                     "here": here,
                     "script": selected_script,
+                    "feature_numbering": branch_numbering or "sequential",
                     "speckit_version": get_speckit_version(),
                 }
                 if _FORK:
@@ -517,7 +562,10 @@ def register(app: typer.Typer) -> None:
                     if resolved_integration.context_file:
                         init_opts["context_file"] = resolved_integration.context_file
                 from ..integrations.base import SkillsIntegration as _SkillsPersist
-                if isinstance(resolved_integration, _SkillsPersist) or getattr(resolved_integration, "_skills_mode", False):
+
+                if isinstance(resolved_integration, _SkillsPersist) or getattr(
+                    resolved_integration, "_skills_mode", False
+                ):
                     init_opts["ai_skills"] = True
                 save_init_options(project_path, init_opts)
 
@@ -526,6 +574,7 @@ def register(app: typer.Typer) -> None:
                 # registration can read ai_skills + integration key.
                 try:
                     from ..extensions import ExtensionManager as _ExtMgr
+
                     bundled_ac = _locate_bundled_extension("agent-context")
                     if bundled_ac:
                         ac_mgr = _ExtMgr(project_path)
@@ -538,13 +587,14 @@ def register(app: typer.Typer) -> None:
                             tracker.complete("agent-context", "extension installed")
                     else:
                         from ..extensions import REINSTALL_COMMAND as _ac_reinstall
+
                         tracker.error(
                             "agent-context",
                             f"bundled extension not found — installation may be "
                             f"incomplete. Run: {_ac_reinstall}",
                         )
                 except Exception as ac_err:
-                    sanitized_ac = str(ac_err).replace('\n', ' ').strip()
+                    sanitized_ac = str(ac_err).replace("\n", " ").strip()
                     tracker.error(
                         "agent-context",
                         f"extension install failed: {sanitized_ac[:120]}",
@@ -564,24 +614,34 @@ def register(app: typer.Typer) -> None:
 
                 if preset:
                     try:
-                        from ..presets import PresetManager, PresetCatalog, PresetError
+                        from ..presets import PresetCatalog, PresetError, PresetManager
+
                         preset_manager = PresetManager(project_path)
                         speckit_ver = get_speckit_version()
 
                         local_path = Path(preset).resolve()
                         if local_path.is_dir() and (local_path / "preset.yml").exists():
-                            preset_manager.install_from_directory(local_path, speckit_ver)
+                            preset_manager.install_from_directory(
+                                local_path, speckit_ver
+                            )
                         else:
                             bundled_path = _locate_bundled_preset(preset)
                             if bundled_path:
-                                preset_manager.install_from_directory(bundled_path, speckit_ver)
+                                preset_manager.install_from_directory(
+                                    bundled_path, speckit_ver
+                                )
                             else:
                                 preset_catalog = PresetCatalog(project_path)
                                 pack_info = preset_catalog.get_pack_info(preset)
                                 if not pack_info:
-                                    console.print(f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping.")
-                                elif pack_info.get("bundled") and not pack_info.get("download_url"):
+                                    console.print(
+                                        f"[yellow]Warning:[/yellow] Preset '{preset}' not found in catalog. Skipping."
+                                    )
+                                elif pack_info.get("bundled") and not pack_info.get(
+                                    "download_url"
+                                ):
                                     from ..extensions import REINSTALL_COMMAND
+
                                     console.print(
                                         f"[yellow]Warning:[/yellow] Preset '{preset}' is bundled with spec-kit "
                                         f"but could not be found in the installed package."
@@ -589,12 +649,16 @@ def register(app: typer.Typer) -> None:
                                     console.print(
                                         "This usually means the spec-kit installation is incomplete or corrupted."
                                     )
-                                    console.print(f"Try reinstalling: {REINSTALL_COMMAND}")
+                                    console.print(
+                                        f"Try reinstalling: {REINSTALL_COMMAND}"
+                                    )
                                 else:
                                     zip_path = None
                                     try:
                                         zip_path = preset_catalog.download_pack(preset)
-                                        preset_manager.install_from_zip(zip_path, speckit_ver)
+                                        preset_manager.install_from_zip(
+                                            zip_path, speckit_ver
+                                        )
                                     except PresetError as preset_err:
                                         _print_cli_warning(
                                             "install",
@@ -636,7 +700,7 @@ def register(app: typer.Typer) -> None:
                         console.print(f"[yellow]Warning: pre_init hook failed: {pre_err}[/yellow]")
 
                     try:
-                        _fork_post_init(project_path, selected_ai, tracker=tracker, no_git=no_git)
+                        _fork_post_init(project_path, selected_ai, tracker=tracker)
                     except Exception as post_err:
                         console.print(f"[yellow]Warning: post_init hook failed: {post_err}[/yellow]")
 
@@ -645,7 +709,13 @@ def register(app: typer.Typer) -> None:
                 raise
             except Exception as e:
                 tracker.error("final", str(e))
-                console.print(Panel(f"Initialization failed: {e}", title="Failure", border_style="red"))
+                console.print(
+                    Panel(
+                        f"Initialization failed: {e}",
+                        title="Failure",
+                        border_style="red",
+                    )
+                )
                 if debug:
                     _env_pairs = [
                         ("Python", sys.version.split()[0]),
@@ -653,15 +723,25 @@ def register(app: typer.Typer) -> None:
                         ("CWD", str(Path.cwd())),
                     ]
                     _label_width = max(len(k) for k, _ in _env_pairs)
-                    env_lines = [f"{k.ljust(_label_width)} → [bright_black]{v}[/bright_black]" for k, v in _env_pairs]
-                    console.print(Panel("\n".join(env_lines), title="Debug Environment", border_style="magenta"))
+                    env_lines = [
+                        f"{k.ljust(_label_width)} → [bright_black]{v}[/bright_black]"
+                        for k, v in _env_pairs
+                    ]
+                    console.print(
+                        Panel(
+                            "\n".join(env_lines),
+                            title="Debug Environment",
+                            border_style="magenta",
+                        )
+                    )
                 if not here and project_path.exists() and not dir_existed_before:
                     shutil.rmtree(project_path)
                 raise typer.Exit(1)
             finally:
                 pass
 
-        console.print(tracker.render())
+        if _transient:
+            console.print(tracker.render())
         if _FORK:
             if _fork_should_print_project_ready(tracker):
                 console.print(f"\n[bold {accent_style()}]Project ready.[/bold {accent_style()}]")
@@ -672,29 +752,19 @@ def register(app: typer.Typer) -> None:
 
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config:
-            agent_folder = agent_config["folder"] or integration_parsed_options.get("commands_dir")
+            agent_folder = agent_config["folder"] or integration_parsed_options.get(
+                "commands_dir"
+            )
             if agent_folder:
                 security_notice = Panel(
                     f"Some agents may store credentials, auth tokens, or other identifying and private artifacts in the agent folder within your project.\n"
                     f"Consider adding {accent(agent_folder)} (or parts of it) to {accent('.gitignore')} to prevent accidental credential leakage.",
                     title="[yellow]Agent Folder Security[/yellow]",
                     border_style="yellow",
-                    padding=(1, 2)
+                    padding=(1, 2),
                 )
                 console.print()
                 console.print(security_notice)
-
-        if git_default_notice:
-            default_change_notice = Panel(
-                "The git extension is currently enabled by default during [bold]specify init[/bold].\n"
-                "Starting in [bold]v0.10.0[/bold], this will require explicit opt-in.\n"
-                "Use [bold]specify extension add git[/bold] after init when needed.",
-                title="[yellow]Notice: Git Default Changing[/yellow]",
-                border_style="yellow",
-                padding=(1, 2),
-            )
-            console.print()
-            console.print(default_change_notice)
 
         steps_lines = []
         if not here:
@@ -705,21 +775,42 @@ def register(app: typer.Typer) -> None:
             step_num = 2
 
         from ..integrations.base import SkillsIntegration as _SkillsInt
-        _is_skills_integration = isinstance(resolved_integration, _SkillsInt) or getattr(resolved_integration, "_skills_mode", False)
+
+        _is_skills_integration = isinstance(
+            resolved_integration, _SkillsInt
+        ) or getattr(resolved_integration, "_skills_mode", False)
 
         codex_skill_mode = selected_ai == "codex" and _is_skills_integration
+        zcode_skill_mode = selected_ai == "zcode" and _is_skills_integration
         claude_skill_mode = selected_ai == "claude" and _is_skills_integration
         kimi_skill_mode = selected_ai == "kimi"
         agy_skill_mode = selected_ai == "agy" and _is_skills_integration
         trae_skill_mode = selected_ai == "trae"
-        cursor_agent_skill_mode = selected_ai == "cursor-agent" and _is_skills_integration
+        cursor_agent_skill_mode = (
+            selected_ai == "cursor-agent" and _is_skills_integration
+        )
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
+        zed_skill_mode = selected_ai == "zed" and _is_skills_integration
         cline_skill_mode = selected_ai == "cline"
-        native_skill_mode = codex_skill_mode or claude_skill_mode or kimi_skill_mode or agy_skill_mode or trae_skill_mode or cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode
+        native_skill_mode = (
+            codex_skill_mode
+            or zcode_skill_mode
+            or claude_skill_mode
+            or kimi_skill_mode
+            or agy_skill_mode
+            or trae_skill_mode
+            or cursor_agent_skill_mode
+            or copilot_skill_mode
+            or devin_skill_mode
+            or zed_skill_mode
+        )
 
         if codex_skill_mode:
             steps_lines.append(f"{step_num}. Start Codex in this project directory; spec-kit skills were installed to {accent('.agents/skills')}")
+            step_num += 1
+        if zcode_skill_mode:
+            steps_lines.append(f"{step_num}. Start ZCode in this project directory; spec-kit skills were installed to {accent('.zcode/skills')}")
             step_num += 1
         if claude_skill_mode:
             steps_lines.append(f"{step_num}. Start Claude in this project directory; spec-kit skills were installed to {accent('.claude/skills')}")
@@ -730,29 +821,46 @@ def register(app: typer.Typer) -> None:
         if devin_skill_mode:
             steps_lines.append(f"{step_num}. Start Devin in this project directory; spec-kit skills were installed to {accent('.devin/skills')}")
             step_num += 1
+        if zed_skill_mode:
+            steps_lines.append(f"{step_num}. Start Zed in this project directory; spec-kit skills were installed to {accent('.agents/skills')}")
+            step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
+
+        from .._invocation_style import (
+            is_dollar_skills_agent as _is_dollar_skills_agent,
+            is_slash_skills_agent as _is_slash_skills_agent,
+        )
+
+        # `_is_skills_integration` means the integration is installed in
+        # skills mode, which is the semantic equivalent of `ai_skills_enabled`
+        # used by `is_slash_skills_agent()`.
+        _ai_skills_enabled = _is_skills_integration
 
         _is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
         _cmd_prefix = "spec" if _is_fork else "speckit"
 
         def _display_cmd(name: str) -> str:
-            if codex_skill_mode or agy_skill_mode or trae_skill_mode:
+            if _is_dollar_skills_agent(selected_ai, _ai_skills_enabled):
                 return f"${_cmd_prefix}-{name}"
-            if claude_skill_mode:
-                return f"/{_cmd_prefix}-{name}"
             if kimi_skill_mode:
                 return f"/skill:{_cmd_prefix}-{name}"
-            if cursor_agent_skill_mode or copilot_skill_mode or devin_skill_mode or cline_skill_mode:
+            if (
+                _is_slash_skills_agent(selected_ai, _ai_skills_enabled)
+                or cline_skill_mode
+            ):
                 return f"/{_cmd_prefix}-{name}"
             return f"/{_cmd_prefix}.{name}"
 
-        steps_lines.append(f"{step_num}. Start using {usage_label} with your coding agent:")
+        steps_lines.append(
+            f"{step_num}. Start using {usage_label} with your coding agent:"
+        )
 
         steps_lines.append(f"   {step_num}.1 {accent(_display_cmd('constitution'))} - Establish project principles")
         steps_lines.append(f"   {step_num}.2 {accent(_display_cmd('specify'))} - Create baseline specification")
         steps_lines.append(f"   {step_num}.3 {accent(_display_cmd('plan'))} - Create implementation plan")
         steps_lines.append(f"   {step_num}.4 {accent(_display_cmd('tasks'))} - Generate actionable tasks")
         steps_lines.append(f"   {step_num}.5 {accent(_display_cmd('implement'))} - Execute implementation")
+        steps_lines.append(f"   {step_num}.6 {accent(_display_cmd('converge'))} - Assess the codebase and append remaining work as tasks")
 
         steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=_border, padding=(1, 2))
         console.print()

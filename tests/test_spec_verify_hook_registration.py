@@ -19,7 +19,6 @@ def test_after_implement_includes_optional_hook(tmp_path: Path):
             str(project_dir),
             "--integration", "claude",
             "--ignore-agent-tools",
-            "--no-git",
             "--script", "sh",
         ],
     )

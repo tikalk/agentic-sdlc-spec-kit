@@ -128,9 +128,9 @@ class TestCopilotIntegration:
         agents_dir = tmp_path / ".github" / "agents"
         assert agents_dir.is_dir()
         agent_files = sorted(agents_dir.glob(f"{_cmd_prefix()}.*.agent.md"))
-        assert len(agent_files) == 9
+        assert len(agent_files) == 10
         expected_commands = {
-            "analyze", "clarify", "constitution", "implement",
+            "analyze", "clarify", "constitution", "converge", "implement",
             "plan", "checklist", "specify", "tasks", "taskstoissues",
         }
         actual_commands = {f.name.removeprefix(f"{_cmd_prefix()}.").removesuffix(".agent.md") for f in agent_files}
@@ -189,18 +189,19 @@ class TestCopilotIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot", "--script", "sh", "--no-git",
+                "init", "--here", "--integration", "copilot", "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
             ".github/agents/speckit.agent-context.update.agent.md",
             f".github/agents/{_cmd_prefix()}.analyze.agent.md",
             f".github/agents/{_cmd_prefix()}.checklist.agent.md",
             f".github/agents/{_cmd_prefix()}.clarify.agent.md",
             f".github/agents/{_cmd_prefix()}.constitution.agent.md",
+            f".github/agents/{_cmd_prefix()}.converge.agent.md",
             f".github/agents/{_cmd_prefix()}.implement.agent.md",
             f".github/agents/{_cmd_prefix()}.plan.agent.md",
             f".github/agents/{_cmd_prefix()}.specify.agent.md",
@@ -211,6 +212,7 @@ class TestCopilotIntegration:
             f".github/prompts/{_cmd_prefix()}.checklist.prompt.md",
             f".github/prompts/{_cmd_prefix()}.clarify.prompt.md",
             f".github/prompts/{_cmd_prefix()}.constitution.prompt.md",
+            f".github/prompts/{_cmd_prefix()}.converge.prompt.md",
             f".github/prompts/{_cmd_prefix()}.implement.prompt.md",
             f".github/prompts/{_cmd_prefix()}.plan.prompt.md",
             f".github/prompts/{_cmd_prefix()}.specify.prompt.md",
@@ -270,18 +272,19 @@ class TestCopilotIntegration:
         try:
             os.chdir(project)
             result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "copilot", "--script", "ps", "--no-git",
+                "init", "--here", "--integration", "copilot", "--script", "ps",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
             ".github/agents/speckit.agent-context.update.agent.md",
             f".github/agents/{_cmd_prefix()}.analyze.agent.md",
             f".github/agents/{_cmd_prefix()}.checklist.agent.md",
             f".github/agents/{_cmd_prefix()}.clarify.agent.md",
             f".github/agents/{_cmd_prefix()}.constitution.agent.md",
+            f".github/agents/{_cmd_prefix()}.converge.agent.md",
             f".github/agents/{_cmd_prefix()}.implement.agent.md",
             f".github/agents/{_cmd_prefix()}.plan.agent.md",
             f".github/agents/{_cmd_prefix()}.specify.agent.md",
@@ -292,6 +295,7 @@ class TestCopilotIntegration:
             f".github/prompts/{_cmd_prefix()}.checklist.prompt.md",
             f".github/prompts/{_cmd_prefix()}.clarify.prompt.md",
             f".github/prompts/{_cmd_prefix()}.constitution.prompt.md",
+            f".github/prompts/{_cmd_prefix()}.converge.prompt.md",
             f".github/prompts/{_cmd_prefix()}.implement.prompt.md",
             f".github/prompts/{_cmd_prefix()}.plan.prompt.md",
             f".github/prompts/{_cmd_prefix()}.specify.prompt.md",
@@ -346,7 +350,7 @@ class TestCopilotSkillsMode:
     """Tests for Copilot integration in --skills mode."""
 
     _SKILL_COMMANDS = [
-        "analyze", "clarify", "constitution", "implement",
+        "analyze", "clarify", "constitution", "converge", "implement",
         "plan", "checklist", "specify", "tasks", "taskstoissues",
     ]
 
@@ -676,7 +680,7 @@ class TestCopilotSkillsMode:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "copilot",
                 "--integration-options", "--skills",
-                "--script", "sh", "--no-git",
+                "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -702,12 +706,12 @@ class TestCopilotSkillsMode:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "copilot",
                 "--integration-options", "--skills",
-                "--script", "sh", "--no-git",
+                "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file())
+        actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
             # Skill files (core + extension-installed agent-context command)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
@@ -842,7 +846,6 @@ class TestCopilotSkillsMode:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "copilot",
                 "--integration-options", "--skills",
-                "--script", "sh", "--no-git",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)

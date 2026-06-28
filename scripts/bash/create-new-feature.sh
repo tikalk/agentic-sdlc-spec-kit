@@ -3,7 +3,7 @@
 # Delegate to git extension if installed
 _SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 _REPO_ROOT="$(cd "$_SCRIPT_DIR/../../.." && pwd)"
-_EXT_SCRIPT="$_REPO_ROOT/.specify/extensions/git/scripts/bash/create-new-feature.sh"
+_EXT_SCRIPT="$_REPO_ROOT/.specify/extensions/git/scripts/bash/create-new-feature-branch.sh"
 if [ -f "$_EXT_SCRIPT" ] && [ -x "$_EXT_SCRIPT" ]; then
     exec bash "$_EXT_SCRIPT" "$@"
 fi
@@ -191,7 +191,7 @@ json_escape() {
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
-REPO_ROOT=$(get_repo_root)
+REPO_ROOT=$(get_repo_root) || exit 1
 
 # Check if git is available at this repo root (not a parent)
 if has_git; then
@@ -300,7 +300,7 @@ if [ "$USE_TIMESTAMP" = true ]; then
     FEATURE_NUM=$(date +%Y%m%d-%H%M%S)
     BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
 else
-    # Determine branch number
+    # Determine branch number from existing feature directories
     if [ -z "$BRANCH_NUMBER" ]; then
         if [ "$HAS_GIT" = true ]; then
             # Check existing branches on remotes
@@ -339,49 +339,18 @@ if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
     >&2 echo "[specify] Truncated to: $BRANCH_NAME (${#BRANCH_NAME} bytes)"
 fi
 
-if [ "$DRY_RUN" != true ]; then
-    if [ "$HAS_GIT" = true ]; then
-        branch_create_error=""
-        if ! branch_create_error=$(git checkout -q -b "$BRANCH_NAME" 2>&1); then
-            current_branch="$(git rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
-            # Check if branch already exists
-            if git branch --list "$BRANCH_NAME" | grep -q .; then
-                if [ "$ALLOW_EXISTING" = true ]; then
-                    # If we're already on the branch, continue without another checkout.
-                    if [ "$current_branch" = "$BRANCH_NAME" ]; then
-                        :
-                    # Otherwise switch to the existing branch instead of failing.
-                    elif ! switch_branch_error=$(git checkout -q "$BRANCH_NAME" 2>&1); then
-                        >&2 echo "Error: Failed to switch to existing branch '$BRANCH_NAME'. Please resolve any local changes or conflicts and try again."
-                        if [ -n "$switch_branch_error" ]; then
-                            >&2 printf '%s\n' "$switch_branch_error"
-                        fi
-                        exit 1
-                    fi
-                elif [ "$USE_TIMESTAMP" = true ]; then
-                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Rerun to get a new timestamp or use a different --short-name."
-                    exit 1
-                else
-                    >&2 echo "Error: Branch '$BRANCH_NAME' already exists. Please use a different feature name or specify a different number with --number."
-                    exit 1
-                fi
-            else
-                >&2 echo "Error: Failed to create git branch '$BRANCH_NAME'."
-                if [ -n "$branch_create_error" ]; then
-                    >&2 printf '%s\n' "$branch_create_error"
-                else
-                    >&2 echo "Please check your git configuration and try again."
-                fi
-                exit 1
-            fi
-        fi
-    else
-        >&2 echo "[specify] Warning: Git repository not detected; skipped branch creation for $BRANCH_NAME"
-    fi
-fi
-
 FEATURE_DIR="$SPECS_DIR/$BRANCH_NAME"
+
 if [ "$DRY_RUN" != true ]; then
+    if [ -d "$FEATURE_DIR" ] && [ "$ALLOW_EXISTING" != true ]; then
+        if [ "$USE_TIMESTAMP" = true ]; then
+            >&2 echo "Error: Feature directory '$FEATURE_DIR' already exists. Rerun to get a new timestamp or use a different --short-name."
+        else
+            >&2 echo "Error: Feature directory '$FEATURE_DIR' already exists. Please use a different feature name or specify a different number with --number."
+        fi
+        exit 1
+    fi
+
     mkdir -p "$FEATURE_DIR"
 fi
 
@@ -623,8 +592,13 @@ DISCOVERED_SKILLS=$(discover_skills "$FEATURE_DESCRIPTION" "$TEAM_DIRECTIVES_DIR
 # Set the SPECIFY_FEATURE environment variable for the current session (skip in dry-run mode)
 if [ "$DRY_RUN" != true ]; then
     export SPECIFY_FEATURE="$BRANCH_NAME"
+
+    # Persist to .specify/feature.json so downstream commands can find the feature
+    _persist_feature_json "$REPO_ROOT" "$FEATURE_DIR"
+
     # Inform the user how to persist the feature variable in their own shell
     printf '# To persist: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME" >&2
+    printf '#              export SPECIFY_FEATURE_DIRECTORY=%q\n' "$FEATURE_DIR" >&2
 fi
 
 if $JSON_MODE; then
@@ -661,5 +635,6 @@ else
     echo "FEATURE_NUM: $FEATURE_NUM"
     if [ "$DRY_RUN" != true ]; then
         printf '# To persist in your shell: export SPECIFY_FEATURE=%q\n' "$BRANCH_NAME"
+        printf '#                           export SPECIFY_FEATURE_DIRECTORY=%q\n' "$FEATURE_DIR"
     fi
 fi

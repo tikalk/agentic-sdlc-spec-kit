@@ -108,11 +108,23 @@ class IntegrationManifest:
         key:          Integration identifier (e.g. ``"copilot"``).
         project_root: Absolute path to the project directory.
         version:      CLI version string recorded in the manifest.
+        resolve_project_root: Resolve ``project_root`` before using it.
     """
 
-    def __init__(self, key: str, project_root: Path, version: str = "") -> None:
+    def __init__(
+        self,
+        key: str,
+        project_root: Path,
+        version: str = "",
+        *,
+        resolve_project_root: bool = True,
+    ) -> None:
         self.key = key
-        self.project_root = project_root.resolve()
+        self.project_root = (
+            project_root.resolve()
+            if resolve_project_root
+            else project_root.absolute()
+        )
         self.version = version
         self._files: dict[str, str] = {}  # rel_path → sha256 hex
         self._recovered_files: set[str] = set()
@@ -219,6 +231,30 @@ class IntegrationManifest:
             # recovered marker so future is_recovered() queries reflect the
             # transition. ``discard`` is a no-op when the key is absent.
             self._recovered_files.discard(normalized)
+
+    def remove(self, rel_path: str | Path) -> bool:
+        """Drop *rel_path* from the tracked file set and any recovered marker.
+
+        Operates purely on the manifest's recorded key; it does NOT touch the
+        file on disk. Returns ``True`` if an entry was present and removed.
+        Used to keep the manifest consistent after a caller deletes a stale
+        managed file that the current install no longer ships.
+
+        Input is normalized through the same lexical pipeline as
+        ``record_existing`` / ``is_recovered``: absolute paths and paths
+        containing ``..`` segments are rejected (return ``False``) — such paths
+        can never be canonical manifest keys, so there is nothing to remove.
+        """
+        rel = Path(rel_path)
+        if rel.is_absolute() or ".." in rel.parts:
+            return False
+        try:
+            abs_path = _validate_rel_path(rel, self.project_root)
+            normalized = abs_path.relative_to(self.project_root).as_posix()
+        except ValueError:
+            return False
+        self._recovered_files.discard(normalized)
+        return self._files.pop(normalized, None) is not None
 
     # -- Querying ---------------------------------------------------------
 
@@ -387,12 +423,18 @@ class IntegrationManifest:
         return path
 
     @classmethod
-    def load(cls, key: str, project_root: Path) -> IntegrationManifest:
+    def load(
+        cls,
+        key: str,
+        project_root: Path,
+        *,
+        resolve_project_root: bool = True,
+    ) -> IntegrationManifest:
         """Load an existing manifest from disk.
 
         Raises ``FileNotFoundError`` if the manifest does not exist.
         """
-        inst = cls(key, project_root)
+        inst = cls(key, project_root, resolve_project_root=resolve_project_root)
         path = inst.manifest_path
         try:
             data = json.loads(path.read_text(encoding="utf-8"))

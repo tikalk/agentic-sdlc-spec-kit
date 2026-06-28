@@ -14,7 +14,7 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ### Python
 
-```
+```text
 src/specify_cli/integrations/
 ├── __init__.py            # INTEGRATION_REGISTRY + _register_builtins()
 ├── base.py                # IntegrationBase, MarkdownIntegration, TomlIntegration, YamlIntegration, SkillsIntegration
@@ -378,38 +378,63 @@ Some agents require custom processing beyond the standard template transformatio
 ### Copilot Integration
 
 GitHub Copilot has unique requirements:
+
 - Commands use `.agent.md` extension (not `.md`)
 - Each command gets a companion `.prompt.md` file in `.github/prompts/`
 - Installs `.vscode/settings.json` with prompt file recommendations
 - Context file lives at `.github/copilot-instructions.md`
 
 Implementation: Extends `IntegrationBase` with custom `setup()` method that:
+
 1. Processes templates with `process_template()`
 2. Generates companion `.prompt.md` files
 3. Merges VS Code settings
 
+**Skills mode (`--skills`):** Copilot also supports an alternative skills-based layout
+via `--integration-options="--skills"`. When enabled:
+
+- Commands are scaffolded as `speckit-<name>/SKILL.md` under `.github/skills/`
+- No companion `.prompt.md` files are generated
+- No `.vscode/settings.json` merge
+- `post_process_skill_content()` injects a `mode: speckit.<stem>` frontmatter field
+- `build_command_invocation()` returns `/speckit-<stem>` instead of bare args
+
+The two modes are mutually exclusive — a project uses one or the other:
+
+```bash
+# Default mode: .agent.md agents + .prompt.md companions + settings merge
+specify init my-project --integration copilot
+
+# Skills mode: speckit-<name>/SKILL.md under .github/skills/
+specify init my-project --integration copilot --integration-options="--skills"
+```
+
 ### Forge Integration
 
 Forge has special frontmatter and argument requirements:
+
 - Uses `{{parameters}}` instead of `$ARGUMENTS`
 - Strips `handoffs` frontmatter key (Forge-specific collaboration feature)
 - Injects `name` field into frontmatter when missing
 
 Implementation: Extends `MarkdownIntegration` with custom `setup()` method that:
+
 1. Inherits standard template processing from `MarkdownIntegration`
 2. Adds extra `$ARGUMENTS` → `{{parameters}}` replacement after template processing
 3. Applies Forge-specific transformations via `_apply_forge_transformations()`
 4. Strips `handoffs` frontmatter key
  5. Injects missing `name` fields
 
-### Standard Markdown Agents
+### Goose Integration
 
-Most agents (Bob, Claude, Windsurf, etc.) use `MarkdownIntegration`:
-- Simple subclass with just `key`, `config`, `registrar_config` set
-- Inherits standard processing from `MarkdownIntegration.setup()`
-- No custom processing needed
+Goose is a YAML-format agent using Block's recipe system:
+
+- Uses `.goose/recipes/` directory for YAML recipe files
+- Uses `{{args}}` argument placeholder
+- Produces YAML with `prompt: |` block scalar for command content
 
 Implementation: Extends `YamlIntegration` (parallel to `TomlIntegration`):
+
 1. Processes templates through the standard placeholder pipeline
 2. Extracts title and description from frontmatter
 3. Renders output as Goose recipe YAML (version, title, description, author, extensions, activities, prompt)
@@ -420,7 +445,7 @@ Implementation: Extends `YamlIntegration` (parallel to `TomlIntegration`):
 
 Branches follow one of two patterns depending on whether an issue exists:
 
-```
+```text
 <type>/<number>-<short-slug>   # when an issue is created first
 <type>/<short-slug>            # when no issue exists (PR-only changes)
 ```
@@ -443,35 +468,47 @@ When an issue exists, include its number immediately after the prefix — this i
 
 ---
 
-## Responding to PR Review Comments
+## Agent Disclosure for PRs, Comments, and Commits
+
+Disclosure is **continuous**, not a one-time event. A single AI-disclosure paragraph in the PR body does **not** cover the commits and replies you add during review rounds. Each of the following must independently attest to agent authorship.
+
+### Commits
+
+- **Every commit you author must carry an `Assisted-by:` trailer** identifying the agent and whether it acted autonomously or under direct human supervision, for example:
+
+  ```
+  Assisted-by: GitHub Copilot (model: <name-if-known>, autonomous)
+  ```
+
+  Use `supervised` instead of `autonomous` only when a human actually authored or line-by-line reviewed the change before it was committed.
+- **Never push solo-authored commits that hide agent authorship behind the operator's git identity.** If an agent generated the change, the trailer must say so even when the commit is attributed to a human account.
+- Preserve any tool-generated `Co-authored-by:` trailers (e.g. Copilot Autofix) — do not strip them to make a commit look hand-written.
+
+### Comments
 
 - If you are an agent working on behalf of a human, **disclose your identity in your PR comment** — name the agent (and model, if applicable) and the human you are acting for (e.g., "Posted on behalf of @user by GitHub Copilot (model: &lt;name-if-known&gt;)").
+- **Re-state agent identity in each review-round summary comment.** A prior PR-body disclosure does not cover later comments or commits.
 - Post **one** top-level summary comment per review round listing what changed and the commit SHA. Do not reply on every individual comment.
 - Reply inline only when context is needed (disagreement, deferral, non-obvious fix). Keep it to a sentence or two.
 - **Never click "Resolve conversation"** — that belongs to the reviewer or PR author.
 - No emoji, no celebratory framing, no checklist mirroring the reviewer's items, no restating what the reviewer wrote.
 - Re-request review once per round (when all feedback is addressed), not after every intermediate push.
 
+### Anti-patterns (do not do these)
+
+- **Do not** reply "Done" or push a "fix" within seconds/minutes of a review event without disclosing that the response or commit was agent-generated. Speed of turnaround is not a substitute for attestation — a near-instant tested code change is itself a signal of automation and must be disclosed as such.
+- **Do not** claim "reviewed, tested, and understood by me" for commits that were authored and pushed automatically in response to a review trigger. If the loop is automated, disclose it as automated.
+
 ---
 
 ## Common Pitfalls
 
-1. **Using shorthand keys instead of actual CLI tool names**: Always use the actual executable name as the AGENT_CONFIG key (e.g., `"cursor-agent"` not `"cursor"`). This prevents the need for special-case mappings throughout the codebase.
-2. **Forgetting update scripts**: Both bash and PowerShell scripts must be updated when adding new agents.
-3. **Incorrect `requires_cli` value**: Set to `True` only for agents that actually have CLI tools to check; set to `False` for IDE-based agents.
-4. **Wrong argument format**: Use correct placeholder format for each agent type (`$ARGUMENTS` for Markdown, `{{args}}` for TOML).
-5. **Directory naming**: Follow agent-specific conventions exactly (check existing agents for patterns).
-6. **Help text inconsistency**: Update all user-facing text consistently (help strings, docstrings, README, error messages).
-
-## Future Considerations
-
-When adding new agents:
-
-- Consider the agent's native command/workflow patterns
-- Ensure compatibility with the Spec-Driven Development process
-- Document any special requirements or limitations
-- Update this guide with lessons learned
-- Verify the actual CLI tool name before adding to AGENT_CONFIG
+1. **Using shorthand keys for CLI-based integrations**: For CLI-based integrations (`requires_cli: True`), the `key` must match the executable name (e.g., `"cursor-agent"` not `"cursor"`). `shutil.which(key)` is used for CLI tool checks — mismatches require special-case mappings. IDE-based integrations (`requires_cli: False`) are not subject to this constraint.
+2. **Forgetting context configuration**: The bundled `agent-context` extension reads from `.specify/extensions/agent-context/agent-context-config.yml`. New integrations only need to set `context_file` on the class — markers and dispatcher scripts are managed centrally.
+3. **Incorrect `requires_cli` value**: Set to `True` only for agents that have a CLI tool; set to `False` for IDE-based agents.
+4. **Wrong argument format**: Use `$ARGUMENTS` for Markdown agents, `{{args}}` for TOML agents.
+5. **Skipping registration**: The import and `_register()` call in `_register_builtins()` must both be added.
+6. **Running tests against the wrong environment**: Always run the suite inside this working tree's own virtualenv (`uv sync --extra test` then `.venv/bin/python -m pytest`, or activate the venv first). A bare `uv run pytest` can resolve to an ambient/global interpreter whose editable `.pth` points at a *different* worktree. The failure is sneaky: test collection still imports `specify_cli` successfully, but newly-added subpackages (e.g. a fresh `specify_cli/bundler/`) resolve as a stale namespace package and raise `ModuleNotFoundError`. If a brand-new subpackage imports under `python -c` but not under pytest, suspect environment contamination, not your code.
 
 ---
 

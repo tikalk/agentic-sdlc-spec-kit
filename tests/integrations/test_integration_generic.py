@@ -218,6 +218,7 @@ class TestGenericIntegration:
         [
             "analyze",
             "clarify",
+            "converge",
             "implement",
             "plan",
             "checklist",
@@ -257,7 +258,6 @@ class TestGenericIntegration:
         runner = CliRunner()
         result = runner.invoke(app, [
             "init", str(tmp_path / "test-generic"), "--integration", "generic",
-            "--script", "sh", "--no-git",
         ])
         # Generic requires --commands-dir via --integration-options
         assert result.exit_code != 0
@@ -276,7 +276,7 @@ class TestGenericIntegration:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
-                "--script", "sh", "--no-git",
+                "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
@@ -298,14 +298,14 @@ class TestGenericIntegration:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
-                "--script", "sh", "--no-git",
+                "--script", "sh",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(
             p.relative_to(project).as_posix()
-            for p in project.rglob("*") if p.is_file()
+            for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
         files = [
             "AGENTS.md",
@@ -313,6 +313,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
+            f".myagent/commands/{_cmd_prefix()}.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
@@ -373,14 +374,14 @@ class TestGenericIntegration:
             result = CliRunner().invoke(app, [
                 "init", "--here", "--integration", "generic",
                 "--integration-options=--commands-dir .myagent/commands",
-                "--script", "ps", "--no-git",
+                "--script", "ps",
             ], catch_exceptions=False)
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(
             p.relative_to(project).as_posix()
-            for p in project.rglob("*") if p.is_file()
+            for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
         files = [
             "AGENTS.md",
@@ -388,6 +389,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
+            f".myagent/commands/{_cmd_prefix()}.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",

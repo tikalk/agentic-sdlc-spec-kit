@@ -281,11 +281,11 @@ When Git is not installed or the directory is not a Git repository:
 
 The extension bundles cross-platform scripts:
 
-- `scripts/bash/create-new-feature.sh` — Feature branch/worktree creation (Bash)
+- `scripts/bash/create-new-feature-branch.sh` — Feature branch/worktree creation (Bash)
 - `scripts/bash/worktree-utils.sh` — Worktree lifecycle utilities (Bash)
 - `scripts/bash/worktree-cleanup.sh` — Worktree removal (Bash)
 - `scripts/bash/git-common.sh` — Shared Git utilities (Bash)
-- `scripts/powershell/create-new-feature.ps1` — Feature branch/worktree creation (PowerShell)
+- `scripts/powershell/create-new-feature-branch.ps1` — Feature branch/worktree creation (PowerShell)
 - `scripts/powershell/worktree-utils.ps1` — Worktree lifecycle utilities (PowerShell)
 - `scripts/powershell/worktree-cleanup.ps1` — Worktree removal (PowerShell)
 - `scripts/powershell/git-common.ps1` — Shared Git utilities (PowerShell)

@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Dict, List, Any
 
 if TYPE_CHECKING:
-    from .agents import CommandRegistrar
+    from ..agents import CommandRegistrar
 from datetime import datetime, timezone
 import re
 
@@ -27,9 +27,11 @@ import yaml
 from packaging import version as pkg_version
 from packaging.specifiers import SpecifierSet, InvalidSpecifier
 
-from .extensions import REINSTALL_COMMAND, ExtensionRegistry, normalize_priority
-from .integrations.base import IntegrationBase
-from ._init_options import is_ai_skills_enabled
+from ..extensions import REINSTALL_COMMAND, ExtensionRegistry, normalize_priority
+from .._init_options import is_ai_skills_enabled
+from ..integrations.base import IntegrationBase
+from .._utils import dump_frontmatter
+from ..shared_infra import verify_archive_sha256
 
 
 def _substitute_core_template(
@@ -676,7 +678,7 @@ class PresetManager:
                 commands_to_register.append(cmd)
 
         try:
-            from .agents import CommandRegistrar
+            from ..agents import CommandRegistrar
         except ImportError:
             return {}
 
@@ -773,7 +775,7 @@ class PresetManager:
             registered_commands: Dict mapping agent names to command name lists
         """
         try:
-            from .agents import CommandRegistrar
+            from ..agents import CommandRegistrar
         except ImportError:
             return
 
@@ -796,7 +798,7 @@ class PresetManager:
             return
 
         try:
-            from .agents import CommandRegistrar
+            from ..agents import CommandRegistrar
         except ImportError:
             return
 
@@ -848,7 +850,7 @@ class PresetManager:
                         ext_manifest_path = ext_dir / "extension.yml"
                         if ext_manifest_path.exists():
                             try:
-                                from .extensions import ExtensionManifest
+                                from ..extensions import ExtensionManifest
                                 ext_manifest = ExtensionManifest(ext_manifest_path)
                                 # Filter to only the command being reconciled
                                 matching_cmds = [
@@ -972,7 +974,7 @@ class PresetManager:
         # Load aliases from extension manifest when the winning layer is an extension
         if source_id and not source_id.startswith("preset:"):
             try:
-                from .extensions import ExtensionManifest
+                from ..extensions import ExtensionManifest
                 for ext_dir in (self.project_root / ".specify" / "extensions").iterdir():
                     if not ext_dir.is_dir():
                         continue
@@ -1123,8 +1125,8 @@ class PresetManager:
                 skill_subdir.mkdir(parents=True, exist_ok=True)
                 skill_file = skill_subdir / "SKILL.md"
                 try:
-                    from .agents import CommandRegistrar
-                    from . import SKILL_DESCRIPTIONS, load_init_options
+                    from ..agents import CommandRegistrar
+                    from .. import SKILL_DESCRIPTIONS, load_init_options
                     registrar = CommandRegistrar()
                     content = top_layer["path"].read_text(encoding="utf-8")
                     fm, body = registrar.parse_frontmatter(content)
@@ -1144,20 +1146,21 @@ class PresetManager:
                         body = self._resolve_skill_command_refs(
                             body, registrar, selected_ai
                         )
+                    from ..integrations import get_integration
+                    integration = get_integration(selected_ai) if isinstance(selected_ai, str) else None
                     fm_data = registrar.build_skill_frontmatter(
                         selected_ai if isinstance(selected_ai, str) else "",
                         skill_name, desc,
                         f"override:{cmd_name}",
                     )
-                    fm_text = yaml.safe_dump(fm_data, sort_keys=False).strip()
+                    registrar.apply_argument_hint(fm, fm_data, integration)
+                    fm_text = dump_frontmatter(fm_data)
                     skill_title = self._skill_title_from_command(cmd_name)
                     skill_content = (
                         f"---\n{fm_text}\n---\n\n"
                         f"# Speckit {skill_title} Skill\n\n{body}\n"
                     )
                     # Apply integration post-processing (e.g. Claude flags)
-                    from .integrations import get_integration
-                    integration = get_integration(selected_ai) if isinstance(selected_ai, str) else None
                     if integration is not None and hasattr(integration, "post_process_skill_content"):
                         skill_content = integration.post_process_skill_content(skill_content)
                     try:
@@ -1198,7 +1201,7 @@ class PresetManager:
         be created due to symlink, containment, or permission issues so
         that callers can fall back gracefully.
         """
-        from . import resolve_active_skills_dir, _print_cli_warning
+        from .. import resolve_active_skills_dir, _print_cli_warning
         try:
             return resolve_active_skills_dir(self.project_root)
         except (ValueError, OSError) as exc:
@@ -1216,7 +1219,7 @@ class PresetManager:
         """
         # Use alias map to resolve command to its alias form, then convert to skill names
         try:
-            from ._core_fork import resolve_command_alias
+            from .._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(cmd_name, self.project_root)
         except Exception:
             resolved_name = cmd_name
@@ -1229,7 +1232,7 @@ class PresetManager:
         """Return a human-friendly title for a skill command name."""
         # Use alias map to get the canonical short form, then convert to title
         try:
-            from ._core_fork import resolve_command_alias
+            from .._core_fork import resolve_command_alias
             resolved_name = resolve_command_alias(cmd_name, self.project_root)
         except Exception:
             resolved_name = cmd_name
@@ -1254,7 +1257,7 @@ class PresetManager:
 
     def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
         """Index extension-backed skill restore data by skill directory name."""
-        from .extensions import ExtensionManifest, ValidationError
+        from ..extensions import ExtensionManifest, ValidationError
 
         resolver = PresetResolver(self.project_root)
         extensions_dir = self.project_root / ".specify" / "extensions"
@@ -1349,9 +1352,9 @@ class PresetManager:
         if not skills_dir:
             return []
 
-        from . import SKILL_DESCRIPTIONS, load_init_options
-        from .agents import CommandRegistrar
-        from .integrations import get_integration
+        from .. import SKILL_DESCRIPTIONS, load_init_options
+        from ..agents import CommandRegistrar
+        from ..integrations import get_integration
 
         init_opts = load_init_options(self.project_root)
         if not isinstance(init_opts, dict):
@@ -1452,7 +1455,7 @@ class PresetManager:
             body = self._resolve_skill_command_refs(body, registrar, selected_ai)
 
             # Resolve __SPECKIT_COMMAND_*__ placeholders and handoff agents
-            from .integrations.base import IntegrationBase
+            from ..integrations.base import IntegrationBase
 
             _sep = agent_config.get("invoke_separator", ".")
             body = IntegrationBase.resolve_command_refs(body, _sep)
@@ -1472,7 +1475,8 @@ class PresetManager:
                     enhanced_desc,
                     f"preset:{manifest.id}",
                 )
-                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                registrar.apply_argument_hint(frontmatter, frontmatter_data, integration)
+                frontmatter_text = dump_frontmatter(frontmatter_data)
                 skill_content = (
                     f"---\n"
                     f"{frontmatter_text}\n"
@@ -1516,9 +1520,9 @@ class PresetManager:
         if not skills_dir:
             return
 
-        from . import SKILL_DESCRIPTIONS, load_init_options
-        from .agents import CommandRegistrar
-        from .integrations import get_integration
+        from .. import SKILL_DESCRIPTIONS, load_init_options
+        from ..agents import CommandRegistrar
+        from ..integrations import get_integration
 
         # Locate core command templates from the project's installed templates
         core_templates_dir = self.project_root / ".specify" / "templates" / "commands"
@@ -1575,7 +1579,8 @@ class PresetManager:
                     enhanced_desc,
                     f"templates/commands/{short_name}.md",
                 )
-                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                registrar.apply_argument_hint(frontmatter, frontmatter_data, integration)
+                frontmatter_text = dump_frontmatter(frontmatter_data)
                 skill_title = self._skill_title_from_command(short_name)
                 skill_content = (
                     f"---\n"
@@ -1619,7 +1624,8 @@ class PresetManager:
                     frontmatter.get("description", f"Extension command: {command_name}"),
                     extension_restore["source"],
                 )
-                frontmatter_text = yaml.safe_dump(frontmatter_data, sort_keys=False).strip()
+                registrar.apply_argument_hint(frontmatter, frontmatter_data, integration)
+                frontmatter_text = dump_frontmatter(frontmatter_data)
                 skill_content = (
                     f"---\n"
                     f"{frontmatter_text}\n"
@@ -1860,7 +1866,7 @@ class PresetManager:
         if registered_skills:
             self._unregister_skills(registered_skills, pack_dir)
             try:
-                from .agents import CommandRegistrar
+                from ..agents import CommandRegistrar
             except ImportError:
                 CommandRegistrar = None
             if CommandRegistrar is not None:
@@ -2040,6 +2046,48 @@ class PresetCatalog:
             download_url, self._open_url, timeout=timeout
         )
 
+    def _validate_catalog_payload(self, catalog_data: Any, url: str) -> None:
+        """Validate a parsed preset-catalog payload's shape.
+
+        Applied to both network-fetched and cache-loaded payloads so a
+        once-poisoned cache (older spec-kit version, manual edit, upstream
+        served a bad payload before the network-side guards were added)
+        cannot re-crash ``_get_merged_packs`` on subsequent calls.
+
+        Checking only key presence would let a payload like
+        ``{"presets": []}`` or ``{"presets": null}`` slip through here and
+        then crash with ``AttributeError: 'list' object has no attribute
+        'items'`` deep inside ``_get_merged_packs``. The sibling
+        integration catalog reader already guards both the root object and
+        the nested mapping (see ``integrations/catalog.py``); the preset
+        catalog must stay consistent so a malformed payload surfaces as
+        the user-facing ``Invalid preset catalog format`` error instead of
+        a raw Python traceback.
+
+        Args:
+            catalog_data: Parsed JSON payload from the catalog source.
+            url: Source URL — used in the error message so the user can
+                tell which catalog in a multi-catalog stack is malformed.
+
+        Raises:
+            PresetError: If the payload's shape is invalid.
+        """
+        if not isinstance(catalog_data, dict):
+            raise PresetError(
+                f"Invalid preset catalog format from {url}: "
+                "expected a JSON object"
+            )
+        if (
+            "schema_version" not in catalog_data
+            or "presets" not in catalog_data
+        ):
+            raise PresetError(f"Invalid preset catalog format from {url}")
+        if not isinstance(catalog_data.get("presets"), dict):
+            raise PresetError(
+                f"Invalid preset catalog format from {url}: "
+                "'presets' must be a JSON object"
+            )
+
     def _load_catalog_config(self, config_path: Path) -> Optional[List[PresetCatalogEntry]]:
         """Load catalog stack configuration from a YAML file.
 
@@ -2201,7 +2249,7 @@ class PresetCatalog:
         if not cache_file.exists() or not metadata_file.exists():
             return False
         try:
-            metadata = json.loads(metadata_file.read_text())
+            metadata = json.loads(metadata_file.read_text(encoding="utf-8"))
             cached_at = datetime.fromisoformat(metadata.get("cached_at", ""))
             if cached_at.tzinfo is None:
                 cached_at = cached_at.replace(tzinfo=timezone.utc)
@@ -2209,7 +2257,23 @@ class PresetCatalog:
                 datetime.now(timezone.utc) - cached_at
             ).total_seconds()
             return age_seconds < self.CACHE_DURATION
-        except (json.JSONDecodeError, ValueError, KeyError, TypeError):
+        except (
+            json.JSONDecodeError,
+            OSError,
+            UnicodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+        ):
+            # Cache validity is best-effort: invalid/missing fields, an
+            # unreadable metadata file (permissions / disk), a wrongly
+            # encoded one (written by a tool using the system locale
+            # codec), or a metadata payload that parses to a non-mapping
+            # like ``[]`` or ``"oops"`` (so ``metadata.get(...)`` raises
+            # ``AttributeError``) all degrade to "cache invalid" so the
+            # caller falls through to a network refetch instead of
+            # crashing.
             return False
 
     def _fetch_single_catalog(self, entry: PresetCatalogEntry, force_refresh: bool = False) -> Dict[str, Any]:
@@ -2227,29 +2291,55 @@ class PresetCatalog:
         """
         cache_file, metadata_file = self._get_cache_paths(entry.url)
 
+        # Use cache if valid. A previously-cached payload must clear the
+        # same shape checks as a freshly-fetched one — otherwise a once-
+        # poisoned cache would re-crash on every invocation despite the
+        # cache being "valid" by age. If validation fails on the cached
+        # read, fall through to the network fetch path so the cache gets
+        # refreshed.
         if not force_refresh and self._is_url_cache_valid(entry.url):
             try:
-                return json.loads(cache_file.read_text())
-            except json.JSONDecodeError:
+                cached_data = json.loads(cache_file.read_text(encoding="utf-8"))
+                self._validate_catalog_payload(cached_data, entry.url)
+                return cached_data
+            except (json.JSONDecodeError, OSError, UnicodeError, PresetError):
+                # Cache is best-effort: a JSON-decode failure, an OS-level
+                # read failure (permissions / disk / handle limit), or a
+                # text-encoding failure on a cache file written by an
+                # older client all fall through to the network fetch path.
+                # Only the network failure is surfaced to the caller.
                 pass
 
         try:
             with self._open_url(entry.url, timeout=10) as response:
                 catalog_data = json.loads(response.read())
 
-            if (
-                "schema_version" not in catalog_data
-                or "presets" not in catalog_data
-            ):
-                raise PresetError("Invalid preset catalog format")
+            self._validate_catalog_payload(catalog_data, entry.url)
 
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            cache_file.write_text(json.dumps(catalog_data, indent=2))
-            metadata = {
-                "cached_at": datetime.now(timezone.utc).isoformat(),
-                "catalog_url": entry.url,
-            }
-            metadata_file.write_text(json.dumps(metadata, indent=2))
+            # Both files are written explicitly as UTF-8 to match the
+            # ``read_text(encoding="utf-8")`` on the read side and the
+            # ``integrations/catalog.py`` precedent. Without this,
+            # platforms whose default encoding isn't UTF-8 would write
+            # locale-encoded bytes the read path can't decode, forcing an
+            # unnecessary refetch on every invocation. The write itself
+            # is best-effort like the read side: an unwritable cache dir
+            # (read-only checkout, permissions) must not be re-raised as
+            # a ``PresetError`` for a payload that was already fetched
+            # and validated.
+            try:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                cache_file.write_text(
+                    json.dumps(catalog_data, indent=2), encoding="utf-8"
+                )
+                metadata = {
+                    "cached_at": datetime.now(timezone.utc).isoformat(),
+                    "catalog_url": entry.url,
+                }
+                metadata_file.write_text(
+                    json.dumps(metadata, indent=2), encoding="utf-8"
+                )
+            except OSError:
+                pass  # Cache is best-effort; proceed with fetched data
 
             return catalog_data
 
@@ -2275,6 +2365,17 @@ class PresetCatalog:
             try:
                 data = self._fetch_single_catalog(entry, force_refresh)
                 for pack_id, pack_data in data.get("presets", {}).items():
+                    # Per-entry guard: ``_fetch_single_catalog`` already
+                    # validates that ``data["presets"]`` is a mapping, but it
+                    # does not (and should not) validate every entry shape
+                    # there — one malformed entry shouldn't poison an
+                    # otherwise valid catalog. Skip non-mapping entries here
+                    # so a payload like ``{"presets": {"foo": [], "bar":
+                    # {...}}}`` still merges the valid entries without
+                    # crashing on ``**pack_data``. Mirrors
+                    # ``integrations/catalog.py:245``.
+                    if not isinstance(pack_data, dict):
+                        continue
                     pack_data_with_catalog = {**pack_data, "_catalog_name": entry.name, "_install_allowed": entry.install_allowed}
                     merged[pack_id] = pack_data_with_catalog
             except PresetError:
@@ -2285,6 +2386,12 @@ class PresetCatalog:
     def is_cache_valid(self) -> bool:
         """Check if cached catalog is still valid.
 
+        Returns ``False`` for any read/decoding failure on the metadata
+        file (missing fields, malformed JSON, permissions / disk errors,
+        wrong text encoding) so callers fall through to a network refetch
+        instead of crashing. Treating cache validity as best-effort
+        matches the contract used by ``_is_url_cache_valid`` above.
+
         Returns:
             True if cache exists and is within cache duration
         """
@@ -2292,7 +2399,9 @@ class PresetCatalog:
             return False
 
         try:
-            metadata = json.loads(self.cache_metadata_file.read_text())
+            metadata = json.loads(
+                self.cache_metadata_file.read_text(encoding="utf-8")
+            )
             cached_at = datetime.fromisoformat(metadata.get("cached_at", ""))
             if cached_at.tzinfo is None:
                 cached_at = cached_at.replace(tzinfo=timezone.utc)
@@ -2300,7 +2409,20 @@ class PresetCatalog:
                 datetime.now(timezone.utc) - cached_at
             ).total_seconds()
             return age_seconds < self.CACHE_DURATION
-        except (json.JSONDecodeError, ValueError, KeyError, TypeError):
+        except (
+            json.JSONDecodeError,
+            OSError,
+            UnicodeError,
+            ValueError,
+            KeyError,
+            TypeError,
+            AttributeError,
+        ):
+            # ``AttributeError`` covers the case where the metadata file
+            # parses to a non-mapping (``[]``, ``"oops"``, ``42``) so
+            # ``metadata.get(...)`` would otherwise crash. All decode /
+            # shape failures degrade to "cache invalid" so the caller
+            # falls through to a network refetch.
             return False
 
     def fetch_catalog(self, force_refresh: bool = False) -> Dict[str, Any]:
@@ -2317,35 +2439,61 @@ class PresetCatalog:
         """
         catalog_url = self.get_catalog_url()
 
+        # Match the ``_fetch_single_catalog`` cache contract: a poisoned
+        # or unreadable cache silently falls through to a network refetch
+        # rather than crashing the caller. ``_validate_catalog_payload``
+        # is reused here so a cache written by an older client
+        # (pre-validation) is rejected and refreshed instead of returning
+        # the stale malformed payload.
         if not force_refresh and self.is_cache_valid():
             try:
-                metadata = json.loads(self.cache_metadata_file.read_text())
+                metadata = json.loads(
+                    self.cache_metadata_file.read_text(encoding="utf-8")
+                )
                 if metadata.get("catalog_url") == catalog_url:
-                    return json.loads(self.cache_file.read_text())
-            except (json.JSONDecodeError, OSError):
-                # Cache is corrupt or unreadable; fall through to network fetch
+                    cached_data = json.loads(
+                        self.cache_file.read_text(encoding="utf-8")
+                    )
+                    self._validate_catalog_payload(cached_data, catalog_url)
+                    return cached_data
+            except (json.JSONDecodeError, OSError, UnicodeError, PresetError):
+                # Cache is corrupt, unreadable, or fails the shape check;
+                # fall through to network fetch.
                 pass
 
         try:
             with self._open_url(catalog_url, timeout=10) as response:
                 catalog_data = json.loads(response.read())
 
-            if (
-                "schema_version" not in catalog_data
-                or "presets" not in catalog_data
-            ):
-                raise PresetError("Invalid preset catalog format")
+            # Validate catalog structure. Reuses the same helper as
+            # ``_fetch_single_catalog`` so all three branches (root type,
+            # missing keys, nested-mapping type) stay consistent.
+            self._validate_catalog_payload(catalog_data, catalog_url)
 
-            self.cache_dir.mkdir(parents=True, exist_ok=True)
-            self.cache_file.write_text(json.dumps(catalog_data, indent=2))
+            # Save to cache. Explicit UTF-8 on both writes mirrors the
+            # ``read_text(encoding="utf-8")`` on the read side and the
+            # ``integrations/catalog.py`` precedent — otherwise platforms
+            # whose default encoding isn't UTF-8 would write
+            # locale-encoded bytes the read path can't decode, forcing an
+            # unnecessary refetch on every invocation. Like the read
+            # side, the write is best-effort: an unwritable cache dir
+            # must not be re-raised as a ``PresetError`` for a payload
+            # that was already fetched and validated.
+            try:
+                self.cache_dir.mkdir(parents=True, exist_ok=True)
+                self.cache_file.write_text(
+                    json.dumps(catalog_data, indent=2), encoding="utf-8"
+                )
 
-            metadata = {
-                "cached_at": datetime.now(timezone.utc).isoformat(),
-                "catalog_url": catalog_url,
-            }
-            self.cache_metadata_file.write_text(
-                json.dumps(metadata, indent=2)
-            )
+                metadata = {
+                    "cached_at": datetime.now(timezone.utc).isoformat(),
+                    "catalog_url": catalog_url,
+                }
+                self.cache_metadata_file.write_text(
+                    json.dumps(metadata, indent=2), encoding="utf-8"
+                )
+            except OSError:
+                pass  # Cache is best-effort; proceed with fetched data
 
             return catalog_data
 
@@ -2456,7 +2604,7 @@ class PresetCatalog:
 
         # Bundled presets without a download URL must be installed locally
         if pack_info.get("bundled") and not pack_info.get("download_url"):
-            from .extensions import REINSTALL_COMMAND
+            from ..extensions import REINSTALL_COMMAND
             raise PresetError(
                 f"Preset '{pack_id}' is bundled with spec-kit and has no download URL. "
                 f"It should be installed from the local package. "
@@ -2505,6 +2653,10 @@ class PresetCatalog:
         try:
             with self._open_url(download_url, timeout=60, extra_headers=extra_headers) as response:
                 zip_data = response.read()
+
+            verify_archive_sha256(
+                zip_data, pack_info.get("sha256"), pack_id, PresetError
+            )
 
             zip_path.write_bytes(zip_data)
             return zip_path
@@ -2708,7 +2860,7 @@ class PresetResolver:
         # (source-checkout / editable install).  This is the canonical home for
         # speckit's built-in command/template files and must always be checked
         # so that strategy:wrap presets can locate {CORE_TEMPLATE}.
-        from specify_cli import _locate_core_pack  # local import to avoid cycles
+        from specify_cli import _locate_core_pack, _repo_root  # local import to avoid cycles
         _core_pack = _locate_core_pack()
         if _core_pack is not None:
             # Wheel install path
@@ -2728,7 +2880,7 @@ class PresetResolver:
                 return candidate
         else:
             # Source-checkout / editable install: templates live at repo root
-            repo_root = Path(__file__).parent.parent.parent
+            repo_root = _repo_root()
             if template_type == "template":
                 candidate = repo_root / "templates" / f"{template_name}.md"
             elif template_type == "command":
@@ -2775,7 +2927,7 @@ class PresetResolver:
         if not self.extensions_dir.exists():
             return None
 
-        from .extensions import ExtensionManifest, ValidationError
+        from ..extensions import ExtensionManifest, ValidationError
 
         for _priority, ext_id, _metadata in self._get_all_extensions_by_priority():
             ext_dir = self.extensions_dir / ext_id
@@ -3001,7 +3153,7 @@ class PresetResolver:
                 ext_manifest_path = ext_dir / "extension.yml"
                 if ext_manifest_path.exists():
                     try:
-                        from .extensions import ExtensionManifest, ValidationError as ExtValidationError
+                        from ..extensions import ExtensionManifest, ValidationError as ExtValidationError
                         ext_manifest = ExtensionManifest(ext_manifest_path)
                         for cmd in ext_manifest.commands:
                             if cmd.get("name") == template_name:
@@ -3080,7 +3232,7 @@ class PresetResolver:
         ``.specify/templates/`` doesn't contain the core file.
         """
         try:
-            from specify_cli import _locate_core_pack
+            from specify_cli import _locate_core_pack, _repo_root
         except ImportError:
             return None
 
@@ -3103,7 +3255,7 @@ class PresetResolver:
                 if c.exists():
                     return c
         else:
-            repo_root = Path(__file__).parent.parent.parent
+            repo_root = _repo_root()
             for name in names:
                 if template_type == "template":
                     c = repo_root / "templates" / f"{name}.md"
@@ -3282,7 +3434,7 @@ class PresetResolver:
             if top_fm:
                 top_frontmatter_text = (
                     "---\n"
-                    + yaml.safe_dump(top_fm, sort_keys=False).strip()
+                    + dump_frontmatter(top_fm)
                     + "\n---"
                 )
             else:
