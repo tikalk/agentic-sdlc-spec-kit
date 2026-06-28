@@ -121,55 +121,6 @@ get_highest_from_specs() {
     echo "$highest"
 }
 
-# Function to get highest number from git branches
-get_highest_from_branches() {
-    local highest=0
-    
-    # Get all branches (local and remote)
-    branches=$(git branch -a 2>/dev/null || echo "")
-    
-    if [ -n "$branches" ]; then
-        while IFS= read -r branch; do
-            # Clean branch name: remove leading markers and remote prefixes
-            clean_branch=$(echo "$branch" | sed 's/^[* ]*//; s|^remotes/[^/]*/||')
-            
-            # Extract sequential feature number (>=3 digits), skip timestamp branches.
-            if echo "$clean_branch" | grep -Eq '^[0-9]{3,}-' && ! echo "$clean_branch" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
-                number=$(echo "$clean_branch" | grep -Eo '^[0-9]+' || echo "0")
-                number=$((10#$number))
-                if [ "$number" -gt "$highest" ]; then
-                    highest=$number
-                fi
-            fi
-        done <<< "$branches"
-    fi
-    
-    echo "$highest"
-}
-
-# Function to check existing branches (local and remote) and return next available number
-check_existing_branches() {
-    local specs_dir="$1"
-
-    # Fetch all remotes to get latest branch info (suppress all output)
-    git fetch --all --prune >/dev/null 2>&1 || true
-
-    # Get highest number from ALL branches (not just matching short name)
-    local highest_branch=$(get_highest_from_branches)
-
-    # Get highest number from ALL specs (not just matching short name)
-    local highest_spec=$(get_highest_from_specs "$specs_dir")
-
-    # Take the maximum of both
-    local max_num=$highest_branch
-    if [ "$highest_spec" -gt "$max_num" ]; then
-        max_num=$highest_spec
-    fi
-
-    # Return next number
-    echo $((max_num + 1))
-}
-
 # Function to clean and format a branch name
 clean_branch_name() {
     local name="$1"
@@ -192,13 +143,6 @@ SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/common.sh"
 
 REPO_ROOT=$(get_repo_root) || exit 1
-
-# Check if git is available at this repo root (not a parent)
-if has_git; then
-    HAS_GIT=true
-else
-    HAS_GIT=false
-fi
 
 cd "$REPO_ROOT"
 
@@ -302,14 +246,8 @@ if [ "$USE_TIMESTAMP" = true ]; then
 else
     # Determine branch number from existing feature directories
     if [ -z "$BRANCH_NUMBER" ]; then
-        if [ "$HAS_GIT" = true ]; then
-            # Check existing branches on remotes
-            BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR")
-        else
-            # Fall back to local directory check
-            HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
-            BRANCH_NUMBER=$((HIGHEST + 1))
-        fi
+        HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
+        BRANCH_NUMBER=$((HIGHEST + 1))
     fi
 
     # Force base-10 interpretation to prevent octal conversion (e.g., 010 → 8 in octal, but should be 10 in decimal)

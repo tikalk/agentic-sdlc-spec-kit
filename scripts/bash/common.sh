@@ -169,34 +169,9 @@ get_current_branch() {
         return
     fi
 
-    # Then check git if available at the spec-kit root (not parent).
-    # The fork uses real git branches/worktrees, so prefer the current HEAD.
-    local repo_root=$(get_repo_root)
-    if has_git; then
-        local git_branch
-        git_branch=$(git -C "$repo_root" rev-parse --abbrev-ref HEAD 2>/dev/null || true)
-        if [[ -n "$git_branch" && "$git_branch" != "HEAD" ]]; then
-            echo "$git_branch"
-            return
-        fi
-    fi
-
-    # No explicit feature or git branch context — caller must handle this via
-    # feature.json in get_feature_paths(). Return empty to signal "unknown".
+    # No explicit feature — caller must handle this via feature.json
+    # in get_feature_paths(). Return empty to signal "unknown".
     echo ""
-}
-
-# Check if we have git available at the spec-kit root level
-# Returns true only if git is installed and the repo root is inside a git work tree
-# Handles both regular repos (.git directory) and worktrees/submodules (.git file)
-has_git() {
-    # First check if git command is available (before calling get_repo_root which may use git)
-    command -v git >/dev/null 2>&1 || return 1
-    local repo_root=$(get_repo_root)
-    # Check if .git exists (directory or file for worktrees/submodules)
-    [ -e "$repo_root/.git" ] || return 1
-    # Verify it's actually a valid git work tree
-    git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1
 }
 
 spec_kit_branch_pattern_config_path() {
@@ -446,45 +421,6 @@ spec_kit_effective_branch_name() {
     else
         printf '%s\n' "$raw"
     fi
-}
-
-check_feature_branch() {
-    local raw="$1"
-    local has_git_repo="$2"
-
-    # For non-git repos, we can't enforce branch naming but still provide output
-    if [[ "$has_git_repo" != "true" ]]; then
-        echo "[specify] Warning: Git repository not detected; skipped branch validation" >&2
-        return 0
-    fi
-
-    local branch
-    branch=$(spec_kit_effective_branch_name "$raw")
-
-    local repo_root
-    repo_root="$(get_repo_root 2>/dev/null || pwd)"
-    if spec_kit_branch_pattern_enabled "$repo_root"; then
-        if spec_kit_branch_matches_configured_pattern "$raw" "$repo_root"; then
-            return 0
-        fi
-        echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
-        spec_kit_branch_pattern_validation_message "$repo_root" >&2
-        return 1
-    fi
-
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    local is_sequential=false
-    if [[ "$branch" =~ ^[0-9]{3,}- ]] && [[ ! "$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "$branch" =~ ^[0-9]{7,8}-[0-9]{6}$ ]]; then
-        is_sequential=true
-    fi
-    if [[ "$is_sequential" != "true" ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
-        echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
-        echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name" >&2
-        return 1
-    fi
-
-    return 0
 }
 
 # Safely read .specify/feature.json's "feature_directory" value.

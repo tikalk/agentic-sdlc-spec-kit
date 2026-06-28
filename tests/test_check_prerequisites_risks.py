@@ -34,6 +34,7 @@ def test_check_prerequisites_exposes_risk_register(tmp_path, monkeypatch):
     )
 
     monkeypatch.setenv("SPECIFY_FEATURE", "001-risk-feature")
+    monkeypatch.setenv("SPECIFY_FEATURE_DIRECTORY", str(feature_dir))
 
     subprocess.run(
         ["git", "init"], cwd=repo_root, check=True, capture_output=True, text=True

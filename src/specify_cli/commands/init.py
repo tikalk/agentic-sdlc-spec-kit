@@ -159,11 +159,6 @@ def register(app: typer.Typer) -> None:
             "--preset",
             help="Install a preset during initialization (by preset ID)",
         ),
-        branch_numbering: str = typer.Option(
-            None,
-            "--branch-numbering",
-            help="Branch numbering strategy: 'sequential' (001, 002, …, 1000, … — expands past 999 automatically) or 'timestamp' (YYYYMMDD-HHMMSS)",
-        ),
         integration: str = typer.Option(
             None,
             "--integration",
@@ -253,13 +248,6 @@ def register(app: typer.Typer) -> None:
         if not here and not project_name:
             console.print(
                 "[red]Error:[/red] Must specify either a project name, use '.' for current directory, or use --here flag"
-            )
-            raise typer.Exit(1)
-
-        BRANCH_NUMBERING_CHOICES = {"sequential", "timestamp"}
-        if branch_numbering and branch_numbering not in BRANCH_NUMBERING_CHOICES:
-            console.print(
-                f"[red]Error:[/red] Invalid --branch-numbering value '{branch_numbering}'. Choose from: {', '.join(sorted(BRANCH_NUMBERING_CHOICES))}"
             )
             raise typer.Exit(1)
 
@@ -553,7 +541,7 @@ def register(app: typer.Typer) -> None:
                     "integration": resolved_integration.key,
                     "here": here,
                     "script": selected_script,
-                    "feature_numbering": branch_numbering or "sequential",
+                    "feature_numbering": "sequential",
                     "speckit_version": get_speckit_version(),
                 }
                 if _FORK:
