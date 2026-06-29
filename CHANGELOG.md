@@ -2,6 +2,13 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc4] - 2026-06-29
+
+### Fixed
+
+- **Generic integration tests**: Fixed `test_command_loads_constitution_context` to recognize `converge` in the `speckit.` prefix exception (alongside `taskstoissues`). Fixed both `test_complete_file_inventory_sh` and `test_complete_file_inventory_ps` to expect `speckit.converge.md` instead of `{prefix}.converge.md` in the expected file inventory.
+- **eval.yml action pinning**: Pinned all 6 GitHub Actions in `.github/workflows/eval.yml` to full 40-character commit SHAs (checkout@34e11487, setup-node@49933ea5, cache@0057852b, setup-python@a26af69b, github-script@f28e40c7, upload-artifact@ea165f8d) to satisfy `test_github_actions_are_pinned_to_full_commit_shas`.
+
 # [0.11.9+adlc3] - 2026-06-29
 
 ### Fixed

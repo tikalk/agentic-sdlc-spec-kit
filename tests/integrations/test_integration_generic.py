@@ -233,7 +233,7 @@ class TestGenericIntegration:
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
         # taskstoissues is special-cased to keep speckit. prefix
-        pfx = "speckit" if command_stem == "taskstoissues" else _cmd_prefix()
+        pfx = "speckit" if command_stem in ("taskstoissues", "converge") else _cmd_prefix()
         cmd_file = tmp_path / ".custom" / "cmds" / f"{pfx}.{command_stem}.md"
         assert cmd_file.exists(), f"Command file missing: {cmd_file.name}"
         content = cmd_file.read_text(encoding="utf-8")
@@ -313,7 +313,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
-            f".myagent/commands/{_cmd_prefix()}.converge.md",
+            ".myagent/commands/speckit.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
@@ -389,7 +389,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
-            f".myagent/commands/{_cmd_prefix()}.converge.md",
+            ".myagent/commands/speckit.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",

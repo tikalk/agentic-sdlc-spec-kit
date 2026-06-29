@@ -58,15 +58,16 @@ Examples:
 
 ### Tag Format
 Use `agentic-sdlc-v<version>` with plus:
-- Version: `0.11.9+adlc3`
+- Version: `0.11.9+adlc4`
 
-- Tag: `agentic-sdlc-v0.11.9+adlc3`
+- Tag: `agentic-sdlc-v0.11.9+adlc4`
 When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.5.0`).
 
 ### Version History
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.11.9+adlc4 | 2026-06-29 | 0.11.9 | Fixed 4 remaining CI test failures: Generic integration converge prefix mismatch (3 tests), eval.yml action SHA pinning (1 test). Pinned all 6 GitHub Actions to commit SHAs. All CI tests now pass. |
 | 0.11.9+adlc3 | 2026-06-29 | 0.11.9 | Merge upstream 2 new commits: community bundle submission issue template + docs (#3162), docs for /speckit.converge (#3181). All doc files already identical; only README.md required merge. Added new **Community Bundles** section to README with contribution link. Fixed 6 CI test failures: converge command keeps `speckit.` prefix (like taskstoissues); Firebender `_expected_files` accepts `project` kwarg + dedup; setup-plan test uses `SPECIFY_FEATURE_DIRECTORY`; PS `create-new-feature.ps1` null `$featureDir` fix; PS test uses correct extension script path. |
 | 0.11.9+adlc2 | 2026-06-29 | 0.11.9 | Re-added `specify preset update` CLI command (registration lost during upstream merge). Fixed `test_e2e_branch_pattern_with_issue_config` to source `git-common.sh` (core `common.sh` no longer has `check_feature_branch`). |
 | 0.11.9+adlc1 | 2026-06-28 | 0.11.9 | Merge upstream 0.11.9 (15 commits): mandatory hook invocation enforcement (#2901), PowerShell branch-name acronym case-sensitivity fix (#3129), GHES private release asset resolution (#3157), community bundle submission path (#3162), docs for --force and --refresh-shared-infra (#3179). Fork fixes: relative imports in extensions/ and presets/ __init__.py, registered.append guard in agents.py, bundled extension update uses install_from_directory not catalog download. |
