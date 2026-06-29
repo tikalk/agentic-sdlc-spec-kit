@@ -54,6 +54,27 @@ Shows all available integrations, which one is currently installed, and whether 
 When multiple integrations are installed, the list marks the default integration separately from the other installed integrations.
 The list also shows whether each built-in integration is declared multi-install safe.
 
+## Search Available Integrations
+
+```bash
+specify integration search [query]
+```
+
+| Option     | Description        |
+| ---------- | ------------------ |
+| `--tag`    | Filter by tag      |
+| `--author` | Filter by author   |
+
+Searches the active catalog stack for integrations matching the query. Without a query, lists all available integrations. Must be run inside a Spec Kit project.
+
+## Integration Info
+
+```bash
+specify integration info <integration_id>
+```
+
+Shows catalog details for a single integration, including its description, author, license, tags, source catalog, repository (when available), and whether it is currently active. Must be run inside a Spec Kit project.
+
 ## Install an Integration
 
 ```bash
@@ -166,6 +187,18 @@ Example:
 ```bash
 specify integration install generic --integration-options="--commands-dir .myagent/cmds"
 ```
+
+## Scaffold a New Integration
+
+```bash
+specify integration scaffold <key>
+```
+
+Creates a minimal built-in integration package and a matching test skeleton in the Spec Kit repository, then prints the next steps for wiring it up. Run this command from the Spec Kit repository root. The `<key>` must be lowercase kebab-case (for example, `my-agent`).
+
+| Option   | Description                                                       |
+| -------- | ---------------------------------------------------------------- |
+| `--type` | Scaffold template to use: `markdown` (default), `skills`, `toml`, or `yaml` |
 
 ## FAQ
 
