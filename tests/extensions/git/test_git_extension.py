@@ -463,7 +463,7 @@ class TestCreateFeatureBash:
             [
                 "bash",
                 "-c",
-                f'source "{project / "scripts" / "bash" / "common.sh"}" && check_feature_branch "feat/001-PROJ-123-user-auth" "true"',
+                f'source "{project / ".specify" / "extensions" / "git" / "scripts" / "bash" / "git-common.sh"}" && check_feature_branch "feat/001-PROJ-123-user-auth" "true"',
             ],
             cwd=project,
             capture_output=True,

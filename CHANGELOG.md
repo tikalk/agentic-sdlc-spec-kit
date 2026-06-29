@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc2] - 2026-06-29
+
+### Added
+
+- **specify preset update**: Re-added the `preset update` CLI command that was lost during the 0.11.9 upstream merge. Checks both bundled presets and remote catalog for updates, compares versions, and picks the highest available. Supports targeting a specific preset or updating all installed presets.
+
+# [0.11.9+adlc1] - 2026-06-28
+
+### Changed
+
+- **spec-kit CLI**: 0.11.8+adlc1 → 0.11.9+adlc1.
+
 # [0.10.0+adlc34] - 2026-06-24
 
 ### Changed

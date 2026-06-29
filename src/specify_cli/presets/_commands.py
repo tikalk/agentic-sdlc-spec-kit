@@ -543,6 +543,24 @@ def preset_disable(
     console.print(f"To re-enable: specify preset enable {preset_id}")
 
 
+@preset_app.command("update")
+def preset_update(
+    preset: str = typer.Argument(None, help="Preset ID to update (or omit for all)"),
+):
+    """Update preset(s) to latest version.
+
+    Checks both bundled CLI presets and remote catalog for updates.
+    Compares versions and picks the highest available.
+    """
+    from .._init_fork import run_preset_update
+    from .. import _require_specify_project
+
+    project_root = _require_specify_project()
+    exit_code = run_preset_update(preset=preset, project_root=project_root, console=console)
+    if exit_code:
+        raise typer.Exit(exit_code)
+
+
 # ===== Preset Catalog Commands =====
 
 
