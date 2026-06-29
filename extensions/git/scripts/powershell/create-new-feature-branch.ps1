@@ -477,7 +477,7 @@ if ($env:GIT_BRANCH_NAME) {
         $branchSuffix = Get-BranchName -Description $featureDesc
     }
 
-    if ($Timestamp -and $Number -ne 0) {
+    if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
         Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
         $Number = 0
     }
@@ -485,7 +485,7 @@ if ($env:GIT_BRANCH_NAME) {
     if ($Timestamp) {
         $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
     } else {
-        if ($Number -eq 0) {
+        if (-not $PSBoundParameters.ContainsKey('Number')) {
             if ($DryRun -and $hasGit) {
                 $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
             } elseif ($DryRun) {

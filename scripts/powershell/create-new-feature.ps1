@@ -154,9 +154,6 @@ function ConvertTo-CleanBranchName {
 # Use common.ps1 functions which prioritize .specify
 $repoRoot = Get-RepoRoot
 
-# Check if git is available at this repo root (not a parent)
-$hasGit = Test-HasGit
-
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
@@ -221,8 +218,10 @@ if ($ShortName) {
     $branchSuffix = Get-BranchName -Description $featureDesc
 }
 
-# Warn if -Number and -Timestamp are both specified
-if ($Timestamp -and $Number -ne 0) {
+# Warn if -Number and -Timestamp are both specified. Use ContainsKey (not
+# `-ne 0`) so an explicit `-Number 0` is also detected, matching the bash twin's
+# `[ -n "$BRANCH_NUMBER" ]` check.
+if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
     Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
     $Number = 0
 }
@@ -232,15 +231,11 @@ if ($Timestamp) {
     $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
     $branchName = "$featureNum-$branchSuffix"
 } else {
-    # Determine branch number from existing feature directories
-    if ($Number -eq 0) {
-        if ($hasGit) {
-            # Check existing branches on remotes
-            $Number = Get-NextBranchNumber -SpecsDir $specsDir
-        } else {
-            # Fall back to local directory check
-            $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
-        }
+    # Determine branch number from existing feature directories. Auto-detect only
+    # when -Number was not supplied; an explicit value (including 0) is honored,
+    # matching the bash twin's `[ -z "$BRANCH_NUMBER" ]` check.
+    if (-not $PSBoundParameters.ContainsKey('Number')) {
+        $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
     }
 
     $featureNum = ('{0:000}' -f $Number)
@@ -349,7 +344,6 @@ if ($Json) {
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
-        HAS_GIT = $hasGit
         DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
         DISCOVERED_SKILLS = $DISCOVERED_SKILLS
     }
