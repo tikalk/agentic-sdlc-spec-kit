@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc6] - 2026-06-29
+
+### Merged
+
+- **Upstream commits b7e67f55..bbc5f176** (8 PRs): #3217 GHES auth for `extension add --from`, #3214 Pi install URL repoint, #3210 host-less URL validation, #3187 CodeBuddy install URL, #3199 overflow error fix, #3198 setup-plan PS1 parity, #3197 expression quote-aware parsing, #3196 PowerShell `-Number 0` fix.
+
+### Fixed
+
+- **Script conflict resolution**: Combined fork's git-extension delegation block with upstream's `ContainsKey` fix in `create-new-feature.ps1`. Also applied the same `$PSBoundParameters.ContainsKey('Number')` fix to the extension's `create-new-feature-branch.ps1` (same bug, same fix).
+
 # [0.11.9+adlc5] - 2026-06-29
 
 ### Fixed
