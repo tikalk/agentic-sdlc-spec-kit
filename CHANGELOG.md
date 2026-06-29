@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc3] - 2026-06-29
+
+### Fixed
+
+- **converge command prefix**: Treated `converge` like `taskstoissues` — keeps `speckit.` prefix instead of fork `spec.` prefix in `command_filename()`, since `converge` is a new upstream command without a fork preset alias. Updated all three integration test base classes (Markdown, TOML, YAML) to include `converge` in the exception tuple.
+- **Firebender `_expected_files`**: Fixed signature to accept `project` kwarg and pass it to `super()`, enabling fork-aware project scanning. Added `set()` dedup to prevent duplicate `.mdc` entries after remapping.
+- **setup-plan.sh test**: Fixed `test_setup_plan_outputs_context_paths` to set `SPECIFY_FEATURE_DIRECTORY` (full path) instead of `SPECIFY_FEATURE` (feature name only), matching `get_feature_paths()` resolution logic.
+- **PowerShell `create-new-feature.ps1`**: Moved `$featureDir = Join-Path $specsDir $branchName` before the "already exists" check to prevent null `$featureDir` error in non-dry-run mode.
+- **PowerShell test script path**: Fixed `test_branch_pattern_with_issue` to reference `create-new-feature-branch.ps1` (extension script) instead of `create-new-feature.ps1` (core script).
+
+### Changed
+
+- **Align fork docs with upstream**: Merged upstream commits b7e67f55 (Add community bundle submission path) and 3e97b106 (Docs: Document /speckit.converge command). All docs files were already identical; only README.md needed merge resolution. Added a new **Community Bundles** section to the README with contribution link from upstream. Upstream's `/speckit.converge` docs are already present in fork with `spec.` prefix branding.
+
 # [0.11.9+adlc2] - 2026-06-29
 
 ### Added

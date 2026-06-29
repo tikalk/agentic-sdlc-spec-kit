@@ -1144,7 +1144,7 @@ class TestGitBranchNameOverridePowerShell:
 
     def test_branch_pattern_with_issue(self, ext_ps_git_repo: Path):
         write_branch_pattern_config(ext_ps_git_repo, "{prefix}/{number}-{issue}-{slug}", ["feat"])
-        script = ext_ps_git_repo / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature.ps1"
+        script = ext_ps_git_repo / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
         result = subprocess.run(
             [
                 "pwsh",

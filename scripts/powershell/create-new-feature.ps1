@@ -269,6 +269,7 @@ if ($branchName.Length -gt $maxBranchLength) {
     Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
 }
 
+$featureDir = Join-Path $specsDir $branchName
 if (-not $DryRun) {
     if ((Test-Path -LiteralPath $featureDir -PathType Container) -and -not $AllowExistingBranch) {
         if ($Timestamp) {
@@ -280,7 +281,6 @@ if (-not $DryRun) {
     }
 }
 
-$featureDir = Join-Path $specsDir $branchName
 if (-not $DryRun) {
     New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 }

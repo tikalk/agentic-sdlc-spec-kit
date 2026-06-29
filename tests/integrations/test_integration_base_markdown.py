@@ -275,7 +275,7 @@ class MarkdownIntegrationTests:
         pfx = _cmd_prefix()
         for stem in self.COMMAND_STEMS:
             # taskstoissues and agent-context.update keep the speckit prefix
-            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update", "converge") else pfx
             files.append(f"{cmd_dir}/{stem_pfx}.{stem}.md")
 
         # Framework files

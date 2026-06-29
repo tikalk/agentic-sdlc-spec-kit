@@ -34,12 +34,12 @@ class TestFirebenderIntegration(MarkdownIntegrationTests):
             assert f.name.startswith("speckit.")
             assert f.name.endswith(".mdc")
 
-    def _expected_files(self, script_variant: str) -> list[str]:
+    def _expected_files(self, script_variant: str, project=None) -> list[str]:
         # Firebender emits ``.mdc`` command files, so remap the base mixin's
         # ``.md`` expectations for files under this integration's command dir.
         cmd_dir = get_integration(self.KEY).registrar_config["dir"]
         prefix = cmd_dir + "/"
-        return sorted(
+        return sorted(set(
             f[:-3] + ".mdc" if f.startswith(prefix) and f.endswith(".md") else f
-            for f in super()._expected_files(script_variant)
-        )
+            for f in super()._expected_files(script_variant, project=project)
+        ))

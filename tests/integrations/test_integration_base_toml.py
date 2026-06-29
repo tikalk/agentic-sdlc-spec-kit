@@ -508,7 +508,7 @@ class TomlIntegrationTests:
         from tests.conftest import _cmd_prefix
         pfx = _cmd_prefix()
         for stem in self.COMMAND_STEMS:
-            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update", "converge") else pfx
             files.append(f"{cmd_dir}/{stem_pfx}.{stem}.toml")
 
         # Framework files

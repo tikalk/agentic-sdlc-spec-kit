@@ -43,8 +43,8 @@ def test_setup_plan_outputs_context_paths(tmp_path, monkeypatch):
     feature_dir.mkdir(parents=True)
     (feature_dir / "spec.md").write_text("# Spec")
 
-    # Prefer SPECIFY_FEATURE to avoid git dependency
-    monkeypatch.setenv("SPECIFY_FEATURE", "001-test-feature")
+    # Set SPECIFY_FEATURE_DIRECTORY to avoid git dependency
+    monkeypatch.setenv("SPECIFY_FEATURE_DIRECTORY", str(feature_dir))
 
     subprocess.run(
         ["git", "init"],

@@ -58,15 +58,17 @@ Examples:
 
 ### Tag Format
 Use `agentic-sdlc-v<version>` with plus:
-- Version: `0.11.9+adlc1`
+- Version: `0.11.9+adlc3`
 
-- Tag: `agentic-sdlc-v0.11.9+adlc1`
+- Tag: `agentic-sdlc-v0.11.9+adlc3`
 When a fork release changes only bundled extension behavior, keep the CLI version on the upstream base (for example `0.10.0+adlc3`) and bump the affected extension manifest version independently (for example `extensions/git/extension.yml` to `1.5.0`).
 
 ### Version History
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.11.9+adlc3 | 2026-06-29 | 0.11.9 | Merge upstream 2 new commits: community bundle submission issue template + docs (#3162), docs for /speckit.converge (#3181). All doc files already identical; only README.md required merge. Added new **Community Bundles** section to README with contribution link. Fixed 6 CI test failures: converge command keeps `speckit.` prefix (like taskstoissues); Firebender `_expected_files` accepts `project` kwarg + dedup; setup-plan test uses `SPECIFY_FEATURE_DIRECTORY`; PS `create-new-feature.ps1` null `$featureDir` fix; PS test uses correct extension script path. |
+| 0.11.9+adlc2 | 2026-06-29 | 0.11.9 | Re-added `specify preset update` CLI command (registration lost during upstream merge). Fixed `test_e2e_branch_pattern_with_issue_config` to source `git-common.sh` (core `common.sh` no longer has `check_feature_branch`). |
 | 0.11.9+adlc1 | 2026-06-28 | 0.11.9 | Merge upstream 0.11.9 (15 commits): mandatory hook invocation enforcement (#2901), PowerShell branch-name acronym case-sensitivity fix (#3129), GHES private release asset resolution (#3157), community bundle submission path (#3162), docs for --force and --refresh-shared-infra (#3179). Fork fixes: relative imports in extensions/ and presets/ __init__.py, registered.append guard in agents.py, bundled extension update uses install_from_directory not catalog download. |
 | 0.11.8+adlc1 | 2026-06-28 | 0.11.8 | Merge upstream 0.11.8 (19 commits): standardized EXECUTE_COMMAND hook format across all core command templates; git extension aligned to upstream opt-in (removed --no-git flag); forked core and preset commands split their hook strategies (upstream's EXECUTE_COMMAND for core, fork's manifest-lookup dispatcher for presets); script delegation paths fixed (core -> git extension); workflow tests adapted to fork's run_and_tee streaming; bundled-extension update checks bundled version first. |
 | 0.10.0+adlc33 | 2026-06-22 | 0.10.0 | Orange accent theming sweep: replaced all 54 `[green]` Rich markup references with `accent()` across 8 files — every success message, checkmark symbol, and status indicator now uses `#f47721` orange instead of green. Affects `__init__.py`, `_init_fork.py`, `_version.py`, `_utils.py`, `_console.py`, `commands/init.py`, integrations/_install_commands.py, integrations/_migrate_commands.py, integrations/_query_commands.py. |

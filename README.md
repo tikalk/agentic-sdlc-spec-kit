@@ -52,6 +52,7 @@ This fork represents the evolution from a development process to a complete orga
 - [🧩 Community Extensions](#-community-extensions)
 - [🎨 Community Presets](#-community-presets)
 - [🚶 Community Walkthroughs](#-community-walkthroughs)
+- [📦 Community Bundles](#-community-bundles)
 - [🎯 Core Features](#-core-features)
 - [📦 Bundled Extensions](#-bundled-extensions)
 - [🔧 Team AI Directives Integration](#-team-ai-directives-integration)
@@ -238,6 +239,12 @@ To submit your own preset, see the [Presets Publishing Guide](presets/PUBLISHING
 ## 🚶 Community Walkthroughs
 
 See Spec-Driven Development in action across different scenarios with community-contributed walkthroughs; find the full list on the [Community Walkthroughs](https://github.github.io/spec-kit/community/walkthroughs.html) page.
+
+## 📦 Community Bundles
+
+Community-contributed bundles package extensions, presets, workflows, and steps into a single role-oriented setup. See the [Community Bundles](https://github.github.io/spec-kit/community/bundles.html) page.
+
+Want to contribute? See the [Extension Publishing Guide](extensions/EXTENSION-PUBLISHING-GUIDE.md), the [Presets Publishing Guide](presets/PUBLISHING.md), or the [Community Bundles guide](docs/community/bundles.md).
 
 ## 🎯 Core Features
 

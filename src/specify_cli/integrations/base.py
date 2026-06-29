@@ -453,10 +453,11 @@ class IntegrationBase(ABC):
 
         *template_name* is the stem of the source file (e.g. ``"plan"``).
         Default: ``spec.{template_name}.md`` (fork uses "spec" prefix).
-        Exception: ``taskstoissues`` keeps ``speckit.`` prefix for backwards compatibility.
+        Exceptions: ``taskstoissues`` and ``converge`` keep ``speckit.`` prefix
+        for backwards/upstream compatibility.
         Subclasses override to change the extension or naming convention.
         """
-        if template_name == "taskstoissues":
+        if template_name in ("taskstoissues", "converge"):
             return f"speckit.{template_name}.md"
         return f"spec.{template_name}.md"
 
