@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc5] - 2026-06-29
+
+### Fixed
+
+- **All remaining CI test failures after merge**: Replaced all hardcoded upstream (`speckit-*`) command/skill name references in integration tests with fork-aware helpers (`_skill_dir_name`, `_content_ref`, `_cmd_prefix`) that resolve the fork's alias mappings. 10 tests fixed across `test_integration_subcommand.py` (8), `test_integration_zcode.py` (1), and `test_integration_zed.py` (1).
+
 # [0.11.9+adlc4] - 2026-06-29
 
 ### Fixed

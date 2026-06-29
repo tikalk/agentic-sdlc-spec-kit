@@ -113,10 +113,10 @@ class TestZedHookInvocations:
                 }
             ],
         )
-        assert "Executing: `/speckit-plan`" in message, (
-            "Hook rendering must produce /speckit-plan for Zed without hint injection"
+        assert "Executing: `/spec-plan`" in message, (
+            "Hook rendering must produce /spec-plan for Zed without hint injection"
         )
-        assert "EXECUTE_COMMAND_INVOCATION: /speckit-plan" in message
+        assert "EXECUTE_COMMAND_INVOCATION: /spec-plan" in message
 
 
 class TestSlashSkillsSets:

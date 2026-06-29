@@ -1,6 +1,7 @@
 """Tests for ZcodeIntegration — skills-based integration (Z.AI)."""
 
 from .test_integration_base_skills import SkillsIntegrationTests
+from tests.conftest import _cmd_prefix
 
 
 class TestZcodeIntegration(SkillsIntegrationTests):
@@ -34,5 +35,5 @@ class TestZcodeInvocation:
             os.chdir(old_cwd)
 
         assert result.exit_code == 0
-        assert "$speckit-constitution" in result.output
-        assert "/speckit.constitution" not in result.output
+        assert f"${_cmd_prefix()}-constitution" in result.output
+        assert f"/{_cmd_prefix()}.constitution" not in result.output

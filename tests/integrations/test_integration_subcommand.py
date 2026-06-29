@@ -1277,7 +1277,7 @@ class TestIntegrationInstall:
         assert "claude" in registered, "existing agent registration preserved"
         assert "codex" not in registered
         assert not (
-            project / ".agents" / "skills" / "speckit-git-feature" / "SKILL.md"
+            project / ".agents" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         ).exists()
 
         result = _run_in_project(project, ["integration", "use", "codex"])
@@ -1288,7 +1288,7 @@ class TestIntegrationInstall:
         ]["git"]["registered_commands"]
         assert "codex" in registered, "use should register extension commands (#2886)"
         assert (
-            project / ".agents" / "skills" / "speckit-git-feature" / "SKILL.md"
+            project / ".agents" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         ).exists()
 
     def test_install_does_not_register_disabled_extensions(self, tmp_path):
@@ -1341,7 +1341,7 @@ class TestIntegrationInstall:
         # Precondition that makes --skills load-bearing: copilot IS in skills
         # mode, so its own core commands are scaffolded as skills.
         assert (
-            project / ".github" / "skills" / "speckit-specify" / "SKILL.md"
+            project / ".github" / "skills" / _skill_dir_name("specify", project_root=project) / "SKILL.md"
         ).exists(), "precondition: copilot installed in skills mode"
 
         # The git extension is not registered for the non-active copilot agent
@@ -1354,7 +1354,7 @@ class TestIntegrationInstall:
             project / ".github" / "agents" / "speckit.git.feature.agent.md"
         ).exists()
         assert not (
-            project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
+            project / ".github" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         ).exists()
 
         result = _run_in_project(project, ["integration", "use", "copilot"])
@@ -1366,12 +1366,12 @@ class TestIntegrationInstall:
         # `use` makes copilot active, so extension artifacts follow copilot's
         # skills-mode layout.
         assert "copilot" not in git_meta["registered_commands"]
-        assert "speckit-git-feature" in git_meta["registered_skills"]
+        assert _skill_dir_name("git.feature", project_root=project) in git_meta["registered_skills"]
         assert not (
             project / ".github" / "agents" / "speckit.git.feature.agent.md"
         ).exists()
         assert (
-            project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
+            project / ".github" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         ).exists()
 
 
@@ -1815,7 +1815,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
         # Verify git extension skills exist for kimi
-        kimi_git_feature = project / ".kimi-code" / "skills" / "speckit-git-feature" / "SKILL.md"
+        kimi_git_feature = project / ".kimi-code" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         assert kimi_git_feature.exists(), "Git extension skill should exist for kimi"
 
         result = _run_in_project(project, [
@@ -1886,7 +1886,7 @@ class TestIntegrationSwitch:
         assert result.exit_code == 0, result.output
 
         codex_git_feature = (
-            project / ".agents" / "skills" / "speckit-git-feature" / "SKILL.md"
+            project / ".agents" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         )
         assert not codex_git_feature.exists()
 
@@ -2011,7 +2011,7 @@ class TestIntegrationSwitch:
 
         project = _init_project(tmp_path, "claude")
         shared_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
-        assert "/speckit-plan" in shared_script.read_text(encoding="utf-8")
+        assert _content_ref("plan") in shared_script.read_text(encoding="utf-8")
 
         # Simulate a stale vendored script: write truncated content as bytes
         # (write_text would translate \n→\r\n on Windows and break the hash)
@@ -2072,7 +2072,7 @@ class TestIntegrationSwitch:
         """--refresh-shared-infra explicitly overwrites user customizations on switch."""
         project = _init_project(tmp_path, "claude")
         shared_script = project / ".specify" / "scripts" / "bash" / "setup-tasks.sh"
-        assert "/speckit-plan" in shared_script.read_text(encoding="utf-8")
+        assert _content_ref("plan") in shared_script.read_text(encoding="utf-8")
         rendered_bytes = shared_script.read_bytes()
 
         # User customization (hash diverges from manifest)
@@ -2528,14 +2528,16 @@ class TestIntegrationUpgrade:
         registry["extensions"]["git"]["registered_commands"].pop("codex", None)
         registry_path.write_text(json.dumps(registry), encoding="utf-8")
         agents_skills = project / ".agents" / "skills"
-        for skill_dir in agents_skills.glob("speckit-git-*"):
+        git_feature_name = _skill_dir_name("git.feature", project_root=project)
+        git_prefix = git_feature_name.rsplit("-", 1)[0]
+        for skill_dir in agents_skills.glob(f"{git_prefix}-*"):
             shutil.rmtree(skill_dir)
 
         # Precondition: codex is now missing the git extension.
         assert "codex" not in json.loads(registry_path.read_text(encoding="utf-8"))[
             "extensions"
         ]["git"]["registered_commands"]
-        assert not (agents_skills / "speckit-git-feature" / "SKILL.md").exists()
+        assert not (agents_skills / git_feature_name / "SKILL.md").exists()
 
         result = _run_in_project(project, [
             "integration", "upgrade", "codex",
@@ -2548,7 +2550,7 @@ class TestIntegrationUpgrade:
             "extensions"
         ]["git"]["registered_commands"]
         assert "codex" in registered, "upgrade should re-register extension commands (#2886)"
-        assert (agents_skills / "speckit-git-feature" / "SKILL.md").exists()
+        assert (agents_skills / git_feature_name / "SKILL.md").exists()
 
     def test_upgrade_non_active_agent_preserves_active_agent_skills(self, tmp_path):
         """Upgrading a non-active agent must not touch the active agent's skills.
@@ -2566,7 +2568,7 @@ class TestIntegrationUpgrade:
         result = _run_in_project(project, ["extension", "add", "git"])
         assert result.exit_code == 0, f"extension add failed: {result.output}"
 
-        skill = project / ".github" / "skills" / "speckit-git-feature" / "SKILL.md"
+        skill = project / ".github" / "skills" / _skill_dir_name("git.feature", project_root=project) / "SKILL.md"
         assert skill.exists(), "precondition: active copilot has the git extension skill"
 
         # Add a secondary (non-active) agent; copilot is not multi_install_safe.
