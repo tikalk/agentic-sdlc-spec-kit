@@ -1,13 +1,10 @@
 """
 Init-time fork customizations: theming, init hooks, scaffolding.
 
-Imports from _core_fork and _extension_fork (both lower-tier).
+Imports from _core_fork (leaf tier).
 This module is the top tier in the fork module dependency graph:
 
-    _extension_fork.py  (leaf, constants only)
-            ^
-            |
-    _core_fork.py        (alias/MCP/skill)
+    _core_fork.py        (constants + alias/MCP/skill)
             ^
             |
     _init_fork.py        (THIS MODULE - theming + init hooks + scaffolding)
@@ -20,7 +17,7 @@ Contents:
 5. Scaffolding: extension/preset scaffolding to project
 6. Skill installation: _install_skills_from_path
 
-Anything added here MUST NOT be imported by _core_fork or _extension_fork.
+Anything added here MUST NOT be imported by _core_fork.
 """
 
 from __future__ import annotations

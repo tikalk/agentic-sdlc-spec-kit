@@ -94,9 +94,9 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Skip if project is purely internal (build scripts, one-off tools, etc.)
 
 3. **Agent context update**:
-   - Update the plan reference between the `<!-- SPECKIT START -->` and `<!-- SPECKIT END -->` markers in `__CONTEXT_FILE__` to point to the plan file created in step 1 (the IMPL_PLAN path)
+   - If the agent-context extension is installed and enabled, refresh the managed section (between the `<!-- SPECKIT START -->` and `<!-- SPECKIT END -->` markers) in the configured context file to point to the plan file created in step 1 (the IMPL_PLAN path). Run the agent-context update script if available; otherwise skip silently.
 
-**Output**: data-model.md, /contracts/*, quickstart.md, updated agent context file
+**Output**: data-model.md, /contracts/*, quickstart.md
 
 ## Triage Framework: [SYNC] vs [ASYNC] Task Classification
 
@@ -105,7 +105,7 @@ See `templates/plan-template.md` for full classification criteria, audit trail f
 
 ## Key rules
 
-- Use absolute paths for filesystem operations; use project-relative paths for references in documentation and agent context files
+- Use absolute paths for filesystem operations; use project-relative paths for references in documentation
 - ERROR on gate failures or unresolved clarifications
 - All implementation tasks must be classified as [SYNC] or [ASYNC] with documented rationale
 

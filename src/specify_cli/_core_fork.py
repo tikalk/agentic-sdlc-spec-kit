@@ -1,13 +1,9 @@
 """
 Core fork customizations: alias resolution, MCP config, and skill naming.
 
-Imports from _extension_fork (leaf). Does NOT import from _init_fork.
-This module is the second tier in the fork module dependency graph:
+This module is the leaf tier in the fork module dependency graph:
 
-    _extension_fork.py  (leaf, constants only)
-            ^
-            |
-    _core_fork.py        (THIS MODULE - alias/MCP/skill)
+    _core_fork.py        (THIS MODULE - constants + alias/MCP/skill)
             ^
             |
     _init_fork.py        (theming + init hooks, imports this)
@@ -18,6 +14,7 @@ This module:
 - Validates and merges MCP configs from team-ai-directives
 - Reports init success based on tracker state
 - Lists pre-installed extensions from catalog.json
+- Defines fork-level extension constants (namespaces, alias pattern, install cmd)
 """
 
 from __future__ import annotations
@@ -34,6 +31,18 @@ COMMAND_PREFIX = "spec"
 
 # Fork-specific command namespaces that should NOT have "speckit-" prefix
 FORK_COMMAND_NAMESPACES = frozenset({"adlc", "spec"})
+
+# -- Extension-level fork constants (consolidated from _extension_fork) --------
+
+# Command namespaces allowed in extension commands
+# Upstream only allows "speckit", fork also allows "adlc"
+EXTENSION_NAMESPACES = ["speckit", "adlc"]
+
+# Enable short alias format: {extension}.{command} (e.g., architect.init)
+EXTENSION_ALIAS_PATTERN_ENABLED = True
+
+# Install command template for fork (used in self check output)
+FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}"
 
 
 def build_alias_map(project_root: Path) -> dict[str, str]:

@@ -15,20 +15,18 @@ The fork isolates customizations into a small set of focused modules under `src/
 | Module | Purpose | Imports from |
 |---|---|---|
 | `_assets_fork.py` | Leaf — bundled-asset helpers (`get_bundled_*_version`/`_path`, fork `_locate_bundled_preset`) | `_assets` (clean upstream) |
-| `_extension_fork.py` | Leaf — pure constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`) | (none) |
-| `_core_fork.py` | Alias resolution, MCP config, skill naming, preinstalled extension queries | `_extension_fork` |
-| `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_extension_fork`, `_assets_fork` |
+| `_core_fork.py` | Leaf — fork-level extension constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`), alias resolution, MCP config, skill naming, preinstalled extension queries | (none) |
+| `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_assets_fork` |
 | `base_fork.py` | Fork-level helpers on `IntegrationBase` (e.g. `detect_native_worktree()`) | (none) |
 | `extensions_fork.py` | Constants and schemas for fork-specific extension features (e.g. worktree config) | (none) |
+
+> **Consolidation note (`0.11.9+adlc9`)**: The former leaf module `_extension_fork.py` (pure constants) was merged into `_core_fork.py` to simplify the dependency graph from three tiers to two. `_init_fork.py` now imports extension constants from `_core_fork.py` instead of `_extension_fork.py`. The `_extension_fork.py` file was deleted; any stale references to it in older commits are historical.
 
 **Dependency direction (locked):**
 
 ```
 _assets_fork.py     (leaf)
-_extension_fork.py  (leaf)
-        ^
-        |
-_core_fork.py
+_core_fork.py       (leaf - constants + alias/MCP/skill)
         ^
         |
 _init_fork.py
@@ -67,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.11.9+adlc9 | 2026-06-30 | 0.11.9 | Fixed F811 ruff lint (duplicate `_locate_bundled_preset` import). Consolidated `_extension_fork.py` into `_core_fork.py` (three-tier → two-tier dependency graph). Agent-context opt-in alignment in `adlc.spec.plan` (conditional context-file update). |
 | 0.11.9+adlc4 | 2026-06-29 | 0.11.9 | Fixed 4 remaining CI test failures: Generic integration converge prefix mismatch (3 tests), eval.yml action SHA pinning (1 test). Pinned all 6 GitHub Actions to commit SHAs. All CI tests now pass. |
 | 0.11.9+adlc3 | 2026-06-29 | 0.11.9 | Merge upstream 2 new commits: community bundle submission issue template + docs (#3162), docs for /speckit.converge (#3181). All doc files already identical; only README.md required merge. Added new **Community Bundles** section to README with contribution link. Fixed 6 CI test failures: converge command keeps `speckit.` prefix (like taskstoissues); Firebender `_expected_files` accepts `project` kwarg + dedup; setup-plan test uses `SPECIFY_FEATURE_DIRECTORY`; PS `create-new-feature.ps1` null `$featureDir` fix; PS test uses correct extension script path. |
 | 0.11.9+adlc2 | 2026-06-29 | 0.11.9 | Re-added `specify preset update` CLI command (registration lost during upstream merge). Fixed `test_e2e_branch_pattern_with_issue_config` to source `git-common.sh` (core `common.sh` no longer has `check_feature_branch`). |
@@ -140,8 +139,7 @@ The fork's customizations are split across the modules listed in [Fork module la
 
 The split assigns each concern to the lowest tier that owns it:
 
-- `_extension_fork.py` — `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
-- `_core_fork.py` — `COMMAND_PREFIX`, `build_alias_map`, `resolve_command_alias`, `compute_skill_output_name`, MCP config helpers, `get_preinstalled_extensions`
+- `_core_fork.py` — fork-level extension constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`), `COMMAND_PREFIX`, `build_alias_map`, `resolve_command_alias`, `compute_skill_output_name`, MCP config helpers, `get_preinstalled_extensions`
 - `_init_fork.py` — `ACCENT_COLOR`, `BANNER_COLORS`, `TAGLINE`, `PKG_NAMES`, `TEAM_DIRECTIVES_DIRNAME`, `accent`, `accent_style`, `apply_theming_patches`, `pre_init`, `post_init`, `get_team_directives_path`, `sync_team_ai_directives`, `get_speckit_version`, `GITHUB_API_LATEST`
 - `base_fork.py` — `detect_native_worktree()`
 - `extensions_fork.py` — worktree constants and config schema
@@ -156,8 +154,8 @@ Feature / override table:
 | accent_style() | N/A | Helper for Rich style= params | `_init_fork` |
 | PKG_NAMES | ("specify-cli",) | ("agentic-sdlc-specify-cli", "specify-cli") | `_init_fork` |
 | TEAM_DIRECTIVES_DIRNAME | N/A | "team-ai-directives" | `_init_fork` |
-| EXTENSION_NAMESPACES | ["speckit"] | ["speckit", "adlc"] | `_extension_fork` |
-| EXTENSION_ALIAS_PATTERN_ENABLED | False | True | `_extension_fork` |
+| EXTENSION_NAMESPACES | ["speckit"] | ["speckit", "adlc"] | `_core_fork` |
+| EXTENSION_ALIAS_PATTERN_ENABLED | False | True | `_core_fork` |
 | COMMAND_PREFIX | "speckit" | "spec" | `_core_fork` |
 
 ## Import Block
@@ -219,7 +217,7 @@ In `extensions.py`, the fork configures command name patterns:
 ```python
 # Get namespaces from customization module (supports speckit and adlc)
 try:
-    from ._extension_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+    from ._core_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
 except ImportError:
     EXTENSION_NAMESPACES = ["speckit"]
     EXTENSION_ALIAS_PATTERN_ENABLED = False
@@ -309,7 +307,7 @@ See [Test Merge Strategy](#test-merge-strategy) section. Do NOT use `git checkou
 
 **Why this works**:
 - Upstream refactoring isolates code into stable modules
-- Fork customizations stay in `_init_fork.py` / `_core_fork.py` / `_extension_fork.py` and the `__init__.py` import block
+- Fork customizations stay in `_init_fork.py` / `_core_fork.py` and the `__init__.py` import block
 - Clear separation of concerns reduces future conflicts
 - pyproject.toml needs manual edit to preserve fork version (never use --theirs)
 
@@ -365,7 +363,7 @@ git push origin agentic-sdlc-v0.10.0+adlc6
 
 When conflicts occur during merge:
 
-1. **Keep origin changes as base** - Our customizations in `_init_fork.py`, `_core_fork.py`, `_extension_fork.py`, `base_fork.py`, `extensions_fork.py` and the `__init__.py` import block must be preserved
+1. **Keep origin changes as base** - Our customizations in `_init_fork.py`, `_core_fork.py`, `base_fork.py`, `extensions_fork.py` and the `__init__.py` import block must be preserved
 2. **Adapt upstream changes** - Integrate upstream improvements to work with our customizations
 3. **Test after resolving** - Always run tests before committing
 
@@ -381,7 +379,7 @@ When conflicts occur during merge:
 
 These fork customizations should NEVER be modified unless intentionally updating them:
 
-- `_init_fork.py`, `_core_fork.py`, `_extension_fork.py` - Fork customization modules
+- `_init_fork.py`, `_core_fork.py` - Fork customization modules
 - `base_fork.py`, `extensions_fork.py` - Fork-level helpers and feature constants
 - `extensions.py` - Extension namespace configuration
 - Bundled extensions in `pyproject.toml` - levelup, evals, architect, product, tdd, edd
@@ -396,7 +394,7 @@ The following customization categories live in the fork modules listed in [Fork 
 3. **Team Directives** (`_init_fork.py`): `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
 4. **Init hooks** (`_init_fork.py`): `pre_init()`, `post_init()`, `install_project_skills()`
 5. **Scaffolding** (`_init_fork.py`): `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, bundled extension/preset installation
-6. **Extension Namespaces** (`_extension_fork.py`): `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
+6. **Extension Namespaces** (`_core_fork.py`): `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
 7. **Command aliasing** (`_core_fork.py`): `COMMAND_PREFIX`, `build_alias_map()`, `resolve_command_alias()`, `compute_skill_output_name()`, `FORK_COMMAND_NAMESPACES`
 8. **MCP config** (`_core_fork.py`): `validate_mcp_config()`, `merge_mcp_configs_report_conflicts()`, `install_mcp_config()`
 9. **Native tool detection** (`base_fork.py`): `detect_native_worktree()` on `IntegrationBase`
@@ -431,16 +429,15 @@ The largest of the fork modules; holds theming, package identity, init hooks, te
 - Team Directives: `TEAM_DIRECTIVES_DIRNAME`, `sync_team_ai_directives()`, `get_team_directives_path()`
 - Init hooks: `pre_init()`, `post_init()`, `install_project_skills()`
 - Scaffolding: `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, `_install_bundled_extensions()`, `_install_bundled_presets()`
-- Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED` *(also re-exported from `_extension_fork.py`)*
+- Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED` *(defined in `_core_fork.py`)*
 
 **Total**: ~1700 lines of fork-only code, split across five modules:
 
 | Module | Approx. size | Role |
 |---|---|---|
 | `_init_fork.py` | ~1000 | Theming, init hooks, scaffolding |
-| `_core_fork.py` | ~400 | Alias/MCP/skill helpers |
+| `_core_fork.py` | ~430 | Fork-level extension constants, alias/MCP/skill helpers |
 | `_assets_fork.py` | ~150 | Bundled-asset version/path helpers |
-| `_extension_fork.py` | ~30 | Leaf constants |
 | `base_fork.py` | ~15 | `detect_native_worktree()` |
 | `extensions_fork.py` | ~25 | Worktree constants |
 

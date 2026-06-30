@@ -2,6 +2,16 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc9] - 2026-06-30
+
+### Changed
+
+- **Fixed F811 ruff lint**: Removed duplicate `_locate_bundled_preset` import from `.._assets` in `commands/init.py` (fork version from `.._assets_fork` was redefining it).
+
+- **Consolidated `_extension_fork.py` into `_core_fork.py`**: Merged the former leaf constants module (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`) into `_core_fork.py`, simplifying the fork module dependency graph from three tiers to two. Deleted `_extension_fork.py`; updated all imports. FORK.md updated to reflect the new layout.
+
+- **Agent-context opt-in alignment in `adlc.spec.plan`**: Updated the plan command to make context-file updates conditional on the agent-context extension being installed and enabled (no longer unconditionally writes to `__CONTEXT_FILE__`).
+
 # [0.11.9+adlc8] - 2026-06-30
 
 ### Added

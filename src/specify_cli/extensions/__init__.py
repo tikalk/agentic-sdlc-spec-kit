@@ -35,14 +35,14 @@ from ..shared_infra import verify_archive_sha256
 
 # Tikalk fork: support multiple command namespaces (speckit + adlc)
 try:
-    from .._extension_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
+    from .._core_fork import EXTENSION_NAMESPACES, EXTENSION_ALIAS_PATTERN_ENABLED
 except ImportError:
     EXTENSION_NAMESPACES = ["speckit"]
     EXTENSION_ALIAS_PATTERN_ENABLED = False
 
 # Tikalk fork: override reinstall command to point to fork
 try:
-    from .._extension_fork import FORK_INSTALL_COMMAND
+    from .._core_fork import FORK_INSTALL_COMMAND
     REINSTALL_COMMAND = FORK_INSTALL_COMMAND
 except ImportError:
     REINSTALL_COMMAND = "uv tool install specify-cli --force --from git+https://github.com/github/spec-kit.git"

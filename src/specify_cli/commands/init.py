@@ -18,7 +18,6 @@ from .._agent_config import (
     SCRIPT_TYPE_CHOICES,
 )
 from .._assets import (
-    _locate_bundled_preset,
     _locate_bundled_workflow,
     get_speckit_version,
 )
@@ -545,8 +544,6 @@ def register(app: typer.Typer) -> None:
                 if _FORK:
                     if team_ai_directives:
                         init_opts["team_ai_directives"] = team_ai_directives
-                    if resolved_integration.context_file:
-                        init_opts["context_file"] = resolved_integration.context_file
                 from ..integrations.base import SkillsIntegration as _SkillsPersist
 
                 if isinstance(resolved_integration, _SkillsPersist) or getattr(
