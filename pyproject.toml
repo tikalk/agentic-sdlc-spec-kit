@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.11.9+adlc9"
+version = "0.12.2+adlc1"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -23,7 +23,7 @@ src/specify_cli/integrations/
 │   └── __init__.py        #   ClaudeIntegration class
 ├── gemini/                # Example: TomlIntegration subclass
 │   └── __init__.py
-├── windsurf/              # Example: MarkdownIntegration subclass
+├── kilocode/              # Example: MarkdownIntegration subclass
 │   └── __init__.py
 ├── copilot/               # Example: IntegrationBase subclass (custom setup)
 │   └── __init__.py
@@ -49,63 +49,25 @@ Specify supports multiple AI agents by generating agent-specific command files a
 
 ### Current Supported Agents
 
-| Agent                      | Directory              | Format   | CLI Tool        | Description                 |
-| -------------------------- | ---------------------- | -------- | --------------- | --------------------------- |
-| **Claude Code**            | `.claude/commands/`    | Markdown | `claude`        | Anthropic's Claude Code CLI |
-| **Gemini CLI**             | `.gemini/commands/`    | TOML     | `gemini`        | Google's Gemini CLI         |
-| **GitHub Copilot**         | `.github/agents/`      | Markdown | N/A (IDE-based) | GitHub Copilot in VS Code   |
-| **Cursor**                 | `.cursor/commands/`    | Markdown | N/A (IDE-based) | Cursor IDE (`--ai cursor-agent`) |
-| **Qwen Code**              | `.qwen/commands/`      | Markdown | `qwen`          | Alibaba's Qwen Code CLI     |
-| **opencode**               | `.opencode/command/`   | Markdown | `opencode`      | opencode CLI                |
-| **Codex CLI**              | `.agents/skills/`      | Markdown | `codex`         | Codex CLI (`--ai codex --ai-skills`) |
-| **Windsurf**               | `.windsurf/workflows/` | Markdown | N/A (IDE-based) | Windsurf IDE workflows      |
-| **Junie**                  | `.junie/commands/`     | Markdown | `junie`         | Junie by JetBrains          |
-| **Kilo Code**              | `.kilocode/workflows/` | Markdown | N/A (IDE-based) | Kilo Code IDE               |
-| **Auggie CLI**             | `.augment/commands/`   | Markdown | `auggie`        | Auggie CLI                  |
-| **Roo Code**               | `.roo/commands/`       | Markdown | N/A (IDE-based) | Roo Code IDE                |
-| **CodeBuddy CLI**          | `.codebuddy/commands/` | Markdown | `codebuddy`     | CodeBuddy CLI               |
-| **Qoder CLI**              | `.qoder/commands/`     | Markdown | `qodercli`      | Qoder CLI                   |
-| **Kiro CLI**               | `.kiro/prompts/`       | Markdown | `kiro-cli`      | Kiro CLI                    |
-| **Amp**                    | `.agents/commands/`    | Markdown | `amp`           | Amp CLI                     |
-| **SHAI**                   | `.shai/commands/`      | Markdown | `shai`          | SHAI CLI                    |
-| **Tabnine CLI**            | `.tabnine/agent/commands/` | TOML | `tabnine`       | Tabnine CLI                 |
-| **Kimi Code**              | `.kimi/skills/`        | Markdown | `kimi`          | Kimi Code CLI (Moonshot AI) |
-| **Pi Coding Agent**        | `.pi/prompts/`         | Markdown | `pi`            | Pi terminal coding agent    |
-| **iFlow CLI**              | `.iflow/commands/`     | Markdown | `iflow`         | iFlow CLI (iflow-ai)        |
-| **Forge**                  | `.forge/commands/`     | Markdown | `forge`         | Forge CLI (forgecode.dev)   |
-| **IBM Bob**                | `.bob/commands/`       | Markdown | N/A (IDE-based) | IBM Bob IDE                 |
-| **Trae**                   | `.trae/rules/`         | Markdown | N/A (IDE-based) | Trae IDE                    |
-| **Antigravity**            | `.agent/commands/`     | Markdown | N/A (IDE-based) | Antigravity IDE (`--ai agy --ai-skills`) |
-| **Mistral Vibe**           | `.vibe/prompts/`       | Markdown | `vibe`          | Mistral Vibe CLI            |
-| **Generic**                | User-specified via `--ai-commands-dir` | Markdown | N/A | Bring your own agent        |
-
-### Step-by-Step Integration Guide
-
-Follow these steps to add a new agent (using a hypothetical new agent as an example):
-
-#### 1. Add to AGENT_CONFIG
-
-**IMPORTANT**: Use the actual CLI tool name as the key, not a shortened version.
-
-Add the new agent to the `AGENT_CONFIG` dictionary in `src/specify_cli/__init__.py`. This is the **single source of truth** for all agent metadata:
+**Minimal example — Markdown agent (Kilo Code):**
 
 ```python
-"""Windsurf IDE integration."""
+"""Kilo Code IDE integration."""
 
 from ..base import MarkdownIntegration
 
 
-class WindsurfIntegration(MarkdownIntegration):
-    key = "windsurf"
+class KilocodeIntegration(MarkdownIntegration):
+    key = "kilocode"
     config = {
-        "name": "Windsurf",
-        "folder": ".windsurf/",
+        "name": "Kilo Code",
+        "folder": ".kilocode/",
         "commands_subdir": "workflows",
         "install_url": None,
         "requires_cli": False,
     }
     registrar_config = {
-        "dir": ".windsurf/workflows",
+        "dir": ".kilocode/workflows",
         "format": "markdown",
         "args": "$ARGUMENTS",
         "extension": ".md",
@@ -206,7 +168,7 @@ class CodexIntegration(SkillsIntegration):
 | `config` | Class attribute (dict) | Agent metadata: `name`, `folder`, `commands_subdir`, `install_url`, `requires_cli` |
 | `registrar_config` | Class attribute (dict) | Command output config: `dir`, `format`, `args` placeholder, file `extension` |
 
-**Key design rule:** For CLI-based integrations (`requires_cli: True`), `key` must be the actual executable name (e.g., `"cursor-agent"` not `"cursor"`). This ensures `shutil.which(key)` works for CLI-tool checks without special-case mappings. IDE-based integrations (`requires_cli: False`) should use their canonical identifier (e.g., `"windsurf"`, `"copilot"`).
+**Key design rule:** For CLI-based integrations (`requires_cli: True`), `key` must be the actual executable name (e.g., `"cursor-agent"` not `"cursor"`). This ensures `shutil.which(key)` works for CLI-tool checks without special-case mappings. IDE-based integrations (`requires_cli: False`) should use their canonical identifier (e.g., `"kilocode"`, `"copilot"`).
 
 ### 3. Register it
 
@@ -259,8 +221,8 @@ Only add custom setup logic when the agent needs non-standard behavior. Integrat
 specify init my-project --integration <key>
 
 # Verify files were created in the commands directory configured by
-# config["folder"] + config["commands_subdir"] (for example, .windsurf/workflows/)
-ls -R my-project/.windsurf/workflows/
+# config["folder"] + config["commands_subdir"] (for example, .kilocode/workflows/)
+ls -R my-project/.kilocode/workflows/
 
 # Uninstall cleanly
 cd my-project && specify integration uninstall <key>

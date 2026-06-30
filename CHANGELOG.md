@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.2+adlc1] - 2026-06-30
+
+### Changed
+
+- **Upstream merge (0.12.1 → 0.12.2)**: Merged 19 upstream commits from `github/spec-kit`. Key changes adopted:
+  - **Retired 3 integrations**: iflow (product discontinued), roo (extension shut down), windsurf (absorbed into Cognition Devin). Removed integration directories, registry entries, and test files.
+  - **`version_satisfies` moved to `_utils.py`**: Consolidated from `extensions/__init__.py` into `_utils.py`, now allows prerelease builds (benefits fork's `+adlcN` version suffix). Updated imports in `extensions/__init__.py`, `presets/__init__.py`, and `test_extensions.py`.
+  - **Workflow engine**: `max_concurrency` in fan-out via bounded thread pool (#3224); bool `max_iterations` rejection in while/do-while validation (#3237).
+  - **Script portability**: bash 3.2 fixes (`echo`→`printf`, `${word^^}`→`tr`) in `create-new-feature.sh` and `create-new-feature-branch.sh` (#3192); `--no-persist` flag in `common.sh` for read-only path resolution (#3025).
+  - **Extension updates**: Intake v0.1.3, Architecture Workflow v1.2.2, Repository Governance (community catalog), Workflow Preset v1.3.11.
+  - **Docs**: Windsurf → Kilo Code references throughout AGENTS.md, docs/upgrade.md, docs/index.md.
+
+### Conflicts Resolved
+
+- `pyproject.toml`: Kept fork name/description, bumped to `0.12.2+adlc1`.
+- `AGENTS.md`: Accepted upstream's condensed agent table (removed retired agents).
+
 # [0.11.9+adlc9] - 2026-06-30
 
 ### Changed
@@ -2960,6 +2977,37 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.2] - 2026-06-30
+
+### Changed
+
+- fix(scripts): portable uppercase for branch-name acronym retention (bash 3.2) (#3192)
+- chore: retire Windsurf integration — absorbed into Cognition Devin (#3168) (#3213)
+- [extension] Update Intake extension to v0.1.3 (#3254)
+- feat(workflows): honor max_concurrency in fan-out via a bounded thread pool (#3224)
+- Update Architecture Workflow extension to v1.2.2 (#3255)
+- Add Repository Governance extension to community catalog (#3252)
+- Update Workflow Preset to v1.3.11 (#3251)
+- chore: retire iflow integration — product discontinued (#3166) (#3211)
+- docs(codebuddy): fix dead install links and CodeBuddy capitalization (#3172) (#3216)
+- fix: reject host-less catalog URLs in base and preset validators (#3209) (#3227)
+- chore: release 0.12.1, begin 0.12.2.dev0 development (#3253)
+
+## [0.12.1] - 2026-06-30
+
+### Changed
+
+- chore: align CI Python matrix with devguide lifecycle + fix bash 3.2 portability (#3244)
+- fix: stop check-prerequisites --paths-only from writing feature.json (#3025) (#3190)
+- docs: document integration catalog subcommands (#3206)
+- fix(scripts): use ASCII [OK] marker in initialize-repo.sh (parity with PowerShell twin) (#3231)
+- docs: document integration `search`/`info`/`scaffold` subcommands (#3174) (#3194)
+- docs: remove Cursor from `specify check` agent list (#3178) (#3193)
+- fix(goose): repoint install_url and docs to goose-docs.ai (#3171) (#3215)
+- fix(scripts): route 'Plan template not found' per --json in setup-plan.ps1 (parity with bash) (#3241)
+- fix(bundle): send command errors to stderr so --json stdout stays parseable (#3235)
+- chore: release 0.12.0, begin 0.12.1.dev0 development (#3243)
 
 ## [0.12.0] - 2026-06-29
 

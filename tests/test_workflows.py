@@ -660,8 +660,8 @@ class TestBuildExecArgs:
         assert "--yolo" in args
 
     def test_ide_only_returns_none(self):
-        from specify_cli.integrations.windsurf import WindsurfIntegration
-        impl = WindsurfIntegration()
+        from specify_cli.integrations.kilocode import KilocodeIntegration
+        impl = KilocodeIntegration()
         assert impl.build_exec_args("test") is None
 
     def test_no_model_omits_flag(self):
@@ -1893,6 +1893,12 @@ class TestWhileStep:
         step = WhileStep()
         errors = step.validate({"id": "test", "condition": "{{ true }}", "max_iterations": 0, "steps": []})
         assert any("must be an integer >= 1" in e for e in errors)
+        # bool is an int subclass; `max_iterations: true` must be rejected, not
+        # silently treated as a single iteration.
+        bool_errors = step.validate(
+            {"id": "test", "condition": "{{ true }}", "max_iterations": True, "steps": []}
+        )
+        assert any("must be an integer >= 1" in e for e in bool_errors)
 
 
 class TestDoWhileStep:
@@ -1931,6 +1937,21 @@ class TestDoWhileStep:
         # Body always executes on first call regardless of condition
         assert len(result.next_steps) == 1
         assert result.output["max_iterations"] == 5
+
+    def test_validate_rejects_bool_max_iterations(self):
+        from specify_cli.workflows.steps.do_while import DoWhileStep
+
+        step = DoWhileStep()
+        # bool is an int subclass; `max_iterations: true` must be rejected.
+        errors = step.validate(
+            {"id": "test", "condition": "{{ true }}", "max_iterations": True, "steps": []}
+        )
+        assert any("must be an integer >= 1" in e for e in errors)
+        # a real positive integer is fully valid (no errors at all).
+        ok = step.validate(
+            {"id": "test", "condition": "{{ true }}", "max_iterations": 3, "steps": []}
+        )
+        assert ok == [], ok
 
     def test_execute_empty_steps(self):
         from specify_cli.workflows.steps.do_while import DoWhileStep
@@ -2114,6 +2135,210 @@ class TestFanInStep:
         step = FanInStep()
         errors = step.validate({"id": "test", "wait_for": "not-a-list"})
         assert any("non-empty list" in e for e in errors)
+
+
+class TestFanOutConcurrency:
+    """Fan-out honors max_concurrency (WorkflowEngine._run_fan_out)."""
+
+    @staticmethod
+    def _build(tmp_path, on_item=None):
+        """Wire an engine + run state to a probe step that echoes context.item.
+
+        Per-item output is ``{"seen": <item>}`` so order and per-thread item
+        isolation are checkable. ``on_item(item)`` may run a side effect and
+        optionally return a StepStatus to override COMPLETED (or raise).
+        """
+        from specify_cli.workflows.base import (
+            RunStatus,
+            StepBase,
+            StepContext,
+            StepResult,
+            StepStatus,
+        )
+        from specify_cli.workflows.engine import RunState, WorkflowEngine
+
+        class _ProbeStep(StepBase):
+            type_key = "probe"
+
+            def execute(self, config, context):
+                status = StepStatus.COMPLETED
+                if on_item is not None:
+                    override = on_item(context.item)
+                    if override is not None:
+                        status = override
+                return StepResult(status=status, output={"seen": context.item})
+
+        engine = WorkflowEngine(project_root=tmp_path)
+        context = StepContext()
+        state = RunState(run_id="r", workflow_id="w", project_root=tmp_path)
+        state.status = RunStatus.RUNNING
+        template = {"id": "impl", "type": "probe"}
+        return engine, context, state, {"probe": _ProbeStep()}, template
+
+    def _run(self, tmp_path, items, max_concurrency, on_item=None):
+        engine, context, state, registry, template = self._build(tmp_path, on_item)
+        results = engine._run_fan_out(
+            items, template, "fan", context, state, registry, max_concurrency
+        )
+        return results, state
+
+    def test_sequential_default_preserves_order(self, tmp_path):
+        results, _ = self._run(tmp_path, list(range(5)), 1)
+        assert results == [{"seen": i} for i in range(5)]
+
+    def test_concurrent_runs_all_items_in_item_order(self, tmp_path):
+        results, _ = self._run(tmp_path, list(range(10)), 4)
+        assert results == [{"seen": i} for i in range(10)]
+
+    def test_sequential_and_concurrent_agree(self, tmp_path):
+        items = [{"n": i} for i in range(8)]
+        seq, _ = self._run(tmp_path, items, 1)
+        con, _ = self._run(tmp_path, items, 4)
+        assert seq == con == [{"seen": {"n": i}} for i in range(8)]
+
+    def test_shuffled_completion_preserves_item_order(self, tmp_path):
+        # Determinism keystone: completion order is forced to the exact REVERSE of
+        # item order by an event chain (no sleeps) — item i blocks until item i+1
+        # has finished, so item 0 completes LAST — yet results must still be in
+        # item order. K == len(items) so all workers are in flight together.
+        import threading
+
+        n = 4
+        done = [threading.Event() for _ in range(n)]
+        completion: list[int] = []
+        clock = threading.Lock()
+
+        def on_item(item):
+            if item + 1 < n:
+                assert done[item + 1].wait(2.0), f"item {item + 1} never finished"
+            with clock:
+                completion.append(item)
+            done[item].set()
+            return None
+
+        results, _ = self._run(tmp_path, list(range(n)), n, on_item)
+        assert results == [{"seen": i} for i in range(n)]
+        assert completion == list(reversed(range(n)))
+
+    def test_concurrency_is_real(self, tmp_path):
+        import threading
+
+        # Deterministic proof of real parallelism (no wall-clock threshold to
+        # tune or flake): every item must reach the barrier before any may pass.
+        # Sequential execution would block the first item forever — the barrier
+        # times out, raises BrokenBarrierError, and fails the test.
+        n = 4
+        barrier = threading.Barrier(n, timeout=5)
+
+        def on_item(item):
+            barrier.wait()
+            return None
+
+        results, _ = self._run(tmp_path, list(range(n)), n, on_item)
+        assert results == [{"seen": i} for i in range(n)]
+
+    @pytest.mark.parametrize("bad", [0, -1, None, "abc", 1.0])
+    def test_invalid_max_concurrency_coerces_to_sequential(self, tmp_path, bad):
+        results, _ = self._run(tmp_path, list(range(4)), bad)
+        assert results == [{"seen": i} for i in range(4)]
+
+    def test_string_max_concurrency_is_honored(self, tmp_path):
+        results, _ = self._run(tmp_path, list(range(4)), "2")
+        assert results == [{"seen": i} for i in range(4)]
+
+    def test_context_item_isolation_across_threads(self, tmp_path):
+        items = [{"id": f"x{i}"} for i in range(6)]
+        results, _ = self._run(tmp_path, items, 6)
+        assert [r["seen"]["id"] for r in results] == [f"x{i}" for i in range(6)]
+
+    def test_empty_items(self, tmp_path):
+        results, _ = self._run(tmp_path, [], 4)
+        assert results == []
+
+    def test_concurrent_halt_status_not_clobbered_by_later_item(self, tmp_path):
+        # Item 1 PAUSES (first halting item in order); item 3 FAILS while in
+        # flight. The final run status must be the halting item's (PAUSED), never
+        # a later item's (FAILED) that raced after it — matching sequential.
+        from specify_cli.workflows.base import RunStatus, StepStatus
+
+        def on_item(item):
+            if item == 1:
+                return StepStatus.PAUSED
+            if item == 3:
+                return StepStatus.FAILED
+            return None
+
+        results, state = self._run(tmp_path, list(range(4)), 4, on_item)
+        assert results == [{"seen": 0}, {"seen": 1}]
+        assert state.status == RunStatus.PAUSED
+
+    def test_halt_on_failure_sequential_returns_prefix(self, tmp_path):
+        from specify_cli.workflows.base import RunStatus, StepStatus
+
+        def on_item(item):
+            return StepStatus.FAILED if item == 2 else None
+
+        results, state = self._run(tmp_path, list(range(5)), 1, on_item)
+        assert len(results) == 3  # items 0,1,2 ran; 3,4 never dispatched
+        assert results[2] == {"seen": 2}
+        assert state.status == RunStatus.FAILED
+
+    def test_halt_on_failure_concurrent_includes_halting_item(self, tmp_path):
+        # The concurrent prefix must match the sequential one: items up to and
+        # INCLUDING the failing item (2), never a short prefix that drops it just
+        # because a later in-flight item flipped the shared run status first.
+        from specify_cli.workflows.base import RunStatus, StepStatus
+
+        def on_item(item):
+            return StepStatus.FAILED if item == 2 else None
+
+        results, state = self._run(tmp_path, list(range(6)), 4, on_item)
+        assert results == [{"seen": 0}, {"seen": 1}, {"seen": 2}]
+        assert state.status == RunStatus.FAILED
+
+    def test_continue_on_error_item_does_not_halt_concurrent(self, tmp_path):
+        # A failing item whose template sets continue_on_error must NOT truncate
+        # the fan-out: every item still runs and is returned in order.
+        from specify_cli.workflows.base import StepStatus
+
+        def on_item(item):
+            return StepStatus.FAILED if item == 2 else None
+
+        engine, context, state, registry, template = self._build(tmp_path, on_item)
+        template["continue_on_error"] = True
+        results = engine._run_fan_out(
+            list(range(5)), template, "fan", context, state, registry, 4
+        )
+        assert results == [{"seen": i} for i in range(5)]
+
+    def test_unknown_template_type_halts_concurrent_like_sequential(self, tmp_path):
+        # A template whose type isn't registered fails fast and records no result;
+        # the concurrent path must still attribute the halt to the first item and
+        # return the same prefix as sequential — never run on as if completed.
+        from specify_cli.workflows.base import RunStatus, StepContext
+        from specify_cli.workflows.engine import RunState, WorkflowEngine
+
+        def fresh():
+            state = RunState(run_id="r", workflow_id="w", project_root=tmp_path)
+            state.status = RunStatus.RUNNING
+            return WorkflowEngine(project_root=tmp_path), StepContext(), state
+
+        template = {"id": "impl", "type": "does-not-exist"}
+        e1, c1, s1 = fresh()
+        seq = e1._run_fan_out(list(range(5)), template, "fan", c1, s1, {}, 1)
+        e2, c2, s2 = fresh()
+        con = e2._run_fan_out(list(range(5)), template, "fan", c2, s2, {}, 4)
+        assert seq == con == [{}]  # halted at the first item; rest never returned
+        assert s1.status == s2.status == RunStatus.FAILED
+
+    def test_first_exception_cancels_and_reraises(self, tmp_path):
+        def on_item(item):
+            if item == 0:
+                raise ValueError("boom")
+            return None
+
+        with pytest.raises(ValueError, match="boom"):
+            self._run(tmp_path, list(range(4)), 2, on_item)
 
 
 class TestFanInWaitForValidation:
