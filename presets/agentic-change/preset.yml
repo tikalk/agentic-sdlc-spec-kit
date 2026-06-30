@@ -27,9 +27,15 @@ provides:
       aliases: ["change.implement"]
 
     - type: "command"
+      name: "adlc.change.converge"
+      file: "commands/adlc.change.converge.md"
+      description: "Assess change scope and append remaining work as new tasks"
+      aliases: ["change.converge"]
+
+    - type: "command"
       name: "adlc.change.verify"
       file: "commands/adlc.change.verify.md"
-      description: "Verify change completeness and hand off to levelup"
+      description: "Verify change completeness — converge gap-finder, criteria assessment, and loop-back directive"
       aliases: ["change.verify"]
 
     - type: "command"

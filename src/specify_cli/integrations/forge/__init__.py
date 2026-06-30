@@ -93,7 +93,6 @@ class ForgeIntegration(MarkdownIntegration):
         "format_name": format_forge_command_name,  # Custom name formatter
         "invoke_separator": "-",
     }
-    context_file = "AGENTS.md"
     invoke_separator = "-"
 
     def setup(
@@ -132,14 +131,12 @@ class ForgeIntegration(MarkdownIntegration):
         script_type = opts.get("script_type", "sh")
         arg_placeholder = self.registrar_config.get("args", "{{parameters}}")
         created: list[Path] = []
-        context_file_display = self._context_file_display(project_root)
 
         for src_file in templates:
             raw = src_file.read_text(encoding="utf-8")
             # Process template with standard MarkdownIntegration logic
             processed = self.process_template(
                 raw, self.key, script_type, arg_placeholder,
-                context_file=context_file_display,
                 invoke_separator=self.invoke_separator,
                 project_root=project_root,
             )
@@ -157,8 +154,6 @@ class ForgeIntegration(MarkdownIntegration):
             )
             created.append(dst_file)
 
-        # Upsert managed context section into the agent context file
-        self.upsert_context_section(project_root)
 
         return created
 

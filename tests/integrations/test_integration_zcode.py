@@ -9,7 +9,6 @@ class TestZcodeIntegration(SkillsIntegrationTests):
     FOLDER = ".zcode/"
     COMMANDS_SUBDIR = "skills"
     REGISTRAR_DIR = ".zcode/skills"
-    CONTEXT_FILE = "ZCODE.md"
 
 
 class TestZcodeInvocation:

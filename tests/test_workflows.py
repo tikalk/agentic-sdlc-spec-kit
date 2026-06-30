@@ -332,6 +332,27 @@ class TestExpressions:
         assert evaluate_expression("{{ inputs.a == 9 or inputs.b == 2 }}", plain) is True
         assert evaluate_expression("{{ inputs.missing | default('a and b') }}", plain) == "a and b"
 
+    def test_pipe_detection_is_quote_aware(self):
+        from specify_cli.workflows.expressions import evaluate_expression
+        from specify_cli.workflows.base import StepContext
+
+        # A literal '|' inside a quoted operand must not be treated as a filter
+        # pipe: the comparison applies to the whole string.
+        ctx = StepContext(inputs={"x": "a|b"})
+        assert evaluate_expression("{{ inputs.x == 'a|b' }}", ctx) is True
+        assert evaluate_expression("{{ inputs.x == 'a|b' }}", StepContext(inputs={"x": "z"})) is False
+        # membership against a literal containing a pipe
+        assert evaluate_expression("{{ 'a|b' in inputs.s }}", StepContext(inputs={"s": "x a|b y"})) is True
+        # a single quoted literal containing pipes is preserved
+        assert evaluate_expression("{{ 'a|b|c' }}", StepContext()) == "a|b|c"
+
+        # Regression: real filters still work, including a pipe inside a filter arg.
+        ctx2 = StepContext(inputs={"items": ["a", "b"], "s": "xabz"})
+        assert evaluate_expression("{{ inputs.missing | default('y') }}", ctx2) == "y"
+        assert evaluate_expression('{{ inputs.items | join("-") }}', ctx2) == "a-b"
+        assert evaluate_expression("{{ inputs.s | contains('ab') }}", ctx2) is True
+        assert evaluate_expression("{{ inputs.missing | default('a|b') }}", ctx2) == "a|b"
+
     def test_filter_default(self):
         from specify_cli.workflows.expressions import evaluate_expression
         from specify_cli.workflows.base import StepContext
@@ -1505,6 +1526,23 @@ class TestGateStep:
         })
         assert any("on_reject" in e for e in errors)
 
+    def test_validate_non_string_options_does_not_raise(self):
+        """Non-string options with on_reject=abort/retry must be REPORTED as an
+        error, not crash: the reject-choice check calls o.lower() on each option,
+        which previously raised AttributeError on a non-string option and broke
+        validate_workflow's 'return errors, never raise' contract."""
+        from specify_cli.workflows.steps.gate import GateStep
+
+        step = GateStep()
+        # on_reject defaults to "abort", which triggers the option-text check.
+        errors = step.validate({"id": "test", "message": "Review", "options": [123]})
+        assert any("must be strings" in e for e in errors)
+        # also with an explicit retry on_reject
+        errors = step.validate(
+            {"id": "test", "message": "Review", "options": [True], "on_reject": "retry"}
+        )
+        assert any("must be strings" in e for e in errors)
+
     def test_interactive_prompt_renders_show_file(self, tmp_path, monkeypatch, capsys):
         from specify_cli.workflows.steps.gate import GateStep
         from specify_cli.workflows.base import StepContext, StepStatus
@@ -2076,6 +2114,128 @@ class TestFanInStep:
         step = FanInStep()
         errors = step.validate({"id": "test", "wait_for": "not-a-list"})
         assert any("non-empty list" in e for e in errors)
+
+
+class TestFanInWaitForValidation:
+    """fan-in wait_for must reference a declared step (no silent empty join)."""
+
+    @staticmethod
+    def _errors(yaml_text):
+        from specify_cli.workflows.engine import (
+            WorkflowDefinition,
+            validate_workflow,
+        )
+
+        return validate_workflow(WorkflowDefinition.from_string(yaml_text))
+
+    def test_unknown_wait_for_id_is_rejected(self):
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: collect
+    type: fan-in
+    wait_for: [ghost]
+""")
+        assert any(
+            "unknown or not-yet-declared step id 'ghost'" in e for e in errors
+        )
+
+    def test_wait_for_declared_earlier_step_passes(self):
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: produce
+    type: command
+    command: speckit.implement
+  - id: collect
+    type: fan-in
+    wait_for: [produce]
+""")
+        assert not any("wait_for" in e for e in errors)
+
+    def test_wait_for_conditionally_declared_step_passes(self):
+        # A step declared inside an if-branch may be skipped at runtime, but it is
+        # still "declared", so referencing it must validate — a legitimately-empty
+        # runtime join stays valid.
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: maybe
+    type: if
+    condition: "{{ inputs.flag }}"
+    then:
+      - id: branch_task
+        type: command
+        command: speckit.implement
+  - id: collect
+    type: fan-in
+    wait_for: [branch_task]
+""")
+        assert not any("wait_for" in e for e in errors)
+
+    def test_forward_reference_is_rejected(self):
+        # wait_for points at a step declared AFTER the fan-in; its results cannot
+        # exist when the fan-in runs, so it is flagged.
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: collect
+    type: fan-in
+    wait_for: [later]
+  - id: later
+    type: command
+    command: speckit.implement
+""")
+        assert any(
+            "unknown or not-yet-declared step id 'later'" in e for e in errors
+        )
+
+    def test_self_reference_is_rejected(self):
+        # A fan-in's own id is in scope by the time it is validated, so a
+        # self-reference slips past the membership check while still producing
+        # an empty join at runtime.
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: collect
+    type: fan-in
+    wait_for: [collect]
+""")
+        assert any(
+            "references itself" in e and "collect" in e for e in errors
+        )
+
+    def test_non_string_wait_for_entry_is_rejected(self):
+        # A non-string entry (e.g. YAML `wait_for: [123]`) can never match a
+        # real step id, so it must be flagged rather than silently ignored.
+        errors = self._errors("""
+workflow:
+  id: wf
+  name: wf
+  version: "1.0.0"
+steps:
+  - id: collect
+    type: fan-in
+    wait_for: [123]
+""")
+        assert any(
+            "must be step-id strings" in e and "int" in e for e in errors
+        )
 
 
 # ===== Workflow Definition Tests =====

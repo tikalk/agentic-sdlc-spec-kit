@@ -630,9 +630,11 @@ if ($Json) {
     $obj = [PSCustomObject]@{
         BRANCH_NAME   = $branchName
         FEATURE_NUM   = $featureNum
-        HAS_GIT       = $hasGit
         ISOLATION_MODE = $isolationMode
     }
+    # $hasGit is computed for branch-creation logic only; it is intentionally not
+    # emitted so this output contract matches the bash twin: BRANCH_NAME and
+    # FEATURE_NUM, plus DRY_RUN (added just below) on dry runs.
     if ($DryRun) {
         $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
     }
@@ -640,7 +642,6 @@ if ($Json) {
 } else {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "FEATURE_NUM: $featureNum"
-    Write-Output "HAS_GIT: $hasGit"
     Write-Output "ISOLATION_MODE: $isolationMode"
     if (-not $DryRun) {
         Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"

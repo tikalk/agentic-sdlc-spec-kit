@@ -37,6 +37,10 @@ ACCENT_STYLE = "cyan"
 
 console = Console(highlight=False)
 
+# Stderr-bound console for error/diagnostic output, so human-facing messages
+# never contaminate stdout (which carries machine-readable ``--json`` payloads).
+err_console = Console(stderr=True, highlight=False)
+
 class StepTracker:
     """Track and render hierarchical steps without emojis, similar to Claude Code tree output.
     Supports live auto-refresh via an attached refresh callback.

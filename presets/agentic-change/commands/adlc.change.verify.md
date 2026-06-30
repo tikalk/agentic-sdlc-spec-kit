@@ -1,10 +1,5 @@
 ---
-description: Verify change completeness against the change specification
-handoffs:
-  - label: Extract Lessons from This Change
-    agent: adlc.change.levelup
-    prompt: Run levelup to extract reusable patterns and CDRs from this completed change
-    send: true
+description: Loop-ready change verification — converge gap-finder, criteria assessment, and loop-back directive
 ---
 
 ## MANDATORY: Pre-Execution Hooks
@@ -31,6 +26,20 @@ $ARGUMENTS
 You **MUST** consider the user input before proceeding (if not empty).
 
 ---
+
+## Convergence Gap-Finder
+
+**Run `/change.converge` to identify any remaining work before proceeding to verification.**
+
+1. Check if `tasks.md` for the change already has convergence phase headers. If it does, read the latest convergence result.
+2. Invoke `/change.converge` (or the user runs it manually).
+3. Evaluate the converge outcome:
+   - **`converged`**: No remaining gaps. Proceed to verification.
+   - **`tasks_appended`**: Gaps remain. Output the convergence findings summary, then issue a loop-back directive:
+
+     > **Gap detected**: `/change.converge` found {N} items of remaining work. Run `/change.implement` to complete the convergence tasks, then run `/change.verify` again once converged.
+
+     **STOP assessment here.** Do NOT proceed to criteria verification or status decision until the loop completes and converge reports `converged`.
 
 ## Verification
 
@@ -84,7 +93,7 @@ Update the `Status:` field in `changes/{NNN-name}/spec.md`:
 
 If **Completed**, suggest:
 ```
-Change verified. Run /change.levelup to contribute lessons from this change.
+Change verified and converged. Run /change.levelup to contribute lessons from this change.
 ```
 
 ---

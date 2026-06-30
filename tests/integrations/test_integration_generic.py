@@ -32,10 +32,6 @@ class TestGenericIntegration:
         i = get_integration("generic")
         assert i.config["requires_cli"] is False
 
-    def test_context_file_is_agents_md(self):
-        i = get_integration("generic")
-        assert i.context_file == "AGENTS.md"
-
     # -- Options ----------------------------------------------------------
 
     def test_options_include_commands_dir(self):
@@ -165,28 +161,24 @@ class TestGenericIntegration:
 
     # -- Context section ---------------------------------------------------
 
-    def test_setup_upserts_context_section(self, tmp_path):
+    def test_setup_does_not_write_context_section(self, tmp_path):
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        if i.context_file:
-            ctx_path = tmp_path / i.context_file
-            assert ctx_path.exists()
-            content = ctx_path.read_text(encoding="utf-8")
-            assert "<!-- SPECKIT START -->" in content
-            assert "<!-- SPECKIT END -->" in content
+        for path in tmp_path.rglob("*"):
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                assert "<!-- SPECKIT START -->" not in text
 
-    def test_plan_references_correct_context_file(self, tmp_path):
-        """The generated plan command must reference generic's context file."""
+    def test_plan_command_has_no_context_placeholder(self, tmp_path):
+        """The core plan command must not carry a context-file placeholder —
+        agent context files are owned by the opt-in agent-context extension."""
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
         plan_file = tmp_path / ".custom" / "cmds" / f"{_cmd_prefix()}.plan.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
-        assert i.context_file in content, (
-            f"Plan command should reference {i.context_file!r}"
-        )
         assert "__CONTEXT_FILE__" not in content
 
     def test_plan_defines_quickstart_as_validation_guide(self, tmp_path):
@@ -233,7 +225,7 @@ class TestGenericIntegration:
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
         # taskstoissues is special-cased to keep speckit. prefix
-        pfx = "speckit" if command_stem in ("taskstoissues", "converge") else _cmd_prefix()
+        pfx = "speckit" if command_stem in ("taskstoissues",) else _cmd_prefix()
         cmd_file = tmp_path / ".custom" / "cmds" / f"{pfx}.{command_stem}.md"
         assert cmd_file.exists(), f"Command file missing: {cmd_file.name}"
         content = cmd_file.read_text(encoding="utf-8")
@@ -262,28 +254,6 @@ class TestGenericIntegration:
         # Generic requires --commands-dir via --integration-options
         assert result.exit_code != 0
 
-    def test_init_options_includes_context_file(self, tmp_path):
-        """agent-context extension config must include context_file for the generic integration."""
-        import yaml
-        from typer.testing import CliRunner
-        from specify_cli import app
-
-        project = tmp_path / "opts-generic"
-        project.mkdir()
-        old_cwd = os.getcwd()
-        try:
-            os.chdir(project)
-            result = CliRunner().invoke(app, [
-                "init", "--here", "--integration", "generic",
-                "--integration-options=--commands-dir .myagent/commands",
-                "--script", "sh",
-            ], catch_exceptions=False)
-        finally:
-            os.chdir(old_cwd)
-        assert result.exit_code == 0
-        ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
-        ext_cfg = yaml.safe_load(ext_cfg_path.read_text(encoding="utf-8")) if ext_cfg_path.exists() else {}
-        assert ext_cfg.get("context_file") == "AGENTS.md"
 
     def test_complete_file_inventory_sh(self, tmp_path):
         """Every file produced by specify init --integration generic --integration-options=--commands-dir ... --script sh."""
@@ -308,25 +278,16 @@ class TestGenericIntegration:
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
         files = [
-            "AGENTS.md",
             f".myagent/commands/{_cmd_prefix()}.analyze.md",
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
-            ".myagent/commands/speckit.converge.md",
+            f".myagent/commands/{_cmd_prefix()}.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
             f".myagent/commands/{_cmd_prefix()}.tasks.md",
             ".myagent/commands/speckit.taskstoissues.md",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
-            ".specify/extensions/agent-context/README.md",
-            ".specify/extensions/agent-context/agent-context-config.yml",
-            ".specify/extensions/agent-context/commands/speckit.agent-context.update.md",
-            ".specify/extensions/agent-context/extension.yml",
-            ".specify/extensions/agent-context/scripts/bash/update-agent-context.sh",
-            ".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1",
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",
@@ -384,25 +345,15 @@ class TestGenericIntegration:
             for p in project.rglob("*") if p.is_file() and ".git" not in p.parts
         )
         files = [
-            "AGENTS.md",
             f".myagent/commands/{_cmd_prefix()}.analyze.md",
             f".myagent/commands/{_cmd_prefix()}.checklist.md",
             f".myagent/commands/{_cmd_prefix()}.clarify.md",
             f".myagent/commands/{_cmd_prefix()}.constitution.md",
-            ".myagent/commands/speckit.converge.md",
+            f".myagent/commands/{_cmd_prefix()}.converge.md",
             f".myagent/commands/{_cmd_prefix()}.implement.md",
-            f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
             f".myagent/commands/{_cmd_prefix()}.tasks.md",
             ".myagent/commands/speckit.taskstoissues.md",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
-            ".specify/extensions/agent-context/README.md",
-            ".specify/extensions/agent-context/agent-context-config.yml",
-            ".specify/extensions/agent-context/commands/speckit.agent-context.update.md",
-            ".specify/extensions/agent-context/extension.yml",
-            ".specify/extensions/agent-context/scripts/bash/update-agent-context.sh",
-            ".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1",
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",

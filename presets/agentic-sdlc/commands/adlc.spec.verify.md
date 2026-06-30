@@ -1,13 +1,5 @@
 ---
-description: Verify feature completeness against specification — test gate, diff analysis, and 4-pillar compliance assessment.
-handoffs:
-  - label: Generate Feature Trace
-    agent: adlc.spec.trace
-    prompt: Generate a feature execution trace from the completed implementation
-  - label: Extract CDRs from Verification Evidence
-    agent: levelup.specify
-    prompt: Run levelup to extract reusable patterns and CDRs from the verification evidence
-    send: true
+description: Loop-ready verification — converge gap-finder, test gate, diff analysis, and 4-pillar compliance assessment with loop-back directive
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
@@ -43,6 +35,22 @@ This command requires a feature directory with implementation artifacts. Run `/s
 If no `SPECIFY_FEATURE_DIRECTORY` is set, read `.specify/feature.json` to discover the current feature directory.
 
 Run `{SCRIPT}` once from repo root and parse JSON for FEATURE_DIR and AVAILABLE_DOCS. Abort with a clear error if the feature directory doesn't exist or is missing required artifacts (spec.md, plan.md, tasks.md).
+
+## Convergence Gap-Finder
+
+**Run `/spec.converge` to identify any remaining work before proceeding to verification.**
+
+1. Check if `tasks.md` already has convergence phase headers. If it does, read the latest convergence result.
+2. Invoke `/spec.converge` (or the user runs it manually).
+3. Evaluate the converge outcome:
+   - **`converged`**: No remaining gaps. Proceed to Test Gate.
+   - **`tasks_appended`**: Gaps remain. Output the convergence findings summary, then issue a loop-back directive:
+
+     > **Gap detected**: `/spec.converge` found {N} items of remaining work. Run `/spec.implement` to complete the convergence tasks, then run `/spec.verify` again once converged.
+
+     **STOP assessment here.** Do NOT proceed to Test Gate or 4-Pillar Assessment until the loop completes and converge reports `converged`.
+
+This step ensures verification always runs against a converged baseline.
 
 ## Test Gate
 
@@ -186,7 +194,7 @@ The project constitution (`{REPO_ROOT}/.specify/memory/constitution.md`) is **no
 ### Verification vs Analysis
 
 - **`/spec.analyze`** is read-only diagnostic — detects problems, no gate, no verdict, no file output
-- **`/spec.verify`** is lifecycle gate — hard test gate, written record, structured verdict, triggers handoffs
+- **`/spec.verify`** is lifecycle gate — converge gap-finder, hard test gate, written record, structured verdict, loop-back directive on gaps
 
 ## Post-Execution Hooks
 

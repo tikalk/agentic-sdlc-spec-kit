@@ -115,9 +115,16 @@ provides:
       aliases: ["spec.brainstorm"]
 
     - type: "command"
+      name: "adlc.spec.converge"
+      file: "commands/adlc.spec.converge.md"
+      description: "Assess the codebase against spec, plan, and tasks then append remaining work as new tasks"
+      aliases: ["spec.converge"]
+      replaces: "speckit.converge"
+
+    - type: "command"
       name: "adlc.spec.verify"
       file: "commands/adlc.spec.verify.md"
-      description: "Verify feature completeness — test gate, diff analysis, and 4-pillar compliance assessment"
+      description: "Verify feature completeness — converge gap-finder, test gate, diff analysis, and 4-pillar compliance assessment"
       aliases: ["spec.verify"]
 
     - type: "command"

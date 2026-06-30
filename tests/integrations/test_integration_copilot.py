@@ -18,7 +18,6 @@ class TestCopilotIntegration:
         assert copilot.config["folder"] == ".github/"
         assert copilot.config["commands_subdir"] == "agents"
         assert copilot.registrar_config["extension"] == ".agent.md"
-        assert copilot.context_file == ".github/copilot-instructions.md"
 
     def test_command_filename_agent_md(self):
         copilot = get_integration("copilot")
@@ -165,8 +164,9 @@ class TestCopilotIntegration:
         assert "Copy `.specify/templates/spec-template.md`" not in content
         assert "Load `.specify/templates/spec-template.md`" not in content
 
-    def test_plan_references_correct_context_file(self, tmp_path):
-        """The generated plan command must reference copilot's context file."""
+    def test_plan_command_has_no_context_placeholder(self, tmp_path):
+        """The core plan command must not carry a context-file placeholder —
+        agent context files are owned by the opt-in agent-context extension."""
         from specify_cli.integrations.copilot import CopilotIntegration
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
@@ -174,9 +174,6 @@ class TestCopilotIntegration:
         plan_file = tmp_path / ".github" / "agents" / f"{_cmd_prefix()}.plan.agent.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
-        assert copilot.context_file in content, (
-            f"Plan command should reference {copilot.context_file!r}"
-        )
         assert "__CONTEXT_FILE__" not in content
 
     def test_complete_file_inventory_sh(self, tmp_path):
@@ -196,7 +193,6 @@ class TestCopilotIntegration:
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
-            ".github/agents/speckit.agent-context.update.agent.md",
             f".github/agents/{_cmd_prefix()}.analyze.agent.md",
             f".github/agents/{_cmd_prefix()}.checklist.agent.md",
             f".github/agents/{_cmd_prefix()}.clarify.agent.md",
@@ -207,7 +203,6 @@ class TestCopilotIntegration:
             f".github/agents/{_cmd_prefix()}.specify.agent.md",
             f".github/agents/{_cmd_prefix()}.tasks.agent.md",
             f".github/agents/{_cmd_prefix()}.taskstoissues.agent.md",
-            ".github/prompts/speckit.agent-context.update.prompt.md",
             f".github/prompts/{_cmd_prefix()}.analyze.prompt.md",
             f".github/prompts/{_cmd_prefix()}.checklist.prompt.md",
             f".github/prompts/{_cmd_prefix()}.clarify.prompt.md",
@@ -219,15 +214,6 @@ class TestCopilotIntegration:
             f".github/prompts/{_cmd_prefix()}.tasks.prompt.md",
             f".github/prompts/{_cmd_prefix()}.taskstoissues.prompt.md",
             ".vscode/settings.json",
-            ".github/copilot-instructions.md",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
-            ".specify/extensions/agent-context/README.md",
-            ".specify/extensions/agent-context/agent-context-config.yml",
-            ".specify/extensions/agent-context/commands/speckit.agent-context.update.md",
-            ".specify/extensions/agent-context/extension.yml",
-            ".specify/extensions/agent-context/scripts/bash/update-agent-context.sh",
-            ".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1",
             ".specify/integration.json",
             ".specify/init-options.json",
             ".specify/integrations/copilot.manifest.json",
@@ -279,7 +265,6 @@ class TestCopilotIntegration:
         assert result.exit_code == 0
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
-            ".github/agents/speckit.agent-context.update.agent.md",
             f".github/agents/{_cmd_prefix()}.analyze.agent.md",
             f".github/agents/{_cmd_prefix()}.checklist.agent.md",
             f".github/agents/{_cmd_prefix()}.clarify.agent.md",
@@ -290,7 +275,6 @@ class TestCopilotIntegration:
             f".github/agents/{_cmd_prefix()}.specify.agent.md",
             f".github/agents/{_cmd_prefix()}.tasks.agent.md",
             f".github/agents/{_cmd_prefix()}.taskstoissues.agent.md",
-            ".github/prompts/speckit.agent-context.update.prompt.md",
             f".github/prompts/{_cmd_prefix()}.analyze.prompt.md",
             f".github/prompts/{_cmd_prefix()}.checklist.prompt.md",
             f".github/prompts/{_cmd_prefix()}.clarify.prompt.md",
@@ -302,15 +286,6 @@ class TestCopilotIntegration:
             f".github/prompts/{_cmd_prefix()}.tasks.prompt.md",
             f".github/prompts/{_cmd_prefix()}.taskstoissues.prompt.md",
             ".vscode/settings.json",
-            ".github/copilot-instructions.md",
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
-            ".specify/extensions/agent-context/README.md",
-            ".specify/extensions/agent-context/agent-context-config.yml",
-            ".specify/extensions/agent-context/commands/speckit.agent-context.update.md",
-            ".specify/extensions/agent-context/extension.yml",
-            ".specify/extensions/agent-context/scripts/bash/update-agent-context.sh",
-            ".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1",
             ".specify/integration.json",
             ".specify/init-options.json",
             ".specify/integrations/copilot.manifest.json",
@@ -583,14 +558,14 @@ class TestCopilotSkillsMode:
             body = parts[2].strip() if len(parts) >= 3 else ""
             assert len(body) > 0, f"{f} has empty body"
 
-    def test_plan_references_correct_context_file(self, tmp_path):
-        """The generated plan skill must reference copilot's context file."""
+    def test_plan_skill_has_no_context_placeholder(self, tmp_path):
+        """The core plan skill must not carry a context-file placeholder —
+        agent context files are owned by the opt-in agent-context extension."""
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
         plan_file = tmp_path / ".github" / "skills" / "speckit-plan" / "SKILL.md"
         assert plan_file.exists()
         content = plan_file.read_text(encoding="utf-8")
-        assert copilot.context_file in content
         assert "__CONTEXT_FILE__" not in content
 
     # -- Manifest tracking ------------------------------------------------
@@ -657,14 +632,13 @@ class TestCopilotSkillsMode:
 
     # -- Context section ---------------------------------------------------
 
-    def test_skills_setup_upserts_context_section(self, tmp_path):
+    def test_skills_setup_does_not_write_context_section(self, tmp_path):
         copilot = self._make_copilot()
         self._setup_skills(copilot, tmp_path)
-        ctx_path = tmp_path / copilot.context_file
-        assert ctx_path.exists()
-        content = ctx_path.read_text(encoding="utf-8")
-        assert "<!-- SPECKIT START -->" in content
-        assert "<!-- SPECKIT END -->" in content
+        for path in tmp_path.rglob("*"):
+            if path.is_file():
+                text = path.read_text(encoding="utf-8", errors="ignore")
+                assert "<!-- SPECKIT START -->" not in text
 
     # -- CLI integration test ---------------------------------------------
 
@@ -713,20 +687,8 @@ class TestCopilotSkillsMode:
         assert result.exit_code == 0, f"init failed: {result.output}"
         actual = sorted(p.relative_to(project).as_posix() for p in project.rglob("*") if p.is_file() and ".git" not in p.parts)
         files = [
-            # Skill files (core + extension-installed agent-context command)
+            # Skill files (core commands)
             *[f".github/skills/speckit-{cmd}/SKILL.md" for cmd in self._SKILL_COMMANDS],
-            ".github/skills/speckit-agent-context-update/SKILL.md",
-            # Context file
-            ".github/copilot-instructions.md",
-            # Bundled agent-context extension
-            ".specify/extensions.yml",
-            ".specify/extensions/.registry",
-            ".specify/extensions/agent-context/README.md",
-            ".specify/extensions/agent-context/agent-context-config.yml",
-            ".specify/extensions/agent-context/commands/speckit.agent-context.update.md",
-            ".specify/extensions/agent-context/extension.yml",
-            ".specify/extensions/agent-context/scripts/bash/update-agent-context.sh",
-            ".specify/extensions/agent-context/scripts/powershell/update-agent-context.ps1",
             # Integration metadata
             ".specify/init-options.json",
             ".specify/integration.json",

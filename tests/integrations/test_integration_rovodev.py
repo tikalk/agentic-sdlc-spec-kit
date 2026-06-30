@@ -54,7 +54,6 @@ class TestRovodevIntegration:
     which violates the base mixin's pure-skills assumptions)."""
 
     KEY = "rovodev"
-    CONTEXT_FILE = "AGENTS.md"
 
     # -- ACLI dispatch -----------------------------------------------------
 
@@ -240,11 +239,11 @@ class TestRovodevIntegration:
         # Every prompt must reference an existing skill (no orphan wrappers).
         assert prompt_stems.issubset(skill_names)
 
-        # Skills: core ∪ extension-installed.
+        # Skills: core ∪ extension-installed (fork auto-installs bundled extensions).
         assert core_skill_names.issubset(skill_names)
         extension_skills = skill_names - core_skill_names
         assert extension_skills, (
-            "Expected at least one extension-installed skill (e.g. agent-context)"
+            "Expected at least one extension-installed skill (e.g. git)"
         )
 
         # prompts.yml mirrors the prompt files exactly.
@@ -304,11 +303,6 @@ class TestRovodevIntegration:
                 assert not _dot_cmd_re.search(body), (
                     f"{skill_file} body contains dot-notation command reference"
                 )
-
-        # The plan skill must reference the agent's context file.
-        plan_pfx = _skill_prefix('plan', project_root=project)
-        plan_content = (skills_dir / f"{plan_pfx}-plan" / "SKILL.md").read_text(encoding="utf-8")
-        assert self.CONTEXT_FILE in plan_content
 
     # -- Full-CLI init: integration metadata -------------------------------
 

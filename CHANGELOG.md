@@ -2,6 +2,29 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.11.9+adlc8] - 2026-06-30
+
+### Added
+
+- **Fork-specific converge commands**: Created `adlc.spec.converge` (agentic-sdlc preset) and `adlc.change.converge` (agentic-change preset) as preset-specific converge commands replacing core `speckit.converge`. The spec variant includes extension hooks (before/after converge), constitution authority, and the full core converge gap-finding workflow. The change variant handles optional plan.md (lighter weight for change proposals).
+
+- **Loop-ready verify**: Enhanced `adlc.spec.verify` and `adlc.change.verify` with a converge gap-finder step that gates the assessment behind a converged baseline. Removed trace/levelup handoffs. Added loop-back directive when converge finds remaining work (`tasks_appended` → recommend re-implement + re-verify).
+
+### Changed
+
+- **Removed `converge` from `speckit.` prefix exception**: `converge` now uses the fork's `spec.` prefix like all other commands (previously special-cased to keep `speckit.converge`). Only `taskstoissues` retains the `speckit.` prefix exception.
+
+### Registered
+
+- **adlc.spec.converge** in `presets/agentic-sdlc/preset.yml` (`replaces: "speckit.converge"`, alias `spec.converge`).
+- **adlc.change.converge** in `presets/agentic-change/preset.yml` (alias `change.converge`).
+
+# [0.11.9+adlc7] - 2026-06-30
+
+### Merged
+
+- **Upstream commits 7621e1ce..4badf3b5**: Includes upstream #3097 (agent-context opt-in refactor), #3195 (HAS_GIT drop), #3196 (PS -Number 0 fix), #3137 (subdir-only dirs), #3230 (spec template warning), #3225/#3232/#3233/#3234 (workflow fixes), #3241 (setup-plan routing), #3215 (Goose URL), #3193/#3194 (docs), #3231 (initialize-repo ASCII marker). Resolved 14 conflicts. Adopted upstream's agent-context opt-in. Version bump to `0.11.9+adlc7`.
+
 # [0.11.9+adlc6] - 2026-06-29
 
 ### Merged
@@ -2927,6 +2950,37 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.0] - 2026-06-29
+
+### Changed
+
+- feat: make agent-context extension a full opt-in (#3097)
+- docs(workflows): add the built-in 'init' step type to the Step Types table (#3234)
+- fix(workflows): gate validate() must not crash on non-string options (#3233)
+- fix(workflows): make pipe-filter detection quote-aware in expressions (#3232)
+- fix(workflows): reject a fan-in wait_for that names an unknown step at validation (#3225)
+- fix(scripts): warn when spec template is missing in create-new-feature.ps1 (parity with bash) (#3230)
+- fix(scripts): count subdirectory-only dirs as non-empty in PowerShell (parity with bash) (#3137)
+- fix(scripts): drop HAS_GIT from PowerShell git-extension output (parity with bash) (#3195)
+- Update Product Spec Extension to v1.0.1 (#3226)
+- chore: release 0.11.10, begin 0.11.11.dev0 development (#3240)
+
+## [0.11.10] - 2026-06-29
+
+### Changed
+
+- fix(extensions): apply GHES auth and resolve release assets for `extension add --from` (#3217)
+- fix(pi): repoint install_url to @earendil-works/pi-coding-agent (#3169) (#3214)
+- fix(catalogs): reject host-less catalog URLs in base and preset validators (#3210)
+- fix: update CodeBuddy install docs URL (#3187)
+- fix(workflows): reject infinite number-input default instead of raising OverflowError (#3199)
+- fix(scripts): emit 'Copied plan template' status in setup-plan.ps1 (parity with bash) (#3198)
+- fix(workflows): make expression operator/literal parsing quote-aware (#3197)
+- fix(scripts): honor explicit -Number 0 in PowerShell create-new-feature (parity with bash) (#3196)
+- Add community bundle submission path (#3162)
+- Docs: Document /speckit.converge command (#3181)
+- chore: release 0.11.9, begin 0.11.10.dev0 development (#3189)
 
 ## [0.11.9] - 2026-06-26
 
