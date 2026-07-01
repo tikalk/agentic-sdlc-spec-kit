@@ -13,6 +13,14 @@ from pathlib import Path
 
 import typer
 
+# Tikalk fork: use make_typer for BannerGroup theming on sub-command groups
+try:
+    from ..._init_fork import make_typer
+except ImportError:
+    def make_typer(*, name=None, help=None, **kwargs):
+        kwargs.setdefault("add_completion", False)
+        return typer.Typer(name=name, help=help, **kwargs)
+
 from ..._console import console, err_console
 from ...bundler import BundlerError
 from ...bundler.lib.project import (
@@ -22,16 +30,14 @@ from ...bundler.lib.project import (
 )
 from ...bundler.models.records import load_records
 
-bundle_app = typer.Typer(
+bundle_app = make_typer(
     name="bundle",
     help="Discover, install, and author Spec Kit bundles",
-    add_completion=False,
 )
 
-bundle_catalog_app = typer.Typer(
+bundle_catalog_app = make_typer(
     name="catalog",
     help="Manage bundle catalog sources",
-    add_completion=False,
 )
 bundle_app.add_typer(bundle_catalog_app, name="catalog")
 

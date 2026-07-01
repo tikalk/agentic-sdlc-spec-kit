@@ -42,17 +42,15 @@ workflow_catalog_app = make_typer(
 )
 workflow_app.add_typer(workflow_catalog_app, name="catalog")
 
-workflow_step_app = typer.Typer(
+workflow_step_app = make_typer(
     name="step",
     help="Manage workflow step types",
-    add_completion=False,
 )
 workflow_app.add_typer(workflow_step_app, name="step")
 
-workflow_step_catalog_app = typer.Typer(
+workflow_step_catalog_app = make_typer(
     name="catalog",
     help="Manage step catalogs",
-    add_completion=False,
 )
 workflow_step_app.add_typer(workflow_step_catalog_app, name="catalog")
 

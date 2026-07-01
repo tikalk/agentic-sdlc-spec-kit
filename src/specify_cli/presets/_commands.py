@@ -14,18 +14,24 @@ from pathlib import Path
 import typer
 import yaml
 
+# Tikalk fork: use make_typer for BannerGroup theming on sub-command groups
+try:
+    from .._init_fork import make_typer
+except ImportError:
+    def make_typer(*, name=None, help=None, **kwargs):
+        kwargs.setdefault("add_completion", False)
+        return typer.Typer(name=name, help=help, **kwargs)
+
 from .._console import console
 
-preset_app = typer.Typer(
+preset_app = make_typer(
     name="preset",
     help="Manage spec-kit presets",
-    add_completion=False,
 )
 
-preset_catalog_app = typer.Typer(
+preset_catalog_app = make_typer(
     name="catalog",
     help="Manage preset catalogs",
-    add_completion=False,
 )
 preset_app.add_typer(preset_catalog_app, name="catalog")
 

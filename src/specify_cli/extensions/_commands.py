@@ -21,19 +21,25 @@ from rich.markup import escape as _escape_markup
 from rich.panel import Panel
 from rich.table import Table
 
+# Tikalk fork: use make_typer for BannerGroup theming on sub-command groups
+try:
+    from .._init_fork import make_typer
+except ImportError:
+    def make_typer(*, name=None, help=None, **kwargs):
+        kwargs.setdefault("add_completion", False)
+        return typer.Typer(name=name, help=help, **kwargs)
+
 from .._console import console
 from .._assets import get_speckit_version
 
-extension_app = typer.Typer(
+extension_app = make_typer(
     name="extension",
     help="Manage spec-kit extensions",
-    add_completion=False,
 )
 
-catalog_app = typer.Typer(
+catalog_app = make_typer(
     name="catalog",
     help="Manage extension catalogs",
-    add_completion=False,
 )
 extension_app.add_typer(catalog_app, name="catalog")
 
