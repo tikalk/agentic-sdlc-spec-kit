@@ -2,6 +2,45 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc1] - 2026-07-02
+
+### Changed
+
+- **Upstream merge (`bbe86310`)**: Merged 15 upstream commits, including:
+  - `py` script type & Python interpreter resolution for cross-platform `.py` workflow execution
+  - `SPECIFY_INIT_DIR` env var support in project resolver
+  - Private-repo GitHub release asset API URL fix for bundle downloads
+  - Analytics extension added to community catalog
+  - Multi-expression template interpolation fix
+  - Core-command dir resolution via `_assets` helpers
+  - `CURRENT_BRANCH` fallback to feature directory basename
+  - Label-driven bug-fix and bug-test agentic workflows
+  - Copilot skills default rollout pre-warning
+  - Zed integration, cline hook note collapse fix
+  - June 2026 newsletter, docs TOC update
+
+### Fork Customizations Re-applied
+
+- **`integrations/base.py`**: Preserved fork's `accent` import, `_get_command_prefix()` (returns `"spec"`), `detect_native_worktree()`, prefix-aware `build_command_invocation()` alongside upstream's `resolve_python_interpreter()`, `project_root` param on `process_template()`, and `.py` script executability.
+- **`scripts/bash/common.sh`**: Merged upstream's empty `CURRENT_BRANCH` fallback into fork's rewritten `get_feature_paths()` (fork added ~260 lines of config-path resolution, mermaid validation, and architecture diagram functions).
+- **`tests/integrations/test_base.py`**: Preserved fork's `spec.` prefix assertions alongside upstream's `TestResolvePythonInterpreter`, `TestProcessTemplatePyScriptType`, and `TestInstallScriptsPython` test classes.
+
+### Conflicts Resolved
+
+- `pyproject.toml`: Version bump to `0.12.4+adlc1`; kept fork name/description.
+- `scripts/bash/common.sh`: Applied upstream's 20-line `CURRENT_BRANCH` fix on top of fork's 260-line rewrite.
+- `src/specify_cli/integrations/base.py`: Merged both fork customizations and upstream's new methods (adjacent lines, one conflict).
+- `tests/integrations/test_base.py`: Merged fork prefix assertions with upstream's 3 new test classes.
+
+### Theming Fix
+
+- **`fix(cli): restore themed banner on bundle/extension/preset/workflow-step command groups`**: Converted all 8 remaining plain `typer.Typer()` sub-apps to `make_typer()` (themed orange banner):
+  - `bundle_app`, `bundle_catalog_app`
+  - `extension_app`, `catalog_app` (extensions)
+  - `preset_app`, `preset_catalog_app`
+  - `workflow_step_app`, `workflow_step_catalog_app`
+  - (Previously only `integration_app`, `workflow_app`, and their catalog counterparts were themed; the others regressed during upstream merges.)
+
 # [0.12.2+adlc2] - 2026-07-01
 
 ### Changed
