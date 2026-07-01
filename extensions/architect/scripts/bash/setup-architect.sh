@@ -220,7 +220,9 @@ detect_subsystems() {
         for svc in "${services[@]}"; do
             local found=false
             for d in "${dirs[@]}"; do
-                if [[ "${d,,}" == *"${svc,,}"* ]] || [[ "${svc,,}" == *"${d,,}"* ]]; then
+                d_lower=$(printf '%s' "$d" | tr '[:upper:]' '[:lower:]')
+                svc_lower=$(printf '%s' "$svc" | tr '[:upper:]' '[:lower:]')
+                if [[ "$d_lower" == *"$svc_lower"* ]] || [[ "$svc_lower" == *"$d_lower"* ]]; then
                     found=true
                     break
                 fi

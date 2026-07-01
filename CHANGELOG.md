@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.2+adlc2] - 2026-07-01
+
+### Changed
+
+- **Upstream merge (`810d6fcf`, PR-8/8)**: Adopted upstream's refactor moving all `specify workflow *` command handlers out of `__init__.py` into a new `src/specify_cli/workflows/_commands.py`. `__init__.py` drops from ~2230 to ~680 lines; workflow handlers are now registered via `from .workflows._commands import register`.
+- **Bash 3.2 portability (fork extensions)**: Replaced bash 4+ `${var,,}` case-modification with portable `tr '[:upper:]' '[:lower:]'` in the service/directory matching loop of `setup-architect.sh`, `setup-levelup.sh`, and `setup-product.sh` (mirrors upstream's `create-new-feature.sh` fix). Fixes the CI "Reject bash 4+ case-modification expansions" lint check.
+
+### Fork Customizations Re-applied
+
+- **`workflows/_commands.py` theming**: Patched the new upstream file so `workflow_app` and `workflow_catalog_app` use the fork's `make_typer()` (BannerGroup theming) with an upstream fallback. `workflow_step_app`/`workflow_step_catalog_app` remain plain `typer.Typer()`, matching prior fork behavior.
+- **`__init__.py` import block**: Preserved the fork's try/except import block (`_init_fork`, `_core_fork`, `_assets_fork`), the `_upstream_`-aliased `get_speckit_version`/`GITHUB_API_LATEST`, the `show_banner` override + `_console` monkey-patch. Scoped `from typing import Any` into the fallback branch (upstream removed the module-level `Any`, `contextlib`, `yaml` imports now that their only users moved to `_commands.py`).
+
+### Conflicts Resolved
+
+- `src/specify_cli/__init__.py`: Accepted upstream's compact `register()` workflow region; re-applied the fork import block and banner theming on top.
+- `tests/test_workflows.py`: Auto-merged cleanly — kept fork's `_FORK_HAS_TEE`/`run_and_tee` mock-target logic alongside upstream's relocated helper imports (`workflows._commands`) and new tests.
+
 # [0.12.2+adlc1] - 2026-06-30
 
 ### Changed
