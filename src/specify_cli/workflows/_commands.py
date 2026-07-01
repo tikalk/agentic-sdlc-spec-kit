@@ -19,7 +19,8 @@ import typer
 import yaml
 from rich.markup import escape as _escape_markup
 
-from .._console import console
+from .._console import console, err_console
+from .._project import _resolve_init_dir_override
 
 workflow_app = typer.Typer(
     name="workflow",
@@ -74,10 +75,10 @@ def _reject_unsafe_dir(path: Path, label: str) -> None:
     creates the directory — only an existing-but-wrong target is rejected.
     """
     if path.is_symlink():
-        console.print(f"[red]Error:[/red] Refusing to use symlinked {label} path")
+        err_console.print(f"[red]Error:[/red] Refusing to use symlinked {label} path")
         raise typer.Exit(1)
     if path.exists() and not path.is_dir():
-        console.print(f"[red]Error:[/red] {label} path exists but is not a directory")
+        err_console.print(f"[red]Error:[/red] {label} path exists but is not a directory")
         raise typer.Exit(1)
 
 
@@ -320,9 +321,11 @@ def workflow_run(
     is_file_source = source_path.suffix.lower() in (".yml", ".yaml") and source_path.is_file()
 
     if is_file_source:
-        # When running a YAML file directly, use cwd as project root
-        # without requiring a .specify/ project directory.
-        project_root = Path.cwd()
+        # When running a YAML file directly, use cwd as project root without
+        # requiring a .specify/ project directory — unless SPECIFY_INIT_DIR
+        # explicitly names a project, in which case the strict override applies.
+        override = _resolve_init_dir_override()
+        project_root = override if override is not None else Path.cwd()
         _reject_unsafe_workflow_storage(project_root)
     else:
         project_root = _require_specify_project()
