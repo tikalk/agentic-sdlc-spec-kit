@@ -534,6 +534,15 @@ get_feature_paths() {
         return 1
     fi
 
+    # When no branch context exists (no SPECIFY_FEATURE, feature resolved via
+    # SPECIFY_FEATURE_DIRECTORY or feature.json), fall back to the feature
+    # directory basename so CURRENT_BRANCH is a usable identifier rather than
+    # an empty, misleading value (issue #3026).
+    if [[ -z "$current_branch" ]]; then
+        local feature_dir_trimmed="${feature_dir%/}"
+        current_branch="${feature_dir_trimmed##*/}"
+    fi
+
     # Project-level governance documents
     local memory_dir="$repo_root/.specify/memory"
     local constitution_file="$memory_dir/constitution.md"

@@ -1500,14 +1500,14 @@ class TestIntegrationCatalogDiscoveryCLI:
         project.mkdir()
         result = self._invoke(["integration", "search"], project)
         assert result.exit_code == 1
-        assert "Not a spec-kit project" in result.output
+        assert "Not a Spec Kit project" in result.output
 
     def test_catalog_list_requires_specify_project(self, tmp_path):
         project = tmp_path / "bare"
         project.mkdir()
         result = self._invoke(["integration", "catalog", "list"], project)
         assert result.exit_code == 1
-        assert "Not a spec-kit project" in result.output
+        assert "Not a Spec Kit project" in result.output
 
     def test_primary_integration_commands_require_specify_project(self, tmp_path):
         project = tmp_path / "bare"
@@ -1527,7 +1527,7 @@ class TestIntegrationCatalogDiscoveryCLI:
                 f"command={command!r}, exit_code={result.exit_code}, output={result.output!r}"
             )
             assert result.exit_code == 1, failure_context
-            assert "Not a spec-kit project" in result.output, failure_context
+            assert "Not a Spec Kit project" in result.output, failure_context
 
     def test_integration_commands_require_specify_directory(self, tmp_path):
         project = tmp_path / "bad"
@@ -1542,7 +1542,7 @@ class TestIntegrationCatalogDiscoveryCLI:
         for command in commands:
             result = self._invoke(command, project)
             assert result.exit_code == 1, result.output
-            assert "Not a spec-kit project" in result.output
+            assert "Not a Spec Kit project" in result.output
 
     def test_project_scoped_commands_require_specify_directory(self, tmp_path):
         project = tmp_path / "bad-feature-commands"
@@ -1593,7 +1593,7 @@ class TestIntegrationCatalogDiscoveryCLI:
                 f"command={command!r}, exit_code={result.exit_code}, output={result.output!r}"
             )
             assert result.exit_code == 1, failure_context
-            assert "Not a spec-kit project" in result.output, failure_context
+            assert "Not a Spec Kit project" in result.output, failure_context
 
     def test_catalog_config_output_uses_posix_paths(self, tmp_path):
         project = self._make_project(tmp_path)
