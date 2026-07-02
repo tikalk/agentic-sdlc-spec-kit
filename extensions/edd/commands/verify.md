@@ -1,5 +1,5 @@
 ---
-description: "Run deterministic + AI evaluation, grade quality gates, write evidence.md, loop-state.yml, and next-prompt.md"
+description: "Run deterministic + AI evaluation, grade quality gates, append actionable tasks, update verify.md, write evidence.md, loop-state.yml, and next-spec.md"
 scripts:
   sh: .specify/extensions/edd/scripts/bash/run-deterministic.sh
   ps: .specify/extensions/edd/scripts/powershell/run-deterministic.ps1
@@ -15,11 +15,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Run a unified evaluation of the current feature implementation. This command performs three phases:
+Run a unified evaluation of the current feature implementation. This command performs five phases:
 
 1. **Deterministic checks**: lint, tests, smoke (via bundled scripts)
 2. **AI-driven evaluation**: verify Mission Brief against artifacts, map evidence, check oracle adequacy, analyze findings
-3. **Grade & Prompt**: aggregate into a structured grade; on failure, generate a corrective `next-prompt.md`
+3. **Grade & Prompt**: aggregate into a structured grade; on failure, classify findings as actionable (→ tasks.md) or spec-level (→ next-spec.md)
+4. **Append Actionable Tasks**: append implementation-level verification gaps to `tasks.md` following converge's append-only contract
+5. **Update verify.md**: fill EDD placeholder sections in converge's `verify.md`, making it the unified evidence bundle
 
 This command is invoked as `/edd.verify`.
 
@@ -28,7 +30,10 @@ This command is invoked as `/edd.verify`.
 - Write feature-local artifacts:
   - `FEATURE_DIR/evidence.md` — verification dossier (human-readable)
   - `FEATURE_DIR/.eval/loop-state.yml` — structured machine state spine with history (replaces grade.json)
-  - `FEATURE_DIR/next-prompt.md` — corrective prompt (only on FAIL)
+  - `FEATURE_DIR/next-spec.md` — spec-level corrections for `spec.specify` (only on FAIL, spec-level issues)
+  - `FEATURE_DIR/tasks.md` — append actionable verification tasks (only on FAIL, implementation-level issues)
+  - `FEATURE_DIR/verify.md` — update EDD placeholder sections (always, when verify.md exists)
+- **APPEND-ONLY to tasks.md**: follow converge's append-only contract — append a new `## Phase N: EDD` section; never rewrite, renumber, or delete existing tasks
 - Be conservative: if proof is missing, mark the item as `Not Validated`
 - Do not invent evidence from implication or stylistic confidence
 - Prefer explicit artifact citations over narrative claims
@@ -51,7 +56,9 @@ Once identified, list the feature directory contents and derive these absolute p
 - `CHECKLIST_DIR = FEATURE_DIR/checklists/`
 - `EVAL_DIR = FEATURE_DIR/.eval/`
 - `LOOP_STATE = EVAL_DIR/loop-state.yml`
-- `NEXT_PROMPT = FEATURE_DIR/next-prompt.md`
+- `NEXT_SPEC = FEATURE_DIR/next-spec.md`
+- `VERIFY = FEATURE_DIR/verify.md`
+- `TASKS = FEATURE_DIR/tasks.md`
 
 Create `EVAL_DIR` if it does not exist.
 
@@ -180,14 +187,14 @@ Read `no_progress_threshold` and `max_cost_usd` from `.specify/extensions/edd/ed
 
 **No-progress detection** — if history has at least `threshold + 1` entries:
 - Check if the last `threshold` scores are all ≤ the score at position `-(threshold + 1)`
-- If yes: override verdict to `"STALL"`. Write escalation section in evidence.md (see section 8). Delete `next-prompt.md` if it exists. Stop — do not generate a corrective prompt.
+- If yes: override verdict to `"STALL"`. Write escalation section in evidence.md (see section 8). Delete `next-spec.md` if it exists. Stop — do not generate a corrective prompt or append tasks.
 
 **Budget ceiling** — compute cumulative cost as `iteration * 4` (heuristic $4/iteration):
-- If cumulative cost exceeds `max_cost_usd`: override verdict to `"BUDGET"`. Write escalation section in evidence.md. Delete `next-prompt.md` if it exists. Stop — do not generate a corrective prompt.
+- If cumulative cost exceeds `max_cost_usd`: override verdict to `"BUDGET"`. Write escalation section in evidence.md. Delete `next-spec.md` if it exists. Stop — do not generate a corrective prompt or append tasks.
 
 **Regression detection** — if history has at least 2 entries:
 - Compare current `score_pct` with the previous iteration's `score_pct`
-- If current < previous: flag `REGRESSION` for use in next-prompt.md
+- If current < previous: flag `REGRESSION` for use in next-spec.md
 
 The updated history (including the new record) will be written to `loop-state.yml` in section 9.
 
@@ -310,7 +317,7 @@ current_eval:
   score_threshold: "6/6 (100%)"
   deterministic_passed: true
   ai_passed: false
-  next_prompt_file: "next-prompt.md"
+  next_spec_file: "next-spec.md"
   gates:
     - id: lint
       type: deterministic
@@ -354,19 +361,41 @@ history:
 
 If the verdict is `"FAIL"` (not overridden by STALL/BUDGET), populate the failing gates. For STALL or BUDGET, set the appropriate status and skip detailed gate output.
 
-### 10. Generate `next-prompt.md` (on FAIL only)
+### 10. Classify Findings and Generate `next-spec.md` (on FAIL only)
 
-If `verdict` is `"FAIL"`, write `FEATURE_DIR/next-prompt.md` with a self-contained corrective prompt. This prompt should be suitable for feeding directly into `spec.specify` as if it were a fresh feature request.
+If `verdict` is `"FAIL"`, classify each failed gate's findings into two categories:
 
-Structure:
+**Actionable (implementation-level)** — these get appended as tasks to `tasks.md` in Phase 4:
+
+| Finding type | Example task |
+|---|---|
+| Test coverage < threshold | "Add tests for uncovered paths per FR-###" |
+| Constraint unvalidated | "Validate constraint C-###: {description}" |
+| CRITICAL/HIGH analyze finding | "Fix {finding} per {source-ref}" |
+| Specific SC not validated | "Add verification evidence for SC-###" |
+| Lint/test failures | "Fix {N} lint errors in {file}" / "Fix {N} failing tests" |
+
+**Spec-level** — these go to `next-spec.md` for `spec.specify`:
+
+| Finding type | Example correction |
+|---|---|
+| Oracle adequacy < threshold | "Quantify SC-###, add measurable acceptance criteria" |
+| Ambiguous requirement | "Clarify FR-###: {what's ambiguous}" |
+| Missing success criterion | "Add SC-### for {capability}" |
+| Missing constraint | "Add constraint for {uncovered concern}" |
+
+If there are spec-level findings, write `FEATURE_DIR/next-spec.md`:
 
 ```markdown
-# Corrective Prompt — Iteration [N]
+# Next Spec Correction — Iteration [N]
 
-## Failed Gates
+> This file contains spec-level corrections for `spec.specify`.
+> Implementation-level fixes were appended directly to tasks.md as tasks.
 
-- [Gate ID]: [description] — [detail]
-- ...
+## Spec-Level Issues
+
+1. [Issue]: [description] — [why the spec is insufficient]
+2. ...
 
 ## Regression (only if score dropped from previous iteration)
 
@@ -375,48 +404,147 @@ Structure:
 The following may have caused the regression:
 - [List changes that may have caused the regression]
 
-## Action Items
-
-1. [Specific action to fix gate 1]
-2. [Specific action to fix gate 2]
-3. ...
-
-## Context
-
-- Feature: [feature name]
-- Previous iteration artifacts: [list key artifacts]
-- Keep: [what was working and should be preserved]
-- Fix: [what specifically needs to change]
-
 ## Revised Feature Request
 
-[Write a concise, self-contained feature request that incorporates the fixes above. This should read like a fresh user prompt to spec.specify, but informed by what we've learned.]
+[Write a concise, self-contained feature request that incorporates the spec-level fixes above. This should read like a fresh user prompt to spec.specify, but informed by what we've learned.]
 ```
 
-If `verdict` is `"PASS"`, delete `next-prompt.md` if it exists (the loop is done).
+If `verdict` is `"PASS"`, delete `next-spec.md` if it exists (the loop is done).
 
-### 11. Report Back
+### 11. Append Actionable Tasks (on FAIL only)
+
+For each actionable finding classified in Step 10, append a task to `tasks.md` following converge's append-only contract.
+
+**Append contract (same as converge):**
+
+1. Read `TASKS` (`FEATURE_DIR/tasks.md`). Scan all existing task IDs; let `M` be the maximum numeric ID. Determine the next phase number `N` (highest existing `## Phase` header + 1).
+2. Write a single new section header: `## Phase N: EDD`
+3. Emit one checklist item per actionable finding, ordered by severity (CRITICAL/HIGH first):
+
+   ```markdown
+   - [ ] T{M+1:03d} {imperative description} per {source-ref} ({gap-type})
+   ```
+
+4. `<source-ref>` traces the task to its origin: `SC-###`, `C-###` (constraint), `FR-###`, gate ID, or constitution article.
+5. `<gap-type>` is one of `missing` (test/evidence absent), `partial` (incomplete coverage), `contradicts` (fails a constraint), `unrequested` (unexpected finding).
+6. **Never reuse or renumber existing IDs.** If a prior `## Phase N: EDD` section exists, add a new, separately-numbered one below it.
+7. Do **not** modify `spec.md`, `plan.md`, `verify.md`, or any application code — completing the appended tasks is the job of `__SPECKIT_COMMAND_IMPLEMENT__`.
+
+**If any tasks were appended**, set `tasks_appended = true` for the output signal.
+
+**If verdict is PASS or STALL or BUDGET**, do not append any tasks.
+
+### 12. Update `verify.md` (always, when verify.md exists)
+
+Converge wrote `verify.md` with placeholder sections for EDD. Fill them in now.
+
+Read `VERIFY` (`FEATURE_DIR/verify.md`). If it does not exist, skip this step gracefully (converge may not have written it — e.g., if converge found gaps and stopped before the verification phases).
+
+Locate these placeholder markers and replace their content:
+
+#### EDD Evidence section
+
+Replace `_Pending: EDD verification has not yet run._` with:
+
+```markdown
+| Gate | Type | Status | Score | Detail |
+|------|------|--------|-------|--------|
+| Tests pass | deterministic | ✅/❌ | X/Y | {pass_count} pass, {fail_count} fail |
+| Coverage ≥ 80% | deterministic | ✅/❌ | XX% | {coverage}% |
+| Lint clean | deterministic | ✅/❌ | X issues | {errors} errors, {warnings} warnings |
+| Oracle adequacy ≥ 80% | AI | ✅/❌ | X/6 | {detail} |
+| No CRITICAL/HIGH findings | AI | ✅/❌ | X findings | {detail} |
+| SC/Constraint validation | AI | ✅/❌ | X/Y validated | {detail} |
+
+**EDD Verdict**: {PASS/FAIL/STALL/BUDGET}
+**Score**: {pass_count}/{total_gates} ({percentage}%)
+**Tasks Appended**: {count} (or "none")
+**next-spec.md**: {written / not needed}
+**Iteration**: {N}
+```
+
+#### What Was Checked — EDD subsection
+
+Replace the EDD placeholder with:
+
+```markdown
+### EDD
+- EDD: lint via {linter} — {result}
+- EDD: {N} tests run — {pass} passed, {fail} failed
+- EDD: coverage — {coverage}%
+- EDD: oracle adequacy — {N}/6 items passed ({percentage}%)
+- EDD: {N} success criteria validated against evidence
+- EDD: {N} constraints validated
+- EDD: {N} quality gates passed of {total}
+```
+
+#### What Was NOT Checked — EDD subsection
+
+Replace the EDD placeholder with:
+
+```markdown
+### EDD
+- EDD: {list any gates not run or incomplete, e.g. "smoke tests not configured"}
+- EDD: {list any SCs/constraints with insufficient evidence}
+- EDD: {list any unvalidated assumptions}
+```
+
+If all gates passed and nothing was left unchecked, write: `All EDD gates passed — no unchecked items.`
+
+#### Residual Risks — EDD subsection
+
+Replace the EDD placeholder with:
+
+```markdown
+### EDD
+- EDD: {risk from failed gate, e.g. "Test coverage at 65% — below 80% threshold"}
+- EDD: {unvalidated assumption or constraint}
+```
+
+If verdict is PASS, write: `No EDD residual risks — all gates passed.`
+
+#### Provenance — EDD line
+
+Replace the EDD provenance placeholder with:
+
+```markdown
+- EDD Version: 1.1.0
+- EDD Iteration: {N}
+- EDD Verdict: {PASS/FAIL/STALL/BUDGET}
+- EDD Score: {pass_count}/{total_gates} ({percentage}%)
+```
+
+### 13. Report Back
 
 After writing all files, summarize:
 
-- path written (`evidence.md`, `loop-state.yml`, `next-prompt.md` if applicable)
+- paths written (`evidence.md`, `loop-state.yml`, `next-spec.md` if applicable, `tasks.md` if tasks appended, `verify.md` if updated)
 - verdict (PASS, FAIL, STALL, or BUDGET)
 - score (e.g., "5/6 (83%)")
 - which gates passed and which failed, with detail
 - count of residual risks
+- **tasks appended**: count of EDD tasks added to tasks.md (or "none")
+- **next-spec.md**: written / not needed (spec-level corrections)
+- **verify.md**: updated / skipped (not found)
 - if STALL: iteration, last score, threshold, and degradation pattern
 - if BUDGET: cumulative cost estimate and ceiling
 
 ## Exit Code
 
-- **0** if `verdict` is `"PASS"`
-- **1** if `verdict` is `"FAIL"`
+- **0** if `verdict` is `"PASS"` — all gates pass, no tasks appended, no next-spec.md
+- **1** if `verdict` is `"FAIL"` — tasks appended to tasks.md and/or next-spec.md written
 - **2** if `verdict` is `"STALL"` — no progress detected, human intervention needed
 - **3** if `verdict` is `"BUDGET"` — budget ceiling hit, human intervention needed
+
+**Loop signal**: If exit code is 1, the caller should check for `next-spec.md`:
+- If `next-spec.md` exists → route to `spec.specify` (spec-level correction), then plan → tasks → implement
+- If `next-spec.md` does not exist → route to `spec.implement` (task-level correction only)
 
 ## Notes
 
 - This command replaces the old `spec.verify` preset command
 - `loop-state.yml` is the unified machine state spine — replaces the old `grade.json` and tracks history across iterations
-- The `next-prompt.md` is the bridge that enables loop-driven development: on failure, feed it back to `spec.specify` for the next iteration
+- `next-spec.md` (renamed from `next-prompt.md`) contains only spec-level corrections targeting `spec.specify`; implementation-level fixes are appended directly to `tasks.md` as actionable tasks
+- EDD is a convergence partner: it appends tasks to `tasks.md` using the same append-only contract as converge, and fills EDD placeholder sections in converge's `verify.md` to produce a unified evidence bundle
 - Guardrails (no-progress, budget, regression) prevent runaway loops per Loop Engineering principles (Van Horn, Osmani, prateek, Campos, Chawla 2026)
+- **Loop routing**: `next-spec.md` → `spec.specify` → plan → tasks → implement → converge; `tasks_appended` (no next-spec.md) → implement → converge

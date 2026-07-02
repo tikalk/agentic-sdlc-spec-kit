@@ -32,4 +32,4 @@ loop:
 output:
   evidence: "evidence.md"
   state: ".eval/loop-state.yml"
-  next_prompt: "next-prompt.md"
+  next_spec: "next-spec.md"

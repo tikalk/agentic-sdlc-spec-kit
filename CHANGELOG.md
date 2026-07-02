@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc4] - 2026-07-02
+
+### Changed
+
+- **`edd` extension (v1.1.0)**: EDD is now a convergence partner, not just an evaluator. Appends actionable verification gaps as tasks to `tasks.md` (under `## Phase N: EDD`), following converge's append-only contract. Spec-level corrections (oracle adequacy, ambiguous requirements, missing success criteria) go to `next-spec.md` (renamed from `next-prompt.md`), targeting `spec.specify`. Fills EDD evidence placeholder sections in converge's `verify.md`, making it the unified evidence bundle. Fixes loop disconnect where `next-prompt.md` targeted `spec.specify` while `impl-converge-loop` re-ran `spec.implement`.
+- **`adlc.spec.converge`**: `verify.md` template now includes EDD placeholder sections (EDD Evidence, EDD-specific What Was Checked/Not Checked/Risks, EDD Provenance). Added Step 10.5 (Read Available Evidence Sources) to load TDD's `tdd-quality-report.md`, EDD's `evidence.md` (from previous loop iteration), `trace.md`, and checklists. Post-hook override now checks for EDD-appended tasks and `next-spec.md`, with loop routing signal (next-spec.md → spec.specify; tasks_appended → implement).
+- **`adlc.loop.run` + `adlc.loop.goal`**: Updated loop routing — `next-spec.md` exists → spec.specify → plan → tasks → implement → converge; `next-spec.md` absent but `tasks_appended` → implement → converge.
+
+### Added
+
+- **Unified evidence bundle**: Converge's `verify.md` now serves as the unified evidence bundle with sections: Intent (Mission Brief), Verification Summary (all sources), Test Gate, Diff Summary, 4-Pillar Assessment, EDD Evidence, Overall Verdict, What Was Checked (Converge/EDD/TDD), What Was NOT Checked (Converge/EDD/TDD), Residual Risks (Converge/EDD/TDD), Provenance, Recommended Actions. Directly addresses the "evidence bundles" open problem from the AlphaSignal SDD article ("every accepted change should ship with a record of what was checked, what was not, and what risks remain").
+
 # [0.12.4+adlc3] - 2026-07-02
 
 ### Added

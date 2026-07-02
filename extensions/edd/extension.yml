@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: "edd"
   name: "EDD — Evaluation-Driven Development"
-  version: "1.0.0"
-  description: "Adds a verification layer to the SDLC cycle: deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping, analyze findings) + grading + corrective prompt generation. Enables loop-driven development workflows."
+  version: "1.1.0"
+  description: "Verification partner for converge: deterministic checks (lint, tests, smoke) + AI-driven evaluation (oracle adequacy, evidence mapping). Appends actionable verification gaps as tasks to tasks.md, writes next-spec.md for spec-level corrections, and fills EDD evidence sections in converge's verify.md. Enables loop-driven development."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -20,7 +20,7 @@ provides:
   commands:
     - name: "adlc.edd.verify"
       file: "commands/verify.md"
-      description: "Run deterministic + AI evaluation, grade gates, write evidence.md + grade.json + next-prompt.md"
+      description: "Run deterministic + AI evaluation, grade gates, append tasks, update verify.md, write evidence.md + loop-state.yml + next-spec.md"
       aliases: ["edd.verify"]
 
   config:
