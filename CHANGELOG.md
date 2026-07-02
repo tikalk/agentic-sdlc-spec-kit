@@ -2,6 +2,28 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc3] - 2026-07-02
+
+### Added
+
+- **`loop` extension (v1.0.0)**: Loop Engineering for Spec-Driven Development. Two commands: `adlc.loop.run` (delegates to `impl-converge-loop` engine workflow) and `adlc.loop.goal` (full autonomous SDLC cycle: ensure spec/plan/tasks exist, then trigger loop). Bundled in wheel, `preinstall: false`.
+- **`impl-converge-loop` workflow**: Engine-native `do-while` loop running `adlc.spec.implement` → `adlc.spec.converge` until converge reports no remaining gaps (max 5 iterations). Condition: `{{ steps.converge.output.stdout | contains('tasks_appended') }}`.
+
+### Changed
+
+- **Merged `spec.verify` into `spec.converge`**: The `adlc.spec.verify` command is deleted. Its test gate, diff analysis, and 4-pillar quality assessment phases are now part of `adlc.spec.converge` — converge first checks for gaps (outputs `tasks_appended` if found), then if converged runs the test gate + 4-pillar assessment (outputs `converged` or `tasks_appended` based on pillar scores). Converge now outputs the outcome token as the first line of stdout for workflow engine consumption.
+- **Merged `change.verify` into `change.converge`**: Same merge applied to the agentic-change preset — `adlc.change.verify` deleted, its criteria verification absorbed into `adlc.change.converge`.
+- **EDD hook moved**: `after_implement` → `after_converge`. EDD's `edd.verify` now fires after `spec.converge` instead of `spec.implement`, aligning deep evaluation with the convergence gate. Converge's post-hook override ensures `tasks_appended` is reported when EDD finds issues.
+- **Implement handoff**: `adlc.spec.implement` handoff changed from `edd.verify` to `spec.converge`.
+- **Trace handoff**: `adlc.spec.trace` no longer hands off to `edd.verify` (trace is now a dead-end analysis command).
+- **CLI version**: `0.12.4+adlc2` → `0.12.4+adlc3`
+
+### Removed
+
+- **`adlc.spec.verify`**: Merged into `adlc.spec.converge`.
+- **`adlc.change.verify`**: Merged into `adlc.change.converge`.
+- **`sdd-loop.yml` workflow**: Deleted from EDD extension — used non-existent `file_exists()`/`read()` Jinja2 functions and string `max_iterations` (engine rejects both). Never registered in any catalog, never tested. Replaced by `impl-converge-loop` workflow + `loop` extension.
+
 # [0.12.4+adlc2] - 2026-07-02
 
 ### Fixed

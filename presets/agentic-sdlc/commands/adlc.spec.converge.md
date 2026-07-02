@@ -1,5 +1,5 @@
 ---
-description: Assess the current codebase against the feature's spec, plan, and tasks, then append any remaining unbuilt work as new tasks to tasks.md so implement can complete it.
+description: Assess the codebase against spec, plan, and tasks; append remaining work as new tasks, or if converged, run test gate, diff analysis, and 4-pillar quality assessment
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
@@ -203,19 +203,153 @@ Append to the **end** of `tasks.md`, per the append contract:
 4. Never reuse or renumber existing IDs. If a prior Convergence phase exists, add a new,
    separately-numbered one below it — do not touch the old one.
 
+**Output the outcome token as the first line of stdout**: print `tasks_appended` on its own
+line before any other output. Then output the findings summary and handoff.
+
+Do NOT proceed to the Test Gate, Diff Analysis, or 4-Pillar Assessment — those phases run
+only when the codebase is converged.
+
 **If there are no actionable findings** (`converged` outcome):
 
 - Do **not** modify `tasks.md` at all — no empty phase header.
 - Report: **"Converged — the implementation satisfies the spec, plan, and tasks."**
 - Include the summary counts of what was checked.
+- **Proceed to the verification phases below** (Test Gate → Diff Analysis → 4-Pillar).
 
-### 8. Provide Next Actions (Handoff)
+### 8. Test Gate
+
+**Tests MUST pass before assessment.** Run the project's test suite:
+
+1. Detect available test runners (search for `package.json` scripts, `pytest.ini`, `Cargo.toml`, `Makefile`, etc.)
+2. Run tests once:
+   - If tests pass → proceed to Diff Analysis
+   - If tests fail → append a task "Fix failing tests" to `tasks.md` under a new `## Phase N: Convergence` section, output `tasks_appended` as the first stdout line, and STOP. Do NOT continue to Diff Analysis or 4-Pillar Assessment until tests pass.
+
+If `SPECIFY_FEATURE_DIRECTORY` is not set and no feature.json exists, skip Test Gate (not in a feature context).
+
+### 9. Diff Analysis
+
+Read `git diff` to understand what changed:
+
+1. Run `git diff HEAD --name-only` (or `git diff --name-only` if no commits yet) to identify changed files
+2. Categorize changes:
+   - **Spec-related files** under `SPECIFY_FEATURE_DIRECTORY/`
+   - **Implementation files** (source code, configs)
+   - **Test files**
+   - **Documentation files**
+
+### 10. 4-Pillar Assessment
+
+Assess the feature against four pillars. For each, produce a score (0-100), evidence, and specific findings.
+
+#### Pillar 1: Spec Compliance
+
+Compare implementation against the full spec contract in `SPECIFY_FEATURE_DIRECTORY/spec.md`:
+
+- **Goal alignment** — Does the implementation achieve the spec Goal?
+- **Success Criteria coverage** — Are all SC items met?
+- **Constraint adherence** — Are all Constraints respected?
+- **Functional Requirements** — Are all FR items addressed? (cite each: ✅ FR-NNN or ❌ FR-NNN)
+- **Non-Functional Requirements** — Are NFR items addressed?
+- **Risk Register items** — Are documented risks mitigated?
+
+Read the spec in full. For each FR and SC, trace to evidence in the implementation (files, test output, config). Flag any that are partially or fully unmet.
+
+#### Pillar 2: Code Quality
+
+Assess implementation quality:
+
+- **Structure** — Is the code well-organized? Follows project conventions?
+- **Error handling** — Are error paths handled gracefully?
+- **Edge cases** — Are edge cases from the spec addressed?
+- **Consistency** — Consistent patterns, naming, and style?
+
+#### Pillar 3: Test Adequacy
+
+Assess test coverage:
+
+- **Coverage** — Are all FRs and SCs covered by tests?
+- **Quality** — Are tests meaningful (not just pass-through)?
+- **Edge cases** — Are edge cases tested?
+- **Regression risk** — Are there untested paths that could break?
+
+#### Pillar 4: Risk & Evidence
+
+Assess remaining risk:
+
+- **Unverified assumptions** — What assumptions remain untested?
+- **Technical debt** — What shortcuts or TODOs exist?
+- **Integration risk** — Are integration points verified?
+- **Evidence quality** — Is the evidence for each claim credible (test output, logs, manual verification)?
+
+### 11. Write Verification Report
+
+Write to `SPECIFY_FEATURE_DIRECTORY/verify.md`:
+
+```markdown
+# Verification Report: [Feature Name]
+
+## Test Gate
+- **Result**: PASS / FAIL
+- **Details**: [Test output summary if failed]
+
+## Diff Summary
+- **Files changed**: [N]
+- **Categories**: [Spec: N, Implementation: N, Tests: N, Docs: N]
+
+## 4-Pillar Assessment
+
+### Pillar 1: Spec Compliance
+**Score**: [0-100]/100
+**Evidence**: [Summary of findings]
+**Unmet items**:
+- ❌ FR-001: [Description] → [What's missing]
+- ❌ SC-001: [Description] → [What's missing]
+
+### Pillar 2: Code Quality
+**Score**: [0-100]/100
+**Strengths**: [What's good]
+**Issues**: [What needs improvement]
+
+### Pillar 3: Test Adequacy
+**Score**: [0-100]/100
+**Coverage**: [% estimated]
+**Gaps**: [What's untested]
+
+### Pillar 4: Risk & Evidence
+**Score**: [0-100]/100
+**Risks**: [Remaining risks]
+**Evidence quality**: [How strong is the evidence]
+
+## Overall Verdict
+
+| Pillar | Score | Status |
+|--------|-------|--------|
+| Spec Compliance | [X] | ✅ PASS / ❌ FAIL |
+| Code Quality | [X] | ✅ PASS / ❌ FAIL |
+| Test Adequacy | [X] | ✅ PASS / ❌ FAIL |
+| Risk & Evidence | [X] | ✅ PASS / ❌ FAIL |
+
+**Overall**: ✅ VERIFIED / ❌ NOT VERIFIED
+
+*Threshold: All pillars >= 70 for overall PASS.*
+
+## Recommended Actions
+
+[If failed, list specific actions to address each failing pillar]
+```
+
+**IMPORTANT**: If `SPECIFY_FEATURE_DIRECTORY` is not set, output the report inline instead of writing to a file.
+
+If any pillar score is below 70, append remediation tasks to `tasks.md` under a new `## Phase N: Convergence` section, and output `tasks_appended` as the first stdout line instead of `converged`.
+
+### 12. Provide Next Actions (Handoff)
 
 - On `tasks_appended`: state how many tasks were appended under which phase, and recommend
   running `__SPECKIT_COMMAND_IMPLEMENT__` to complete them; note that a follow-up converge
   run will find fewer or no remaining items.
-- On `converged`: recommend proceeding to verification (`/spec.verify`). No further implement pass
-  is needed for this feature's specified scope.
+- On `converged`: report that the feature is fully converged and verified. No further
+  implement pass is needed for this feature's specified scope.
 
 ## Post-Execution Hooks
 
@@ -233,5 +367,5 @@ Append to the **end** of `tasks.md`, per the append contract:
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
    - **Optional** (`optional: true`): Display hook info for user decision.
-5. Report the convergence outcome (`converged` or `tasks_appended`) first so users can decide whether to run optional hooks.
+5. **Post-hook override**: After running all `after_converge` hooks, if any mandatory hook reported failures or generated correction artifacts (e.g., `next-prompt.md`), output `tasks_appended` as the first stdout line to signal more work is needed, overriding the initial `converged` assessment. This ensures the implement↺converge loop continues when deep evaluation (e.g., EDD) finds issues.
 6. If no hooks registered, skip silently.

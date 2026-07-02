@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1] - 2026-07-02
+
+### Changed
+
+- Hook moved from `after_implement` to `after_converge` — EDD now fires after `spec.converge` instead of `spec.implement`, aligning deep evaluation with the convergence gate
+- Deleted `sdd-loop.yml` workflow — replaced by `impl-converge-loop` workflow in the `loop` extension (the sdd-loop workflow had non-functional `file_exists()`/`read()` expressions and was never registered in any catalog)
+
 ## [1.0.0] - 2026-06-14
 
 ### Added

@@ -1,0 +1,44 @@
+schema_version: "1.0"
+workflow:
+  id: "impl-converge-loop"
+  name: "Implement↺Converge Loop"
+  version: "1.0.0"
+  author: "Agentic SDLC Team"
+  description: "Runs implement → converge in a do-while loop until converge reports no remaining gaps (max 5 iterations)"
+
+requires:
+  speckit_version: ">=0.8.5"
+  integrations:
+    any:
+      - "claude"
+      - "copilot"
+      - "gemini"
+      - "opencode"
+
+inputs:
+  feature_name:
+    type: string
+    default: ""
+    prompt: "Feature directory name (optional — defaults to current feature)"
+  integration:
+    type: string
+    default: "auto"
+    prompt: "Integration to use (e.g. claude, copilot, gemini; 'auto' uses the project's initialized integration)"
+
+steps:
+  - id: loop
+    type: do-while
+    condition: "{{ steps.converge.output.stdout | contains('tasks_appended') }}"
+    max_iterations: 5
+    steps:
+      - id: implement
+        command: adlc.spec.implement
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
+
+      - id: converge
+        command: adlc.spec.converge
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""

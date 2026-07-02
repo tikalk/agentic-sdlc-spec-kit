@@ -4,7 +4,7 @@ preset:
   id: "agentic-change"
   name: "Agentic Change Workflow"
   version: "1.3.0"
-  description: "Lightweight change proposal workflow — create, implement, verify, and contribute lessons from iterative changes"
+  description: "Lightweight change proposal workflow — create, implement, converge, and contribute lessons from iterative changes"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -29,14 +29,8 @@ provides:
     - type: "command"
       name: "adlc.change.converge"
       file: "commands/adlc.change.converge.md"
-      description: "Assess change scope and append remaining work as new tasks"
+      description: "Assess change scope and append remaining work; if converged, verify criteria and update change status"
       aliases: ["change.converge"]
-
-    - type: "command"
-      name: "adlc.change.verify"
-      file: "commands/adlc.change.verify.md"
-      description: "Verify change completeness — converge gap-finder, criteria assessment, and loop-back directive"
-      aliases: ["change.verify"]
 
     - type: "command"
       name: "adlc.change.levelup"

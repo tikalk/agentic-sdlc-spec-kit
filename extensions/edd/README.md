@@ -11,11 +11,11 @@ Adds a verification layer to the Spec-Driven Development cycle. EDD runs determi
 ## Workflow
 
 ```
-specify → plan → tasks → implement → edd.verify
-                                     ↓
-                              grade.json PASS?
-                              yes → done
-                              no  → next-prompt.md → loop back to specify
+specify → plan → tasks → implement → converge → edd.verify (after_converge hook)
+                                               ↓
+                                        grade.json PASS?
+                                        yes → done
+                                        no  → next-prompt.md → loop back to implement
 ```
 
 ## Quality Gates
@@ -31,18 +31,18 @@ EDD evaluates the implementation against quality gates. Gates can be defined per
 
 ## Loop Workflow
 
-The extension ships a workflow that automates the loop:
+The `impl-converge-loop` workflow (bundled with the `loop` extension) automates the
+implement↺converge cycle. When EDD is installed, its `after_converge` hook fires
+`edd.verify` after every converge step, providing deep evaluation within the loop:
 
 ```bash
-specify workflow run extensions/edd/workflows/sdd-loop.yml \
-  --input spec="Build user authentication"
+specify workflow run impl-converge-loop --input integration=claude
 ```
 
-Or install and run:
+Or use the loop extension command:
 
 ```bash
-specify workflow add sdd-loop  # if published to catalog
-specify workflow run sdd-loop --input spec="Build user authentication"
+specify adlc.loop.run
 ```
 
 ## Configuration
@@ -59,7 +59,7 @@ Create `.specify/extensions/edd/edd-config.yml` to customize thresholds and chec
 
 ## Integration
 
-EDD hooks into `after_implement` automatically when enabled. Install the extension and the hook fires after every `spec.implement`.
+EDD hooks into `after_converge` automatically when enabled. Install the extension and the hook fires after every `spec.converge`.
 
 ```bash
 specify extension install edd

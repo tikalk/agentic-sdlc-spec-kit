@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-04-26T00:00:00Z",
+  "updated_at": "2026-07-02T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/workflows/catalog.json",
   "workflows": {
     "speckit": {
@@ -20,6 +20,15 @@
       "version": "1.0.0",
       "url": "https://raw.githubusercontent.com/tikals/agentic-sdlc-spec-kit/main/workflows/feature-squad.yml",
       "tags": ["squad", "parallel", "review"]
+    },
+    "impl-converge-loop": {
+      "id": "impl-converge-loop",
+      "name": "Implement↺Converge Loop",
+      "description": "Runs implement → converge in a do-while loop until converge reports no remaining gaps (max 5 iterations)",
+      "author": "Agentic SDLC Team",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/workflows/impl-converge-loop/workflow.yml",
+      "tags": ["sdd", "loop", "implement", "converge", "do-while"]
     }
   }
 }

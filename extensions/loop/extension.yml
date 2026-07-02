@@ -1,0 +1,43 @@
+schema_version: "1.0"
+
+extension:
+  id: "loop"
+  name: "SDLC Loop — Implement↺Converge Automation"
+  version: "1.0.0"
+  description: "Loop Engineering for Spec-Driven Development: automate the implement↺converge cycle using the workflow engine"
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/loop"
+
+requires:
+  speckit_version: ">=0.8.5"
+
+provides:
+  commands:
+    - name: "adlc.loop.run"
+      file: "commands/adlc.loop.run.md"
+      description: "Run the impl-converge-loop workflow — delegates to `specify workflow run impl-converge-loop` for engine-native do-while iteration"
+      aliases: ["loop.run"]
+
+    - name: "adlc.loop.goal"
+      file: "commands/adlc.loop.goal.md"
+      description: "Full autonomous SDLC cycle — ensure spec/plan/tasks exist, then trigger loop.run"
+      aliases: ["loop.goal"]
+
+  config:
+    - name: "loop-config.yml"
+      template: "config-template.yml"
+      description: "Loop iteration budgets and guardrails"
+      required: false
+
+tags:
+  - "loop-engineering"
+  - "automation"
+  - "workflow"
+  - "converge"
+  - "sdd"
+
+defaults:
+  loop:
+    max_iterations: 5

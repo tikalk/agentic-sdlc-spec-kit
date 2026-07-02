@@ -196,12 +196,12 @@ Use **`/spec.implement`** to execute all tasks and build your feature according 
 /spec.implement
 ```
 
-### 9. Verify completeness
+### 9. Assess convergence
 
-After implementation, use **`/spec.verify`** to run the test gate, analyze diffs, and assess feature completeness against the specification's 4 pillars (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence).
+After implementation, use **`/spec.converge`** to assess the codebase against the spec, plan, and tasks. If gaps are found, convergence tasks are appended to `tasks.md`. If converged, the command runs a test gate, diff analysis, and 4-pillar quality assessment (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence).
 
 ```bash
-/spec.verify
+/spec.converge
 ```
 
 For detailed step-by-step instructions, see our [comprehensive guide](./spec-driven.md).
@@ -277,8 +277,8 @@ This fork includes pre-installed presets (auto-installed during `specify init`):
 
 | Preset | Commands | Purpose |
 |--------|----------|---------|
-| agentic-sdlc | `/spec.*` | Full Agentic SDLC lifecycle — specify, plan, tasks, implement, verify |
-| agentic-change | `/change.specify`, `/change.implement`, `/change.verify`, `/change.levelup` | Lightweight change proposal workflow with spec + tasks artifacts |
+| agentic-sdlc | `/spec.*` | Full Agentic SDLC lifecycle — specify, plan, tasks, implement, converge |
+| agentic-change | `/change.specify`, `/change.implement`, `/change.converge`, `/change.levelup` | Lightweight change proposal workflow with spec + tasks artifacts |
 | agentic-quick | `/quick.implement`, `/quick.levelup` | Session-based ad-hoc task execution with CDR levelup |
 
 > **Migration note:** The `quick` extension has been replaced by the `agentic-change` and `agentic-quick` bundled presets. If you have the old `quick` extension installed, run `specify extension remove quick && specify init` to migrate.
@@ -387,8 +387,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                                  |
 | `/spec.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution         |
 | `/spec.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan                       |
-| `/spec.converge`      | `speckit-converge`     | Assess the codebase against spec/plan/tasks and append remaining work as new tasks |
-| `/spec.verify`        | `speckit-verify`       | Verify feature completeness — test gate, diff analysis, and 4-pillar assessment    |
+| `/spec.converge`      | `speckit-converge`     | Assess codebase against spec/plan/tasks; append remaining work, or if converged run test gate, diff analysis, and 4-pillar quality assessment |
 
 ### Optional Commands
 
@@ -409,7 +408,7 @@ Lightweight alternative for non-feature changes affecting existing code:
 |---------|-------------|-------------|
 | `/change.specify` | `adlc-change-specify` | Create a change proposal — mission brief → `changes/NNN-name/spec.md` (+ optional plan.md + tasks.md) |
 | `/change.implement` | `adlc-change-implement` | Execute tasks from a change proposal with per-task hook dispatch |
-| `/change.verify` | `adlc-change-verify` | Verify change completeness against acceptance criteria |
+| `/change.converge` | `adlc-change-converge` | Assess change scope and verify completeness against acceptance criteria |
 | `/change.levelup` | `adlc-change-levelup` | Contribute lessons from a completed change to team-ai-directives |
 
 ### Quick Workflow Commands
@@ -662,7 +661,7 @@ Go to the project folder and run your coding agent. In our example, we're using 
 
 ![Bootstrapping Claude Code environment](./media/bootstrap-claude-code.gif)
 
-You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, `/spec.implement`, `/spec.brainstorm`, and `/spec.verify` commands available.
+You will know that things are configured correctly if you see the `/spec.constitution`, `/spec.specify`, `/spec.plan`, `/spec.tasks`, `/spec.implement`, `/spec.brainstorm`, and `/spec.converge` commands available.
 
 The first step should be establishing your project's governing principles using the `/spec.constitution` command. This helps ensure consistent decision-making throughout all subsequent development phases:
 
@@ -908,19 +907,20 @@ The `/spec.implement` command will:
 
 Once the implementation is complete, test the application and resolve any runtime errors that may not be visible in CLI logs (e.g., browser console errors). You can copy and paste such errors back to your coding agent for resolution.
 
-### **STEP 8:** Verify completeness with /spec.verify
+### **STEP 8:** Assess convergence with /spec.converge
 
-After implementation, use the **`/spec.verify`** command to run a structured verification against the specification:
+After implementation, use the **`/spec.converge`** command to assess the codebase against the spec, plan, and tasks:
 
 ```text
-/spec.verify
+/spec.converge
 ```
 
-The `/spec.verify` command performs:
+The `/spec.converge` command performs:
 
+- **Gap Finding** — Identifies any remaining work (missing, partial, contradicts, unrequested). If gaps found, appends convergence tasks to `tasks.md` for another implement pass
 - **Test Gate** — Runs the project's test suite. Tests must pass before assessment proceeds
 - **Diff Analysis** — Categorizes changed files (spec, implementation, tests, docs)
-- **4-Pillar Assessment** — Full compliance check with scored evaluation:
+- **4-Pillar Assessment** — Full compliance check with scored evaluation (only when converged):
   1. **Spec Compliance** (0-100): Goal alignment, Success Criteria coverage, Constraint adherence, all FRs/NFRs addressed, Risk Register mitigation
   2. **Code Quality** (0-100): Structure, error handling, edge cases, consistency
   3. **Test Adequacy** (0-100): Coverage, quality, edge cases, regression risk
@@ -928,7 +928,7 @@ The `/spec.verify` command performs:
 
 The report is saved to `SPECIFY_FEATURE_DIRECTORY/verify.md` and includes an overall VERIFIED / NOT VERIFIED verdict (all pillars >= 70 to pass).
 
-If verification fails, the report includes specific actions to address each failing pillar. Run the recommended fixes and re-verify.
+If any pillar fails, convergence tasks are appended for another implement pass. Run the fixes and re-converge.
 
 </details>
 

@@ -353,11 +353,12 @@ Package the skill and open a PR to the team-ai-directives repository:
 | `/spec.plan` | Create implementation plan | After spec is clear |
 | `/spec.tasks` | Generate task list | After plan is ready |
 | `/spec.implement` | Execute implementation | During development |
+| `/spec.converge` | Assess codebase against spec; if converged, run test gate and 4-pillar assessment | After implementation |
 | `/spec.analyze` | Validate implementation | After implementation |
 | `/levelup.specify` | Capture team knowledge | After significant decisions |
 | `/change.specify` | Create lightweight change proposal | Non-feature code changes |
 | `/change.implement` | Execute change proposal tasks | After change spec creation |
-| `/change.verify` | Verify change completeness | After change implementation |
+| `/change.converge` | Assess change scope and verify completeness | After change implementation |
 | `/change.levelup` | Levelup from a completed change | After change completion |
 
 ### File Structure

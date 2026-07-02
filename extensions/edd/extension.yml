@@ -30,10 +30,10 @@ provides:
       required: false
 
 hooks:
-  after_implement:
+  after_converge:
     command: "adlc.edd.verify"
     optional: false
-    description: "Evaluate implementation against Mission Brief with deterministic + AI checks"
+    description: "Deep evaluation after convergence — deterministic + AI checks against Mission Brief"
 
 tags:
   - "evaluation"

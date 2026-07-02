@@ -4,9 +4,9 @@ handoffs:
   - label: Generate Feature Trace
     agent: adlc.spec.trace
     prompt: Generate a feature execution trace from the completed implementation
-  - label: Generate Verification Evidence
-    agent: adlc.edd.verify
-    prompt: Run EDD verification to evaluate implementation against Mission Brief and generate evidence dossier
+  - label: Assess Convergence
+    agent: adlc.spec.converge
+    prompt: Assess codebase against spec, plan, and tasks; if converged, run test gate and 4-pillar assessment
 scripts:
   sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
   ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
