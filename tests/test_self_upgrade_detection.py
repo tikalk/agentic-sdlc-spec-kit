@@ -37,6 +37,12 @@ class TestDetectionUvTool:
         b = _detect_install_method()
         assert a == b == _InstallMethod.UV_TOOL
 
+    def test_posix_uv_tool_fork_prefix_matches(self, uv_tool_fork_argv0):
+        method, signals = _detect_install_method(include_signals=True)
+        assert method == _InstallMethod.UV_TOOL
+        assert signals.matched_tier == 1
+        assert "agentic-sdlc-specify-cli" in signals.matched_prefix
+
     def test_no_argv_match_falls_through_to_unsupported(self, unsupported_argv0):
         with patch("specify_cli._version.shutil.which", return_value=None), patch(
             "specify_cli._version._editable_marker_seen", return_value=False
@@ -608,6 +614,12 @@ class TestDetectionPipx:
         method, signals = _detect_install_method(include_signals=True)
         assert method == _InstallMethod.PIPX
         assert signals.matched_tier == 1
+
+    def test_posix_pipx_fork_prefix_matches(self, pipx_fork_argv0):
+        method, signals = _detect_install_method(include_signals=True)
+        assert method == _InstallMethod.PIPX
+        assert signals.matched_tier == 1
+        assert "agentic-sdlc-specify-cli" in signals.matched_prefix
 
     def test_tier3_pipx_when_no_prefix_match_but_registry_lists_it(
         self,

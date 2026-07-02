@@ -87,20 +87,6 @@ function Get-CurrentBranch {
         return $env:SPECIFY_FEATURE
     }
 
-    # Then check git if available at the spec-kit root (not parent).
-    # The fork uses real git branches/worktrees, so prefer the current HEAD.
-    $repoRoot = Get-RepoRoot
-    if (Test-HasGit) {
-        try {
-            $result = git -C $repoRoot rev-parse --abbrev-ref HEAD 2>$null
-            if ($LASTEXITCODE -eq 0 -and $result -and $result -ne 'HEAD') {
-                return $result
-            }
-        } catch {
-            # Git command failed
-        }
-    }
-
     # No explicit feature or git branch context - return empty to signal
     # "unknown"; the caller resolves the feature via feature.json.
     return ""

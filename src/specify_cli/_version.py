@@ -181,10 +181,14 @@ def _render_argv(argv: list[str]) -> str:
 
 _INSTALLER_PATH_PREFIXES: dict[str, list[str]] = {
     "uv-tool": [
+        "~/.local/share/uv/tools/agentic-sdlc-specify-cli/",
+        "%LOCALAPPDATA%\\uv\\tools\\agentic-sdlc-specify-cli\\",
         "~/.local/share/uv/tools/specify-cli/",
         "%LOCALAPPDATA%\\uv\\tools\\specify-cli\\",
     ],
     "pipx": [
+        "~/.local/pipx/venvs/agentic-sdlc-specify-cli/",
+        "%LOCALAPPDATA%\\pipx\\venvs\\agentic-sdlc-specify-cli\\",
         "~/.local/pipx/venvs/specify-cli/",
         "%LOCALAPPDATA%\\pipx\\venvs\\specify-cli\\",
     ],

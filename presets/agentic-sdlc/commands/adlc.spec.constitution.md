@@ -15,7 +15,17 @@ handoffs:
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_constitution`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. For each remaining hook:
-   - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions NOW before continuing.
+   - **Mandatory** (`optional: false`):
+      ```
+      ## Extension Hooks
+
+      **Automatic Pre-Hook**: {extension}
+      Executing: `/{command}`
+      EXECUTE_COMMAND: {command}
+
+      Wait for the result of the hook command before proceeding.
+      ```
+      After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
 5. State which hooks were executed, then proceed to User Input.
 
@@ -104,6 +114,14 @@ Do not create a new template; always operate on the existing `.specify/memory/co
 2. Read `hooks.after_constitution`.
 3. Skip hooks with `enabled: false` or non-empty `condition`.
 4. For each remaining hook:
-   - **Mandatory** (`optional: false`): Read the command file for `{command}`. **First, read the extension's `extension.yml` manifest** and look up the `provides.commands` entry matching `{command}` to get the `file` field. Use that `file` path relative to the extension directory. If the manifest cannot be read, fall back to looking for `{command}.md` directly in the extension commands directory. Execute the command file's full instructions immediately.
+   - **Mandatory** (`optional: false`):
+      ```
+      ## Extension Hooks
+
+      **Automatic Hook**: {extension}
+      Executing: `/{command}`
+      EXECUTE_COMMAND: {command}
+      ```
+      After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
    - **Optional** (`optional: true`): Display hook info for user decision.
 5. If no hooks registered, skip silently.

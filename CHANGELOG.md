@@ -2,6 +2,19 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc2] - 2026-07-02
+
+### Fixed
+
+- **Preset hook template resolution**: Replaced manual `extension.yml` manifest resolution in all 15 preset command files with upstream-aligned `EXECUTE_COMMAND` blocks. AI no longer falls back to broad filesystem search when the manifest lacks a path, preventing silent plan-step failures.
+- **PowerShell branch-fallback regression**: Removed git lookup from `Get-CurrentBranch` (`scripts/powershell/common.ps1`) for bash parity. The function now returns empty when `SPECIFY_FEATURE` is unset, allowing the feature-directory basename fallback to fire correctly.
+- **Self-upgrade fork detection**: Added `agentic-sdlc-specify-cli` prefixes to `_INSTALLER_PATH_PREFIXES` so `specify self upgrade` correctly detects fork uv-tool/pipx installs instead of falling through to `UNSUPPORTED`.
+
+### Changed
+
+- **CLI version**: `0.12.4+adlc1` → `0.12.4+adlc2`
+- **Preset versions**: agentic-sdlc `1.5.0` → `1.6.0`, agentic-quick `1.1.0` → `1.2.0`, agentic-change `1.2.0` → `1.3.0`
+
 # [0.12.4+adlc1] - 2026-07-02
 
 ### Changed
