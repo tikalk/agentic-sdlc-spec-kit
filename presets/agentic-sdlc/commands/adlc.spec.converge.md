@@ -459,9 +459,9 @@ If any pillar score is below 70, append remediation tasks to `tasks.md` under a 
    - reported failures (exit code 1)
    - generated correction artifacts (`next-spec.md`)
    - appended tasks to `tasks.md` (check if `tasks.md` was modified after converge wrote it)
-   
+
    ...output `tasks_appended` as the first stdout line to signal more work is needed, overriding the initial `converged` assessment. This ensures the implement↺converge loop continues when deep evaluation (e.g., EDD) finds issues.
-   
+
    **Loop routing signal**: The caller should check for `next-spec.md` in the feature directory:
    - If `next-spec.md` exists → the spec itself needs correction; route to `__SPECKIT_COMMAND_SPECIFY__` (feeding next-spec.md as input), then plan → tasks → implement → converge
    - If `next-spec.md` does not exist but `tasks_appended` → only implementation tasks were appended; route to `__SPECKIT_COMMAND_IMPLEMENT__` → converge
