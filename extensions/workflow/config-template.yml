@@ -1,0 +1,8 @@
+# Workflow Extension Configuration
+
+workflow:
+  max_iterations: 5
+  max_spec_corrections: 2
+  models:
+    strong: "glm-5.2"
+    fast: "deepseek-v4-flash-free"

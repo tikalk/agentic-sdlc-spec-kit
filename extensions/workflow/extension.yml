@@ -1,0 +1,49 @@
+schema_version: "1.0"
+
+extension:
+  id: "workflow"
+  name: "Workflow Factory — Mission-Driven SDLC Automation"
+  version: "2.0.0"
+  description: "Assess prompt complexity, generate a workflow YAML, and run it through the engine. Supports spec/change/quick routing, per-step model selection, cross-session resume, and draft persistence."
+  author: "Agentic SDLC Team"
+  repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
+  license: "MIT"
+  homepage: "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/workflow"
+
+requires:
+  speckit_version: ">=0.8.5"
+
+provides:
+  commands:
+    - name: "adlc.workflow.mission"
+      file: "commands/adlc.workflow.mission.md"
+      description: "Assess prompt → generate workflow YAML → run. No args: collect Mission Brief first."
+      aliases: ["mission"]
+
+    - name: "adlc.workflow.resume"
+      file: "commands/adlc.workflow.resume.md"
+      description: "Find paused/failed run for current feature and resume it."
+      aliases: ["resume"]
+
+    - name: "adlc.workflow.persist"
+      file: "commands/adlc.workflow.persist.md"
+      description: "Make current feature's most recent run workflow permanent and register it."
+      aliases: ["persist"]
+
+  config:
+    - name: "workflow-config.yml"
+      template: "config-template.yml"
+      description: "Workflow iteration budgets, spec correction cap, and model tiers"
+      required: false
+
+tags:
+  - "workflow-factory"
+  - "automation"
+  - "mission-driven"
+  - "converge"
+  - "sdd"
+
+defaults:
+  workflow:
+    max_iterations: 5
+    max_spec_corrections: 2
