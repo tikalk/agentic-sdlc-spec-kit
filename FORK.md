@@ -369,6 +369,78 @@ git tag -a agentic-sdlc-v0.10.0+adlc6 -m "Release agentic-sdlc-v0.10.0+adlc6"
 git push origin agentic-sdlc-v0.10.0+adlc6
 ```
 
+### SDD-Guided Upgrade Verification
+
+The fork dogfoods its own SDD tooling to verify upstream merges. After the git merge
+and conflict resolution (Steps 1-3) and before tagging (Step 8), treat the upgrade as
+a change proposal and run it through the full verification pipeline.
+
+#### Step 7a: Document the Upgrade as a Change Spec
+
+Create a change proposal that captures what the upstream merge changed:
+
+```
+/change.specify "Upgrade from upstream <old> to <new>"
+```
+
+The spec should capture:
+- **Breaking changes** — from upstream CHANGELOG / release notes
+- **New features adopted** — new commands, hooks, extension capabilities
+- **Affected extensions/presets** — diff `extension.yml` / `preset.yml` versions before and after merge
+- **Constitution drift** — compare `.specify/memory/constitution.md` against the upstream template for new/changed governance principles
+
+To gather this context, run:
+
+```bash
+# What extension/preset versions changed
+git diff HEAD~1 -- extensions/*/extension.yml presets/*/preset.yml
+
+# What constitution principles changed upstream
+git diff upstream/main -- .specify/memory/constitution.md 2>/dev/null || \
+  git diff HEAD~1 -- templates/constitution-template.md
+
+# Upstream changelog entries for this merge range
+git log --oneline origin/main..upstream/main
+```
+
+Feed the output as context to `/change.specify`.
+
+#### Step 7b: Verify with Converge
+
+After tests pass (Step 4), run:
+
+```
+/change.converge
+```
+
+This runs the full verification machinery on the upgrade:
+- **Test Gate** — tests must pass before assessment (same as Step 4, but formalized)
+- **4-Pillar Assessment** — Spec Compliance (did the merge cover all upstream changes?), Code Quality (conflict resolution quality), Test Adequacy (are new features tested?), Risk & Evidence (what could break in existing projects?)
+- **Evidence bundle** — writes `changes/NNN-upgrade/verify.md` with What Was Checked / What Was NOT Checked / Residual Risks
+- **EDD hook** (if installed) — deterministic checks (lint, tests, smoke) + AI evaluation (oracle adequacy, quality gates)
+
+If converge finds gaps → tasks appended to `tasks.md` → fix → re-converge.
+
+#### Step 7c: Review Evidence Bundle
+
+Read `changes/NNN-upgrade/verify.md`:
+
+- **What Was Checked** — confirms tests, lint, 4-pillar all ran
+- **What Was NOT Checked** — flags blind spots (e.g., "EDD not installed", "no trace for this change")
+- **Residual Risks** — upgrade-specific risks (e.g., "constitution not updated for new governance model", "extension compatibility not verified")
+
+If all pillars >= 70 and no CRITICAL residual risks → upgrade is verified. Proceed to Step 8 (commit/tag/push).
+
+If any pillar < 70 or CRITICAL risks exist → fix the issues, re-run `/change.converge` until verified.
+
+#### Why This Matters
+
+This is the fork's answer to the "self-evolving harness" open problem from the SDD
+academic literature: the framework applies its own spec-driven verification discipline
+to its own upgrades, rather than relying on manual CHANGELOG reading and ad-hoc testing.
+The `agentic-change` preset provides the lifecycle; `converge` provides the verification;
+the evidence bundle provides the audit trail.
+
 ### Conflict Resolution Strategy
 
 When conflicts occur during merge:
