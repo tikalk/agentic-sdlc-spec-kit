@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "loop"
   name: "SDLC Loop — Implement↺Converge Automation"
-  version: "1.1.0"
+  version: "1.2.0"
   description: "Loop Engineering for Spec-Driven Development: automate the implement↺converge cycle using the workflow engine"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

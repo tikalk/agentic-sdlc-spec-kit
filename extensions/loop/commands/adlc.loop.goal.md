@@ -27,9 +27,9 @@ iteration, convergence-based exit (not arbitrary count), and automated triage
    to discover the current feature directory.
 
 2. **If args provided:**
-   - Run `spec.specify` — pass the spec_description as args
-   - Run `spec.plan`
-   - Run `spec.tasks`
+   - Run `__SPECKIT_COMMAND_SPECIFY__` — pass the spec_description as args
+   - Run `__SPECKIT_COMMAND_PLAN__`
+   - Run `__SPECKIT_COMMAND_TASKS__`
 
    **If no args:**
    - Verify `spec.md`, `plan.md`, and `tasks.md` all exist in the feature directory.
@@ -41,7 +41,8 @@ iteration, convergence-based exit (not arbitrary count), and automated triage
 4. **Loop routing** (max 2 spec-level corrections): If the loop reports `tasks_appended`,
    check for `next-spec.md` in the feature directory:
    - If `next-spec.md` exists AND spec corrections < 2 → spec-level correction: re-run
-     `spec.specify` (feeding next-spec.md as input) → `spec.plan` → `spec.tasks` → `loop.run`.
+     `__SPECKIT_COMMAND_SPECIFY__` (feeding next-spec.md as input) → `__SPECKIT_COMMAND_PLAN__`
+     → `__SPECKIT_COMMAND_TASKS__` → `loop.run`.
      Increment spec correction counter.
    - If `next-spec.md` exists AND spec corrections ≥ 2 → **stop**: "Spec repeatedly fails
      EDD evaluation. Human review of spec required."

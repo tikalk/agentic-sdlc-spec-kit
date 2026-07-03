@@ -13,7 +13,12 @@ re-evaluates the condition after each iteration.
 
 1. Verify `SPECIFY_FEATURE_DIRECTORY` is set and exists. If not, read `.specify/feature.json`
    to discover the current feature directory.
-2. Run `specify workflow run impl-converge-loop`
+2. Run `specify workflow run impl-converge-loop`. If the CLI workflow fails
+   (e.g., command resolution error), fall back to manual iteration:
+   - Execute `__SPECKIT_COMMAND_IMPLEMENT__`
+   - Execute `__SPECKIT_COMMAND_CONVERGE__`
+   - If converge outputs `tasks_appended`, repeat (max 5 iterations)
+   - If converge outputs `converged`, stop
 3. Report: iterations completed, final outcome (`converged` or `tasks_appended` after max iterations)
 
 ## Condition

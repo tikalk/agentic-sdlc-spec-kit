@@ -32,13 +32,13 @@ steps:
     max_iterations: 5
     steps:
       - id: implement
-        command: adlc.spec.implement
+        command: spec.implement
         integration: "{{ inputs.integration }}"
         input:
           args: ""
 
       - id: converge
-        command: adlc.spec.converge
+        command: spec.converge
         integration: "{{ inputs.integration }}"
         input:
           args: ""
