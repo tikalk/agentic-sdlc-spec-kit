@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc8] - 2026-07-03
+
+### Fixed
+
+- **EDD `run-deterministic.sh` path bug**: `OUT_FILE` was set as a relative path before `cd "$FEATURE_DIR"` changed the working directory, causing the write to fail. Fixed by resolving `OUT_FILE` to an absolute path before the `cd`.
+- **EDD `run-deterministic.ps1` path bug**: Same issue — `$outFile` was relative, then `Push-Location $FeatureDir` changed CWD before `Set-Content`. Fixed by calling `[System.IO.Path]::GetFullPath()` to resolve to absolute before `Push-Location`.
+- **`impl-converge-loop` workflow registered**: Workflow was not in the project's workflow registry (`specify workflow run impl-converge-loop` failed with "not found"). Installed via `specify workflow add`.
+
 # [0.12.4+adlc7] - 2026-07-03
 
 ### Fixed

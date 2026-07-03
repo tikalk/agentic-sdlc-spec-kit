@@ -9,6 +9,8 @@ param(
 
 $ErrorActionPreference = "Stop"
 $outFile = Join-Path $FeatureDir ".eval" "deterministic.json"
+# Resolve to absolute before Push-Location changes CWD
+$outFile = [System.IO.Path]::GetFullPath($outFile)
 New-Item -ItemType Directory -Force -Path (Split-Path $outFile) | Out-Null
 
 # ─── LINT ─────────────────────────────────────────────────────────────────────

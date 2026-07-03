@@ -7,7 +7,7 @@ set -euo pipefail
 
 FEATURE_DIR="${1:-.}"
 CONFIG_FILE="${2:-.specify/extensions/edd/edd-config.yml}"
-OUT_FILE="${FEATURE_DIR}/.eval/deterministic.json"
+OUT_FILE="$(cd "$FEATURE_DIR" && pwd)/.eval/deterministic.json"
 
 mkdir -p "$(dirname "$OUT_FILE")"
 
