@@ -276,29 +276,30 @@
       "verified": false,
       "featured": true
     },
-    "loop": {
-      "id": "loop",
-      "name": "SDLC Loop — Implement↺Converge Automation",
-      "version": "1.0.0",
+    "workflow": {
+      "id": "workflow",
+      "name": "Workflow Factory — Mission-Driven SDLC Automation",
+      "version": "2.0.0",
       "bundled": true,
       "preinstall": false,
-      "description": "Loop Engineering for Spec-Driven Development: automate the implement↺converge cycle using the workflow engine",
+      "description": "Assess prompt complexity, generate a workflow YAML, and run it through the engine. Supports spec/change/quick routing, per-step model selection, cross-session resume, and draft persistence.",
       "author": "Agentic SDLC Team",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
-      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/loop",
-      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-loop-{{VERSION}}.zip",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/workflow",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-workflow-{{VERSION}}.zip",
       "license": "MIT",
       "requires": {
         "speckit_version": ">=0.8.5"
       },
       "commands": [
-        "adlc.loop.run",
-        "adlc.loop.goal"
+        "adlc.workflow.mission",
+        "adlc.workflow.resume",
+        "adlc.workflow.persist"
       ],
       "tags": [
-        "loop-engineering",
+        "workflow-factory",
         "automation",
-        "workflow",
+        "mission-driven",
         "converge",
         "sdd"
       ],

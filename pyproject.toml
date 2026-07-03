@@ -36,7 +36,7 @@ packages = ["src/specify_cli"]
 "extensions/product" = "specify_cli/core_pack/extensions/product"
 "extensions/tdd" = "specify_cli/core_pack/extensions/tdd"
 "extensions/edd" = "specify_cli/core_pack/extensions/edd"
-"extensions/loop" = "specify_cli/core_pack/extensions/loop"
+"extensions/workflow" = "specify_cli/core_pack/extensions/workflow"
 "extensions/team-ai-directives" = "specify_cli/core_pack/extensions/team-ai-directives"
 # Tikalk bundled presets
 "presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
