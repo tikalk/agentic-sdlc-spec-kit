@@ -2,7 +2,7 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
-# [0.12.4+adlc5] - 2026-07-03
+# [0.12.4+adlc6] - 2026-07-03
 
 ### Changed
 
