@@ -3,8 +3,8 @@ schema_version: "1.0"
 preset:
   id: "agentic-change"
   name: "Agentic Change Workflow"
-  version: "1.3.0"
-  description: "Lightweight change proposal workflow — create, implement, converge, and contribute lessons from iterative changes"
+  version: "1.4.0"
+  description: "Lightweight change proposal workflow — create, implement, converge with full verification (test gate, 4-pillar assessment, evidence bundle), and contribute lessons from iterative changes"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -29,7 +29,7 @@ provides:
     - type: "command"
       name: "adlc.change.converge"
       file: "commands/adlc.change.converge.md"
-      description: "Assess change scope and append remaining work; if converged, verify criteria and update change status"
+      description: "Assess change scope, append remaining work; if converged, run test gate, diff analysis, 4-pillar assessment, write verify.md evidence bundle, and update change status"
       aliases: ["change.converge"]
 
     - type: "command"

@@ -2,6 +2,12 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc5] - 2026-07-03
+
+### Changed
+
+- **`agentic-change` preset (v1.4.0)**: `adlc.change.converge` now has full verification parity with `adlc.spec.converge`. Added Test Gate (run tests before assessment), Diff Analysis, 4-Pillar Assessment (Spec Compliance, Code Quality, Test Adequacy, Risk & Evidence), Read Available Evidence Sources (TDD report, EDD evidence, trace, checklists), and writes a unified `verify.md` evidence bundle with EDD placeholder sections. Post-hook override now references `next-spec.md` and EDD-appended tasks with loop routing signal. The lightweight character of the change workflow (optional plan, delta format, lifecycle status) stays in `change.specify` — verification rigor is no longer lighter than `spec.converge`.
+
 # [0.12.4+adlc4] - 2026-07-02
 
 ### Changed
