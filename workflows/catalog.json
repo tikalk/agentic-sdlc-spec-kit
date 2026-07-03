@@ -29,6 +29,15 @@
       "version": "1.0.0",
       "url": "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/workflows/impl-converge-loop/workflow.yml",
       "tags": ["sdd", "loop", "implement", "converge", "do-while"]
+    },
+    "sdd-loop": {
+      "id": "sdd-loop",
+      "name": "Full SDD Lifecycle with Convergence Loop",
+      "description": "Runs constitution → loop.goal (specify→plan→tasks→implement↺converge)",
+      "author": "Agentic SDLC Team",
+      "version": "1.0.0",
+      "url": "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/workflows/sdd-loop/workflow.yml",
+      "tags": ["sdd", "loop", "full-cycle", "converge"]
     }
   }
 }

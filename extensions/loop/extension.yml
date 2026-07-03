@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "loop"
   name: "SDLC Loop — Implement↺Converge Automation"
-  version: "1.0.0"
+  version: "1.1.0"
   description: "Loop Engineering for Spec-Driven Development: automate the implement↺converge cycle using the workflow engine"
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -22,7 +22,7 @@ provides:
 
     - name: "adlc.loop.goal"
       file: "commands/adlc.loop.goal.md"
-      description: "Full autonomous SDLC cycle — ensure spec/plan/tasks exist, then trigger loop.run"
+      description: "Full autonomous SDLC cycle — with args: spec→plan→tasks→loop.run; without args: resume loop.run on existing artifacts"
       aliases: ["loop.goal"]
 
   config:

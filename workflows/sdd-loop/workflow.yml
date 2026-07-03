@@ -1,0 +1,35 @@
+schema_version: "1.0"
+workflow:
+  id: "sdd-loop"
+  name: "Full SDD Lifecycle with Convergence Loop"
+  version: "1.0.0"
+  author: "Agentic SDLC Team"
+  description: "Runs constitution → loop.goal (specify→plan→tasks→implement↺converge)"
+
+requires:
+  speckit_version: ">=0.8.5"
+  integrations:
+    any: ["claude", "copilot", "gemini", "opencode"]
+
+inputs:
+  spec:
+    type: string
+    required: true
+    prompt: "Describe what you want to build"
+  integration:
+    type: string
+    default: "auto"
+    prompt: "Integration to use (e.g. claude, copilot, gemini; 'auto' uses the project's initialized integration)"
+
+steps:
+  - id: constitution
+    command: spec.constitution
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
+
+  - id: goal
+    command: loop.goal
+    integration: "{{ inputs.integration }}"
+    input:
+      args: "{{ inputs.spec }}"
