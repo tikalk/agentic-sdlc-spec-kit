@@ -2,6 +2,14 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc7] - 2026-07-03
+
+### Fixed
+
+- **Dangling `change.verify` references**: `adlc.change.implement` handoff and `agentic-change/README.md` still pointed to `/change.verify` (deleted in +adlc3 when verify was merged into converge). Updated to `/change.converge`.
+- **Dangling `spec.verify` references in installed state**: Removed stale `.specify/presets/agentic-sdlc/commands/adlc.spec.verify.md` and `.opencode/commands/spec.verify.md`. Updated installed `preset.yml`, `.registry`, `extensions.yml`, `opencode.manifest.json`, and handoffs in installed `spec.trace.md` + `spec.implement.md` to reference `spec.converge`. Copied `spec.converge.md` into `.opencode/commands/`.
+- **`EXTENSION-API-REFERENCE.md`**: Updated hook events `before_verify`/`after_verify` → `before_converge`/`after_converge` (verify was merged into converge in +adlc3).
+
 # [0.12.4+adlc6] - 2026-07-03
 
 ### Changed

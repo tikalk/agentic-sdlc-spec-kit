@@ -1,9 +1,9 @@
 ---
 description: Execute tasks from a change proposal
 handoffs:
-  - label: Verify Change Completion
-    agent: adlc.change.verify
-    prompt: Verify the completed implementation against the change specification
+  - label: Converge Change Completion
+    agent: adlc.change.converge
+    prompt: Assess the completed implementation against the change specification
 scripts:
   sh: |
     for path in "$(pwd)/.specify/scripts/bash/common.sh" "$(dirname "$(pwd)")/scripts/bash/common.sh"; do
@@ -85,7 +85,7 @@ Tasks: 3/3 completed
 Files modified: {count}
 Change: changes/{NNN-name}/
 
-Next step: /change.verify
+Next step: /change.converge
 ```
 
 ---

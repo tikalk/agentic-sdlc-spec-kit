@@ -599,8 +599,8 @@ Standard events (defined by core):
 - `after_constitution` - After constitution update
 - `before_brainstorm` - Before structured exploration (spec.brainstorm)
 - `after_brainstorm` - After structured exploration (spec.brainstorm)
-- `before_verify` - Before feature verification (spec.verify)
-- `after_verify` - After feature verification (spec.verify)
+- `before_converge` - Before convergence assessment (spec.converge)
+- `after_converge` - After convergence assessment (spec.converge)
 - `before_levelup` - Before CDR extraction and pattern learning (levelup.specify)
 - `after_levelup` - After CDR extraction and pattern learning (levelup.specify)
 - `before_trace` - Before execution trace generation (spec.trace)

@@ -12,7 +12,7 @@ This preset is pre-installed when you run `specify init`. It co-exists with the 
 |---------|-------------|
 | `/change.specify` | Create a change proposal — mission brief → `changes/NNN-name/spec.md` (+ optional plan.md + tasks.md) |
 | `/change.implement` | Execute tasks from a change proposal — load spec + tasks, implement with per-task hook dispatch |
-| `/change.verify` | Verify change completeness — check acceptance criteria, set `Status: Completed`, handoff to levelup |
+| `/change.converge` | Assess change scope, append remaining work; if converged, run test gate, 4-pillar assessment, write verify.md evidence bundle, set `Status: Completed` |
 | `/change.levelup` | Contribute lessons from a completed change to team-ai-directives (CDR-based) |
 
 ## Workflow
@@ -27,8 +27,8 @@ This preset is pre-installed when you run `specify init`. It co-exists with the 
 /change.implement
   → Executes tasks, per-task hooks dispatch
 
-/change.verify
-  → Checks acceptance criteria, sets Status: Completed
+/change.converge
+  → Checks acceptance criteria, runs 4-pillar assessment, sets Status: Completed
 
 /change.levelup
   → Extracts reusable patterns and CDRs from the completed change
