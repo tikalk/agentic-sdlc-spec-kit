@@ -18,17 +18,17 @@ provides:
     - name: "adlc.workflow.mission"
       file: "commands/adlc.workflow.mission.md"
       description: "Assess prompt → generate workflow YAML → run. No args: collect Mission Brief first."
-      aliases: ["mission"]
+      aliases: ["workflow.mission"]
 
     - name: "adlc.workflow.resume"
       file: "commands/adlc.workflow.resume.md"
       description: "Find paused/failed run for current feature and resume it."
-      aliases: ["resume"]
+      aliases: ["workflow.resume"]
 
     - name: "adlc.workflow.persist"
       file: "commands/adlc.workflow.persist.md"
       description: "Make current feature's most recent run workflow permanent and register it."
-      aliases: ["persist"]
+      aliases: ["workflow.persist"]
 
   config:
     - name: "workflow-config.yml"
