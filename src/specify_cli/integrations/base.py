@@ -283,7 +283,13 @@ class IntegrationBase(ABC):
                 stem = stem[len(prefix):]
                 break
 
-        invocation = f"/{_get_command_prefix()}.{stem}"
+        # Extension commands keep their own namespace so dispatch matches the
+        # installed file on disk (e.g. change.specify -> change.specify.md).
+        # Core commands (bare stem after stripping) live under COMMAND_PREFIX.
+        if "." in stem:
+            invocation = f"/{stem}"
+        else:
+            invocation = f"/{_get_command_prefix()}.{stem}"
         if args:
             invocation = f"{invocation} {args}"
         return invocation
@@ -1503,6 +1509,8 @@ class SkillsIntegration(IntegrationBase):
         """Skills use ``/<PREFIX>-<stem>`` (hyphenated directory name).
 
         Uses COMMAND_PREFIX: /spec- for fork, /speckit- for upstream.
+        Extension commands keep their own namespace (e.g. change.specify ->
+        /change-specify) to match installed skill files on disk.
         """
         stem = command_name
         # Handle fork-specific prefixes
@@ -1511,7 +1519,12 @@ class SkillsIntegration(IntegrationBase):
                 stem = stem[len(prefix):]
                 break
 
-        invocation = f"/{_get_command_prefix()}-" + stem.replace(".", "-")
+        # Extension commands keep their own namespace; core commands live under
+        # COMMAND_PREFIX.
+        if "." in stem:
+            invocation = f"/{stem.replace('.', '-')}"
+        else:
+            invocation = f"/{_get_command_prefix()}-{stem}"
         if args:
             invocation = f"{invocation} {args}"
         return invocation

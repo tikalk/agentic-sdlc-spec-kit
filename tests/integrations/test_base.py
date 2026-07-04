@@ -207,17 +207,13 @@ class TestBuildCommandInvocation:
 
     def test_base_extension_command(self):
         i = StubIntegration()
-        from specify_cli import PKG_NAMES
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if is_fork else "speckit"
-        assert i.build_command_invocation("speckit.git.commit") == f"/{prefix}.git.commit"
+        # Extension commands keep their own namespace so dispatch matches the
+        # installed file on disk (e.g. change.specify -> change.specify.md).
+        assert i.build_command_invocation("speckit.git.commit") == "/git.commit"
 
     def test_base_extension_command_bare(self):
         i = StubIntegration()
-        from specify_cli import PKG_NAMES
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if is_fork else "speckit"
-        assert i.build_command_invocation("git.commit") == f"/{prefix}.git.commit"
+        assert i.build_command_invocation("git.commit") == "/git.commit"
 
     def test_skills_core_command(self):
         from specify_cli.integrations import get_integration
@@ -230,20 +226,50 @@ class TestBuildCommandInvocation:
 
     def test_skills_extension_command(self):
         from specify_cli.integrations import get_integration
-        from specify_cli import PKG_NAMES
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if is_fork else "speckit"
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit") == f"/{prefix}-git-commit"
-        assert i.build_command_invocation("git.commit") == f"/{prefix}-git-commit"
+        assert i.build_command_invocation("speckit.git.commit") == "/git-commit"
+        assert i.build_command_invocation("git.commit") == "/git-commit"
 
     def test_skills_extension_command_with_args(self):
         from specify_cli.integrations import get_integration
-        from specify_cli import PKG_NAMES
-        is_fork = any("agentic-sdlc" in pkg for pkg in PKG_NAMES)
-        prefix = "spec" if is_fork else "speckit"
         i = get_integration("codex")
-        assert i.build_command_invocation("speckit.git.commit", "fix typo") == f"/{prefix}-git-commit fix typo"
+        assert i.build_command_invocation("speckit.git.commit", "fix typo") == "/git-commit fix typo"
+
+    # Regression coverage for extension-namespace commands used by the workflow
+    # engine (e.g. change.*, quick.*). They must NOT be wrapped in the core
+    # COMMAND_PREFIX; dispatch uses the file name installed on disk.
+
+    def test_base_change_extension_command(self):
+        i = StubIntegration()
+        assert i.build_command_invocation("change.specify") == "/change.specify"
+        assert i.build_command_invocation("change.implement") == "/change.implement"
+        assert i.build_command_invocation("change.converge") == "/change.converge"
+
+    def test_base_quick_extension_command(self):
+        i = StubIntegration()
+        assert i.build_command_invocation("quick.implement") == "/quick.implement"
+
+    def test_base_adlc_prefixed_extension_command(self):
+        # Fork canonical names like adlc.change.specify strip the adlc. prefix
+        # and then keep the extension namespace.
+        i = StubIntegration()
+        assert i.build_command_invocation("adlc.change.specify") == "/change.specify"
+        assert i.build_command_invocation("adlc.quick.implement") == "/quick.implement"
+
+    def test_base_adlc_prefixed_core_command(self):
+        # adlc.spec.* -> core command, single spec. prefix (no doubling).
+        i = StubIntegration()
+        from specify_cli import PKG_NAMES
+        prefix = "spec" if any("agentic-sdlc" in pkg for pkg in PKG_NAMES) else "speckit"
+        assert i.build_command_invocation("adlc.spec.implement") == f"/{prefix}.implement"
+        assert i.build_command_invocation("adlc.spec.converge") == f"/{prefix}.converge"
+
+    def test_skills_change_extension_command(self):
+        from specify_cli.integrations import get_integration
+        i = get_integration("codex")
+        assert i.build_command_invocation("change.specify") == "/change-specify"
+        assert i.build_command_invocation("change.implement") == "/change-implement"
+        assert i.build_command_invocation("quick.implement") == "/quick-implement"
 
 
 class TestResolveCommandRefs:
