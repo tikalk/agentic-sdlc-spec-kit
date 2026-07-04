@@ -5,10 +5,14 @@ description: Assess prompt → generate workflow YAML → run. No args: collect 
 ## Goal
 
 Generate and run a mission-driven workflow that takes a feature from description
-to converged implementation. The command assesses the prompt, generates a workflow
-YAML with the appropriate command pipeline, and runs it through the engine. After
-each workflow run, checks for EDD's `next-spec.md` to determine if spec-level
-correction is needed.
+to converged implementation. The command assesses the prompt, decides which
+optional preset phases are appropriate (brainstorm, clarify, analyze, trace),
+generates a workflow YAML with the appropriate command pipeline, and runs it
+through the engine. After each workflow run, checks for EDD's `next-spec.md` to
+determine if spec-level correction is needed.
+
+The full command catalog, route templates, and phase-inclusion criteria live in
+`extensions/workflow/command-catalog.md` in the source repo.
 
 ## Arguments
 
@@ -57,7 +61,9 @@ workflow:
 If the config file is missing, use defaults (`max_iterations: 5`,
 `max_spec_corrections: 2`) and omit `model:` fields from the generated YAML.
 
-### 4. Assess prompt and route
+### 4. Assess prompt, route, and optional phases
+
+#### 4a. Route classification
 
 Classify the spec description into one of three routes using LLM judgment:
 
@@ -67,7 +73,28 @@ Classify the spec description into one of three routes using LLM judgment:
 | `change.*` | specify → implement↺converge | Modification, brownfield, "fix/update/refactor" |
 | `quick.*` | implement only (no loop) | Small task, trivial, "just/quick/simple" |
 
-The route determines which commands appear in the generated workflow YAML.
+The route determines which core commands appear in the generated workflow YAML.
+
+#### 4b. Optional phase selection
+
+After the route is chosen, assess the prompt against the criteria in
+`command-catalog.md` and decide which optional phases to include. The decision is
+hands-off (no user confirmation) but is recorded in `.mission-state.json` for
+transparency.
+
+| Phase | Applies to route(s) | Include when |
+|-------|---------------------|--------------|
+| `brainstorm` | `spec.*` | prompt is architectural/ambiguous ("design", "approach", "compare", "how should we", multiple viable solutions) |
+| `clarify` | `spec.*`, `change.*` | Mission Brief success criteria are vague or constraints are missing |
+| `analyze` | `spec.*` | route is `spec.*` (symmetric with the other optional phases) |
+| `trace` | `spec.*`, `change.*` | Mission Brief mentions persistence, audit, traceability, compliance, or `--persist`/reuse intent |
+
+Each selected phase is wrapped in an **`if` step** in the generated YAML. The
+`if` step carries a gen-time literal `condition: true` or `condition: false`.
+
+> **Engine constraint**: the workflow engine has no step-level `condition:` field;
+> a `condition:` key on a normal `command` step is silently ignored. Optional
+> phases MUST use the `if` step primitive (`type: if`).
 
 ### 5. Initialize mission state
 
@@ -78,6 +105,12 @@ Create or update `.specify/extensions/workflow/.mission-state.json`:
   "feature": "<feature-name>",
   "route": "<spec|change|quick>",
   "spec_description": "<original prompt>",
+  "phases": {
+    "brainstorm": <true|false>,
+    "clarify": <true|false>,
+    "analyze": <true|false>,
+    "trace": <true|false>
+  },
   "spec_corrections": 0,
   "max_spec_corrections": <from config, default 2>,
   "max_iterations": <from config, default 5>,
@@ -86,13 +119,18 @@ Create or update `.specify/extensions/workflow/.mission-state.json`:
 }
 ```
 
-This file persists across runs and prevents infinite spec-correction loops.
+This file persists across runs and prevents infinite spec-correction loops. The
+`phases` object records the hands-off optional-phase decision so the same flags
+are reused if a spec-correction re-run is triggered.
 
 ### 6. Generate workflow YAML
 
 Write a temporary workflow YAML file to `/tmp/specify-mission-<feature-name>.yml`.
 
-The YAML uses the feature name as `workflow.id` so `/resume` can match runs.
+The YAML uses the feature name as `workflow.id` so `/resume` can match runs. It
+uses the **`if` step primitive** to wrap optional phases. The `if` step's
+`condition:` is a gen-time literal (`true` or `false`) copied from
+`.mission-state.json.phases`.
 
 #### spec.* route
 
@@ -110,12 +148,31 @@ inputs:
     type: string
     default: "auto"
 steps:
+  - id: brainstorm_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: brainstorm
+        command: spec.brainstorm
+        integration: "{{ inputs.integration }}"
+        model: "<strong>"
+        input:
+          args: "{{ inputs.spec }}"
   - id: specify
     command: spec.specify
     integration: "{{ inputs.integration }}"
     model: "<strong>"
     input:
       args: "{{ inputs.spec }}"
+  - id: clarify_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: clarify
+        command: spec.clarify
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
   - id: plan
     command: spec.plan
     integration: "{{ inputs.integration }}"
@@ -127,6 +184,15 @@ steps:
     integration: "{{ inputs.integration }}"
     input:
       args: ""
+  - id: analyze_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: analyze
+        command: spec.analyze
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
   - id: loop
     type: do-while
     condition: "{{ steps.converge.output.stdout | contains('tasks_appended') }}"
@@ -143,13 +209,74 @@ steps:
         integration: "{{ inputs.integration }}"
         input:
           args: ""
+  - id: trace_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: trace
+        command: spec.trace
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
 ```
 
 #### change.* route
 
-Same structure but:
-- Steps: `change.specify` → do-while(`change.implement` → `change.converge`)
-- No `plan` or `tasks` steps
+```yaml
+schema_version: "1.0"
+workflow:
+  id: "<feature-name>"
+  name: "Mission: <short description>"
+  version: "1.0.0"
+inputs:
+  spec:
+    type: string
+    required: true
+  integration:
+    type: string
+    default: "auto"
+steps:
+  - id: clarify_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: clarify
+        command: spec.clarify
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
+  - id: specify
+    command: change.specify
+    integration: "{{ inputs.integration }}"
+    model: "<strong>"
+    input:
+      args: "{{ inputs.spec }}"
+  - id: loop
+    type: do-while
+    condition: "{{ steps.converge.output.stdout | contains('tasks_appended') }}"
+    max_iterations: <max_iterations>
+    steps:
+      - id: implement
+        command: change.implement
+        integration: "{{ inputs.integration }}"
+        model: "<strong>"
+        input:
+          args: ""
+      - id: converge
+        command: change.converge
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
+  - id: trace_gate
+    type: if
+    condition: <true|false>
+    then:
+      - id: trace
+        command: spec.trace
+        integration: "{{ inputs.integration }}"
+        input:
+          args: ""
+```
 
 #### quick.* route
 
@@ -178,8 +305,9 @@ steps:
 #### Model field handling
 
 - If config has `models.strong`: add `model: "<strong>"` to specify, plan,
-  implement steps
-- If config has `models.fast`: add `model: "<fast>"` to tasks, converge steps
+  implement, and `spec.brainstorm` steps
+- If config has `models.fast`: add `model: "<fast>"` to tasks, converge,
+  `spec.clarify`, `spec.analyze`, and `spec.trace` steps
   (or set as workflow-level `model:` default)
 - If no config: omit all `model:` fields — engine uses integration default
 
@@ -211,8 +339,8 @@ $SPECIFY_FEATURE_DIRECTORY/next-spec.md
 3. Otherwise:
    - Delete `next-spec.md` (consume it — `spec.specify` will read the revised content)
    - Increment `spec_corrections` in `.mission-state.json`
-   - Generate a new workflow YAML (same route, but `spec.specify` will detect
-     the revised spec from the consumed `next-spec.md`)
+   - Generate a new workflow YAML (same route **and same `phases` flags**; only
+     `spec.specify` detects the revised spec from the consumed `next-spec.md`)
    - Run the new workflow: `specify workflow run <new-yaml> --input spec=""`
    - Update `last_run_id` in `.mission-state.json`
    - Repeat step 8
@@ -226,6 +354,7 @@ The mission is complete. Report:
 
 - Feature: <feature-name>
 - Route: <spec|change|quick>
+- Phases included: brainstorm=<bool>, clarify=<bool>, analyze=<bool>, trace=<bool>
 - Workflow runs: <count>
 - Spec corrections: <spec_corrections>/<max_spec_corrections>
 - Final run ID: <last_run_id>
