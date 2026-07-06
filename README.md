@@ -270,6 +270,7 @@ This fork includes pre-installed extensions:
 | product | Product thinking and user story refinement |
 | tdd | Test-driven development workflows |
 | git | Git workflow automation with branch or worktree isolation |
+| workflow | Mission-driven SDLC automation — plan, execute, resume, persist workflows with supervision modes and safety guardrails |
 
 ## 📦 Bundled Presets
 
@@ -419,6 +420,17 @@ Session-based ad-hoc task execution (no file artifacts):
 |---------|-------------|-------------|
 | `/quick.implement` | `adlc-quick-implement` | Session-based ad-hoc implementation with per-task hooks |
 | `/quick.levelup` | `adlc-quick-levelup` | Quick-contribute a directive to team-ai-directives (CDR-based) |
+
+### Workflow Automation Commands
+
+Mission-driven SDLC automation with supervision modes and safety guardrails:
+
+| Command | Description |
+|---------|-------------|
+| `/workflow.mission` | Assess prompt, classify route, generate workflow YAML, delegate to `/workflow.run`, handle spec correction and sign-off |
+| `/workflow.run` | Execute a workflow YAML by walking its steps list — generic interpreter for all step types |
+| `/workflow.resume` | Resume an interrupted workflow from `.mission-state.json` |
+| `/workflow.persist` | Make a workflow run permanent and register it in the catalog |
 
 ## 🔧 Specify CLI Reference
 

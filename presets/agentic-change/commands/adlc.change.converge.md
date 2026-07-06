@@ -1,5 +1,8 @@
 ---
 description: Assess change scope against spec and tasks; append remaining work, or if converged, run test gate, diff analysis, 4-pillar assessment, write verify.md, and update change status
+scripts:
+  sh: scripts/bash/check-prerequisites.sh --json --paths-only
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -PathsOnly
 ---
 
 ## User Input
@@ -30,9 +33,17 @@ When the codebase already satisfies everything, leave `tasks.md` byte-for-byte u
 
 ### 1. Load Change Context
 
-Ask the user which change to converge (if not specified). Load:
+Resolve the change directory in this order:
 
-- `CHANGE_DIR = changes/{NNN-name}/`
+1. If `$ARGUMENTS` explicitly names a change directory or number, use it.
+2. Otherwise, run `{SCRIPT}` from the repo root and parse `FEATURE_DIR`. This
+   reads `.specify/feature.json` (written by `/change.specify`) and points to
+   the current change directory. If `FEATURE_DIR` is under `changes/`, use it.
+3. If neither resolves to a valid change directory, ask the user.
+
+Once resolved, load:
+
+- `CHANGE_DIR = <resolved dir>/`
 - `SPEC = CHANGE_DIR/spec.md` — original goal, success criteria, requirements
 - `TASKS = CHANGE_DIR/tasks.md` — current task list
 - `PLAN = CHANGE_DIR/plan.md` — if present, load plan decisions and design references
@@ -48,6 +59,13 @@ For each success criterion, functional requirement, and plan decision (if plan.m
 - **Missing**: The work is absent.
 - **Partial**: Some aspects are done, some remain.
 - **Contradicts**: The code conflicts with stated intent.
+
+**Scope constraint**: Only assess against requirements in the current change's
+`spec.md`. Do **NOT** append tasks for pre-existing issues unrelated to the change
+scope. If a pre-existing test fails or a pre-existing issue is found, note it in
+the risk register of `verify.md` but do **NOT** append it as a convergence task —
+it is out of scope. Only append tasks for gaps in requirements defined by this
+change's spec.
 
 ### 3. Present Findings
 

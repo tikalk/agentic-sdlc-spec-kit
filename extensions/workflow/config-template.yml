@@ -3,6 +3,8 @@
 workflow:
   max_iterations: 5
   max_spec_corrections: 2
+  supervision: "gated"          # "gated" | "autonomous" | "hybrid"
+  circuit_breaker: 3             # max consecutive tasks_appended before stopping
   models:
     strong: "glm-5.2"
     fast: "deepseek-v4-flash-free"

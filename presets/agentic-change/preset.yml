@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "agentic-change"
   name: "Agentic Change Workflow"
-  version: "1.4.0"
+  version: "1.5.4"
   description: "Lightweight change proposal workflow — create, implement, converge with full verification (test gate, 4-pillar assessment, evidence bundle), and contribute lessons from iterative changes"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"

@@ -1,5 +1,5 @@
 ---
-description: Make current feature's most recent run workflow permanent and register it.
+description: "Make current feature's most recent run workflow permanent and register it."
 ---
 
 ## Goal
@@ -69,13 +69,13 @@ Run anytime with:
   specify workflow run <workflow.id> --input spec="<description>"
 
 Resume with:
-  /resume
+  /workflow.resume
 ```
 
 ## Error handling
 
 - No run found for feature → "No workflow run found for feature '<feature-name>'.
-  Use /mission to start one."
+  Use /workflow.mission to start one."
 - Run directory missing `workflow.yml` → "Run <run_id> is missing workflow.yml.
   The run may be corrupted."
 - Registry update fails → report error, the copied YAML remains in place
@@ -84,8 +84,8 @@ Resume with:
 
 ```
 # After a mission completes, persist the workflow for reuse
-/persist
+/workflow.persist
 
 # After resuming and completing a failed run, persist the final workflow
-/persist
+/workflow.persist
 ```

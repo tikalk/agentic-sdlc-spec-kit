@@ -36,7 +36,17 @@ scripts:
      - `git.initialize` — initializes repositories
      - Any hook that modifies filesystem, Git state, or creates resources
 5. For each **read-only** hook:
-   - **Mandatory** (`optional: false`): Execute the command file's full instructions NOW before continuing.
+   - **Mandatory** (`optional: false`):
+      ```
+      ## Extension Hooks
+
+      **Automatic Pre-Hook**: {extension}
+      Executing: `/{command}`
+      EXECUTE_COMMAND: {command}
+
+      Wait for the result of the hook command before proceeding.
+      ```
+      After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
    - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
 6. For each **mutating** hook: do NOT execute yet. Note it for Phase B.
 7. State which discovery hooks were executed, then proceed to Mission Brief Extraction.
@@ -60,10 +70,11 @@ Before extracting from user input, check if `.specify/drafts/brainstorm-context.
 
 If user input ($ARGUMENTS) is substantial (10+ words) and no brainstorm draft was consumed, extract Goal, Success Criteria, and Constraints from it and populate them directly into the spec header fields.
 
-If minimal (< 10 words) or empty (and no brainstorm draft), derive a best-effort Goal from the generated short name. Leave Success Criteria and Constraints as template placeholders — they will be validated and finalized by `__SPECKIT_COMMAND_CLARIFY__`.
+If minimal (< 10 words) or empty (and no brainstorm draft), derive a best-effort Goal from the generated short name. **Always derive at least one checkable Success Criterion** from the goal — never leave it as a template placeholder. For example, if the goal is "add dark mode toggle", the criterion is "toggling dark mode persists across page reloads" or "dark mode CSS class is applied to the root element". Leave Constraints as placeholders only if truly unknown.
 
 ### Behavior
 - Always populate what you can from the available input.
+- **Never leave Success Criteria as "TBD" or template placeholders** — derive a checkable criterion from the goal.
 - Brainstorm draft content takes precedence over auto-extraction from $ARGUMENTS.
 - No confirmation prompt. Approval is deferred to `__SPECKIT_COMMAND_CLARIFY__`.
 - Proceed directly to Phase B after extraction.
@@ -187,6 +198,12 @@ Given that feature description, do this:
    8. Return: SUCCESS (spec ready for planning)
 
 7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+
+   **Post-write validation**: After writing `spec.md`, re-read it and verify the
+   Success Criteria section does not contain "TBD", "placeholder", or empty
+   content. If it does, derive a checkable criterion from the Goal and rewrite
+   the Success Criteria section before proceeding. Never leave Success Criteria
+   as "TBD".
 
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 

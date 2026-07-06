@@ -140,6 +140,13 @@ For each item in the intent inventory, inspect the current code in scope and pro
   (surfaced for awareness — converge does **not** delete code, it only appends a task to
   review/justify or remove it).
 
+**Scope constraint**: Only assess against requirements in the current feature's
+`spec.md`, `plan.md`, and `tasks.md`. Do **NOT** append tasks for pre-existing
+issues unrelated to the feature scope. If a pre-existing test fails or a
+pre-existing issue is found, note it in the risk register of `verify.md` but do
+**NOT** append it as a convergence task — it is out of scope. Only append tasks
+for gaps in requirements defined by this feature's artifacts.
+
 Each `Finding` records: a stable id, the `source-ref` it traces to, the `gap-type`, a
 severity, and a short human-readable description with the evidence (the file/area observed).
 

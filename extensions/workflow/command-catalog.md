@@ -14,8 +14,59 @@ The workflow engine has **no step-level `condition:` field**. A `condition:`
 key on a normal `command` step is silently ignored. The only supported
 conditional primitive is the **`if` step** (`type: if`), which evaluates
 `condition:` and executes the inline `then:` step array when true. Optional
-phases therefore MUST be wrapped in an `if` step, with a gen-time literal
+phases therefore MUST be wrapped in an outer `if` step, with a gen-time literal
 `condition: true` or `condition: false`.
+
+Each optional phase that is emitted also presents a **`gate` step** to the user
+so the operator can confirm or skip the phase at runtime. The gate's choice is
+then tested by an inner `if` step (`condition: "{{ steps.<id>_confirm.output.choice == '<phase>' }}"`)
+before the phase's `command` step runs.
+
+A workflow must use commands from **one preset only**. Do not mix `spec.*`
+optional-phase commands into `change.*` or `quick.*` workflows; the
+`agentic-change` and `agentic-quick` presets do not provide `brainstorm`,
+`clarify`, `analyze`, or `trace` commands.
+
+## Execution model
+
+`/workflow.mission` is a **planner** command. It assesses the prompt, generates
+a workflow YAML under `.specify/workflow/tmp/`, and delegates execution to
+`/workflow.run` as a subagent. `/workflow.run` is a **generic YAML interpreter**
+— it reads the YAML, walks its `steps:` list, and dispatches each step to a
+subagent (for `command` steps) or handles it internally (for `if`, `gate`,
+`do-while`, `shell`, `prompt`, `switch`, `fan-out`, `fan-in` steps). This avoids
+trapping a long-running pipeline inside a single tool invocation that could time
+out.
+
+`/workflow.run` manages `.mission-state.json` (completed steps, step results,
+circuit breaker counter, iteration count) for resume. It returns a signal
+(`converged`, `tasks_appended`, `spec_correction_needed`, `failed`) to
+`/workflow.mission`, which handles spec correction routing, sign-off gates
+(gated/hybrid modes), and audit trail persistence.
+
+The generated YAML is also a durable artifact: a user can run it directly in a
+terminal with `specify workflow run <yaml>`, which creates a normal engine run
+that `/workflow.resume` and `/workflow.persist` can operate on.
+
+### Supervision modes
+
+The workflow extension supports three supervision modes (configured in
+`workflow-config.yml`):
+
+- **`gated`** (default): Human review gates after `specify`, after each
+  `implement`, and a final sign-off before mission complete.
+- **`autonomous`**: No gates during execution. Requires verifiable done-criteria
+  (refuses "TBD" Success Criteria). Circuit breaker and converge independence
+  hint are still active.
+- **`hybrid`**: Spec review gate and final sign-off, but no per-iteration gates.
+
+### Safety mechanisms (all modes)
+
+- **Circuit breaker**: stops after N consecutive `tasks_appended` (default 3)
+- **Converge independence hint**: converge subagent instructed to verify independently
+- **Converge scope guard**: only grades against the current change/feature spec
+- **Audit trail**: `iterations.md` (per-implementation log) and `mission-log.json` (final state)
+- **Verifiable done-criteria**: specify commands refuse to leave Success Criteria as "TBD"
 
 ## Preset commands
 
@@ -44,6 +95,9 @@ phases therefore MUST be wrapped in an `if` step, with a gen-time literal
 | `change.converge` | core | yes | always for `change.*` route (inside do-while) |
 | `change.levelup` | extension | no | contributes to `team-ai-directives`; excluded from mission |
 
+The `agentic-change` preset provides no optional-phase commands. The `change.*`
+route emits only the core pipeline above.
+
 ### `presets/agentic-quick` (trivial / quick route)
 
 | Command | Phase | Mission-eligible | Include when |
@@ -70,15 +124,19 @@ route semantics.
 
 ### Optional phases
 
-Optional phases are gated by an `if` step whose `condition:` literal is written
-at generation time based on the hands-off criteria below.
+Optional phases are first selected as candidates by the hands-off assessment
+below; the candidate decision is recorded in `.mission-state.json.phases`. When
+a phase is emitted into the workflow, an outer `if` step carries a gen-time
+literal `condition:` and contains a `gate` step that asks the user whether to
+run the phase, followed by an inner `if` step that executes the phase only if
+the user approves.
 
-| Phase | `if.condition` = `true` when |
-|-------|------------------------------|
-| `brainstorm` | route is `spec.*` **and** the prompt is architectural/ambiguous. Signals: words like "design", "how should we", "approach", "compare", "tradeoff", or explicit mention of multiple viable solutions. |
-| `clarify` | the Mission Brief has vague success criteria (no measurable outcomes) or missing constraints. |
-| `analyze` | route is `spec.*`. This phase is effectively core for the spec route but implemented as optional for symmetry. |
-| `trace` | the Mission Brief mentions persistence, audit, traceability, compliance, or `--persist`/reuse intent. |
+| Phase | Applies to route(s) | Candidate `if.condition` = `true` when |
+|-------|---------------------|----------------------------------------|
+| `brainstorm` | `spec.*` | route is `spec.*` **and** the prompt is architectural/ambiguous. Signals: words like "design", "how should we", "approach", "compare", "tradeoff", or explicit mention of multiple viable solutions. |
+| `clarify` | `spec.*` | the Mission Brief has vague success criteria (no measurable outcomes) or missing constraints. |
+| `analyze` | `spec.*` | route is `spec.*`. This phase is effectively core for the spec route but implemented as optional for symmetry. |
+| `trace` | `spec.*` | the Mission Brief mentions persistence, audit, traceability, compliance, or `--persist`/reuse intent. |
 
 ## Route YAML templates
 
@@ -102,11 +160,19 @@ steps:
     type: if
     condition: <true|false>
     then:
-      - id: brainstorm
-        command: spec.brainstorm
-        integration: "{{ inputs.integration }}"
-        input:
-          args: "{{ inputs.spec }}"
+      - id: brainstorm_confirm
+        type: gate
+        message: "The prompt looks architectural or ambiguous. Run the brainstorm phase to explore approaches and tradeoffs?"
+        options: ["brainstorm", "skip"]
+      - id: brainstorm_run
+        type: if
+        condition: "{{ steps.brainstorm_confirm.output.choice == 'brainstorm' }}"
+        then:
+          - id: brainstorm
+            command: spec.brainstorm
+            integration: "{{ inputs.integration }}"
+            input:
+              args: "{{ inputs.spec }}"
   - id: specify
     command: spec.specify
     integration: "{{ inputs.integration }}"
@@ -116,11 +182,19 @@ steps:
     type: if
     condition: <true|false>
     then:
-      - id: clarify
-        command: spec.clarify
-        integration: "{{ inputs.integration }}"
-        input:
-          args: ""
+      - id: clarify_confirm
+        type: gate
+        message: "The Mission Brief has vague success criteria or missing constraints. Run the clarify phase?"
+        options: ["clarify", "skip"]
+      - id: clarify_run
+        type: if
+        condition: "{{ steps.clarify_confirm.output.choice == 'clarify' }}"
+        then:
+          - id: clarify
+            command: spec.clarify
+            integration: "{{ inputs.integration }}"
+            input:
+              args: ""
   - id: plan
     command: spec.plan
     integration: "{{ inputs.integration }}"
@@ -135,11 +209,19 @@ steps:
     type: if
     condition: <true|false>
     then:
-      - id: analyze
-        command: spec.analyze
-        integration: "{{ inputs.integration }}"
-        input:
-          args: ""
+      - id: analyze_confirm
+        type: gate
+        message: "Run the analyze phase to evaluate the plan before implementation?"
+        options: ["analyze", "skip"]
+      - id: analyze_run
+        type: if
+        condition: "{{ steps.analyze_confirm.output.choice == 'analyze' }}"
+        then:
+          - id: analyze
+            command: spec.analyze
+            integration: "{{ inputs.integration }}"
+            input:
+              args: ""
   - id: loop
     type: do-while
     condition: "{{ steps.converge.output.stdout | contains('tasks_appended') }}"
@@ -159,11 +241,19 @@ steps:
     type: if
     condition: <true|false>
     then:
-      - id: trace
-        command: spec.trace
-        integration: "{{ inputs.integration }}"
-        input:
-          args: ""
+      - id: trace_confirm
+        type: gate
+        message: "The Mission Brief mentions persistence, audit, or traceability. Run the trace phase?"
+        options: ["trace", "skip"]
+      - id: trace_run
+        type: if
+        condition: "{{ steps.trace_confirm.output.choice == 'trace' }}"
+        then:
+          - id: trace
+            command: spec.trace
+            integration: "{{ inputs.integration }}"
+            input:
+              args: ""
 ```
 
 ### `change.*` route
@@ -182,15 +272,6 @@ inputs:
     type: string
     default: "auto"
 steps:
-  - id: clarify_gate
-    type: if
-    condition: <true|false>
-    then:
-      - id: clarify
-        command: spec.clarify
-        integration: "{{ inputs.integration }}"
-        input:
-          args: ""
   - id: specify
     command: change.specify
     integration: "{{ inputs.integration }}"
@@ -208,15 +289,6 @@ steps:
           args: ""
       - id: converge
         command: change.converge
-        integration: "{{ inputs.integration }}"
-        input:
-          args: ""
-  - id: trace_gate
-    type: if
-    condition: <true|false>
-    then:
-      - id: trace
-        command: spec.trace
         integration: "{{ inputs.integration }}"
         input:
           args: ""
@@ -249,5 +321,8 @@ steps:
 
 - The `model:` field handling described in `adlc.workflow.mission` still applies
   to any step that supports it (core and optional alike).
-- The optional-phase decision is recorded in `.mission-state.json` under the
-  `phases` key so it is transparent and survives restarts.
+- The optional-phase **candidate** decision is recorded in `.mission-state.json`
+  under the `phases` key so it is transparent and survives restarts.
+- A workflow must use commands from a single preset. The `change.*` and
+  `quick.*` routes do **not** include optional phases because their presets do
+  not provide them.

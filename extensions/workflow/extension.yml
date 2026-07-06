@@ -3,8 +3,8 @@ schema_version: "1.0"
 extension:
   id: "workflow"
   name: "Workflow Factory — Mission-Driven SDLC Automation"
-  version: "2.1.0"
-  description: "Assess prompt complexity, decide optional preset phases, generate a workflow YAML, and run it through the engine. Supports spec/change/quick routing, per-step model selection, cross-session resume, and draft persistence. Command catalog and route templates live in command-catalog.md."
+  version: "2.6.1"
+  description: "Mission-driven SDLC automation: plan a workflow YAML (/workflow.mission), execute it (/workflow.run), resume interrupted runs (/workflow.resume), and persist them (/workflow.persist). Supports spec/change/quick routing, per-step model selection, cross-session resume, and draft persistence. Optional phases are user-gated at runtime; each route uses commands from a single preset."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
   license: "MIT"
@@ -17,12 +17,17 @@ provides:
   commands:
     - name: "adlc.workflow.mission"
       file: "commands/adlc.workflow.mission.md"
-      description: "Assess prompt → generate workflow YAML → run. No args: collect Mission Brief first."
+      description: "Assess prompt, generate a workflow YAML, and delegate to /workflow.run. Handles spec correction routing."
       aliases: ["workflow.mission"]
+
+    - name: "adlc.workflow.run"
+      file: "commands/adlc.workflow.run.md"
+      description: "Execute a workflow YAML by walking its steps list. Manages .mission-state.json for resume."
+      aliases: ["workflow.run"]
 
     - name: "adlc.workflow.resume"
       file: "commands/adlc.workflow.resume.md"
-      description: "Find paused/failed run for current feature and resume it."
+      description: "Resume an interrupted workflow — delegates to /workflow.run for agent-orchestrated missions, or specify workflow resume for engine runs."
       aliases: ["workflow.resume"]
 
     - name: "adlc.workflow.persist"
@@ -47,3 +52,5 @@ defaults:
   workflow:
     max_iterations: 5
     max_spec_corrections: 2
+    supervision: "gated"
+    circuit_breaker: 3

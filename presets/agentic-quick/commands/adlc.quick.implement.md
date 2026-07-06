@@ -46,6 +46,11 @@ Collect answers to:
 2. What defines success? (completion criteria)
 3. Any constraints? (time, priority, dependencies, tech limits)
 
+**Never accept "TBD" or empty for Success Criteria** — if the user provides
+vague criteria, derive a checkable one from the goal. For example, if the goal
+is "fix login redirect", the criterion is "login redirects to dashboard after
+auth, not back to login page".
+
 Display:
 
 ```markdown

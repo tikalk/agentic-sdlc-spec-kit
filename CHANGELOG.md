@@ -2,6 +2,145 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.4+adlc11] - 2026-07-05
+
+### Fixed
+
+- **Workflow extension v2.6.1**: fixed resume delegation (now goes through
+  `/workflow.mission` for sign-off + audit trail), completed-mission detection
+  (checks for `mission-log.json`), circuit breaker counter persistence,
+  do-while resume IDs (iteration-prefixed), and minimal state init in
+  `/workflow.run`.
+- **agentic-change preset v1.5.4**: post-write done-criteria validation in
+  `change.specify` — re-reads spec.md after writing and refuses to leave
+  Success Criteria as "TBD".
+- **agentic-sdlc preset v1.6.3**: same post-write done-criteria validation in
+  `spec.specify`.
+- **agentic-quick preset v1.2.2**: unchanged (done-criteria enforcement already
+  added in v1.2.1).
+- **Workflow extension v2.6.0**: added safety layer aligned with Loop Engineering
+  and Harness Engineering articles. Supervision modes (`gated`/`autonomous`/`hybrid`),
+  circuit breaker, converge independence hint, iterations audit trail, audit trail
+  persistence (state moved to `mission-log.json` instead of deleted), autonomous
+  mode validation (refuses "TBD" Success Criteria), converge scope guard (no
+  pre-existing issues), and verifiable done-criteria in all specify/quick commands.
+- **agentic-change preset v1.5.3**: converge scope guard — only grades against
+  the current change spec, not pre-existing issues. specify now derives checkable
+  Success Criteria from the goal, never "TBD".
+- **agentic-sdlc preset v1.6.2**: same converge scope guard and verifiable
+  done-criteria as agentic-change.
+- **agentic-quick preset v1.2.1**: quick.implement now refuses "TBD" Success
+  Criteria.
+- **Workflow extension v2.5.0**: split `/workflow.mission` into planner +
+  executor. `/workflow.run` is a new command that reads a workflow YAML and
+  walks its `steps:` list, dispatching each step to a subagent. `/workflow.mission`
+  now generates the YAML and delegates to `/workflow.run`; `/workflow.resume`
+  delegates to `/workflow.run` with the existing YAML path. Added `yaml_path`
+  to `.mission-state.json` schema. Also includes v2.4.2 fixes: `$ARGUMENTS`
+  leakage, stale feature name, orchestrator reading command files, mission state
+  never updated, and `/workflow.resume` ignoring agent-orchestrated missions.
+- **Workflow extension v2.4.1**: added resume support — Step 1 now detects an
+  existing `.mission-state.json` with non-empty `completed_steps` and skips
+  directly to Step 7, resuming from the first incomplete step. Added
+  `completed_steps` and `step_results` to the Step 5 state schema.
+- **Workflow extension v2.4.0**: `/workflow.mission` Step 7 is now a **generic
+  YAML interpreter**. It reads the workflow YAML generated in Step 6 and walks
+  its `steps:` list, dispatching each step by `type:` (`command`, `if`, `gate`,
+  `do-while`, `shell`, `prompt`, `switch`, `fan-out`, `fan-in`). The YAML is
+  the single source of truth — Step 7 contains no route-specific prose. The
+  orchestrator no longer reads command files or leaks implementation details
+  into delegation prompts. Adding routes or phases only changes the YAML
+  templates in Step 6. Also replaced Mission Brief collection with **Automatic
+  Extraction**: if `$ARGUMENTS` is non-empty, it is used as `spec_description`
+  directly; if empty, a best-effort description is derived from the feature
+  directory name. No question tool, no confirmation prompt.
+- **agentic-change preset v1.5.2**: `change.specify` no longer has handoffs to
+  `adlc.spec.clarify` and `adlc.spec.checklist` (commands from the
+  `agentic-sdlc` preset). Those cross-preset handoffs broke standalone
+  `agentic-change` installations. The handoff now points to the same-preset
+  `change.implement` command, matching the command body's "Ready for
+  implementation" message. Phase A discovery hooks now use the same
+  `EXECUTE_COMMAND:` block pattern that core templates use, so read-only hooks
+  are invoked as native commands with proper per-turn boundaries instead of
+  being summarized inline.
+- **agentic-sdlc preset v1.6.1**: `spec.specify` Phase A discovery hooks now use
+  the same `EXECUTE_COMMAND:` block pattern that core templates use, aligning
+  hook invocation with Phase B and preventing agents from bypassing hook
+  commands by reading their files inline.
+- **Workflow extension v2.2.0**: generated mission workflow YAML is now written to
+  `.specify/workflow/tmp/` instead of `/tmp`, avoiding `external_directory`
+  permission requests during automated runs.
+- **One preset per workflow**: the `change.*` route no longer injects
+  `spec.clarify` or `spec.trace` (commands that belong to the `agentic-sdlc`
+  preset). It now emits only the native `agentic-change` pipeline
+  (`change.specify` → `change.implement`↺`change.converge`). This fixes the
+  cross-preset contamination that caused `spec.clarify` to run against the wrong
+  spec context and `change.implement` to pick up an unrelated existing change.
+- **Slash-command references**: `/mission`, `/resume`, and `/persist` examples in
+  the workflow extension commands now use their canonical aliases
+  `/workflow.mission`, `/workflow.resume`, and `/workflow.persist`.
+- **agentic-change preset v1.5.0**: `change.specify` now persists
+  `.specify/feature.json` unconditionally, and `change.implement`/`change.converge`
+  auto-detect the current change directory via `check-prerequisites` in
+  `--paths-only` mode. This lets `/workflow.mission` run the `change.*` route
+  non-interactively instead of stopping to ask "which change?".
+- **Workflow extension v2.2.0 command descriptions**: quoted the `description:`
+  frontmatter values in `adlc.workflow.mission.md`, `adlc.workflow.resume.md`,
+  and `adlc.workflow.persist.md` so opencode installs them with non-empty
+  descriptions (the previous unquoted colons caused a YAML parse error that
+  produced blank frontmatter).
+- **Workflow extension v2.2.0 execution model**: `/workflow.mission` now runs
+  the generated pipeline as agent-dispatched slash commands, one step per turn,
+  instead of executing the whole workflow synchronously inside a single
+  `specify workflow run` Bash invocation. This prevents the nested-agent
+  tool-timeout kills and the resulting unresumable `RUNNING` engine runs. The
+  generated YAML is still written to `.specify/workflow/tmp/` as a durable
+  artifact that users can run in a real terminal when they need a normal engine
+  run for `/workflow.resume` or `/workflow.persist`.
+
+### Changed
+
+- **User-gated optional phases**: brainstorm, clarify, analyze, and trace are now
+  auto-selected as candidates (recorded in `.mission-state.json.phases`), then
+  each emitted phase presents a `gate` step at runtime so the operator can
+  confirm or skip it before the phase's `command` step executes.
+
+# [0.12.4+adlc10] - 2026-07-04
+
+### Fixed
+
+- **Extension namespace preservation in command invocation**
+  (`src/specify_cli/integrations/base.py`): extension commands such as
+  `change.specify` and `quick.implement` now keep their own namespace instead of
+  being wrapped under `spec.`/`speckit.`, matching the installed file on disk.
+
+### Added
+
+- **Workflow optional-phase selection**: the `workflow` extension (v2.0.0→v2.1.0)
+  now assesses prompts and optionally includes `brainstorm`, `clarify`,
+  `analyze`, and `trace` phases in generated mission workflows. Added
+  `extensions/workflow/command-catalog.md` as a reference for command routing,
+  phase criteria, and route YAML templates.
+
+# [0.12.4+adlc9] - 2026-07-03
+
+### Changed
+
+- **Replaced `loop` extension with `workflow` extension v2.0.0**: the new
+  extension provides three commands — `/workflow.mission` (assess prompt,
+  generate workflow YAML, run), `/workflow.resume` (find and resume paused/failed
+  runs), and `/workflow.persist` (copy a run's workflow to the registry). The
+  `mission` command uses LLM-as-judge routing to `spec.*`, `change.*`, or
+  `quick.*` pipelines; no-args mode collects a Mission Brief first.
+- **Per-step model selection**: workflows can read `models.strong`/`models.fast`
+  from `.specify/extensions/workflow/workflow-config.yml` and attach `model:` to
+  the appropriate steps.
+- **Spec-correction routing**: EDD's `next-spec.md` is handled at the agent level
+  via `.specify/extensions/workflow/.mission-state.json`, with
+  `max_spec_corrections` capping outer-loop re-runs.
+- **Removed** `extensions/loop/` and the `workflows/sdd-loop/` workflow; kept
+  `workflows/impl-converge-loop/` for direct use.
+
 # [0.12.4+adlc8] - 2026-07-03
 
 ### Fixed
