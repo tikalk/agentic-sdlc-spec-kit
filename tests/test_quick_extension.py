@@ -118,8 +118,8 @@ def test_preset_manifest_registers_command():
 def test_preset_manifest_has_version():
     """Test that preset.yml has version."""
     content = MANIFEST.read_text(encoding="utf-8")
-    assert 'version: "1.2.0"' in content, "Version not set in preset.yml"
-    print("[\u2705 quick preset version is 1.2.0")
+    assert 'version: "1.2.2"' in content, "Version not set in preset.yml"
+    print("[\u2705 quick preset version is 1.2.2")
 
 
 def test_changelog_has_entry():
