@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.5+adlc2] - 2026-07-07
+
+### Fixed
+
+- **PowerShell branch numbering**: replaced dynamic composite format string
+  `'{0:D' + $numberPadding + '}' -f $Number` with `$Number.ToString().PadLeft($numberPadding, '0')`
+  to avoid `FormatException` on some PowerShell hosts.
+- **Tests aligned with `branch_template` migration**: updated
+  `tests/test_timestamp_branches.py` config helper and test names to write the
+  new top-level `branch_template`, `branch_prefix`, `issue_format`, and
+  `number_padding` keys instead of the removed `branch_pattern` block.
+- **Doc consistency**: updated `templates/commands/specify.md`,
+  `presets/agentic-sdlc/commands/adlc.spec.specify.md`, and
+  `presets/agentic-change/commands/adlc.change.specify.md` to reference
+  `branch_template` instead of the removed `branch_pattern.enabled` /
+  `branch_pattern.template` keys.
+
 # [0.12.5+adlc1] - 2026-07-07
 
 ### Changed

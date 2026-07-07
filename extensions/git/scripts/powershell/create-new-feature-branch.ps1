@@ -668,7 +668,7 @@ if ($env:GIT_BRANCH_NAME) {
             }
         }
 
-        $featureNum = ('{0:D' + $numberPadding + '}' -f $Number)
+        $featureNum = $Number.ToString().PadLeft($numberPadding, '0')
         $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $branchSuffix -IssueToken $issueToken
     }
 }

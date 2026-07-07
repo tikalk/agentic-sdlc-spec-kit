@@ -84,7 +84,7 @@ If minimal (< 10 words) or empty (and no brainstorm draft), derive a best-effort
 ## Phase B: Mutating Hooks
 
 1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
-   - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`, resolve an issue key before running the hook.
+   - If `branch_template` is configured and contains `{issue}`, resolve an issue key before running the hook.
    - Resolution order:
      1. Use explicit `GIT_BRANCH_ISSUE` if already provided.
       2. Otherwise extract an issue key from the user request or the extracted Mission Brief.

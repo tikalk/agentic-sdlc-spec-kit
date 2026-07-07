@@ -108,7 +108,7 @@ After collecting/extracting answers, display:
 **Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
 
 1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
-   - If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`,
+   - If `branch_template` is configured and contains `{issue}`,
      resolve an issue key before running the hook.
    - Resolution order:
      1. Use explicit `GIT_BRANCH_ISSUE` if already provided.

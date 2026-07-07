@@ -179,29 +179,24 @@ def source_and_call(func_call: str, env: dict | None = None) -> subprocess.Compl
     )
 
 
-def write_branch_pattern_config(
+def write_branch_template_config(
     repo: Path,
     template: str,
-    prefixes: list[str] | None = None,
+    prefix: str = "feat",
     *,
-    enabled: bool = True,
     number_padding: int = 3,
+    issue_format: str = "jira",
 ) -> Path:
-    prefixes = prefixes or ["feat"]
     config_dir = repo / ".specify" / "extensions" / "git"
     config_dir.mkdir(parents=True, exist_ok=True)
     config = config_dir / "git-config.yml"
-    prefix_lines = "\n".join(f"    - {prefix}" for prefix in prefixes)
     config.write_text(
         "\n".join(
             [
-                "branch_pattern:",
-                f"  enabled: {'true' if enabled else 'false'}",
-                f'  template: "{template}"',
-                "  allowed_prefixes:",
-                prefix_lines,
-                f"  number_padding: {number_padding}",
-                "  issue_format: jira",
+                f'branch_template: "{template}"',
+                f"branch_prefix: {prefix}",
+                f"number_padding: {number_padding}",
+                f"issue_format: {issue_format}",
                 "",
             ]
         ),
@@ -255,8 +250,8 @@ class TestTimestampBranch:
         assert len(branch) <= 244
         assert re.match(r"^\d{8}-\d{6}-", branch)
 
-    def test_timestamp_branch_pattern_with_issue_generates_prefixed_branch(self, ext_git_repo: Path):
-        write_branch_pattern_config(ext_git_repo, "{prefix}/{timestamp}-{issue}-{slug}", ["feat"])
+    def test_timestamp_branch_template_with_issue_generates_prefixed_branch(self, ext_git_repo: Path):
+        write_branch_template_config(ext_git_repo, "{prefix}/{timestamp}-{issue}-{slug}", "feat")
         script = ext_git_repo / ".specify" / "extensions" / "git" / "scripts" / "bash" / "create-new-feature-branch.sh"
         result = subprocess.run(
             [
@@ -281,8 +276,8 @@ class TestTimestampBranch:
         assert branch is not None
         assert re.match(r"^feat/\d{8}-\d{6}-PROJ-123-user-auth$", branch), branch
 
-    def test_branch_pattern_uses_first_allowed_prefix(self, ext_git_repo: Path):
-        write_branch_pattern_config(ext_git_repo, "{prefix}/{number}-{issue}-{slug}", ["fix", "feat"])
+    def test_branch_template_uses_configured_prefix(self, ext_git_repo: Path):
+        write_branch_template_config(ext_git_repo, "{prefix}/{number}-{issue}-{slug}", "fix")
         script = ext_git_repo / ".specify" / "extensions" / "git" / "scripts" / "bash" / "create-new-feature-branch.sh"
         result = subprocess.run(
             [
@@ -447,8 +442,8 @@ class TestCoreCommonRemovesGitHelpers:
         result = source_and_call('declare -F has_git >/dev/null')
         assert result.returncode != 0
 
-    def test_accepts_configured_timestamp_branch_pattern_with_issue(self, git_repo: Path):
-        write_branch_pattern_config(git_repo, "{prefix}/{timestamp}-{issue}-{slug}", ["feat"])
+    def test_accepts_configured_timestamp_branch_template_with_issue(self, git_repo: Path):
+        write_branch_template_config(git_repo, "{prefix}/{timestamp}-{issue}-{slug}", "feat")
         result = subprocess.run(
             [
                 "bash",
@@ -1193,8 +1188,8 @@ class TestGitBranchNameOverridePowerShell:
         assert result.returncode != 0
         assert "244" in result.stderr
 
-    def test_branch_pattern_with_issue(self, ext_ps_git_repo: Path):
-        write_branch_pattern_config(ext_ps_git_repo, "{prefix}/{number}-{issue}-{slug}", ["feat"])
+    def test_branch_template_with_issue(self, ext_ps_git_repo: Path):
+        write_branch_template_config(ext_ps_git_repo, "{prefix}/{number}-{issue}-{slug}", "feat")
         script = ext_ps_git_repo / ".specify" / "extensions" / "git" / "scripts" / "powershell" / "create-new-feature-branch.ps1"
         result = subprocess.run(
             [
