@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.6+adlc6 | 2026-07-08 | 0.12.7.dev0 (`88886d60`) | Wheel build fix: removed stale `templates/agent-file-template.md` entry from `pyproject.toml` force-include (file deleted in adlc5, only self-test preset uses it via its own copy). |
 | 0.12.6+adlc5 | 2026-07-08 | 0.12.7.dev0 (`55938e65`) | `templates/` reverted to upstream — all fork modifications removed from core command templates, vscode-settings.json, and fork-only template files. Fork-specific behavior lives exclusively in `presets/agentic-*/commands/`. FORK.md policy added: `templates/` stays upstream-aligned. |
 | 0.12.6+adlc4 | 2026-07-08 | 0.12.7.dev0 (`dc6eafd3`) | Fixed Forge dot-notation test: replaced literal `/spec.implement` and `/spec.trace` in tasks command files with `__SPECKIT_COMMAND_*__` placeholders. Removed "Do NOT suggest" guard lines. |
 | 0.12.6+adlc3 | 2026-07-08 | 0.12.7.dev0 (`02d548c6`) | Panel title theming (`select_with_arrows`, Next Steps, Enhancement Skills, Matching extensions), hook invocation prefix `speckit-...` → `spec-...` across 24 command files, tasks handover block directing to `/spec.implement` (not `/quick.implement` or `/spec.trace`), E701 lint fixes in ImportError fallback blocks. |

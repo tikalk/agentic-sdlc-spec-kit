@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc6] - 2026-07-08
+
+### Fixed
+
+- **Wheel build fix**: removed stale `templates/agent-file-template.md` entry
+  from `pyproject.toml` `[tool.hatch.build.targets.wheel.force-include]`.
+  The file was deleted in `adlc5` (templates reverted to upstream) but the
+  force-include reference remained, which would break `uv build` / wheel
+  packaging. The template is only used by the self-test preset which ships
+  its own copy.
+
 # [0.12.6+adlc5] - 2026-07-08
 
 ### Changed
