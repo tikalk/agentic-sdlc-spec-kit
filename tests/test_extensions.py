@@ -5469,7 +5469,7 @@ class TestExtensionAddCLI:
 
         assert result.exit_code == 1
         assert status_messages == [
-            f"[cyan]Installing extension: {escape_markup(extension_name)}[/cyan]"
+            f"[#f47721]Installing extension: {escape_markup(extension_name)}[/#f47721]"
         ]
 
     def test_add_post_install_hint_escapes_manifest_id_markup(self, tmp_path):

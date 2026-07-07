@@ -49,6 +49,14 @@ from ._core_fork import (
 # Tikalk orange accent color (replaces upstream cyan)
 ACCENT_COLOR = "#f47721"
 
+# Semantic colors that complement the orange accent (Option A: Rich named).
+# These are warm-toned variants that harmonize with the orange identity
+# while remaining visually distinct from each other.
+SUCCESS_COLOR = "dark_sea_green"   # #8fbc8f — success/active/enabled
+DISABLED_COLOR = "indian_red"      # #cd5c5c — disabled/inactive
+WARNING_COLOR = "gold1"            # #daa520 — warnings
+ERROR_COLOR = "red"                # unchanged — errors/failed
+
 
 def make_typer(
     *,
@@ -143,6 +151,16 @@ def accent_style() -> str:
 # ACCENT_STYLE for _console.py theming (used by Rich style attributes)
 # This is the string representation used by Rich, not the hex code
 ACCENT_STYLE = ACCENT_COLOR
+
+
+def success_style() -> str:
+    """Return the success/active semantic color for Rich style= attributes."""
+    return SUCCESS_COLOR
+
+
+def disabled_style() -> str:
+    """Return the disabled/inactive semantic color for Rich style= attributes."""
+    return DISABLED_COLOR
 
 
 def apply_theming_patches(_console_module) -> None:

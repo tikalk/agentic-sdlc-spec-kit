@@ -143,7 +143,7 @@ def integration_list(
 def _print_integration_status_report(report: dict[str, Any]) -> None:
     status = report["status"]
     status_label = {
-        "ok": "[green]OK[/green]",
+        "ok": accent("OK"),
         "warning": "[yellow]WARNING[/yellow]",
         "error": "[red]ERROR[/red]",
     }.get(str(status), str(status).upper())

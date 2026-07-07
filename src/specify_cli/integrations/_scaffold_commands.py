@@ -10,6 +10,16 @@ from .._console import console
 from ..integration_scaffold import supported_integration_scaffold_types
 from ._commands import integration_app
 
+try:
+    from .._init_fork import accent
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold: style = f"bold {style}"
+        if italic: style = f"italic {style}"
+        if dim: style = f"dim {style}"
+        return f"[{style}]{text}[/{style}]"
+
 
 INTEGRATION_SCAFFOLD_TYPES = supported_integration_scaffold_types()
 _IntegrationScaffoldType = Enum(
@@ -45,7 +55,7 @@ def integration_scaffold(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]Created integration scaffold:[/green] {result.key}")
+    console.print(f"{accent('Created integration scaffold:')} {result.key}")
     console.print(f"  {result.integration_file.relative_to(project_root).as_posix()}")
     console.print(f"  {result.test_file.relative_to(project_root).as_posix()}")
     console.print()

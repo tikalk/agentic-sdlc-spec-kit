@@ -31,6 +31,19 @@ except ImportError:  # pragma: no cover - upstream fallback
         kwargs.setdefault("add_completion", False)
         return typer.Typer(name=name, help=help, **kwargs)
 
+try:
+    from .._init_fork import accent, accent_style
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold: style = f"bold {style}"
+        if italic: style = f"italic {style}"
+        if dim: style = f"dim {style}"
+        return f"[{style}]{text}[/{style}]" if len([s for s in [bold, italic, dim] if s]) == 0 else f"[{style}]{text}[/]"
+
+    def accent_style() -> str:
+        return "cyan"
+
 workflow_app = make_typer(
     name="workflow",
     help="Manage and run automation workflows",
@@ -361,7 +374,7 @@ def workflow_run(
     inputs = _parse_input_values(input_values)
 
     if not json_output:
-        console.print(f"\n[bold cyan]Running workflow:[/bold cyan] {definition.name} ({definition.id})")
+        console.print(f"\n{accent('Running workflow:', bold=True)} {definition.name} ({definition.id})")
         console.print(f"[dim]Version: {definition.version}[/dim]\n")
 
     try:
@@ -379,8 +392,8 @@ def workflow_run(
         raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
     status_colors = {
-        "completed": "green",
-        "paused": "yellow",
+        "completed": "dark_sea_green",
+        "paused": "gold1",
         "failed": "red",
         "aborted": "red",
     }
@@ -389,7 +402,7 @@ def workflow_run(
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
     if state.status.value == "paused":
-        console.print(f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]")
+        console.print(f"\nResume with: {accent(f'specify workflow resume {state.run_id}')}")
 
     raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
@@ -436,8 +449,8 @@ def workflow_resume(
         raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
     status_colors = {
-        "completed": "green",
-        "paused": "yellow",
+        "completed": "dark_sea_green",
+        "paused": "gold1",
         "failed": "red",
         "aborted": "red",
     }
@@ -486,8 +499,8 @@ def workflow_status(
             return
 
         status_colors = {
-            "completed": "green",
-            "paused": "yellow",
+            "completed": "dark_sea_green",
+            "paused": "gold1",
             "failed": "red",
             "aborted": "red",
             "running": "blue",
@@ -495,7 +508,7 @@ def workflow_status(
         }
         color = status_colors.get(state.status.value, "white")
 
-        console.print(f"\n[bold cyan]Workflow Run: {state.run_id}[/bold cyan]")
+        console.print(f"\n{accent(f'Workflow Run: {state.run_id}', bold=True)}")
         console.print(f"  Workflow: {state.workflow_id}")
         console.print(f"  Status:   [{color}]{state.status.value}[/{color}]")
         console.print(f"  Created:  {state.created_at}")
@@ -508,7 +521,7 @@ def workflow_status(
             console.print(f"\n  [bold]Steps ({len(state.step_results)}):[/bold]")
             for step_id, step_data in state.step_results.items():
                 s = step_data.get("status", "unknown")
-                sc = {"completed": "green", "failed": "red", "paused": "yellow"}.get(s, "white")
+                sc = {"completed": "dark_sea_green", "failed": "red", "paused": "gold1"}.get(s, "white")
                 console.print(f"    [{sc}]●[/{sc}] {step_id}: {s}")
     else:
         runs = engine.list_runs()
@@ -532,10 +545,10 @@ def workflow_status(
             console.print("[yellow]No workflow runs found.[/yellow]")
             return
 
-        console.print("\n[bold cyan]Workflow Runs:[/bold cyan]\n")
+        console.print(f"\n{accent('Workflow Runs:', bold=True)}\n")
         for run_data in runs:
             s = run_data.get("status", "unknown")
-            sc = {"completed": "green", "failed": "red", "paused": "yellow", "running": "blue"}.get(s, "white")
+            sc = {"completed": "dark_sea_green", "failed": "red", "paused": "gold1", "running": "blue"}.get(s, "white")
             console.print(
                 f"  [{sc}]●[/{sc}] {run_data['run_id']}  "
                 f"{run_data.get('workflow_id', '?')}  "
@@ -556,10 +569,10 @@ def workflow_list():
     if not installed:
         console.print("[yellow]No workflows installed.[/yellow]")
         console.print("\nInstall a workflow with:")
-        console.print("  [cyan]specify workflow add <workflow-id>[/cyan]")
+        console.print(f"  {accent('specify workflow add <workflow-id>')}")
         return
 
-    console.print("\n[bold cyan]Installed Workflows:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed Workflows:', bold=True)}\n")
     for wf_id, wf_data in installed.items():
         console.print(f"  [bold]{wf_data.get('name', wf_id)}[/bold] ({wf_id}) v{wf_data.get('version', '?')}")
         desc = wf_data.get("description", "")
@@ -614,7 +627,7 @@ def workflow_add(
             "description": definition.description,
             "source": source_label,
         })
-        console.print(f"[green]✓[/green] Workflow '{definition.name}' ({definition.id}) installed")
+        console.print(f"{accent('✓')} Workflow '{definition.name}' ({definition.id}) installed")
 
     # Try as URL (http/https)
     if source.startswith("http://") or source.startswith("https://"):
@@ -819,7 +832,7 @@ def workflow_add(
         "catalog_name": info.get("_catalog_name", ""),
         "url": workflow_url,
     })
-    console.print(f"[green]✓[/green] Workflow '{info.get('name', source)}' installed from catalog")
+    console.print(f"{accent('✓')} Workflow '{info.get('name', source)}' installed from catalog")
 
 
 @workflow_app.command("remove")
@@ -880,7 +893,7 @@ def workflow_remove(
             raise typer.Exit(1)
 
     registry.remove(workflow_id)
-    console.print(f"[green]✓[/green] Workflow '{workflow_id}' removed")
+    console.print(f"{accent('✓')} Workflow '{workflow_id}' removed")
 
 
 @workflow_app.command("search")
@@ -904,7 +917,7 @@ def workflow_search(
         console.print("[yellow]No workflows found.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]Workflows ({len(results)}):[/bold cyan]\n")
+    console.print(f"\n{accent(f'Workflows ({len(results)}):', bold=True)}\n")
     for wf in results:
         console.print(f"  [bold]{wf.get('name', wf.get('id', '?'))}[/bold] ({wf.get('id', '?')}) v{wf.get('version', '?')}")
         desc = wf.get("description", "")
@@ -941,7 +954,7 @@ def workflow_info(
         pass
 
     if definition:
-        console.print(f"\n[bold cyan]{definition.name}[/bold cyan] ({definition.id})")
+        console.print(f"\n{accent(definition.name, bold=True)} ({definition.id})")
         console.print(f"  Version:     {definition.version}")
         if definition.author:
             console.print(f"  Author:      {definition.author}")
@@ -950,7 +963,7 @@ def workflow_info(
         if definition.default_integration:
             console.print(f"  Integration: {definition.default_integration}")
         if installed:
-            console.print("  [green]Installed[/green]")
+            console.print(f"  {accent('Installed')}")
 
         if definition.inputs:
             console.print("\n  [bold]Inputs:[/bold]")
@@ -974,7 +987,7 @@ def workflow_info(
         info = None
 
     if info:
-        console.print(f"\n[bold cyan]{info.get('name', workflow_id)}[/bold cyan] ({workflow_id})")
+        console.print(f"\n{accent(info.get('name', workflow_id), bold=True)} ({workflow_id})")
         console.print(f"  Version:     {info.get('version', '?')}")
         if info.get("description"):
             console.print(f"  Description: {info['description']}")
@@ -1000,9 +1013,9 @@ def workflow_catalog_list():
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Workflow Catalog Sources:[/bold cyan]\n")
+    console.print(f"\n{accent('Workflow Catalog Sources:', bold=True)}\n")
     for i, cfg in enumerate(configs):
-        install_status = "[green]install allowed[/green]" if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
+        install_status = accent('install allowed') if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
         console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")
         console.print(f"      {cfg['url']}")
         if cfg.get("description"):
@@ -1026,7 +1039,7 @@ def workflow_catalog_add(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source added: {url}")
+    console.print(f"{accent('✓')} Catalog source added: {url}")
 
 
 @workflow_catalog_app.command("remove")
@@ -1044,7 +1057,7 @@ def workflow_catalog_remove(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Catalog source '{removed_name}' removed")
+    console.print(f"{accent('✓')} Catalog source '{removed_name}' removed")
 
 
 # ===== Workflow Step Commands =====
@@ -1064,7 +1077,7 @@ def workflow_step_list():
         registry = StepRegistry(project_root)
         installed = registry.list()
 
-    console.print("\n[bold cyan]Installed Step Types:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed Step Types:', bold=True)}\n")
 
     built_in = sorted(k for k in STEP_REGISTRY if k not in installed)
     if built_in:
@@ -1087,7 +1100,7 @@ def workflow_step_list():
 
     if specify_dir.exists():
         console.print(
-            "  Install a new step type with: [cyan]specify workflow step add <id>[/cyan]"
+            f"  Install a new step type with: {accent('specify workflow step add <id>')}"
         )
 
 
@@ -1210,8 +1223,7 @@ def workflow_step_add(
     if registry.is_installed(step_id):
         console.print(
             f"[red]Error:[/red] Step type '{step_id}' is already installed. "
-            "Remove it first with: [cyan]specify workflow step remove "
-            f"{step_id}[/cyan]"
+            f"Remove it first with: {accent(f'specify workflow step remove {step_id}')}"
         )
         raise typer.Exit(1)
 
@@ -1278,7 +1290,7 @@ def workflow_step_add(
     if step_dir.exists():
         console.print(
             f"[red]Error:[/red] Step directory already exists at '{step_dir}'. "
-            f"Remove it manually or use: [cyan]specify workflow step remove {step_id}[/cyan]"
+            f"Remove it manually or use: {accent(f'specify workflow step remove {step_id}')}"
         )
         raise typer.Exit(1)
 
@@ -1441,10 +1453,10 @@ def workflow_step_add(
         raise typer.Exit(1)
 
     console.print(
-        f"[green]✓[/green] Step type '{step_name}' ({step_id}) installed"
+        f"{accent('✓')} Step type '{step_name}' ({step_id}) installed"
     )
     console.print(
-        "  Use [cyan]specify workflow step list[/cyan] to verify the installation."
+        f"  Use {accent('specify workflow step list')} to verify the installation."
     )
 
 
@@ -1532,7 +1544,7 @@ def workflow_step_remove(
                     f"[red]Error:[/red] Failed to remove step directory {step_dir}: {exc}"
                 )
                 raise typer.Exit(1)
-    console.print(f"[green]✓[/green] Step type '{step_id}' uninstalled")
+    console.print(f"{accent('✓')} Step type '{step_id}' uninstalled")
 
 
 @workflow_step_app.command("search")
@@ -1559,7 +1571,7 @@ def workflow_step_search(
             console.print("[yellow]No step types found in catalog.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]Step Types ({len(results)}):[/bold cyan]\n")
+    console.print(f"\n{accent(f'Step Types ({len(results)}):', bold=True)}\n")
     for step in results:
         install_note = (
             "" if step.get("_install_allowed", True) else " [dim](discovery only)[/dim]"
@@ -1592,21 +1604,21 @@ def workflow_step_info(
     is_builtin = builtin_step is not None and not installed_meta
 
     if is_builtin:
-        console.print(f"\n[bold cyan]{step_id}[/bold cyan] [dim](built-in)[/dim]")
+        console.print(f"\n{accent(step_id, bold=True)} [dim](built-in)[/dim]")
         console.print(f"  Type key: {step_id}")
-        console.print("  [green]Built-in step type[/green]")
+        console.print(f"  {accent('Built-in step type')}")
         return
 
     if installed_meta:
         console.print(
-            f"\n[bold cyan]{installed_meta.get('name', step_id)}[/bold cyan] ({step_id})"
+            f"\n{accent(installed_meta.get('name', step_id), bold=True)} ({step_id})"
         )
         console.print(f"  Version:     {installed_meta.get('version', '?')}")
         if installed_meta.get("author"):
             console.print(f"  Author:      {installed_meta['author']}")
         if installed_meta.get("description"):
             console.print(f"  Description: {installed_meta['description']}")
-        console.print("  [green]Installed[/green]")
+        console.print(f"  {accent('Installed')}")
         return
 
     # Try catalog
@@ -1618,7 +1630,7 @@ def workflow_step_info(
 
     if info:
         console.print(
-            f"\n[bold cyan]{info.get('name', step_id)}[/bold cyan] ({step_id})"
+            f"\n{accent(info.get('name', step_id), bold=True)} ({step_id})"
         )
         console.print(f"  Version:     {info.get('version', '?')}")
         if info.get("author"):
@@ -1627,7 +1639,7 @@ def workflow_step_info(
             console.print(f"  Description: {info['description']}")
         console.print("  [yellow]Not installed[/yellow]")
         console.print(
-            f"\n  Install with: [cyan]specify workflow step add {step_id}[/cyan]"
+            f"\n  Install with: {accent(f'specify workflow step add {step_id}')}"
         )
     else:
         console.print(f"[red]Error:[/red] Step type '{step_id}' not found")
@@ -1648,10 +1660,10 @@ def workflow_step_catalog_list():
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Step Catalog Sources:[/bold cyan]\n")
+    console.print(f"\n{accent('Step Catalog Sources:', bold=True)}\n")
     for i, cfg in enumerate(configs):
         install_status = (
-            "[green]install allowed[/green]"
+            accent('install allowed')
             if cfg["install_allowed"]
             else "[yellow]discovery only[/yellow]"
         )
@@ -1679,7 +1691,7 @@ def workflow_step_catalog_add(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Step catalog source added: {url}")
+    console.print(f"{accent('✓')} Step catalog source added: {url}")
 
 
 @workflow_step_catalog_app.command("remove")
@@ -1700,7 +1712,7 @@ def workflow_step_catalog_remove(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    console.print(f"[green]✓[/green] Step catalog source '{removed_name}' removed")
+    console.print(f"{accent('✓')} Step catalog source '{removed_name}' removed")
 
 
 def register(app: typer.Typer) -> None:

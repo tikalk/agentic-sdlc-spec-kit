@@ -24,6 +24,19 @@ except ImportError:
 
 from .._console import console
 
+try:
+    from .._init_fork import accent, accent_style
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold: style = f"bold {style}"
+        if italic: style = f"italic {style}"
+        if dim: style = f"dim {style}"
+        return f"[{style}]{text}[/{style}]" if len([s for s in [bold, italic, dim] if s]) == 0 else f"[{style}]{text}[/]"
+
+    def accent_style() -> str:
+        return "cyan"
+
 preset_app = make_typer(
     name="preset",
     help="Manage spec-kit presets",
@@ -52,12 +65,12 @@ def preset_list():
     if not installed:
         console.print("[yellow]No presets installed.[/yellow]")
         console.print("\nInstall a preset with:")
-        console.print("  [cyan]specify preset add <pack-name>[/cyan]")
+        console.print(f"  {accent('specify preset add <pack-name>')}")
         return
 
-    console.print("\n[bold cyan]Installed Presets:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed Presets:', bold=True)}\n")
     for pack in installed:
-        status = "[green]enabled[/green]" if pack.get("enabled", True) else "[red]disabled[/red]"
+        status = "[dark_sea_green]enabled[/dark_sea_green]" if pack.get("enabled", True) else "[indian_red]disabled[/indian_red]"
         pri = pack.get('priority', 10)
         console.print(f"  [bold]{pack['name']}[/bold] ({pack['id']}) v{pack['version']} — {status} — priority {pri}")
         console.print(f"    {pack['description']}")
@@ -101,9 +114,9 @@ def preset_add(
                 console.print(f"[red]Error:[/red] Directory not found: {dev}")
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{dev_path}[/cyan]...")
+            console.print(f"Installing preset from {accent(dev_path)}...")
             manifest = manager.install_from_directory(dev_path, speckit_version, priority)
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
 
         elif from_url:
             # Validate URL scheme before downloading
@@ -141,7 +154,7 @@ def preset_add(
                 )
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from [cyan]{from_url}[/cyan]...")
+            console.print(f"Installing preset from {accent(from_url)}...")
             import urllib.error
             import tempfile
             import shutil
@@ -186,15 +199,15 @@ def preset_add(
 
                 manifest = manager.install_from_zip(zip_path, speckit_version, priority)
 
-            console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+            console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
 
         elif preset_id:
             # Try bundled preset first, then catalog
             bundled_path = _locate_bundled_preset(preset_id)
             if bundled_path:
-                console.print(f"Installing bundled preset [cyan]{preset_id}[/cyan]...")
+                console.print(f"Installing bundled preset {accent(preset_id)}...")
                 manifest = manager.install_from_directory(bundled_path, speckit_version, priority)
-                console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+                console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
             else:
                 catalog = PresetCatalog(project_root)
                 pack_info = catalog.get_pack_info(preset_id)
@@ -224,12 +237,12 @@ def preset_add(
                     console.print("Add the catalog with --install-allowed or install from the preset's repository directly with --from.")
                     raise typer.Exit(1)
 
-                console.print(f"Installing preset [cyan]{pack_info.get('name', preset_id)}[/cyan]...")
+                console.print(f"Installing preset {accent(pack_info.get('name', preset_id))}...")
 
                 try:
                     zip_path = catalog.download_pack(preset_id)
                     manifest = manager.install_from_zip(zip_path, speckit_version, priority)
-                    console.print(f"[green]✓[/green] Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
+                    console.print(f"{accent('✓')} Preset '{manifest.name}' v{manifest.version} installed (priority {priority})")
                 finally:
                     if 'zip_path' in locals() and zip_path.exists():
                         zip_path.unlink(missing_ok=True)
@@ -264,7 +277,7 @@ def preset_remove(
         raise typer.Exit(1)
 
     if manager.remove(preset_id):
-        console.print(f"[green]✓[/green] Preset '{preset_id}' removed successfully")
+        console.print(f"{accent('✓')} Preset '{preset_id}' removed successfully")
     else:
         console.print(f"[red]Error:[/red] Failed to remove preset '{preset_id}'")
         raise typer.Exit(1)
@@ -293,7 +306,7 @@ def preset_search(
         console.print("[yellow]No presets found matching your criteria.[/yellow]")
         return
 
-    console.print(f"\n[bold cyan]Presets ({len(results)} found):[/bold cyan]\n")
+    console.print(f"\n{accent(f'Presets ({len(results)} found):', bold=True)}\n")
     for pack in results:
         console.print(f"  [bold]{pack.get('name', pack['id'])}[/bold] ({pack['id']}) v{pack.get('version', '?')}")
         console.print(f"    {pack.get('description', '')}")
@@ -382,7 +395,7 @@ def preset_info(
     local_pack = manager.get_pack(preset_id)
 
     if local_pack:
-        console.print(f"\n[bold cyan]Preset: {local_pack.name}[/bold cyan]\n")
+        console.print(f"\n{accent(f'Preset: {local_pack.name}', bold=True)}\n")
         console.print(f"  ID:          {local_pack.id}")
         console.print(f"  Version:     {local_pack.version}")
         console.print(f"  Description: {local_pack.description}")
@@ -399,7 +412,7 @@ def preset_info(
         license_val = local_pack.data.get("preset", {}).get("license")
         if license_val:
             console.print(f"  License:     {license_val}")
-        console.print("\n  [green]Status: installed[/green]")
+        console.print(f"\n  {accent('Status: installed')}")
         # Get priority from registry
         pack_metadata = manager.registry.get(preset_id)
         priority = normalize_priority(pack_metadata.get("priority") if isinstance(pack_metadata, dict) else None)
@@ -418,7 +431,7 @@ def preset_info(
         console.print(f"[red]Error:[/red] Preset '{preset_id}' not found (not installed and not in catalog)")
         raise typer.Exit(1)
 
-    console.print(f"\n[bold cyan]Preset: {pack_info.get('name', preset_id)}[/bold cyan]\n")
+    console.print(f"\n{accent('Preset: ' + str(pack_info.get('name', preset_id)), bold=True)}\n")
     console.print(f"  ID:          {pack_info['id']}")
     console.print(f"  Version:     {pack_info.get('version', '?')}")
     console.print(f"  Description: {pack_info.get('description', '')}")
@@ -431,7 +444,7 @@ def preset_info(
     if pack_info.get("license"):
         console.print(f"  License:     {pack_info['license']}")
     console.print("\n  [yellow]Status: not installed[/yellow]")
-    console.print(f"  Install with: [cyan]specify preset add {preset_id}[/cyan]")
+    console.print(f"  Install with: {accent(f'specify preset add {preset_id}')}")
     console.print()
 
 
@@ -476,7 +489,7 @@ def preset_set_priority(
     # Update priority
     manager.registry.update(preset_id, {"priority": priority})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' priority changed: {old_priority} → {priority}")
+    console.print(f"{accent('✓')} Preset '{preset_id}' priority changed: {old_priority} → {priority}")
     console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
@@ -509,7 +522,7 @@ def preset_enable(
     # Enable the preset
     manager.registry.update(preset_id, {"enabled": True})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' enabled")
+    console.print(f"{accent('✓')} Preset '{preset_id}' enabled")
     console.print("\nTemplates from this preset will now be included in resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active.[/dim]")
 
@@ -543,7 +556,7 @@ def preset_disable(
     # Disable the preset
     manager.registry.update(preset_id, {"enabled": False})
 
-    console.print(f"[green]✓[/green] Preset '{preset_id}' disabled")
+    console.print(f"{accent('✓')} Preset '{preset_id}' disabled")
     console.print("\nTemplates from this preset will be skipped during resolution.")
     console.print("[dim]Note: Previously registered commands/skills remain active until preset removal.[/dim]")
     console.print(f"To re-enable: specify preset enable {preset_id}")
@@ -585,10 +598,10 @@ def preset_catalog_list():
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Active Preset Catalogs:[/bold cyan]\n")
+    console.print(f"\n{accent('Active Preset Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
-            "[green]install allowed[/green]"
+            accent('install allowed')
             if entry.install_allowed
             else "[yellow]discovery only[/yellow]"
         )
@@ -687,7 +700,7 @@ def preset_catalog_add(
     config_path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{name}[/bold]' ({install_label})")
+    console.print(f"\n{accent('✓')} Added catalog '[bold]{name}[/bold]' ({install_label})")
     console.print(f"  URL: {url}")
     console.print(f"  Priority: {priority}")
     console.print(f"\nConfig saved to {_display_project_path(project_root, config_path)}")
@@ -728,7 +741,7 @@ def preset_catalog_remove(
     config["catalogs"] = catalogs
     config_path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
-    console.print(f"[green]✓[/green] Removed catalog '{name}'")
+    console.print(f"{accent('✓')} Removed catalog '{name}'")
     if not catalogs:
         console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
 

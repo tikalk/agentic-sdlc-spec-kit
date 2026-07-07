@@ -30,6 +30,19 @@ from ...bundler.lib.project import (
 )
 from ...bundler.models.records import load_records
 
+try:
+    from ..._init_fork import accent, accent_style
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold: style = f"bold {style}"
+        if italic: style = f"italic {style}"
+        if dim: style = f"dim {style}"
+        return f"[{style}]{text}[/{style}]" if len([s for s in [bold, italic, dim] if s]) == 0 else f"[{style}]{text}[/]"
+
+    def accent_style() -> str:
+        return "cyan"
+
 bundle_app = make_typer(
     name="bundle",
     help="Discover, install, and author Spec Kit bundles",
@@ -82,7 +95,7 @@ def _trust_level(verified: bool) -> str:
 
 def _trust_badge(verified: bool) -> str:
     return (
-        "[green]✔ verified[/green]"
+        accent("✔ verified")
         if verified
         else "[yellow]community[/yellow]"
     )
@@ -183,7 +196,7 @@ def bundle_search(
         console.print("[yellow]No matching bundles found.[/yellow]")
         return
 
-    console.print("\n[bold cyan]Bundles:[/bold cyan]\n")
+    console.print(f"\n{accent('Bundles:', bold=True)}\n")
     for r in results:
         policy = (
             "[dim](discovery-only)[/dim]"
@@ -248,7 +261,7 @@ def bundle_info(
         print(_json.dumps(payload, indent=2))
         return
 
-    console.print(f"\n[bold cyan]{entry.id}[/bold cyan] v{entry.version} — {entry.name}")
+    console.print(f"\n{accent(entry.id, bold=True)} v{entry.version} — {entry.name}")
     console.print(f"  Role: {entry.role}")
     console.print(f"  {entry.description}")
     console.print(f"  Author: {entry.author}   License: {entry.license}")
@@ -305,10 +318,10 @@ def bundle_list(
 
     if not records:
         console.print("[yellow]No bundles installed.[/yellow]")
-        console.print("\nInstall one with: [cyan]specify bundle install <id>[/cyan]")
+        console.print(f"\nInstall one with: {accent('specify bundle install <id>')}")
         return
 
-    console.print("\n[bold cyan]Installed bundles:[/bold cyan]\n")
+    console.print(f"\n{accent('Installed bundles:', bold=True)}\n")
     for record in records:
         console.print(
             f"  [bold]{record.bundle_id}[/bold] v{record.version} "
@@ -358,8 +371,10 @@ def bundle_install(
         if project_root is None:
             init_integration = _resolve_init_integration(integration, manifest)
             console.print(
-                f"[cyan]No Spec Kit project here; initializing with integration "
-                f"'{init_integration}'…[/cyan]"
+                accent(
+                    "No Spec Kit project here; initializing with integration "
+                    f"'{init_integration}'…"
+                )
             )
             _run_init(init_integration, script_type=_default_script_type(), offline=offline)
             project_root = require_project_root()
@@ -393,7 +408,7 @@ def bundle_install(
         return
 
     console.print(
-        f"[green]✓[/green] Installed '{result.bundle_id}' "
+        f"{accent('✓')} Installed '{result.bundle_id}' "
         f"({len(result.installed)} added, {len(result.skipped)} already present)."
     )
 
@@ -445,7 +460,7 @@ def bundle_update(
                 integration_explicit=bool(integration) and detected is None,
             )
             install_bundle(project_root, plan, installer, manifest=manifest, refresh=True)
-            console.print(f"[green]✓[/green] Updated '{target}' to v{plan.version}.")
+            console.print(f"{accent('✓')} Updated '{target}' to v{plan.version}.")
     except BundlerError as exc:
         _fail(str(exc))
         return
@@ -467,7 +482,7 @@ def bundle_remove(
         return
 
     console.print(
-        f"[green]✓[/green] Removed '{result.bundle_id}' "
+        f"{accent('✓')} Removed '{result.bundle_id}' "
         f"({len(result.uninstalled)} uninstalled, {len(result.skipped)} kept for other bundles)."
     )
 
@@ -513,7 +528,7 @@ def bundle_validate(
         for error in report.errors:
             console.print(f"  [red]-[/red] {error}")
         raise typer.Exit(code=1)
-    console.print(f"[green]✓[/green] {manifest.bundle.id} is well-formed and valid.")
+    console.print(f"{accent('✓')} {manifest.bundle.id} is well-formed and valid.")
 
 
 @bundle_app.command("build")
@@ -536,7 +551,7 @@ def bundle_build(
         return
 
     console.print(
-        f"[green]✓[/green] Built {result.artifact_path.name} "
+        f"{accent('✓')} Built {result.artifact_path.name} "
         f"({result.file_count} files) → {result.artifact_path}"
     )
 
@@ -555,8 +570,10 @@ def bundle_init(
         if project_root is None:
             init_integration = _resolve_init_integration(integration, None)
             console.print(
-                f"[cyan]Initializing a Spec Kit project with integration "
-                f"'{init_integration}'…[/cyan]"
+                accent(
+                    "Initializing a Spec Kit project with integration "
+                    f"'{init_integration}'…"
+                )
             )
             _run_init(init_integration, script_type=_default_script_type(), offline=offline)
             project_root = require_project_root()
@@ -564,7 +581,7 @@ def bundle_init(
         _fail(str(exc))
         return
 
-    console.print(f"[green]✓[/green] Spec Kit project ready at {project_root}.")
+    console.print(f"{accent('✓')} Spec Kit project ready at {project_root}.")
     if bundle:
         bundle_install(bundle, integration=integration, offline=offline)
 
@@ -584,7 +601,7 @@ def catalog_list() -> None:
         _fail(str(exc))
         return
 
-    console.print("\n[bold cyan]Catalog stack[/bold cyan] (highest precedence first):\n")
+    console.print(f"\n{accent('Catalog stack', bold=True)} (highest precedence first):\n")
     only_builtin = all(s.scope == Scope.BUILTIN for s in sources)
     for source in sources:
         console.print(
@@ -616,7 +633,7 @@ def catalog_add(
         return
 
     console.print(
-        f"[green]✓[/green] Added catalog '{source.id}' "
+        f"{accent('✓')} Added catalog '{source.id}' "
         f"(priority {source.priority}, {source.install_policy.value})."
     )
 
@@ -635,7 +652,7 @@ def catalog_remove(
         _fail(str(exc))
         return
 
-    console.print(f"[green]✓[/green] Removed catalog source '{removed}'.")
+    console.print(f"{accent('✓')} Removed catalog source '{removed}'.")
 
 
 # ZIP magic-byte signatures used to detect .zip payloads from REST API asset

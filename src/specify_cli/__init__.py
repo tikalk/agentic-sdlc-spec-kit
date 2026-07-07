@@ -365,7 +365,7 @@ def ensure_executable_scripts(project_path: Path, tracker: StepTracker | None = 
         (tracker.error if failures else tracker.complete)("chmod", detail)
     else:
         if updated:
-            console.print(f"[cyan]Updated execute permissions on {updated} script(s) recursively[/cyan]")
+            console.print(f"{accent('Updated execute permissions on ' + str(updated) + ' script(s) recursively')}")
         if failures:
             console.print("[yellow]Some scripts could not be updated:[/yellow]")
             for f in failures:
@@ -524,7 +524,7 @@ def check():
 
     console.print(tracker.render())
 
-    console.print("\n[bold green]Specify CLI is ready to use![/bold green]")
+    console.print(f"\n{accent('Specify CLI is ready to use!', bold=True)}")
 
     if not any(agent_results.values()):
         console.print("[dim]Tip: Install a coding agent for the best experience[/dim]")
@@ -585,7 +585,7 @@ def version(
     show_banner()
 
     info_table = Table(show_header=False, box=None, padding=(0, 2))
-    info_table.add_column("Key", style="cyan", justify="right")
+    info_table.add_column("Key", style=accent_style(), justify="right")
     info_table.add_column("Value", style="white")
 
     info_table.add_row("CLI Version", cli_version)
@@ -597,8 +597,8 @@ def version(
 
     panel = Panel(
         info_table,
-        title="[bold cyan]Specify CLI Information[/bold cyan]",
-        border_style="cyan",
+        title=accent("Specify CLI Information", bold=True),
+        border_style=accent_style(),
         padding=(1, 2)
     )
 

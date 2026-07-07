@@ -690,7 +690,7 @@ def register(app: typer.Typer) -> None:
             else:
                 console.print("\n[red]Project initialized with errors. See above for details.[/red]")
         else:
-            console.print("\n[bold green]Project ready.[/bold green]")
+            console.print(f"\n{accent('Project ready.', bold=True)}")
 
         agent_config = AGENT_CONFIG.get(selected_ai)
         if agent_config:

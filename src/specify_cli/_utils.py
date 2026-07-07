@@ -14,7 +14,7 @@ from typing import Any
 from ._console import console
 
 try:
-    from ._init_fork import accent
+    from ._init_fork import accent, accent_style
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"
@@ -162,7 +162,9 @@ def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker
     Note: when merge produces changes, rewritten output is normalized JSON and
     existing JSONC comments/trailing commas are not preserved.
     """
-    def log(message, color="green"):
+    def log(message, color=None):
+        if color is None:
+            color = accent_style()
         if verbose and not tracker:
             console.print(f"[{color}]{message}[/] {rel_path}")
 
@@ -211,7 +213,7 @@ def handle_vscode_settings(sub_item, dest_file, rel_path, verbose=False, tracker
             merged = merge_json_files(dest_file, new_settings, verbose=verbose and not tracker)
             if merged is not None:
                 atomic_write_json(dest_file, merged)
-                log("Merged:", "green")
+                log("Merged:", accent_style())
                 log("Note: comments/trailing commas are normalized when rewritten", "yellow")
             else:
                 log("Skipped merge (preserved existing settings)", "yellow")

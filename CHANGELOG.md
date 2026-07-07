@@ -2,6 +2,41 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc2] - 2026-07-07
+
+### Changed
+
+- **Theming sweep**: replaced ~114 hardcoded `[green]`/`[cyan]` Rich markup
+  references across 10 CLI source files with the fork's `accent()` /
+  `accent_style()` helpers. This closes theme gaps introduced by upstream
+  merges that brought in new command modules (`workflows/`, `presets/`,
+  `extensions/`, `bundle/`) without fork theming.
+- **Semantic color palette**: introduced warm-toned semantic colors that
+  complement the orange accent:
+  - `dark_sea_green` (`#8fbc8f`) — success/active/enabled (replaces `green`)
+  - `indian_red` (`#cd5c5c`) — disabled/inactive (replaces `red` for
+    non-error contexts)
+  - `gold1` (`#daa520`) — warning/paused state (replaces `yellow` in
+    `status_colors` dicts only)
+  - `red` — error/failed (unchanged)
+- New constants in `_init_fork.py`: `SUCCESS_COLOR`, `DISABLED_COLOR`,
+  `WARNING_COLOR`, `ERROR_COLOR`, plus `success_style()` and
+  `disabled_style()` helpers.
+- Workflow `status_colors` dicts: `"completed"` → `dark_sea_green`,
+  `"paused"` → `gold1`; `"failed"`/`"aborted"` stay `red`.
+- Extension `status_color` ternary: `dark_sea_green` if enabled else
+  `indian_red`.
+- Updated 1 test assertion in `tests/test_extensions.py` to expect
+  `[#f47721]` accent color instead of `[cyan]`.
+
+### Files changed
+
+`_init_fork.py`, `__init__.py`, `commands/init.py`,
+`commands/bundle/__init__.py`, `presets/_commands.py`,
+`workflows/_commands.py`, `extensions/_commands.py`,
+`integrations/_query_commands.py`, `integrations/_scaffold_commands.py`,
+`_utils.py`
+
 # [0.12.6+adlc1] - 2026-07-07
 
 ### Changed

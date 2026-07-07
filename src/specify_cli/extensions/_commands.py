@@ -32,6 +32,19 @@ except ImportError:
 from .._console import console
 from .._assets import get_speckit_version
 
+try:
+    from .._init_fork import accent, accent_style
+except ImportError:
+    def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
+        style = "cyan"
+        if bold: style = f"bold {style}"
+        if italic: style = f"italic {style}"
+        if dim: style = f"dim {style}"
+        return f"[{style}]{text}[/{style}]" if len([s for s in [bold, italic, dim] if s]) == 0 else f"[{style}]{text}[/]"
+
+    def accent_style() -> str:
+        return "cyan"
+
 extension_app = make_typer(
     name="extension",
     help="Manage spec-kit extensions",
@@ -125,9 +138,9 @@ def _resolve_installed_extension(
             "Multiple installed extensions share this name:"
         )
         table = Table(title="Matching extensions")
-        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("ID", style=accent_style(), no_wrap=True)
         table.add_column("Name", style="white")
-        table.add_column("Version", style="green")
+        table.add_column("Version", style=accent_style())
         for ext in name_matches:
             table.add_row(
                 _escape_markup(str(ext.get("id", ""))),
@@ -185,9 +198,9 @@ def _resolve_catalog_extension(
                 "Multiple catalog extensions share this name:"
             )
             table = Table(title="Matching extensions")
-            table.add_column("ID", style="cyan", no_wrap=True)
+            table.add_column("ID", style=accent_style(), no_wrap=True)
             table.add_column("Name", style="white")
-            table.add_column("Version", style="green")
+            table.add_column("Version", style=accent_style())
             table.add_column("Catalog", style="dim")
             for ext in name_matches:
                 table.add_row(
@@ -227,11 +240,11 @@ def extension_list(
         return
 
     if installed:
-        console.print("\n[bold cyan]Installed Extensions:[/bold cyan]\n")
+        console.print(f"\n{accent('Installed Extensions:', bold=True)}\n")
 
         for ext in installed:
             status_icon = "✓" if ext["enabled"] else "✗"
-            status_color = "green" if ext["enabled"] else "red"
+            status_color = "dark_sea_green" if ext["enabled"] else "indian_red"
 
             console.print(f"  [{status_color}]{status_icon}[/{status_color}] [bold]{_escape_markup(ext['name'])}[/bold] (v{_escape_markup(str(ext['version']))})")
             console.print(f"     [dim]{_escape_markup(ext['id'])}[/dim]")
@@ -241,7 +254,7 @@ def extension_list(
 
     if available or all_extensions:
         console.print("\nInstall an extension:")
-        console.print("  [cyan]specify extension add <name>[/cyan]")
+        console.print(f"  {accent('specify extension add <name>')}")
 
 
 @catalog_app.command("list")
@@ -258,10 +271,10 @@ def catalog_list():
         console.print(f"[red]Error:[/red] {_escape_markup(str(e))}")
         raise typer.Exit(1)
 
-    console.print("\n[bold cyan]Active Extension Catalogs:[/bold cyan]\n")
+    console.print(f"\n{accent('Active Extension Catalogs:', bold=True)}\n")
     for entry in active_catalogs:
         install_str = (
-            "[green]install allowed[/green]"
+            accent("install allowed")
             if entry.install_allowed
             else "[yellow]discovery only[/yellow]"
         )
@@ -358,7 +371,7 @@ def catalog_add(
     config_path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
     install_label = "install allowed" if install_allowed else "discovery only"
-    console.print(f"\n[green]✓[/green] Added catalog '[bold]{safe_name}[/bold]' ({install_label})")
+    console.print(f"\n{accent('✓')} Added catalog '[bold]{safe_name}[/bold]' ({install_label})")
     console.print(f"  URL: {safe_url}")
     console.print(f"  Priority: {priority}")
     config_label = _escape_markup(str(_display_project_path(project_root, config_path)))
@@ -395,7 +408,7 @@ def catalog_remove(
     config["catalogs"] = catalogs
     config_path.write_text(yaml.safe_dump(config, default_flow_style=False, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
-    console.print(f"[green]✓[/green] Removed catalog '{safe_name}'")
+    console.print(f"{accent('✓')} Removed catalog '{safe_name}'")
     if not catalogs:
         console.print("\n[dim]No catalogs remain in config. Built-in defaults will be used.[/dim]")
 
@@ -462,7 +475,7 @@ def extension_add(
     safe_extension = _escape_markup(extension)
 
     try:
-        with console.status(f"[cyan]Installing extension: {safe_extension}[/cyan]"):
+        with console.status(accent(f"Installing extension: {safe_extension}")):
             if dev:
                 # Install from local directory
                 source_path = Path(extension).expanduser().resolve()
@@ -476,7 +489,7 @@ def extension_add(
                     raise typer.Exit(1)
 
                 if force:
-                    console.print(f"[yellow]--force:[/yellow] Installing from [cyan]{safe_source_path}[/cyan] (will overwrite if already installed)...")
+                    console.print(f"[yellow]--force:[/yellow] Installing from {accent(safe_source_path)} (will overwrite if already installed)...")
 
                 manifest = manager.install_from_directory(
                     source_path,
@@ -618,7 +631,7 @@ def extension_add(
                             if zip_path.exists():
                                 zip_path.unlink()
 
-        console.print("\n[green]✓[/green] Extension installed successfully!")
+        console.print(f"\n{accent('✓')} Extension installed successfully!")
         console.print(f"\n[bold]{_escape_markup(str(manifest.name))}[/bold] (v{_escape_markup(str(manifest.version))})")
         console.print(f"  {_escape_markup(str(manifest.description))}")
 
@@ -630,7 +643,7 @@ def extension_add(
         if is_cline:
             from specify_cli.integrations.cline import format_cline_command_name
 
-        console.print("\n[bold cyan]Provided commands:[/bold cyan]")
+        console.print(f"\n{accent('Provided commands:', bold=True)}")
         for cmd in manifest.commands:
             cmd_name = cmd['name']
             if is_cline:
@@ -644,7 +657,7 @@ def extension_add(
         if not isinstance(reg_skills, list):
             reg_skills = []
         if reg_skills:
-            console.print(f"\n[green]✓[/green] {len(reg_skills)} agent skill(s) auto-registered")
+            console.print(f"\n{accent('✓')} {len(reg_skills)} agent skill(s) auto-registered")
 
         console.print("\n[yellow]⚠[/yellow]  Configuration may be required")
         console.print(f"   Check: .specify/extensions/{_escape_markup(str(manifest.id))}/")
@@ -717,7 +730,7 @@ def extension_remove(
     success = manager.remove(extension_id, keep_config=keep_config)
 
     if success:
-        console.print(f"\n[green]✓[/green] Extension '{_escape_markup(str(display_name))}' removed successfully")
+        console.print(f"\n{accent('✓')} Extension '{_escape_markup(str(display_name))}' removed successfully")
         if keep_config:
             console.print(f"\nConfig files preserved in .specify/extensions/{safe_extension_id}/")
         else:
@@ -754,11 +767,11 @@ def extension_search(
                 console.print("  • specify extension search (show all)")
             raise typer.Exit(0)
 
-        console.print(f"\n[green]Found {len(results)} extension(s):[/green]\n")
+        console.print(f"\n{accent('Found ' + str(len(results)) + ' extension(s):')}\n")
 
         for ext in results:
             # Extension header
-            verified_badge = " [green]✓ Verified[/green]" if ext.get("verified") else ""
+            verified_badge = f" {accent('✓ Verified')}" if ext.get("verified") else ""
             console.print(f"[bold]{_escape_markup(str(ext['name']))}[/bold] (v{_escape_markup(str(ext['version']))}){verified_badge}")
             console.print(f"  {_escape_markup(str(ext['description']))}")
 
@@ -793,7 +806,7 @@ def extension_search(
             # Install command (show warning if not installable)
             safe_id = _escape_markup(str(ext['id']))
             if install_allowed:
-                console.print(f"\n  [cyan]Install:[/cyan] specify extension add {safe_id}")
+                console.print(f"\n  {accent('Install:')} specify extension add {safe_id}")
             else:
                 console.print(f"\n  [yellow]⚠[/yellow]  Not directly installable from '{catalog_name}'.")
                 console.print(
@@ -881,7 +894,7 @@ def extension_info(
             console.print("[yellow]Note:[/yellow] Not found in catalog (custom/local extension)")
 
         console.print()
-        console.print("[green]✓ Installed[/green]")
+        console.print(accent("✓ Installed"))
         priority = normalize_priority(metadata.get("priority") if metadata_is_dict else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
         console.print(f"\nTo remove: specify extension remove {_escape_markup(str(resolved_installed_id))}")
@@ -902,7 +915,7 @@ def _print_extension_info(ext_info: dict, manager):
     from . import normalize_priority
 
     # Header
-    verified_badge = " [green]✓ Verified[/green]" if ext_info.get("verified") else ""
+    verified_badge = f" {accent('✓ Verified')}" if ext_info.get("verified") else ""
     console.print(f"\n[bold]{_escape_markup(str(ext_info['name']))}[/bold] (v{_escape_markup(str(ext_info['version']))}){verified_badge}")
     console.print(f"ID: {_escape_markup(str(ext_info['id']))}")
     console.print()
@@ -985,14 +998,14 @@ def _print_extension_info(ext_info: dict, manager):
     install_allowed = ext_info.get("_install_allowed", True)
     safe_id = _escape_markup(str(ext_info['id']))
     if is_installed:
-        console.print("[green]✓ Installed[/green]")
+        console.print(accent("✓ Installed"))
         metadata = manager.registry.get(ext_info['id'])
         priority = normalize_priority(metadata.get("priority") if isinstance(metadata, dict) else None)
         console.print(f"[dim]Priority:[/dim] {priority}")
         console.print(f"\nTo remove: specify extension remove {safe_id}")
     elif install_allowed:
         console.print("[yellow]Not installed[/yellow]")
-        console.print(f"\n[cyan]Install:[/cyan] specify extension add {safe_id}")
+        console.print(f"\n{accent('Install:')} specify extension add {safe_id}")
     else:
         catalog_name = _escape_markup(str(ext_info.get("_catalog_name", "community")))
         console.print("[yellow]Not installed[/yellow]")
@@ -1122,7 +1135,7 @@ def extension_update(
                 console.print(f"✓ {safe_ext_id}: Up to date (v{installed_version})")
 
         if not updates_available:
-            console.print("\n[green]All extensions are up to date![/green]")
+            console.print("\n" + accent("All extensions are up to date!"))
             raise typer.Exit(0)
 
         # Show available updates
@@ -1354,7 +1367,7 @@ def extension_update(
                 if backup_base.exists():
                     shutil.rmtree(backup_base)
 
-                console.print(f"   [green]✓[/green] Updated to v{update['available']}")
+                console.print(f"   {accent('✓')} Updated to v{update['available']}")
                 updated_extensions.append(ext_name)
 
             except KeyboardInterrupt:
@@ -1469,7 +1482,7 @@ def extension_update(
                     if backup_registry_entry:
                         manager.registry.restore(extension_id, backup_registry_entry)
 
-                    console.print("   [green]✓[/green] Rollback successful")
+                    console.print(f"   {accent('✓')} Rollback successful")
                     # Clean up backup directory only on successful rollback
                     if backup_base.exists():
                         shutil.rmtree(backup_base)
@@ -1480,7 +1493,7 @@ def extension_update(
         # Summary
         console.print()
         if updated_extensions:
-            console.print(f"[green]✓[/green] Successfully updated {len(updated_extensions)} extension(s)")
+            console.print(f"{accent('✓')} Successfully updated {len(updated_extensions)} extension(s)")
         if failed_updates:
             console.print(f"[red]✗[/red] Failed to update {len(failed_updates)} extension(s):")
             for ext_name, error in failed_updates:
@@ -1534,7 +1547,7 @@ def extension_enable(
                     hook["enabled"] = True
         hook_executor.save_project_config(config)
 
-    console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' enabled")
+    console.print(f"{accent('✓')} Extension '{_escape_markup(str(display_name))}' enabled")
 
 
 @extension_app.command("disable")
@@ -1576,7 +1589,7 @@ def extension_disable(
                     hook["enabled"] = False
         hook_executor.save_project_config(config)
 
-    console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' disabled")
+    console.print(f"{accent('✓')} Extension '{_escape_markup(str(display_name))}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: specify extension enable {_escape_markup(str(extension_id))}")
 
@@ -1623,7 +1636,7 @@ def extension_set_priority(
     # Update priority
     manager.registry.update(extension_id, {"priority": priority})
 
-    console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' priority changed: {old_priority} → {priority}")
+    console.print(f"{accent('✓')} Extension '{_escape_markup(str(display_name))}' priority changed: {old_priority} → {priority}")
     console.print("\n[dim]Lower priority = higher precedence in template resolution[/dim]")
 
 
