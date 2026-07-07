@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc5] - 2026-07-08
+
+### Changed
+
+- **`templates/` reverted to upstream**: all fork modifications to core
+  command templates (`templates/commands/*.md`), `vscode-settings.json`,
+  and fork-only files (`agent-file-template.md`, `delegation-template.md`)
+  have been removed. The `templates/` directory now matches upstream
+  exactly. All fork-specific command behavior (Phase A/B hooks, Mission
+  Brief, branch_template, Next Step handover, `spec-...` prefix) lives
+  exclusively in preset command files under `presets/agentic-*/commands/`.
+- **FORK.md policy**: documented that `templates/` stays aligned with
+  upstream and fork customizations belong only in presets.
+
 # [0.12.6+adlc4] - 2026-07-08
 
 ### Fixed

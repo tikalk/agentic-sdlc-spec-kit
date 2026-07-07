@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.6+adlc5 | 2026-07-08 | 0.12.7.dev0 (`55938e65`) | `templates/` reverted to upstream — all fork modifications removed from core command templates, vscode-settings.json, and fork-only template files. Fork-specific behavior lives exclusively in `presets/agentic-*/commands/`. FORK.md policy added: `templates/` stays upstream-aligned. |
 | 0.12.6+adlc4 | 2026-07-08 | 0.12.7.dev0 (`dc6eafd3`) | Fixed Forge dot-notation test: replaced literal `/spec.implement` and `/spec.trace` in tasks command files with `__SPECKIT_COMMAND_*__` placeholders. Removed "Do NOT suggest" guard lines. |
 | 0.12.6+adlc3 | 2026-07-08 | 0.12.7.dev0 (`02d548c6`) | Panel title theming (`select_with_arrows`, Next Steps, Enhancement Skills, Matching extensions), hook invocation prefix `speckit-...` → `spec-...` across 24 command files, tasks handover block directing to `/spec.implement` (not `/quick.implement` or `/spec.trace`), E701 lint fixes in ImportError fallback blocks. |
 | 0.12.6+adlc2 | 2026-07-07 | 0.12.7.dev0 (`4d7eb07a`) | Theming sweep: replaced ~114 hardcoded `[green]`/`[cyan]` Rich markup across 10 CLI files with `accent()`/`accent_style()`. Introduced warm-toned semantic palette: `dark_sea_green` (success/active), `indian_red` (disabled/inactive), `gold1` (warning in status_colors). New constants `SUCCESS_COLOR`/`DISABLED_COLOR`/`WARNING_COLOR`/`ERROR_COLOR` + `success_style()`/`disabled_style()` helpers in `_init_fork.py`. Closes theme gaps from upstream merges that brought `workflows/`, `presets/`, `extensions/`, `bundle/` command modules without fork theming. |
@@ -476,6 +477,14 @@ These fork customizations should NEVER be modified unless intentionally updating
 - `extensions.py` - Extension namespace configuration
 - Bundled extensions in `pyproject.toml` - levelup, evals, architect, product, tdd, edd
 - Bundled presets in `pyproject.toml` - agentic-sdlc, agentic-change, agentic-quick
+
+### `templates/` Directory — Always Upstream
+
+The `templates/` directory (core command templates, spec/plan/tasks templates, vscode-settings.json) **stays aligned with upstream**. The fork does NOT customize files under `templates/`.
+
+**Rationale**: All fork-specific command behavior (Phase A/B hooks, Mission Brief approval, branch_template integration, Next Step handovers, semantic theming) lives in the **preset** command files under `presets/agentic-*/commands/`. The core `templates/commands/*.md` files are the upstream baseline installed for all users; fork features layer on top via presets.
+
+**During upstream merges**: Accept all upstream changes to `templates/` without modification. Do not apply fork-specific changes (hook prefix `spec-...`, double-brace escaping, Phase A/B rewrites, Next Step blocks) to `templates/` — those belong only in `presets/agentic-*/commands/`.
 
 ## What Lives in the Fork Modules
 

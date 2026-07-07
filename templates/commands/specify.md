@@ -18,119 +18,40 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-## Phase A: Pre-Approval Discovery Hooks (Read-Only)
+## Pre-Execution Checks
 
-**Execute ONLY read-only discovery hooks before showing the Mission Brief.**
+**Check for extension hooks (before specification)**:
+- Check if `.specify/extensions.yml` exists in the project root.
+- If it exists, read it and look for entries under the `hooks.before_specify` key
+- If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally
+- Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
+- For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
+  - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
+  - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
+- For each executable hook, output the following based on its `optional` flag:
+  - **Optional hook** (`optional: true`):
+    ```
+    ## Extension Hooks
 
-1. Check if `.specify/extensions.yml` exists in the project root.
-2. If it exists, read it and look for entries under the `hooks.before_specify` key.
-3. If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
-4. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default.
-5. For each remaining hook, do **not** attempt to interpret or evaluate hook `condition` expressions:
-   - If the hook has no `condition` field, or it is null/empty, treat the hook as executable
-   - If the hook defines a non-empty `condition`, skip the hook and leave condition evaluation to the HookExecutor implementation
-6. **Classify each executable hook by mutation risk** (inspect the `{command}` name):
-   - **Read-only / discovery hooks** (safe to run before approval):
-     - Commands whose names suggest read-only behavior (e.g., `discover`, `verify`, `validate` used for context gathering)
-   - **Mutating hooks** (MUST be deferred until after Mission Brief approval):
-     - `git.feature` — creates branches/worktrees
-     - `git.commit` — creates commits
-     - `git.initialize` — initializes repositories
-     - Any hook that modifies filesystem, Git state, or creates resources
-7. For each **read-only** hook, output and execute:
-   - **Optional hook** (`optional: true`):
-     ```
-     ## Extension Hooks
+    **Optional Pre-Hook**: {extension}
+    Command: `/{command}`
+    Description: {description}
 
-     **Optional Pre-Hook**: {extension}
-     Command: `/{command}`
-     Description: {description}
+    Prompt: {prompt}
+    To execute: `/{command}`
+    ```
+  - **Mandatory hook** (`optional: false`):
+    ```
+    ## Extension Hooks
 
-     Prompt: {prompt}
-     To execute: `/{command}`
-     ```
-   - **Mandatory hook** (`optional: false`):
-     ```
-     ## Extension Hooks
+    **Automatic Pre-Hook**: {extension}
+    Executing: `/{command}`
+    EXECUTE_COMMAND: {command}
 
-     **Automatic Pre-Hook**: {extension}
-     Executing: `/{command}`
-     EXECUTE_COMMAND: {command}
-     ```
-     After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-8. For each **mutating** hook: do NOT execute yet. Note it for Phase B.
-9. If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
-
-**CRITICAL RULE**: No branch, worktree, commit, file, or directory may be created before the user explicitly approves the Mission Brief.
-
-## Mission Brief Approval
-
-### Collect Mission Brief
-
-If user input (`{ARGS}`) is substantial (10+ words), extract the Mission Brief elements from it.
-If minimal (< 10 words) or empty, ask the user for Goal, Success Criteria, and Constraints.
-
-### Display Mission Brief
-
-After collecting/extracting answers, display:
-
-```markdown
-## Mission Brief
-
-**Goal**: {goal}
-
-**Success Criteria**:
-- {criterion 1}
-- {criterion 2}
-
-**Constraints**:
-- {constraint 1}
-```
-
-### STOP: Get User Confirmation
-
-```markdown
-**Proceed with this Mission Brief?** (yes / no / adjust)
-```
-
-**STOP HERE** - Wait for explicit response.
-
-- **yes**: Proceed to Phase B (mutating hooks) and spec creation.
-- **adjust**: Ask what needs changing, update the Mission Brief, re-display, ask again.
-- **no**: Stop. Do not create branch or spec. Do not execute any deferred mutating hooks.
-
-**DO NOT create branch, directory, or spec file until Mission Brief is approved with "yes".**
-
----
-
-## Phase B: Post-Approval Mutating Hooks
-
-**Only execute this phase after the user explicitly responds "yes" to the Mission Brief.**
-
-1. Before executing any deferred `git.feature` hook, inspect `.specify/extensions/git/git-config.yml`:
-   - If `branch_template` is configured and contains `{issue}`,
-     resolve an issue key before running the hook.
-   - Resolution order:
-     1. Use explicit `GIT_BRANCH_ISSUE` if already provided.
-     2. Otherwise extract an issue key from the user request or approved Mission Brief.
-     3. If no issue key is available, STOP and ask the user for it before executing `git.feature`.
-   - The issue key MUST match the configured `issue_format`:
-     - `jira`: `PROJ-123`
-     - `numeric`: `1234`
-   - Pass the value through to the hook using `GIT_BRANCH_ISSUE`, or `--issue` / `-Issue`
-     if you invoke the script directly.
-2. For each **mutating** hook noted in Phase A:
-   - **Mandatory** (`optional: false`): Execute the command file's full instructions now.
-   - **Optional** (`optional: true`): Display the hook info for user decision.
-3. State which mutating hooks were executed.
-4. If `git.feature` was executed and returned `BRANCH_NAME`/`FEATURE_NUM`, display:
-   ```
-   Branch created: {BRANCH_NAME} (Feature #{FEATURE_NUM})
-   ```
- 5. If `.specify/discovery/team-context.json` exists after pre-approval discovery and the feature
-   directory is now known, persist the feature-scoped artifact at:
-   - `SPECIFY_FEATURE_DIRECTORY/team-context.json`
-   - the JSON content should remain the same unless path normalization is required
+    Wait for the result of the hook command before proceeding to the Outline.
+    ```
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
+- If no hooks are registered or `.specify/extensions.yml` does not exist, skip silently
 
 ## Outline
 
@@ -150,10 +71,11 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Branch creation** (already completed in Phase B if `git.feature` hook was present):
+2. **Branch creation** (optional, via hook):
 
-   The branch/worktree was created during Phase B mutating hooks (if applicable).
-   Note the `BRANCH_NAME` and `FEATURE_NUM` values for reference, but the branch name does **not** dictate the spec directory name.
+   If a `before_specify` hook ran successfully in the Pre-Execution Checks above, it will have created/switched to a git branch and output JSON containing `BRANCH_NAME` and `FEATURE_NUM`. Note these values for reference, but the branch name does **not** dictate the spec directory name.
+
+   If the user explicitly provided `GIT_BRANCH_NAME`, pass it through to the hook so the branch script uses the exact value as the branch name (bypassing all prefix/suffix generation).
 
 3. **Create the spec feature directory**:
 
@@ -187,17 +109,12 @@ Given that feature description, do this:
    - You must only create one feature per `__SPECKIT_COMMAND_SPECIFY__` invocation
    - The spec directory name and the git branch name are independent — they may be the same but that is the user's choice
    - The spec directory and file are always created by this command, never by the hook
-   - If `.specify/discovery/team-context.json` exists after the discovery hook, promote it to
-     `SPECIFY_FEATURE_DIRECTORY/team-context.json` once the feature directory exists
 
 4. Load the resolved active `spec-template` file to understand required sections.
 
-5. If `SPECIFY_FEATURE_DIRECTORY/team-context.json` exists, load it and use it as the persisted
-   extension-owned team context for this feature.
+5. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
 
-6. **IF EXISTS**: Load `/memory/constitution.md` for project principles and governance constraints.
-
-7. Follow this execution flow:
+6. Follow this execution flow:
     1. Parse user description from arguments
        If empty: ERROR "No feature description provided"
     2. Extract key concepts from description
@@ -337,7 +254,7 @@ Check if `.specify/extensions.yml` exists in the project root.
     Executing: `/{command}`
     EXECUTE_COMMAND: {command}
     ```
-    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
+    After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:speckit-...` or `$speckit-...`). Emitting the block alone does not run the hook.
   - **Optional hook** (`optional: true`):
     ```
     ## Extension Hooks
@@ -358,7 +275,7 @@ Report completion to the user with:
 - Checklist results summary
 - Readiness for the next phase (`__SPECKIT_COMMAND_CLARIFY__` or `__SPECKIT_COMMAND_PLAN__`)
 
-**NOTE:** Branch creation is handled by the `before_specify` hook (git extension) during **Phase B** (after Mission Brief approval). Spec directory and file creation are always handled by this core command, also after approval.
+**NOTE:** Branch creation is handled by the `before_specify` hook (git extension). Spec directory and file creation are always handled by this core command.
 
 ## Quick Guidelines
 

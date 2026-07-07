@@ -419,15 +419,13 @@ class TestAgentConfigConsistency:
         assert "STOP and ask the user for the issue key before continuing" in content
 
     def test_specify_command_documents_issue_resolution_before_git_feature(self):
-        """specify flows should require resolving branch-template issue keys before git.feature."""
-        core = (REPO_ROOT / "templates" / "commands" / "specify.md").read_text(encoding="utf-8")
+        """specify preset should require resolving branch-template issue keys before git.feature."""
         preset = (REPO_ROOT / "presets" / "agentic-sdlc" / "commands" / "adlc.spec.specify.md").read_text(encoding="utf-8")
 
-        for content in (core, preset):
-            assert "Before executing any deferred `git.feature` hook" in content
-            assert "branch_template" in content
-            assert "GIT_BRANCH_ISSUE" in content
-            assert "If no issue key is available, STOP and ask the user for it" in content
+        assert "Before executing any deferred `git.feature` hook" in preset
+        assert "branch_template" in preset
+        assert "GIT_BRANCH_ISSUE" in preset
+        assert "If no issue key is available, STOP and ask the user for it" in preset
 
     def test_team_context_lifecycle_owned_by_extension(self):
         """team-context lifecycle is owned by team-ai-directives extension, not presets."""
