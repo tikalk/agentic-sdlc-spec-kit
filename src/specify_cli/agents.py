@@ -148,7 +148,9 @@ class CommandRegistrar:
         )
         return f"---\n{yaml_str}---\n"
 
-    def _adjust_script_paths(self, frontmatter: dict) -> dict:
+    def _adjust_script_paths(
+        self, frontmatter: dict, extension_id: Optional[str] = None
+    ) -> dict:
         """Normalize script paths in frontmatter to generated project locations.
 
         Rewrites known repo-relative and top-level script paths under the
@@ -158,6 +160,7 @@ class CommandRegistrar:
 
         Args:
             frontmatter: Frontmatter dictionary
+            extension_id: Extension id when rendering extension-owned commands.
 
         Returns:
             Modified frontmatter with normalized project paths
@@ -168,11 +171,15 @@ class CommandRegistrar:
         if isinstance(scripts, dict):
             for key, script_path in scripts.items():
                 if isinstance(script_path, str):
-                    scripts[key] = self.rewrite_project_relative_paths(script_path)
+                    scripts[key] = self.rewrite_project_relative_paths(
+                        script_path, extension_id=extension_id
+                    )
         return frontmatter
 
     @staticmethod
-    def rewrite_project_relative_paths(text: str) -> str:
+    def rewrite_project_relative_paths(
+        text: str, extension_id: Optional[str] = None
+    ) -> str:
         """Rewrite repo-relative paths to their generated project locations."""
         if not isinstance(text, str) or not text:
             return text
@@ -184,10 +191,18 @@ class CommandRegistrar:
         ):
             text = text.replace(old, new)
 
-        # Only rewrite top-level style references so extension-local paths like
-        # ".specify/extensions/<ext>/scripts/..." remain intact.
+        # Only rewrite top-level style references so existing generated paths
+        # like ".specify/extensions/<ext>/scripts/..." remain intact. When
+        # rendering extension commands, top-level "scripts/" is extension-local.
+        scripts_replacement = (
+            f".specify/extensions/{extension_id}/scripts/"
+            if extension_id
+            else ".specify/scripts/"
+        )
         text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?memory/', r"\1.specify/memory/", text)
-        text = re.sub(r'(^|[\s`"\'(])(?:\.?/)?scripts/', r"\1.specify/scripts/", text)
+        text = re.sub(
+            r'(^|[\s`"\'(])(?:\.?/)?scripts/', rf"\1{scripts_replacement}", text
+        )
         text = re.sub(
             r'(^|[\s`"\'(])(?:\.?/)?templates/', r"\1.specify/templates/", text
         )
@@ -312,6 +327,7 @@ class CommandRegistrar:
         source_id: str,
         source_file: str,
         project_root: Path,
+        extension_id: Optional[str] = None,
     ) -> str:
         """Render a command override as a SKILL.md file.
 
@@ -331,7 +347,7 @@ class CommandRegistrar:
         agent_config = self.AGENT_CONFIGS.get(agent_name, {})
         if agent_config.get("extension") == "/SKILL.md":
             body = self.resolve_skill_placeholders(
-                agent_name, frontmatter, body, project_root
+                agent_name, frontmatter, body, project_root, extension_id=extension_id
             )
 
         description = frontmatter.get(
@@ -399,7 +415,11 @@ class CommandRegistrar:
 
     @staticmethod
     def resolve_skill_placeholders(
-        agent_name: str, frontmatter: dict, body: str, project_root: Path
+        agent_name: str,
+        frontmatter: dict,
+        body: str,
+        project_root: Path,
+        extension_id: Optional[str] = None,
     ) -> str:
         """Resolve script placeholders for skills-backed agents."""
         if not isinstance(frontmatter, dict):
@@ -439,7 +459,9 @@ class CommandRegistrar:
 
         body = body.replace("{ARGS}", "$ARGUMENTS").replace("__AGENT__", agent_name)
 
-        return CommandRegistrar.rewrite_project_relative_paths(body)
+        return CommandRegistrar.rewrite_project_relative_paths(
+            body, extension_id=extension_id
+        )
 
     def _convert_argument_placeholder(
         self, content: str, from_placeholder: str, to_placeholder: str
@@ -551,6 +573,7 @@ class CommandRegistrar:
         context_note: str = None,
         _resolved_dir: Path = None,
         link_outputs: bool = False,
+        extension_id: Optional[str] = None,
     ) -> List[str]:
         """Register commands for a specific agent.
 
@@ -568,6 +591,7 @@ class CommandRegistrar:
             link_outputs: If True, write rendered output to a source-local
                 dev cache and symlink the agent command file to it. Falls back
                 to a normal file write when symlinks are unavailable.
+            extension_id: Extension id when rendering extension-owned commands.
 
         Returns:
             List of registered command names
@@ -654,7 +678,9 @@ class CommandRegistrar:
                         frontmatter[key] = core_frontmatter[key]
                 frontmatter.pop("strategy", None)
 
-            frontmatter = self._adjust_script_paths(frontmatter)
+            frontmatter = self._adjust_script_paths(
+                frontmatter, extension_id=extension_id
+            )
 
             for key in agent_config.get("strip_frontmatter_keys", []):
                 frontmatter.pop(key, None)
@@ -670,7 +696,7 @@ class CommandRegistrar:
 
             # Resolve {SCRIPT} and {AGENT_SCRIPT} placeholders for all agents
             body = self.resolve_skill_placeholders(
-                agent_name, frontmatter, body, project_root
+                agent_name, frontmatter, body, project_root, extension_id=extension_id
             )
 
             body = self._convert_argument_placeholder(
@@ -687,6 +713,15 @@ class CommandRegistrar:
             _sep = agent_config.get("invoke_separator", ".")
             body = IntegrationBase.resolve_command_refs(body, _sep)
 
+            # Post-process integration lookup (shared by primary and alias paths)
+            _integration = None
+            if agent_config["extension"] != "/SKILL.md":
+                from specify_cli.integrations import (  # noqa: PLC0415
+                    get_integration,
+                )
+
+                _integration = get_integration(agent_name)
+
             if not _skip_primary:
                 output_name = self._compute_output_name(agent_name, cmd_name, agent_config, project_root)
 
@@ -699,10 +734,11 @@ class CommandRegistrar:
                         source_id,
                         cmd_file,
                         project_root,
+                        extension_id=extension_id,
                     )
                 elif agent_config["format"] == "markdown":
                     body = self.resolve_skill_placeholders(
-                        agent_name, frontmatter, body, project_root
+                        agent_name, frontmatter, body, project_root, extension_id=extension_id
                     )
                     body = self._convert_argument_placeholder(
                         body, "$ARGUMENTS", agent_config["args"]
@@ -712,7 +748,7 @@ class CommandRegistrar:
                     )
                 elif agent_config["format"] == "toml":
                     body = self.resolve_skill_placeholders(
-                        agent_name, frontmatter, body, project_root
+                        agent_name, frontmatter, body, project_root, extension_id=extension_id
                     )
                     body = self._convert_argument_placeholder(
                         body, "$ARGUMENTS", agent_config["args"]
@@ -724,6 +760,10 @@ class CommandRegistrar:
                     )
                 else:
                     raise ValueError(f"Unsupported format: {agent_config['format']}")
+
+                # Post-process for non-skills agents
+                if _integration is not None:
+                    output = _integration.post_process_command_content(output)
 
                 dest_file = commands_dir / f"{output_name}{agent_config['extension']}"
                 self._ensure_inside(dest_file, commands_dir)
@@ -767,6 +807,7 @@ class CommandRegistrar:
                             source_id,
                             cmd_file,
                             project_root,
+                            extension_id=extension_id,
                         )
                     elif agent_config["format"] == "markdown":
                         alias_output = self.render_markdown_command(
@@ -784,6 +825,9 @@ class CommandRegistrar:
                         raise ValueError(
                             f"Unsupported format: {agent_config['format']}"
                         )
+
+                    if agent_config["extension"] != "/SKILL.md" and _integration is not None:
+                        alias_output = _integration.post_process_command_content(alias_output)
                 else:
                     # For other agents, reuse the primary output when available
                     if _skip_primary:
@@ -792,6 +836,7 @@ class CommandRegistrar:
                             alias_output = self.render_skill_command(
                                 agent_name, alias_output_name, frontmatter, body,
                                 source_id, cmd_file, project_root,
+                                extension_id=extension_id,
                             )
                         elif agent_config["format"] == "markdown":
                             alias_output = self.render_markdown_command(
@@ -809,12 +854,16 @@ class CommandRegistrar:
                             raise ValueError(
                                 f"Unsupported format: {agent_config['format']}"
                             )
+                        # Post-process fresh alias render
+                        if _integration is not None:
+                            alias_output = _integration.post_process_command_content(alias_output)
                     else:
                         alias_output = output
                         if agent_config["extension"] == "/SKILL.md":
                             alias_output = self.render_skill_command(
                                 agent_name, alias_output_name, frontmatter, body,
                                 source_id, cmd_file, project_root,
+                                extension_id=extension_id,
                             )
 
                 alias_file = (
@@ -946,6 +995,7 @@ class CommandRegistrar:
         context_note: str = None,
         link_outputs: bool = False,
         create_missing_active_skills_dir: bool = False,
+        extension_id: Optional[str] = None,
     ) -> Dict[str, List[str]]:
         """Register commands for all detected agents in the project.
 
@@ -962,6 +1012,7 @@ class CommandRegistrar:
                 Recovery requires active skills mode (or Kimi's existing native
                 skills directory) and is skipped when safe resolution or
                 creation fails.
+            extension_id: Extension id when rendering extension-owned commands.
 
         Returns:
             Dictionary mapping agent names to list of registered commands
@@ -1064,6 +1115,7 @@ class CommandRegistrar:
                         context_note=context_note,
                         _resolved_dir=agent_dir,
                         link_outputs=link_outputs,
+                        extension_id=extension_id,
                     )
                     if registered:
                         results[agent_name] = registered
@@ -1088,6 +1140,7 @@ class CommandRegistrar:
         project_root: Path,
         context_note: Optional[str] = None,
         link_outputs: bool = False,
+        extension_id: Optional[str] = None,
     ) -> Dict[str, List[str]]:
         """Register commands for all non-skill agents in the project.
 
@@ -1103,6 +1156,7 @@ class CommandRegistrar:
             context_note: Custom context comment for markdown output
             link_outputs: If True, create dev-mode symlinks for rendered
                 command files when supported by the OS.
+            extension_id: Extension id when rendering extension-owned commands.
 
         Returns:
             Dictionary mapping agent names to list of registered commands
@@ -1131,6 +1185,7 @@ class CommandRegistrar:
                         context_note=context_note,
                         _resolved_dir=agent_dir,
                         link_outputs=link_outputs,
+                        extension_id=extension_id,
                     )
                     if registered:
                         results[agent_name] = registered

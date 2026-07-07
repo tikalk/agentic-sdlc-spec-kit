@@ -2,6 +2,35 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc1] - 2026-07-07
+
+### Changed
+
+- **Upstream merge**: merged github/spec-kit `0.12.6` release (9 commits).
+  - **Extension-local script path rewriting** (#3364): `extension_id` threaded
+    through `register_commands()`, `_adjust_script_paths()`,
+    `rewrite_project_relative_paths()`, and `resolve_skill_placeholders()` so
+    extension-owned `scripts/` references rewrite to
+    `.specify/extensions/<ext>/scripts/` instead of `.specify/scripts/`.
+  - **Generalized post-processing hook** (#3311): new
+    `post_process_command_content()` method on `IntegrationBase` called after
+    format rendering for non-skills agents (Markdown, TOML, YAML). Default
+    no-op; subclasses may override.
+  - **Catalog URL validation** (#3367): `catalog add` validates HTTPS-only and
+    requires host, mirroring `catalogs.py` and bundler adapters.
+  - **Community catalog**: added Charter, Orchestration Task Context
+    Management; updated Ralph Loop v1.2.1, Ripple v1.1.0, DocGuard v0.30.0.
+
+### Fixed
+
+- **agents.py 3-way merge**: combined fork's `_skip_primary` alias-only
+  restructure with upstream's `extension_id` threading and
+  `post_process_command_content` hook. Post-process runs inside the
+  `if not _skip_primary:` guard for primary output and in both alias branches
+  (fresh-render and reuse). `_integration` lookup hoisted before the
+  `_skip_primary` guard so it's available in all paths.
+- Pre-switch `resolve_skill_placeholders` call now passes `extension_id`.
+
 # [0.12.5+adlc3] - 2026-07-07
 
 ### Fixed
@@ -3295,6 +3324,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.6] - 2026-07-07
+
+### Changed
+
+- fix(bundler): validate catalog URLs in `catalog add` (HTTPS-only, require host) (#3367)
+- Update Ralph Loop extension to v1.2.1 (#3365)
+- fix extension-local script path rewriting (#3364)
+- Add Charter extension to community catalog (#3363)
+- feat(scripts): add Python check-prerequisites PoC (#3302)
+- test: reduce registry manifest test repetition (#3146)
+- fix(integrations): hermes honors SPECKIT_INTEGRATION_HERMES_EXTRA_ARGS (#3346)
+- fix(extensions): coerce non-mapping YAML config roots to {} in ConfigManager (#3345)
+- fix(yaml): pin goose recipe prompt block-scalar indentation (#3343)
+- chore: release 0.12.5, begin 0.12.6.dev0 development (#3381)
 
 ## [0.12.5] - 2026-07-06
 
