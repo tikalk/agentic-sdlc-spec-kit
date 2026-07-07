@@ -76,7 +76,7 @@ If working in a non-git repository:
    ```
    This creates `$FEATURE_DIR/tasks_meta.json` for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
-   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `/spec.implement` quality gates and `/spec.trace` will not function.
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `__SPECKIT_COMMAND_IMPLEMENT__` quality gates and `__SPECKIT_COMMAND_TRACE__` will not function.
 
 3. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
@@ -260,8 +260,5 @@ See `templates/tasks-template.md` for detailed classification criteria and examp
 ```
 Tasks generated: {FEATURE_DIR}/tasks.md
 
-Ready for implementation: /spec.implement
+Ready for implementation: __SPECKIT_COMMAND_IMPLEMENT__
 ```
-
-**Do NOT suggest `/quick.implement`** — that is a cross-preset ad-hoc command for sessions without spec artifacts.
-**Do NOT suggest `/spec.trace`** — trace runs only after implementation is complete.

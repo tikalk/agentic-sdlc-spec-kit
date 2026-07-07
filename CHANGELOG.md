@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc4] - 2026-07-08
+
+### Fixed
+
+- **Forge dot-notation test failure**: replaced literal `/spec.implement` and
+  `/spec.trace` references in tasks command files with
+  `__SPECKIT_COMMAND_IMPLEMENT__` / `__SPECKIT_COMMAND_TRACE__` placeholders.
+  Forge requires hyphen notation and the dot-notation refs failed the
+  `test_command_refs_use_hyphen_notation` test.
+- Removed "Do NOT suggest" guard lines from tasks handover blocks.
+
 # [0.12.6+adlc3] - 2026-07-08
 
 ### Fixed

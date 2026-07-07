@@ -222,8 +222,5 @@ Every task MUST strictly follow this format:
 ```
 Tasks generated: specs/{BRANCH}/tasks.md
 
-Ready for implementation: /implement
+Ready for implementation: __SPECKIT_COMMAND_IMPLEMENT__
 ```
-
-**Do NOT suggest `/quick.implement`** — that is a cross-preset ad-hoc command for sessions without spec artifacts.
-**Do NOT suggest `/spec.trace`** — trace runs only after implementation is complete.
