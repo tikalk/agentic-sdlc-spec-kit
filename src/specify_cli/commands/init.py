@@ -804,7 +804,7 @@ def register(app: typer.Typer) -> None:
         steps_lines.append(f"   {step_num}.5 {accent(_display_cmd('implement'))} - Execute implementation")
         steps_lines.append(f"   {step_num}.6 {accent(_display_cmd('converge'))} - Assess the codebase and append remaining work as tasks")
 
-        steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style=_border, padding=(1, 2))
+        steps_panel = Panel("\n".join(steps_lines), title=accent("Next Steps", bold=True), border_style=_border, padding=(1, 2))
         console.print()
         console.print(steps_panel)
 
@@ -821,6 +821,6 @@ def register(app: typer.Typer) -> None:
             f"○ {accent(_display_cmd('checklist'))} [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after {accent(_display_cmd('plan'))})"
         ]
         enhancements_title = "Enhancement Skills" if native_skill_mode else "Enhancement Commands"
-        enhancements_panel = Panel("\n".join(enhancement_lines), title=enhancements_title, border_style=_border, padding=(1, 2))
+        enhancements_panel = Panel("\n".join(enhancement_lines), title=accent(enhancements_title, bold=True), border_style=_border, padding=(1, 2))
         console.print()
         console.print(enhancements_panel)

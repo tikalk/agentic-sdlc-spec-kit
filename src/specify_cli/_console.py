@@ -191,7 +191,7 @@ def select_with_arrows(
 
         return Panel(
             table,
-            title=f"[bold]{prompt_text}[/bold]",
+            title=f"[bold {ACCENT_STYLE}]{prompt_text}[/bold {ACCENT_STYLE}]",
             border_style=ACCENT_STYLE,
             padding=(1, 2)
         )

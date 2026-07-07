@@ -36,9 +36,12 @@ try:
 except ImportError:
     def accent(text: str, bold: bool = False, italic: bool = False, dim: bool = False) -> str:
         style = "cyan"
-        if bold: style = f"bold {style}"
-        if italic: style = f"italic {style}"
-        if dim: style = f"dim {style}"
+        if bold:
+            style = f"bold {style}"
+        if italic:
+            style = f"italic {style}"
+        if dim:
+            style = f"dim {style}"
         return f"[{style}]{text}[/{style}]" if len([s for s in [bold, italic, dim] if s]) == 0 else f"[{style}]{text}[/]"
 
     def accent_style() -> str:
