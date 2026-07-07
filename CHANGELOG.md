@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc3] - 2026-07-08
+
+### Fixed
+
+- **Panel title theming**: `select_with_arrows` panel title, "Next Steps"
+  panel, "Enhancement Skills" panel, and "Matching extensions" table title
+  now use `accent()` instead of plain bold.
+- **Hook invocation prefix**: `speckit-...` → `spec-...` across 24 preset
+  and template command files. The fork uses `spec`/`adlc` namespace, not
+  `speckit`.
+- **Tasks handover**: added explicit "Next Step" block to tasks command
+  files directing to `/spec.implement`. Explicitly warns against suggesting
+  `/quick.implement` (cross-preset ad-hoc) or `/spec.trace` (post-implement
+  only).
+- **E701 lint**: expanded one-liner `if` statements in ImportError fallback
+  `accent()` blocks across 5 Python files.
+
 # [0.12.6+adlc2] - 2026-07-07
 
 ### Changed
