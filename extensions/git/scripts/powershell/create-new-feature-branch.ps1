@@ -313,6 +313,7 @@ function Expand-BranchTemplate {
     $numberingToken = Get-TemplateNumberingToken -Template $Template
     $rendered = $Template.Replace('{author}', $authorToken)
     $rendered = $rendered.Replace('{app}', $appToken)
+    $rendered = $rendered.Replace('{prefix}', $branchPrefix)
     $rendered = $rendered.Replace('{issue}', $IssueToken)
     $rendered = $rendered.Replace('{slug}', $BranchSuffix)
     if ($numberingToken -eq '{number}') {
@@ -355,6 +356,11 @@ function Assert-BranchTemplateValid {
     $expectedStart = "$numberingToken-"
     if (-not $featureSegment.StartsWith($expectedStart, [System.StringComparison]::Ordinal)) {
         throw "branch_template must put $expectedStart at the start of the final path segment so generated branches remain valid feature branches."
+    }
+
+    # If {prefix} is present, ensure branch_prefix is configured.
+    if ($Template.Contains('{prefix}') -and [string]::IsNullOrWhiteSpace($branchPrefix)) {
+        throw "branch_template uses {prefix}; configure branch_prefix in git-config.yml."
     }
 
     # If {issue} is present, ensure an issue value is available.
@@ -577,6 +583,7 @@ $configFile = Join-Path $repoRoot ".specify/extensions/git/git-config.yml"
 $authorToken = Get-GitAuthorToken
 $appToken = Get-AppToken
 $branchTemplate = Resolve-BranchTemplate
+$branchPrefix = Read-GitConfigValue -Key 'branch_prefix'
 $numberPadding = Get-NumberPadding
 $issueFormat = Get-IssueFormat
 

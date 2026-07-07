@@ -2,6 +2,17 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.5+adlc3] - 2026-07-07
+
+### Fixed
+
+- **PowerShell `{prefix}` template substitution**: `Expand-BranchTemplate` in
+  `create-new-feature-branch.ps1` was not replacing `{prefix}` with the
+  configured `branch_prefix` value (bash twin did). Added the missing
+  `.Replace('{prefix}', $branchPrefix)` call, a script-level `$branchPrefix`
+  variable, and a validation check mirroring the bash `validate_branch_template`
+  guard that errors when `{prefix}` is used without a configured `branch_prefix`.
+
 # [0.12.5+adlc2] - 2026-07-07
 
 ### Fixed
