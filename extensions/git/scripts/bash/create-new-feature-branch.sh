@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # Git extension: create-new-feature-branch.sh
-# Full-featured feature branch/worktree creation with branch-pattern support,
-# issue-key templates, and isolation-mode (branch|worktree) selection.
+# Creates a git feature branch. The feature directory and spec file are created
+# by the core create-new-feature.sh script.
+# Merged fork features (worktree isolation, issue tokens, number padding) onto
+# upstream's branch-template architecture (scope-prefix numbering).
 # Sources common.sh from the project's installed scripts, falling back to
 # git-common.sh for minimal git helpers.
 
@@ -115,7 +117,7 @@ while [ $i -le $# ]; do
             BASE_BRANCH="$next_arg"
             ;;
         --help|-h)
-            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <JIRA-123>] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>"
+            echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <value>] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>"
             echo ""
             echo "Options:"
             echo "  --json              Output in JSON format"
@@ -124,22 +126,29 @@ while [ $i -le $# ]; do
             echo "  --short-name <name> Provide a custom short name (2-4 words) for the branch"
             echo "  --number N          Specify branch number manually (overrides auto-detection)"
             echo "  --timestamp         Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-            echo "  --issue <JIRA-123>  Jira-style issue key used by branch_pattern templates"
-            echo "  --worktree         Shortcut for --isolation-mode worktree (creates a git worktree)"
-            echo "  --branch-mode      Shortcut for --isolation-mode branch (default; checkout -b in primary)"
+            echo "  --issue <value>     Issue key used by {issue} in branch_template (e.g. PROJ-123 or 1234)"
+            echo "  --worktree          Shortcut for --isolation-mode worktree (creates a git worktree)"
+            echo "  --branch-mode       Shortcut for --isolation-mode branch (default; checkout -b in primary)"
             echo "  --isolation-mode <branch|worktree>  Override the configured isolation mode"
-            echo "  --base <branch>    Base branch for worktree (defaults to origin/main)"
+            echo "  --base <branch>     Base branch for worktree (defaults to origin/main)"
             echo "  --help, -h          Show this help message"
             echo ""
             echo "Environment variables:"
             echo "  GIT_BRANCH_NAME     Use this exact branch name, bypassing all prefix/suffix generation"
-            echo "  GIT_BRANCH_ISSUE    Jira-style issue key used by branch_pattern templates"
+            echo "  GIT_BRANCH_ISSUE    Issue key fallback when --issue is not provided"
             echo "  SPECIFY_ISOLATION_MODE  Override the isolation mode (branch|worktree)"
+            echo ""
+            echo "Configuration:"
+            echo "  branch_template     Optional git-config.yml template with {author}, {app}, {number}, {timestamp}, {issue}, {slug}"
+            echo "  branch_prefix       Optional shorthand namespace expanded before {number}-{slug}"
+            echo "  issue_format        jira (PROJ-123, uppercased) or numeric (1234); default jira"
+            echo "  number_padding      Zero-padding width for {number}; default 3"
             echo ""
             echo "Examples:"
             echo "  $0 'Add user authentication system' --short-name 'user-auth'"
             echo "  $0 'Implement OAuth2 integration for API' --number 5"
             echo "  $0 --timestamp --short-name 'user-auth' 'Add user authentication'"
+            echo "  $0 --issue PROJ-123 'Add user authentication'"
             echo "  $0 --worktree 'Add user authentication system' --short-name 'user-auth'"
             echo "  GIT_BRANCH_NAME=my-branch $0 'feature description'"
             exit 0
@@ -153,7 +162,7 @@ done
 
 FEATURE_DESCRIPTION="${ARGS[*]}"
 if [ -z "$FEATURE_DESCRIPTION" ]; then
-    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <JIRA-123>] <feature_description>" >&2
+    echo "Usage: $0 [--json] [--dry-run] [--allow-existing-branch] [--short-name <name>] [--number N] [--timestamp] [--issue <value>] [--worktree|--branch-mode|--isolation-mode <mode>] [--base <branch>] <feature_description>" >&2
     exit 1
 fi
 
@@ -187,18 +196,24 @@ get_highest_from_specs() {
     echo "$highest"
 }
 
-# Function to get highest number from git branches
-get_highest_from_branches() {
-    git branch -a 2>/dev/null | sed -E 's/^[+*][[:space:]]+//; s/^[[:space:]]+//; s|^remotes/[^/]*/||' | _extract_highest_number
-}
-
 # Extract the highest sequential feature number from a list of ref names (one per line).
 _extract_highest_number() {
+    local scope_prefix="${1:-}"
     local highest=0
     while IFS= read -r name; do
         [ -z "$name" ] && continue
-        if echo "$name" | grep -Eq '^[0-9]{3,}-' && ! echo "$name" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
-            number=$(echo "$name" | grep -Eo '^[0-9]+' || echo "0")
+        if [ -n "$scope_prefix" ]; then
+            case "$name" in
+                "$scope_prefix"*) name="${name#"$scope_prefix"}" ;;
+                *) continue ;;
+            esac
+        fi
+        name="${name##*/}"
+        if echo "$name" | grep -Eq '^[0-9]{3,}-' \
+            && ! echo "$name" | grep -Eq '^[0-9]{8}-[0-9]{6}-' \
+            && ! echo "$name" | grep -Eq '^[0-9]{7}-[0-9]{6}-' \
+            && ! echo "$name" | grep -Eq '^[0-9]{7,8}-[0-9]{6}$'; then
+            number=$(echo "$name" | grep -Eo '^[0-9]{3,}-' | sed -E 's/-$//' || echo "0")
             number=$((10#$number))
             if [ "$number" -gt "$highest" ]; then
                 highest=$number
@@ -208,13 +223,20 @@ _extract_highest_number() {
     echo "$highest"
 }
 
+# Function to get highest number from git branches
+get_highest_from_branches() {
+    local scope_prefix="${1:-}"
+    git branch -a 2>/dev/null | sed -E 's/^[+*][[:space:]]+//; s/^[[:space:]]+//; s|^remotes/[^/]*/||' | _extract_highest_number "$scope_prefix"
+}
+
 # Function to get highest number from remote branches without fetching (side-effect-free)
 get_highest_from_remote_refs() {
+    local scope_prefix="${1:-}"
     local highest=0
 
     for remote in $(git remote 2>/dev/null); do
         local remote_highest
-        remote_highest=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$remote" 2>/dev/null | sed 's|.*refs/heads/||' | _extract_highest_number)
+        remote_highest=$(GIT_TERMINAL_PROMPT=0 git ls-remote --heads "$remote" 2>/dev/null | sed 's|.*refs/heads/||' | _extract_highest_number "$scope_prefix")
         if [ "$remote_highest" -gt "$highest" ]; then
             highest=$remote_highest
         fi
@@ -227,16 +249,17 @@ get_highest_from_remote_refs() {
 check_existing_branches() {
     local specs_dir="$1"
     local skip_fetch="${2:-false}"
+    local scope_prefix="${3:-}"
 
     if [ "$skip_fetch" = true ]; then
-        local highest_remote=$(get_highest_from_remote_refs)
-        local highest_branch=$(get_highest_from_branches)
+        local highest_remote=$(get_highest_from_remote_refs "$scope_prefix")
+        local highest_branch=$(get_highest_from_branches "$scope_prefix")
         if [ "$highest_remote" -gt "$highest_branch" ]; then
             highest_branch=$highest_remote
         fi
     else
         git fetch --all --prune >/dev/null 2>&1 || true
-        local highest_branch=$(get_highest_from_branches)
+        local highest_branch=$(get_highest_from_branches "$scope_prefix")
     fi
 
     local highest_spec=$(get_highest_from_specs "$specs_dir")
@@ -335,6 +358,292 @@ fi
 cd "$REPO_ROOT"
 
 SPECS_DIR="$REPO_ROOT/specs"
+CONFIG_FILE="$REPO_ROOT/.specify/extensions/git/git-config.yml"
+
+read_git_config_value() {
+    local key="$1"
+    [ -f "$CONFIG_FILE" ] || return 0
+    # Only match top-level keys (no leading whitespace). This keeps the legacy
+    # branch_pattern block from shadowing the new top-level issue_format and
+    # number_padding keys.
+    grep -E "^${key}:" "$CONFIG_FILE" 2>/dev/null \
+        | head -n 1 \
+        | sed -E "s/^${key}:[[:space:]]*//" \
+        | sed -E 's/[[:space:]]+#.*$//' \
+        | sed -E 's/^[[:space:]]+|[[:space:]]+$//g' \
+        | sed -E 's/^"//; s/"$//' \
+        | sed -E "s/^'//; s/'$//"
+}
+
+branch_token() {
+    local value="$1"
+    local fallback="$2"
+    local cleaned
+    cleaned=$(clean_branch_name "$value")
+    if [ -n "$cleaned" ]; then
+        printf '%s\n' "$cleaned"
+    else
+        printf '%s\n' "$fallback"
+    fi
+}
+
+get_author_token() {
+    local author=""
+    if command -v git >/dev/null 2>&1; then
+        author=$(git config user.name 2>/dev/null || true)
+        if [ -z "$author" ]; then
+            author=$(git config user.email 2>/dev/null | sed 's/@.*$//' || true)
+        fi
+    fi
+    if [ -z "$author" ]; then
+        author="${USER:-unknown}"
+    fi
+    branch_token "$author" "unknown"
+}
+
+get_app_token() {
+    branch_token "$(basename "$REPO_ROOT")" "app"
+}
+
+resolve_branch_template() {
+    local template
+    local prefix
+    template=$(read_git_config_value "branch_template")
+    if [ -n "$template" ]; then
+        printf '%s\n' "$template"
+        return
+    fi
+
+    prefix=$(read_git_config_value "branch_prefix")
+    if [ -z "$prefix" ]; then
+        printf '%s\n' ""
+        return
+    fi
+    case "$prefix" in
+        */) printf '%s%s\n' "$prefix" "{number}-{slug}" ;;
+        *) printf '%s/%s\n' "$prefix" "{number}-{slug}" ;;
+    esac
+}
+
+get_number_padding() {
+    local padding
+    padding=$(read_git_config_value "number_padding")
+    if [[ "$padding" =~ ^[0-9]+$ ]]; then
+        printf '%s\n' "$padding"
+    else
+        printf '%s\n' "3"
+    fi
+}
+
+get_issue_format() {
+    local fmt
+    fmt=$(read_git_config_value "issue_format")
+    case "$fmt" in
+        jira|numeric) printf '%s\n' "$fmt" ;;
+        *) printf '%s\n' "jira" ;;
+    esac
+}
+
+normalize_issue_key() {
+    local key="$1"
+    key=$(printf '%s' "$key" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')
+    printf '%s\n' "$key"
+}
+
+validate_issue_key() {
+    local key="$1"
+    local fmt="$2"
+    case "$fmt" in
+        numeric)
+            [[ "$key" =~ ^[0-9]+$ ]]
+            ;;
+        jira|*)
+            [[ "$key" =~ ^[A-Z][A-Z0-9]*-[0-9]+$ ]]
+            ;;
+    esac
+}
+
+resolve_issue_token() {
+    local issue="${1:-}"
+    local fmt
+    fmt=$(get_issue_format)
+
+    if [ -z "$issue" ]; then
+        issue="${GIT_BRANCH_ISSUE:-}"
+    fi
+    issue=$(normalize_issue_key "$issue")
+
+    if [ -z "$issue" ]; then
+        return 0
+    fi
+
+    if [ "$fmt" = "jira" ]; then
+        issue=$(printf '%s' "$issue" | tr '[:lower:]' '[:upper:]')
+    fi
+
+    if ! validate_issue_key "$issue" "$fmt"; then
+        case "$fmt" in
+            numeric)
+                >&2 echo "Error: Invalid numeric issue key '$issue'. Expected digits only."
+                ;;
+            *)
+                >&2 echo "Error: Invalid Jira issue key '$issue'. Expected format like PROJ-123."
+                ;;
+        esac
+        exit 1
+    fi
+
+    printf '%s\n' "$issue"
+}
+
+# Determine which numbering token the template uses: {number} or {timestamp}.
+template_numbering_token() {
+    local template="$1"
+    case "$template" in
+        *"{number}"*) printf '%s\n' "{number}" ;;
+        *"{timestamp}"*) printf '%s\n' "{timestamp}" ;;
+        *) printf '%s\n' "" ;;
+    esac
+}
+
+render_branch_template() {
+    local template="$1"
+    local feature_num="$2"
+    local branch_suffix="$3"
+    local issue_token="$4"
+    local rendered="$template"
+    local numbering_token
+    numbering_token=$(template_numbering_token "$template")
+
+    rendered=${rendered//\{author\}/$AUTHOR_TOKEN}
+    rendered=${rendered//\{app\}/$APP_TOKEN}
+    rendered=${rendered//\{prefix\}/$BRANCH_PREFIX}
+    rendered=${rendered//\{issue\}/$issue_token}
+    rendered=${rendered//\{slug\}/$branch_suffix}
+    case "$numbering_token" in
+        "{number}") rendered=${rendered//\{number\}/$feature_num} ;;
+        "{timestamp}") rendered=${rendered//\{timestamp\}/$feature_num} ;;
+    esac
+    printf '%s\n' "$rendered"
+}
+
+validate_branch_template() {
+    local template="$1"
+    [ -n "$template" ] || return 0
+
+    local feature_segment
+    feature_segment="${template##*/}"
+
+    # Exactly one of {number} or {timestamp}.
+    local has_number=false
+    local has_timestamp=false
+    case "$template" in
+        *"{number}"*) has_number=true ;;
+    esac
+    case "$template" in
+        *"{timestamp}"*) has_timestamp=true ;;
+    esac
+    if [ "$has_number" = true ] && [ "$has_timestamp" = true ]; then
+        >&2 echo "Error: branch_template must include exactly one of {number} or {timestamp}, not both."
+        exit 1
+    fi
+    if [ "$has_number" != true ] && [ "$has_timestamp" != true ]; then
+        >&2 echo "Error: branch_template must include exactly one of {number} or {timestamp}."
+        exit 1
+    fi
+
+    # {slug} must not appear before the numbering token.
+    local numbering_token
+    numbering_token=$(template_numbering_token "$template")
+    local number_index slug_index
+    number_index=$(printf '%s' "$template" | grep -bo "${numbering_token}" | head -n1 | cut -d: -f1 || echo "-1")
+    slug_index=$(printf '%s' "$template" | grep -bo '{slug}' | head -n1 | cut -d: -f1 || echo "-1")
+    if [ "$slug_index" -ge 0 ] && [ "$number_index" -ge 0 ] && [ "$slug_index" -lt "$number_index" ]; then
+        >&2 echo "Error: branch_template must not place {slug} before ${numbering_token}; use {slug} only in the final feature segment."
+        exit 1
+    fi
+
+    # Final path segment must start with the numbering token followed by '-'.
+    local expected_start="${numbering_token}-"
+    case "$feature_segment" in
+        "$expected_start"*) ;;
+        *)
+            >&2 echo "Error: branch_template must put ${numbering_token}- at the start of the final path segment so generated branches remain valid feature branches."
+            exit 1
+            ;;
+    esac
+
+    # If {prefix} is present, ensure branch_prefix is configured.
+    case "$template" in
+        *"{prefix}"*)
+            if [ -z "$BRANCH_PREFIX" ]; then
+                >&2 echo "Error: branch_template uses {prefix}; configure branch_prefix in git-config.yml."
+                exit 1
+            fi
+            ;;
+    esac
+
+    # If {issue} is present, ensure an issue value is available.
+    case "$template" in
+        *"{issue}"*)
+            if [ -z "$ISSUE_TOKEN" ]; then
+                >&2 echo "Error: branch_template uses {issue}; provide --issue or set GIT_BRANCH_ISSUE."
+                exit 1
+            fi
+            ;;
+    esac
+}
+
+build_branch_name() {
+    local feature_num="$1"
+    local branch_suffix="$2"
+    if [ -n "$BRANCH_TEMPLATE" ]; then
+        render_branch_template "$BRANCH_TEMPLATE" "$feature_num" "$branch_suffix" "$ISSUE_TOKEN"
+    else
+        printf '%s-%s\n' "$feature_num" "$branch_suffix"
+    fi
+}
+
+branch_scope_prefix() {
+    local template="$1"
+    local prefix="$template"
+    local numbering_token
+    [ -n "$prefix" ] || return 0
+    numbering_token=$(template_numbering_token "$template")
+    case "$prefix" in
+        *"{number}"*) prefix="${prefix%%\{number\}*}" ;;
+        *"{timestamp}"*) prefix="${prefix%%\{timestamp\}*}" ;;
+        *"{slug}"*) prefix="${prefix%%\{slug\}*}" ;;
+        *) return 0 ;;
+    esac
+    render_branch_template "$prefix" "" "$BRANCH_SUFFIX" "$ISSUE_TOKEN"
+}
+
+extract_feature_num_from_branch() {
+    local branch_name="$1"
+    local feature_segment="${branch_name##*/}"
+    local match
+    match=$(printf '%s\n' "$feature_segment" | grep -Eo '^[0-9]{8}-[0-9]{6}-' | head -n 1 || true)
+    if [ -n "$match" ]; then
+        printf '%s\n' "$match" | sed -E 's/-$//'
+        return
+    fi
+    match=$(printf '%s\n' "$feature_segment" | grep -Eo '^[0-9]+-' | head -n 1 || true)
+    if [ -n "$match" ]; then
+        printf '%s\n' "$match" | sed -E 's/-$//'
+        return
+    fi
+    printf '%s\n' "$branch_name"
+}
+
+AUTHOR_TOKEN=$(get_author_token)
+APP_TOKEN=$(get_app_token)
+BRANCH_PREFIX=$(read_git_config_value "branch_prefix")
+BRANCH_TEMPLATE=$(resolve_branch_template)
+NUMBER_PADDING=$(get_number_padding)
+ISSUE_FORMAT=$(get_issue_format)
+# ISSUE_TOKEN is resolved lazily during template validation/use.
+ISSUE_TOKEN=""
 
 # Function to generate branch name with stop word filtering
 generate_branch_name() {
@@ -377,113 +686,11 @@ generate_branch_name() {
     fi
 }
 
-spec_kit_branch_pattern_template_is_valid() {
-    local template="$1"
-    [ -n "$template" ] || return 1
-    [[ "$template" == *"{slug}"* ]] || return 1
-
-    local number_count=0
-    local timestamp_count=0
-    [[ "$template" == *"{number}"* ]] && number_count=1
-    [[ "$template" == *"{timestamp}"* ]] && timestamp_count=1
-    [ $((number_count + timestamp_count)) -eq 1 ] || return 1
-    return 0
-}
-
-spec_kit_branch_pattern_render() {
-    local template="$1"
-    local prefix="$2"
-    local number="$3"
-    local timestamp="$4"
-    local issue="$5"
-    local slug="$6"
-    local result="$template"
-
-    result="${result//\{prefix\}/$prefix}"
-    result="${result//\{number\}/$number}"
-    result="${result//\{timestamp\}/$timestamp}"
-    result="${result//\{issue\}/$issue}"
-    result="${result//\{slug\}/$slug}"
-    printf '%s\n' "$result"
-}
-
-spec_kit_branch_pattern_first_prefix() {
-    local repo_root="$1"
-    while IFS= read -r prefix; do
-        [ -n "$prefix" ] || continue
-        printf '%s\n' "$prefix"
-        return 0
-    done < <(spec_kit_branch_pattern_allowed_prefixes "$repo_root" 2>/dev/null || true)
-    return 1
-}
-
-spec_kit_branch_pattern_apply() {
-    local repo_root="$1"
-    local branch_suffix="$2"
-    local feature_num="$3"
-    local use_timestamp="$4"
-    local issue_key="$5"
-
-    local template number_padding prefix issue normalized_issue rendered
-    template="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.template 2>/dev/null || true)"
-    spec_kit_branch_pattern_template_is_valid "$template" || {
-        echo "Error: Invalid branch_pattern.template. It must include {slug} and exactly one of {number} or {timestamp}." >&2
-        return 1
-    }
-
-    if [[ "$template" == *"{prefix}"* ]]; then
-        prefix="$(spec_kit_branch_pattern_first_prefix "$repo_root" 2>/dev/null || true)"
-        if [ -z "$prefix" ]; then
-            echo "Error: branch_pattern.template uses {prefix}, but branch_pattern.allowed_prefixes is empty." >&2
-            return 1
-        fi
-    fi
-
-    if [[ "$template" == *"{issue}"* ]]; then
-        issue="$issue_key"
-        [ -z "$issue" ] && issue="${GIT_BRANCH_ISSUE:-}"
-        issue="$(spec_kit_normalize_issue_key "$issue")"
-        if [ -z "$issue" ]; then
-            echo "Error: branch_pattern.template uses {issue}; provide --issue or GIT_BRANCH_ISSUE." >&2
-            return 1
-        fi
-        if ! spec_kit_validate_issue_key "$issue"; then
-            echo "Error: Invalid Jira issue key '$issue'. Expected format like PROJ-123." >&2
-            return 1
-        fi
-        normalized_issue="$issue"
-    fi
-
-    if [[ "$template" == *"{number}"* ]]; then
-        number_padding="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.number_padding 2>/dev/null || true)"
-        [[ "$number_padding" =~ ^[0-9]+$ ]] || number_padding=3
-        rendered="$(spec_kit_branch_pattern_render "$template" "$prefix" "$(printf "%0${number_padding}d" "$((10#$feature_num))")" "" "$normalized_issue" "$branch_suffix")"
-    else
-        if [ "$use_timestamp" != true ]; then
-            echo "Error: branch_pattern.template requires {timestamp}; rerun with --timestamp or change the template." >&2
-            return 1
-        fi
-        rendered="$(spec_kit_branch_pattern_render "$template" "$prefix" "" "$feature_num" "$normalized_issue" "$branch_suffix")"
-    fi
-
-    printf '%s\n' "$rendered"
-}
-
 # Check for GIT_BRANCH_NAME env var override (exact branch name, no prefix/suffix)
 if [ -n "${GIT_BRANCH_NAME:-}" ]; then
     BRANCH_NAME="$GIT_BRANCH_NAME"
-    # Extract FEATURE_NUM from the branch name if it starts with a numeric prefix
-    # Check timestamp pattern first (YYYYMMDD-HHMMSS-) since it also matches the simpler ^[0-9]+ pattern
-    if echo "$BRANCH_NAME" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
-        FEATURE_NUM=$(echo "$BRANCH_NAME" | grep -Eo '^[0-9]{8}-[0-9]{6}')
-        BRANCH_SUFFIX="${BRANCH_NAME#${FEATURE_NUM}-}"
-    elif echo "$BRANCH_NAME" | grep -Eq '^[0-9]+-'; then
-        FEATURE_NUM=$(echo "$BRANCH_NAME" | grep -Eo '^[0-9]+')
-        BRANCH_SUFFIX="${BRANCH_NAME#${FEATURE_NUM}-}"
-    else
-        FEATURE_NUM="$BRANCH_NAME"
-        BRANCH_SUFFIX="$BRANCH_NAME"
-    fi
+    FEATURE_NUM=$(extract_feature_num_from_branch "$BRANCH_NAME")
+    BRANCH_SUFFIX="$BRANCH_NAME"
 else
     # Generate branch name
     if [ -n "$SHORT_NAME" ]; then
@@ -492,39 +699,48 @@ else
         BRANCH_SUFFIX=$(generate_branch_name "$FEATURE_DESCRIPTION")
     fi
 
+    # Resolve issue token if the template uses {issue}.
+    case "$BRANCH_TEMPLATE" in
+        *"{issue}"*)
+            ISSUE_TOKEN=$(resolve_issue_token "$ISSUE_KEY")
+            if [ -z "$ISSUE_TOKEN" ]; then
+                >&2 echo "Error: branch_template uses {issue}; provide --issue or set GIT_BRANCH_ISSUE."
+                exit 1
+            fi
+            ;;
+    esac
+
+    # Validate template now that issue token is resolved.
+    validate_branch_template "$BRANCH_TEMPLATE"
+
     # Warn if --number and --timestamp are both specified
     if [ "$USE_TIMESTAMP" = true ] && [ -n "$BRANCH_NUMBER" ]; then
         >&2 echo "[specify] Warning: --number is ignored when --timestamp is used"
         BRANCH_NUMBER=""
     fi
 
-    # Determine branch prefix
+    # Determine branch number/timestamp
     if [ "$USE_TIMESTAMP" = true ]; then
         FEATURE_NUM=$(date +%Y%m%d-%H%M%S)
+        BRANCH_NAME=$(build_branch_name "$FEATURE_NUM" "$BRANCH_SUFFIX")
     else
+        BRANCH_SCOPE_PREFIX=$(branch_scope_prefix "$BRANCH_TEMPLATE")
         if [ -z "$BRANCH_NUMBER" ]; then
             if [ "$DRY_RUN" = true ] && [ "$HAS_GIT" = true ]; then
-                BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR" true)
+                BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR" true "$BRANCH_SCOPE_PREFIX")
             elif [ "$DRY_RUN" = true ]; then
                 HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
                 BRANCH_NUMBER=$((HIGHEST + 1))
             elif [ "$HAS_GIT" = true ]; then
-                BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR")
+                BRANCH_NUMBER=$(check_existing_branches "$SPECS_DIR" false "$BRANCH_SCOPE_PREFIX")
             else
                 HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
                 BRANCH_NUMBER=$((HIGHEST + 1))
             fi
         fi
 
-        FEATURE_NUM=$(printf "%03d" "$((10#$BRANCH_NUMBER))")
-    fi
-
-    if spec_kit_branch_pattern_enabled "$REPO_ROOT"; then
-        BRANCH_NAME="$(spec_kit_branch_pattern_apply "$REPO_ROOT" "$BRANCH_SUFFIX" "$FEATURE_NUM" "$USE_TIMESTAMP" "$ISSUE_KEY")" || exit 1
-    elif [ "$USE_TIMESTAMP" = true ]; then
-        BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
-    else
-        BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
+        FEATURE_NUM=$(printf "%0${NUMBER_PADDING}d" "$((10#$BRANCH_NUMBER))")
+        BRANCH_NAME=$(build_branch_name "$FEATURE_NUM" "$BRANCH_SUFFIX")
     fi
 fi
 
@@ -536,18 +752,23 @@ if [ -n "${GIT_BRANCH_NAME:-}" ] && [ "$BRANCH_BYTE_LEN" -gt $MAX_BRANCH_LENGTH 
     >&2 echo "Error: GIT_BRANCH_NAME must be 244 bytes or fewer in UTF-8. Provided value is ${BRANCH_BYTE_LEN} bytes."
     exit 1
 elif [ "$BRANCH_BYTE_LEN" -gt $MAX_BRANCH_LENGTH ]; then
-    PREFIX_LENGTH=$(( ${#FEATURE_NUM} + 1 ))
-    MAX_SUFFIX_LENGTH=$((MAX_BRANCH_LENGTH - PREFIX_LENGTH))
-
-    TRUNCATED_SUFFIX=$(echo "$BRANCH_SUFFIX" | cut -c1-$MAX_SUFFIX_LENGTH)
-    TRUNCATED_SUFFIX=$(echo "$TRUNCATED_SUFFIX" | sed 's/-$//')
-
     ORIGINAL_BRANCH_NAME="$BRANCH_NAME"
-    BRANCH_NAME="${FEATURE_NUM}-${TRUNCATED_SUFFIX}"
+    TRUNCATED_SUFFIX="$BRANCH_SUFFIX"
+    while [ "$(_byte_length "$BRANCH_NAME")" -gt "$MAX_BRANCH_LENGTH" ] && [ -n "$TRUNCATED_SUFFIX" ]; do
+        TRUNCATED_SUFFIX="${TRUNCATED_SUFFIX%?}"
+        TRUNCATED_SUFFIX="${TRUNCATED_SUFFIX%-}"
+        BRANCH_NAME=$(build_branch_name "$FEATURE_NUM" "$TRUNCATED_SUFFIX")
+    done
+    if [ "$(_byte_length "$BRANCH_NAME")" -gt $MAX_BRANCH_LENGTH ]; then
+        >&2 echo "Error: Branch template prefix exceeds GitHub's 244-byte branch name limit."
+        exit 1
+    fi
 
     >&2 echo "[specify] Warning: Branch name exceeded GitHub's 244-byte limit"
-    >&2 echo "[specify] Original: $ORIGINAL_BRANCH_NAME (${#ORIGINAL_BRANCH_NAME} bytes)"
-    >&2 echo "[specify] Truncated to: $BRANCH_NAME (${#BRANCH_NAME} bytes)"
+    ORIGINAL_BRANCH_BYTE_LEN=$(_byte_length "$ORIGINAL_BRANCH_NAME")
+    TRUNCATED_BRANCH_BYTE_LEN=$(_byte_length "$BRANCH_NAME")
+    >&2 echo "[specify] Original: $ORIGINAL_BRANCH_NAME (${ORIGINAL_BRANCH_BYTE_LEN} bytes)"
+    >&2 echo "[specify] Truncated to: $BRANCH_NAME (${TRUNCATED_BRANCH_BYTE_LEN} bytes)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -578,6 +799,7 @@ _resolve_isolation_mode() {
     local cfg="$REPO_ROOT/.specify/extensions/git/git-config.yml"
     if [ -f "$cfg" ]; then
         local val
+        # Match isolation_mode at any indentation so nested git: configs work.
         val="$(grep -E '^[[:space:]]*isolation_mode[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[[:space:]]*isolation_mode[[:space:]]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/["'"'"']//g' || true)"
         case "$val" in
             branch|worktree) echo "$val"; return ;;
@@ -633,8 +855,21 @@ if [ "$ISOLATION_MODE" = "worktree" ] && [ "$DRY_RUN" != true ]; then
                 --arg cd_cmd "cd ${WORKTREE_PATH:-}" \
                 '{BRANCH_NAME:$branch_name, FEATURE_NUM:$feature_num, ISOLATION_MODE:$mode, WORKTREE_PATH:$wt_path, MANIFEST_PATH:$mf_path, cd:$cd_cmd}'
         else
+            if type json_escape >/dev/null 2>&1; then
+                _je_branch=$(json_escape "$BRANCH_NAME")
+                _je_num=$(json_escape "$FEATURE_NUM")
+                _je_wt=$(json_escape "${WORKTREE_PATH:-}")
+                _je_mf=$(json_escape "${MANIFEST_PATH:-}")
+                _je_cd=$(json_escape "cd ${WORKTREE_PATH:-}")
+            else
+                _je_branch="$BRANCH_NAME"
+                _je_num="$FEATURE_NUM"
+                _je_wt="${WORKTREE_PATH:-}"
+                _je_mf="${MANIFEST_PATH:-}"
+                _je_cd="cd ${WORKTREE_PATH:-}"
+            fi
             printf '{"BRANCH_NAME":"%s","FEATURE_NUM":"%s","ISOLATION_MODE":"worktree","WORKTREE_PATH":"%s","MANIFEST_PATH":"%s","cd":"%s"}\n' \
-                "$BRANCH_NAME" "$FEATURE_NUM" "${WORKTREE_PATH:-}" "${MANIFEST_PATH:-}" "cd ${WORKTREE_PATH:-}"
+                "$_je_branch" "$_je_num" "$_je_wt" "$_je_mf" "$_je_cd"
         fi
     else
         echo "BRANCH_NAME: $BRANCH_NAME"

@@ -55,24 +55,26 @@ has_git() {
         git -C "$repo_root" rev-parse --is-inside-work-tree >/dev/null 2>&1
 }
 
-spec_kit_branch_pattern_config_path() {
+spec_kit_branch_template_config_path() {
     local repo_root="${1:-$(get_repo_root)}"
     printf '%s\n' "$repo_root/.specify/extensions/git/git-config.yml"
 }
 
-spec_kit_branch_pattern_get_scalar() {
+# Read a top-level scalar value from git-config.yml by key name.
+# Only top-level keys are read; legacy nested blocks are ignored.
+spec_kit_branch_template_get_scalar() {
     local repo_root="$1"
-    local key_path="$2"
+    local key="$2"
     local cfg
-    cfg="$(spec_kit_branch_pattern_config_path "$repo_root")"
+    cfg="$(spec_kit_branch_template_config_path "$repo_root")"
     [ -f "$cfg" ] || return 1
 
     if command -v python3 >/dev/null 2>&1; then
         local value
-        value=$(python3 - "$cfg" "$key_path" <<'PY' 2>/dev/null || true
+        value=$(python3 - "$cfg" "$key" <<'PY' 2>/dev/null || true
 import sys
 
-path, key_path = sys.argv[1], sys.argv[2].split('.')
+path, key = sys.argv[1], sys.argv[2]
 try:
     import yaml
 except Exception:
@@ -81,12 +83,7 @@ except Exception:
 try:
     with open(path, encoding='utf-8') as fh:
         data = yaml.safe_load(fh) or {}
-    cur = data
-    for key in key_path:
-        if not isinstance(cur, dict) or key not in cur:
-            cur = None
-            break
-        cur = cur[key]
+    cur = data.get(key)
     if cur is None or isinstance(cur, (dict, list)):
         sys.exit(0)
     if isinstance(cur, bool):
@@ -103,101 +100,21 @@ PY
         fi
     fi
 
-    case "$key_path" in
-        branch_pattern.enabled)
-            grep -E '^[[:space:]]*enabled[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/[[:space:]]+$//'
-            ;;
-        branch_pattern.template)
-            grep -E '^[[:space:]]*template[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/^['"'"']|['"'"']$//g; s/[[:space:]]+$//'
-            ;;
-        branch_pattern.number_padding)
-            grep -E '^[[:space:]]*number_padding[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/[[:space:]]+$//'
-            ;;
-        branch_pattern.issue_format)
-            grep -E '^[[:space:]]*issue_format[[:space:]]*:' "$cfg" 2>/dev/null | tail -1 | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/^['"'"']|['"'"']$//g; s/[[:space:]]+$//'
-            ;;
-        *)
-            return 1
-            ;;
-    esac
+    # Fallback line-based parser for top-level keys only (no leading whitespace)
+    grep -E "^${key}[[:space:]]*:" "$cfg" 2>/dev/null | tail -1 | \
+        sed -E "s/^${key}[[:space:]]*:[[:space:]]*//; s/[[:space:]]*#.*//; s/[[:space:]]+$//; s/^['\"]//; s/['\"]$//"
 }
 
-spec_kit_branch_pattern_allowed_prefixes() {
-    local repo_root="$1"
-    local cfg
-    cfg="$(spec_kit_branch_pattern_config_path "$repo_root")"
-    [ -f "$cfg" ] || return 1
-
-    if command -v python3 >/dev/null 2>&1; then
-        local values
-        values=$(python3 - "$cfg" <<'PY' 2>/dev/null || true
-import sys
-try:
-    import yaml
-except Exception:
-    sys.exit(0)
-
-try:
-    with open(sys.argv[1], encoding='utf-8') as fh:
-        data = yaml.safe_load(fh) or {}
-    vals = (((data or {}).get('branch_pattern') or {}).get('allowed_prefixes') or [])
-    if isinstance(vals, list):
-        for item in vals:
-            if item is not None:
-                print(str(item))
-except Exception:
-    sys.exit(0)
-PY
-)
-        if [ -n "$values" ]; then
-            printf '%s\n' "$values"
-            return 0
-        fi
-    fi
-
-    python3 - "$cfg" <<'PY' 2>/dev/null || true
-import re
-import sys
-
-path = sys.argv[1]
-in_branch_pattern = False
-in_allowed_prefixes = False
-
-with open(path, encoding='utf-8') as fh:
-    for raw_line in fh:
-        line = raw_line.rstrip('\n')
-        if re.match(r'^\S', line):
-            in_branch_pattern = False
-            in_allowed_prefixes = False
-        if re.match(r'^\s*branch_pattern\s*:', line):
-            in_branch_pattern = True
-            continue
-        if not in_branch_pattern:
-            continue
-        if re.match(r'^\s*allowed_prefixes\s*:', line):
-            in_allowed_prefixes = True
-            continue
-        if in_allowed_prefixes:
-            match = re.match(r'^\s*-\s*(.+?)\s*(#.*)?$', line)
-            if match:
-                value = match.group(1).strip().strip('"\'')
-                if value:
-                    print(value)
-                continue
-            if re.match(r'^\s*[A-Za-z_]+\s*:', line):
-                in_allowed_prefixes = False
-PY
-}
-
-spec_kit_branch_pattern_enabled() {
+spec_kit_branch_template_enabled() {
     local repo_root="${1:-$(get_repo_root)}"
-    local enabled
-    enabled="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.enabled 2>/dev/null || true)"
-    [[ "$enabled" == "true" || "$enabled" == "True" || "$enabled" == "yes" || "$enabled" == "1" ]]
+    local template prefix
+    template="$(spec_kit_branch_template_get_scalar "$repo_root" branch_template 2>/dev/null || true)"
+    prefix="$(spec_kit_branch_template_get_scalar "$repo_root" branch_prefix 2>/dev/null || true)"
+    [ -n "$template" ] || [ -n "$prefix" ]
 }
 
 spec_kit_issue_key_regex() {
-    printf '%s\n' '^[A-Z][A-Z0-9]+-[0-9]+$'
+    printf '%s\n' '^[A-Z][A-Z0-9]*-[0-9]+$'
 }
 
 spec_kit_normalize_issue_key() {
@@ -210,10 +127,32 @@ spec_kit_validate_issue_key() {
     [[ "$issue" =~ $(spec_kit_issue_key_regex) ]]
 }
 
-spec_kit_branch_pattern_validation_message() {
+# Resolve the effective branch template.
+# If branch_template is set it wins; otherwise branch_prefix expands to
+# <prefix>/{number}-{slug} (preserving a trailing slash on the prefix).
+spec_kit_resolve_branch_template() {
+    local repo_root="${1:-$(get_repo_root)}"
+    local template prefix
+    template="$(spec_kit_branch_template_get_scalar "$repo_root" branch_template 2>/dev/null || true)"
+    if [ -n "$template" ]; then
+        printf '%s\n' "$template"
+        return 0
+    fi
+    prefix="$(spec_kit_branch_template_get_scalar "$repo_root" branch_prefix 2>/dev/null || true)"
+    if [ -z "$prefix" ]; then
+        printf '%s\n' ""
+        return 1
+    fi
+    case "$prefix" in
+        */) printf '%s%s\n' "$prefix" "{number}-{slug}" ;;
+        *) printf '%s/%s\n' "$prefix" "{number}-{slug}" ;;
+    esac
+}
+
+spec_kit_branch_template_validation_message() {
     local repo_root="${1:-$(get_repo_root)}"
     local template
-    template="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.template 2>/dev/null || true)"
+    template="$(spec_kit_resolve_branch_template "$repo_root" 2>/dev/null || true)"
     if [ -n "$template" ]; then
         printf 'Feature branches should match configured template: %s\n' "$template"
     else
@@ -242,55 +181,108 @@ spec_kit_extract_feature_identity() {
     return 1
 }
 
-spec_kit_branch_matches_configured_pattern() {
+# Validate a raw branch name against the configured branch_template.
+# Token semantics mirror create-new-feature-branch.sh:
+#   {author}    -> [^/]+
+#   {app}       -> [^/]+
+#   {number}    -> [0-9]{padding}  (default padding 3)
+#   {timestamp} -> [0-9]{8}-[0-9]{6}
+#   {issue}     -> jira=[A-Z][A-Z0-9]*-[0-9]+ or numeric=[0-9]+
+#   {slug}      -> [a-z0-9]+(?:-[a-z0-9]+)*
+# Literal text (including "/") is matched literally.
+spec_kit_branch_matches_configured_template() {
     local raw="$1"
     local repo_root="${2:-$(get_repo_root)}"
-    local branch template has_prefix has_issue issue_key prefix identity rest prefixes_found=false
+    local cfg
+    cfg="$(spec_kit_branch_template_config_path "$repo_root")"
+    [ -f "$cfg" ] || return 1
 
-    branch="$(spec_kit_effective_branch_name "$raw")"
-    template="$(spec_kit_branch_pattern_get_scalar "$repo_root" branch_pattern.template 2>/dev/null || true)"
-    [ -n "$template" ] || return 1
+    if command -v python3 >/dev/null 2>&1; then
+        python3 - "$cfg" "$raw" <<'PY' 2>/dev/null
+import sys, re
 
-    has_prefix=false
-    has_issue=false
-    [[ "$template" == *"{prefix}"* ]] && has_prefix=true
-    [[ "$template" == *"{issue}"* ]] && has_issue=true
+path, branch = sys.argv[1], sys.argv[2]
+try:
+    import yaml
+except Exception:
+    sys.exit(1)
 
-    if [ "$has_prefix" = true ]; then
-        local prefix_line
-        while IFS= read -r prefix_line; do
-            [ -n "$prefix_line" ] || continue
-            prefixes_found=true
-            if [[ "$raw" == "$prefix_line/"* ]]; then
-                prefix="$prefix_line"
-                break
-            fi
-        done < <(spec_kit_branch_pattern_allowed_prefixes "$repo_root" 2>/dev/null || true)
-        [ "$prefixes_found" = true ] || return 1
-        [ -n "$prefix" ] || return 1
+try:
+    with open(path, encoding='utf-8') as fh:
+        data = yaml.safe_load(fh) or {}
+except Exception:
+    sys.exit(1)
+
+template = str(data.get('branch_template') or '')
+prefix = str(data.get('branch_prefix') or '')
+padding = data.get('number_padding')
+issue_format = str(data.get('issue_format') or 'jira').lower()
+
+if not template and not prefix:
+    sys.exit(1)
+
+if '{prefix}' in template:
+    if not prefix:
+        sys.exit(1)
+    template = template.replace('{prefix}', prefix)
+
+if not template:
+    if prefix.endswith('/'):
+        template = prefix + '{number}-{slug}'
+    else:
+        template = prefix + '/{number}-{slug}'
+
+if padding is None:
+    padding = 3
+else:
+    try:
+        padding = int(padding)
+        if padding < 1:
+            padding = 3
+    except Exception:
+        padding = 3
+
+if issue_format not in ('jira', 'numeric'):
+    issue_format = 'jira'
+
+TOKEN_PATTERNS = {
+    '{author}': r'(?P<author>[^/]+)',
+    '{app}': r'(?P<app>[^/]+)',
+    '{number}': r'(?P<number>[0-9]{%d})' % padding,
+    '{timestamp}': r'(?P<timestamp>[0-9]{8}-[0-9]{6})',
+    '{issue}': r'(?P<issue>[A-Z][A-Z0-9]*-[0-9]+|[0-9]+)',
+    '{slug}': r'(?P<slug>[a-z0-9]+(?:-[a-z0-9]+)*)',
+}
+
+parts = re.split(r'(\{author\}|\{app\}|\{number\}|\{timestamp\}|\{issue\}|\{slug\})', template)
+regex_parts = []
+for part in parts:
+    if part in TOKEN_PATTERNS:
+        regex_parts.append(TOKEN_PATTERNS[part])
+    else:
+        regex_parts.append(re.escape(part))
+pattern = '^' + ''.join(regex_parts) + '$'
+
+m = re.match(pattern, branch)
+if not m:
+    sys.exit(1)
+
+if '{issue}' in template:
+    issue_key = m.group('issue')
+    if issue_format == 'numeric':
+        if not re.match(r'^[0-9]+$', issue_key):
+            sys.exit(1)
+    else:
+        if not re.match(r'^[A-Z][A-Z0-9]*-[0-9]+$', issue_key):
+            sys.exit(1)
+
+sys.exit(0)
+PY
+        return $?
     fi
 
-    identity="$(spec_kit_extract_feature_identity "$raw" 2>/dev/null || true)"
-    [ -n "$identity" ] || return 1
-
-    if [[ "$branch" == "$identity"-* ]]; then
-        rest="${branch#${identity}-}"
-    else
-        return 1
-    fi
-
-    if [ "$has_issue" = true ]; then
-        if [[ "$rest" =~ ^([A-Z][A-Z0-9]+-[0-9]+)-(.+)$ ]]; then
-            issue_key="${BASH_REMATCH[1]}"
-            rest="${BASH_REMATCH[2]}"
-        else
-            return 1
-        fi
-        spec_kit_validate_issue_key "$issue_key" || return 1
-        [ -n "$rest" ] || return 1
-    fi
-
-    [[ "$rest" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]
+    # Without Python we cannot reliably convert a template to a regex.
+    return 1
 }
 
 # Strip a single optional path segment (e.g. gitflow "feat/004-name" -> "004-name").
@@ -305,8 +297,10 @@ spec_kit_effective_branch_name() {
 }
 
 # Validate that a branch name matches the expected feature branch pattern.
-# Accepts sequential (###-* with >=3 digits) or timestamp (YYYYMMDD-HHMMSS-*) formats.
-# Logic aligned with scripts/bash/common.sh check_feature_branch after effective-name normalization.
+# If a branch_template/branch_prefix is configured, validate against it first.
+# Otherwise accepts sequential (###-* with >=3 digits) or timestamp
+# (YYYYMMDD-HHMMSS-*) formats, either at the start of the branch or after
+# path-style namespace prefixes.
 check_feature_branch() {
     local raw="$1"
     local has_git_repo="$2"
@@ -317,29 +311,30 @@ check_feature_branch() {
         return 0
     fi
 
-    local branch
-    branch=$(spec_kit_effective_branch_name "$raw")
-
     local repo_root
     repo_root="$(get_repo_root 2>/dev/null || pwd)"
-    if spec_kit_branch_pattern_enabled "$repo_root"; then
-        if spec_kit_branch_matches_configured_pattern "$raw" "$repo_root"; then
+    if spec_kit_branch_template_enabled "$repo_root"; then
+        if spec_kit_branch_matches_configured_template "$raw" "$repo_root"; then
             return 0
         fi
         echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
-        spec_kit_branch_pattern_validation_message "$repo_root" >&2
+        spec_kit_branch_template_validation_message "$repo_root" >&2
         return 1
     fi
+
+    local branch
+    branch=$(spec_kit_effective_branch_name "$raw")
+    local feature_segment="${branch##*/}"
 
     # Accept sequential prefix (3+ digits) but exclude malformed timestamps
     # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
     local is_sequential=false
-    if [[ "$branch" =~ ^[0-9]{3,}- ]] && [[ ! "$branch" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "$branch" =~ ^[0-9]{7,8}-[0-9]{6}$ ]]; then
+    if [[ "$feature_segment" =~ ^[0-9]{3,}- ]] && [[ ! "$feature_segment" =~ ^[0-9]{7}-[0-9]{6}- ]] && [[ ! "$feature_segment" =~ ^[0-9]{7,8}-[0-9]{6}$ ]]; then
         is_sequential=true
     fi
-    if [[ "$is_sequential" != "true" ]] && [[ ! "$branch" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
+    if [[ "$is_sequential" != "true" ]] && [[ ! "$feature_segment" =~ ^[0-9]{8}-[0-9]{6}- ]]; then
         echo "ERROR: Not on a feature branch. Current branch: $raw" >&2
-        echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name" >&2
+        echo "Feature branches should be named like: 001-feature-name, 1234-feature-name, 20260319-143022-feature-name, or <prefix>/001-feature-name" >&2
         return 1
     fi
 

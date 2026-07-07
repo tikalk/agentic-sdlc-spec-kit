@@ -66,17 +66,19 @@ function Test-HasGit {
     }
 }
 
-function Get-SpecKitBranchPatternConfigPath {
+function Get-SpecKitBranchTemplateConfigPath {
     param([string]$RepoRoot = (Get-RepoRoot))
     return (Join-Path $RepoRoot '.specify/extensions/git/git-config.yml')
 }
 
-function Get-SpecKitBranchPatternScalar {
+# Read a top-level scalar value from git-config.yml by key name.
+# Only top-level keys are read; legacy nested blocks are ignored.
+function Get-SpecKitBranchTemplateScalar {
     param(
         [string]$RepoRoot,
-        [string]$KeyPath
+        [string]$Key
     )
-    $cfg = Get-SpecKitBranchPatternConfigPath -RepoRoot $RepoRoot
+    $cfg = Get-SpecKitBranchTemplateConfigPath -RepoRoot $RepoRoot
     if (-not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return $null }
 
     if (Get-Command python3 -ErrorAction SilentlyContinue) {
@@ -88,17 +90,11 @@ try:
 except Exception:
     raise SystemExit(0)
 
-path = sys.argv[1]
-keys = sys.argv[2].split('.')
+path, key = sys.argv[1], sys.argv[2]
 try:
     with open(path, encoding='utf-8') as fh:
         data = yaml.safe_load(fh) or {}
-    cur = data
-    for key in keys:
-        if not isinstance(cur, dict) or key not in cur:
-            cur = None
-            break
-        cur = cur[key]
+    cur = data.get(key)
     if cur is None or isinstance(cur, (dict, list)):
         raise SystemExit(0)
     if isinstance(cur, bool):
@@ -107,98 +103,31 @@ try:
         print(str(cur))
 except Exception:
     raise SystemExit(0)
-"@ $cfg $KeyPath 2>$null
+"@ $cfg $Key 2>$null
             if ($value) { return ($value | Out-String).Trim() }
         } catch {}
     }
 
+    # Fallback line-based parser for top-level keys only (no leading whitespace)
     $lines = Get-Content -LiteralPath $cfg -ErrorAction SilentlyContinue
+    $escapedKey = [regex]::Escape($Key)
     foreach ($line in $lines) {
-        switch ($KeyPath) {
-            'branch_pattern.enabled' {
-                if ($line -match '^[\s]*enabled\s*:\s*(.+?)\s*(#.*)?$') { return $matches[1].Trim().Trim("'", '"') }
-            }
-            'branch_pattern.template' {
-                if ($line -match '^[\s]*template\s*:\s*(.+?)\s*(#.*)?$') { return $matches[1].Trim().Trim("'", '"') }
-            }
-            'branch_pattern.number_padding' {
-                if ($line -match '^[\s]*number_padding\s*:\s*(.+?)\s*(#.*)?$') { return $matches[1].Trim().Trim("'", '"') }
-            }
-            'branch_pattern.issue_format' {
-                if ($line -match '^[\s]*issue_format\s*:\s*(.+?)\s*(#.*)?$') { return $matches[1].Trim().Trim("'", '"') }
-            }
+        if ($line -match "^$escapedKey\s*:\s*(.+?)\s*(#.*)?$") {
+            return $matches[1].Trim().Trim("'", '"')
         }
     }
     return $null
 }
 
-function Get-SpecKitBranchPatternAllowedPrefixes {
-    param([string]$RepoRoot)
-    $cfg = Get-SpecKitBranchPatternConfigPath -RepoRoot $RepoRoot
-    if (-not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return @() }
-
-    if (Get-Command python3 -ErrorAction SilentlyContinue) {
-        try {
-            $values = & python3 -c @"
-import sys
-try:
-    import yaml
-except Exception:
-    raise SystemExit(0)
-
-try:
-    with open(sys.argv[1], encoding='utf-8') as fh:
-        data = yaml.safe_load(fh) or {}
-    vals = (((data or {}).get('branch_pattern') or {}).get('allowed_prefixes') or [])
-    if isinstance(vals, list):
-        for item in vals:
-            if item is not None:
-                print(str(item))
-except Exception:
-    raise SystemExit(0)
-"@ $cfg 2>$null
-            if ($values) {
-                return @($values | ForEach-Object { $_.ToString().Trim() } | Where-Object { $_ })
-            }
-        } catch {}
-    }
-
-    $prefixes = @()
-    $inBranchPattern = $false
-    $inAllowedPrefixes = $false
-    foreach ($line in Get-Content -LiteralPath $cfg -ErrorAction SilentlyContinue) {
-        if ($line -match '^[^\s]') {
-            $inBranchPattern = $false
-            $inAllowedPrefixes = $false
-        }
-        if ($line -match '^\s*branch_pattern\s*:') {
-            $inBranchPattern = $true
-            continue
-        }
-        if (-not $inBranchPattern) { continue }
-        if ($line -match '^\s*allowed_prefixes\s*:') {
-            $inAllowedPrefixes = $true
-            continue
-        }
-        if ($inAllowedPrefixes -and $line -match '^\s*-[\s]*(.+?)\s*(#.*)?$') {
-            $prefixes += $matches[1].Trim().Trim("'", '"')
-            continue
-        }
-        if ($inAllowedPrefixes -and $line -match '^\s*[A-Za-z_]+\s*:') {
-            $inAllowedPrefixes = $false
-        }
-    }
-    return $prefixes
-}
-
-function Test-SpecKitBranchPatternEnabled {
+function Test-SpecKitBranchTemplateEnabled {
     param([string]$RepoRoot = (Get-RepoRoot))
-    $enabled = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.enabled'
-    return $enabled -in @('true', 'True', 'yes', '1')
+    $template = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_template'
+    $prefix = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_prefix'
+    return ($template -or $prefix)
 }
 
 function Get-SpecKitIssueKeyRegex {
-    return '^[A-Z][A-Z0-9]+-[0-9]+$'
+    return '^[A-Z][A-Z0-9]*-[0-9]+$'
 }
 
 function Normalize-SpecKitIssueKey {
@@ -211,9 +140,23 @@ function Test-SpecKitIssueKey {
     return ([string]$Issue) -match (Get-SpecKitIssueKeyRegex)
 }
 
-function Get-SpecKitBranchPatternValidationMessage {
+# Resolve the effective branch template.
+# If branch_template is set it wins; otherwise branch_prefix expands to
+# <prefix>/{number}-{slug} (preserving a trailing slash on the prefix).
+function Get-SpecKitResolvedBranchTemplate {
     param([string]$RepoRoot = (Get-RepoRoot))
-    $template = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.template'
+    $template = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_template'
+    if ($template) { return $template }
+
+    $prefix = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_prefix'
+    if (-not $prefix) { return '' }
+    if ($prefix.EndsWith('/')) { return "${prefix}{number}-{slug}" }
+    return "$prefix/{number}-{slug}"
+}
+
+function Get-SpecKitBranchTemplateValidationMessage {
+    param([string]$RepoRoot = (Get-RepoRoot))
+    $template = Get-SpecKitResolvedBranchTemplate -RepoRoot $RepoRoot
     if ($template) {
         return "Feature branches should match configured template: $template"
     }
@@ -229,39 +172,87 @@ function Get-SpecKitFeatureIdentity {
     return $null
 }
 
-function Test-SpecKitBranchMatchesConfiguredPattern {
+# Validate a raw branch name against the configured branch_template.
+# Token semantics mirror create-new-feature-branch.ps1:
+#   {author}    -> [^/]+
+#   {app}       -> [^/]+
+#   {number}    -> [0-9]{padding}  (default padding 3)
+#   {timestamp} -> [0-9]{8}-[0-9]{6}
+#   {issue}     -> jira=[A-Z][A-Z0-9]*-[0-9]+ or numeric=[0-9]+
+#   {slug}      -> [a-z0-9]+(?:-[a-z0-9]+)*
+# Literal text (including "/") is matched literally.
+function Test-SpecKitBranchMatchesConfiguredTemplate {
     param(
         [string]$RawBranch,
         [string]$RepoRoot = (Get-RepoRoot)
     )
 
-    $branch = Get-SpecKitEffectiveBranchName $RawBranch
-    $template = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.template'
-    if (-not $template) { return $false }
+    $cfg = Get-SpecKitBranchTemplateConfigPath -RepoRoot $RepoRoot
+    if (-not (Test-Path -LiteralPath $cfg -PathType Leaf)) { return $false }
 
-    $hasPrefix = $template.Contains('{prefix}')
-    $hasIssue = $template.Contains('{issue}')
+    $template = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_template'
+    $prefix = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'branch_prefix'
+    $paddingStr = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'number_padding'
+    $issueFormat = Get-SpecKitBranchTemplateScalar -RepoRoot $RepoRoot -Key 'issue_format'
 
-    if ($hasPrefix) {
-        $allowedPrefixes = @(Get-SpecKitBranchPatternAllowedPrefixes -RepoRoot $RepoRoot)
-        if ($allowedPrefixes.Count -eq 0) { return $false }
-        $matchedPrefix = $allowedPrefixes | Where-Object { $RawBranch.StartsWith("$_/") } | Select-Object -First 1
-        if (-not $matchedPrefix) { return $false }
+    if (-not $template -and -not $prefix) { return $false }
+
+    if ($template -and $template.Contains('{prefix}')) {
+        if (-not $prefix) { return $false }
+        $template = $template.Replace('{prefix}', $prefix)
     }
 
-    $identity = Get-SpecKitFeatureIdentity $RawBranch
-    if (-not $identity) { return $false }
-    if (-not $branch.StartsWith("$identity-")) { return $false }
-    $rest = $branch.Substring($identity.Length + 1)
-
-    if ($hasIssue) {
-        if ($rest -notmatch '^([A-Z][A-Z0-9]+-[0-9]+)-(.+)$') { return $false }
-        $issueKey = $Matches[1]
-        if (-not (Test-SpecKitIssueKey $issueKey)) { return $false }
-        $rest = $Matches[2]
+    if (-not $template) {
+        if ($prefix.EndsWith('/')) {
+            $template = "${prefix}{number}-{slug}"
+        } else {
+            $template = "$prefix/{number}-{slug}"
+        }
     }
 
-    return ($rest -match '^[a-z0-9]+(-[a-z0-9]+)*$')
+    [int]$padding = 3
+    if ($paddingStr -and $paddingStr -match '^\d+$') {
+        [int]::TryParse($paddingStr, [ref]$padding) | Out-Null
+        if ($padding -lt 1) { $padding = 3 }
+    }
+
+    if (-not $issueFormat) { $issueFormat = 'jira' }
+    $issueFormat = $issueFormat.ToLowerInvariant()
+
+    $tokenMap = [ordered]@{
+        '{author}' = '(?<author>[^/]+)'
+        '{app}' = '(?<app>[^/]+)'
+        '{number}' = "(?<number>[0-9]{$padding})"
+        '{timestamp}' = '(?<timestamp>[0-9]{8}-[0-9]{6})'
+        '{issue}' = '(?<issue>[A-Z][A-Z0-9]*-[0-9]+|[0-9]+)'
+        '{slug}' = '(?<slug>[a-z0-9]+(?:-[a-z0-9]+)*)'
+    }
+
+    $tokenPattern = '(\{author\}|\{app\}|\{number\}|\{timestamp\}|\{issue\}|\{slug\})'
+    $parts = [regex]::Split($template, $tokenPattern)
+    $sb = New-Object System.Text.StringBuilder
+    foreach ($part in $parts) {
+        if ($tokenMap.Contains($part)) {
+            [void]$sb.Append($tokenMap[$part])
+        } else {
+            [void]$sb.Append([regex]::Escape($part))
+        }
+    }
+    $regexStr = '^' + $sb.ToString() + '$'
+
+    $match = [regex]::Match($RawBranch, $regexStr)
+    if (-not $match.Success) { return $false }
+
+    if ($template.Contains('{issue}')) {
+        $issueKey = $match.Groups['issue'].Value
+        if ($issueFormat -eq 'numeric') {
+            if ($issueKey -notmatch '^[0-9]+$') { return $false }
+        } else {
+            if ($issueKey -notmatch '^[A-Z][A-Z0-9]*-[0-9]+$') { return $false }
+        }
+    }
+
+    return $true
 }
 
 function Get-SpecKitEffectiveBranchName {
@@ -286,24 +277,25 @@ function Test-FeatureBranch {
 
     $raw = $Branch
     $Branch = Get-SpecKitEffectiveBranchName $raw
+    $featureSegment = ($Branch -split '/')[-1]
 
     $repoRoot = Get-RepoRoot
-    if (Test-SpecKitBranchPatternEnabled -RepoRoot $repoRoot) {
-        if (Test-SpecKitBranchMatchesConfiguredPattern -RawBranch $raw -RepoRoot $repoRoot) {
+    if (Test-SpecKitBranchTemplateEnabled -RepoRoot $repoRoot) {
+        if (Test-SpecKitBranchMatchesConfiguredTemplate -RawBranch $raw -RepoRoot $repoRoot) {
             return $true
         }
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
-        [Console]::Error.WriteLine((Get-SpecKitBranchPatternValidationMessage -RepoRoot $repoRoot))
+        [Console]::Error.WriteLine((Get-SpecKitBranchTemplateValidationMessage -RepoRoot $repoRoot))
         return $false
     }
 
-    # Accept sequential prefix (3+ digits) but exclude malformed timestamps
-    # Malformed: 7-or-8 digit date + 6-digit time with no trailing slug (e.g. "2026031-143022" or "20260319-143022")
-    $hasMalformedTimestamp = ($Branch -match '^[0-9]{7}-[0-9]{6}-') -or ($Branch -match '^(?:\d{7}|\d{8})-\d{6}$')
-    $isSequential = ($Branch -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)
-    if (-not $isSequential -and $Branch -notmatch '^\d{8}-\d{6}-') {
+    # Accept sequential prefix (3+ digits), at the start or after namespace
+    # segments, but exclude malformed timestamps.
+    $hasMalformedTimestamp = ($featureSegment -match '^[0-9]{7}-[0-9]{6}-') -or ($featureSegment -match '^(?:\d{7}|\d{8})-\d{6}$')
+    $isSequential = ($featureSegment -match '^[0-9]{3,}-') -and (-not $hasMalformedTimestamp)
+    if (-not $isSequential -and $featureSegment -notmatch '^\d{8}-\d{6}-') {
         [Console]::Error.WriteLine("ERROR: Not on a feature branch. Current branch: $raw")
-        [Console]::Error.WriteLine("Feature branches should be named like: 001-feature-name, 1234-feature-name, or 20260319-143022-feature-name")
+        [Console]::Error.WriteLine("Feature branches should be named like: 001-feature-name, 1234-feature-name, 20260319-143022-feature-name, or <prefix>/001-feature-name")
         return $false
     }
     return $true

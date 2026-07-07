@@ -4,31 +4,26 @@
 # Branch numbering strategy: "sequential" (001, 002, ...) or "timestamp" (YYYYMMDD-HHMMSS)
 branch_numbering: sequential
 
+# Optional branch name template. Leave empty for the default "{number}-{slug}".
+# Supported tokens: {author}, {app}, {number}, {slug}, {issue}
+# {slug} must not appear before {number}; final path segment must start with {number}-.
+# Example for monorepos: "{author}/{app}/{number}-{slug}"
+# Example with issue key: "{prefix}/{number}-{issue}-{slug}"
+branch_template: ""
+
+# Optional shorthand namespace. Leave empty to use branch_template/default behavior.
+# Example: "features/{app}" expands to "features/{app}/{number}-{slug}"
+branch_prefix: ""
+
+# Number of digits for sequential numbering (default: 3)
+number_padding: 3
+
+# Issue key format for branch templates that include {issue}
+# "jira" -> PROJ-123, "numeric" -> 1234
+issue_format: jira
+
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
-
-# Optional custom feature branch naming.
-#
-# Supported placeholders:
-#   {prefix}    One allowed prefix (for example: feat, fix, docs)
-#   {number}    Sequential feature number using number_padding
-#   {timestamp} Timestamp in YYYYMMDD-HHMMSS format
-#   {issue}     Issue key whose format is controlled by issue_format
-#   {slug}      Kebab-cased feature slug
-#
-# Rules:
-# - template must include {slug}
-# - template must include exactly one of {number} or {timestamp}
-# - if template includes {prefix}, allowed_prefixes must be non-empty
-# - if template includes {issue}, callers must supply --issue / GIT_BRANCH_ISSUE
-# - issue_format: jira -> PROJ-123, numeric -> 1234
-branch_pattern:
-  enabled: false
-  template: "{prefix}/{number}-{issue}-{slug}"
-  allowed_prefixes:
-    - feat
-  number_padding: 3
-  issue_format: jira
 
 # Feature isolation mode. Controls whether `git.feature` creates a normal
 # feature branch (existing behavior) or provisions a feature-level worktree

@@ -7,11 +7,10 @@ Git repository initialization, feature branch creation, numbering (sequential/ti
 This extension provides Git operations as an optional, self-contained module. It manages:
 
 - **Repository initialization** with configurable commit messages
-- **Feature branch creation** with sequential (`001-feature-name`) or timestamp (`20260319-143022-feature-name`) numbering
-- **Optional custom feature branch templates** including issue-aware names like `feat/001-PROJ-123-user-auth`
+- **Feature branch creation** with sequential (`001-feature-name`) or timestamp (`20260319-143022-feature-name`) numbering and optional templates for branch namespaces, including issue-aware names like `feat/001-PROJ-123-user-auth`
+- **Feature-level worktree isolation** — each feature gets its own working directory at `.worktrees/<feature>/`
 - **Branch validation** to ensure branches follow naming conventions
 - **Git remote detection** for GitHub integration (e.g., issue creation)
-- **Feature-level worktree isolation** — each feature gets its own working directory at `.worktrees/<feature>/`
 - **Auto-commit** after core commands (configurable per-command with custom messages)
 
 ## Commands
@@ -60,17 +59,22 @@ Configuration is stored in `.specify/extensions/git/git-config.yml`:
 # Branch numbering strategy: "sequential" or "timestamp"
 branch_numbering: sequential
 
+# Optional branch name template. Leave empty for the default "{number}-{slug}".
+# Supported tokens: {author}, {app}, {number}, {slug}, {issue}; {slug} must not
+# appear before {number}, and the final path segment must start with {number}-.
+# Example for monorepos: "{author}/{app}/{number}-{slug}"
+# Example with issue key: "{prefix}/{number}-{issue}-{slug}"
+branch_template: ""
+
+# Optional shorthand namespace. Leave empty to use branch_template/default behavior.
+# Example: "features/{app}" expands to "features/{app}/{number}-{slug}"
+branch_prefix: ""
+
 # Custom commit message for git init
 init_commit_message: "[Spec Kit] Initial commit"
 
-# Optional custom feature branch naming
-branch_pattern:
-  enabled: false
-  template: "{prefix}/{number}-{issue}-{slug}"
-  allowed_prefixes:
-    - feat
-  number_padding: 3
-  issue_format: jira
+# Issue format for branch templates that include {issue}
+issue_format: jira  # "jira" (e.g., PROJ-123) or "numeric" (e.g., 1234)
 
 # Worktree isolation configuration
 isolation_mode: branch  # "branch" or "worktree"
@@ -88,9 +92,10 @@ auto_commit:
     message: "[Spec Kit] Add specification"
 ```
 
-Supported placeholders in `branch_pattern.template`:
+Supported placeholders in `branch_template`:
 
-- `{prefix}`: first configured prefix from `allowed_prefixes` during generation; validation accepts any configured prefix
+- `{author}`: sanitized Git config author (`user.name`, falling back to the email local part)
+- `{app}`: sanitized Spec Kit init directory name
 - `{number}`: sequential feature number with `number_padding`
 - `{timestamp}`: `YYYYMMDD-HHMMSS`
 - `{issue}`: issue key whose format is controlled by `issue_format`
@@ -100,7 +105,8 @@ Rules:
 
 - `{slug}` is required
 - exactly one of `{number}` or `{timestamp}` is required
-- if `{prefix}` is used, `allowed_prefixes` must not be empty
+- `{slug}` must not appear before `{number}`
+- the final path segment must start with `{number}-`
 - if `{issue}` is used, provide `--issue <value>`, `-Issue <value>`, or `GIT_BRANCH_ISSUE=<value>`
 
 `issue_format` values:
@@ -108,10 +114,14 @@ Rules:
 - `jira`: values like `PROJ-123`
 - `numeric`: values like `1234`
 
+`{author}` is derived from Git config and sanitized for branch names. `{app}` is derived from the Spec Kit init directory name. For a monorepo project at `apps/web/.specify/`, a template such as `{author}/{app}/{number}-{slug}` produces branches like `jdoe/web/008-guided-tour`.
+
+For simple namespace-only customization, `branch_prefix` is also accepted as a shorthand and expands to `<branch_prefix>/{number}-{slug}`.
+
 ## Issue-Aware Hook Flow
 
-If `branch_pattern.enabled: true` and `branch_pattern.template` contains `{issue}`, the
-`before_specify` hook path must resolve an issue key before `git.feature` runs.
+If `branch_template` contains `{issue}`, the `before_specify` hook path must resolve an issue key
+before `git.feature` runs.
 
 Resolution order used by the documented flow:
 
@@ -134,36 +144,30 @@ The user-facing contract is now:
 Recommended GitFlow-style Jira template:
 
 ```yaml
-branch_pattern:
-  enabled: true
-  template: "{prefix}/{number}-{issue}-{slug}"
-  allowed_prefixes:
-    - feat
-    - fix
-    - docs
-    - chore
-  number_padding: 3
-  issue_format: jira
+branch_template: "{prefix}/{number}-{issue}-{slug}"
+branch_prefix: "feat"
+number_padding: 3
+issue_format: jira
 ```
 
 Examples:
 
 ```bash
 # Bash CLI
-bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+bash .specify/extensions/git/scripts/bash/create-new-feature-branch.sh \
   --issue PROJ-123 \
   --short-name user-auth \
   "Add user authentication"
 
 # Environment variable
-GIT_BRANCH_ISSUE=PROJ-123 bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+GIT_BRANCH_ISSUE=PROJ-123 bash .specify/extensions/git/scripts/bash/create-new-feature-branch.sh \
   --short-name user-auth \
   "Add user authentication"
 ```
 
 ```powershell
 # PowerShell CLI
-pwsh -NoProfile -File .specify/extensions/git/scripts/powershell/create-new-feature.ps1 `
+pwsh -NoProfile -File .specify/extensions/git/scripts/powershell/create-new-feature-branch.ps1 `
   -Issue PROJ-123 `
   -ShortName user-auth `
   "Add user authentication"
@@ -178,28 +182,25 @@ feat/001-PROJ-123-user-auth
 Notes:
 
 - Jira keys are normalized to uppercase during generation.
-- Validation uses the configured template when `branch_pattern.enabled: true`.
+- Validation uses the configured `branch_template`.
 - Spec directory resolution still uses the `{number}` or `{timestamp}` identity, so `feat/001-PROJ-123-user-auth` maps to `specs/001-*`.
-- If multiple prefixes are listed, generation uses the first prefix in `allowed_prefixes`.
+- If `branch_prefix` is set, generation uses that value; validation accepts the configured prefix.
 
 ## Numeric Issue Patterns
 
 You can also use numeric issue identifiers instead of Jira-style keys:
 
 ```yaml
-branch_pattern:
-  enabled: true
-  template: "{prefix}/{number}-{issue}-{slug}"
-  allowed_prefixes:
-    - feat
-  number_padding: 3
-  issue_format: numeric
+branch_template: "{prefix}/{number}-{issue}-{slug}"
+branch_prefix: "feat"
+number_padding: 3
+issue_format: numeric
 ```
 
 Examples:
 
 ```bash
-GIT_BRANCH_ISSUE=1234 bash .specify/extensions/git/scripts/bash/create-new-feature.sh \
+GIT_BRANCH_ISSUE=1234 bash .specify/extensions/git/scripts/bash/create-new-feature-branch.sh \
   --short-name user-auth \
   "Add user authentication"
 ```
@@ -213,44 +214,9 @@ feat/001-1234-user-auth
 Notes:
 
 - Numeric issue values are not uppercased.
-- Validation still uses the configured template and issue format.
+- Validation uses the configured `branch_template` and `issue_format`.
 
 ## Worktree Isolation
-
-When `isolation_mode: worktree` is configured (or `--worktree` is passed), `git.feature` creates
-a separate working directory for the feature at `.worktrees/<feature>/`.
-
-### Idempotency
-
-The worktree creation is **idempotent**:
-- If the worktree already exists → returns the existing path
-- If the branch exists remotely but worktree is missing → attaches a new worktree to the remote branch
-- If nothing exists → creates both branch and worktree from `origin/main`
-
-### Entering the Worktree
-
-**Important**: The script does NOT auto-`cd` into the worktree. You must do this manually:
-
-```bash
-cd .worktrees/003-user-auth
-```
-
-### Listing Worktrees
-
-```bash
-# List all feature worktrees
-/speckit.git.worktree-list
-```
-
-### Cleaning Up
-
-```bash
-# Remove worktree (keeps branch)
-/speckit.git.worktree-cleanup 003-user-auth
-
-# Remove worktree and delete branch
-/speckit.git.worktree-cleanup 003-user-auth --delete-branch
-```
 
 ## Installation
 

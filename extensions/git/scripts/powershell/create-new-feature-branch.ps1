@@ -1,7 +1,9 @@
 #!/usr/bin/env pwsh
 # Git extension: create-new-feature-branch.ps1
-# Full-featured feature branch/worktree creation with branch-pattern support,
-# issue-key templates, and isolation-mode (branch|worktree) selection.
+# Creates a git feature branch. The feature directory and spec file are created
+# by the core create-new-feature.ps1 script.
+# Merged fork features (worktree isolation, issue tokens, number padding) onto
+# upstream's branch-template architecture (scope-prefix numbering).
 # Sources common.ps1 from the project's installed scripts, falling back to
 # git-common.ps1 for minimal git helpers.
 [CmdletBinding()]
@@ -25,7 +27,7 @@ param(
 $ErrorActionPreference = 'Stop'
 
 if ($Help) {
-    Write-Host "Usage: ./create-new-feature-branch.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Issue <JIRA-123>] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
+    Write-Host "Usage: ./create-new-feature-branch.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Issue <value>] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
     Write-Host ""
     Write-Host "Options:"
     Write-Host "  -Json                 Output in JSON format"
@@ -34,7 +36,7 @@ if ($Help) {
     Write-Host "  -ShortName <name>     Provide a custom short name (2-4 words) for the branch"
     Write-Host "  -Number N             Specify branch number manually (overrides auto-detection)"
     Write-Host "  -Timestamp            Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering"
-    Write-Host "  -Issue <JIRA-123>     Jira-style issue key used by branch_pattern templates"
+    Write-Host "  -Issue <value>        Issue key used by {issue} in branch_template (e.g. PROJ-123 or 1234)"
     Write-Host "  -Worktree             Force worktree isolation (creates a feature-level worktree under .worktrees/<feature>/)"
     Write-Host "  -BranchMode           Force branch isolation (default behavior; the new branch lives in the primary checkout)"
     Write-Host "  -IsolationMode <mode> Set isolation explicitly: 'branch' or 'worktree'"
@@ -43,7 +45,7 @@ if ($Help) {
     Write-Host ""
     Write-Host "Environment variables:"
     Write-Host "  GIT_BRANCH_NAME        Use this exact branch name, bypassing all prefix/suffix generation"
-    Write-Host "  GIT_BRANCH_ISSUE       Jira-style issue key used by branch_pattern templates"
+    Write-Host "  GIT_BRANCH_ISSUE       Issue key fallback when -Issue is not provided"
     Write-Host "  SPECIFY_ISOLATION_MODE Override isolation mode ('branch' or 'worktree')"
     Write-Host ""
     Write-Host "Isolation mode resolution (highest precedence first):"
@@ -53,11 +55,17 @@ if ($Help) {
     Write-Host "  4. .specify/extensions/git/git-config.yml 'isolation_mode:' key"
     Write-Host "  5. Default: branch"
     Write-Host ""
+    Write-Host "Configuration:"
+    Write-Host "  branch_template     Optional git-config.yml template with {author}, {app}, {number}, {timestamp}, {issue}, {slug}"
+    Write-Host "  branch_prefix       Optional shorthand namespace expanded before {number}-{slug}"
+    Write-Host "  issue_format        jira (PROJ-123, uppercased) or numeric (1234); default jira"
+    Write-Host "  number_padding      Zero-padding width for {number}; default 3"
+    Write-Host ""
     exit 0
 }
 
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
-    Write-Error "Usage: ./create-new-feature-branch.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] <feature description>"
+    Write-Error "Usage: ./create-new-feature-branch.ps1 [-Json] [-DryRun] [-AllowExistingBranch] [-ShortName <name>] [-Number N] [-Timestamp] [-Issue <value>] [-Worktree|-BranchMode|-IsolationMode <mode>] [-Base <branch>] <feature description>"
     exit 1
 }
 
@@ -86,11 +94,23 @@ function Get-HighestNumberFromSpecs {
 }
 
 function Get-HighestNumberFromNames {
-    param([string[]]$Names)
+    param(
+        [string[]]$Names,
+        [string]$ScopePrefix = ''
+    )
 
     [long]$highest = 0
     foreach ($name in $Names) {
-        if ($name -match '^(\d{3,})-' -and $name -notmatch '^\d{8}-\d{6}-') {
+        if ($ScopePrefix -and -not $name.StartsWith($ScopePrefix, [System.StringComparison]::Ordinal)) {
+            continue
+        }
+        if ($ScopePrefix) {
+            $name = $name.Substring($ScopePrefix.Length)
+        }
+        $name = ($name -split '/')[-1]
+        $hasTimestampPrefix = $name -match '^\d{8}-\d{6}-'
+        $hasMalformedTimestamp = ($name -match '^\d{7}-\d{6}-') -or ($name -match '^(?:\d{7}|\d{8})-\d{6}$')
+        if ($name -match '^(\d{3,})-' -and -not $hasTimestampPrefix -and -not $hasMalformedTimestamp) {
             [long]$num = 0
             if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
                 $highest = $num
@@ -101,7 +121,7 @@ function Get-HighestNumberFromNames {
 }
 
 function Get-HighestNumberFromBranches {
-    param()
+    param([string]$ScopePrefix = '')
 
     try {
         $branches = git branch -a 2>$null
@@ -109,7 +129,7 @@ function Get-HighestNumberFromBranches {
             $cleanNames = $branches | ForEach-Object {
                 $_.Trim() -replace '^[+*]?\s+', '' -replace '^remotes/[^/]+/', ''
             }
-            return Get-HighestNumberFromNames -Names $cleanNames
+            return Get-HighestNumberFromNames -Names $cleanNames -ScopePrefix $ScopePrefix
         }
     } catch {
         Write-Verbose "Could not check Git branches: $_"
@@ -118,6 +138,8 @@ function Get-HighestNumberFromBranches {
 }
 
 function Get-HighestNumberFromRemoteRefs {
+    param([string]$ScopePrefix = '')
+
     [long]$highest = 0
     try {
         $remotes = git remote 2>$null
@@ -130,7 +152,7 @@ function Get-HighestNumberFromRemoteRefs {
                     $refNames = $refs | ForEach-Object {
                         if ($_ -match 'refs/heads/(.+)$') { $matches[1] }
                     } | Where-Object { $_ }
-                    $remoteHighest = Get-HighestNumberFromNames -Names $refNames
+                    $remoteHighest = Get-HighestNumberFromNames -Names $refNames -ScopePrefix $ScopePrefix
                     if ($remoteHighest -gt $highest) { $highest = $remoteHighest }
                 }
             }
@@ -144,18 +166,19 @@ function Get-HighestNumberFromRemoteRefs {
 function Get-NextBranchNumber {
     param(
         [string]$SpecsDir,
-        [switch]$SkipFetch
+        [switch]$SkipFetch,
+        [string]$ScopePrefix = ''
     )
 
     if ($SkipFetch) {
-        $highestBranch = Get-HighestNumberFromBranches
-        $highestRemote = Get-HighestNumberFromRemoteRefs
+        $highestBranch = Get-HighestNumberFromBranches -ScopePrefix $ScopePrefix
+        $highestRemote = Get-HighestNumberFromRemoteRefs -ScopePrefix $ScopePrefix
         $highestBranch = [Math]::Max($highestBranch, $highestRemote)
     } else {
         try {
             git fetch --all --prune 2>$null | Out-Null
         } catch { }
-        $highestBranch = Get-HighestNumberFromBranches
+        $highestBranch = Get-HighestNumberFromBranches -ScopePrefix $ScopePrefix
     }
 
     $highestSpec = Get-HighestNumberFromSpecs -SpecsDir $SpecsDir
@@ -166,6 +189,265 @@ function Get-NextBranchNumber {
 function ConvertTo-CleanBranchName {
     param([string]$Name)
     return $Name.ToLower() -replace '[^a-z0-9]', '-' -replace '-{2,}', '-' -replace '^-', '' -replace '-$', ''
+}
+
+function ConvertTo-BranchToken {
+    param(
+        [string]$Value,
+        [string]$Fallback
+    )
+
+    $cleaned = ConvertTo-CleanBranchName -Name $Value
+    if ($cleaned) { return $cleaned }
+    return $Fallback
+}
+
+function Get-GitAuthorToken {
+    $author = ''
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        try { $author = (git config user.name 2>$null | Out-String).Trim() } catch {}
+        if (-not $author) {
+            try {
+                $email = (git config user.email 2>$null | Out-String).Trim()
+                if ($email) { $author = ($email -split '@')[0] }
+            } catch {}
+        }
+    }
+    if (-not $author) { $author = if ($env:USER) { $env:USER } elseif ($env:USERNAME) { $env:USERNAME } else { 'unknown' } }
+    return ConvertTo-BranchToken -Value $author -Fallback 'unknown'
+}
+
+function Get-AppToken {
+    return ConvertTo-BranchToken -Value (Split-Path $repoRoot -Leaf) -Fallback 'app'
+}
+
+function Read-GitConfigValue {
+    param([string]$Key)
+
+    if (-not (Test-Path -LiteralPath $configFile -PathType Leaf)) { return '' }
+    $escapedKey = [regex]::Escape($Key)
+    foreach ($line in Get-Content -LiteralPath $configFile) {
+        # Only match top-level keys (no leading whitespace). This keeps the legacy
+        # branch_pattern block from shadowing the new top-level issue_format and
+        # number_padding keys.
+        if ($line -match "^$escapedKey\s*:\s*(.*)$") {
+            $val = ($matches[1] -replace '\s+#.*$', '').Trim()
+            $val = $val -replace '^["'']', '' -replace '["'']$', ''
+            return $val
+        }
+    }
+    return ''
+}
+
+function Resolve-BranchTemplate {
+    $template = Read-GitConfigValue -Key 'branch_template'
+    if ($template) { return $template }
+
+    $prefix = Read-GitConfigValue -Key 'branch_prefix'
+    if (-not $prefix) { return '' }
+    if ($prefix.EndsWith('/')) { return "${prefix}{number}-{slug}" }
+    return "$prefix/{number}-{slug}"
+}
+
+function Get-NumberPadding {
+    $padding = Read-GitConfigValue -Key 'number_padding'
+    if ($padding -as [int]) { return [int]$padding }
+    return 3
+}
+
+function Get-IssueFormat {
+    $fmt = Read-GitConfigValue -Key 'issue_format'
+    if ($fmt -eq 'numeric') { return 'numeric' }
+    return 'jira'
+}
+
+function Test-IssueKey {
+    param(
+        [string]$Key,
+        [string]$Format
+    )
+    if ($Format -eq 'numeric') {
+        return $Key -match '^[0-9]+$'
+    }
+    return $Key -match '^[A-Z][A-Z0-9]*-[0-9]+$'
+}
+
+function Resolve-IssueToken {
+    param([string]$IssueKey)
+
+    $fmt = Get-IssueFormat
+    $candidate = if ($IssueKey) { $IssueKey } else { $env:GIT_BRANCH_ISSUE }
+    $candidate = $candidate.Trim()
+
+    if ([string]::IsNullOrWhiteSpace($candidate)) { return '' }
+
+    if ($fmt -eq 'jira') {
+        $candidate = $candidate.ToUpper()
+    }
+
+    if (-not (Test-IssueKey -Key $candidate -Format $fmt)) {
+        if ($fmt -eq 'numeric') {
+            throw "Invalid numeric issue key '$candidate'. Expected digits only."
+        } else {
+            throw "Invalid Jira issue key '$candidate'. Expected format like PROJ-123."
+        }
+    }
+    return $candidate
+}
+
+function Get-TemplateNumberingToken {
+    param([string]$Template)
+    if ($Template.Contains('{number}')) { return '{number}' }
+    if ($Template.Contains('{timestamp}')) { return '{timestamp}' }
+    return ''
+}
+
+function Expand-BranchTemplate {
+    param(
+        [string]$Template,
+        [string]$FeatureNum,
+        [string]$BranchSuffix,
+        [string]$IssueToken
+    )
+
+    $numberingToken = Get-TemplateNumberingToken -Template $Template
+    $rendered = $Template.Replace('{author}', $authorToken)
+    $rendered = $rendered.Replace('{app}', $appToken)
+    $rendered = $rendered.Replace('{issue}', $IssueToken)
+    $rendered = $rendered.Replace('{slug}', $BranchSuffix)
+    if ($numberingToken -eq '{number}') {
+        $rendered = $rendered.Replace('{number}', $FeatureNum)
+    } elseif ($numberingToken -eq '{timestamp}') {
+        $rendered = $rendered.Replace('{timestamp}', $FeatureNum)
+    }
+    return $rendered
+}
+
+function Assert-BranchTemplateValid {
+    param(
+        [string]$Template,
+        [string]$IssueToken
+    )
+
+    if (-not $Template) { return }
+
+    $featureSegment = ($Template -split '/')[-1]
+
+    # Exactly one of {number} or {timestamp}.
+    $hasNumber = $Template.Contains('{number}')
+    $hasTimestamp = $Template.Contains('{timestamp}')
+    if ($hasNumber -and $hasTimestamp) {
+        throw "branch_template must include exactly one of {number} or {timestamp}, not both."
+    }
+    if (-not $hasNumber -and -not $hasTimestamp) {
+        throw "branch_template must include exactly one of {number} or {timestamp}."
+    }
+
+    # {slug} must not appear before the numbering token.
+    $numberingToken = Get-TemplateNumberingToken -Template $Template
+    $numberIndex = $Template.IndexOf($numberingToken, [System.StringComparison]::Ordinal)
+    $slugIndex = $Template.IndexOf('{slug}', [System.StringComparison]::Ordinal)
+    if ($slugIndex -ge 0 -and $numberIndex -ge 0 -and $slugIndex -lt $numberIndex) {
+        throw "branch_template must not place {slug} before $numberingToken; use {slug} only in the final feature segment."
+    }
+
+    # Final segment must start with the numbering token followed by '-'.
+    $expectedStart = "$numberingToken-"
+    if (-not $featureSegment.StartsWith($expectedStart, [System.StringComparison]::Ordinal)) {
+        throw "branch_template must put $expectedStart at the start of the final path segment so generated branches remain valid feature branches."
+    }
+
+    # If {issue} is present, ensure an issue value is available.
+    if ($Template.Contains('{issue}') -and [string]::IsNullOrWhiteSpace($IssueToken)) {
+        throw "branch_template uses {issue}; provide -Issue or set GIT_BRANCH_ISSUE."
+    }
+}
+
+function New-BranchName {
+    param(
+        [string]$FeatureNum,
+        [string]$BranchSuffix,
+        [string]$IssueToken
+    )
+
+    if ($branchTemplate) {
+        return Expand-BranchTemplate -Template $branchTemplate -FeatureNum $FeatureNum -BranchSuffix $BranchSuffix -IssueToken $IssueToken
+    }
+    return "$FeatureNum-$BranchSuffix"
+}
+
+function Get-BranchScopePrefix {
+    param(
+        [string]$Template,
+        [string]$BranchSuffix,
+        [string]$IssueToken
+    )
+
+    if (-not $Template) { return '' }
+    $numberIndex = $Template.IndexOf('{number}', [System.StringComparison]::Ordinal)
+    $timestampIndex = $Template.IndexOf('{timestamp}', [System.StringComparison]::Ordinal)
+    $slugIndex = $Template.IndexOf('{slug}', [System.StringComparison]::Ordinal)
+    $indexes = @($numberIndex, $timestampIndex, $slugIndex) | Where-Object { $_ -ge 0 } | Sort-Object
+    if (-not $indexes) { return '' }
+    $prefix = $Template.Substring(0, $indexes[0])
+    return Expand-BranchTemplate -Template $prefix -FeatureNum '' -BranchSuffix $BranchSuffix -IssueToken $IssueToken
+}
+
+function Get-FeatureNumberFromBranchName {
+    param([string]$BranchName)
+
+    $featureSegment = ($BranchName -split '/')[-1]
+    if ($featureSegment -match '^(\d{8}-\d{6})-') {
+        return $matches[1]
+    }
+    if ($featureSegment -match '^(\d+)-') {
+        return $matches[1]
+    }
+    return $BranchName
+}
+
+function Get-Utf8ByteCount {
+    param([string]$Value)
+    return [System.Text.Encoding]::UTF8.GetByteCount($Value)
+}
+
+function Get-BranchName {
+    param([string]$Description)
+
+    $stopWords = @(
+        'i', 'a', 'an', 'the', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from',
+        'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+        'do', 'does', 'did', 'will', 'would', 'should', 'could', 'can', 'may', 'might', 'must', 'shall',
+        'this', 'that', 'these', 'those', 'my', 'your', 'our', 'their',
+        'want', 'need', 'add', 'get', 'set'
+    )
+
+    $cleanName = $Description.ToLower() -replace '[^a-z0-9\s]', ' '
+    $words = $cleanName -split '\s+' | Where-Object { $_ }
+
+    $meaningfulWords = @()
+    foreach ($word in $words) {
+        if ($stopWords -contains $word) { continue }
+        if ($word.Length -ge 3) {
+            $meaningfulWords += $word
+        } elseif ($Description -cmatch "\b$($word.ToUpper())\b") {
+            # Case-sensitive (-cmatch) to mirror the bash twin's case-sensitive
+            # whole-word acronym match: keep a short word only when its UPPERCASE
+            # form appears in the original (an acronym). -match is case-insensitive
+            # and would keep every short word.
+            $meaningfulWords += $word
+        }
+    }
+
+    if ($meaningfulWords.Count -gt 0) {
+        $maxWords = if ($meaningfulWords.Count -eq 4) { 4 } else { 3 }
+        $result = ($meaningfulWords | Select-Object -First $maxWords) -join '-'
+        return $result
+    } else {
+        $result = ConvertTo-CleanBranchName -Name $Description
+        $fallbackWords = ($result -split '-') | Where-Object { $_ } | Select-Object -First 3
+        return [string]::Join('-', $fallbackWords)
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -197,7 +479,7 @@ function Resolve-IsolationMode {
         try {
             $lines = Get-Content -Path $cfgPath -ErrorAction SilentlyContinue
             foreach ($line in $lines) {
-                if ($line -match '^\s*isolation_mode\s*:\s*(.+?)\s*(#.*)?$') {
+                if ($line -match '^isolation_mode\s*:\s*(.+?)\s*(#.*)?$') {
                     $cfgValue = $matches[1].Trim().Trim("'", '"')
                 }
             }
@@ -208,8 +490,6 @@ function Resolve-IsolationMode {
     }
     return 'branch'
 }
-
-# Worktree delegation block is inserted below, AFTER $repoRoot is resolved.
 
 # Search locations in priority order:
 #  1. .specify/scripts/powershell/common.ps1 under the project root
@@ -292,9 +572,13 @@ if (Get-Command Test-HasGit -ErrorAction SilentlyContinue) {
 Set-Location $repoRoot
 
 $specsDir = Join-Path $repoRoot 'specs'
+$configFile = Join-Path $repoRoot ".specify/extensions/git/git-config.yml"
 
-# Resolve isolation mode now that $repoRoot is known.
-$isolationMode = Resolve-IsolationMode
+$authorToken = Get-GitAuthorToken
+$appToken = Get-AppToken
+$branchTemplate = Resolve-BranchTemplate
+$numberPadding = Get-NumberPadding
+$issueFormat = Get-IssueFormat
 
 # ---------------------------------------------------------------------------
 # Worktree mode: delegate to worktree-utils.ps1 instead of git checkout -b.
@@ -334,149 +618,33 @@ function Invoke-WorktreeDelegation {
     return @{ WorktreePath = $wtPath; ManifestPath = $mfPath }
 }
 
-function Get-BranchName {
-    param([string]$Description)
-
-    $stopWords = @(
-        'i', 'a', 'an', 'the', 'to', 'for', 'of', 'in', 'on', 'at', 'by', 'with', 'from',
-        'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
-        'do', 'does', 'did', 'will', 'would', 'should', 'could', 'can', 'may', 'might', 'must', 'shall',
-        'this', 'that', 'these', 'those', 'my', 'your', 'our', 'their',
-        'want', 'need', 'add', 'get', 'set'
-    )
-
-    $cleanName = $Description.ToLower() -replace '[^a-z0-9\s]', ' '
-    $words = $cleanName -split '\s+' | Where-Object { $_ }
-
-    $meaningfulWords = @()
-    foreach ($word in $words) {
-        if ($stopWords -contains $word) { continue }
-        if ($word.Length -ge 3) {
-            $meaningfulWords += $word
-        } elseif ($Description -cmatch "\b$($word.ToUpper())\b") {
-            # Case-sensitive (-cmatch) to mirror the bash twin's case-sensitive
-            # whole-word acronym match: keep a short word only when its UPPERCASE
-            # form appears in the original (an acronym). -match is case-insensitive
-            # and would keep every short word.
-            $meaningfulWords += $word
-        }
-    }
-
-    if ($meaningfulWords.Count -gt 0) {
-        $maxWords = if ($meaningfulWords.Count -eq 4) { 4 } else { 3 }
-        $result = ($meaningfulWords | Select-Object -First $maxWords) -join '-'
-        return $result
-    } else {
-        $result = ConvertTo-CleanBranchName -Name $Description
-        $fallbackWords = ($result -split '-') | Where-Object { $_ } | Select-Object -First 3
-        return [string]::Join('-', $fallbackWords)
-    }
-}
-
-function Test-SpecKitBranchPatternTemplate {
-    param([string]$Template)
-    if ([string]::IsNullOrWhiteSpace($Template)) { return $false }
-    if (-not $Template.Contains('{slug}')) { return $false }
-    $hasNumber = $Template.Contains('{number}')
-    $hasTimestamp = $Template.Contains('{timestamp}')
-    return (($hasNumber -and -not $hasTimestamp) -or (-not $hasNumber -and $hasTimestamp))
-}
-
-function Get-SpecKitFirstBranchPatternPrefix {
-    param([string]$RepoRoot)
-    $prefixes = @(Get-SpecKitBranchPatternAllowedPrefixes -RepoRoot $RepoRoot)
-    if ($prefixes.Count -gt 0) { return [string]$prefixes[0] }
-    return ''
-}
-
-function Render-SpecKitBranchPattern {
-    param(
-        [string]$Template,
-        [string]$Prefix,
-        [string]$Number,
-        [string]$TimestampValue,
-        [string]$IssueKey,
-        [string]$Slug
-    )
-    $result = $Template
-    $result = $result.Replace('{prefix}', $Prefix)
-    $result = $result.Replace('{number}', $Number)
-    $result = $result.Replace('{timestamp}', $TimestampValue)
-    $result = $result.Replace('{issue}', $IssueKey)
-    $result = $result.Replace('{slug}', $Slug)
-    return $result
-}
-
-function Get-SpecKitPatternBranchName {
-    param(
-        [string]$RepoRoot,
-        [string]$BranchSuffix,
-        [string]$FeatureNum,
-        [bool]$UseTimestamp,
-        [string]$IssueKey
-    )
-
-    $template = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.template'
-    if (-not (Test-SpecKitBranchPatternTemplate -Template $template)) {
-        throw 'Invalid branch_pattern.template. It must include {slug} and exactly one of {number} or {timestamp}.'
-    }
-
-    $prefix = ''
-    if ($template.Contains('{prefix}')) {
-        $prefix = Get-SpecKitFirstBranchPatternPrefix -RepoRoot $RepoRoot
-        if ([string]::IsNullOrWhiteSpace($prefix)) {
-            throw 'branch_pattern.template uses {prefix}, but branch_pattern.allowed_prefixes is empty.'
-        }
-    }
-
-    $normalizedIssue = ''
-    if ($template.Contains('{issue}')) {
-        $candidateIssue = if ($IssueKey) { $IssueKey } else { $env:GIT_BRANCH_ISSUE }
-        $normalizedIssue = Normalize-SpecKitIssueKey $candidateIssue
-        if ([string]::IsNullOrWhiteSpace($normalizedIssue)) {
-            throw 'branch_pattern.template uses {issue}; provide -Issue or GIT_BRANCH_ISSUE.'
-        }
-        if (-not (Test-SpecKitIssueKey $normalizedIssue)) {
-            throw "Invalid Jira issue key '$normalizedIssue'. Expected format like PROJ-123."
-        }
-    }
-
-    if ($template.Contains('{number}')) {
-        $padding = Get-SpecKitBranchPatternScalar -RepoRoot $RepoRoot -KeyPath 'branch_pattern.number_padding'
-        if (-not ($padding -as [int])) { $padding = 3 }
-        $numberValue = ('{0:D' + [int]$padding + '}') -f [int64]$FeatureNum
-        return Render-SpecKitBranchPattern -Template $template -Prefix $prefix -Number $numberValue -TimestampValue '' -IssueKey $normalizedIssue -Slug $BranchSuffix
-    }
-
-    if (-not $UseTimestamp) {
-        throw 'branch_pattern.template requires {timestamp}; rerun with -Timestamp or change the template.'
-    }
-    return Render-SpecKitBranchPattern -Template $template -Prefix $prefix -Number '' -TimestampValue $FeatureNum -IssueKey $normalizedIssue -Slug $BranchSuffix
-}
-
 # Check for GIT_BRANCH_NAME env var override (exact branch name, no prefix/suffix)
 if ($env:GIT_BRANCH_NAME) {
     $branchName = $env:GIT_BRANCH_NAME
     # Check 244-byte limit (UTF-8) for override names
-    $branchNameUtf8ByteCount = [System.Text.Encoding]::UTF8.GetByteCount($branchName)
+    $branchNameUtf8ByteCount = Get-Utf8ByteCount -Value $branchName
     if ($branchNameUtf8ByteCount -gt 244) {
         throw "GIT_BRANCH_NAME must be 244 bytes or fewer in UTF-8. Provided value is $branchNameUtf8ByteCount bytes; please supply a shorter override branch name."
     }
-    # Extract FEATURE_NUM from the branch name if it starts with a numeric prefix
-    # Check timestamp pattern first (YYYYMMDD-HHMMSS-) since it also matches the simpler ^\d+ pattern
-    if ($branchName -match '^(\d{8}-\d{6})-') {
-        $featureNum = $matches[1]
-    } elseif ($branchName -match '^(\d+)-') {
-        $featureNum = $matches[1]
-    } else {
-        $featureNum = $branchName
-    }
+    $featureNum = Get-FeatureNumberFromBranchName -BranchName $branchName
 } else {
     if ($ShortName) {
         $branchSuffix = ConvertTo-CleanBranchName -Name $ShortName
     } else {
         $branchSuffix = Get-BranchName -Description $featureDesc
     }
+
+    # Resolve issue token if the template uses {issue}.
+    $issueToken = ''
+    if ($branchTemplate.Contains('{issue}')) {
+        $issueToken = Resolve-IssueToken -IssueKey $Issue
+        if ([string]::IsNullOrWhiteSpace($issueToken)) {
+            throw "branch_template uses {issue}; provide -Issue or set GIT_BRANCH_ISSUE."
+        }
+    }
+
+    # Validate template now that issue token is resolved.
+    Assert-BranchTemplateValid -Template $branchTemplate -IssueToken $issueToken
 
     if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
         Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
@@ -485,44 +653,45 @@ if ($env:GIT_BRANCH_NAME) {
 
     if ($Timestamp) {
         $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
+        $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $branchSuffix -IssueToken $issueToken
     } else {
-        if (-not $PSBoundParameters.ContainsKey('Number')) {
+        $branchScopePrefix = Get-BranchScopePrefix -Template $branchTemplate -BranchSuffix $branchSuffix -IssueToken $issueToken
+        if (-not $PSBoundParameters.ContainsKey('Number') -or $Number -eq 0) {
             if ($DryRun -and $hasGit) {
-                $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch
+                $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
             } elseif ($DryRun) {
                 $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
             } elseif ($hasGit) {
-                $Number = Get-NextBranchNumber -SpecsDir $specsDir
+                $Number = Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix
             } else {
                 $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
             }
         }
 
-        $featureNum = ('{0:000}' -f $Number)
-    }
-
-    if (Test-SpecKitBranchPatternEnabled -RepoRoot $repoRoot) {
-        $branchName = Get-SpecKitPatternBranchName -RepoRoot $repoRoot -BranchSuffix $branchSuffix -FeatureNum $featureNum -UseTimestamp:$Timestamp -IssueKey $Issue
-    } else {
-        $branchName = "$featureNum-$branchSuffix"
+        $featureNum = ('{0:D' + $numberPadding + '}' -f $Number)
+        $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $branchSuffix -IssueToken $issueToken
     }
 }
 
 $maxBranchLength = 244
-if ($branchName.Length -gt $maxBranchLength) {
-    $prefixLength = $featureNum.Length + 1
-    $maxSuffixLength = $maxBranchLength - $prefixLength
-
-    $truncatedSuffix = $branchSuffix.Substring(0, [Math]::Min($branchSuffix.Length, $maxSuffixLength))
-    $truncatedSuffix = $truncatedSuffix -replace '-$', ''
-
+if ((Get-Utf8ByteCount -Value $branchName) -gt $maxBranchLength) {
     $originalBranchName = $branchName
-    $branchName = "$featureNum-$truncatedSuffix"
+    $truncatedSuffix = $branchSuffix
+    while ((Get-Utf8ByteCount -Value $branchName) -gt $maxBranchLength -and $truncatedSuffix.Length -gt 0) {
+        $truncatedSuffix = $truncatedSuffix.Substring(0, $truncatedSuffix.Length - 1) -replace '-$', ''
+        $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $truncatedSuffix -IssueToken $issueToken
+    }
+    if ((Get-Utf8ByteCount -Value $branchName) -gt $maxBranchLength) {
+        throw "Branch template prefix exceeds GitHub's 244-byte branch name limit."
+    }
 
     Write-Warning "[specify] Branch name exceeded GitHub's 244-byte limit"
-    Write-Warning "[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)"
-    Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
+    Write-Warning "[specify] Original: $originalBranchName ($(Get-Utf8ByteCount -Value $originalBranchName) bytes)"
+    Write-Warning "[specify] Truncated to: $branchName ($(Get-Utf8ByteCount -Value $branchName) bytes)"
 }
+
+# Resolve isolation mode now that $repoRoot is known.
+$isolationMode = Resolve-IsolationMode
 
 # ---------------------------------------------------------------------------
 # Worktree mode gate: when isolation_mode is worktree, delegate to
@@ -542,12 +711,12 @@ if ($isolationMode -eq 'worktree' -and -not $DryRun) {
 
     if ($Json) {
         $obj = [ordered]@{
-            BRANCH_NAME   = $branchName
-            FEATURE_NUM   = $featureNum
+            BRANCH_NAME    = $branchName
+            FEATURE_NUM    = $featureNum
             ISOLATION_MODE = 'worktree'
-            WORKTREE_PATH = $worktreePath
-            MANIFEST_PATH = $manifestPath
-            cd            = "cd $worktreePath"
+            WORKTREE_PATH  = $worktreePath
+            MANIFEST_PATH  = $manifestPath
+            cd             = "cd $worktreePath"
         }
         $obj | ConvertTo-Json -Compress
     } else {
@@ -629,8 +798,8 @@ if (-not $DryRun) {
 
 if ($Json) {
     $obj = [PSCustomObject]@{
-        BRANCH_NAME   = $branchName
-        FEATURE_NUM   = $featureNum
+        BRANCH_NAME    = $branchName
+        FEATURE_NUM    = $featureNum
         ISOLATION_MODE = $isolationMode
     }
     # $hasGit is computed for branch-creation logic only; it is intentionally not

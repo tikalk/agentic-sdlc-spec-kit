@@ -4,17 +4,26 @@
 # Branch numbering strategy: "sequential" (001, 002, ...) or "timestamp" (YYYYMMDD-HHMMSS)
 branch_numbering: sequential
 
+# Optional branch name template. Leave empty for the default "{number}-{slug}".
+# Supported tokens: {author}, {app}, {number}, {slug}, {issue}
+# {slug} must not appear before {number}; final path segment must start with {number}-.
+# Example for monorepos: "{author}/{app}/{number}-{slug}"
+# Example with issue key: "{prefix}/{number}-{issue}-{slug}"
+branch_template: ""
+
+# Optional shorthand namespace. Leave empty to use branch_template/default behavior.
+# Example: "features/{app}" expands to "features/{app}/{number}-{slug}"
+branch_prefix: ""
+
+# Number of digits for sequential numbering (default: 3)
+number_padding: 3
+
+# Issue key format for branch templates that include {issue}
+# "jira" -> PROJ-123, "numeric" -> 1234
+issue_format: jira
+
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
-
-# Optional custom feature branch naming.
-branch_pattern:
-  enabled: false
-  template: "{prefix}/{number}-{issue}-{slug}"
-  allowed_prefixes:
-    - feat
-  number_padding: 3
-  issue_format: jira
 
 # Auto-commit before/after core commands.
 # Set "default" to enable for all commands, then override per-command.

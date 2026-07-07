@@ -2,6 +2,32 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.5+adlc1] - 2026-07-07
+
+### Changed
+
+- **Upstream merge**: merged github/spec-kit `0.12.5` release line (12 commits
+  through `0.12.6.dev0`). Adopted upstream's namespaced git feature-branch
+  templates (`branch_template`, `branch_prefix`, scope-prefix-aware sequential
+  numbering). Migrated the fork's Jira/numeric issue support onto the upstream
+  template mechanism as a new `{issue}` token with `issue_format` and
+  `number_padding` config keys. Removed the old `branch_pattern` config block.
+  Git extension version bumped to `1.8.0`.
+- **Workflow expression fixes**: quote-aware interpolation for `}}` literals,
+  lexicographic string comparison, and case-insensitive gate reject options.
+- **Bundler catalog fixes**: resolve search at highest-precedence source before
+  filtering; reject host-less catalog URLs.
+- **ConfigManager**: coerce non-mapping YAML config roots to `{}`.
+- **Hermes integration**: honor `SPECKIT_INTEGRATION_HERMES_EXTRA_ARGS`.
+- **Goose integration**: pin recipe block-scalar indentation to `|2`.
+- **New scripts**: Python `check_prerequisites` PoC under `scripts/python/`.
+
+### Fixed
+
+- Git extension worktree/isolation logic preserved through the upstream merge.
+- `git.feature` and `git.validate` command docs aligned with the new
+  `branch_template` + `{issue}` model.
+
 # [0.12.4+adlc11] - 2026-07-05
 
 ### Fixed
@@ -3241,6 +3267,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.5] - 2026-07-06
+
+### Changed
+
+- fix(workflows): match gate reject option case-insensitively (#3335)
+- fix(bundler): reject host-less catalog URLs in adapters (use hostname, not netloc) (#3333)
+- fix(bundler): resolve catalog search at highest-precedence source before filtering (#3331)
+- fix(workflows): compare non-numeric strings lexicographically instead of returning False (#3323)
+- fix(workflows): quote-aware interpolation so a literal }} in a filter arg doesn't break multi-expression templates (#3307)
+- Support namespaced git feature branch templates (#3293)
+- chore(deps): bump actions/setup-dotnet from 5.3.0 to 5.4.0 (#3315)
+- fix(integrations): cursor-agent honors executable/extra-args env overrides (#3265)
+- docs: drop stale kimi KIMI.md->AGENTS.md migration note (#3291)
+- chore: release 0.12.4, begin 0.12.5.dev0 development (#3305)
 
 ## [0.12.4] - 2026-07-02
 
