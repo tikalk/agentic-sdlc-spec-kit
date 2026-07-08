@@ -2,6 +2,28 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc1] - 2026-07-08
+
+### Changed
+
+- **Upstream merge**: merged github/spec-kit `0.12.8` release (7 commits).
+  - **feat(extensions)**: port update-agent-context to Python (#3387) — adds
+    `update_agent_context.py` script with parity tests.
+  - **fix(toml)**: escape control characters so generated TOML command files
+    parse (#3341) — new `_toml_string.py` module shared between `agents.py`
+    and `integrations/base.py`.
+  - **fix(scripts)**: fall through to grep/sed when python3 is a broken Windows
+    stub in feature.json parser (#3312).
+  - **docs**: document missing CLI flags and integrations (#3182), remove
+    Cursor from CLI check list (#3184).
+  - **community catalog**: add LLM Wiki extension (#3361).
+  - **release**: bump to 0.12.8, begin 0.12.9.dev0 (#3410).
+
+### Fixed
+
+- `base.py` conflict resolved: combined fork's `accent` import with upstream's
+  `_toml_string` shared module imports.
+
 # [0.12.7+adlc1] - 2026-07-08
 
 ### Changed
@@ -3463,6 +3485,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.8] - 2026-07-08
+
+### Changed
+
+- [extension] Add LLM Wiki extension to community catalog (#3361)
+- Docs: Document missing CLI flags and integrations (#3182)
+- Docs: Remove Cursor from CLI check list in README (#3184)
+- feat(extensions): port update-agent-context to Python (#3387)
+- fix(scripts): fall through to grep/sed when python3 is a broken stub in feature.json parser (#3312)
+- fix(toml): escape control characters so generated command files parse (#3341)
+- fix(cli): exit cleanly on malformed IPv6 URLs in `extension`/`preset`/`workflow add` (#3369)
+- fix(github-http): return None on malformed GHES port instead of raising (#3379)
+- fix(integrations): guard _sha256 against unreadable managed files (#3376)
+- chore: release 0.12.7, begin 0.12.8.dev0 development (#3398)
 
 ## [0.12.7] - 2026-07-07
 
