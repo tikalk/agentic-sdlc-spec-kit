@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.6+adlc8 | 2026-07-08 | 0.12.7.dev0 (`6b9463fd`) | `ACCENT_STYLE` runtime patch: `apply_theming_patches()` was imported but never called — `_console.py` stayed `"cyan"`. Now invoked after `show_banner` monkey-patch, so `select_with_arrows`, `StepTracker.render()`, and `BannerGroup.format_help` all render orange. |
 | 0.12.6+adlc7 | 2026-07-08 | 0.12.7.dev0 (`b557f8cc`) | Delegation template fallback: `tasks-meta-utils.sh` now uses an inline default template when `resolve_template` fails, fixing test failures in bare environments after `templates/delegation-template.md` was removed. |
 | 0.12.6+adlc6 | 2026-07-08 | 0.12.7.dev0 (`88886d60`) | Wheel build fix: removed stale `templates/agent-file-template.md` entry from `pyproject.toml` force-include (file deleted in adlc5, only self-test preset uses it via its own copy). |
 | 0.12.6+adlc5 | 2026-07-08 | 0.12.7.dev0 (`55938e65`) | `templates/` reverted to upstream — all fork modifications removed from core command templates, vscode-settings.json, and fork-only template files. Fork-specific behavior lives exclusively in `presets/agentic-*/commands/`. FORK.md policy added: `templates/` stays upstream-aligned. |

@@ -206,6 +206,7 @@ def show_banner():
 import specify_cli._console as _console_module  # noqa: E402
 
 _console_module.show_banner = show_banner
+apply_theming_patches(_console_module)
 
 def _version_callback(value: bool):
     if value:

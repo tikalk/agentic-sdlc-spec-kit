@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc8] - 2026-07-08
+
+### Fixed
+
+- **`ACCENT_STYLE` runtime patch**: `apply_theming_patches()` was imported
+  from `_init_fork.py` but never called, leaving `_console.py`'s
+  `ACCENT_STYLE` as `"cyan"` at runtime. Now invoked after the
+  `show_banner` monkey-patch, so `select_with_arrows` (panel title/border
+  for "Choose your coding agent integration" and "Choose script type"),
+  `StepTracker.render()` (tree title "Initialize Specify Project" + status
+  symbols), and `BannerGroup.format_help` (help panel) all render orange.
+
 # [0.12.6+adlc7] - 2026-07-08
 
 ### Fixed
