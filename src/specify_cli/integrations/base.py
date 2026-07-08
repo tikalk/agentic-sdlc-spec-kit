@@ -25,6 +25,9 @@ from typing import TYPE_CHECKING, Any
 
 import yaml
 
+from .._toml_string import escape_toml_basic as _escape_toml_basic
+from .._toml_string import has_illegal_toml_control as _has_illegal_toml_control
+
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
 
@@ -953,6 +956,12 @@ class TomlIntegration(IntegrationBase):
         body = "".join(lines[frontmatter_end + 1 :])
         return frontmatter, body
 
+    # Control-char detection and basic-string escaping are shared with the
+    # extension/preset renderer in ``specify_cli.agents`` via
+    # ``specify_cli._toml_string`` so the two never drift apart.
+    _has_illegal_toml_control = staticmethod(_has_illegal_toml_control)
+    _escape_toml_basic = staticmethod(_escape_toml_basic)
+
     @staticmethod
     def _render_toml_string(value: str) -> str:
         """Render *value* as a TOML string literal.
@@ -962,6 +971,12 @@ class TomlIntegration(IntegrationBase):
         literal string or escaped basic string when delimiters appear in
         the content.
         """
+        # Control characters other than tab/newline (and a bare CR) cannot
+        # appear literally in any TOML string; route them to a fully-escaped
+        # basic string so the generated file stays parseable.
+        if TomlIntegration._has_illegal_toml_control(value):
+            return TomlIntegration._escape_toml_basic(value)
+
         if "\n" not in value and "\r" not in value:
             escaped = value.replace("\\", "\\\\").replace('"', '\\"')
             return f'"{escaped}"'
@@ -974,17 +989,7 @@ class TomlIntegration(IntegrationBase):
         if "'''" not in value and not value.endswith("'"):
             return "'''\n" + value + "'''"
 
-        return (
-            '"'
-            + (
-                value.replace("\\", "\\\\")
-                .replace('"', '\\"')
-                .replace("\n", "\\n")
-                .replace("\r", "\\r")
-                .replace("\t", "\\t")
-            )
-            + '"'
-        )
+        return TomlIntegration._escape_toml_basic(value)
 
     @staticmethod
     def _render_toml(description: str, body: str) -> str:
