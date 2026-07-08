@@ -2,6 +2,36 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.7+adlc1] - 2026-07-08
+
+### Changed
+
+- **Upstream merge**: merged github/spec-kit `0.12.7` release (9 commits).
+  - **agy extra-args** (#3347): `AgyIntegration.build_exec_args()` now calls
+    `_apply_extra_args_env_var()` to honor `SPECKIT_INTEGRATION_AGY_EXTRA_ARGS`.
+  - **Shell step validation** (#3348): `ShellStep.validate()` rejects non-string
+    `run` field (null/list would be str-coerced and executed as a command).
+  - **Fan-in validation** (#3349): `FanInStep.validate()` rejects non-mapping
+    `output` (would silently coerce to `{}`, losing declared aggregation keys).
+  - **Workflow stderr routing** (#3352): `workflow run`/`resume` route errors
+    to `err_console` under `--json`, keeping stdout as a clean JSON stream.
+  - **Bundle update uninstall** (#3353): `install_bundle` now uninstalls
+    components dropped by a new bundle version on refresh, preventing orphaned
+    files that `remove_bundle` could never clean up.
+  - **Manifest `_sha256` guard** (#3376): catches `OSError` on unreadable
+    managed files in `check_modified()` and `uninstall()`.
+  - **GHES port fix** (#3379): `resolve_github_release_asset_api_url()` returns
+    `None` on malformed port instead of raising `ValueError`.
+  - **IPv6 URL fix** (#3369): `extension`/`preset`/`workflow add` wrap
+    `urlparse` in `try/except ValueError` for malformed IPv6 URLs.
+  - **Auth redirect guard** (#3379): `_StripAuthOnRedirect` catches malformed
+    redirect URLs as `URLError` instead of crashing.
+
+### Fixed
+
+- `presets/_commands.py` conflict resolved: combined upstream's `try/except`
+  IPv6 guard + `_esc()` escaping with fork's `accent()` theming.
+
 # [0.12.6+adlc8] - 2026-07-08
 
 ### Fixed
@@ -3433,6 +3463,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.7] - 2026-07-07
+
+### Changed
+
+- fix(bundler): bundle update uninstalls components dropped by new version (#3353)
+- fix(workflows): route run/resume errors to stderr under --json (#3352)
+- fix(workflows): fan-in validate() rejects non-mapping output (#3349)
+- fix(workflows): shell step validate() rejects non-string run (#3348)
+- fix(integrations): agy honors SPECKIT_INTEGRATION_AGY_EXTRA_ARGS (#3347)
+- Add Orchestration Task Context Management extension to community catalog (#3372)
+- Update DocGuard — CDD Enforcement extension to v0.30.0 (#3371)
+- Update Ripple extension to v1.1.0 (#3370)
+- feat(integrations): generalize post-processing to all format types (#3311)
+- chore: release 0.12.6, begin 0.12.7.dev0 development (#3393)
 
 ## [0.12.6] - 2026-07-07
 

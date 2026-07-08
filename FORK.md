@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.7+adlc1 | 2026-07-08 | 0.12.8.dev0 (`882e1e90`) | Upstream merge (9 commits): agy extra-args (#3347), shell step validation (#3348), fan-in validation (#3349), workflow stderr routing under --json (#3352), bundle update uninstalls dropped components (#3353), manifest `_sha256` guard (#3376), GHES port fix (#3379), IPv6 URL fix in add commands (#3369), auth redirect guard (#3379). 1 conflict (`presets/_commands.py`): combined IPv6 try/except + `_esc()` with fork `accent()`. |
 | 0.12.6+adlc8 | 2026-07-08 | 0.12.7.dev0 (`6b9463fd`) | `ACCENT_STYLE` runtime patch: `apply_theming_patches()` was imported but never called — `_console.py` stayed `"cyan"`. Now invoked after `show_banner` monkey-patch, so `select_with_arrows`, `StepTracker.render()`, and `BannerGroup.format_help` all render orange. |
 | 0.12.6+adlc7 | 2026-07-08 | 0.12.7.dev0 (`b557f8cc`) | Delegation template fallback: `tasks-meta-utils.sh` now uses an inline default template when `resolve_template` fails, fixing test failures in bare environments after `templates/delegation-template.md` was removed. |
 | 0.12.6+adlc6 | 2026-07-08 | 0.12.7.dev0 (`88886d60`) | Wheel build fix: removed stale `templates/agent-file-template.md` entry from `pyproject.toml` force-include (file deleted in adlc5, only self-test preset uses it via its own copy). |

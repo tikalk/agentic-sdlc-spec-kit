@@ -126,7 +126,13 @@ def preset_add(
             from ipaddress import ip_address
             from urllib.parse import urlparse as _urlparse
 
-            _parsed = _urlparse(from_url)
+            try:
+                _parsed = _urlparse(from_url)
+            except ValueError:
+                from rich.markup import escape as _escape_markup
+
+                console.print(f"[red]Error:[/red] Invalid URL: {_escape_markup(from_url)}")
+                raise typer.Exit(1)
 
             def _is_allowed_download_url(parsed_url):
                 host = parsed_url.hostname
@@ -157,7 +163,9 @@ def preset_add(
                 )
                 raise typer.Exit(1)
 
-            console.print(f"Installing preset from {accent(from_url)}...")
+            from rich.markup import escape as _esc
+
+            console.print(f"Installing preset from {accent(_esc(from_url))}...")
             import urllib.error
             import tempfile
             import shutil

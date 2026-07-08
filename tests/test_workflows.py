@@ -1337,6 +1337,26 @@ class TestShellStep:
         errors = step.validate({"id": "test"})
         assert any("missing 'run'" in e for e in errors)
 
+    @pytest.mark.parametrize("bad_run", [None, ["echo", "hi"], 42])
+    def test_validate_rejects_non_string_run(self, bad_run):
+        """A non-string 'run' must be rejected at validation.
+
+        execute() str()-coerces run and invokes it under shell=True, so a
+        null or list run would otherwise run the Python repr as a command.
+        """
+        from specify_cli.workflows.steps.shell import ShellStep
+
+        step = ShellStep()
+        errors = step.validate({"id": "s", "run": bad_run})
+        assert any("'run' must be a string" in e for e in errors)
+
+    def test_validate_accepts_string_and_expression_run(self):
+        from specify_cli.workflows.steps.shell import ShellStep
+
+        step = ShellStep()
+        assert step.validate({"id": "s", "run": "echo hi"}) == []
+        assert step.validate({"id": "s", "run": "{{ steps.x.output }}"}) == []
+
 
     def test_output_format_json_exposes_data(self, tmp_path):
         from specify_cli.workflows.steps.shell import ShellStep
@@ -2252,6 +2272,27 @@ class TestFanInStep:
         step = FanInStep()
         errors = step.validate({"id": "test", "wait_for": "not-a-list"})
         assert any("non-empty list" in e for e in errors)
+
+    @pytest.mark.parametrize("bad_output", [["{{ fan_in.results }}"], "{{ x }}", 42])
+    def test_validate_rejects_non_mapping_output(self, bad_output):
+        """A non-mapping 'output' must be rejected: execute() would otherwise
+        silently coerce it to {} and drop the declared aggregation keys."""
+        from specify_cli.workflows.steps.fan_in import FanInStep
+
+        step = FanInStep()
+        errors = step.validate(
+            {"id": "j", "wait_for": ["a"], "output": bad_output}
+        )
+        assert any("'output' must be a mapping" in e for e in errors)
+
+    def test_validate_accepts_mapping_or_absent_output(self):
+        from specify_cli.workflows.steps.fan_in import FanInStep
+
+        step = FanInStep()
+        assert step.validate(
+            {"id": "j", "wait_for": ["a"], "output": {"joined": "{{ x }}"}}
+        ) == []
+        assert step.validate({"id": "j", "wait_for": ["a"]}) == []
 
 
 class TestFanOutConcurrency:
@@ -5623,6 +5664,23 @@ class TestWorkflowRemoveGuard:
 
 
 class TestWorkflowAddSymlinkGuard:
+    def test_add_malformed_ipv6_url_exits_cleanly(self, temp_dir, monkeypatch):
+        """A malformed IPv6 URL must produce a clean error, not a ValueError traceback."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        (temp_dir / ".specify").mkdir(exist_ok=True)
+        monkeypatch.chdir(temp_dir)
+        result = CliRunner().invoke(
+            app,
+            ["workflow", "add", "https://[::1/wf.yaml"],
+            catch_exceptions=True,
+        )
+
+        assert result.exit_code == 1
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "Invalid URL" in result.output
+
     @pytest.mark.skipif(not hasattr(os, "symlink"), reason="symlinks are unavailable")
     def test_add_refuses_symlinked_specify(self, temp_dir, monkeypatch):
         """workflow add must refuse a symlinked .specify (writes could escape root)."""
