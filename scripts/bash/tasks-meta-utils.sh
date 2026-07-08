@@ -310,12 +310,33 @@ generate_delegation_prompt() {
     repo_root="$(cd "$script_dir/../.." && pwd)"
     local template_file
     template_file=$(resolve_template "delegation-template" "$repo_root") || {
-        _log_error "Delegation template not found" >&2
-        return 1
+        # Fallback: use an inline default template when no preset or core
+        # template is installed (e.g. bare test environments).
+        template_file=""
     }
 
     local template_content
-    template_content=$(cat "$template_file")
+    if [ -n "$template_file" ] && [ -f "$template_file" ]; then
+        template_content=$(cat "$template_file")
+    else
+        template_content='# Delegation Request
+
+**Task ID:** {TASK_ID}
+**Agent Type:** {AGENT_TYPE}
+**Timestamp:** {TIMESTAMP}
+
+## Description
+{TASK_DESCRIPTION}
+
+## Context
+{TASK_CONTEXT}
+
+## Requirements
+{TASK_REQUIREMENTS}
+
+## Execution Instructions
+{EXECUTION_INSTRUCTIONS}'
+    fi
 
     local agent_context
     agent_context=$(generate_agent_context "$feature_dir")

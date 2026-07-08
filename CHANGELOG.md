@@ -2,6 +2,15 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.6+adlc7] - 2026-07-08
+
+### Fixed
+
+- **Delegation template fallback**: `tasks-meta-utils.sh` now provides an
+  inline default delegation template when `resolve_template` fails, instead
+  of erroring. This fixes test failures in bare environments (no presets
+  installed) after `templates/delegation-template.md` was removed in adlc5.
+
 # [0.12.6+adlc6] - 2026-07-08
 
 ### Fixed
