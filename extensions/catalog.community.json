@@ -4375,6 +4375,40 @@
       "created_at": "2026-04-13T00:00:00Z",
       "updated_at": "2026-04-13T00:00:00Z"
     },
+    "wiki": {
+      "name": "LLM Wiki",
+      "id": "wiki",
+      "description": "LLM-maintained compounding project wiki: source ingestion, cited answers, and consistency linting",
+      "author": "formin",
+      "version": "1.0.0",
+      "download_url": "https://github.com/formin/spec-kit-wiki/archive/refs/tags/v1.0.0.zip",
+      "repository": "https://github.com/formin/spec-kit-wiki",
+      "homepage": "https://github.com/formin/spec-kit-wiki",
+      "documentation": "https://github.com/formin/spec-kit-wiki/blob/main/README.md",
+      "changelog": "https://github.com/formin/spec-kit-wiki/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "category": "docs",
+      "effect": "read-write",
+      "requires": {
+        "speckit_version": ">=0.2.0"
+      },
+      "provides": {
+        "commands": 5,
+        "hooks": 2
+      },
+      "tags": [
+        "wiki",
+        "knowledge-base",
+        "docs",
+        "memory",
+        "context-management"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-07-06T00:00:00Z",
+      "updated_at": "2026-07-06T00:00:00Z"
+    },
     "wireframe": {
       "name": "Wireframe Visual Feedback Loop",
       "id": "wireframe",
