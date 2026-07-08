@@ -371,6 +371,51 @@ class TestResolveCommandRefs:
         prefix = self._get_prefix()
         assert result == f"/{prefix}.v2.plan"
 
+    def test_preset_alias_placeholder_resolution(self, tmp_path):
+        """Custom preset aliases override the default command prefix."""
+        preset_dir = tmp_path / ".specify" / "presets" / "agentic-change"
+        preset_dir.mkdir(parents=True)
+        (preset_dir / "preset.yml").write_text(
+            "provides:\n"
+            "  templates:\n"
+            "    - type: command\n"
+            "      name: adlc.change.implement\n"
+            "      aliases: [change.implement]\n"
+        )
+        text = "Run __SPECKIT_COMMAND_CHANGE_IMPLEMENT__ now."
+        result = IntegrationBase.resolve_command_refs(text, ".", project_root=tmp_path)
+        assert result == "Run /change.implement now."
+
+    def test_preset_canonical_name_maps_to_first_alias(self, tmp_path):
+        """Canonical command names resolve to the preset's first alias."""
+        preset_dir = tmp_path / ".specify" / "presets" / "agentic-change"
+        preset_dir.mkdir(parents=True)
+        (preset_dir / "preset.yml").write_text(
+            "provides:\n"
+            "  templates:\n"
+            "    - type: command\n"
+            "      name: adlc.change.specify\n"
+            "      aliases: [change.specify]\n"
+        )
+        text = "Run __SPECKIT_COMMAND_ADLC_CHANGE_SPECIFY__ now."
+        result = IntegrationBase.resolve_command_refs(text, ".", project_root=tmp_path)
+        assert result == "Run /change.specify now."
+
+    def test_preset_placeholder_uses_separator(self, tmp_path):
+        """Preset aliases respect the invoke separator."""
+        preset_dir = tmp_path / ".specify" / "presets" / "agentic-change"
+        preset_dir.mkdir(parents=True)
+        (preset_dir / "preset.yml").write_text(
+            "provides:\n"
+            "  templates:\n"
+            "    - type: command\n"
+            "      name: adlc.change.implement\n"
+            "      aliases: [change.implement]\n"
+        )
+        text = "Run __SPECKIT_COMMAND_CHANGE_IMPLEMENT__ now."
+        result = IntegrationBase.resolve_command_refs(text, "-", project_root=tmp_path)
+        assert result == "Run /change-implement now."
+
 
 class TestResolvePythonInterpreter:
     def test_returns_python_on_path(self, monkeypatch):

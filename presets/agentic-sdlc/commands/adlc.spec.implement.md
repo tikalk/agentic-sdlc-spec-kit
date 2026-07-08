@@ -18,8 +18,9 @@ scripts:
 
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+   If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_implement`.
-3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`):
       ```
@@ -32,7 +33,18 @@ scripts:
       Wait for the result of the hook command before proceeding.
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. State which hooks were executed, then proceed to User Input.
 
 ---
@@ -200,6 +212,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 9. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
+   - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **Tests before code**: Write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
@@ -235,7 +248,17 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `__SPECKIT_COMMAND_TASKS__` first to regenerate the task list.
 
+## Done When
+
+- [ ] All tasks in `tasks.md` completed and marked `[X]`
+- [ ] Implementation validated against specification, plan, and test coverage
+- [ ] Extension hooks dispatched or skipped according to the rules above
+- [ ] Completion reported to user with summary of completed work
+
+
 ## Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
 
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_implement`.
@@ -250,5 +273,16 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
       EXECUTE_COMMAND: {command}
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display hook info for user decision.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. If no hooks registered, skip silently.

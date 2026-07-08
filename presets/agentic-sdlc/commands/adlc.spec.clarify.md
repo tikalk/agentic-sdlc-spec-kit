@@ -15,8 +15,9 @@ scripts:
 
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+   If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_clarify`.
-3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`):
       ```
@@ -29,7 +30,18 @@ scripts:
       Wait for the result of the hook command before proceeding.
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. State which hooks were executed, then proceed to User Input.
 
 ---
@@ -130,9 +142,11 @@ Execution steps:
    - `FEATURE_DIR`
    - `FEATURE_SPEC`
    - If JSON parsing fails, abort and instruct user to re-run `__SPECKIT_COMMAND_SPECIFY__` or verify feature branch environment.
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot'.
+   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+2. **IF EXISTS**: Load `{REPO_ROOT}/.specify/memory/constitution.md` for project principles and governance constraints. Constitution MUST violations are automatically CRITICAL and must be resolved before proceeding to planning.
+
+3. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -188,7 +202,7 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
+4. Generate (internally) a prioritized queue of candidate clarification questions (maximum 5). Do NOT output them all at once. Apply these constraints:
    - Maximum of 5 total questions across the whole session.
    - Each question must be answerable with EITHER:
       - A short multiple‑choice selection (2–5 distinct, mutually exclusive options), OR
@@ -199,7 +213,7 @@ Execution steps:
    - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
    - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
-4. Sequential questioning loop (interactive):
+5. Sequential questioning loop (interactive):
    - Present EXACTLY ONE question at a time.
    - **CRITICAL**: You MUST output the actual question text BEFORE showing any options or recommendations.
    - For multiple‑choice questions:
@@ -209,7 +223,7 @@ Execution steps:
         - Common patterns in similar implementations
         - Risk reduction (security, performance, maintainability)
         - Alignment with any explicit project goals or constraints visible in the spec
-      - Present your **recommended option prominently** at the top: `**Recommended:** Option [X] - <reasoning>`
+      - Present your recommended option prominently at the top with clear reasoning (1-2 sentences explaining why this is the best choice): `**Recommended:** Option [X] - <reasoning>`
       - Then render all options as a Markdown table:
 
         | Option | Description |
@@ -217,7 +231,7 @@ Execution steps:
         | A | <Option A description> |
         | B | <Option B description> |
         | C | <Option C description> (add D/E as needed up to 5) |
-        | Short | Provide a different short answer (<=5 words) |
+        | Short | Provide a different short answer (<=5 words) (Include only if free-form alternative is appropriate) |
 
       - After the table, add: `You can reply with the option letter (e.g., "A"), accept the recommendation by saying "yes" or "recommended", or provide your own short answer.`
    - For short‑answer style (no meaningful discrete options):
@@ -236,7 +250,7 @@ Execution steps:
    - Never reveal future queued questions in advance.
    - If no valid questions exist at start, immediately report no critical ambiguities.
 
-5. Integration after EACH accepted answer (incremental update approach):
+6. Integration after EACH accepted answer (incremental update approach):
    - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
    - For the first integrated answer in this session:
       - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
@@ -254,7 +268,7 @@ Execution steps:
    - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
    - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
-6. Validation (performed after EACH write plus final pass):
+7. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
@@ -262,16 +276,28 @@ Execution steps:
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
    - Terminology consistency: same canonical term used across all updated sections.
 
-7. Write the updated spec back to `FEATURE_SPEC`.
+8. Write the updated spec back to `FEATURE_SPEC`.
 
-8. Report completion:
+9. **Spec Quality Checklist re-validation (IF EXISTS)**:
+   - If `FEATURE_DIR/checklists/requirements.md` exists, re-validate the spec against it:
+     1. Identify all GitHub task-list checkbox lines (`- [ ]`, `- [x]`, `- [X]`, case-insensitive, tolerant of nested whitespace, outside code fences).
+     2. Record a before-snapshot of each checkbox marker state and its item text.
+     3. Re-evaluate each checklist item against the updated spec.
+     4. Toggle `[ ]` ↔ `[x]` only when the state actually changes; preserve existing case to avoid cosmetic diffs.
+     5. Save the checklist file, modifying only checkbox markers whose state changed.
+     6. Compute three lists: Newly passing, Regressions, Still unchecked.
+     7. Record the before/after pass counts (e.g., "12/16 → 15/16").
+   - If `requirements.md` does not exist, skip this step silently.
+
+10. Report completion:
    - Number of questions asked & answered.
    - Path to updated spec.
    - Sections touched (list names).
    - Coverage summary table listing each taxonomy category with Status: Resolved (was Partial/Missing and addressed), Deferred (exceeds question quota or better suited for planning), Clear (already sufficient), Outstanding (still Partial/Missing but low impact).
-   - **Mission Brief Status**: Complete / Required (if still needed)
-   - If any Outstanding or Deferred remain, recommend whether to proceed to `__SPECKIT_COMMAND_PLAN__` or run `__SPECKIT_COMMAND_CLARIFY__` again later post-plan.
-   - Suggested next command.
+    - **Mission Brief Status**: Complete / Required (if still needed)
+    - **Spec quality checklist status**: If `requirements.md` was re-validated, show the before/after pass counts (e.g., "12/16 → 15/16") and list any items that changed state — both newly checked (regressions are rare here) and any still unchecked. If any items remain unchecked, list them as areas needing attention.
+    - If any Outstanding or Deferred remain, recommend whether to proceed to `__SPECKIT_COMMAND_PLAN__` or run `__SPECKIT_COMMAND_CLARIFY__` again later post-plan.
+    - Suggested next command.
 
 Behavior rules:
 
@@ -285,7 +311,17 @@ Behavior rules:
 
 Context for prioritization: {ARGS}
 
+## Done When
+
+- [ ] Spec ambiguities identified and integrated into `FEATURE_SPEC`
+- [ ] Spec quality checklist re-validated (if `requirements.md` exists)
+- [ ] Extension hooks dispatched or skipped according to the rules above
+- [ ] Completion reported to user with questions asked, sections touched, and checklist status
+
+
 ## Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
 
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_clarify`.
@@ -300,5 +336,16 @@ Context for prioritization: {ARGS}
       EXECUTE_COMMAND: {command}
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display hook info for user decision.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. If no hooks registered, skip silently.

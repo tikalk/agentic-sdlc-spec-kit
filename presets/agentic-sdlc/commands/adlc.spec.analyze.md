@@ -1,8 +1,8 @@
 ---
 description: Perform cross-artifact consistency and quality analysis. Automatically detects pre vs post-implementation context based on project state.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -IncludeTasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
 ---
 
 ## MANDATORY: Pre-Execution Hooks
@@ -11,8 +11,9 @@ scripts:
 
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+   If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_analyze`.
-3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`):
       ```
@@ -25,7 +26,18 @@ scripts:
       Wait for the result of the hook command before proceeding.
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. State which hooks were executed, then proceed to User Input.
 
 ---
@@ -40,7 +52,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Goal
 
-Perform consistency and quality analysis across artifacts with automatic context detection:
+Perform consistency and quality analysis across artifacts with automatic context detection. This command **MUST run only after `__SPECKIT_COMMAND_TASKS__` has successfully produced a complete `tasks.md`**. Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation.
 
 **Auto-Detection Logic**:
 
@@ -114,7 +126,7 @@ Load only the minimal necessary context from each artifact:
 
 Create internal representations (do not include raw artifacts in output):
 
-- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability. Include only Success Criteria items that require buildable work, and exclude post-launch outcome metrics and business KPIs.
+- **Requirements inventory**: For each Functional Requirement (FR-###) and Success Criterion (SC-###), record a stable key. Use the explicit FR-/SC- identifier as the primary key when present, and optionally also derive an imperative-phrase slug for readability (e.g., "User can upload file" → `user-can-upload-file`). Include only Success Criteria items that require buildable work (e.g., load-testing infrastructure, security audit tooling), and exclude post-launch outcome metrics and business KPIs (e.g., "Reduce support tickets by 50%").
 - **User story/action inventory**: Discrete user actions with acceptance criteria
 - **Task coverage mapping**: Map each task to one or more requirements or stories (inference by keyword / explicit reference patterns like IDs or key phrases)
 - **Constitution rule set**: Extract principle names and MUST/SHOULD normative statements
@@ -253,7 +265,16 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 
 {ARGS}
 
+## Done When
+
+- [ ] Cross-artifact analysis report produced with severity-graded findings
+- [ ] Extension hooks dispatched or skipped according to the rules above
+- [ ] Completion reported to user with findings summary and recommended next actions
+
+
 ## Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
 
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_analyze`.
@@ -268,5 +289,16 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
       EXECUTE_COMMAND: {command}
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display hook info for user decision.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. If no hooks registered, skip silently.

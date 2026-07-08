@@ -351,7 +351,7 @@ def refresh_shared_templates(
                 continue
 
         content = src.read_text(encoding="utf-8")
-        content = IntegrationBase.resolve_command_refs(content, invoke_separator)
+        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
         planned_updates.append((dst, rel, content))
 
     for dst, rel, content in planned_updates:
@@ -522,7 +522,7 @@ def install_shared_infra(
                         if not _ensure_or_bucket_dir(dst_path.parent):
                             continue
                         content = src_path.read_text(encoding="utf-8")
-                        content = IntegrationBase.resolve_command_refs(content, invoke_separator)
+                        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
                         content = _resolve_dynamic_command_refs(content, invoke_separator)
                         planned_copies.append(
                             (
@@ -572,7 +572,7 @@ def install_shared_infra(
                     continue
 
                 content = src.read_text(encoding="utf-8")
-                content = IntegrationBase.resolve_command_refs(content, invoke_separator)
+                content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
                 planned_templates.append((dst, rel, content))
 
     for dst_path, rel, content, mode in planned_copies:

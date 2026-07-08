@@ -79,6 +79,67 @@ def _get_command_prefix() -> str:
         return "speckit"
 
 
+def _build_preset_command_placeholder_map(project_root: Path) -> dict[str, str]:
+    """Build a placeholder name -> command path map from installed presets.
+
+    Scans ``.specify/presets/*/preset.yml`` for command templates and maps
+    each alias (e.g. ``change.implement``) to an uppercase placeholder name
+    (``CHANGE_IMPLEMENT``). This lets ``__SPECKIT_COMMAND_CHANGE_IMPLEMENT__``
+    resolve to ``/change.implement`` instead of the default ``/spec.change.implement``.
+
+    Standard commands provided by presets (e.g. ``spec.implement``) are also
+    mapped, so the default ``__SPECKIT_COMMAND_IMPLEMENT__`` resolves to the
+    alias installed by the active preset rather than hardcoding the prefix.
+    """
+    placeholder_map: dict[str, str] = {}
+    presets_dir = project_root / ".specify" / "presets"
+    if not presets_dir.is_dir():
+        return placeholder_map
+
+    for preset_dir in presets_dir.iterdir():
+        if not preset_dir.is_dir():
+            continue
+        manifest_path = preset_dir / "preset.yml"
+        if not manifest_path.is_file():
+            continue
+        try:
+            with open(manifest_path, "r", encoding="utf-8") as f:
+                manifest = yaml.safe_load(f)
+        except Exception:
+            continue
+        if not isinstance(manifest, dict):
+            continue
+        provides = manifest.get("provides", {})
+        templates = provides.get("templates", [])
+        if not isinstance(templates, list):
+            continue
+        for tmpl in templates:
+            if not isinstance(tmpl, dict):
+                continue
+            if tmpl.get("type") != "command":
+                continue
+            cmd_name = tmpl.get("name")
+            aliases = tmpl.get("aliases", [])
+            if not isinstance(aliases, list):
+                aliases = []
+            first_alias = aliases[0] if aliases else cmd_name
+            if not first_alias or not isinstance(first_alias, str):
+                continue
+            # Map each alias to its placeholder form.
+            for alias in aliases:
+                if not isinstance(alias, str):
+                    continue
+                placeholder = alias.replace(".", "_").replace("-", "_").upper()
+                if placeholder:
+                    placeholder_map[placeholder] = alias
+            # Also map the canonical command name so explicit adlc.* refs work.
+            if isinstance(cmd_name, str):
+                placeholder = cmd_name.replace(".", "_").replace("-", "_").upper()
+                if placeholder:
+                    placeholder_map[placeholder] = first_alias
+    return placeholder_map
+
+
 # ---------------------------------------------------------------------------
 # IntegrationOption
 # ---------------------------------------------------------------------------
@@ -620,7 +681,9 @@ class IntegrationBase(ABC):
         return created
 
     @staticmethod
-    def resolve_command_refs(content: str, separator: str = ".") -> str:
+    def resolve_command_refs(
+        content: str, separator: str = ".", project_root: Path | None = None
+    ) -> str:
         """Replace ``__SPECKIT_COMMAND_<NAME>__`` placeholders with invocations.
 
         Each placeholder encodes a command name in upper-case with
@@ -630,12 +693,29 @@ class IntegrationBase(ABC):
 
         * ``separator="."`` → ``/spec.plan`` (fork) or ``/speckit.plan`` (upstream)
         * ``separator="-"`` → ``/spec-plan`` (fork) or ``/speckit-plan`` (upstream)
+
+        When *project_root* is provided, installed presets are scanned and
+        custom placeholders such as ``__SPECKIT_COMMAND_CHANGE_IMPLEMENT__``
+        are resolved to the preset's alias (e.g. ``/change.implement``).
         """
-        return re.sub(
-            r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__",
-            lambda m: "/" + _get_command_prefix() + separator + m.group(1).lower().replace("_", separator),
-            content,
-        )
+        if project_root is None:
+            project_root = Path.cwd()
+
+        placeholder_map = _build_preset_command_placeholder_map(project_root)
+
+        def _replace(m: re.Match[str]) -> str:
+            placeholder = m.group(1)
+            if placeholder in placeholder_map:
+                cmd_path = placeholder_map[placeholder]
+                return "/" + cmd_path.replace(".", separator).replace("-", separator)
+            return (
+                "/"
+                + _get_command_prefix()
+                + separator
+                + placeholder.lower().replace("_", separator)
+            )
+
+        return re.sub(r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__", _replace, content)
 
     @staticmethod
     def resolve_python_interpreter(project_root: Path | None = None) -> str:
@@ -846,7 +926,7 @@ class IntegrationBase(ABC):
         content = CommandRegistrar.rewrite_project_relative_paths(content)
 
         # 8. Replace __SPECKIT_COMMAND_<NAME>__ with invocation strings
-        content = IntegrationBase.resolve_command_refs(content, invoke_separator)
+        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_root)
 
         # 9. Resolve handoff agent references in frontmatter
         content = IntegrationBase.resolve_handoff_agents(content, invoke_separator)

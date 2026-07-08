@@ -200,7 +200,7 @@ Change created: changes/{NNN-name}/
 
 Feature context persisted: .specify/feature.json
 
-Ready for implementation: /change.implement
+Ready for implementation: __SPECKIT_COMMAND_CHANGE_IMPLEMENT__
 ```
 
 ---

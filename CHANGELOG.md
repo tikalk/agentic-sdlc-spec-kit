@@ -2,6 +2,25 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc2] - 2026-07-08
+
+### Changed
+
+- **Preset command alignment**: converted user-facing `/change.*` and `/spec.*`
+  handoff suggestions to `__SPECKIT_COMMAND_*__` placeholders in
+  `agentic-change`, `agentic-quick`, and additional `agentic-sdlc` command files.
+- **Done When sections**: added `## Done When` exit criteria to all
+  `agentic-change` and `agentic-quick` command files.
+- **Preset-aware placeholder resolution**: `IntegrationBase.resolve_command_refs()`
+  now scans installed presets (`_build_preset_command_placeholder_map()`) so
+  placeholders like `__SPECKIT_COMMAND_CHANGE_IMPLEMENT__` resolve to the
+  preset-defined alias `/change.implement` instead of the default `/spec.change.implement`.
+
+### Added
+
+- Regression tests in `tests/integrations/test_base.py` for per-preset alias
+  resolution, canonical-name-to-first-alias mapping, and invoke-separator handling.
+
 # [0.12.8+adlc1] - 2026-07-08
 
 ### Changed

@@ -181,6 +181,13 @@ Check execution metadata for corruption.
 | Evidence links | Include commits and issues |
 | Validation report | Displays clearly |
 
+## Done When
+
+- [ ] Execution trace written to `specs/{BRANCH}/trace.md`
+- [ ] Summary section and all 5 technical sections populated
+- [ ] Coverage metric >= 80% and quality gate statistics extracted
+- [ ] Completion reported to user with coverage metrics and evidence links
+
 ## Related Commands
 
 - `/spec.implement` - Produces the execution metadata trace relies on

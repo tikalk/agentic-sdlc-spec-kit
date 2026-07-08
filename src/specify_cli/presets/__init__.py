@@ -1141,7 +1141,7 @@ class PresetManager:
                             selected_ai, fm, body, self.project_root
                         )
                         body = self._resolve_skill_command_refs(
-                            body, registrar, selected_ai
+                            body, registrar, selected_ai, self.project_root
                         )
                     from ..integrations import get_integration
                     integration = get_integration(selected_ai) if isinstance(selected_ai, str) else None
@@ -1237,7 +1237,10 @@ class PresetManager:
 
     @staticmethod
     def _resolve_skill_command_refs(
-        body: str, registrar: "CommandRegistrar", selected_ai: str
+        body: str,
+        registrar: "CommandRegistrar",
+        selected_ai: str,
+        project_root: Path | None = None,
     ) -> str:
         """Render ``__SPECKIT_COMMAND_*__`` tokens in a skill body as invocations.
 
@@ -1250,7 +1253,7 @@ class PresetManager:
         separator = registrar.AGENT_CONFIGS.get(selected_ai, {}).get(
             "invoke_separator", "."
         )
-        return IntegrationBase.resolve_command_refs(body, separator)
+        return IntegrationBase.resolve_command_refs(body, separator, project_root)
 
     def _build_extension_skill_restore_index(self) -> Dict[str, Dict[str, Any]]:
         """Index extension-backed skill restore data by skill directory name."""
@@ -1449,13 +1452,15 @@ class PresetManager:
             body = registrar.resolve_skill_placeholders(
                 selected_ai, frontmatter, body, self.project_root
             )
-            body = self._resolve_skill_command_refs(body, registrar, selected_ai)
+            body = self._resolve_skill_command_refs(
+                body, registrar, selected_ai, self.project_root
+            )
 
             # Resolve __SPECKIT_COMMAND_*__ placeholders and handoff agents
             from ..integrations.base import IntegrationBase
 
             _sep = agent_config.get("invoke_separator", ".")
-            body = IntegrationBase.resolve_command_refs(body, _sep)
+            body = IntegrationBase.resolve_command_refs(body, _sep, self.project_root)
             body = IntegrationBase.resolve_handoff_agents(body, _sep)
 
             # Resolve canonical command names to alias forms
@@ -1561,7 +1566,7 @@ class PresetManager:
                         selected_ai, frontmatter, body, self.project_root
                     )
                     body = self._resolve_skill_command_refs(
-                        body, registrar, selected_ai
+                        body, registrar, selected_ai, self.project_root
                     )
 
                 original_desc = frontmatter.get("description", "")
@@ -1609,7 +1614,7 @@ class PresetManager:
                         selected_ai, frontmatter, body, self.project_root
                     )
                     body = self._resolve_skill_command_refs(
-                        body, registrar, selected_ai
+                        body, registrar, selected_ai, self.project_root
                     )
 
                 command_name = extension_restore["command_name"]

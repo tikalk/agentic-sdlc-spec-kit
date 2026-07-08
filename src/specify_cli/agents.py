@@ -712,7 +712,7 @@ class CommandRegistrar:
             from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
 
             _sep = agent_config.get("invoke_separator", ".")
-            body = IntegrationBase.resolve_command_refs(body, _sep)
+            body = IntegrationBase.resolve_command_refs(body, _sep, project_root)
 
             # Post-process integration lookup (shared by primary and alias paths)
             _integration = None

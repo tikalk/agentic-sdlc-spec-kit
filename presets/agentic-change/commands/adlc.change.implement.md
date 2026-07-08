@@ -52,7 +52,7 @@ Resolve the change directory in this order:
 1. If `$ARGUMENTS` explicitly names a change directory or number (e.g.,
    `002-remove-login-modals` or `changes/002-remove-login-logout-modals`), use it.
 2. Otherwise, run `{SCRIPT}` from the repo root and parse `FEATURE_DIR`. This
-   reads `.specify/feature.json` (written by `/change.specify`) and points to
+   reads `.specify/feature.json` (written by `__SPECKIT_COMMAND_CHANGE_SPECIFY__`) and points to
    the current change directory. If `FEATURE_DIR` is under `changes/`, use it.
 3. If neither resolves to a valid change directory, ask the user.
 

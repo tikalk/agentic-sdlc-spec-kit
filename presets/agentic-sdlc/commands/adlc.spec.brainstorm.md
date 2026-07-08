@@ -13,8 +13,9 @@ handoffs:
 
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+   If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_brainstorm`.
-3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`):
       ```
@@ -27,7 +28,18 @@ handoffs:
       Wait for the result of the hook command before proceeding.
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. State which hooks were executed, then proceed to User Input.
 
 ---
@@ -174,7 +186,17 @@ Wait for user confirmation before finishing. If the user wants to explore more, 
 - **Document assumptions** — note any assumptions that could change the recommendation
 - **Think structurally** — use models, patterns, and analogies to illuminate the problem
 
+## Done When
+
+- [ ] Brainstorm context written to `.specify/drafts/brainstorm-context.md`
+- [ ] Exploration lenses (understanding, approaches, architecture, risks) covered
+- [ ] Extension hooks dispatched or skipped according to the rules above
+- [ ] Completion reported to user with draft path and recommended next command
+
+
 ## Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
 
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_brainstorm`.
@@ -189,5 +211,16 @@ Wait for user confirmation before finishing. If the user wants to explore more, 
       EXECUTE_COMMAND: {command}
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display hook info for user decision.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. If no hooks registered, skip silently.

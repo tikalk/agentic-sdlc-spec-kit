@@ -361,7 +361,7 @@ Change verified and converged. Run /change.levelup to contribute lessons from th
 ### 14. Next Actions (Handoff)
 
 - On `tasks_appended`: state how many tasks were appended under which phase, and recommend
-  running `__SPECKIT_COMMAND_IMPLEMENT__` to complete them; note that a follow-up converge
+  running `__SPECKIT_COMMAND_CHANGE_IMPLEMENT__` to complete them; note that a follow-up converge
   run will find fewer or no remaining items.
 - On `converged`: report that the change is fully converged and verified. No further
   implement pass is needed for this change's specified scope.
@@ -390,6 +390,6 @@ Change verified and converged. Run /change.levelup to contribute lessons from th
    ...output `tasks_appended` as the first stdout line to signal more work is needed, overriding the initial `converged` assessment. This ensures the implement↺converge loop continues when deep evaluation (e.g., EDD) finds issues.
 
    **Loop routing signal**: The caller should check for `next-spec.md` in the change directory:
-   - If `next-spec.md` exists → the spec itself needs correction; route to `__SPECKIT_COMMAND_SPECIFY__` (feeding next-spec.md as input), then plan → tasks → implement → converge
-   - If `next-spec.md` does not exist but `tasks_appended` → only implementation tasks were appended; route to `__SPECKIT_COMMAND_IMPLEMENT__` → converge
+   - If `next-spec.md` exists → the spec itself needs correction; route to `__SPECKIT_COMMAND_CHANGE_SPECIFY__` (feeding next-spec.md as input), then plan → tasks → implement → converge
+   - If `next-spec.md` does not exist but `tasks_appended` → only implementation tasks were appended; route to `__SPECKIT_COMMAND_CHANGE_IMPLEMENT__` → converge
 6. If no hooks registered, skip silently.

@@ -20,8 +20,9 @@ scripts:
 
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
+   If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_tasks`.
-3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
+3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. For each remaining hook:
    - **Mandatory** (`optional: false`):
       ```
@@ -34,7 +35,18 @@ scripts:
       Wait for the result of the hook command before proceeding.
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display the hook name, command, and description. Let the user decide.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. State which hooks were executed, then proceed to User Input.
 
 ---
@@ -49,7 +61,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR, AVAILABLE_DOCS list, and (if provided) TASKS_TEMPLATE. All paths must be absolute when provided. AVAILABLE_DOCS is a list of document names/relative paths available under FEATURE_DIR (for example `research.md` or `contracts/`). For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 ### CRITICAL - Path Validation
 
@@ -68,7 +80,9 @@ If working in a non-git repository:
 - Run: `export SPECIFY_FEATURE=001-user-auth` before this command
 - Without this, tasks.md will be written to the wrong location
 
-2. **MANDATORY - Initialize Dual Execution Loop**:
+2. **IF EXISTS**: Load `{REPO_ROOT}/.specify/memory/constitution.md` for project principles and governance constraints. Use these constraints when categorizing tasks, assigning severity to tradeoffs, and deciding whether tasks are [SYNC] (human review) or [ASYNC] (delegated).
+
+3. **MANDATORY - Initialize Dual Execution Loop**:
 
    Run from repo root:
    ```bash
@@ -76,14 +90,14 @@ If working in a non-git repository:
    ```
    This creates `$FEATURE_DIR/tasks_meta.json` for tracking SYNC/ASYNC execution modes, LLM delegation, and review enforcement.
 
-   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 3. If this file is missing, `__SPECKIT_COMMAND_IMPLEMENT__` quality gates and `__SPECKIT_COMMAND_TRACE__` will not function.
+   **VERIFY**: Confirm `$FEATURE_DIR/tasks_meta.json` exists before proceeding to step 4. If this file is missing, `__SPECKIT_COMMAND_IMPLEMENT__` quality gates and `__SPECKIT_COMMAND_TRACE__` will not function.
 
-3. **Load design documents**: Read from FEATURE_DIR:
+4. **Load design documents**: Read from FEATURE_DIR:
    - **Required**: plan.md (tech stack, libraries, structure), spec.md (user stories with priorities)
    - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
-4. **Execute task generation workflow** (follow the template structure):
+5. **Execute task generation workflow** (follow the template structure):
    - Load plan.md and extract tech stack, libraries, project structure
    - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
    - If data-model.md exists: Extract entities → map to user stories
@@ -119,7 +133,12 @@ If working in a non-git repository:
      - Create parallel execution examples per user story
      - Validate task completeness (each user story has all needed tasks, independently testable)
 
-5. **Generate tasks.md**: Use `templates/tasks-template.md` as structure, fill with:
+6. **Generate tasks.md**:
+   - Resolve the tasks template:
+     - If `{SCRIPT}` JSON output included `TASKS_TEMPLATE`, use that path (must be an absolute path)
+     - Otherwise fall back to `.specify/templates/tasks-template.md`
+     - Otherwise fall back to `templates/tasks-template.md`
+   - Use the resolved template as structure, fill with:
    - Correct feature name from plan.md
    - Phase 1: Setup tasks (project initialization)
    - Phase 2: Foundational tasks (blocking prerequisites for all user stories)
@@ -137,7 +156,7 @@ If working in a non-git repository:
    - Parallel execution examples per story
    - Implementation strategy section (MVP first, incremental delivery)
 
-5.5. **Worktree-mode DAG generation (conditional, off by default)**:
+6.5. **Worktree-mode DAG generation (conditional, off by default)**:
    - Read `.specify/extensions/git/git-config.yml` (skip silently if missing or unparseable)
    - Extract `isolation_mode` value (`branch` or `worktree`; default `branch`)
    - **If `isolation_mode: branch` (default) or config missing**: SKIP this step entirely (preserve upstream behavior)
@@ -150,7 +169,7 @@ If working in a non-git repository:
      - If `ok: false`, log the error to stderr but continue (DAG is informational, not blocking)
    - If `isolation_mode` is set to an unknown value: WARN and SKIP
 
-6. **Report**: Output path to generated tasks.md and summary:
+7. **Report**: Output path to generated tasks.md and summary:
    - Total task count
    - Task count per user story
    - Parallel opportunities identified
@@ -194,8 +213,19 @@ Every task MUST strictly follow this format:
 
 **Examples**:
 
-- ✅ CORRECT: `- [ ] T005 [P] [SYNC] Implement authentication middleware in src/middleware/auth.py`
-- ❌ WRONG: `- [ ] Create User model` (missing ID, SYNC/ASYNC, and Story label)
+✅ **CORRECT**:
+
+- `- [ ] T005 [P] [SYNC] [US1] Implement authentication middleware in src/middleware/auth.py` (has ID, parallel marker, execution mode, story label, and file path)
+- `- [ ] T006 [ASYNC] [US1] Add User model fields in src/models/user.py` (sequential task with mode, story, and file path)
+- `- [ ] T007 [P] [ASYNC] [US2] Create payment endpoint tests in tests/test_payment.py` (test task with story label)
+- `- [ ] T008 [SYNC] Add database migration script in migrations/001_initial.sql` (setup/foundational task, no story label needed)
+
+❌ **WRONG**:
+
+- `- [ ] Create User model` (missing Task ID, [SYNC]/[ASYNC] marker, and story label)
+- `- [ ] T005 Implement authentication` (missing [SYNC]/[ASYNC] marker and file path)
+- `- [ ] T006 [P] [SYNC] Implement auth` (missing story label for a user-story phase task)
+- `- [ ] [P] [SYNC] [US1] T007 Implement auth in src/auth.py` (wrong order — Task ID must come right after the checkbox)
 
 See `templates/tasks-template.md` for additional examples and full phase structure.
 
@@ -237,7 +267,16 @@ See `templates/tasks-template.md` for additional examples and full phase structu
 
 See `templates/tasks-template.md` for detailed classification criteria and examples.
 
+## Done When
+
+- [ ] `tasks.md` generated with all phases, task IDs, file paths, and dependency ordering
+- [ ] Extension hooks dispatched or skipped according to the rules above
+- [ ] Completion reported to user with task count, story breakdown, and MVP scope
+
+
 ## Post-Execution Hooks
+
+**You MUST complete this section before reporting completion to the user.**
 
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, skip silently.
 2. Read `hooks.after_tasks`.
@@ -252,7 +291,18 @@ See `templates/tasks-template.md` for detailed classification criteria and examp
       EXECUTE_COMMAND: {command}
       ```
       After emitting the block above you MUST actually invoke the hook and wait for it to finish before continuing. Run it the same way you would run the command yourself in this agent/session (the invocation may differ from the literal `{command}` id shown above, e.g. a skills-mode agent runs it as `/skill:spec-...` or `$spec-...`). Emitting the block alone does not run the hook.
-   - **Optional** (`optional: true`): Display hook info for user decision.
+   - **Optional** (`optional: true`):
+      ```
+      ## Extension Hooks
+
+      **Optional Hook**: {extension}
+      Command: `/{command}`
+      Description: {description}
+
+      Prompt: {prompt}
+      To execute: `/{command}`
+      ```
+      Let the user decide whether to execute the optional hook.
 5. If no hooks registered, skip silently.
 
 ## Next Step
