@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc4] - 2026-07-09
+
+### Changed
+
+- **Team AI skill install UI**: merged `team-governance-skills` and
+  `team-domain-skills` tracker steps into a single `Install Team AI skills`
+  step with detail `governance: N, domain: M`.
+
+### Fixed
+
+- `tests/integrations/test_cli.py`: removed trailing whitespace on line 993.
+
 # [0.12.8+adlc3] - 2026-07-09
 
 ### Changed
@@ -19,9 +31,6 @@ All notable changes to the Specify CLI and templates are documented here.
 - **`sync_team_ai_directives()`**: installs the bundled extension via
   `ExtensionManager`, resolves the external knowledge base, and triggers
   `agent-context` refresh via `_update_agent_context()`.
-- **`pre_init` skill installation split**: installs bundled governance skills
-  from the extension and domain skills from the knowledge base separately,
-  tracked as `team-governance-skills` and `team-domain-skills`.
 - **Extension manifest**: added `extensions/team-ai-directives/.skills.json`
   v2.0.0 listing the governance skills to copy during init.
 - **Catalog & packaging**: `team-ai-directives` registered in

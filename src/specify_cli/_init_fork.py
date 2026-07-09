@@ -670,6 +670,7 @@ def pre_init(
     """Pre-init hook - team AI directives sync."""
     if tracker:
         tracker.add("team-directives", "Team AI Directives setup")
+        tracker.add("team-skills", "Install Team AI skills")
 
     if not team_ai_directives:
         if tracker:
@@ -785,60 +786,77 @@ def pre_init(
             if tracker:
                 tracker.skip("team-mcp", "no .mcp.json found")
 
-        # Install bundled governance skills from the team-ai-directives extension
+        # Install team AI skills (bundled governance + KB domain)
         if selected_ai:
             try:
                 if tracker:
-                    tracker.start("team-governance-skills")
-                ext_path = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
-                governance_installed = _install_skills_from_path(
-                    team_directives_path=ext_path,
-                    project_path=project_path,
-                    selected_ai=selected_ai,
-                    force=False,
-                )
-                if governance_installed:
-                    if tracker:
-                        tracker.complete(
-                            "team-governance-skills", f"{len(governance_installed)} skills"
-                        )
-                    console.print(
-                        f"[dim]Installed governance skills: {', '.join(governance_installed)}[/dim]"
-                    )
-                else:
-                    if tracker:
-                        tracker.skip("team-governance-skills", "no required skills found")
-            except Exception as e:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Failed to install governance skills: {e}"
-                )
-                if tracker:
-                    tracker.error("team-governance-skills", str(e))
+                    tracker.start("team-skills", "governance + domain")
 
-        # Install domain skills from knowledge base
-        if directives_path and selected_ai:
-            try:
-                if tracker:
-                    tracker.start("team-domain-skills")
-                installed = _install_skills_from_path(
-                    team_directives_path=directives_path,
-                    project_path=project_path,
-                    selected_ai=selected_ai,
-                    force=False,
+                governance_installed: list[str] = []
+                domain_installed: list[str] = []
+                governance_error: str | None = None
+                domain_error: str | None = None
+
+                # Bundled governance skills from the team-ai-directives extension.
+                # force=True because extension command registration creates skill
+                # wrappers with the same names; we want the real bundled skill
+                # content in the agent's skills directory.
+                ext_path = (
+                    project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
                 )
-                if installed:
+                try:
+                    governance_installed = _install_skills_from_path(
+                        team_directives_path=ext_path,
+                        project_path=project_path,
+                        selected_ai=selected_ai,
+                        force=True,
+                    )
+                    if governance_installed:
+                        console.print(
+                            f"[dim]Installed governance skills: {', '.join(governance_installed)}[/dim]"
+                        )
+                except Exception as e:
+                    governance_error = str(e)
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Failed to install governance skills: {e}"
+                    )
+
+                # Domain skills from the external knowledge base
+                if directives_path:
+                    try:
+                        domain_installed = _install_skills_from_path(
+                            team_directives_path=directives_path,
+                            project_path=project_path,
+                            selected_ai=selected_ai,
+                            force=False,
+                        )
+                        if domain_installed:
+                            console.print("[dim]Installed team-ai-directives domain skills[/dim]")
+                    except Exception as e:
+                        domain_error = str(e)
+                        console.print(
+                            f"[yellow]Warning:[/yellow] Failed to install domain skills: {e}"
+                        )
+
+                total = len(governance_installed) + len(domain_installed)
+                detail = f"governance: {len(governance_installed)}, domain: {len(domain_installed)}"
+
+                if governance_error or domain_error:
+                    error_msg = "; ".join(filter(None, [governance_error, domain_error]))
                     if tracker:
-                        tracker.complete("team-domain-skills", f"{len(installed)} skills")
-                    console.print("[dim]Installed team-ai-directives domain skills[/dim]")
+                        tracker.error("team-skills", error_msg)
+                elif total:
+                    if tracker:
+                        tracker.complete("team-skills", detail)
                 else:
                     if tracker:
-                        tracker.skip("team-domain-skills", "no required skills found")
+                        tracker.skip("team-skills", "no required skills found")
             except Exception as e:
                 console.print(
-                    f"[yellow]Warning:[/yellow] Failed to install domain skills: {e}"
+                    f"[yellow]Warning:[/yellow] Failed to install team AI skills: {e}"
                 )
                 if tracker:
-                    tracker.error("team-domain-skills", str(e))
+                    tracker.error("team-skills", str(e))
 
     except Exception as e:
         tracker.error("team-directives", str(e))
