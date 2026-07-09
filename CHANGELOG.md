@@ -2,13 +2,30 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc5] - 2026-07-10
+
+### Changed
+
+- **`team-discover` skill now user-invocable**: changed
+  `user-invocable: false` → `true` in the bundled `team-discover` SKILL.md
+  so it appears in the agent's skills modal and can be invoked manually.
+- **`agent-context` extension pre-installed**: set `preinstall: true` in
+  `extensions/catalog.json` so the agent-context extension is scaffolded
+  automatically during `specify init` (no manual `extension enable` needed).
+- **`--help` theming**: monkey-patched Typer's `rich_utils._get_rich_console`
+  to return the fork's own `Console` instance (consistent width), and
+  overridden Typer's hardcoded `STYLE_*` constants to use the fork accent
+  color so `--help` panels match the orange banner.
+- **Tracker label**: renamed "Team AI mcp setup" → "Team AI MCP setup"
+  (proper casing).
+
 # [0.12.8+adlc4] - 2026-07-09
 
 ### Changed
 
 - **Team AI skill install UI**: merged `team-governance-skills` and
-  `team-domain-skills` tracker steps into a single `Install Team AI skills`
-  step with detail `governance: N, domain: M`.
+  `team-domain-skills` tracker steps into a single
+  `Install Team AI skills` step with detail `governance: N, domain: M`.
 
 ### Fixed
 

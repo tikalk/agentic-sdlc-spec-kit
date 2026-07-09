@@ -15,7 +15,7 @@ evidence: []
 instruction_type: Generation
 priority: Standard
 source: team-ai-directives
-user-invocable: false
+user-invocable: true
 ---
 
 ## Overview

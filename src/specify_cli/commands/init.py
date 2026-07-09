@@ -408,7 +408,7 @@ def register(app: typer.Typer) -> None:
             _fork_steps = [
                 ("project-skills", "Install Projects skills"),
                 ("team-directives", "Team AI Directives setup"),
-                ("team-mcp", "Team AI mcp setup"),
+                ("team-mcp", "Team AI MCP setup"),
                 ("team-skills", "Install Team AI skills"),
                 ("extensions", "Install bundled extensions"),
                 ("presets", "Install bundled presets"),

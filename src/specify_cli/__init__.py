@@ -208,6 +208,29 @@ import specify_cli._console as _console_module  # noqa: E402
 _console_module.show_banner = show_banner
 apply_theming_patches(_console_module)
 
+# Patch Typer's Rich help formatting to use fork theming (accent color,
+# consistent console width) so --help panels match the orange banner.
+from typer import rich_utils as _typer_rich  # noqa: E402
+
+_typer_rich.STYLE_OPTION = f"bold {accent_style()}"
+_typer_rich.STYLE_SWITCH = f"bold {accent_style()}"
+_typer_rich.STYLE_USAGE = accent_style()
+_typer_rich.STYLE_USAGE_COMMAND = f"bold {accent_style()}"
+_typer_rich.STYLE_METAVAR = f"bold {accent_style()}"
+_typer_rich.STYLE_OPTIONS_PANEL_BORDER = accent_style()
+_typer_rich.STYLE_COMMANDS_PANEL_BORDER = accent_style()
+_typer_rich.STYLE_OPTION_HELP = "white"
+_typer_rich.STYLE_OPTION_DEFAULT = "dim"
+
+_original_get_rich_console = _typer_rich._get_rich_console
+
+
+def _get_rich_console(stderr: bool = False):
+    return console if not stderr else err_console
+
+
+_typer_rich._get_rich_console = _get_rich_console
+
 def _version_callback(value: bool):
     if value:
         console.print(f"specify {get_speckit_version()}")

@@ -44,6 +44,7 @@
       "author": "spec-kit-core",
       "repository": "https://github.com/github/spec-kit",
       "bundled": true,
+      "preinstall": true,
       "tags": [
         "agent",
         "context",
