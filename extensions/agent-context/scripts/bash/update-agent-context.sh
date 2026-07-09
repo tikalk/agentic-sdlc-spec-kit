@@ -327,11 +327,38 @@ PY
   fi
 fi
 
+# Resolve team-ai-directives path if configured.
+TEAM_DIRECTIVES=""
+_init_options_json="$PROJECT_ROOT/.specify/init-options.json"
+if [[ -f "$_init_options_json" ]]; then
+  TEAM_DIRECTIVES="$("$_python" - "$_init_options_json" <<'PY'
+import json
+import sys
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as fh:
+        opts = json.load(fh)
+    value = opts.get("team_ai_directives", "") if isinstance(opts, dict) else ""
+    print(value if isinstance(value, str) else "")
+except Exception:
+    print("")
+PY
+)"
+fi
+
 # Build the managed section
 TMP_SECTION="$(mktemp)"
 trap 'rm -f "$TMP_SECTION"' EXIT
 {
   echo "$MARKER_START"
+  if [[ -n "$TEAM_DIRECTIVES" ]]; then
+    echo "## Team Directives & Constitution"
+    echo
+    echo "This project is bound by the team-ai-directives knowledge base."
+    echo "- **Strict Compliance**: You MUST check if a team-* skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately."
+    echo "- **Team Constitution**: Read and strictly adhere to the principles in \`$TEAM_DIRECTIVES/context_modules/constitution.md\`. When creating or updating the project's constitution, you MUST inherit and align with these principles."
+    echo "- **Rules & Personas**: Use the \`team-discover\` skill to find and load relevant rules or personas before making changes."
+    echo
+  fi
   echo "For additional context about technologies to be used, project structure,"
   echo "shell commands, and other important information, read the current plan"
   if [[ -n "$PLAN_PATH" ]]; then

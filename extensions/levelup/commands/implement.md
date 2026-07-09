@@ -324,7 +324,7 @@ cd "$TEAM_DIRECTIVES"
 
 if [ ! -f "AGENTS.md" ]; then
   echo "Creating AGENTS.md from template..."
-  cp ".specify/extensions/team-ai-directives/templates/agents-template.md" "AGENTS.md"
+  cp "{TEAM_DIRECTIVES}/templates/agents-template.md" "AGENTS.md"
   echo "✅ AGENTS.md created"
 else
   echo "✅ AGENTS.md already exists"

@@ -27,7 +27,6 @@ scripts:
 3. Filter out hooks where `enabled` is explicitly `false`. Treat hooks without an `enabled` field as enabled by default. Skip any hook with a non-empty `condition` and leave condition evaluation to the HookExecutor implementation.
 4. **Classify each hook by mutation risk** (inspect the `{command}` name):
    - **Read-only / discovery hooks** (safe to run before Phase B):
-     - `team-ai-directives.discover`, `team-ai-directives.constitution`
      - `agent-context.update` (read-only refresh)
      - Any command whose name contains `discover`, `verify`, `validate` (when used for read-only context gathering)
    - **Mutating hooks** (MUST be deferred until after discovery hooks):

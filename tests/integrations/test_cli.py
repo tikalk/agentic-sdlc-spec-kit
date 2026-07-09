@@ -991,6 +991,15 @@ class TestInitTeamAiDirectives:
         (kb_dir / "context_modules").mkdir()
         (kb_dir / "context_modules" / "constitution.md").write_text("# Constitution")
 
+        # Create a default skill in the knowledge base
+        (kb_dir / "skills").mkdir()
+        (kb_dir / "skills" / "dummy-skill").mkdir()
+        (kb_dir / "skills" / "dummy-skill" / "SKILL.md").write_text("---\nname: dummy-skill\ndescription: Test skill\n---")
+        (kb_dir / ".skills.json").write_text(json.dumps({
+            "version": "2.0.0",
+            "default": ["dummy-skill"]
+        }))
+
         project = tmp_path / "project"
         project.mkdir()
         old_cwd = os.getcwd()
@@ -1016,9 +1025,11 @@ class TestInitTeamAiDirectives:
         assert "team_ai_directives" in init_opts, "team_ai_directives not persisted"
         assert init_opts["team_ai_directives"] == str(kb_dir)
 
-        # Team-ai-directives extension should be installed
-        ext_yml = project / ".specify" / "extensions" / "team-ai-directives" / "extension.yml"
-        assert ext_yml.exists(), "team-ai-directives extension not installed"
+        # Default team skills should be installed from the knowledge base
+        claude_skills = project / ".claude" / "skills"
+        assert claude_skills.exists(), "Claude skills directory was not created"
+        team_skills = [f.name for f in claude_skills.iterdir() if f.name == "dummy-skill"]
+        assert len(team_skills) > 0, "No team-ai-directives skills installed"
 
         # Hooks should be registered
         extensions_yml = project / ".specify" / "extensions.yml"

@@ -449,9 +449,32 @@ if (-not $PlanPath) {
     }
 }
 
-$lines = @($MarkerStart,
-           'For additional context about technologies to be used, project structure,',
-           'shell commands, and other important information, read the current plan')
+# Resolve team-ai-directives path if configured.
+$TeamDirectives = $null
+$InitOptionsPath = Join-Path $ProjectRoot '.specify/init-options.json'
+if (Test-Path -LiteralPath $InitOptionsPath) {
+    try {
+        $initOpts = Get-Content -LiteralPath $InitOptionsPath -Raw -Encoding UTF8 | ConvertFrom-Json -ErrorAction Stop
+        if ($initOpts.PSObject.Properties['team_ai_directives'] -and $initOpts.team_ai_directives) {
+            $TeamDirectives = [string]$initOpts.team_ai_directives
+        }
+    } catch {
+        $TeamDirectives = $null
+    }
+}
+
+$lines = @($MarkerStart)
+if ($TeamDirectives) {
+    $lines += '## Team Directives & Constitution'
+    $lines += ''
+    $lines += 'This project is bound by the team-ai-directives knowledge base.'
+    $lines += '- **Strict Compliance**: You MUST check if a team-* skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately.'
+    $lines += "- **Team Constitution**: Read and strictly adhere to the principles in \`$TeamDirectives/context_modules/constitution.md\`. When creating or updating the project's constitution, you MUST inherit and align with these principles."
+    $lines += "- **Rules & Personas**: Use the \`team-discover\` skill to find and load relevant rules or personas before making changes."
+    $lines += ''
+}
+$lines += 'For additional context about technologies to be used, project structure,',
+           'shell commands, and other important information, read the current plan'
 if ($PlanPath) {
     $lines += "at $PlanPath"
 }

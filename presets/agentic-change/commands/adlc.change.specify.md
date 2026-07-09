@@ -17,7 +17,6 @@ handoffs:
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.
 4. **Classify each hook by mutation risk** (inspect the `{command}` name):
    - **Read-only / discovery hooks** (safe to run before Phase B):
-     - `team-ai-directives.discover`, `team-ai-directives.constitution`
      - `agent-context.update` (read-only refresh)
      - Any command whose name contains `discover`, `verify`, `validate` (when used for read-only context gathering)
    - **Mutating hooks** (MUST be deferred until after Mission Brief):

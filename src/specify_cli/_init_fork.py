@@ -24,7 +24,9 @@ from __future__ import annotations
 
 import json
 import os
+import platform
 import shutil
+import subprocess
 import urllib.error
 from packaging import version
 from pathlib import Path
@@ -37,10 +39,12 @@ import typer
 from ._console import BannerGroup
 
 # Cross-module imports from lower-tier fork modules
+from ._assets import _locate_bundled_extension
 from ._core_fork import (
     compute_skill_output_name,
     install_mcp_config,
 )
+from .extensions import ExtensionManager
 
 # ============================================================================
 # THEMING
@@ -464,26 +468,57 @@ def _register_bundled_catalog(project_root: Path, catalog_url: str) -> None:
         )
 
 
+def _update_agent_context(project_root: Path) -> None:
+    """Trigger the agent-context extension to refresh the managed context section.
+
+    The update script is self-guarding: it exits cleanly if the extension is
+    not installed or no context file is configured. Failures are swallowed
+    because context refresh is best-effort and should not block init.
+    """
+    ext_dir = project_root / ".specify" / "extensions" / "agent-context"
+    if not ext_dir.exists():
+        return
+
+    if platform.system() == "Windows":
+        script = ext_dir / "scripts" / "powershell" / "update-agent-context.ps1"
+        cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", str(script)]
+    else:
+        script = ext_dir / "scripts" / "bash" / "update-agent-context.sh"
+        cmd = ["bash", str(script)]
+
+    if not script.exists():
+        return
+
+    try:
+        subprocess.run(
+            cmd,
+            cwd=project_root,
+            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except Exception:
+        pass
+
+
 def sync_team_ai_directives(
     repo_url: str, project_root: Path, *, force: bool = False
 ) -> tuple[str, Path]:
     """Install bundled team-ai-directives extension and resolve knowledge base path.
 
-    The extension itself is bundled with the spec-kit CLI. The knowledge base
-    (context_modules, skills, .skills.json, CDR.md) is provided by the user
-    via --team-ai-directives as a local directory or ZIP URL.
+    The bundled ``team-ai-directives`` extension provides governance commands and
+    skills. The domain-specific knowledge base (context_modules, skills,
+    .skills.json, CDR.md) is supplied by the user via ``--team-ai-directives`` as a
+    local directory or ZIP URL.
 
     Args:
         repo_url: URL or local path to team-ai-directives knowledge base
         project_root: Project root directory
-        force: If True, remove existing team-ai-directives before reinstalling.
+        force: If True, remove existing downloaded knowledge base before re-downloading.
 
     Returns:
         Tuple of (status, knowledge_base_path) where status is "local" or "installed"
     """
-    from .extensions import ExtensionManager
-    from ._assets import _locate_bundled_extension
-
     repo_url = (repo_url or "").strip()
     if not repo_url:
         raise ValueError("Team AI directives repository URL cannot be empty")
@@ -521,6 +556,7 @@ def sync_team_ai_directives(
                 f"Invalid team-ai-directives knowledge base: {potential_path}\n"
                 f"Missing expected content (context_modules/, .skills.json, or CDR.md)"
             )
+        _update_agent_context(project_root)
         return ("local", potential_path)
 
     if repo_url.endswith(".zip") or "/archive/" in repo_url:
@@ -590,6 +626,7 @@ def sync_team_ai_directives(
                 ):
                     kb_path = subdir
 
+            _update_agent_context(project_root)
             return ("installed", kb_path)
         finally:
             if zip_path.exists():
@@ -748,11 +785,41 @@ def pre_init(
             if tracker:
                 tracker.skip("team-mcp", "no .mcp.json found")
 
-        # Install skills from knowledge base
+        # Install bundled governance skills from the team-ai-directives extension
+        if selected_ai:
+            try:
+                if tracker:
+                    tracker.start("team-governance-skills")
+                ext_path = project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+                governance_installed = _install_skills_from_path(
+                    team_directives_path=ext_path,
+                    project_path=project_path,
+                    selected_ai=selected_ai,
+                    force=False,
+                )
+                if governance_installed:
+                    if tracker:
+                        tracker.complete(
+                            "team-governance-skills", f"{len(governance_installed)} skills"
+                        )
+                    console.print(
+                        f"[dim]Installed governance skills: {', '.join(governance_installed)}[/dim]"
+                    )
+                else:
+                    if tracker:
+                        tracker.skip("team-governance-skills", "no required skills found")
+            except Exception as e:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to install governance skills: {e}"
+                )
+                if tracker:
+                    tracker.error("team-governance-skills", str(e))
+
+        # Install domain skills from knowledge base
         if directives_path and selected_ai:
             try:
                 if tracker:
-                    tracker.start("team-skills")
+                    tracker.start("team-domain-skills")
                 installed = _install_skills_from_path(
                     team_directives_path=directives_path,
                     project_path=project_path,
@@ -761,17 +828,17 @@ def pre_init(
                 )
                 if installed:
                     if tracker:
-                        tracker.complete("team-skills", f"{len(installed)} skills")
-                    console.print("[dim]Installed team-ai-directives skills[/dim]")
+                        tracker.complete("team-domain-skills", f"{len(installed)} skills")
+                    console.print("[dim]Installed team-ai-directives domain skills[/dim]")
                 else:
                     if tracker:
-                        tracker.skip("team-skills", "no required skills found")
+                        tracker.skip("team-domain-skills", "no required skills found")
             except Exception as e:
                 console.print(
-                    f"[yellow]Warning:[/yellow] Failed to install skills: {e}"
+                    f"[yellow]Warning:[/yellow] Failed to install domain skills: {e}"
                 )
                 if tracker:
-                    tracker.error("team-skills", str(e))
+                    tracker.error("team-domain-skills", str(e))
 
     except Exception as e:
         tracker.error("team-directives", str(e))
@@ -1419,13 +1486,14 @@ def _install_skills_from_path(
     selected_ai: str,
     force: bool = False,
 ) -> list[str]:
-    """Install team-ai-directives skills to agent integration directory.
+    """Install team-ai-directives default skills to agent integration directory.
 
-    Reads skills from:
-    - team-ai-directives (if configured): .specify/extensions/team-ai-directives/skills/
+    Reads the `default` skill name list from `{team_directives_path}/.skills.json`
+    and copies each skill from `{team_directives_path}/skills/{name}/SKILL.md` to
+    the agent's skills directory. Skill names are copied as-is (no prefixing).
 
     Args:
-        team_directives_path: Path to team-ai-directives extension (or None)
+        team_directives_path: Path to team-ai-directives knowledge base (or None)
         project_path: Project root
         selected_ai: Agent type (claude, windsurf, etc.)
         force: Force re-install even if skill already exists
@@ -1439,71 +1507,40 @@ def _install_skills_from_path(
     installed = []
     skills_dest = _resolve_skills_dest(project_path, selected_ai)
 
-    if team_directives_path and team_directives_path.exists():
-        team_skills_dir = team_directives_path / "skills"
-        if team_skills_dir.exists():
-            skills_json_path = team_directives_path / ".skills.json"
-            required_skills = []
-            if skills_json_path.exists():
-                try:
-                    import json
-                    with open(skills_json_path) as f:
-                        skills_data = json.load(f)
-                    required_skills = skills_data.get("skills", {}).get("required", {})
-                except Exception:
-                    pass
+    if not (team_directives_path and team_directives_path.exists()):
+        return installed
 
-            for skill_dir in team_skills_dir.iterdir():
-                if not skill_dir.is_dir():
-                    continue
-                skill_name = skill_dir.name
-                skill_md = skill_dir / "SKILL.md"
-                if not skill_md.exists():
-                    continue
-                skill_ref = f"local:./skills/{skill_name}"
-                if skill_ref not in required_skills and required_skills:
-                    continue
-                target_name = f"team-{skill_name}"
-                target_dir = skills_dest / target_name
-                target_file = target_dir / "SKILL.md"
-                if target_file.exists() and not force:
-                    continue
-                target_dir.mkdir(parents=True, exist_ok=True)
-                try:
-                    content = skill_md.read_text(encoding="utf-8")
-                    import re
-                    name_pattern = r'^(name:\s*)(["\']?)([^"\'\n]+)(["\']?)$'
-                    lines = content.splitlines()
-                    modified_lines = []
-                    in_frontmatter = False
-                    frontmatter_started = False
-                    for line in lines:
-                        stripped = line.strip()
-                        if stripped == '---':
-                            if not frontmatter_started:
-                                frontmatter_started = True
-                                in_frontmatter = True
-                            else:
-                                in_frontmatter = False
-                            modified_lines.append(line)
-                            continue
-                        if in_frontmatter and stripped.startswith('name:'):
-                            match = re.match(name_pattern, stripped)
-                            if match:
-                                original_name = match.group(3).strip()
-                                if not original_name.startswith('team-'):
-                                    new_name = f"team-{original_name}"
-                                else:
-                                    new_name = original_name
-                                indent = line[:len(line) - len(line.lstrip())]
-                                modified_lines.append(f"{indent}name: {new_name}")
-                                continue
-                        modified_lines.append(line)
-                    modified_content = '\n'.join(modified_lines)
-                    target_file.write_text(modified_content, encoding="utf-8")
-                    installed.append(target_name)
-                except Exception as e:
-                    raise Exception(f"Failed to install {target_name}: {e}")
+    team_skills_dir = team_directives_path / "skills"
+    if not team_skills_dir.exists():
+        return installed
+
+    skills_json_path = team_directives_path / ".skills.json"
+    default_skills: list[str] = []
+    if skills_json_path.exists():
+        try:
+            import json
+
+            with open(skills_json_path, encoding="utf-8") as f:
+                skills_data = json.load(f)
+            raw_default = skills_data.get("default", []) if isinstance(skills_data, dict) else []
+            default_skills = [str(name) for name in raw_default if isinstance(name, str)]
+        except Exception:
+            pass
+
+    for skill_name in default_skills:
+        skill_md = team_skills_dir / skill_name / "SKILL.md"
+        if not skill_md.exists():
+            continue
+        target_dir = skills_dest / skill_name
+        target_file = target_dir / "SKILL.md"
+        if target_file.exists() and not force:
+            continue
+        target_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            shutil.copy2(skill_md, target_file)
+            installed.append(skill_name)
+        except Exception as e:
+            raise Exception(f"Failed to install {skill_name}: {e}") from e
 
     return installed
 

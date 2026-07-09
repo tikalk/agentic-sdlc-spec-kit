@@ -2,6 +2,59 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc3] - 2026-07-09
+
+### Changed
+
+- **Team AI Directives architecture**: governance commands and skills now
+  ship as the bundled `extensions/team-ai-directives/` extension (v4.0.0)
+  with commands (`team.discover`, `team.curate`, `team.evolve`, `team.repair`,
+  `team.skills`, `team.verify`) and static governance skills
+  (`team-discover`, `team-curate`, `team-evolve`, `team-repair`, `team-skills`,
+  `team-verify`). Domain skills remain in the external knowledge base
+  (`agentic-sdlc-team-ai-directives`).
+- **Skill installation rewrite**: `_install_skills_from_path()` reads the
+  new `default` name-list from `.skills.json` (schema 2.0.0) and copies
+  skills as-is without prepending `team-`.
+- **`sync_team_ai_directives()`**: installs the bundled extension via
+  `ExtensionManager`, resolves the external knowledge base, and triggers
+  `agent-context` refresh via `_update_agent_context()`.
+- **`pre_init` skill installation split**: installs bundled governance skills
+  from the extension and domain skills from the knowledge base separately,
+  tracked as `team-governance-skills` and `team-domain-skills`.
+- **Extension manifest**: added `extensions/team-ai-directives/.skills.json`
+  v2.0.0 listing the governance skills to copy during init.
+- **Catalog & packaging**: `team-ai-directives` registered in
+  `extensions/catalog.json` and included in `pyproject.toml` wheel force-include.
+- **agent-context bootstrap**: `update-agent-context.sh`/`.ps1` inject a
+  Team Directives & Constitution block when `team_ai_directives` is
+  configured.
+- **Preset hook cleanup**: removed hardcoded `team-ai-directives.discover`/
+  `team-ai-directives.constitution` hooks from `adlc.spec.specify.md` and
+  `adlc.change.specify.md`; updated `/team.discover`->`team-discover` and
+  `/team.repair`->`team-repair` refs in levelup commands.
+- **Levelup fix**: `extensions/levelup/commands/implement.md:327` template
+  path now resolves `{TEAM_DIRECTIVES}/templates/agents-template.md`.
+
+### Removed
+
+- `team.constitution` command and skill; constitution propagation is owned
+  by the `agent-context` extension bootstrap.
+
+### Fixed
+
+- `tests/integrations/test_cli.py`: E2E init now seeds a mock skill +
+  `.skills.json` default list and asserts direct copy (no prefix).
+- `tests/test_agent_config_consistency.py`: team-context lifecycle test
+  no longer scans deleted `discover.md`.
+- `tests/test_team_directives.py`: deleted (extension-dependent tests).
+
+### Preset Bumps
+
+- agentic-sdlc: 1.6.3 -> 1.6.4
+- agentic-change: 1.5.4 -> 1.5.5
+- agentic-quick: 1.2.2 -> 1.2.3
+
 # [0.12.8+adlc2] - 2026-07-08
 
 ### Changed

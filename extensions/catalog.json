@@ -3,6 +3,39 @@
   "updated_at": "2026-07-02T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json",
   "extensions": {
+    "team-ai-directives": {
+      "id": "team-ai-directives",
+      "name": "Team AI Directives",
+      "version": "4.0.0",
+      "bundled": true,
+      "preinstall": false,
+      "description": "Bundled governance extension for team-ai-directives: discover, curate, evolve, repair, verify, and manage team skills. Governance commands and skills are bundled here; domain skills remain in the external knowledge base.",
+      "author": "Agentic SDLC Team",
+      "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
+      "homepage": "https://github.com/tikalk/agentic-sdlc-spec-kit/tree/main/extensions/team-ai-directives",
+      "download_url": "https://github.com/tikalk/agentic-sdlc-spec-kit/releases/download/{{VERSION}}/extension-team-ai-directives-{{VERSION}}.zip",
+      "license": "MIT",
+      "requires": {
+        "speckit_version": ">=0.12.0"
+      },
+      "commands": [
+        "adlc.team-ai-directives.discover",
+        "adlc.team-ai-directives.curate",
+        "adlc.team-ai-directives.evolve",
+        "adlc.team-ai-directives.repair",
+        "adlc.team-ai-directives.skills",
+        "adlc.team-ai-directives.verify"
+      ],
+      "tags": [
+        "team-ai-directives",
+        "governance",
+        "context-modules",
+        "cdr",
+        "skills"
+      ],
+      "verified": false,
+      "featured": false
+    },
     "agent-context": {
       "name": "Coding Agent Context",
       "id": "agent-context",
@@ -46,33 +79,6 @@
         "workflow",
         "core"
       ]
-    },
-    "team-ai-directives": {
-      "id": "team-ai-directives",
-      "name": "Team AI Directives",
-      "version": "1.7.5",
-      "bundled": true,
-      "preinstall": false,
-      "description": "Team-specific AI agent context, skills, and conventions for Spec-Driven Development",
-      "author": "Team",
-      "repository": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
-      "homepage": "https://github.com/tikalk/agentic-sdlc-team-ai-directives",
-      "license": "MIT",
-      "requires": {
-        "speckit_version": ">=0.3.0"
-      },
-      "commands": [
-        "adlc.team-ai-directives.verify",
-        "adlc.team-ai-directives.discover",
-        "adlc.team-ai-directives.constitution"
-      ],
-      "tags": [
-        "team-directives",
-        "context",
-        "skills"
-      ],
-      "verified": false,
-      "featured": false
     },
     "tdd": {
       "id": "tdd",

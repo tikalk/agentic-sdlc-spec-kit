@@ -357,13 +357,18 @@ This fork supports the following AI coding agents:
 
 ## Team Skills
 
-When you initialize with `--team-ai-directives`, required skills from your team's knowledge base are automatically installed to your agent's skills directory. To browse and install additional team skills (recommended, internal), use the `/team.skills` agent command:
+When you initialize with `--team-ai-directives`, the bundled governance skills
+are installed from the `team-ai-directives` extension and the domain skills
+listed in your knowledge base `.skills.json` `default[]` are copied to the
+agent's skills directory. To browse and install additional on-demand skills
+from the `external` map, use the `/team.skills` agent command:
 
 ```
 /team.skills
 ```
 
-This reads your team's `.skills.json` manifest and lets you pick which skills to install.
+This reads your team's `.skills.json` manifest and lets you pick which skills
+to install.
 
 ## 🤖 Supported AI Coding Agent Integrations
 

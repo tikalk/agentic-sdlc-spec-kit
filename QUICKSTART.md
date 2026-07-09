@@ -417,8 +417,8 @@ specify run adlc.team-ai-directives.verify
 # Auto-discover relevant context
 specify run adlc.team-ai-directives.discover
 
-# Load team constitution
-specify run adlc.team-ai-directives.constitution
+# Browse and install team skills
+specify run adlc.team-ai-directives.skills
 ```
 
 When discovery is used as part of the spec workflow, the extension-owned persisted artifact

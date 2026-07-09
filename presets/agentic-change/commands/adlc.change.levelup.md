@@ -72,7 +72,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 1. **Low friction** — Exactly 1 mandatory stop (Phase 4 User Review)
 2. **Verifiable phases** — Each phase has entry criteria, automated gate, and exit criteria
 3. **Quality gates** — Signal Gate + Conflict Detection ensure contributions are valuable and non-duplicative
-4. **Descriptor-first** — Every CDR includes a Descriptor (the search surface for `/team.discover`)
+4. **Descriptor-first** — Every CDR includes a Descriptor (the search surface for `team-discover`)
 5. **Skill companion** — Auto-detect if the directive is actionable enough for a skill; offer inline
 
 ---
@@ -194,7 +194,7 @@ If no concrete evidence, use: `- type: note
 
 ### Step 3: Generate Descriptor
 
-Write a one-line "when to use" summary derived from the Context and Decision sections. This becomes the search surface in the CDR Index table for `/team.discover`.
+Write a one-line "when to use" summary derived from the Context and Decision sections. This becomes the search surface in the CDR Index table for `team-discover`.
 
 Examples:
 - "SQL injection prevention patterns for all languages"
