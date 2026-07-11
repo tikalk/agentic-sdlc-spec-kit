@@ -22,8 +22,16 @@ DEFAULT_START="<!-- SPECKIT START -->"
 DEFAULT_END="<!-- SPECKIT END -->"
 
 if [[ ! -f "$EXT_CONFIG" ]]; then
-  echo "agent-context: $EXT_CONFIG not found; nothing to do." >&2
-  exit 0
+  # Config not created yet — self-create from the bundled template.
+  # The template is scaffolded during init; the actual config is created
+  # here (by the extension, not by the CLI) on first run.
+  _template="$PROJECT_ROOT/.specify/extensions/agent-context/agent-context-config.yml.template"
+  if [[ -f "$_template" ]]; then
+    cp "$_template" "$EXT_CONFIG"
+  else
+    echo "agent-context: $EXT_CONFIG not found and no template available; nothing to do." >&2
+    exit 0
+  fi
 fi
 
 # Locate a Python 3 interpreter with PyYAML available.

@@ -287,8 +287,22 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if not os.path.isfile(ext_config):
-        _err(f"agent-context: {ext_config} not found; nothing to do.")
-        return 0
+        # Config not created yet — self-create from the bundled template.
+        # The template is scaffolded during init; the actual config is created
+        # here (by the extension, not by the CLI) on first run.
+        template = (
+            f"{project_root}/.specify/extensions/agent-context/"
+            "agent-context-config.yml.template"
+        )
+        if os.path.isfile(template):
+            import shutil
+            shutil.copy2(template, ext_config)
+        else:
+            _err(
+                f"agent-context: {ext_config} not found and no template "
+                "available; nothing to do."
+            )
+            return 0
 
     try:
         import yaml

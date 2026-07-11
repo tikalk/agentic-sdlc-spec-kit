@@ -1,11 +1,13 @@
 # Coding Agent Context Extension Configuration
-# These values are populated automatically by `specify init` and
-# `specify integration use` / `specify integration install`.
+# This file is a template. The actual config (agent-context-config.yml) is
+# created by the extension's own update scripts on first run — never by
+# `specify init`.
 
 # Path (relative to the project root) to the default coding agent context file
 # managed by this extension (e.g. CLAUDE.md, AGENTS.md,
-# .github/copilot-instructions.md). Set automatically from the active
-# integration and regenerated during `specify init` or integration switches.
+# .github/copilot-instructions.md). When left empty, the update scripts
+# self-seed it by looking up the active integration's key in
+# agent-context-defaults.json.
 context_file: ""
 
 # Optional list of project-relative coding agent context files managed by this

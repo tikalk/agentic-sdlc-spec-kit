@@ -380,9 +380,11 @@ class SkillsIntegrationTests:
         skills_dir = i.skills_dest(project)
         assert skills_dir.is_dir(), f"Skills directory {skills_dir} not created"
 
-    def test_init_does_not_create_agent_context_config(self, tmp_path):
-        """agent-context is opt-in: init must not auto-install the extension
-        or write its config."""
+    def test_init_scaffolds_agent_context_template(self, tmp_path):
+        """agent-context: init scaffolds the config template but the CLI
+        never writes the actual config via copytree.  The extension's own
+        update script self-creates the config from the template on first
+        run (triggered from post_init)."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -398,8 +400,8 @@ class SkillsIntegrationTests:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
-        assert not ext_cfg_path.exists()
+        ext_template = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml.template"
+        assert ext_template.exists(), "init must scaffold the agent-context config template"
 
     # -- IntegrationOption ------------------------------------------------
 

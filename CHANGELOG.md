@@ -2,6 +2,42 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.8+adlc6] - 2026-07-11
+
+### Changed
+
+- **agent-context config lifecycle**: renamed `agent-context-config.yml` →
+  `agent-context-config.yml.template`. The CLI scaffolds the template during
+  init but never writes the actual config. All three update scripts (bash,
+  PowerShell, Python) now self-create the config from the template on first
+  run instead of exiting early.
+- **Init-time context seeding**: `post_init()` now calls
+  `_update_agent_context()` after extensions and presets are installed. This
+  seeds the agent context file (AGENTS.md, CLAUDE.md, etc.) with the managed
+  Spec Kit section — including the `team-discover` instruction — so the agent
+  sees it from the very first `/spec.specify` session.
+- **Auto-generate skills from `model-invocation: true` commands**: extension
+  commands with `model-invocation: true` in frontmatter are now auto-generated
+  as skills for all agent types (including non-skills agents like opencode).
+  `_register_extension_skills()` creates the agent's skills directory and
+  generates SKILL.md only for commands that opt in via `model-invocation: true`.
+- **Single source of truth in commands**: replaced thin 10-line command
+  wrappers with full-logic command files in
+  `extensions/team-ai-directives/commands/`. Deleted the separate
+  `skills/` directory and `.skills.json` — skills are now generated from
+  commands.
+- **Removed governance skill installation from `pre_init()`**: governance
+  skills are auto-generated in `post_init()` via `_register_extension_skills()`.
+  Only domain skills (from external KB) are still installed in `pre_init()`.
+- Bumped agent-context extension `1.0.0` → `1.1.0`.
+- Bumped team-ai-directives extension `4.0.0` → `4.1.0`.
+
+### Fixed
+
+- 12 CI test failures: `specify init` was creating `agent-context-config.yml`
+  via `copytree` scaffolding. The config is now created by the extension's own
+  scripts, not by CLI scaffolding.
+
 # [0.12.8+adlc5] - 2026-07-10
 
 ### Changed

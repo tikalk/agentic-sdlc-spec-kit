@@ -173,8 +173,16 @@ $ProjectRoot  = (Get-Location).Path
 $ExtConfig    = Join-Path $ProjectRoot '.specify/extensions/agent-context/agent-context-config.yml'
 
 if (-not (Test-Path -LiteralPath $ExtConfig)) {
-    Write-Warning "agent-context: $ExtConfig not found; nothing to do."
-    exit 0
+    # Config not created yet — self-create from the bundled template.
+    # The template is scaffolded during init; the actual config is created
+    # here (by the extension, not by the CLI) on first run.
+    $template = Join-Path $ProjectRoot '.specify/extensions/agent-context/agent-context-config.yml.template'
+    if (Test-Path -LiteralPath $template) {
+        Copy-Item -LiteralPath $template -Destination $ExtConfig
+    } else {
+        Write-Warning "agent-context: $ExtConfig not found and no template available; nothing to do."
+        exit 0
+    }
 }
 
 $Options = $null

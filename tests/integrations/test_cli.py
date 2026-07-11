@@ -83,14 +83,23 @@ class TestInitIntegrationFlag:
         # init must not leave any legacy agent-context keys in init-options.json
         assert "context_file" not in opts
 
-        # agent-context is fully opt-in: init must not install it or write its config
-        ext_cfg_path = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml"
-        assert not ext_cfg_path.exists(), "init must not create the agent-context extension config"
+        # agent-context: init scaffolds the extension and triggers the update
+        # script, which self-creates its config from the bundled template.
+        # The CLI never writes the config via scaffolding (copytree) — the
+        # extension's own script creates it on first run.
+        ext_template = project / ".specify" / "extensions" / "agent-context" / "agent-context-config.yml.template"
+        assert ext_template.exists(), "init must scaffold the agent-context config template"
 
         assert (project / ".specify" / "integrations" / "copilot.manifest.json").exists()
 
-        # init must not create or manage the agent context file
-        assert not (project / ".github" / "copilot-instructions.md").exists()
+        # init triggers the agent-context update script, which self-seeds the
+        # context file for the active integration (Copilot → copilot-instructions.md).
+        # The managed section should contain the SPECKIT markers.
+        copilot_ctx = project / ".github" / "copilot-instructions.md"
+        if copilot_ctx.exists():
+            content = copilot_ctx.read_text(encoding="utf-8")
+            assert "<!-- SPECKIT START -->" in content
+            assert "<!-- SPECKIT END -->" in content
 
         shared_manifest = project / ".specify" / "integrations" / "speckit.manifest.json"
         assert shared_manifest.exists()

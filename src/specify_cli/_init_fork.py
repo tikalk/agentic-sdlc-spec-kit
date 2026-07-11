@@ -536,6 +536,23 @@ def sync_team_ai_directives(
             ext_manager.install_from_directory(
                 bundled_path, speckit_version, priority=1
             )
+            # Fork: generate skills for model-invocation: true commands
+            # on non-skills agents (install_from_directory uses upstream
+            # _register_extension_skills which returns [] for non-skills).
+            ext_dir = project_root / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
+            try:
+                from .extensions import ExtensionManifest
+                manifest = ExtensionManifest(ext_dir / "extension.yml")
+                skills = _register_model_invocation_skills(
+                    project_root, manifest, ext_dir
+                )
+                if skills:
+                    ext_manager.registry.update(
+                        TEAM_DIRECTIVES_DIRNAME,
+                        {"registered_skills": skills},
+                    )
+            except Exception:
+                pass
         else:
             raise RuntimeError(
                 f"Bundled extension '{TEAM_DIRECTIVES_DIRNAME}' not found in CLI package"
@@ -786,71 +803,42 @@ def pre_init(
             if tracker:
                 tracker.skip("team-mcp", "no .mcp.json found")
 
-        # Install team AI skills (bundled governance + KB domain)
-        if selected_ai:
+        # Install team AI skills (domain skills from external knowledge base).
+        # Governance skills are now auto-generated from extension commands
+        # that have ``model-invocation: true`` during post_init() via
+        # _register_extension_skills().
+        if selected_ai and directives_path:
             try:
                 if tracker:
-                    tracker.start("team-skills", "governance + domain")
+                    tracker.start("team-skills", "domain")
 
-                governance_installed: list[str] = []
                 domain_installed: list[str] = []
-                governance_error: str | None = None
                 domain_error: str | None = None
 
-                # Bundled governance skills from the team-ai-directives extension.
-                # force=True because extension command registration creates skill
-                # wrappers with the same names; we want the real bundled skill
-                # content in the agent's skills directory.
-                ext_path = (
-                    project_path / ".specify" / "extensions" / TEAM_DIRECTIVES_DIRNAME
-                )
                 try:
-                    governance_installed = _install_skills_from_path(
-                        team_directives_path=ext_path,
+                    domain_installed = _install_skills_from_path(
+                        team_directives_path=directives_path,
                         project_path=project_path,
                         selected_ai=selected_ai,
-                        force=True,
+                        force=False,
                     )
-                    if governance_installed:
-                        console.print(
-                            f"[dim]Installed governance skills: {', '.join(governance_installed)}[/dim]"
-                        )
+                    if domain_installed:
+                        console.print("[dim]Installed team-ai-directives domain skills[/dim]")
                 except Exception as e:
-                    governance_error = str(e)
+                    domain_error = str(e)
                     console.print(
-                        f"[yellow]Warning:[/yellow] Failed to install governance skills: {e}"
+                        f"[yellow]Warning:[/yellow] Failed to install domain skills: {e}"
                     )
 
-                # Domain skills from the external knowledge base
-                if directives_path:
-                    try:
-                        domain_installed = _install_skills_from_path(
-                            team_directives_path=directives_path,
-                            project_path=project_path,
-                            selected_ai=selected_ai,
-                            force=False,
-                        )
-                        if domain_installed:
-                            console.print("[dim]Installed team-ai-directives domain skills[/dim]")
-                    except Exception as e:
-                        domain_error = str(e)
-                        console.print(
-                            f"[yellow]Warning:[/yellow] Failed to install domain skills: {e}"
-                        )
-
-                total = len(governance_installed) + len(domain_installed)
-                detail = f"governance: {len(governance_installed)}, domain: {len(domain_installed)}"
-
-                if governance_error or domain_error:
-                    error_msg = "; ".join(filter(None, [governance_error, domain_error]))
+                if domain_error:
                     if tracker:
-                        tracker.error("team-skills", error_msg)
-                elif total:
+                        tracker.error("team-skills", domain_error)
+                elif domain_installed:
                     if tracker:
-                        tracker.complete("team-skills", detail)
+                        tracker.complete("team-skills", f"domain: {len(domain_installed)}")
                 else:
                     if tracker:
-                        tracker.skip("team-skills", "no required skills found")
+                        tracker.skip("team-skills", "no domain skills found")
             except Exception as e:
                 console.print(
                     f"[yellow]Warning:[/yellow] Failed to install team AI skills: {e}"
@@ -919,6 +907,21 @@ def post_init(
     # skill directories (e.g. speckit-plan/ -> spec-plan/) without updating
     # the integration manifest that was saved during setup().
     _resync_integration_manifest(project_path, selected_ai)
+
+    # Seed the agent context file (AGENTS.md, CLAUDE.md, etc.) with the
+    # managed Spec Kit section.  The agent-context extension's update
+    # script self-creates its config from the bundled template on first
+    # run, then self-seeds the context_file from agent-context-defaults.json.
+    # This ensures the team-discover instruction is present in the context
+    # file from the very first /spec.specify session.
+    _update_agent_context(project_path)
+
+    # Seed the agent context file (e.g. AGENTS.md) with the managed Spec Kit
+    # section so the agent sees team-discover instructions from the first
+    # session.  The extension's update script self-creates its config from
+    # the bundled template on first run — the CLI never writes the config
+    # directly.
+    _update_agent_context(project_path)
 
 
 def _reconcile_rovodev_prompts(project_path: Path) -> None:
@@ -1137,6 +1140,171 @@ def _resync_integration_manifest(project_path: Path, selected_ai: str) -> None:
         pass  # best-effort; don't break init on manifest IO errors
 
 
+def _register_model_invocation_skills(
+    project_path: Path,
+    manifest: Any,
+    extension_dir: Path,
+) -> list[str]:
+    """Generate SKILL.md for extension commands with ``model-invocation: true``.
+
+    Fork-specific: on non-skills agents (opencode, Cursor, etc.) the upstream
+    ``_register_extension_skills()`` returns ``[]`` because skills mode is off.
+    This function bridges the gap by generating skills for commands that opt
+    in via ``model-invocation: true`` frontmatter, so the agent can auto-invoke
+    them without an explicit slash command.
+
+    Returns:
+        List of skill names created (for registry storage).
+    """
+    from . import load_init_options, _get_skills_dir
+    from .agents import CommandRegistrar
+    from .integrations import get_integration
+
+    opts = load_init_options(project_path)
+    if not isinstance(opts, dict):
+        return []
+    selected_ai = opts.get("ai")
+    if not isinstance(selected_ai, str) or not selected_ai:
+        return []
+
+    # Only act when skills mode is off (non-skills agents).
+    from . import resolve_active_skills_dir
+    if resolve_active_skills_dir(project_path) is not None:
+        return []
+
+    skills_dir = _get_skills_dir(project_path, selected_ai)
+    try:
+        skills_dir.mkdir(parents=True, exist_ok=True)
+    except (OSError, ValueError):
+        return []
+
+    registrar = CommandRegistrar()
+    integration = get_integration(selected_ai)
+    written: list[str] = []
+
+    for cmd_info in manifest.commands:
+        cmd_name = cmd_info["name"]
+        cmd_file_rel = cmd_info["file"]
+
+        cmd_path = Path(cmd_file_rel)
+        if cmd_path.is_absolute():
+            continue
+        try:
+            ext_root = extension_dir.resolve()
+            source_file = (ext_root / cmd_path).resolve()
+            source_file.relative_to(ext_root)
+        except (OSError, ValueError):
+            continue
+
+        if not source_file.is_file():
+            continue
+
+        # Derive skill name (same logic as _register_extension_skills).
+        try:
+            from ._core_fork import resolve_command_alias
+            resolved_name = resolve_command_alias(cmd_name, project_path)
+        except Exception:
+            resolved_name = cmd_name
+
+        if resolved_name != cmd_name:
+            from .integrations.base import _get_command_prefix
+            _pfx = _get_command_prefix()
+            for _ns in ("speckit.", "spec.", "adlc."):
+                if resolved_name.startswith(_ns):
+                    skill_name = f"{_pfx}-{resolved_name[len(_ns):].replace('.', '-')}"
+                    break
+            else:
+                skill_name = resolved_name.replace(".", "-")
+        else:
+            short_name_raw = cmd_name
+            if short_name_raw.startswith("speckit."):
+                short_name_raw = short_name_raw[len("speckit."):]
+            skill_name = f"speckit-{short_name_raw.replace('.', '-')}"
+
+        skill_subdir = skills_dir / skill_name
+        skill_file = skill_subdir / "SKILL.md"
+        if skill_file.exists() or skill_file.is_symlink():
+            continue
+
+        created_now = not skill_subdir.exists()
+        skill_subdir.mkdir(parents=True, exist_ok=True)
+
+        try:
+            content = source_file.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            if created_now:
+                try:
+                    skill_subdir.rmdir()
+                except OSError:
+                    pass
+            continue
+
+        frontmatter, body = registrar.parse_frontmatter(content)
+
+        # Only generate skills for commands with model-invocation: true.
+        if not frontmatter.get("model-invocation"):
+            if created_now:
+                try:
+                    skill_subdir.rmdir()
+                except OSError:
+                    pass
+            continue
+
+        frontmatter = registrar._adjust_script_paths(
+            frontmatter, extension_id=manifest.id
+        )
+        body = registrar.resolve_skill_placeholders(
+            selected_ai, frontmatter, body, project_path, extension_id=manifest.id
+        )
+
+        original_desc = frontmatter.get("description", "")
+        description = original_desc or f"Extension command: {cmd_name}"
+
+        frontmatter_data = registrar.build_skill_frontmatter(
+            selected_ai,
+            skill_name,
+            description,
+            f"extension:{manifest.id}",
+        )
+        registrar.apply_argument_hint(frontmatter, frontmatter_data, integration)
+        from ._utils import dump_frontmatter
+        frontmatter_text = dump_frontmatter(frontmatter_data)
+
+        try:
+            from ._core_fork import resolve_command_alias as _rca
+            short_name = _rca(cmd_name, project_path)
+        except Exception:
+            short_name = cmd_name
+        if short_name.startswith("speckit."):
+            short_name = short_name[len("speckit."):]
+        title_name = short_name.replace(".", " ").replace("-", " ").title()
+
+        skill_content = (
+            f"---\n{frontmatter_text}\n---\n\n# {title_name} Skill\n\n{body}\n"
+        )
+        if integration is not None and hasattr(integration, "post_process_skill_content"):
+            skill_content = integration.post_process_skill_content(skill_content)
+        try:
+            from . import inject_model_invocation_flag
+            skill_content = inject_model_invocation_flag(
+                skill_content, frontmatter, selected_ai
+            )
+        except Exception:
+            pass
+
+        try:
+            skill_file.write_text(skill_content, encoding="utf-8")
+            written.append(skill_name)
+        except (OSError, ValueError):
+            if created_now:
+                try:
+                    skill_subdir.rmdir()
+                except OSError:
+                    pass
+
+    return written
+
+
 def _install_bundled_extensions(
     project_path: Path,
     selected_ai: str,
@@ -1267,6 +1435,12 @@ def _install_bundled_extensions(
                         registered_skills = manager._register_extension_skills(
                             manifest, ext_dir
                         )
+                        # Fork: on non-skills agents, generate skills for
+                        # commands with model-invocation: true.
+                        if not registered_skills:
+                            registered_skills = _register_model_invocation_skills(
+                                project_path, manifest, ext_dir
+                            )
 
                         # Register hooks (creates/updates .specify/extensions.yml)
                         hook_executor.register_hooks(manifest)
@@ -1297,6 +1471,12 @@ def _install_bundled_extensions(
             )
 
             registered_skills = manager._register_extension_skills(manifest, ext_dir)
+            # Fork: on non-skills agents, generate skills for
+            # commands with model-invocation: true.
+            if not registered_skills:
+                registered_skills = _register_model_invocation_skills(
+                    project_path, manifest, ext_dir
+                )
 
             # Register hooks (creates/updates .specify/extensions.yml)
             hook_executor.register_hooks(manifest)
