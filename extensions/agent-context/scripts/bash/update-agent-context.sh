@@ -374,9 +374,9 @@ trap 'rm -f "$TMP_SECTION"' EXIT
     echo "## Team Directives & Constitution"
     echo
     echo "This project is bound by the team-ai-directives knowledge base."
-    echo "- **Strict Compliance**: You MUST check if a team-* skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately."
+    echo "- **Strict Compliance**: You MUST check if a skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately."
     echo "- **Team Constitution**: Read and strictly adhere to the principles in \`$TEAM_DIRECTIVES/context_modules/constitution.md\`. When creating or updating the project's constitution, you MUST inherit and align with these principles."
-    echo "- **Rules & Personas**: Use the \`team-discover\` skill to find and load relevant rules or personas before making changes."
+    echo "- **Rules, Personas & Examples**: Use the \`team-discover\` skill to find and load relevant rules, personas, or examples before making changes."
     echo
   fi
   echo "For additional context about technologies to be used, project structure,"

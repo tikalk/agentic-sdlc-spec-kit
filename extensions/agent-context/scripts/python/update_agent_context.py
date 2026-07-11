@@ -185,9 +185,45 @@ def _resolve_plan_path(project_root: str) -> str:
     return plan_path
 
 
-def _build_section(marker_start: str, marker_end: str, plan_path: str) -> str:
-    lines = [
-        marker_start,
+def _resolve_team_directives(project_root: str) -> str:
+    """Resolve the team-ai-directives knowledge-base path from init-options.json.
+
+    Mirrors the bash and PowerShell twins: reads the ``team_ai_directives``
+    key from ``.specify/init-options.json``. Returns an empty string when
+    the file is missing, unreadable, or the key is absent — the caller
+    treats empty as "no team directives configured" and omits the managed
+    Team Directives section.
+    """
+    init_opts = Path(project_root) / ".specify" / "init-options.json"
+    if not init_opts.is_file():
+        return ""
+    try:
+        with open(init_opts, "r", encoding="utf-8") as fh:
+            opts = json.load(fh)
+        value = opts.get("team_ai_directives", "") if isinstance(opts, dict) else ""
+        return value if isinstance(value, str) else ""
+    except Exception:
+        return ""
+
+
+def _build_section(
+    marker_start: str,
+    marker_end: str,
+    plan_path: str,
+    team_directives: str = "",
+) -> str:
+    lines = [marker_start]
+    if team_directives:
+        lines += [
+            "## Team Directives & Constitution",
+            "",
+            "This project is bound by the team-ai-directives knowledge base.",
+            "- **Strict Compliance**: You MUST check if a skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately.",
+            f"- **Team Constitution**: Read and strictly adhere to the principles in `{team_directives}/context_modules/constitution.md`. When creating or updating the project's constitution, you MUST inherit and align with these principles.",
+            "- **Rules, Personas & Examples**: Use the `team-discover` skill to find and load relevant rules, personas, or examples before making changes.",
+            "",
+        ]
+    lines += [
         "For additional context about technologies to be used, project structure,",
         "shell commands, and other important information, read the current plan",
     ]
@@ -351,7 +387,8 @@ def main(argv: list[str] | None = None) -> int:
     if not plan_path:
         plan_path = _resolve_plan_path(project_root)
 
-    section = _build_section(marker_start, marker_end, plan_path)
+    team_directives = _resolve_team_directives(project_root)
+    section = _build_section(marker_start, marker_end, plan_path, team_directives)
 
     for context_file in context_files:
         ctx_path = os.path.join(project_root, context_file)

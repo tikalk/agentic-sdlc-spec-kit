@@ -2,6 +2,24 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.11+adlc2] - 2026-07-12
+
+### Changed
+
+- **agent-context Python parity**: Ported the "Team Directives & Constitution"
+  managed section to `update_agent_context.py`. The Python script previously
+  only wrote the plan path — the bash and PowerShell twins also emitted a
+  3-bullet team-directives block when `team_ai_directives` was configured.
+  Added `_resolve_team_directives()` to read the path from
+  `.specify/init-options.json`.
+- **Managed section coverage**: Broadened the managed section text in all 3
+  script variants (bash, PowerShell, Python):
+  - "team-* skill" → "skill" (covers domain skills installed during init,
+    not just governance `team-*` skills)
+  - "rules or personas" → "rules, personas, or examples" (matches
+    `team.discover` actual scope: personas, rules, examples, skills)
+- Bumped agent-context extension 1.1.0 → 1.2.0.
+
 # [0.12.11+adlc1] - 2026-07-11
 
 ### Changed
