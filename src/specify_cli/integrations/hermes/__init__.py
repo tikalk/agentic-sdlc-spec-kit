@@ -25,7 +25,7 @@ except ImportError:
         return cmd
     COMMAND_PREFIX = "speckit"
 
-from ..base import IntegrationOption, SkillsIntegration
+from ..base import IntegrationOption, SkillsIntegration, yaml_quote
 from ..manifest import IntegrationManifest
 
 
@@ -164,20 +164,18 @@ class HermesIntegration(SkillsIntegration):
             if not description:
                 description = f"Spec Kit: {command_name} workflow"
 
-            # Build SKILL.md with manually formatted frontmatter
-            def _quote(v: str) -> str:
-                escaped = v.replace("\\", "\\\\").replace('"', '\\"')
-                return f'"{escaped}"'
-
+            # Build SKILL.md with manually formatted frontmatter. yaml_quote
+            # escapes newlines and control characters that a plain quoted
+            # f-string cannot carry.
             skill_content = (
                 f"---\n"
-                f"name: {_quote(skill_name)}\n"
-                f"description: {_quote(description)}\n"
+                f"name: {yaml_quote(skill_name)}\n"
+                f"description: {yaml_quote(description)}\n"
                 f"compatibility: "
-                f"{_quote('Requires spec-kit project structure with .specify/ directory')}\n"
+                f"{yaml_quote('Requires spec-kit project structure with .specify/ directory')}\n"
                 f"metadata:\n"
-                f"  author: {_quote('github-spec-kit')}\n"
-                f"  source: {_quote('templates/commands/' + src_file.name)}\n"
+                f"  author: {yaml_quote('github-spec-kit')}\n"
+                f"  source: {yaml_quote('templates/commands/' + src_file.name)}\n"
                 f"---\n"
                 f"{processed_body}"
             )

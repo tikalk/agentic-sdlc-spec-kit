@@ -65,6 +65,7 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.11+adlc1 | 2026-07-11 | 0.12.11 (`1be42992`) | Upstream merge (30 commits, 3 releases 0.12.9–0.12.11): invoke_separator parse-success fix (#3304), Windows Store python3 stub skip + `_interpreter_runs()` probe (#3385), SKILL.md frontmatter control char escape via `yaml_quote()` (#3399), chained expression filters left-to-right refactor (#3339), `refresh_shared_templates` preserves recovered files (#3378), Goose yaml skill placeholder resolution (#3374), bundled version pin enforcement (#3377), integration test home isolation (#3144), `py:` script type in command templates (#3403), configurable shell step timeout (#3404), find plans in nested spec directories (#3405), plan.md phase numbering fix (#3416), PowerShell `-Number 0` honor via `ContainsKey` (#3412), workflow.yml non-string scalar validation (#3421), plan-template.md self-referencing path fix (#3417), pre-commit config + trailing whitespace cleanup (#3430), malformed URL error handling (#3433/#3435/#3437), agent-context nested plan.md discovery (#3301), community catalog additions (EARS, Figma). 9 conflicts resolved: `pyproject.toml` (version), `integrations/base.py` (fork `_get_command_prefix`/`_build_preset_command_placeholder_map` + upstream `yaml_quote`/`_interpreter_runs`), `agents.py` (fork `_skip_primary` restructure + upstream Goose yaml `resolve_skill_placeholders`/`_convert_argument_placeholder`), `forge/__init__.py` (fork `spec-` prefix + alias resolution vs upstream `speckit-`), `hermes/__init__.py` (fork `resolve_command_alias` import + upstream `yaml_quote` import), `create-new-feature-branch.ps1` (fork `-IssueToken` param + upstream `ContainsKey('Number')` fix), `test_git_extension.py` (fork e2e Jira tests + upstream `--number 0` test), `test_base.py` (platform pin comments), `test_integration_devin.py` (fork `_skill_prefix()` vs upstream `speckit-`). Template-to-preset alignment: added `py:` script lines to 6 preset commands (analyze, checklist, clarify, converge, implement, tasks), removed stale "Phase 1: Update agent context" from `adlc.spec.plan.md`, fixed "Phase 2 planning" → "Phase 1 design". Pre-merge fix: wrapped bare `make_typer` import in `integrations/_commands.py` with try/except fallback. Test fixes: agent-context config template path (`.yml` → `.yml.template`), bundler pin version (1.0.0 → 1.1.0), python parity error message assertion. |
 | 0.12.8+adlc6 | 2026-07-11 | 0.12.9.dev0 (`a7b43917`) | agent-context config lifecycle: renamed `agent-context-config.yml` → `.template` (CLI scaffolds template, not config); update scripts (bash/ps1/python) self-create config from template on first run; `post_init()` calls `_update_agent_context()` to seed AGENTS.md with managed section (team-discover instruction) during init. Auto-generate skills from `model-invocation: true` commands: `_register_extension_skills()` now creates skills for opted-in commands on all agent types (including non-skills agents like opencode). Replaced thin command wrappers with full-logic command files in `extensions/team-ai-directives/commands/`. Deleted `skills/` directory and `.skills.json` — single source of truth in commands. Removed governance skill installation from `pre_init()` (auto-generated in `post_init()`). Bumped agent-context extension 1.0.0 → 1.1.0, team-ai-directives extension 4.0.0 → 4.1.0. Fixed 12 CI test failures. |
 | 0.12.8+adlc5 | 2026-07-10 | 0.12.9.dev0 (`a7b43917`) | `team-discover` skill now user-invocable. `agent-context` extension pre-installed (`preinstall: true` in catalog.json). `--help` theming: patched Typer's `rich_utils._get_rich_console` to return fork Console + overrode `STYLE_*` constants with accent color. Renamed "Team AI mcp setup" → "Team AI MCP setup". |
 | 0.12.8+adlc4 | 2026-07-09 | 0.12.9.dev0 (`a7b43917`) | UI polish: merged `team-governance-skills` and `team-domain-skills` tracker steps into single `Install Team AI skills` step with `governance: N, domain: M` detail. Removed trailing whitespace in `tests/integrations/test_cli.py`. |
@@ -495,6 +496,45 @@ The `templates/` directory (core command templates, spec/plan/tasks templates, v
 **Rationale**: All fork-specific command behavior (Phase A/B hooks, Mission Brief approval, branch_template integration, Next Step handovers, semantic theming) lives in the **preset** command files under `presets/agentic-*/commands/`. The core `templates/commands/*.md` files are the upstream baseline installed for all users; fork features layer on top via presets.
 
 **During upstream merges**: Accept all upstream changes to `templates/` without modification. Do not apply fork-specific changes (hook prefix `spec-...`, double-brace escaping, Phase A/B rewrites, Next Step blocks) to `templates/` — those belong only in `presets/agentic-*/commands/`.
+
+#### Template-to-Preset Alignment
+
+Since `agentic-sdlc` preset commands are **full textual copies** (not deltas) of upstream templates, upstream template changes do NOT auto-propagate to presets. After accepting upstream `templates/` changes, port relevant changes to the corresponding preset command files.
+
+**Alignment map** (upstream template → preset command that `replaces:` it):
+
+| Upstream template | Preset command |
+|---|---|
+| `templates/commands/analyze.md` | `presets/agentic-sdlc/commands/adlc.spec.analyze.md` |
+| `templates/commands/checklist.md` | `presets/agentic-sdlc/commands/adlc.spec.checklist.md` |
+| `templates/commands/clarify.md` | `presets/agentic-sdlc/commands/adlc.spec.clarify.md` |
+| `templates/commands/constitution.md` | `presets/agentic-sdlc/commands/adlc.spec.constitution.md` |
+| `templates/commands/converge.md` | `presets/agentic-sdlc/commands/adlc.spec.converge.md` |
+| `templates/commands/implement.md` | `presets/agentic-sdlc/commands/adlc.spec.implement.md` |
+| `templates/commands/plan.md` | `presets/agentic-sdlc/commands/adlc.spec.plan.md` |
+| `templates/commands/specify.md` | `presets/agentic-sdlc/commands/adlc.spec.specify.md` |
+| `templates/commands/tasks.md` | `presets/agentic-sdlc/commands/adlc.spec.tasks.md` |
+| `templates/plan-template.md` | `presets/agentic-sdlc/templates/plan-template.md` |
+| `templates/spec-template.md` | `presets/agentic-sdlc/templates/spec-template.md` |
+| `templates/tasks-template.md` | `presets/agentic-sdlc/templates/tasks-template.md` |
+| `templates/checklist-template.md` | `presets/agentic-sdlc/templates/checklist-template.md` |
+| `templates/constitution-template.md` | `presets/agentic-sdlc/templates/constitution-template.md` |
+
+**Key areas to port**:
+- **`scripts:` frontmatter** — new script types (`py:`), flag changes
+- **Phase structure** — added/removed/renamed phases
+- **Hook invocation format** — `EXECUTE_COMMAND` block changes
+- **Path conventions** — `__SPECKIT_COMMAND_*__` placeholder additions/removals
+- **Handoff agents** — `speckit.*` agent references (fork renames to `adlc.spec.*`)
+
+**Verification command** (run after porting):
+```bash
+for cmd in analyze checklist clarify constitution converge implement plan specify tasks; do
+  echo "=== $cmd ==="
+  diff <(grep -v '^$\|^[[:space:]]*#' templates/commands/$cmd.md) \
+       <(grep -v '^$\|^[[:space:]]*#' presets/agentic-sdlc/commands/adlc.spec.$cmd.md) | head -20
+done
+```
 
 ## What Lives in the Fork Modules
 

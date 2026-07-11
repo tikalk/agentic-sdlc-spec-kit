@@ -2,6 +2,39 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.11+adlc1] - 2026-07-11
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit upstream 0.12.11 (30 commits,
+  3 releases: 0.12.9, 0.12.10, 0.12.11).
+  - invoke_separator parse-success fix (#3304)
+  - Windows Store python3 stub skip + `_interpreter_runs()` probe (#3385)
+  - SKILL.md frontmatter control char escape via `yaml_quote()` (#3399)
+  - Chained expression filters left-to-right refactor (#3339)
+  - `refresh_shared_templates` preserves recovered files (#3378)
+  - Goose yaml skill placeholder resolution (#3374)
+  - Bundled version pin enforcement (#3377)
+  - Integration test home isolation (#3144)
+  - `py:` script type in command templates (#3403)
+  - Configurable shell step timeout (#3404)
+  - Find plans in nested spec directories (#3405)
+  - plan.md phase numbering fix (#3416)
+  - PowerShell `-Number 0` honor via `ContainsKey` (#3412)
+  - workflow.yml non-string scalar validation (#3421)
+  - plan-template.md self-referencing path fix (#3417)
+  - pre-commit config + trailing whitespace cleanup (#3430)
+  - Malformed URL error handling (#3433/#3435/#3437)
+  - Agent-context nested plan.md discovery (#3301)
+  - Community catalog additions (EARS, Figma) (#3407/#3408)
+- **Template-to-preset alignment**: ported `py:` script lines to 6 preset
+  commands (analyze, checklist, clarify, converge, implement, tasks). Removed
+  stale "Phase 1: Update agent context" from `adlc.spec.plan.md`. Fixed "Phase 2
+  planning" → "Phase 1 design" in plan preset.
+- **Pre-merge fix**: wrapped bare `make_typer` import in
+  `integrations/_commands.py` with try/except fallback.
+- 9 merge conflicts resolved manually.
+
 # [0.12.8+adlc6] - 2026-07-11
 
 ### Changed
@@ -3619,6 +3652,51 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.11] - 2026-07-10
+
+### Changed
+
+- fix(agent-context): discover nested plan.md in scoped layouts (#3024) (#3301)
+- fix(auth): return no matches, not raw ValueError, for a malformed URL (#3437)
+- fix(catalogs): raise catalog error, not raw ValueError, on a malformed URL (#3435)
+- fix(bundler): raise BundlerError, not raw ValueError, on a malformed catalog URL (#3433)
+- chore: add pre-commit config and fix trailing whitespace/end-of-file (#3430)
+- Add EARS Requirements Syntax extension to community catalog (#3407)
+- Add Spec Kit Figma extension to community catalog (#3408)
+- fix(workflows): report validation errors instead of crashing on non-string workflow.yml scalars (#3421)
+- fix(templates): remove self-referencing path in plan-template.md note (#3417)
+- chore: release 0.12.10, begin 0.12.11.dev0 development (#3453)
+
+## [0.12.10] - 2026-07-10
+
+### Changed
+
+- chore(deps): bump astral-sh/setup-uv from 8.2.0 to 8.3.2 (#3439)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#3438)
+- fix(templates): correct phase numbering in plan.md (#3416)
+- fix(git-ext): honor explicit -Number 0 in PowerShell branch creation (#3412)
+- docs: add 'spectatui' entry to friends.md (#3362)
+- test: pin interpreter probe so py-template render test passes on Windows (#3428)
+- feat(workflows): make shell step timeout configurable (#3404)
+- fix: find plans in nested spec directories (#3405)
+- feat(templates): add py: lines to command templates' scripts frontmatter (#3403)
+- chore: release 0.12.9, begin 0.12.10.dev0 development (#3426)
+
+## [0.12.9] - 2026-07-09
+
+### Changed
+
+- fix(integrations): skip Windows Store python3 alias stub in resolve_python_interpreter (#3385)
+- fix(integrations): escape control characters in SKILL.md frontmatter (#3399)
+- fix(workflows): apply chained expression filters left-to-right (#3339)
+- fix(scripts): resolve invoke_separator by parse success, not python3 availability (#3304) (#3320)
+- fix(shared-infra): refresh_shared_templates preserves recovered user files (#3378)
+- fix(agents): resolve skill placeholders in Goose (yaml) command output (#3374)
+- fix(bundler): enforce version pin on bundled preset/extension installs (#3377)
+- Update Golden Demo extension to v0.3.0 (#3394)
+- test: isolate integration test home (#3144)
+- chore: release 0.12.8, begin 0.12.9.dev0 development (#3410)
 
 ## [0.12.8] - 2026-07-08
 

@@ -366,7 +366,7 @@ def test_python_missing_config_matching_bash(tmp_path: Path) -> None:
 
     assert_parity(bash, py, repo_a, repo_b)
     assert py.returncode == 0
-    assert "not found; nothing to do." in py.stderr
+    assert "not found" in py.stderr and "nothing to do." in py.stderr
 
 
 @requires_posix_bash

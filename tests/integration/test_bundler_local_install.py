@@ -81,7 +81,7 @@ def test_install_bundled_extension_from_zip_offline(tmp_path: Path):
                 },
                 "requires": {"speckit_version": ">=0.1.0"},
                 "provides": {
-                    "extensions": [{"id": "agent-context", "version": "1.0.0"}]
+                    "extensions": [{"id": "agent-context", "version": "1.1.0"}]
                 },
             }
         ),

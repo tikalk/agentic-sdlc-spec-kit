@@ -653,6 +653,9 @@ if ($env:GIT_BRANCH_NAME) {
     # Validate template now that issue token is resolved.
     Assert-BranchTemplateValid -Template $branchTemplate -IssueToken $issueToken
 
+    # Warn if -Number and -Timestamp are both specified. Use ContainsKey (not
+    # `-ne 0`) so an explicit `-Number 0` is also detected, matching the bash twin's
+    # `[ -n "$BRANCH_NUMBER" ]` check.
     if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
         Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
         $Number = 0
@@ -663,7 +666,10 @@ if ($env:GIT_BRANCH_NAME) {
         $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $branchSuffix -IssueToken $issueToken
     } else {
         $branchScopePrefix = Get-BranchScopePrefix -Template $branchTemplate -BranchSuffix $branchSuffix -IssueToken $issueToken
-        if (-not $PSBoundParameters.ContainsKey('Number') -or $Number -eq 0) {
+        # Auto-detect the next number only when -Number was not supplied; an
+        # explicit value (including 0) is honored, matching the bash twin's
+        # `[ -z "$BRANCH_NUMBER" ]` check.
+        if (-not $PSBoundParameters.ContainsKey('Number')) {
             if ($DryRun -and $hasGit) {
                 $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
             } elseif ($DryRun) {

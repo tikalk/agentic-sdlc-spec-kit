@@ -18,15 +18,15 @@ from ..manifest import IntegrationManifest
 
 def format_forge_command_name(cmd_name: str) -> str:
     """Convert command name to Forge-compatible hyphenated format.
-    
+
     Forge requires command names to use hyphens instead of dots for
     compatibility with ZSH and other shells. This function converts
     dot-notation command names to hyphenated format.
-    
+
     Uses alias map to resolve fork command names to their canonical form.
-    
+
     The function is idempotent: already-formatted names are returned unchanged.
-    
+
     Examples:
         >>> format_forge_command_name("plan")
         'spec-plan'
@@ -40,29 +40,29 @@ def format_forge_command_name(cmd_name: str) -> str:
         'spec-my-extension-example'
         >>> format_forge_command_name("spec.jira.sync-status")
         'spec-jira-sync-status'
-    
+
     Args:
-        cmd_name: Command name in dot notation (speckit.foo.bar), 
+        cmd_name: Command name in dot notation (speckit.foo.bar),
                   hyphenated format (speckit-foo-bar), or plain name (foo)
-    
+
     Returns:
         Hyphenated command name using alias form (spec-*)
     """
     # Already in hyphenated format with spec- prefix - return as-is
     if cmd_name.startswith("spec-"):
         return cmd_name
-    
+
     # Already in hyphenated format with speckit- prefix - convert to spec-
     if cmd_name.startswith("speckit-"):
         return cmd_name.replace("speckit-", "spec-", 1)
-    
+
     # Use alias map to resolve to canonical form, then hyphenate
     try:
         from ..._core_fork import resolve_command_alias
         resolved = resolve_command_alias(cmd_name)
     except Exception:
         resolved = cmd_name
-    
+
     return resolved.replace(".", "-")
 
 
