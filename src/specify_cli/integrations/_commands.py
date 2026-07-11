@@ -4,7 +4,13 @@ from __future__ import annotations
 import typer
 
 from .._assets import get_speckit_version  # noqa: F401 — re-exported for monkeypatching in tests
-from .._init_fork import make_typer
+
+try:
+    from .._init_fork import make_typer
+except ImportError:
+    def make_typer(*, name: str | None = None, help: str | None = None, **kwargs):
+        kwargs.setdefault("add_completion", False)
+        return typer.Typer(name=name, help=help, **kwargs)
 
 # Re-export helpers used by commands/init.py and tests
 from ._helpers import (  # noqa: F401
