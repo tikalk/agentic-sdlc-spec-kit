@@ -6,6 +6,7 @@ from specify_cli.agents import CommandRegistrar
 from specify_cli.integrations import get_integration
 from specify_cli.integrations.manifest import IntegrationManifest
 
+from tests.conftest import _cmd_prefix
 from .test_integration_base_markdown import MarkdownIntegrationTests
 
 
@@ -196,4 +197,4 @@ class TestOpencodeIntegration(MarkdownIntegrationTests):
         legacy = tmp_path / ".opencode" / "command"
         assert canonical.is_dir()
         assert not legacy.exists()
-        assert any(canonical.glob("speckit.*.md"))
+        assert any(canonical.glob(f"{_cmd_prefix()}.*.md"))
