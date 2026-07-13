@@ -10,7 +10,7 @@
 - `spec.taskstoissues` (alias of `adlc.spec.taskstoissues`)
 
 It reads a config file to determine target backend, then branches to provider-specific issue creation instructions — all within a single template file.
-**Success Criteria**: All four target providers (GitHub, GitLab, Linear, Jira) can create issues from `tasks.md`. Backward-compatible default to GitHub. No template proliferation.  
+**Success Criteria**: All four target providers (GitHub, GitLab, Linear, Jira) can create issues from `tasks.md`. Backward-compatible default to GitHub. No template proliferation.
 **Constraints**: Must not break existing GitHub-only users. Must not depend on new extension system features. Must work with both MCP-based and REST-based providers. Single `.md` file — no template fragments.
 
 ## Demo Sentence *(mandatory)*
