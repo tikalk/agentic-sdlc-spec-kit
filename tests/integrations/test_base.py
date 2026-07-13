@@ -62,8 +62,7 @@ class TestIntegrationBase:
         assert len(created) > 0
         for f in created:
             assert f.parent == tmp_path / ".stub" / "commands"
-            # Fork uses "spec." prefix (except taskstoissues which keeps "speckit.")
-            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
+            assert f.name.startswith("spec."), f"Unexpected filename: {f.name}"
             assert f.name.endswith(".md")
 
     def test_setup_copies_templates(self, tmp_path, monkeypatch):
@@ -132,8 +131,7 @@ class TestBasePrimitives:
         i = StubIntegration()
         # Fork uses "spec" prefix instead of "speckit"
         assert i.command_filename("plan") == "spec.plan.md"
-        # taskstoissues keeps speckit prefix (special case)
-        assert i.command_filename("taskstoissues") == "speckit.taskstoissues.md"
+        assert i.command_filename("taskstoissues") == "spec.taskstoissues.md"
 
     def test_commands_dest(self, tmp_path):
         i = StubIntegration()
@@ -176,8 +174,7 @@ class TestBasePrimitives:
         assert len(created) > 0
         for f in created:
             assert f.parent.name == "commands"
-            # Fork uses "spec." prefix (except taskstoissues which uses "speckit.")
-            assert f.name.startswith("spec.") or f.name.startswith("speckit."), f"Unexpected filename: {f.name}"
+            assert f.name.startswith("spec."), f"Unexpected filename: {f.name}"
             assert f.name.endswith(".md")
 
 

@@ -67,7 +67,7 @@ class MarkdownIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            # Most files use the fork prefix, but core commands like taskstoissues
+            # Most files use the fork prefix, but core commands
             # retain the upstream speckit prefix.
             assert f.name.startswith(f"{pfx}.") or f.name.startswith("speckit."), (
                 f"Unexpected filename: {f.name}"
@@ -239,8 +239,8 @@ class MarkdownIntegrationTests:
         # Command files
         pfx = _cmd_prefix()
         for stem in self.COMMAND_STEMS:
-            # taskstoissues and agent-context.update keep the speckit prefix
-            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            # agent-context.update keeps the speckit prefix (extension command)
+            stem_pfx = "speckit" if stem in ("agent-context.update",) else pfx
             files.append(f"{cmd_dir}/{stem_pfx}.{stem}.md")
 
         # Framework files

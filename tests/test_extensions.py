@@ -7659,10 +7659,12 @@ class TestHookCommandNormalization:
 
     def test_normalize_hook_command_id_without_alias(self, tmp_path):
         """Command id without alias should remain unchanged."""
+        from tests.conftest import install_preset_to
         from specify_cli._core_fork import normalize_hook_command_id
 
-        result = normalize_hook_command_id("speckit.taskstoissues", tmp_path)
-        assert result == "speckit.taskstoissues"
+        install_preset_to(tmp_path)
+        result = normalize_hook_command_id("speckit.agent-context.update", tmp_path)
+        assert result == "speckit.agent-context.update"
 
     def test_normalize_hook_command_id_already_alias(self, tmp_path):
         """Alias-form command id should remain unchanged."""
@@ -7785,10 +7787,12 @@ class TestSkillNameFromCommandAliasForm:
 
     def test_skill_name_from_unaliased_command(self, tmp_path):
         """Unaliased command should keep upstream behavior."""
+        from tests.conftest import install_preset_to
         from specify_cli.extensions import HookExecutor
 
-        result = HookExecutor._skill_name_from_command("speckit.taskstoissues", tmp_path)
-        assert result == "speckit-taskstoissues"
+        install_preset_to(tmp_path)
+        result = HookExecutor._skill_name_from_command("speckit.agent-context.update", tmp_path)
+        assert result == "speckit-agent-context-update"
 
 
 def test_extension_wrapper_resolves_ghes_asset_when_host_configured(tmp_path, monkeypatch):

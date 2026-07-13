@@ -218,7 +218,7 @@ class TestRovodevIntegration:
         project = rovodev_init_project
         impl = get_integration(self.KEY)
         # Core skills use alias-aware names: spec-<name> for aliased commands,
-        # speckit-<name> for commands without a fork alias (e.g. taskstoissues).
+        # speckit-<name> for commands without a fork alias.
         core_skill_names = {
             f"{_skill_prefix(t.stem, project_root=project)}-{t.stem.replace('.', '-')}"
             for t in impl.list_command_templates()

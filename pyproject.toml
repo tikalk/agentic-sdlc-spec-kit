@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.12.11+adlc2"
+version = "0.12.11+adlc3"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -51,6 +51,7 @@ packages = ["src/specify_cli"]
 "templates/tasks-template.md" = "specify_cli/core_pack/templates/tasks-template.md"
 "templates/vscode-settings.json" = "specify_cli/core_pack/templates/vscode-settings.json"
 "templates/commands" = "specify_cli/core_pack/commands"
+"templates/configs" = "specify_cli/core_pack/configs"
 "scripts/bash" = "specify_cli/core_pack/scripts/bash"
 "scripts/powershell" = "specify_cli/core_pack/scripts/powershell"
 # Bundled extensions (installable via `specify extension add <name>`)

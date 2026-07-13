@@ -2,6 +2,30 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.11+adlc3] - 2026-07-13
+
+### Changed
+
+- **Multi-provider taskstoissues**: Replaced the GitHub-hardcoded
+  `taskstoissues` command with a provider-agnostic version registered as
+  `adlc.spec.taskstoissues` (alias `spec.taskstoissues`) in the agentic-sdlc
+  preset. Supports GitHub, GitLab, Linear, and Jira via a single command
+  template with provider dispatch. The command discovers available MCP
+  servers, CLI tools, and env-var credentials at runtime.
+- **Removed `speckit.` prefix special case**: `command_filename()` in
+  `base.py` no longer special-cases `taskstoissues` — it returns
+  `spec.taskstoissues.md` like all other commands. Existing projects must run
+  `specify init --force` to upgrade.
+- **Config template scaffolding**: Added `shared_configs_dir()` to
+  `IntegrationBase`. `_install_taskstoissues_config()` in `_init_fork.py`
+  copies `taskstoissues-provider.yml` to `.specify/` during init. Added
+  `templates/configs` to wheel force-include in `pyproject.toml`.
+- **Spec simplification**: Removed FR-006/007/013/014 (CLI flags, setup
+  subcommand, auth providers, `specify check` validation) from the spec.
+  Auth is handled by the agent at runtime via env vars and tool discovery.
+- Updated 10 test files to reflect the prefix change.
+- Bumped agentic-sdlc preset 1.6.4 → 1.6.5.
+
 # [0.12.11+adlc2] - 2026-07-12
 
 ### Changed

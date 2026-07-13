@@ -77,7 +77,7 @@ class YamlIntegrationTests:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         for f in cmd_files:
             assert f.exists()
-            # Fork uses spec.* prefix instead of speckit.* (except taskstoissues)
+            # Fork uses spec.* prefix instead of speckit.*
             assert f.name.startswith(("speckit.", "spec.")), f"{f.name} should start with 'speckit.' or 'spec.'"
             assert f.name.endswith(".yaml")
 
@@ -373,14 +373,14 @@ class YamlIntegrationTests:
         cmd_dir = i.registrar_config["dir"]
         files = []
 
-        # Fork uses spec.* prefix instead of speckit.* (except taskstoissues
-        # and agent-context.update which keep the speckit prefix)
+        # Fork uses spec.* prefix instead of speckit.* (except agent-context.update
+        # which keeps the speckit prefix as an extension command)
         from tests.conftest import _cmd_prefix
         pfx = _cmd_prefix()
         
         # Command files (.yaml)
         for stem in self.COMMAND_STEMS:
-            stem_pfx = "speckit" if stem in ("taskstoissues", "agent-context.update") else pfx
+            stem_pfx = "speckit" if stem in ("agent-context.update",) else pfx
             files.append(f"{cmd_dir}/{stem_pfx}.{stem}.yaml")
 
         # Framework files

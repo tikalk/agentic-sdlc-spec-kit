@@ -516,6 +516,23 @@ class IntegrationBase(ABC):
                 return candidate
         return None
 
+    def shared_configs_dir(self) -> Path | None:
+        """Return path to the shared config templates directory.
+
+        Contains ``taskstoissues-provider.yml`` and other config templates.
+        Checks ``core_pack/configs/`` then ``templates/configs/``.
+        """
+        import inspect
+
+        pkg_dir = Path(inspect.getfile(IntegrationBase)).resolve().parent.parent
+        for candidate in [
+            pkg_dir / "core_pack" / "configs",
+            pkg_dir.parent.parent / "templates" / "configs",
+        ]:
+            if candidate.is_dir():
+                return candidate
+        return None
+
     def list_command_templates(self) -> list[Path]:
         """Return ordered list of command template files from the shared directory."""
         cmd_dir = self.shared_commands_dir()
@@ -536,12 +553,8 @@ class IntegrationBase(ABC):
 
         *template_name* is the stem of the source file (e.g. ``"plan"``).
         Default: ``spec.{template_name}.md`` (fork uses "spec" prefix).
-        Exceptions: ``taskstoissues`` keeps ``speckit.`` prefix for backwards/upstream
-        compatibility.
         Subclasses override to change the extension or naming convention.
         """
-        if template_name in ("taskstoissues",):
-            return f"speckit.{template_name}.md"
         return f"spec.{template_name}.md"
 
     def stale_cleanup_exclusions(self) -> set[str]:

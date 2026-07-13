@@ -82,10 +82,7 @@ class TestGenericIntegration:
         cmd_files = [f for f in created if "scripts" not in f.parts]
         assert len(cmd_files) > 0
         for f in cmd_files:
-            # taskstoissues is special-cased to keep speckit. prefix for backwards compatibility
-            assert f.name.startswith(("spec.", "speckit.")), (
-                f"Expected spec. or speckit. prefix, got {f.name}"
-            )
+            assert f.name.startswith("spec."), f"Expected spec. prefix, got {f.name}"
             assert f.name.endswith(".md")
 
     def test_templates_are_processed(self, tmp_path):
@@ -224,8 +221,7 @@ class TestGenericIntegration:
         i = get_integration("generic")
         m = IntegrationManifest("generic", tmp_path)
         i.setup(tmp_path, m, parsed_options={"commands_dir": ".custom/cmds"})
-        # taskstoissues is special-cased to keep speckit. prefix
-        pfx = "speckit" if command_stem in ("taskstoissues",) else _cmd_prefix()
+        pfx = _cmd_prefix()
         cmd_file = tmp_path / ".custom" / "cmds" / f"{pfx}.{command_stem}.md"
         assert cmd_file.exists(), f"Command file missing: {cmd_file.name}"
         content = cmd_file.read_text(encoding="utf-8")
@@ -287,7 +283,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.plan.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
             f".myagent/commands/{_cmd_prefix()}.tasks.md",
-            ".myagent/commands/speckit.taskstoissues.md",
+            f".myagent/commands/{_cmd_prefix()}.taskstoissues.md",
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",
@@ -353,7 +349,7 @@ class TestGenericIntegration:
             f".myagent/commands/{_cmd_prefix()}.implement.md",
             f".myagent/commands/{_cmd_prefix()}.specify.md",
             f".myagent/commands/{_cmd_prefix()}.tasks.md",
-            ".myagent/commands/speckit.taskstoissues.md",
+            f".myagent/commands/{_cmd_prefix()}.taskstoissues.md",
             ".specify/init-options.json",
             ".specify/integration.json",
             ".specify/integrations/generic.manifest.json",

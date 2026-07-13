@@ -147,8 +147,7 @@ class TestForgeIntegration:
         assert len(expected_commands) > 0, "No command templates found"
 
         # Check generated files match templates
-        # Fork uses spec.*.md for most commands, speckit.*.md for taskstoissues
-        command_files = sorted(commands_dir.glob("spec.*.md")) + sorted(commands_dir.glob("speckit.*.md"))
+        command_files = sorted(commands_dir.glob("spec.*.md"))
         assert len(command_files) == len(expected_commands)
         actual_commands = set()
         for f in command_files:
@@ -261,8 +260,7 @@ class TestForgeIntegration:
 
         files_with_refs = []
         files_with_dot_refs = []
-        # Fork uses spec.*.md files (except taskstoissues)
-        for cmd_file in list(commands_dir.glob("spec.*.md")) + list(commands_dir.glob("speckit.*.md")):
+        for cmd_file in commands_dir.glob("spec.*.md"):
             content = cmd_file.read_text(encoding="utf-8")
             if re.search(r"/(speckit|spec)-[a-z]", content):
                 files_with_refs.append(cmd_file.name)
@@ -291,8 +289,7 @@ class TestForgeIntegration:
 
         # Check that name fields use hyphenated format
         registrar = CommandRegistrar()
-        # Fork uses spec.*.md files (except taskstoissues)
-        for cmd_file in list(commands_dir.glob("spec.*.md")) + list(commands_dir.glob("speckit.*.md")):
+        for cmd_file in commands_dir.glob("spec.*.md"):
             content = cmd_file.read_text(encoding="utf-8")
             # Extract the name field from frontmatter using the parser
             frontmatter, _ = registrar.parse_frontmatter(content)

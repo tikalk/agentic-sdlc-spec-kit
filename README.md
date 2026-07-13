@@ -391,7 +391,7 @@ Essential commands for the Spec-Driven Development workflow:
 | `/spec.specify`       | `speckit-specify`      | Define what you want to build (requirements and user stories)                      |
 | `/spec.plan`          | `speckit-plan`         | Create technical implementation plans with your chosen tech stack                  |
 | `/spec.tasks`         | `speckit-tasks`        | Generate actionable task lists for implementation                                  |
-| `/spec.taskstoissues` | `speckit-taskstoissues`| Convert generated task lists into GitHub issues for tracking and execution         |
+| `/spec.taskstoissues` | `spec-taskstoissues`   | Convert generated task lists into tracker issues (GitHub, GitLab, Linear, Jira)   |
 | `/spec.implement`     | `speckit-implement`    | Execute all tasks to build the feature according to the plan                       |
 | `/spec.converge`      | `speckit-converge`     | Assess codebase against spec/plan/tasks; append remaining work, or if converged run test gate, diff analysis, and 4-pillar quality assessment |
 

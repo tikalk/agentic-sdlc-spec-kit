@@ -352,6 +352,7 @@ Package the skill and open a PR to the team-ai-directives repository:
 | `/spec.clarify` | Debug specification | After spec creation |
 | `/spec.plan` | Create implementation plan | After spec is clear |
 | `/spec.tasks` | Generate task list | After plan is ready |
+| `/spec.taskstoissues` | Convert tasks to tracker issues (GitHub, GitLab, Linear, Jira) | After tasks are ready |
 | `/spec.implement` | Execute implementation | During development |
 | `/spec.converge` | Assess codebase against spec; if converged, run test gate and 4-pillar assessment | After implementation |
 | `/spec.analyze` | Validate implementation | After implementation |
@@ -376,6 +377,7 @@ Package the skill and open a PR to the team-ai-directives repository:
 │   ├── plan-template.md
 │   ├── spec-template.md
 │   └── tasks-template.md
+├── taskstoissues-provider.yml  # Issue tracker config (uncomment your provider)
 └── extensions/
     └── team-ai-directives/      # Team AI directives
         ├── context_modules/

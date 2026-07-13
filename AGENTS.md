@@ -203,8 +203,18 @@ context_file: CLAUDE.md
 
 # Delimiters for the managed Spec Kit section
 context_markers:
-  start: "<!-- SPECKIT START -->"
-  end: "<!-- SPECKIT END -->"
+  start: "<!-- SPECKIT START -->
+## Team Directives & Constitution
+
+This project is bound by the team-ai-directives knowledge base.
+- **Strict Compliance**: You MUST check if a skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately.
+- **Team Constitution**: Read and strictly adhere to the principles in `../agentic-sdlc-team-ai-directives/context_modules/constitution.md`. When creating or updating the project's constitution, you MUST inherit and align with these principles.
+- **Rules, Personas & Examples**: Use the `team-discover` skill to find and load relevant rules, personas, or examples before making changes.
+
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
+"
 ```
 
 - The Specify CLI does **not** write this config. When `context_file` is empty, the extension's bundled scripts self-seed it by looking up the active integration's key in the extension's own `agent-context-defaults.json` map (`extensions/agent-context/scripts/bash/update-agent-context.sh` and `.ps1`). The CLI registry is never consulted — all agent→context-file knowledge lives inside the extension.

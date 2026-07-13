@@ -281,7 +281,7 @@ def compute_skill_output_name(cmd_name: str, agent_config: dict, project_root: P
     Examples:
     - "speckit.plan" -> "spec-plan" (via alias "spec.plan")
     - "adlc.levelup.init" -> "levelup-init" (via alias "levelup.init")
-    - "speckit.taskstoissues" -> "speckit-taskstoissues" (no alias, upstream name)
+    - "speckit.taskstoissues" -> "spec-taskstoissues" (via alias "spec.taskstoissues")
     """
     if agent_config.get("extension") != "/SKILL.md":
         format_name = agent_config.get("format_name")

@@ -3,7 +3,7 @@ schema_version: "1.0"
 preset:
   id: "agentic-sdlc"
   name: "Agentic SDLC Governance"
-  version: "1.6.4"
+  version: "1.6.5"
   description: "Enhanced templates with governance, agent-context integration, extension hooks, and architectural rigor for the Agentic SDLC workflow"
   author: "Tikal"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -126,6 +126,13 @@ provides:
       file: "commands/adlc.spec.trace.md"
       description: "Generate and validate feature execution trace (fork enhanced)"
       aliases: ["spec.trace"]
+
+    - type: "command"
+      name: "adlc.spec.taskstoissues"
+      file: "commands/adlc.spec.taskstoissues.md"
+      description: "Convert tasks into tracker issues (multi-provider)"
+      aliases: ["spec.taskstoissues"]
+      replaces: "speckit.taskstoissues"
 
 tags:
   - "governance"

@@ -501,6 +501,40 @@ def _update_agent_context(project_root: Path) -> None:
         pass
 
 
+def _install_taskstoissues_config(project_root: Path) -> None:
+    """Copy the taskstoissues provider config template to .specify/.
+
+    If ``.specify/taskstoissues-provider.yml`` already exists, it is preserved
+    (not overwritten). Failures are swallowed because config scaffolding is
+    best-effort and should not block init.
+    """
+    dest = project_root / ".specify" / "taskstoissues-provider.yml"
+    if dest.exists():
+        return
+
+    try:
+        from .integrations.base import IntegrationBase
+        stub = type("Stub", (IntegrationBase,), {})()
+        configs_dir = stub.shared_configs_dir()
+    except Exception:
+        configs_dir = None
+
+    if not configs_dir:
+        return
+
+    src = configs_dir / "taskstoissues-provider.yml"
+    if not src.exists():
+        return
+
+    try:
+        import shutil
+
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(src, dest)
+    except Exception:
+        pass
+
+
 def sync_team_ai_directives(
     repo_url: str, project_root: Path, *, force: bool = False
 ) -> tuple[str, Path]:
@@ -916,12 +950,9 @@ def post_init(
     # file from the very first /spec.specify session.
     _update_agent_context(project_path)
 
-    # Seed the agent context file (e.g. AGENTS.md) with the managed Spec Kit
-    # section so the agent sees team-discover instructions from the first
-    # session.  The extension's update script self-creates its config from
-    # the bundled template on first run — the CLI never writes the config
-    # directly.
-    _update_agent_context(project_path)
+    # Scaffold the taskstoissues provider config template so users can
+    # discover and uncomment the provider they need.
+    _install_taskstoissues_config(project_path)
 
 
 def _reconcile_rovodev_prompts(project_path: Path) -> None:
