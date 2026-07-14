@@ -475,11 +475,11 @@ class TestExpressions:
         # previous `right is not None` guard and mirrors _safe_compare, which
         # already swallows TypeError for the ordering operators.
         ctx = StepContext(inputs={"tag": "x", "count": 5, "ratio": 1.5, "flag": True})
-        assert evaluate_expression("{{ inputs.tag in inputs.count }}", ctx) is False
-        assert evaluate_expression("{{ inputs.tag not in inputs.count }}", ctx) is True
-        assert evaluate_expression("{{ 'a' in inputs.ratio }}", ctx) is False
-        assert evaluate_expression("{{ 'a' in inputs.flag }}", ctx) is False
-        assert evaluate_expression("{{ inputs.tag in inputs.missing }}", ctx) is False
+        # `in` -> False and `not in` -> True for every non-iterable right
+        # operand (int, float, bool, None), so neither operator can drift.
+        for right in ("count", "ratio", "flag", "missing"):
+            assert evaluate_expression(f"{{{{ inputs.tag in inputs.{right} }}}}", ctx) is False
+            assert evaluate_expression(f"{{{{ inputs.tag not in inputs.{right} }}}}", ctx) is True
         # A condition that would otherwise crash the run now evaluates cleanly.
         assert evaluate_condition("{{ inputs.tag in inputs.count }}", ctx) is False
 
