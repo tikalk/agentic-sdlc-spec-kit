@@ -2,6 +2,81 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.14+adlc1] - 2026-07-14
+
+### Changed
+
+- **Upstream merge**: Synced with `github/spec-kit` (29 commits, 3 releases
+  0.12.12–0.12.14):
+  - **Workflow engine hardening**: fail-fast on non-list `wait_for` (#3482),
+    non-mapping `switch` cases (#3481), non-iterable membership tests (#3448),
+    falsy non-list `else` in `if` steps (#3264), bool `max_iterations` (#3270),
+    mis-shaped catalog registry & non-string fields (#3375), and command-step
+    `input`/`options` must be mappings (#3262). Engine validation is now
+    shared between `execute()` and `validate()` so callers that skip
+    `WorkflowEngine.validate()` still fail the step cleanly instead of
+    crashing or silently coercing.
+  - **Configurable shell-step timeout consolidation (#3327/#3328)**: replaces
+    the fork's simpler #3404 baseline with upstream's shared
+    `_timeout_error()` helper used by both `execute()` and `validate()`.
+    Returns FAILED instead of silently resetting to 300s, and additionally
+    rejects non-finite floats (YAML `.inf`/`.nan`).
+  - **Extension-relative subdir path rewriting (#3444)**: adopted upstream's
+    new `CommandRegistrar.rewrite_extension_paths()` static method so bundled
+    extension command bodies reference their installed location under
+    `.specify/extensions/<id>/` instead of the workspace root.
+  - **Preset manifest-authoritative template resolution (#3351)**:
+    `PresetResolver.resolve()` now honors manifest-declared `file:` entries
+    via the new `_manifest_declared_template()` helper, and does NOT fall back
+    to convention lookup when a declared file is missing — mirrors
+    `collect_all_layers()` so `resolve()` and `resolve_with_source()` agree
+    instead of returning the core template or a stray convention file.
+  - **Bundle hardening**: reject `file://`/local `download_url` — catalog URLs
+    must be HTTPS (#3344).
+  - **Extensions/presets**: `set-priority` repairs corrupted boolean priority
+    (#3268/#3269); prefix-colliding env vars handled in `_get_env_config`
+    (#3350).
+  - **Integrations**: kiro-cli declared multi-install safe (#3471/#3472/#3485);
+    exit cleanly on unbalanced quote in `--integration-options` (#3457).
+  - **Init**: don't block on confirmation for `init --here` without a TTY
+    (#3236). Fork merged this with its `accent()` theming on the `--force`
+    message.
+  - **Templates**: constitution sync checklist points at installed command
+    files (#3418); agent-file-template cleanup (#2579). Accepted upstream
+    `templates/` changes per FORK.md policy (templates stay upstream-aligned).
+  - **Community catalog additions**: Quality Gates enforcement extension
+    (#3431), Verify Review Ship extension (#3450), Spec Kit Memory extension
+    (#3455), Test-First Governance preset (#3504), Autonomous Run Governance
+    preset (#3501).
+  - **Docs**: bundle `--integration` (#3271), copilot skills mode
+    deprecation (#3313), release tag `v` prefix clarification (#3463).
+- **Conflicts resolved** (4):
+  - `pyproject.toml` — preserved fork `name`/`description`/`httpx` dep and
+    the full `[tool.hatch.build.targets.wheel.force-include]` block for
+    bundled extensions/presets; set version `0.12.11+adlc3` → `0.12.14+adlc1`.
+  - `src/specify_cli/commands/init.py` — combined fork's `accent()` theming
+    with upstream's clearer "Template files will be merged…" overwrite
+    warning on the `--force` path.
+  - `tests/test_presets.py` — kept fork's "Speckit " skill-title prefix
+    assertion AND adopted upstream's new subdir-path-rewrite assertions
+    (#2101) for skill restore.
+  - `README.md` — kept fork's tikalk-flavored install instructions and
+    `agentic-sdlc-v*` tag prefix guidance; adopted upstream's "keep the
+    leading v" clarification.
+- All other modified files (`__init__.py`, `agents.py`, `integrations/base.py`,
+  `forge/__init__.py`, `presets/__init__.py`, workflow step modules, etc.)
+  auto-merged cleanly. Fork-only modules (`_init_fork.py`, `_core_fork.py`,
+  `_assets_fork.py`, `_base_fork.py`, `_workflows_fork.py`,
+  `extensions_fork.py`, `base_fork.py`) and fork-only tests preserved.
+- Accepted legitimate upstream deletion: `workflows/feature-squad.yml`,
+  `tests/test_timestamp_branches.py`, and
+  `presets/self-test/templates/agent-file-template.md`.
+- Rejected upstream deletion of `workflows/impl-converge-loop/workflow.yml`
+  (fork intentionally keeps it per `0.12.4+adlc8`).
+- Test suite: 4335 tests collected, all passing.
+- FORK.md updated: added `_base_fork.py` and `_workflows_fork.py` to the
+  module-layout table; refreshed the fork-only test inventory.
+
 # [0.12.11+adlc3] - 2026-07-13
 
 ### Changed
@@ -3694,6 +3769,52 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.14] - 2026-07-13
+
+### Changed
+
+- [extension] Add Spec Kit Memory extension to community catalog (#3455)
+- Add Test-First Governance preset to community catalog (#3504)
+- Add Autonomous Run Governance preset to community catalog (#3501)
+- fix(workflows): validate command step input/options are mappings (#3262)
+- fix(presets): resolve() honors manifest-declared file: for installed presets (#3351)
+- fix(init): don't block on confirmation for 'init --here' without a TTY (#3236)
+- [extension] Add Quality Gates (Enforcement Layer) extension to community catalog (#3431)
+- fix(integrations): exit cleanly on unbalanced quote in --integration-options (#3457) (#3466)
+- fix(integrations): declare kiro-cli multi-install safe (#3471) (#3485)
+- fix(workflows): fail fan-in step on non-list wait_for instead of crashing (#3482)
+- chore: release 0.12.13, begin 0.12.14.dev0 development (#3498)
+
+## [0.12.13] - 2026-07-13
+
+### Changed
+
+- fix(workflows): fail switch step on non-mapping cases instead of crashing (#3481)
+- Cleanup agent-file-template.md (#2579)
+- fix: mark Kiro integration as multi-install safe (#3472)
+- fix: rewrite extension-relative subdir paths in generated command bodies (#3444)
+- fix(templates): point constitution sync checklist at installed command files (#3418)
+- feat(workflows): make shell step timeout configurable (#3327) (#3328)
+- docs: clarify that release tags keep the leading v prefix (#3463)
+- fix(workflows): don't crash on membership test against a non-iterable (#3448)
+- fix(workflows): if-step validate accepts falsy non-list else (#3264)
+- chore: release 0.12.12, begin 0.12.13.dev0 development (#3490)
+
+## [0.12.12] - 2026-07-13
+
+### Changed
+
+- fix(extensions): set-priority repairs corrupted boolean priority (#3268)
+- fix(presets): set-priority repairs corrupted boolean priority (#3269)
+- fix(workflows): engine loop cap ignores bool max_iterations (#3270)
+- docs(bundles): document --integration on 'bundle update' (#3271)
+- fix(workflows): harden catalog.py against mis-shaped registry & non-string fields (#3375)
+- Add Verify Review Ship extension to community catalog (#3450)
+- fix(bundle): reject file:// / local download_url — catalog URLs are HTTPS-only (#3344)
+- fix(extensions): handle prefix-colliding env vars in _get_env_config (#3350)
+- docs: document copilot skills mode (--skills) and markdown deprecation (#3313)
+- chore: release 0.12.11, begin 0.12.12.dev0 development (#3460)
 
 ## [0.12.11] - 2026-07-10
 

@@ -89,7 +89,7 @@ Choose your preferred installation method:
 
 #### Option 1: Persistent Installation (Recommended)
 
-Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest):
+Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest). Keep the leading `agentic-sdlc-v` prefix on the tag (for example, `agentic-sdlc-v0.12.11`):
 
 > [!NOTE]
 > The `uv tool install` commands below require **[uv](https://docs.astral.sh/uv/)** — a fast Python package manager. If you see `command not found: uv`, [install uv first](./docs/install/uv.md). The `pipx` alternative does not require uv.
