@@ -2,6 +2,32 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc2] - 2026-07-15
+
+### Changed
+
+- **Upstream merge**: Synced with `github/spec-kit` (2 commits, post-0.12.15):
+  - **While/do-while non-list steps guard (#3519)**: `WhileStep.execute()` and
+    `DoWhileStep.execute()` now return FAILED when `steps` is not a list,
+    instead of crashing with `AttributeError` on an unvalidated run. Mirrors
+    the same fail-fast pattern already applied to if/switch/fan-out steps in
+    the 0.12.14 merge. 6 new parametrized tests in `test_workflows.py`.
+  - **PyPI install docs (#3425/#3516)**: upstream added `docs/install/pypi.md`
+    and updated `docs/installation.md`, `docs/toc.yml`, `README.md` to
+    document PyPI as a second install route. Fork adopted the docs additions
+    but kept its own README install section (fork installs from
+    `tikalk/agentic-sdlc-spec-kit` under `agentic-sdlc-v*` tags, not PyPI).
+- **Conflict resolved** (1):
+  - `README.md` — kept fork's install instructions (tikalk repo, `uvx`
+    one-time option); dropped upstream's PyPI install block (fork doesn't
+    publish to PyPI under the upstream package name).
+- All other files (`while_loop/__init__.py`, `do_while/__init__.py`,
+  `test_workflows.py`, `docs/install/pypi.md`, `docs/installation.md`,
+  `docs/toc.yml`) auto-merged cleanly.
+- Test suite: 613 passed, 1 skipped (`tests/test_workflows.py`).
+- Smoke test: `specify init /tmp/merge-test2 --integration claude --script sh
+  --ignore-agent-tools` succeeds.
+
 # [0.12.15+adlc1] - 2026-07-15
 
 ### Changed
