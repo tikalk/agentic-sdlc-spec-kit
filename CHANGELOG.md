@@ -2,6 +2,55 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc1] - 2026-07-15
+
+### Changed
+
+- **Upstream merge**: Synced with `github/spec-kit` (12 commits, 1 release
+  0.12.15):
+  - **Git extension Python port (#3400)**: Adopted upstream's 4 basic Python
+    scripts (`auto_commit.py`, `create_new_feature_branch.py`, `git_common.py`,
+    `initialize_repo.py`) under `extensions/git/scripts/python/`. Fork retains
+    its enhanced bash/PS1 scripts for fork-only commands (worktree, tasks-dag,
+    isolation mode, etc.). Python parity tests
+    (`test_git_extension_python_parity.py`) skipped via `PKG_NAMES` guard since
+    fork's bash scripts produce enhanced output upstream's basic Python scripts
+    don't replicate.
+  - **Workflow CLI / extension command surface alignment (#3419)**: Adopted
+    upstream's atomic install transaction in `workflows/_commands.py` —
+    command installation is now transactional (all-or-nothing) with rollback
+    on failure. Applied fork's `accent()` theming on top.
+  - **Goose YAML control-char escaping (#3384)**: Goose recipe YAML renderer
+    now escapes control characters that previously produced invalid YAML.
+  - **Env-var config leak fix (#3497)**: Extension env-var config no longer
+    leaks across prefix-colliding extension IDs.
+  - **init-options.json newline (#3509)**: `init-options.json` output now
+    ends with a trailing newline.
+  - **Workflow engine fixes**: non-iterable right operand in `in`/`not in`
+    membership tests (#3447/#3468); malformed catalog URL raises catalog
+    error, not raw `ValueError` (#3484).
+  - **Community catalog additions**: Multi-Repo Branch Sync extension (#3411),
+    PatchWarden Evidence Pack extension (#3514).
+  - **Community catalog updates**: DocGuard CDD Enforcement v0.32.0 (#3489),
+    Autonomous Run Governance preset v0.1.4 (#3511).
+- **Conflicts resolved** (2):
+  - `pyproject.toml` — preserved fork `name`/`description`/`httpx` dep and
+    force-include block; set version `0.12.14+adlc1` → `0.12.15+adlc1`.
+  - `src/specify_cli/workflows/_commands.py` — adopted upstream's atomic
+    install transaction (transactional command installation with rollback)
+    and applied fork's `accent()` theming on the new UI strings.
+- All other modified files (`_github_http.py`, `_init_options.py`,
+  `bundler/lib/yamlio.py`, `bundler/services/installer.py`,
+  `extensions/__init__.py`, `integrations/base.py`, `workflows/catalog.py`,
+  `workflows/engine.py`, test files, docs, catalog JSON) auto-merged cleanly.
+- Fork-only modules and tests preserved. `PKG_NAMES` skip guard added to
+  `test_git_extension_python_parity.py` to skip parity tests on fork.
+- Test suite: all passing across contract, unit, integration, scripts, and
+  integration test suites (including 366 registry tests, 115 subcommand
+  lifecycle tests, and all per-agent integration tests).
+- Smoke test: `specify init /tmp/merge-test --integration claude --script sh
+  --ignore-agent-tools` succeeds; version reports `0.12.15+adlc1`.
+
 # [0.12.14+adlc1] - 2026-07-14
 
 ### Changed
@@ -3769,6 +3818,21 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.12.15] - 2026-07-14
+
+### Changed
+
+- Update Autonomous Run Governance preset to v0.1.4 (#3511)
+- fix(workflows): raise catalog error, not raw ValueError, on a malformed catalog URL (#3484)
+- fix(workflows): evaluate 'in'/'not in' safely on a non-iterable right operand (#3447) (#3468)
+- fix: add trailing newline to init-options.json output (#3509)
+- feat(workflows): align workflow CLI with extension command surface (#3419)
+- fix(extensions): stop env-var config leaking across prefix-colliding extension IDs (#3497)
+- fix(integrations): escape control characters in goose recipe YAML renderer (#3384)
+- [extension] Update DocGuard — CDD Enforcement extension to v0.32.0 (#3489)
+- [extension] Add Multi-Repo Branch Sync extension to community catalog (#3411)
+- chore: release 0.12.14, begin 0.12.15.dev0 development (#3506)
 
 ## [0.12.14] - 2026-07-13
 
