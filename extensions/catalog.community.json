@@ -1438,13 +1438,14 @@
     "gates": {
       "name": "Quality Gates (Enforcement Layer)",
       "id": "gates",
-      "description": "Deterministic quality enforcement for Spec Kit projects at three boundaries — agent hooks, git pre-commit, CI — with one policy file and provable enforcement (attestations, canaries, verified parity).",
+      "description": "Deterministic quality enforcement for Spec Kit across agent hooks, git checks, and CI pipelines with one policy file and one verify entrypoint for identical results at every boundary.",
       "author": "schwichtgit",
-      "version": "0.1.0",
-      "download_url": "https://github.com/schwichtgit/spec-gates/releases/download/v0.1.0/gates-0.1.0.zip",
+      "version": "0.3.2",
+      "download_url": "https://github.com/schwichtgit/spec-gates/releases/download/v0.3.2/gates-0.3.2.zip",
       "repository": "https://github.com/schwichtgit/spec-gates",
       "homepage": "https://github.com/schwichtgit/spec-gates",
       "documentation": "https://github.com/schwichtgit/spec-gates/blob/main/docs/how-it-works.md",
+      "changelog": "https://github.com/schwichtgit/spec-gates/releases",
       "license": "MIT",
       "category": "process",
       "effect": "read-write",
@@ -1457,7 +1458,7 @@
           },
           {
             "name": "git",
-            "required": true
+            "required": false
           },
           {
             "name": "node",
@@ -1470,8 +1471,8 @@
         ]
       },
       "provides": {
-        "commands": 5,
-        "hooks": 1
+        "commands": 8,
+        "hooks": 2
       },
       "tags": [
         "quality",
@@ -1484,7 +1485,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-07-09T00:00:00Z",
-      "updated_at": "2026-07-13T00:00:00Z"
+      "updated_at": "2026-07-15T00:00:00Z"
     },
     "github-issues": {
       "name": "GitHub Issues Integration 1",
