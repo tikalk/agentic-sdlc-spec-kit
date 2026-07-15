@@ -15,18 +15,23 @@ The fork isolates customizations into a small set of focused modules under `src/
 | Module | Purpose | Imports from |
 |---|---|---|
 | `_assets_fork.py` | Leaf — bundled-asset helpers (`get_bundled_*_version`/`_path`, fork `_locate_bundled_preset`) | `_assets` (clean upstream) |
+| `_base_fork.py` | Leaf — fork-level helpers on `IntegrationBase` (e.g. `detect_native_worktree()` worktree-detection shim) | (none) |
 | `_core_fork.py` | Leaf — fork-level extension constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`), alias resolution, MCP config, skill naming, preinstalled extension queries | (none) |
+| `_workflows_fork.py` | Leaf — fork-level workflow constants and helpers (workflow catalog/app theming hooks) | (none) |
 | `_init_fork.py` | Theming, package identity, init hooks (`pre_init`/`post_init`), scaffolding, skill installation | `_core_fork`, `_assets_fork` |
-| `base_fork.py` | Fork-level helpers on `IntegrationBase` (e.g. `detect_native_worktree()`) | (none) |
 | `extensions_fork.py` | Constants and schemas for fork-specific extension features (e.g. worktree config) | (none) |
+
+> **Historical note**: the fork previously shipped a `base_fork.py` module. It was renamed to `_base_fork.py` in `0.12.6+adlc1` (commit `d78fe764`) to align with the underscore-prefixed fork-module naming convention. Stale references to `base_fork.py` in older commits and older FORK.md revisions are historical.
 
 > **Consolidation note (`0.11.9+adlc9`)**: The former leaf module `_extension_fork.py` (pure constants) was merged into `_core_fork.py` to simplify the dependency graph from three tiers to two. `_init_fork.py` now imports extension constants from `_core_fork.py` instead of `_extension_fork.py`. The `_extension_fork.py` file was deleted; any stale references to it in older commits are historical.
 
 **Dependency direction (locked):**
 
 ```
-_assets_fork.py     (leaf)
-_core_fork.py       (leaf - constants + alias/MCP/skill)
+_assets_fork.py      (leaf)
+_base_fork.py        (leaf - IntegrationBase helpers)
+_core_fork.py        (leaf - constants + alias/MCP/skill)
+_workflows_fork.py   (leaf - workflow constants)
         ^
         |
 _init_fork.py
@@ -65,6 +70,9 @@ When a fork release changes only bundled extension behavior, keep the CLI versio
 
 | Version | Date | Base Upstream | Changes |
 |---------|------|---------------|---------|
+| 0.12.15+adlc2 | 2026-07-15 | 0.12.15 (`ad601e5d`) | Upstream merge (2 commits, post-0.12.15): while/do-while non-list steps guard #3519 (returns FAILED instead of crashing on non-list `steps` on unvalidated run, mirrors if/switch/fan-out pattern); PyPI install docs #3425/#3516 (adopted docs additions, kept fork README install section). 1 conflict resolved: `README.md` (kept fork tikalk install instructions, dropped upstream PyPI block). All other files auto-merged. 613 tests pass. |
+| 0.12.15+adlc1 | 2026-07-15 | 0.12.15 (`faeb9566`) | Upstream merge (12 commits, 1 release 0.12.15): git extension Python port #3400 (adopted 4 basic Python scripts: `auto_commit.py`, `create_new_feature_branch.py`, `git_common.py`, `initialize_repo.py`; fork retains enhanced bash/PS1 scripts for fork-only commands; parity tests skipped via `PKG_NAMES` guard); workflow CLI / extension command surface alignment #3419 (atomic install transaction with rollback in `_commands.py`, fork `accent()` theming applied); Goose YAML control-char escaping #3384; env-var config leak fix across prefix-colliding extension IDs #3497; `init-options.json` trailing newline #3509; workflow engine fixes (non-iterable right operand in `in`/`not in` #3447/#3468, malformed catalog URL raises catalog error not raw `ValueError` #3484); community catalog additions (Multi-Repo Branch Sync #3411, PatchWarden Evidence Pack #3514); community catalog updates (DocGuard v0.32.0 #3489, Autonomous Run Governance v0.1.4 #3511). 2 conflicts resolved: `pyproject.toml` (preserved fork metadata, version → `0.12.15+adlc1`), `workflows/_commands.py` (adopted upstream atomic install transaction + fork `accent()` theming). All other files auto-merged cleanly. All tests pass. Smoke test confirms `0.12.15+adlc1`. |
+| 0.12.14+adlc1 | 2026-07-14 | 0.12.14 (`654793b6`) | Upstream merge (29 commits, 3 releases 0.12.12–0.12.14): workflow engine hardening (fail-fast on non-list `wait_for` #3482, non-mapping `switch` cases #3481, non-iterable membership #3448, falsy non-list `else` #3264, bool `max_iterations` #3270, mis-shaped catalog #3375, command-step `input`/`options` must be mappings #3262); configurable shell-step timeout consolidation #3327 (replaces fork's simpler #3404 baseline with shared `_timeout_error()` helper used by both `execute()` and `validate()`, returns FAILED instead of silent reset, rejects non-finite floats); adopted upstream `CommandRegistrar.rewrite_extension_paths()` #3444 for extension-relative subdir path rewriting; preset manifest-authoritative template resolution #3351 (`_manifest_declared_template()` helper, no convention fallback when declared file missing); bundle `file://` URL rejection #3344; `set-priority` corrupted bool repair #3268/#3269; prefix-colliding env vars #3350; kiro-cli multi-install safe #3471/#3472/#3485; unbalanced `--integration-options` quote #3457; `init --here` no-TTY #3236 (merged with fork `accent()` theming); constitution sync checklist #3418; agent-file-template cleanup #2579; community catalog additions (Quality Gates #3431, Verify Review Ship #3450, Spec Kit Memory #3455, Test-First Governance #3504, Autonomous Run Governance #3501); docs (bundle `--integration` #3271, copilot skills mode #3313, release tag `v` prefix #3463). 4 conflicts resolved: `pyproject.toml` (preserved fork name/description/httpx/force-include, version → `0.12.14+adlc1`), `commands/init.py` (combined fork `accent()` theming with upstream merge-overwrite warning), `tests/test_presets.py` (kept fork "Speckit " skill-title prefix assertion + adopted upstream subdir-path-rewrite #2101 assertions), `README.md` (kept fork tikalk install instructions + `agentic-sdlc-v*` tag prefix). All other modified files auto-merged cleanly. Accepted legitimate upstream deletions (`workflows/feature-squad.yml`, `tests/test_timestamp_branches.py`, `presets/self-test/templates/agent-file-template.md`); rejected deletion of `workflows/impl-converge-loop/workflow.yml` (fork keeps per `0.12.4+adlc8`). 4335 tests pass. FORK.md module-layout table updated to include `_base_fork.py` and `_workflows_fork.py`; fork-only test inventory refreshed. |
 | 0.12.11+adlc3 | 2026-07-13 | 0.12.11 (`1be42992`) | Multi-provider taskstoissues: removed `speckit.taskstoissues` special case from `command_filename()` in `base.py` (file now `spec.taskstoissues.md`). Registered `adlc.spec.taskstoissues` in agentic-sdlc preset (alias `spec.taskstoissues`, replaces `speckit.taskstoissues`). Added `shared_configs_dir()` to `IntegrationBase`; `_install_taskstoissues_config()` in `_init_fork.py` scaffolds `.specify/taskstoissues-provider.yml` from template during init. Added `templates/configs` to wheel force-include. Updated 10 test files (test_base, test_integration_generic, test_integration_base_markdown/yaml/toml, test_integration_forge, test_integration_rovodev, test_extensions, test_presets). Preset command file includes provider dispatch (GitHub/GitLab/Linear/Jira), tool discovery step (MCP/CLI/env), and per-provider pagination guidance. agentic-sdlc preset 1.6.4→1.6.5. |
 | 0.12.11+adlc2 | 2026-07-12 | 0.12.11 (`1be42992`) | agent-context managed section parity + coverage: ported Team Directives & Constitution block to Python `update_agent_context.py` (was missing — bash/PS1 twins had it since adlc6, Python only wrote plan path). Added `_resolve_team_directives()` to read `team_ai_directives` from `.specify/init-options.json`. Broadened managed section text in all 3 scripts: "team-* skill" → "skill" (covers domain skills installed during init, not just governance team-* skills), "rules or personas" → "rules, personas, or examples" (matches `team.discover` actual scope: personas, rules, examples, skills). Bumped agent-context extension 1.1.0 → 1.2.0. |
 | 0.12.11+adlc1 | 2026-07-11 | 0.12.11 (`1be42992`) | Upstream merge (30 commits, 3 releases 0.12.9–0.12.11): invoke_separator parse-success fix (#3304), Windows Store python3 stub skip + `_interpreter_runs()` probe (#3385), SKILL.md frontmatter control char escape via `yaml_quote()` (#3399), chained expression filters left-to-right refactor (#3339), `refresh_shared_templates` preserves recovered files (#3378), Goose yaml skill placeholder resolution (#3374), bundled version pin enforcement (#3377), integration test home isolation (#3144), `py:` script type in command templates (#3403), configurable shell step timeout (#3404), find plans in nested spec directories (#3405), plan.md phase numbering fix (#3416), PowerShell `-Number 0` honor via `ContainsKey` (#3412), workflow.yml non-string scalar validation (#3421), plan-template.md self-referencing path fix (#3417), pre-commit config + trailing whitespace cleanup (#3430), malformed URL error handling (#3433/#3435/#3437), agent-context nested plan.md discovery (#3301), community catalog additions (EARS, Figma). 9 conflicts resolved: `pyproject.toml` (version), `integrations/base.py` (fork `_get_command_prefix`/`_build_preset_command_placeholder_map` + upstream `yaml_quote`/`_interpreter_runs`), `agents.py` (fork `_skip_primary` restructure + upstream Goose yaml `resolve_skill_placeholders`/`_convert_argument_placeholder`), `forge/__init__.py` (fork `spec-` prefix + alias resolution vs upstream `speckit-`), `hermes/__init__.py` (fork `resolve_command_alias` import + upstream `yaml_quote` import), `create-new-feature-branch.ps1` (fork `-IssueToken` param + upstream `ContainsKey('Number')` fix), `test_git_extension.py` (fork e2e Jira tests + upstream `--number 0` test), `test_base.py` (platform pin comments), `test_integration_devin.py` (fork `_skill_prefix()` vs upstream `speckit-`). Template-to-preset alignment: added `py:` script lines to 6 preset commands (analyze, checklist, clarify, converge, implement, tasks), removed stale "Phase 1: Update agent context" from `adlc.spec.plan.md`, fixed "Phase 2 planning" → "Phase 1 design". Pre-merge fix: wrapped bare `make_typer` import in `integrations/_commands.py` with try/except fallback. Test fixes: agent-context config template path (`.yml` → `.yml.template`), bundler pin version (1.0.0 → 1.1.0), python parity error message assertion. |
@@ -175,7 +183,8 @@ The split assigns each concern to the lowest tier that owns it:
 
 - `_core_fork.py` — fork-level extension constants (`EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`), `COMMAND_PREFIX`, `build_alias_map`, `resolve_command_alias`, `compute_skill_output_name`, MCP config helpers, `get_preinstalled_extensions`
 - `_init_fork.py` — `ACCENT_COLOR`, `BANNER_COLORS`, `TAGLINE`, `PKG_NAMES`, `TEAM_DIRECTIVES_DIRNAME`, `accent`, `accent_style`, `apply_theming_patches`, `pre_init`, `post_init`, `get_team_directives_path`, `sync_team_ai_directives`, `get_speckit_version`, `GITHUB_API_LATEST`, `_update_agent_context`
-- `base_fork.py` — `detect_native_worktree()`
+- `_base_fork.py` — `detect_native_worktree()`
+- `_workflows_fork.py` — workflow catalog/app theming hooks
 - `extensions_fork.py` — worktree constants and config schema
 
 Feature / override table:
@@ -469,7 +478,7 @@ the evidence bundle provides the audit trail.
 
 When conflicts occur during merge:
 
-1. **Keep origin changes as base** - Our customizations in `_init_fork.py`, `_core_fork.py`, `base_fork.py`, `extensions_fork.py` and the `__init__.py` import block must be preserved
+1. **Keep origin changes as base** - Our customizations in `_init_fork.py`, `_core_fork.py`, `_base_fork.py`, `_workflows_fork.py`, `extensions_fork.py` and the `__init__.py` import block must be preserved
 2. **Adapt upstream changes** - Integrate upstream improvements to work with our customizations
 3. **Test after resolving** - Always run tests before committing
 
@@ -485,8 +494,7 @@ When conflicts occur during merge:
 
 These fork customizations should NEVER be modified unless intentionally updating them:
 
-- `_init_fork.py`, `_core_fork.py` - Fork customization modules
-- `base_fork.py`, `extensions_fork.py` - Fork-level helpers and feature constants
+- `_init_fork.py`, `_core_fork.py`, `_assets_fork.py`, `_base_fork.py`, `_workflows_fork.py`, `extensions_fork.py` - Fork customization modules
 - `extensions.py` - Extension namespace configuration
 - Bundled extensions in `pyproject.toml` - levelup, evals, architect, product, tdd, edd
 - Bundled presets in `pyproject.toml` - agentic-sdlc, agentic-change, agentic-quick
@@ -550,9 +558,10 @@ The following customization categories live in the fork modules listed in [Fork 
 6. **Extension Namespaces** (`_core_fork.py`): `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED`, `FORK_INSTALL_COMMAND`
 7. **Command aliasing** (`_core_fork.py`): `COMMAND_PREFIX`, `build_alias_map()`, `resolve_command_alias()`, `compute_skill_output_name()`, `FORK_COMMAND_NAMESPACES`
 8. **MCP config** (`_core_fork.py`): `validate_mcp_config()`, `merge_mcp_configs_report_conflicts()`, `install_mcp_config()`
-9. **Native tool detection** (`base_fork.py`): `detect_native_worktree()` on `IntegrationBase`
+9. **Native tool detection** (`_base_fork.py`): `detect_native_worktree()` on `IntegrationBase`
 10. **Worktree constants** (`extensions_fork.py`): `WORKTREE_DEFAULT_ISOLATION_MODE`, `WORKTREE_VALID_ISOLATION_MODES`, `WORKTREE_MANIFEST_FILENAME`, `WORKTREE_BASE_DIR`, `WORKTREE_TASK_BRANCH_PATTERN`, `WORKTREE_CONFIG_KEY`, `WORKTREE_CONFIG_SCHEMA`
 11. **Bundled-asset helpers** (`_assets_fork.py`): `get_bundled_extension_version()`, `get_bundled_extension_path()`, `get_bundled_preset_version()`, `get_bundled_preset_path()`, fork `_locate_bundled_preset()`
+12. **Workflow constants** (`_workflows_fork.py`): fork-level workflow catalog/app theming hooks and constants
 
 ## What Lives in `__init__.py`
 
@@ -584,15 +593,16 @@ The largest of the fork modules; holds theming, package identity, init hooks, te
 - Scaffolding: `_scaffold_extensions_to_project()`, `_scaffold_presets_to_project()`, `_install_bundled_extensions()`, `_install_bundled_presets()`
 - Extension Namespaces: `EXTENSION_NAMESPACES`, `EXTENSION_ALIAS_PATTERN_ENABLED` *(defined in `_core_fork.py`)*
 
-**Total**: ~1700 lines of fork-only code, split across five modules:
+**Total**: ~3114 lines of fork-only code, split across six modules:
 
 | Module | Approx. size | Role |
 |---|---|---|
-| `_init_fork.py` | ~1000 | Theming, init hooks, scaffolding |
-| `_core_fork.py` | ~430 | Fork-level extension constants, alias/MCP/skill helpers |
-| `_assets_fork.py` | ~150 | Bundled-asset version/path helpers |
-| `base_fork.py` | ~15 | `detect_native_worktree()` |
-| `extensions_fork.py` | ~25 | Worktree constants |
+| `_init_fork.py` | ~2200 | Theming, init hooks, scaffolding |
+| `_core_fork.py` | ~580 | Fork-level extension constants, alias/MCP/skill helpers |
+| `_assets_fork.py` | ~130 | Bundled-asset version/path helpers |
+| `_base_fork.py` | ~40 | `detect_native_worktree()` |
+| `_workflows_fork.py` | ~85 | Workflow catalog/app theming hooks |
+| `extensions_fork.py` | ~70 | Worktree constants |
 
 ### `src/specify_cli/_assets_fork.py` — Bundled-Asset Fork Helpers
 
@@ -607,15 +617,29 @@ Leaf fork module that wraps `_assets.py` (clean upstream) with fork-specific bun
 
 ### Test Files
 
-The following test files are fork-only:
+The following test files are fork-only (never present in upstream; during merges they may show as "deleted by them" — always reject the deletion):
 - `tests/test_fork_inventory.py` — Fork inventory tests
 - `tests/integrations/test_fork_inventory.py` — Integration inventory tests
 - `tests/test_bundled_extension_hooks.py` — Bundled extension hook tests
 - `tests/test_check_prerequisites_risks.py` — Prerequisite risk tests
 - `tests/test_create_new_feature.py` — Feature creation tests
 - `tests/auth_helpers.py` — Authentication test helpers
-- `tests/test_team_directives.py` — Team AI directives tests
 - `tests/test_project_skills.py` — Project skills install tests
+- `tests/extensions/git/test_git_worktree.py` — Git worktree lifecycle tests (bash + PowerShell)
+- `tests/extensions/git/test_tasks_dag.py` — Tasks DAG generation/validation tests
+- `tests/extensions/git/test_tasks_dag_explicit_mode.py` — DAG explicit-mode tests
+- `tests/extensions/test_evals_extension.py` — Bundled evals extension tests
+- `tests/scripts/bash/test_tasks_meta_utils.py` — Tasks meta-utils script tests
+- `tests/test_security_graders.py` — Security grader tests
+- `tests/test_trace_command.py` — Trace command tests
+- `tests/test_verify_command.py` — Verify command tests
+- `tests/test_help_output.py` — Help output theming tests
+- `tests/test_quick_extension.py` — Quick extension tests (fork removed the extension but kept the tests)
+- `tests/test_setup_plan.py` — Setup-plan script tests
+- `tests/test_smart_trace_validation.py` — Smart trace validation tests
+- `tests/test_spec_verify_hook_registration.py` — Spec verify hook registration tests
+
+> **Note**: `tests/test_team_directives.py` was deleted by the fork itself in `0.12.8+adlc3` (commit `3d54b432`) when governance was repackaged as the bundled `extensions/team-ai-directives/` extension. It is NOT fork-only in the "reject deletion" sense — the fork intentionally removed it.
 
 ## Git Extension Worktree & Task-Execution Feature (0.9.5+adlc2)
 

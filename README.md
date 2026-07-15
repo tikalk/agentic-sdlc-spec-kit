@@ -22,15 +22,19 @@ Together, they form a complete methodology that transforms how organizations app
 
 ### Why This Fork?
 
-The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation by:
+The original [github/spec-kit](https://github.com/github/spec-kit) repository focused on the core Spec-Driven Development process. This fork extends that foundation into a complete, opinionated platform for AI-native software development:
 
-- **Integrating the 12 Factors methodology** as the strategic layer above the tactical Spec-Driven process
-- **Adding enterprise-grade features** like team AI directives integration
-- **Enhancing tooling** with dual execution loop support (SYNC/ASYNC task classification)
-- **Implementing AI session context management** through the levelup command that creates reusable knowledge packets and analyzes contributions to team directives
-- **Providing team templates** and best practices for scaling AI-assisted development across teams
+- **Strategic layer — 12 Factors + Team AI Directives.** Integrates the [Agentic SDLC 12 Factors](https://tikalk.github.io/agentic-sdlc-12-factors/) as the strategic layer above the tactical SDD process, plus a [`team-ai-directives`](https://github.com/tikalk/agentic-sdlc-team-ai-directives) knowledge base (rules, personas, examples, skills) that is version-controlled and synced across projects. The `levelup` command turns finished sessions into reusable Context Directive Records (CDRs) that contribute back to the team knowledge base, closing the cross-project learning loop.
 
-This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development, with sophisticated knowledge management and cross-project learning capabilities.
+- **CLI add-ons.** Adds the `--team-ai-directives <url|path>` init flag to wire a version-controlled team knowledge base into project creation, and ships a fork-specific install identity — installed from the [`tikalk/agentic-sdlc-spec-kit`](https://github.com/tikalk/agentic-sdlc-spec-kit) repo under `agentic-sdlc-v*` release tags, with `specify self check`/`specify self upgrade` repointed to the fork.
+
+- **Bundled extensions — new capabilities beyond core SDD.** Ships fork-owned extensions: `architect` (ADRs + Rozanski & Woods architecture descriptions), `product` (PRDs & PDRs), `tdd` (strict RED→GREEN→REFACTOR with risk-based testing), `edd`/`evals` (evaluation-driven development with PromptFoo), and `workflow` (mission-driven SDLC automation with supervision modes). See [📦 Bundled Extensions](#-bundled-extensions).
+
+- **Bundled presets — stackable workflow customizations.** Ships `agentic-sdlc` (full lifecycle: specify → plan → tasks → implement → converge), `agentic-change` (lightweight change proposals), and `agentic-quick` (session-based ad-hoc execution) — all pre-installed at `specify init`. See [📦 Bundled Presets](#-bundled-presets).
+
+- **Execution enhancements.** DAG-aware task orchestration with wave-based parallel/sequential execution, dual execution loop (`[SYNC]`/`[ASYNC]` task classification), and feature-level git worktree isolation with task-branch workflow (`git.task`, `git.task-merge`) — extending the upstream `git` extension with worktree and DAG capabilities.
+
+This fork represents the evolution from a development process to a complete organizational methodology for AI-native software development — with sophisticated knowledge management, cross-project learning, and the extension/preset/workflow machinery to scale AI-assisted development across teams.
 
 <p align="center">
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml"><img src="https://github.com/tikalk/agentic-sdlc-spec-kit/actions/workflows/release.yml/badge.svg" alt="Release"/></a>
@@ -89,7 +93,7 @@ Choose your preferred installation method:
 
 #### Option 1: Persistent Installation (Recommended)
 
-Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest):
+Install once and use everywhere. Pin a specific release tag for stability (check [Releases](https://github.com/tikalk/agentic-sdlc-spec-kit/releases) for the latest). Keep the leading `agentic-sdlc-v` prefix on the tag (for example, `agentic-sdlc-v0.12.11`):
 
 > [!NOTE]
 > The `uv tool install` commands below require **[uv](https://docs.astral.sh/uv/)** — a fast Python package manager. If you see `command not found: uv`, [install uv first](./docs/install/uv.md). The `pipx` alternative does not require uv.
