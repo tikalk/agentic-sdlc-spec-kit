@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "team-ai-directives"
   name: "Team AI Directives"
-  version: "4.1.0"
+  version: "4.2.0"
   description: "Bundled governance extension for team-ai-directives: discover, curate, evolve, repair, verify, and manage team skills. Governance commands and skills are bundled here; domain skills remain in the external knowledge base."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -61,6 +61,16 @@ handoffs:
       agent: "team.verify"
       prompt: "Run health checks on the repaired knowledge base"
       send: false
+
+hooks:
+  before_specify:
+    command: adlc.team-ai-directives.discover
+    optional: false
+    description: "Discover team context before specification"
+  before_plan:
+    command: adlc.team-ai-directives.discover
+    optional: false
+    description: "Discover team context before planning"
 
 tags:
   - "team-ai-directives"

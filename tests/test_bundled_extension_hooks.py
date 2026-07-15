@@ -253,3 +253,45 @@ def test_hook_update_replaces_existing_hook(temp_project, extension_with_hooks):
 
     assert before_hook["description"] == "Updated description"
     assert before_hook["optional"] is True  # Should be updated
+
+
+def test_team_ai_directives_declares_hooks():
+    """Test that the bundled team-ai-directives extension declares hooks.
+
+    The extension must register before_specify and before_plan hooks so that
+    team-discover is auto-invoked by the spec workflow's pre-execution hook
+    checks. Without these declarations, register_hooks() writes nothing and
+    the agent never triggers team-discover during /spec.specify or /spec.plan.
+    """
+    ext_yml = (
+        Path(__file__).resolve().parent.parent
+        / "extensions"
+        / "team-ai-directives"
+        / "extension.yml"
+    )
+    assert ext_yml.exists(), "team-ai-directives/extension.yml must exist"
+
+    manifest = yaml.safe_load(ext_yml.read_text())
+    assert "hooks" in manifest, (
+        "team-ai-directives extension.yml must declare a 'hooks' block "
+        "so that register_hooks() populates extensions.yml during install"
+    )
+
+    hooks = manifest["hooks"]
+    assert "before_specify" in hooks, (
+        "team-ai-directives must register a before_specify hook to auto-invoke "
+        "team-discover before /spec.specify"
+    )
+    assert hooks["before_specify"]["command"] == "adlc.team-ai-directives.discover"
+    assert hooks["before_specify"]["optional"] is False, (
+        "before_specify hook should be mandatory (optional: false)"
+    )
+
+    assert "before_plan" in hooks, (
+        "team-ai-directives must register a before_plan hook to auto-invoke "
+        "team-discover before /spec.plan"
+    )
+    assert hooks["before_plan"]["command"] == "adlc.team-ai-directives.discover"
+    assert hooks["before_plan"]["optional"] is False, (
+        "before_plan hook should be mandatory (optional: false)"
+    )
