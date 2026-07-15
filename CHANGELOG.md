@@ -2,6 +2,44 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc3] - 2026-07-15
+
+### Added
+
+- **Skill Check step in preset commands**: All 11 preset command files in
+  `agentic-sdlc` (9 `adlc.spec.*` + `adlc.spec.specify`) and `agentic-quick`
+  (`adlc.quick.implement`) now include a generic "Skill Check" step before the
+  extension hook checks. This bridges the ambient AGENTS.md "Strict Compliance"
+  directive ("You MUST check if a skill applies BEFORE responding") into the
+  command's procedural flow, preventing the "STOP. execute extension hooks"
+  tunnel from overriding it. The step is fully generic — it does not name
+  any specific skill.
+- **team-ai-directives discovery hooks**: The `team-ai-directives` extension
+  now declares `before_specify` and `before_plan` hooks (mandatory) in its
+  `extension.yml`. On install/update, `register_hooks()` writes these to
+  `.specify/extensions.yml`, so the spec workflow's existing hook-check logic
+  auto-invokes `/team.discover` before `/spec.specify` and `/spec.plan`.
+  Previously the hooks were documented in `team.discover.md` but never
+  declared in the manifest — leaving personas, rules, examples, and team
+  skills undiscovered.
+- **Test**: `test_team_ai_directives_declares_hooks` in
+  `test_bundled_extension_hooks.py` verifies the manifest declares both hooks
+  with the correct command and `optional: false`.
+
+### Changed
+
+- **Strengthened AGENTS.md injection**: The "Strict Compliance" bullet injected
+  by `update-agent-context.sh` / `.ps1` / `.py` now reads "This is not optional
+  and applies to every interaction" (previously just "If a skill applies, you
+  MUST invoke it immediately"). Makes the directive harder to deprioritize
+  against procedural command outlines.
+
+### Migration
+
+- Existing workspaces: run `specify extension update team-ai-directives` to
+  populate the new `before_specify` / `before_plan` hooks in
+  `.specify/extensions.yml`.
+
 # [0.12.15+adlc2] - 2026-07-15
 
 ### Changed

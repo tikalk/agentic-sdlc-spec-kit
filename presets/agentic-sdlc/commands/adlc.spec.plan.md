@@ -17,6 +17,8 @@ scripts:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
+**Skill Check**: Review the available skills listed in your system context. If any skill applies to this task, invoke it immediately via the skill tool and wait for its output before proceeding. This step enforces the "Strict Compliance" directive in AGENTS.md.
+
 0. Determine `{REPO_ROOT}` by running `git rev-parse --show-toplevel 2>/dev/null`. If that fails, walk up from the current directory until you find a `.git` directory or `.specify/init-options.json` and use that parent as `{REPO_ROOT}`.
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
    If the YAML cannot be parsed or is invalid, skip hook checking silently and continue normally.

@@ -71,6 +71,8 @@ Display:
 
 **STOP. Before reading User Input or doing ANY other work, execute extension hooks.**
 
+**Skill Check**: Review the available skills listed in your system context. If any skill applies to this task, invoke it immediately via the skill tool and wait for its output before proceeding. This step enforces the "Strict Compliance" directive in AGENTS.md.
+
 1. If `{REPO_ROOT}/.specify/extensions.yml` does not exist, state `No hooks file found` and skip to User Input.
 2. Read `{REPO_ROOT}/.specify/extensions.yml` and find `hooks.before_implement`.
 3. Skip any hook with `enabled: false`. Skip any hook with a non-empty `condition`.

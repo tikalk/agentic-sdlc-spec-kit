@@ -218,7 +218,7 @@ def _build_section(
             "## Team Directives & Constitution",
             "",
             "This project is bound by the team-ai-directives knowledge base.",
-            "- **Strict Compliance**: You MUST check if a skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately.",
+            "- **Strict Compliance**: You MUST check if a skill applies BEFORE responding to any task or question. If a skill applies, you MUST invoke it immediately. This is not optional and applies to every interaction.",
             f"- **Team Constitution**: Read and strictly adhere to the principles in `{team_directives}/context_modules/constitution.md`. When creating or updating the project's constitution, you MUST inherit and align with these principles.",
             "- **Rules, Personas & Examples**: Use the `team-discover` skill to find and load relevant rules, personas, or examples before making changes.",
             "",
