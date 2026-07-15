@@ -31,7 +31,117 @@ from ..extensions import REINSTALL_COMMAND, ExtensionRegistry, normalize_priorit
 from .._init_options import is_ai_skills_enabled
 from ..integrations.base import IntegrationBase
 from .._utils import dump_frontmatter, version_satisfies
-from ..shared_infra import verify_archive_sha256
+from ..shared_infra import (
+    _ensure_safe_shared_destination,
+    _ensure_safe_shared_directory,
+    _write_shared_bytes,
+    _write_shared_text,
+    verify_archive_sha256,
+)
+
+
+_CONSTITUTION_PROVENANCE_FILE = ".constitution-template.json"
+
+
+def _content_sha256(content: bytes) -> str:
+    return hashlib.sha256(content).hexdigest()
+
+
+def _constitution_is_generated(
+    project_root: Path,
+    memory_constitution: Path,
+    resolver: "PresetResolver",
+) -> bool:
+    """Return whether the live constitution is an unchanged generated file."""
+    _ensure_safe_shared_destination(project_root, memory_constitution)
+    content = memory_constitution.read_bytes()
+    provenance = memory_constitution.parent / _CONSTITUTION_PROVENANCE_FILE
+    _ensure_safe_shared_destination(project_root, provenance)
+
+    if provenance.exists():
+        try:
+            metadata = json.loads(provenance.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return False
+        return (
+            isinstance(metadata, dict)
+            and metadata.get("sha256") == _content_sha256(content)
+        )
+
+    # Older projects have no provenance sidecar. Only the immutable bundled or
+    # source-checkout core template is safe to treat as generated.
+    core = resolver._find_bundled_core(
+        "constitution-template", "template", ".md"
+    )
+    return core is not None and core.read_bytes() == content
+
+
+def _constitution_provenance_matches_preset(
+    project_root: Path,
+    memory_constitution: Path,
+    pack_id: str,
+    pack_version: str,
+) -> bool:
+    """Return whether provenance identifies a preset as the materialized source."""
+    provenance = memory_constitution.parent / _CONSTITUTION_PROVENANCE_FILE
+    if not provenance.parent.exists():
+        return False
+    _ensure_safe_shared_destination(project_root, provenance)
+    if not provenance.exists():
+        return False
+    try:
+        metadata = json.loads(provenance.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return False
+    return (
+        isinstance(metadata, dict)
+        and metadata.get("source") == f"{pack_id} v{pack_version}"
+    )
+
+
+def _materialize_constitution_template(
+    project_root: Path,
+    memory_constitution: Path,
+) -> str | None:
+    """Materialize constitution-template content into memory/constitution.md.
+
+    Returns:
+        "copied" when the winning layer is ``replace`` and the source file is
+        copied verbatim; "composed" when a composing strategy is materialized
+        via ``resolve_content``; ``None`` when no constitution template resolves.
+    """
+    resolver = PresetResolver(project_root)
+    layers = resolver.collect_all_layers("constitution-template", "template")
+    if not layers:
+        return None
+
+    top_layer = layers[0]
+    if top_layer["strategy"] == "replace":
+        content = top_layer["path"].read_bytes()
+        result = "copied"
+    else:
+        composed_content = resolver.resolve_content("constitution-template", "template")
+        if composed_content is None:
+            return None
+        content = composed_content.encode("utf-8")
+        result = "composed"
+
+    _ensure_safe_shared_directory(project_root, memory_constitution.parent)
+    _write_shared_bytes(project_root, memory_constitution, content)
+    provenance = memory_constitution.parent / _CONSTITUTION_PROVENANCE_FILE
+    _write_shared_text(
+        project_root,
+        provenance,
+        json.dumps(
+            {
+                "sha256": _content_sha256(content),
+                "source": top_layer["source"],
+            },
+            indent=2,
+        )
+        + "\n",
+    )
+    return result
 
 
 def _substitute_core_template(
@@ -1629,7 +1739,72 @@ class PresetManager:
                     stacklevel=2,
                 )
 
+        # Seed/re-seed memory/constitution.md from a preset-provided
+        # constitution-template. The constitution is the only template that is
+        # materialized to a live file rather than resolved on demand, so a
+        # preset that ships one (e.g. strategy: replace with a ratified
+        # constitution) must be propagated here. Guard against clobbering an
+        # already-authored constitution by only replacing a file whose recorded
+        # hash (or exact legacy core-template content) proves it was generated.
+        self._seed_constitution_from_preset(manifest, dest_dir)
+
         return manifest
+
+    def _seed_constitution_from_preset(
+        self, manifest: PresetManifest, preset_dir: Path
+    ) -> None:
+        """Seed memory/constitution.md from a preset constitution-template.
+
+        Only runs when the preset declares a ``type: template`` entry named
+        ``constitution-template`` or provides one at a convention path, and the
+        live memory file is either missing or is an unchanged generated file.
+        Authored constitutions are never overwritten.
+        """
+        provides_constitution = any(
+            t.get("type") == "template" and t.get("name") == "constitution-template"
+            for t in manifest.templates
+        ) or any(
+            (preset_dir / relative_path).is_file()
+            for relative_path in (
+                "templates/constitution-template.md",
+                "constitution-template.md",
+            )
+        )
+        if not provides_constitution:
+            return
+
+        self.reconcile_constitution(
+            f"Failed to seed constitution from preset {manifest.id}",
+            create_if_missing=True,
+        )
+
+    def reconcile_constitution(
+        self, failure_context: str, *, create_if_missing: bool = False
+    ) -> None:
+        """Reconcile generated constitution content without failing a persisted change."""
+        try:
+            self._reconcile_constitution(create_if_missing=create_if_missing)
+        except (OSError, UnicodeDecodeError, PresetValidationError, ValueError) as exc:
+            import warnings
+
+            warnings.warn(
+                f"{failure_context}: {exc}.",
+                stacklevel=2,
+            )
+
+    def _reconcile_constitution(self, *, create_if_missing: bool = False) -> None:
+        """Materialize the winning constitution layer when the live file is generated."""
+        memory_constitution = (
+            self.project_root / ".specify" / "memory" / "constitution.md"
+        )
+        if not memory_constitution.exists() and not create_if_missing:
+            return
+        resolver = PresetResolver(self.project_root)
+        if memory_constitution.exists() and not _constitution_is_generated(
+            self.project_root, memory_constitution, resolver
+        ):
+            return
+        _materialize_constitution_template(self.project_root, memory_constitution)
 
     def install_from_zip(
         self,
@@ -1710,6 +1885,25 @@ class PresetManager:
         # Also include aliases from the manifest as a safety net for registries
         # populated by older versions that may not track aliases.
         removed_cmd_names = set()
+        removed_constitution = any(
+            path.exists()
+            for path in (
+                pack_dir / "templates" / "constitution-template.md",
+                pack_dir / "constitution-template.md",
+            )
+        )
+        if metadata and isinstance(metadata.get("version"), str):
+            memory_constitution = (
+                self.project_root / ".specify" / "memory" / "constitution.md"
+            )
+            removed_constitution = removed_constitution or (
+                _constitution_provenance_matches_preset(
+                    self.project_root,
+                    memory_constitution,
+                    pack_id,
+                    metadata["version"],
+                )
+            )
         for cmd_names in registered_commands.values():
             removed_cmd_names.update(cmd_names)
         manifest_path = pack_dir / "preset.yml"
@@ -1717,6 +1911,11 @@ class PresetManager:
             try:
                 manifest = PresetManifest(manifest_path)
                 for tmpl in manifest.templates:
+                    if (
+                        tmpl.get("type") == "template"
+                        and tmpl.get("name") == "constitution-template"
+                    ):
+                        removed_constitution = True
                     if tmpl.get("type") == "command":
                         for alias in tmpl.get("aliases", []):
                             if isinstance(alias, str):
@@ -1760,6 +1959,18 @@ class PresetManager:
                     f"Post-removal reconciliation failed for {pack_id}: {exc}. "
                     f"Agent command files may be stale; reinstall affected presets "
                     f"or run 'specify preset add' to refresh.",
+                    stacklevel=2,
+                )
+
+        if removed_constitution:
+            try:
+                self._reconcile_constitution()
+            except (OSError, UnicodeDecodeError, PresetValidationError, ValueError) as exc:
+                import warnings
+
+                warnings.warn(
+                    f"Post-removal constitution reconciliation failed for {pack_id}: "
+                    f"{exc}. The live constitution may be stale.",
                     stacklevel=2,
                 )
 
