@@ -2,6 +2,41 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc5] - 2026-07-15
+
+### Changed
+
+- Version bump; no functional changes from `0.12.15+adlc4`.
+
+# [0.12.15+adlc4] - 2026-07-15
+
+### Added
+
+- **`team.boot` bootstrap command**: New `adlc.team-ai-directives.boot` command
+  (alias `team.boot`) with `model-invocation: true` frontmatter. The CLI
+  auto-generates a `team-boot` skill from this command during install, so the
+  model can self-trigger it on any interaction — not just spec workflow
+  commands. The command includes an anti-pattern table (adapted from the
+  superpowers framework) that counters every rationalization the model might
+  use to skip the skill check. Addresses the observed failure where agents
+  skipped team-discover on plain user messages because the AGENTS.md directive
+  was ambient context overridden by procedural command outlines.
+- **Strengthened AGENTS.md injection**: `update-agent-context.sh/.ps1/.py` now
+  inject anti-pattern counter-rationalizations inline (e.g., "Let me explore
+  the codebase first" → "Skills tell you HOW to explore. Check first.") and
+  tell the model to invoke the `team-boot` skill before responding.
+- **Handoff**: `team.boot` hands off to `team.discover` for CDR/personas/rules
+  scanning.
+
+### Changed
+
+- Bump `team-ai-directives` extension to `4.3.0`.
+
+### Migration
+
+- Existing workspaces: run `specify extension update team-ai-directives` to
+  install the new `team.boot` command and auto-generated `team-boot` skill.
+
 # [0.12.15+adlc3] - 2026-07-15
 
 ### Added

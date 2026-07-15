@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: "team-ai-directives"
   name: "Team AI Directives"
-  version: "4.2.0"
+  version: "4.3.1"
   description: "Bundled governance extension for team-ai-directives: discover, curate, evolve, repair, verify, and manage team skills. Governance commands and skills are bundled here; domain skills remain in the external knowledge base."
   author: "Agentic SDLC Team"
   repository: "https://github.com/tikalk/agentic-sdlc-spec-kit"
@@ -15,6 +15,11 @@ requires:
 
 provides:
   commands:
+    - name: "adlc.team-ai-directives.boot"
+      file: "commands/boot.md"
+      description: "Bootstrap session with team-ai-directives context — invoke before any task"
+      aliases: ["team.boot"]
+
     - name: "adlc.team-ai-directives.discover"
       file: "commands/discover.md"
       description: "Discover relevant team-ai-directives context for the current feature"
@@ -46,6 +51,11 @@ provides:
       aliases: ["team.verify"]
 
 handoffs:
+  team.boot:
+    - label: "Discover team context"
+      agent: "team.discover"
+      prompt: "Run discovery to find relevant rules, personas, and examples for the current task"
+      send: false
   team.discover:
     - label: "Curate new CDRs"
       agent: "team.curate"

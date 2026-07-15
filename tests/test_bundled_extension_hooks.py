@@ -295,3 +295,59 @@ def test_team_ai_directives_declares_hooks():
     assert hooks["before_plan"]["optional"] is False, (
         "before_plan hook should be mandatory (optional: false)"
     )
+
+
+def test_team_ai_directives_registers_boot_command():
+    """Test that the bundled team-ai-directives extension registers team.boot.
+
+    The boot command must have model-invocation: true so the CLI auto-generates
+    a team-boot skill. This skill appears in the agent's available skills list
+    and can be self-triggered by the model on any interaction — not just spec
+    workflow commands. Without it, the AGENTS.md "Strict Compliance" directive
+    has no actionable skill for the model to invoke on plain user messages.
+    """
+    ext_yml = (
+        Path(__file__).resolve().parent.parent
+        / "extensions"
+        / "team-ai-directives"
+        / "extension.yml"
+    )
+    assert ext_yml.exists(), "team-ai-directives/extension.yml must exist"
+
+    manifest = yaml.safe_load(ext_yml.read_text())
+    commands = manifest.get("provides", {}).get("commands", [])
+
+    boot_cmd = None
+    for cmd in commands:
+        if cmd.get("name") == "adlc.team-ai-directives.boot":
+            boot_cmd = cmd
+            break
+
+    assert boot_cmd is not None, (
+        "team-ai-directives must register an adlc.team-ai-directives.boot command"
+    )
+    assert "team.boot" in boot_cmd.get("aliases", []), (
+        "team.boot alias must be registered for the boot command"
+    )
+
+    boot_file = (
+        Path(__file__).resolve().parent.parent
+        / "extensions"
+        / "team-ai-directives"
+        / boot_cmd["file"]
+    )
+    assert boot_file.exists(), f"boot command file {boot_cmd['file']} must exist"
+
+    boot_content = boot_file.read_text()
+    assert "model-invocation: true" in boot_content, (
+        "boot command must have model-invocation: true so the CLI "
+        "auto-generates a team-boot skill"
+    )
+    assert "EXTREMELY_IMPORTANT" in boot_content, (
+        "boot command must use EXTREMELY_IMPORTANT framing to enforce "
+        "the skill check directive"
+    )
+    assert "Anti-Pattern" in boot_content, (
+        "boot command must include an anti-pattern table that counters "
+        "rationalizations for skipping the skill check"
+    )
