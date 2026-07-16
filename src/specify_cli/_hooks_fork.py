@@ -474,13 +474,13 @@ class CodexHookAdapter(HookAdapter):
             bridge_abs = f"$(git rev-parse --show-toplevel)/{HOOK_BRIDGE_REL}"
             lines.append(f'[[hooks.{event}]]')
             lines.append(f'matcher = "{matcher}"')
-            lines.append(f'')
+            lines.append('')
             lines.append(f'[[hooks.{event}.hooks]]')
-            lines.append(f'type = "command"')
+            lines.append('type = "command"')
             lines.append(f'command = \'python3 {bridge_abs} {command} {event}\'')
             lines.append(f'timeout = {timeout}')
-            lines.append(f'speckit_marker = true')
-            lines.append(f'')
+            lines.append('speckit_marker = true')
+            lines.append('')
         return "toml", "\n".join(lines)
 
     def merge_fragment(self, dst: Path, fragment: Any, *, format: str) -> None:
@@ -588,7 +588,6 @@ class OpencodeHookAdapter(HookAdapter):
         plugin_returns: list[str] = []
         for event, config in hooks.items():
             command = config.get("command", "")
-            timeout = config.get("timeout", 60)
             matcher = config.get("matcher", "*")
             if event == "PreToolUse":
                 ts_hook = "tool.execute.before"
