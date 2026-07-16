@@ -2,6 +2,38 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc8] - 2026-07-17
+
+### Added
+
+- **Canonical runtime event names**: Extensions now use unified canonical event
+  names (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`,
+  `UserPromptSubmit`) in `runtime_hooks:`. Each adapter translates to the
+  agent's native event names automatically via `CANONICAL_TO_NATIVE` mapping.
+- **4 new hook-capable integrations**: Qwen (`QwenHookAdapter`),
+  Gemini (`GeminiHookAdapter`), Devin (`DevinHookAdapter`),
+  Tabnine (`TabnineHookAdapter`). All extend `JSONHookAdapter` with nested
+  matcher-groups format.
+- **Unknown event rejection**: `validate_runtime_hooks()` now rejects event
+  names not in `CANONICAL_RUNTIME_EVENTS` at manifest load time.
+- **Unsupported event warning**: Adapters print a warning and skip events they
+  don't support (e.g. `Stop` for opencode, `UserPromptSubmit` for Gemini).
+- Hook callout added to `TomlIntegration.setup()` and `YamlIntegration.setup()`
+  (previously only in `MarkdownIntegration` and `SkillsIntegration`).
+- `--hooks` option added to gemini, qwen, devin, tabnine integrations.
+
+### Changed
+
+- `HookAdapter` base class gained `CANONICAL_TO_NATIVE` dict, `_native_event()`,
+  `_filter_hooks()` methods. `install()` now filters hooks through the mapping
+  before generating fragments.
+- `JSONHookAdapter` gained `bridge_path_prefix` attribute and shared
+  `_build_nested_fragment()` method used by Claude/Qwen/Gemini/Devin/Tabnine.
+- `OpencodeHookAdapter._build_plugin()` uses `CANONICAL_TO_NATIVE` instead of
+  hardcoded if/elif chain.
+- 22 new tests (56 total) covering canonical mapping, unknown-event rejection,
+  unsupported-event warning, and all new adapters.
+
 # [0.12.15+adlc7] - 2026-07-16
 
 ### Fixed

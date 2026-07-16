@@ -93,8 +93,12 @@ Runtime hooks wire agent-native lifecycle events (e.g. `PreToolUse`, `PostToolUs
 | `cursor-agent` | `.cursor/hooks.json` | JSON (flat handler arrays) | camelCase | |
 | `codex` | `.codex/config.toml` | TOML (`[[hooks.*]]`) | PascalCase | Requires `/hooks` trust on first run |
 | `opencode` | `.opencode/plugin/speckit-hooks.ts` + `opencode.json` | TypeScript plugin | — | Plugin auto-loaded via `plugin[]` array |
+| `qwen` | `.qwen/settings.json` | JSON (nested matcher-groups) | PascalCase | Same structure as Claude |
+| `gemini` | `.gemini/settings.json` | JSON (nested matcher-groups) | PascalCase | Native events: `BeforeTool`, `AfterTool`, `AfterAgent` |
+| `devin` | `.devin/hooks.v1.json` | JSON (nested matcher-groups) | PascalCase | Same structure as Claude |
+| `tabnine` | `.tabnine/agent/settings.json` | JSON (nested matcher-groups) | PascalCase | Native events: `BeforeTool`, `AfterTool` |
 
-Other integrations (gemini, goose, copilot, pi, etc.) silently skip runtime hooks — no error, no files created.
+Other integrations (copilot, pi, vibe, goose, kimi, amp, forge, etc.) silently skip runtime hooks — no error, no files created.
 
 ### Hook Resolution (4 layers)
 

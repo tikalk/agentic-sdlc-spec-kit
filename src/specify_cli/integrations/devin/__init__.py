@@ -62,4 +62,10 @@ class DevinIntegration(SkillsIntegration):
                 default=True,
                 help="Install as agent skills (default for Devin)",
             ),
+            IntegrationOption(
+                "--hooks",
+                is_flag=False,
+                default="true",
+                help="Enable/disable runtime hooks (true|false, default: true)",
+            ),
         ]

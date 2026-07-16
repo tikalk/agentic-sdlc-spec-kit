@@ -123,10 +123,9 @@ defaults:                # Optional, default configuration values
 #### `runtime_hooks`
 
 - **Type**: object
-- **Keys**: Agent runtime event names (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`)
-- **Value**: A single hook mapping (not a list)
-- **Description**: Agent runtime lifecycle hooks, collected by the integration installer and wired into the agent's native hook config (e.g. `.claude/settings.json`, `.cursor/hooks.json`, `opencode.json`). These are **separate** from workflow `hooks` and are **not** dispatched by `HookExecutor` — they execute deterministically inside the agent CLI's own tool-use loop.
-- **Supported integrations**: `claude`, `cursor-agent`, `codex`, `opencode`. Other integrations silently skip runtime hooks.
+- **Keys**: Canonical runtime event names — extensions always use these canonical names, not agent-native names. Adapters translate automatically.
+- **Supported canonical events**: `PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`
+- **Supported integrations**: `claude`, `cursor-agent`, `codex`, `opencode`, `qwen`, `gemini`, `devin`, `tabnine`. Other integrations silently skip runtime hooks.
 - **Hook mapping fields**:
   - `command` (required): Slash command name to wire (e.g. `speckit.tdd.validate`). The command must have a `scripts:` frontmatter entry — prompt-only commands cannot be auto-executed as hooks.
   - `matcher` (optional): Tool name filter (e.g. `"Edit|Write"`). Defaults to `"*"`.

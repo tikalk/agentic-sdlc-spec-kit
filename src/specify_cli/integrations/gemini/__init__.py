@@ -1,6 +1,6 @@
 """Gemini CLI integration."""
 
-from ..base import TomlIntegration
+from ..base import IntegrationOption, TomlIntegration
 
 
 class GeminiIntegration(TomlIntegration):
@@ -19,3 +19,14 @@ class GeminiIntegration(TomlIntegration):
         "extension": ".toml",
     }
     multi_install_safe = True
+
+    @classmethod
+    def options(cls) -> list[IntegrationOption]:
+        return [
+            IntegrationOption(
+                "--hooks",
+                is_flag=False,
+                default="true",
+                help="Enable/disable runtime hooks (true|false, default: true)",
+            ),
+        ]

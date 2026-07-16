@@ -1,6 +1,6 @@
 """Qwen Code integration."""
 
-from ..base import MarkdownIntegration
+from ..base import IntegrationOption, MarkdownIntegration
 
 
 class QwenIntegration(MarkdownIntegration):
@@ -19,3 +19,14 @@ class QwenIntegration(MarkdownIntegration):
         "extension": ".md",
     }
     multi_install_safe = True
+
+    @classmethod
+    def options(cls) -> list[IntegrationOption]:
+        return [
+            IntegrationOption(
+                "--hooks",
+                is_flag=False,
+                default="true",
+                help="Enable/disable runtime hooks (true|false, default: true)",
+            ),
+        ]

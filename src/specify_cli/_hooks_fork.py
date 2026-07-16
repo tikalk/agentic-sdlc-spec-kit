@@ -38,6 +38,18 @@ YAML_OVERRIDE_FILENAME = Path(".specify") / "integration-hooks.yml"
 # identify and remove only our entries on uninstall/upgrade.
 _SPECKIT_MARKER = "__speckit_hook__"
 
+# Canonical runtime hook event names that extensions use in ``runtime_hooks:``.
+# Adapters translate these to each agent's native event names via
+# ``CANONICAL_TO_NATIVE``.  Extensions never need to know agent-specific names.
+CANONICAL_RUNTIME_EVENTS = frozenset({
+    "PreToolUse",
+    "PostToolUse",
+    "Stop",
+    "SessionStart",
+    "SessionEnd",
+    "UserPromptSubmit",
+})
+
 # -- Bridge script template ------------------------------------------------
 
 _BRIDGE_TEMPLATE = '''#!/usr/bin/env python3
@@ -262,7 +274,16 @@ def collect_extension_runtime_hooks(project_root: Path) -> dict[str, dict[str, A
 # -- Adapter infrastructure ------------------------------------------------
 
 class HookAdapter(ABC):
-    """Abstract base for per-agent native hook config generation/merge."""
+    """Abstract base for per-agent native hook config generation/merge.
+
+    Subclasses set ``CANONICAL_TO_NATIVE`` to map canonical event names
+    (e.g. ``PreToolUse``) to the agent's native event names. Events not
+    in the mapping are silently skipped with a warning at install time.
+    """
+
+    # Maps canonical event name → agent-native event name.
+    # Empty dict means no events are supported (adapter is a no-op).
+    CANONICAL_TO_NATIVE: dict[str, str] = {}
 
     @property
     @abstractmethod
@@ -281,6 +302,29 @@ class HookAdapter(ABC):
     def remove_entries(self, dst: Path) -> None:
         """Remove all Specify-authored hook entries from *dst*."""
 
+    def _native_event(self, canonical: str) -> str | None:
+        """Return the native event name for a canonical name, or None."""
+        return self.CANONICAL_TO_NATIVE.get(canonical)
+
+    def _filter_hooks(self, hooks: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
+        """Filter hooks to only those supported by this adapter.
+
+        Prints a warning for each unsupported event and returns a dict
+        containing only the supported ones.
+        """
+        import sys
+        filtered: dict[str, dict[str, Any]] = {}
+        for event, config in hooks.items():
+            if self._native_event(event) is not None:
+                filtered[event] = config
+            else:
+                adapter_name = type(self).__name__
+                print(
+                    f"\u26a0\ufe0f  {adapter_name} does not support '{event}' events; skipping",
+                    file=sys.stderr,
+                )
+        return filtered
+
     def install(
         self,
         project_root: Path,
@@ -288,6 +332,11 @@ class HookAdapter(ABC):
         hooks: dict[str, dict[str, Any]],
     ) -> list[Path]:
         """Generate bridge, merge native config, return created files."""
+        # Filter to only events this adapter supports
+        hooks = self._filter_hooks(hooks)
+        if not hooks:
+            return []
+
         created: list[Path] = []
 
         # Generate bridge script
@@ -324,9 +373,17 @@ class HookAdapter(ABC):
 
 
 class JSONHookAdapter(HookAdapter):
-    """Base for agents using JSON settings files (Claude, Cursor)."""
+    """Base for agents using JSON settings files.
+
+    Subclasses set ``config_file_rel``, ``CANONICAL_TO_NATIVE``, and
+    optionally ``bridge_path_prefix`` (e.g. ``${CLAUDE_PROJECT_DIR}/``).
+    The default ``_build_fragment()`` produces Claude-style nested
+    matcher-groups. Override for different JSON structures (e.g. Cursor's
+    flat format).
+    """
 
     config_file_rel: str = ""
+    bridge_path_prefix: str = ""
 
     def generate_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> tuple[str, Any]:
         fragment = self._build_fragment(hooks, project_root)
@@ -335,6 +392,37 @@ class JSONHookAdapter(HookAdapter):
     @abstractmethod
     def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
         ...
+
+    def _build_nested_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
+        """Build Claude-style nested matcher-groups fragment.
+
+        Shared by Claude, Qwen, Devin, Gemini, Tabnine — all use the same
+        nested ``hooks.{Event}[].{matcher, hooks[]}`` structure.
+        """
+        result: dict[str, list] = {"hooks": {}}
+        for event, config in hooks.items():
+            native = self._native_event(event)
+            if native is None:
+                continue
+            matcher = config.get("matcher", "*")
+            timeout = config.get("timeout", 60)
+            command = config.get("command", "")
+            entry = {
+                "type": "command",
+                "command": "python3",
+                "args": [
+                    self.bridge_path_prefix + HOOK_BRIDGE_REL,
+                    command,
+                    event,
+                ],
+                "timeout": timeout,
+                _SPECKIT_MARKER: True,
+            }
+            result["hooks"][native] = [{
+                "matcher": matcher,
+                "hooks": [entry],
+            }]
+        return result
 
     def merge_fragment(self, dst: Path, fragment: Any, *, format: str) -> None:
         if format != "json":
@@ -411,41 +499,39 @@ class ClaudeHookAdapter(JSONHookAdapter):
     """Claude Code: nested matcher-groups in .claude/settings.json."""
 
     config_file_rel = ".claude/settings.json"
+    bridge_path_prefix = "${CLAUDE_PROJECT_DIR}/"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "PreToolUse",
+        "PostToolUse": "PostToolUse",
+        "Stop": "Stop",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+        "UserPromptSubmit": "UserPromptSubmit",
+    }
 
     def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
-        result: dict[str, list] = {"hooks": {}}
-        for event, config in hooks.items():
-            matcher = config.get("matcher", "*")
-            timeout = config.get("timeout", 60)
-            command = config.get("command", "")
-            entry = {
-                "type": "command",
-                "command": "python3",
-                "args": [
-                    "${CLAUDE_PROJECT_DIR}/" + HOOK_BRIDGE_REL,
-                    command,
-                    event,
-                ],
-                "timeout": timeout,
-                _SPECKIT_MARKER: True,
-            }
-            result["hooks"][event] = [{
-                "matcher": matcher,
-                "hooks": [entry],
-            }]
-        return result
+        return self._build_nested_fragment(hooks, project_root)
 
 
 class CursorHookAdapter(JSONHookAdapter):
     """Cursor: flat handler arrays in .cursor/hooks.json."""
 
     config_file_rel = ".cursor/hooks.json"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "preToolUse",
+        "PostToolUse": "postToolUse",
+        "Stop": "stop",
+        "SessionStart": "sessionStart",
+        "SessionEnd": "sessionEnd",
+        "UserPromptSubmit": "beforeSubmitPrompt",
+    }
 
     def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
         result: dict[str, list] = {"hooks": {}}
         for event, config in hooks.items():
-            # Cursor uses camelCase event names
-            camel_event = _to_camel_case(event)
+            native = self._native_event(event)
+            if native is None:
+                continue
             matcher = config.get("matcher", "*")
             timeout = config.get("timeout", 60)
             command = config.get("command", "")
@@ -456,7 +542,7 @@ class CursorHookAdapter(JSONHookAdapter):
                 "matcher": matcher,
                 _SPECKIT_MARKER: True,
             }
-            result["hooks"][camel_event] = [entry]
+            result["hooks"][native] = [entry]
         return result
 
 
@@ -464,18 +550,29 @@ class CodexHookAdapter(HookAdapter):
     """Codex CLI: TOML [[hooks.*]] in config.toml."""
 
     config_file_rel = ".codex/config.toml"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "PreToolUse",
+        "PostToolUse": "PostToolUse",
+        "Stop": "Stop",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+        "UserPromptSubmit": "UserPromptSubmit",
+    }
 
     def generate_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> tuple[str, Any]:
         lines: list[str] = []
         for event, config in hooks.items():
+            native = self._native_event(event)
+            if native is None:
+                continue
             matcher = config.get("matcher", "*")
             timeout = config.get("timeout", 60)
             command = config.get("command", "")
             bridge_abs = f"$(git rev-parse --show-toplevel)/{HOOK_BRIDGE_REL}"
-            lines.append(f'[[hooks.{event}]]')
+            lines.append(f'[[hooks.{native}]]')
             lines.append(f'matcher = "{matcher}"')
             lines.append('')
-            lines.append(f'[[hooks.{event}.hooks]]')
+            lines.append(f'[[hooks.{native}.hooks]]')
             lines.append('type = "command"')
             lines.append(f'command = \'python3 {bridge_abs} {command} {event}\'')
             lines.append(f'timeout = {timeout}')
@@ -518,6 +615,10 @@ class OpencodeHookAdapter(HookAdapter):
 
     config_file_rel = "opencode.json"
     _PLUGIN_REL = ".opencode/plugin/speckit-hooks.ts"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "tool.execute.before",
+        "PostToolUse": "tool.execute.after",
+    }
 
     def install(
         self,
@@ -525,6 +626,11 @@ class OpencodeHookAdapter(HookAdapter):
         manifest: "IntegrationManifest",
         hooks: dict[str, dict[str, Any]],
     ) -> list[Path]:
+        # Filter to only events this adapter supports
+        hooks = self._filter_hooks(hooks)
+        if not hooks:
+            return []
+
         created: list[Path] = []
 
         # Generate bridge script
@@ -587,14 +693,12 @@ class OpencodeHookAdapter(HookAdapter):
         hook_entries: list[str] = []
         plugin_returns: list[str] = []
         for event, config in hooks.items():
+            native = self._native_event(event)
+            if native is None:
+                continue
             command = config.get("command", "")
             matcher = config.get("matcher", "*")
-            if event == "PreToolUse":
-                ts_hook = "tool.execute.before"
-            elif event == "PostToolUse":
-                ts_hook = "tool.execute.after"
-            else:
-                ts_hook = f"tool.execute.{event.lower()}"
+            ts_hook = native  # already "tool.execute.before" etc.
             match_cond = ""
             if matcher and matcher != "*":
                 tools = [t.strip().strip('"') for t in matcher.split("|")]
@@ -636,6 +740,87 @@ class OpencodeHookAdapter(HookAdapter):
         config_path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
 
 
+# -- Phase 1: JSON config-file adapters (nested matcher-groups) ------------
+
+class QwenHookAdapter(JSONHookAdapter):
+    """Qwen Code: nested matcher-groups in .qwen/settings.json.
+
+    Qwen uses the same event names and JSON structure as Claude Code.
+    """
+
+    config_file_rel = ".qwen/settings.json"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "PreToolUse",
+        "PostToolUse": "PostToolUse",
+        "Stop": "Stop",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+        "UserPromptSubmit": "UserPromptSubmit",
+    }
+
+    def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
+        return self._build_nested_fragment(hooks, project_root)
+
+
+class GeminiHookAdapter(JSONHookAdapter):
+    """Gemini CLI: nested matcher-groups in .gemini/settings.json.
+
+    Gemini uses different event names (BeforeTool, AfterTool, AfterAgent).
+    """
+
+    config_file_rel = ".gemini/settings.json"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "BeforeTool",
+        "PostToolUse": "AfterTool",
+        "Stop": "AfterAgent",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+    }
+
+    def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
+        return self._build_nested_fragment(hooks, project_root)
+
+
+class DevinHookAdapter(JSONHookAdapter):
+    """Devin for Terminal: hooks in .devin/hooks.v1.json.
+
+    Devin uses the same event names and JSON structure as Claude Code.
+    Also reads .claude/settings.json for compatibility, but we write to
+    the native format for independence.
+    """
+
+    config_file_rel = ".devin/hooks.v1.json"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "PreToolUse",
+        "PostToolUse": "PostToolUse",
+        "Stop": "Stop",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+        "UserPromptSubmit": "UserPromptSubmit",
+    }
+
+    def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
+        return self._build_nested_fragment(hooks, project_root)
+
+
+class TabnineHookAdapter(JSONHookAdapter):
+    """Tabnine CLI: nested matcher-groups in .tabnine/agent/settings.json.
+
+    Tabnine uses different event names (BeforeTool, AfterTool), like Gemini.
+    """
+
+    config_file_rel = ".tabnine/agent/settings.json"
+    CANONICAL_TO_NATIVE = {
+        "PreToolUse": "BeforeTool",
+        "PostToolUse": "AfterTool",
+        "SessionStart": "SessionStart",
+        "SessionEnd": "SessionEnd",
+    }
+
+    def _build_fragment(self, hooks: dict[str, dict[str, Any]], project_root: Path) -> dict:
+        return self._build_nested_fragment(hooks, project_root)
+
+
 # -- Adapter registry -----------------------------------------------------
 
 _ADAPTERS: dict[str, type[HookAdapter]] = {
@@ -643,6 +828,10 @@ _ADAPTERS: dict[str, type[HookAdapter]] = {
     "cursor-agent": CursorHookAdapter,
     "codex": CodexHookAdapter,
     "opencode": OpencodeHookAdapter,
+    "qwen": QwenHookAdapter,
+    "gemini": GeminiHookAdapter,
+    "devin": DevinHookAdapter,
+    "tabnine": TabnineHookAdapter,
 }
 
 
@@ -774,6 +963,11 @@ def validate_runtime_hooks(data: dict[str, Any]) -> None:
             if not hook_config.get("command"):
                 raise ValidationError(
                     f"Runtime hook '{hook_name}' missing required 'command' field"
+                )
+            if hook_name not in CANONICAL_RUNTIME_EVENTS:
+                raise ValidationError(
+                    f"Unknown runtime_hook '{hook_name}': "
+                    f"must be one of {sorted(CANONICAL_RUNTIME_EVENTS)}"
                 )
 
 

@@ -432,6 +432,10 @@ Hook-capable integrations (`claude`, `cursor-agent`, `codex`, `opencode`) suppor
 | `cursor-agent` | `.cursor/hooks.json` | `CursorHookAdapter` (JSON flat, camelCase) |
 | `codex` | `.codex/config.toml` | `CodexHookAdapter` (TOML, requires `/hooks` trust) |
 | `opencode` | `.opencode/plugin/speckit-hooks.ts` + `opencode.json` | `OpencodeHookAdapter` (TS plugin) |
+| `qwen` | `.qwen/settings.json` | `QwenHookAdapter` (JSON nested, identity mapping) |
+| `gemini` | `.gemini/settings.json` | `GeminiHookAdapter` (JSON nested, `BeforeTool`/`AfterTool`) |
+| `devin` | `.devin/hooks.v1.json` | `DevinHookAdapter` (JSON nested, identity mapping) |
+| `tabnine` | `.tabnine/agent/settings.json` | `TabnineHookAdapter` (JSON nested, `BeforeTool`/`AfterTool`) |
 
 See `integrations/README.md` → Runtime Hooks and `extensions/EXTENSION-DEVELOPMENT-GUIDE.md` → `runtime_hooks` for full documentation.
 

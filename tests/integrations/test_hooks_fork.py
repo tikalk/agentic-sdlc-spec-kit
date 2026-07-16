@@ -13,17 +13,23 @@ from specify_cli._hooks_fork import (
     ClaudeHookAdapter,
     CodexHookAdapter,
     CursorHookAdapter,
+    DevinHookAdapter,
+    GeminiHookAdapter,
     HookAdapter,
     JSONHookAdapter,
     OpencodeHookAdapter,
+    QwenHookAdapter,
+    TabnineHookAdapter,
     _has_marker,
     _to_camel_case,
+    CANONICAL_RUNTIME_EVENTS,
     collect_extension_runtime_hooks,
     hooks_stale_exclusions,
     install_integration_hooks,
     remove_integration_hooks,
     resolve_adapter,
     resolve_hooks,
+    validate_runtime_hooks,
 )
 from specify_cli.integrations.manifest import IntegrationManifest
 
@@ -177,11 +183,198 @@ class TestResolveAdapter:
         adapter = resolve_adapter("opencode")
         assert isinstance(adapter, OpencodeHookAdapter)
 
-    def test_gemini_returns_none(self):
-        assert resolve_adapter("gemini") is None
+    def test_gemini_returns_adapter(self):
+        adapter = resolve_adapter("gemini")
+        assert isinstance(adapter, GeminiHookAdapter)
+
+    def test_qwen_returns_adapter(self):
+        adapter = resolve_adapter("qwen")
+        assert isinstance(adapter, QwenHookAdapter)
+
+    def test_devin_returns_adapter(self):
+        adapter = resolve_adapter("devin")
+        assert isinstance(adapter, DevinHookAdapter)
+
+    def test_tabnine_returns_adapter(self):
+        adapter = resolve_adapter("tabnine")
+        assert isinstance(adapter, TabnineHookAdapter)
+
+    def test_copilot_returns_none(self):
+        assert resolve_adapter("copilot") is None
 
     def test_unknown_returns_none(self):
         assert resolve_adapter("nonexistent") is None
+
+
+# -- Canonical event mapping -----------------------------------------------
+
+class TestCanonicalEventMapping:
+    """Test canonical→native event name translation per adapter."""
+
+    def test_claude_passthrough(self):
+        adapter = ClaudeHookAdapter()
+        assert adapter._native_event("PreToolUse") == "PreToolUse"
+        assert adapter._native_event("PostToolUse") == "PostToolUse"
+        assert adapter._native_event("Stop") == "Stop"
+
+    def test_cursor_camelcase(self):
+        adapter = CursorHookAdapter()
+        assert adapter._native_event("PreToolUse") == "preToolUse"
+        assert adapter._native_event("PostToolUse") == "postToolUse"
+        assert adapter._native_event("UserPromptSubmit") == "beforeSubmitPrompt"
+
+    def test_opencode_limited(self):
+        adapter = OpencodeHookAdapter()
+        assert adapter._native_event("PreToolUse") == "tool.execute.before"
+        assert adapter._native_event("PostToolUse") == "tool.execute.after"
+        assert adapter._native_event("Stop") is None  # unsupported
+
+    def test_gemini_mapping(self):
+        adapter = GeminiHookAdapter()
+        assert adapter._native_event("PreToolUse") == "BeforeTool"
+        assert adapter._native_event("PostToolUse") == "AfterTool"
+        assert adapter._native_event("Stop") == "AfterAgent"
+
+    def test_qwen_identity(self):
+        adapter = QwenHookAdapter()
+        assert adapter._native_event("PreToolUse") == "PreToolUse"
+
+    def test_devin_identity(self):
+        adapter = DevinHookAdapter()
+        assert adapter._native_event("PreToolUse") == "PreToolUse"
+
+    def test_tabnine_mapping(self):
+        adapter = TabnineHookAdapter()
+        assert adapter._native_event("PreToolUse") == "BeforeTool"
+        assert adapter._native_event("PostToolUse") == "AfterTool"
+        assert adapter._native_event("Stop") is None  # not supported
+
+
+class TestUnknownEventRejection:
+    """Test that validate_runtime_hooks rejects unknown event names."""
+
+    def test_unknown_event_rejected(self):
+        from specify_cli.extensions import ValidationError
+        data = {
+            "runtime_hooks": {
+                "FooBar": {"command": "speckit.test"},
+            },
+        }
+        with pytest.raises(ValidationError, match="Unknown runtime_hook 'FooBar'"):
+            validate_runtime_hooks(data)
+
+    def test_known_event_accepted(self):
+        data = {
+            "runtime_hooks": {
+                "PostToolUse": {"command": "speckit.test"},
+            },
+        }
+        validate_runtime_hooks(data)  # should not raise
+
+    def test_all_canonical_events_accepted(self):
+        for event in CANONICAL_RUNTIME_EVENTS:
+            data = {"runtime_hooks": {event: {"command": "speckit.test"}}}
+            validate_runtime_hooks(data)  # should not raise
+
+
+class TestUnsupportedEventWarning:
+    """Test that adapters warn and skip unsupported events."""
+
+    def test_opencode_skips_stop(self, tmp_path, capsys):
+        from specify_cli.integrations.manifest import IntegrationManifest
+        adapter = OpencodeHookAdapter()
+        manifest = IntegrationManifest("opencode", tmp_path)
+        hooks = {
+            "PostToolUse": {"command": "speckit.test", "matcher": "Edit|Write"},
+            "Stop": {"command": "speckit.test", "matcher": "*"},
+        }
+        adapter.install(tmp_path, manifest, hooks)
+        captured = capsys.readouterr()
+        assert "Stop" in captured.err
+        assert "skipping" in captured.err
+        # Plugin should only have PostToolUse, not Stop
+        plugin = tmp_path / ".opencode" / "plugin" / "speckit-hooks.ts"
+        content = plugin.read_text()
+        assert "tool.execute.after" in content
+        assert "tool.execute.before" not in content
+
+    def test_tabnine_skips_stop(self, tmp_path, capsys):
+        adapter = TabnineHookAdapter()
+        from specify_cli.integrations.manifest import IntegrationManifest
+        manifest = IntegrationManifest("tabnine", tmp_path)
+        hooks = {
+            "PostToolUse": {"command": "speckit.test", "matcher": "Edit|Write"},
+            "Stop": {"command": "speckit.test", "matcher": "*"},
+        }
+        adapter.install(tmp_path, manifest, hooks)
+        captured = capsys.readouterr()
+        assert "Stop" in captured.err
+        settings = tmp_path / ".tabnine" / "agent" / "settings.json"
+        data = json.loads(settings.read_text())
+        assert "AfterTool" in data.get("hooks", {})
+        assert "Stop" not in data.get("hooks", {})
+
+
+# -- New adapter tests -----------------------------------------------------
+
+class TestGeminiHookAdapter:
+
+    def test_generate_fragment_uses_native_names(self):
+        adapter = GeminiHookAdapter()
+        hooks = {
+            "PreToolUse": {"command": "speckit.test", "matcher": "Edit|Write", "timeout": 10},
+        }
+        fmt, fragment = adapter.generate_fragment(hooks, Path("/tmp"))
+        assert fmt == "json"
+        assert "BeforeTool" in fragment["hooks"]
+        assert "PreToolUse" not in fragment["hooks"]
+
+    def test_install_creates_settings(self, tmp_path):
+        from specify_cli.integrations.manifest import IntegrationManifest
+        adapter = GeminiHookAdapter()
+        manifest = IntegrationManifest("gemini", tmp_path)
+        hooks = {"PostToolUse": {"command": "speckit.test", "matcher": "Edit|Write", "timeout": 60}}
+        created = adapter.install(tmp_path, manifest, hooks)
+        settings = tmp_path / ".gemini" / "settings.json"
+        assert settings.exists()
+        data = json.loads(settings.read_text())
+        assert "AfterTool" in data["hooks"]
+
+
+class TestQwenHookAdapter:
+
+    def test_generate_fragment_identity(self):
+        adapter = QwenHookAdapter()
+        hooks = {
+            "PreToolUse": {"command": "speckit.test", "matcher": "Edit|Write", "timeout": 10},
+        }
+        fmt, fragment = adapter.generate_fragment(hooks, Path("/tmp"))
+        assert "PreToolUse" in fragment["hooks"]
+
+
+class TestDevinHookAdapter:
+
+    def test_install_creates_hooks_file(self, tmp_path):
+        from specify_cli.integrations.manifest import IntegrationManifest
+        adapter = DevinHookAdapter()
+        manifest = IntegrationManifest("devin", tmp_path)
+        hooks = {"PostToolUse": {"command": "speckit.test", "matcher": "Edit|Write", "timeout": 60}}
+        created = adapter.install(tmp_path, manifest, hooks)
+        hooks_file = tmp_path / ".devin" / "hooks.v1.json"
+        assert hooks_file.exists()
+        data = json.loads(hooks_file.read_text())
+        assert "PostToolUse" in data["hooks"]
+
+
+class TestTabnineHookAdapter:
+
+    def test_generate_fragment_native_names(self):
+        adapter = TabnineHookAdapter()
+        hooks = {
+            "PreToolUse": {"command": "speckit.test", "matcher": "Edit|Write", "timeout": 10},
+        }
+        fmt, fragment = adapter.generate_fragment(hooks, Path("/tmp"))
+        assert "BeforeTool" in fragment["hooks"]
 
 
 # -- ClaudeHookAdapter ----------------------------------------------------
@@ -365,8 +558,12 @@ class TestStaleExclusions:
         assert "opencode.json" in exclusions
         assert ".opencode/plugin/speckit-hooks.ts" in exclusions
 
-    def test_gemini_returns_empty(self):
-        assert hooks_stale_exclusions("gemini") == set()
+    def test_gemini_returns_settings_path(self):
+        exclusions = hooks_stale_exclusions("gemini")
+        assert ".gemini/settings.json" in exclusions
+
+    def test_copilot_returns_empty(self):
+        assert hooks_stale_exclusions("copilot") == set()
 
 
 # -- Integration: install + remove round-trip -----------------------------
@@ -400,7 +597,7 @@ class TestInstallRemoveRoundTrip:
     def test_group_b_no_crash(self, tmp_path):
         """Installing hooks for a Group B agent (no adapter) is a no-op."""
         mock_integration = MagicMock()
-        mock_integration.key = "gemini"
+        mock_integration.key = "copilot"
         mock_integration.config = {"hooks": {"PostToolUse": {"command": "speckit.tdd.validate"}}}
         manifest = IntegrationManifest("gemini", tmp_path)
         result = install_integration_hooks(mock_integration, tmp_path, manifest, None)

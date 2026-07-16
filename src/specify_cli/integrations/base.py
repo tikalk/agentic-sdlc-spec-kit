@@ -1444,6 +1444,15 @@ class TomlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+        # Tikalk fork: install agent runtime hooks
+        try:
+            from .._hooks_fork import install_integration_hooks
+            hook_files = install_integration_hooks(
+                self, project_root, manifest, parsed_options
+            )
+            created.extend(hook_files)
+        except ImportError:
+            pass
 
         return created
 
@@ -1680,6 +1689,15 @@ class YamlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+        # Tikalk fork: install agent runtime hooks
+        try:
+            from .._hooks_fork import install_integration_hooks
+            hook_files = install_integration_hooks(
+                self, project_root, manifest, parsed_options
+            )
+            created.extend(hook_files)
+        except ImportError:
+            pass
 
         return created
 

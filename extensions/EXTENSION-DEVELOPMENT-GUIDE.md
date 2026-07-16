@@ -223,16 +223,18 @@ Agent runtime lifecycle hooks — these are **separate** from workflow `hooks` a
 
 **Supported agents**: `claude`, `cursor-agent`, `codex`, `opencode`. Other integrations silently skip runtime hooks.
 
-**Available events:**
+**Available events (canonical names — extensions always use these):**
 
-| Event | When it fires |
-|-------|---------------|
-| `PreToolUse` | Before a tool call executes (can block, approve, or modify) |
-| `PostToolUse` | After a successful tool call (validation, tests, logging) |
-| `Stop` | When the agent attempts to finish the turn (completion gate) |
-| `SessionStart` | When an agent session begins (load context) |
-| `SessionEnd` | When an agent session ends (audit, cleanup) |
-| `UserPromptSubmit` | Before the model sees the user prompt (route, add context, block) |
+| Canonical | Claude/Codex/Devin/Qwen | Cursor | opencode | Gemini/Tabnine |
+|-----------|------------------------|--------|----------|----------------|
+| `PreToolUse` | `PreToolUse` | `preToolUse` | `tool.execute.before` | `BeforeTool` |
+| `PostToolUse` | `PostToolUse` | `postToolUse` | `tool.execute.after` | `AfterTool` |
+| `Stop` | `Stop` | `stop` | — | `AfterAgent` (Gemini only) |
+| `SessionStart` | `SessionStart` | `sessionStart` | — | `SessionStart` |
+| `SessionEnd` | `SessionEnd` | `sessionEnd` | — | `SessionEnd` |
+| `UserPromptSubmit` | `UserPromptSubmit` | `beforeSubmitPrompt` | — | — |
+
+Extension authors always use the **canonical** name (left column). Each adapter translates it to the agent-native name automatically. Events marked "—" are not supported by that agent and will be skipped with a warning at install time.
 
 **Hook object:**
 
