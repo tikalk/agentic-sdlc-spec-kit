@@ -62,9 +62,19 @@ From the JSON, extract the `team_ai_directives` field.
 - If present and the path exists: use it as the knowledge base root.
 - If not found or path doesn't exist: output empty results and exit.
 
+In subsequent steps, `{TEAM_AI_DIRECTIVES}` refers to this value, resolved
+as a path relative to the current working directory. Read files at this
+path directly — do NOT use glob, find, or any file-search tool to locate
+them.
+
 ### Step 2: Load Team Constitution
 
-Read `{TEAM_AI_DIRECTIVES}/context_modules/constitution.md` in full.
+Using the `team_ai_directives` value from Step 1, read
+`{TEAM_AI_DIRECTIVES}/context_modules/constitution.md` directly. Construct
+the path from the value resolved in Step 1 and read the file — do NOT use
+glob, find, or any file-search tool to locate it.
+
+Read the constitution in full.
 
 The team constitution is the foundational principles document. It governs
 agent behavior and team interactions. Internalize its principles before

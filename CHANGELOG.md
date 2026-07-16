@@ -2,6 +2,41 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc9] - 2026-07-17
+
+### Fixed
+
+- **team-boot Step 2 used glob to find constitution**: After Step 1 resolved
+  `team_ai_directives` from `init-options.json`, Step 2 said
+  `Read {TEAM_AI_DIRECTIVES}/context_modules/constitution.md` — the agent
+  treated `{TEAM_AI_DIRECTIVES}` as a search target and used glob instead of
+  constructing the path from the resolved value. Added explicit definition
+  after Step 1: "In subsequent steps, `{TEAM_AI_DIRECTIVES}` refers to this
+  value, resolved as a path relative to the current working directory." Step 2
+  now says "Construct the path from the value resolved in Step 1 and read the
+  file — do NOT use glob, find, or any file-search tool."
+- **team-discover Step 2 had no plain-message fallback**: Step 2 expected
+  `{REPO_ROOT}/specs/${SPECIFY_FEATURE}/context.md` — neither variable is
+  defined when team-discover is invoked as a skill from team-boot on a plain
+  message. Added fallback: "If none of the above sources are available, extract
+  the feature context from the user's current message instead."
+- **team-discover mode detection missing skill-invocation case**: The 4 mode
+  rules all depended on `$ARGUMENTS`, `SPECIFY_FEATURE_DIRECTORY`, or hook
+  context — none applied when invoked as a skill. Agent skipped Steps 5-6
+  (output + persistence). Added rule 5: "If invoked as a skill (no `$ARGUMENTS`,
+  no env vars, no hook context): no-write mode. Output the discovery table
+  inline. Do not write any files."
+- **team-discover Step 4 didn't surface external skills**: `.skills.json`
+  `external` map entries (e.g., `react-best-practices`, `web-design-guidelines`,
+  `composition-patterns`) were never matched against the feature context.
+  Expanded the skills matching instruction to explicitly cover both `default`
+  and `external` lists with category-based matching.
+- **team-discover Step 1 `{TEAM_AI_DIRECTIVES}` undefined**: Same bare-variable
+  pattern as team-boot. Added the same clarifying note after Step 1 defining
+  `{TEAM_AI_DIRECTIVES}` for all subsequent steps.
+
+team-ai-directives extension 4.3.2 → 4.3.3.
+
 # [0.12.15+adlc8] - 2026-07-17
 
 ### Added
