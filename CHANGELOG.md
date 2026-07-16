@@ -2,6 +2,23 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc7] - 2026-07-16
+
+### Fixed
+
+- **team-* model-invocation commands silently no-op on dotfile paths**: Step 1
+  (Locate Knowledge Base) in `team.boot`, `team.discover`, and `team.skills`
+  used an ambiguous "Read `.specify/init-options.json`" instruction. Agents
+  interpreted this as "search for the file first" and used glob/find tools,
+  which silently skip dotfile-prefixed path segments (`.specify/`). The
+  failure was silent — team-boot's Step 1 exit handler fired, skipping
+  constitution load and team-discover invocation entirely, leaving the full
+  team-ai-directives knowledge base invisible for the session.
+  Replaced with explicit agent-agnostic instruction: "Read the file directly.
+  Do NOT use glob, find, or any file-search tool." Adds walk-up fallback via
+  successive direct reads (`../.specify/`, `../../.specify/`) for CWD
+  resilience. team-ai-directives extension 4.3.1 → 4.3.2.
+
 # [0.12.15+adlc6] - 2026-07-16
 
 ### Added

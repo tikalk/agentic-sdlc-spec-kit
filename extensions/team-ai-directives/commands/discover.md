@@ -27,7 +27,16 @@ If `CDR.md` is missing or cannot be parsed, the command falls back to scanning `
 
 ### Step 1: Locate Knowledge Base
 
-Read `.specify/init-options.json` (JSON) and extract the `team_ai_directives` field.
+Read the file `.specify/init-options.json` directly. Do NOT use glob, find,
+or any file-search tool to locate it — search tools may silently skip
+dotfile-prefixed path segments. Read the file at the exact relative path
+`.specify/init-options.json` from the current working directory.
+
+If that read fails (file not found), walk up parent directories by reading
+`../.specify/init-options.json`, then `../../.specify/init-options.json`,
+and so on — up to 4 levels. Stop at the first successful read.
+
+From the JSON, extract the `team_ai_directives` field.
 
 - If present and the path exists: use it as the knowledge base root.
 - If not found or path doesn't exist: output empty results and exit.
