@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import SkillsIntegration
+from ..base import IntegrationOption, SkillsIntegration
 from ..._utils import dump_frontmatter
 
 # Mapping of command template stem → argument-hint text shown inline
@@ -53,6 +53,17 @@ class ClaudeIntegration(SkillsIntegration):
         "extension": "/SKILL.md",
     }
     multi_install_safe = True
+
+    @classmethod
+    def options(cls) -> list[IntegrationOption]:
+        return [
+            IntegrationOption(
+                "--hooks",
+                is_flag=False,
+                default="true",
+                help="Enable/disable runtime hooks (true|false, default: true)",
+            ),
+        ]
 
     @staticmethod
     def inject_argument_hint(content: str, hint: str) -> str:

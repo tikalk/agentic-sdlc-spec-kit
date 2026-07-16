@@ -217,6 +217,58 @@ Hook object:
 - `description`: Hook description
 - `condition`: Execution condition (future)
 
+#### `runtime_hooks`
+
+Agent runtime lifecycle hooks — these are **separate** from workflow `hooks` above. Instead of being dispatched by the AI agent reading `extensions.yml`, runtime hooks are collected by the integration installer and wired into the agent CLI's **native hook config** (e.g. `.claude/settings.json`, `.cursor/hooks.json`). They execute deterministically inside the agent's own tool-use loop, not as agent instructions.
+
+**Supported agents**: `claude`, `cursor-agent`, `codex`, `opencode`. Other integrations silently skip runtime hooks.
+
+**Available events:**
+
+| Event | When it fires |
+|-------|---------------|
+| `PreToolUse` | Before a tool call executes (can block, approve, or modify) |
+| `PostToolUse` | After a successful tool call (validation, tests, logging) |
+| `Stop` | When the agent attempts to finish the turn (completion gate) |
+| `SessionStart` | When an agent session begins (load context) |
+| `SessionEnd` | When an agent session ends (audit, cleanup) |
+| `UserPromptSubmit` | Before the model sees the user prompt (route, add context, block) |
+
+**Hook object:**
+
+- `command` (required): Slash command to wire (e.g. `speckit.tdd.validate`). The command **must** have a `scripts:` frontmatter entry — prompt-only commands cannot be auto-executed as hooks.
+- `matcher` (optional): Tool name filter (e.g. `"Edit|Write"`). Defaults to `"*"`.
+- `timeout` (optional): Execution timeout in seconds. Defaults to `60`.
+- `optional` (optional): If `true`, fails open (exit 0) on error. If `false`, blocks (exit 2). Defaults to `false`.
+
+**Example:**
+
+```yaml
+runtime_hooks:
+  PostToolUse:
+    command: speckit.tdd.validate
+    matcher: "Edit|Write"
+    timeout: 60
+    optional: true
+  Stop:
+    command: speckit.tdd.validate
+    matcher: "*"
+    timeout: 30
+    optional: false
+```
+
+**How it works:** When a hook-capable integration is installed or upgraded, Specify CLI scans all installed extensions for `runtime_hooks:` declarations, generates a portable bridge script (`.specify/hooks/bridge.py`), and merges the hook entries into the agent's native settings file. The bridge resolves the slash command to its underlying script (via the extension registry + frontmatter `scripts:` parsing) and executes it with the agent's JSON payload on stdin. Non-zero exit blocks the action (exit 2); zero exit allows it.
+
+**Key differences from workflow `hooks`:**
+
+| Aspect | `hooks` (workflow) | `runtime_hooks` (agent) |
+|--------|--------------------|-----------------------|
+| Dispatched by | AI agent reading `extensions.yml` | Agent CLI natively (deterministic) |
+| Events | `before_specify`, `after_plan`, etc. | `PreToolUse`, `PostToolUse`, `Stop`, etc. |
+| Execution | Agent invokes slash command | Bridge script executes underlying script |
+| Requires script | No (agent follows instructions) | Yes (command must have `scripts:` frontmatter) |
+| Agent support | All agents | claude, cursor-agent, codex, opencode only |
+
 #### `tags`
 
 Array of tags for catalog discovery.

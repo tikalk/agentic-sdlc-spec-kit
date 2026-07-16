@@ -279,11 +279,20 @@ class ExtensionManifest:
         if "hooks" in self.data and not isinstance(hooks, dict):
             raise ValidationError("Invalid hooks: expected a mapping")
 
+        # Tikalk fork: validate runtime_hooks via fork module
+        _has_runtime_hooks = False
+        try:
+            from .._hooks_fork import validate_runtime_hooks, has_runtime_hooks
+            validate_runtime_hooks(self.data)
+            _has_runtime_hooks = has_runtime_hooks(self.data)
+        except ImportError:
+            pass
+
         has_commands = bool(commands)
         has_hooks = bool(hooks)
 
-        if not has_commands and not has_hooks:
-            raise ValidationError("Extension must provide at least one command or hook")
+        if not has_commands and not has_hooks and not _has_runtime_hooks:
+            raise ValidationError("Extension must provide at least one command, hook, or runtime_hook")
 
         # Validate hook values (if present).
         # Each event is a single mapping or a list of mappings.
@@ -467,6 +476,11 @@ class ExtensionManifest:
     def hooks(self) -> Dict[str, Any]:
         """Get hook definitions."""
         return self.data.get("hooks", {})
+
+    @property
+    def runtime_hooks(self) -> Dict[str, Any]:
+        """Get runtime hook definitions (agent lifecycle, not workflow)."""
+        return self.data.get("runtime_hooks", {})
 
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""

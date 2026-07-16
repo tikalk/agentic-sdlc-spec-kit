@@ -573,7 +573,7 @@ class TestExtensionManifest:
         with open(manifest_path, 'w') as f:
             yaml.dump(valid_manifest_data, f)
 
-        with pytest.raises(ValidationError, match="must provide at least one command or hook"):
+        with pytest.raises(ValidationError, match="must provide at least one command, hook, or runtime_hook"):
             ExtensionManifest(manifest_path)
 
     def test_hooks_only_extension(self, temp_dir, valid_manifest_data):

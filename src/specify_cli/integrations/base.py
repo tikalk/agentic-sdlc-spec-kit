@@ -567,7 +567,22 @@ class IntegrationBase(ABC):
         tracking) would otherwise be deleted even though they are still
         managed.  Subclasses list such paths here to protect them.
         """
-        return set()
+        exclusions: set[str] = set()
+        # Tikalk fork: protect runtime hook config files
+        try:
+            from .._hooks_fork import hooks_stale_exclusions
+            exclusions.update(hooks_stale_exclusions(self.key))
+        except ImportError:
+            pass
+        return exclusions
+
+    def supports_runtime_hooks(self) -> bool:
+        """Return True if this agent supports native runtime hooks."""
+        try:
+            from .._hooks_fork import resolve_adapter
+            return resolve_adapter(self.key) is not None
+        except ImportError:
+            return False
 
     def commands_dest(self, project_root: Path) -> Path:
         """Return the absolute path to the commands output directory.
@@ -1102,6 +1117,12 @@ class IntegrationBase(ABC):
 
         Returns ``(removed, skipped)`` file lists.
         """
+        # Tikalk fork: remove agent runtime hooks before manifest uninstall
+        try:
+            from .._hooks_fork import remove_integration_hooks
+            remove_integration_hooks(self, project_root, manifest)
+        except ImportError:
+            pass
         return manifest.uninstall(project_root, force=force)
 
     # -- Convenience helpers for subclasses -------------------------------
@@ -1207,6 +1228,15 @@ class MarkdownIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+        # Tikalk fork: install agent runtime hooks
+        try:
+            from .._hooks_fork import install_integration_hooks
+            hook_files = install_integration_hooks(
+                self, project_root, manifest, parsed_options
+            )
+            created.extend(hook_files)
+        except ImportError:
+            pass
 
         return created
 
@@ -1898,5 +1928,14 @@ class SkillsIntegration(IntegrationBase):
             )
             created.append(dst)
 
+        # Tikalk fork: install agent runtime hooks
+        try:
+            from .._hooks_fork import install_integration_hooks
+            hook_files = install_integration_hooks(
+                self, project_root, manifest, parsed_options
+            )
+            created.extend(hook_files)
+        except ImportError:
+            pass
 
         return created

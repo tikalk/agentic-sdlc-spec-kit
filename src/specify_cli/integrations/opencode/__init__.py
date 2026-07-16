@@ -1,6 +1,6 @@
 """opencode integration."""
 
-from ..base import MarkdownIntegration
+from ..base import IntegrationOption, MarkdownIntegration
 
 
 class OpencodeIntegration(MarkdownIntegration):
@@ -19,6 +19,17 @@ class OpencodeIntegration(MarkdownIntegration):
         "args": "$ARGUMENTS",
         "extension": ".md",
     }
+
+    @classmethod
+    def options(cls) -> list[IntegrationOption]:
+        return [
+            IntegrationOption(
+                "--hooks",
+                is_flag=False,
+                default="true",
+                help="Enable/disable runtime hooks (true|false, default: true)",
+            ),
+        ]
 
     def build_exec_args(
         self,

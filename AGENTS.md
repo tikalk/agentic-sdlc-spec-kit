@@ -404,6 +404,37 @@ Different agents use different argument placeholders:
 - **Script placeholders**: `{SCRIPT}` (replaced with actual script path)
 - **Agent placeholders**: `__AGENT__` (replaced with agent name)
 
+## Runtime Hooks
+
+Hook-capable integrations (`claude`, `cursor-agent`, `codex`, `opencode`) support agent-native runtime hooks that wire slash commands to lifecycle events (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`). All hook logic lives in the fork leaf module `_hooks_fork.py`.
+
+### Declaring hooks
+
+- **Built-in defaults**: Set `config["hooks"]` in the integration class and declare `options()` returning `IntegrationOption(name="--hooks", default="true")`.
+- **Extension-declared**: Extensions add a `runtime_hooks:` block (separate from workflow `hooks:`) in `extension.yml`.
+- **User override**: Users create `.specify/integration-hooks.yml` to replace the hook set per integration key.
+
+### Implementation requirements for hook-capable integrations
+
+1. Add `--hooks` to `options()`:
+   ```python
+   IntegrationOption(name="--hooks", is_flag=False, default="true",
+                     help="Enable/disable runtime hooks (true|false, default: true)")
+   ```
+2. `stale_cleanup_exclusions()` must include the native settings file path (delegated to `hooks_stale_exclusions()` in `_hooks_fork.py`).
+3. The integration's `setup()` and `teardown()` callouts are already in `IntegrationBase` — no per-class changes needed.
+
+### Native config targets
+
+| Integration | Config file | Adapter class |
+|-------------|-------------|---------------|
+| `claude` | `.claude/settings.json` | `ClaudeHookAdapter` (JSON nested) |
+| `cursor-agent` | `.cursor/hooks.json` | `CursorHookAdapter` (JSON flat, camelCase) |
+| `codex` | `.codex/config.toml` | `CodexHookAdapter` (TOML, requires `/hooks` trust) |
+| `opencode` | `.opencode/plugin/speckit-hooks.ts` + `opencode.json` | `OpencodeHookAdapter` (TS plugin) |
+
+See `integrations/README.md` → Runtime Hooks and `extensions/EXTENSION-DEVELOPMENT-GUIDE.md` → `runtime_hooks` for full documentation.
+
 ## Special Processing Requirements
 
 Some agents require custom processing beyond the standard template transformations:

@@ -81,6 +81,100 @@ provides:
     - update-context.ps1
 ```
 
+## Runtime Hooks
+
+Runtime hooks wire agent-native lifecycle events (e.g. `PreToolUse`, `PostToolUse`, `Stop`) to existing slash commands. They are installed deterministically into the agent's own hook config — not as agent instructions, but as native config entries that the agent CLI executes automatically.
+
+### Supported Integrations
+
+| Integration | Config file | Format | Event casing | Notes |
+|-------------|-------------|--------|--------------|-------|
+| `claude` | `.claude/settings.json` | JSON (nested matcher-groups) | PascalCase | Most mature |
+| `cursor-agent` | `.cursor/hooks.json` | JSON (flat handler arrays) | camelCase | |
+| `codex` | `.codex/config.toml` | TOML (`[[hooks.*]]`) | PascalCase | Requires `/hooks` trust on first run |
+| `opencode` | `.opencode/plugin/speckit-hooks.ts` + `opencode.json` | TypeScript plugin | — | Plugin auto-loaded via `plugin[]` array |
+
+Other integrations (gemini, goose, copilot, pi, etc.) silently skip runtime hooks — no error, no files created.
+
+### Hook Resolution (4 layers)
+
+Hooks are resolved in this order (later layers override earlier ones):
+
+1. **CLI flag** (`--hooks`): If `--integration-options="--hooks false"`, no hooks are installed. Default: `true`.
+2. **User YAML override** (`.specify/integration-hooks.yml`): If the integration key is present, its `hooks` map **replaces** all hooks from layers 3 and 4. An empty `hooks: {}` disables hooks for that agent.
+3. **Extension-declared** (`runtime_hooks:` in `extension.yml`): Collected from all installed extensions and appended.
+4. **Built-in defaults** (`config["hooks"]` in the integration class): Baseline hooks shipped with the integration.
+
+### CLI Option
+
+Hook-capable integrations accept a `--hooks` option via `--integration-options`:
+
+```bash
+# Default: hooks enabled
+specify init my-project --integration claude
+
+# Disable hooks
+specify init my-project --integration claude --integration-options="--hooks false"
+
+# Re-enable on upgrade
+specify integration upgrade claude --integration-options="--hooks true"
+```
+
+### User Override File (`.specify/integration-hooks.yml`)
+
+Overrides built-in and extension-declared hooks per integration. For each integration key present, its `hooks` map replaces everything below it.
+
+```yaml
+version: 1
+integrations:
+  claude:
+    hooks:
+      PreToolUse:
+        command: speckit.protected_paths
+        matcher: "Edit|Write"
+        timeout: 10
+        optional: false
+      PostToolUse:
+        command: speckit.tdd.validate
+        matcher: "Edit|Write"
+        timeout: 60
+        optional: true
+      Stop:
+        command: speckit.tdd.validate
+        matcher: "*"
+        timeout: 30
+        optional: false
+
+  # Explicitly disable hooks for an agent
+  cursor-agent:
+    hooks: {}
+
+  # gemini not listed → keeps built-in default (empty = no hooks)
+```
+
+### Hook Entry Schema
+
+Each hook entry maps one event to one slash command:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `command` | Yes | Slash command name (e.g. `speckit.tdd.validate`). Must have a `scripts:` frontmatter entry. |
+| `matcher` | No | Tool name filter (e.g. `"Edit|Write"`). Default: `"*"`. |
+| `timeout` | No | Execution timeout in seconds. Default: `60`. |
+| `optional` | No | `true` = fail open on error; `false` = block on failure. Default: `false`. |
+
+### How Hooks Are Installed
+
+1. Specify CLI resolves the final hook set (4-layer resolution).
+2. A portable bridge script is generated at `.specify/hooks/bridge.py` (stdlib-only Python, no dependencies).
+3. The bridge resolves slash commands to their underlying scripts via the extension registry and command frontmatter `scripts:` parsing.
+4. Hook entries are merged into the agent's native config file (non-destructive — user settings and user hooks are preserved).
+5. On uninstall, only Specify-authored entries are removed; user settings are left intact.
+
+### Codex Trust Requirement
+
+Codex CLI uses a hash-based trust model for hooks. After installing or upgrading hooks, the user must run `/hooks` in an interactive Codex session to review and approve them. Until trusted, hooks are silently skipped. If `specify integration upgrade codex` changes the hook content, re-trust is required.
+
 ## Catalog Schema
 
 Both catalog files follow the same JSON schema:

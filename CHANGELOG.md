@@ -2,6 +2,44 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc6] - 2026-07-16
+
+### Added
+
+- **Integration runtime hooks**: integrations can now wire agent-native runtime
+  hooks (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`) to
+  existing slash commands. Hooks are resolved through a 4-layer chain:
+  (1) `--hooks` CLI flag gates whether hooks install at all,
+  (2) `.specify/integration-hooks.yml` user override replaces all hooks for an
+  integration key,
+  (3) extension-declared `runtime_hooks:` in `extension.yml` are appended,
+  (4) `config["hooks"]` built-in defaults provide the baseline.
+- New fork leaf module `_hooks_fork.py` containing all hook logic:
+  `HookAdapter` ABC + Claude/Cursor/Codex/opencode adapters, bridge script
+  template, JSON/TOML merge utilities, `resolve_hooks()`,
+  `collect_extension_runtime_hooks()`, `install_integration_hooks()`,
+  `remove_integration_hooks()`.
+- Extensions can now declare `runtime_hooks:` (separate from workflow `hooks:`)
+  in `extension.yml`. `ExtensionManifest` validates and exposes the new field.
+- `--hooks` option added to claude, cursor-agent, codex, and opencode
+  integrations (default: `true`).
+- Bridge script (`.specify/hooks/bridge.py`) generated at install time;
+  resolves slash command → underlying script via extension registry and
+  frontmatter `scripts:` parsing; executes with agent JSON payload on stdin.
+- opencode adapter generates TypeScript plugin (`.opencode/plugin/speckit-hooks.ts`)
+  and registers it in `opencode.json` `plugin[]` array.
+
+### Changed
+
+- `IntegrationBase.stale_cleanup_exclusions()` now delegates to
+  `_hooks_fork.hooks_stale_exclusions()` to protect merged settings files
+  (`.claude/settings.json`, `.cursor/hooks.json`, `opencode.json`) from
+  stale-deletion during upgrade.
+- `IntegrationBase.teardown()` calls `remove_integration_hooks()` before
+  manifest uninstall to clean merged settings files.
+- `ExtensionManifest._validate()` accepts `runtime_hooks:` top-level key;
+  extension must provide at least one command, hook, or runtime_hook.
+
 # [0.12.15+adlc5] - 2026-07-15
 
 ### Changed
