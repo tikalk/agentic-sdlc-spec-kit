@@ -13000,6 +13000,58 @@ steps:
         assert result.exit_code != 0
         assert "Run not found: nonexistent-run" in result.output
 
+    def test_status_json_not_found_error_goes_to_stderr(
+        self, project_dir, monkeypatch, capsys
+    ):
+        """Under --json, the not-found/invalid-run error must go to stderr so the
+        stdout JSON stream stays parseable (empty on the error path) — mirroring
+        `workflow run`/`workflow resume`. Before this fix both handlers used the
+        stdout console, corrupting a consumer's json.loads(stdout)."""
+        import typer
+        from specify_cli.workflows import _commands
+
+        (project_dir / ".specify" / "workflows").mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(
+            _commands, "_require_specify_project", lambda: project_dir
+        )
+        with pytest.raises(typer.Exit) as exc:
+            _commands.workflow_status("does-not-exist", json_output=True)
+        assert exc.value.exit_code == 1
+        captured = capsys.readouterr()
+        assert "Run not found" in captured.err
+        assert "Run not found" not in captured.out
+        # stdout carries no partial/corrupt JSON on the error path.
+        assert captured.out.strip() == ""
+
+    def test_status_json_invalid_run_error_goes_to_stderr(
+        self, project_dir, monkeypatch, capsys
+    ):
+        """The ValueError handler (a malformed/invalid run state) must ALSO route
+        to stderr under --json, not just the FileNotFoundError one — otherwise a
+        regression there would silently corrupt the JSON stream and this suite
+        wouldn't catch it."""
+        import typer
+        from specify_cli.workflows import _commands
+        from specify_cli.workflows.engine import RunState
+
+        (project_dir / ".specify" / "workflows").mkdir(parents=True, exist_ok=True)
+        monkeypatch.setattr(
+            _commands, "_require_specify_project", lambda: project_dir
+        )
+
+        def _raise_value_error(*args, **kwargs):
+            raise ValueError("corrupt run state: bad status")
+
+        monkeypatch.setattr(RunState, "load", _raise_value_error)
+
+        with pytest.raises(typer.Exit) as exc:
+            _commands.workflow_status("some-run", json_output=True)
+        assert exc.value.exit_code == 1
+        captured = capsys.readouterr()
+        assert "corrupt run state" in captured.err
+        assert "corrupt run state" not in captured.out
+        assert captured.out.strip() == ""
+
     def test_status_no_run_id_list_path_unaffected(self, project_dir, monkeypatch):
         """The no-run-id list-all-runs path must remain unaffected by the
         new single-run ValueError boundary."""
