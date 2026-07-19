@@ -13,6 +13,12 @@ def test_commands_init_importable():
     assert callable(mod.register)
 
 
+def test_commands_team_directives_importable():
+    mod = importlib.import_module("specify_cli.commands.team_directives")
+    assert hasattr(mod, "register")
+    assert callable(mod.register)
+
+
 def test_agent_config_importable():
     from specify_cli._agent_config import (
         AGENT_CONFIG,

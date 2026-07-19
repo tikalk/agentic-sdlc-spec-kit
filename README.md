@@ -290,7 +290,23 @@ This fork includes pre-installed presets (auto-installed during `specify init`):
 
 ## 🔧 Team AI Directives Integration
 
-This fork supports team-ai-directives — a foundation for version-controlled AI agent behavior. Install during project initialization:
+This fork supports team-ai-directives — a foundation for version-controlled AI agent behavior.
+
+Create a neutral knowledge base for a new team:
+
+```bash
+# Creates ./team-ai-directives by default
+specify team-directives init
+
+# Or choose a path and manifest name
+specify team-directives init ../platform-directives --name platform-team
+```
+
+The scaffold contains the required repository structure but no team policies,
+personas, examples, skills, or MCP servers. It does not initialize Git. Review
+and version the generated files according to your team's repository policy.
+
+Install a knowledge base during project initialization:
 
 ```bash
 # Install from GitHub archive (ZIP download)

@@ -58,6 +58,35 @@ specify init my-project --integration copilot --preset compliance
 
 > **Symlinked project roots.** `SPECIFY_INIT_DIR` relocates *where* the project is, not *how* a command treats symlinks: each command keeps its existing cwd-path stance. Commands that traverse and write project files through broad input paths (`bundle`, `workflow run <file>`) refuse a symlinked `.specify/` to preserve write confinement. Other project-scoped commands keep their existing behavior when `SPECIFY_INIT_DIR` points at a project root, which may include following a symlinked `.specify/`.
 
+## Initialize Team AI Directives
+
+```bash
+specify team-directives init [<path>] [--name <team-name>]
+```
+
+Creates a neutral team-ai-directives knowledge base at `<path>`, which defaults
+to `./team-ai-directives`. When `--name` is omitted, the destination directory
+name is stored in `manifest.yml`.
+
+The generated repository includes an explicitly empty constitution and CDR
+index, empty context and skill registries, an MCP configuration example, and
+navigation for agents. It contains no team policy and does not initialize Git
+or modify a Spec Kit project.
+
+The destination may be absent or an existing empty directory. The command
+rejects files, symlinks, and non-empty directories instead of overwriting them.
+
+```bash
+# Use the default path
+specify team-directives init
+
+# Choose a location and team name
+specify team-directives init ../platform-directives --name platform-team
+
+# Consume the local knowledge base during project initialization
+specify init my-project --team-ai-directives ../platform-directives
+```
+
 ## Check Installed Tools
 
 ```bash

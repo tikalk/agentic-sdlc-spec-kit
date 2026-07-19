@@ -565,6 +565,7 @@ def _feature_capabilities() -> dict[str, bool]:
         "multi_install_safe_registry_metadata": True,
         "integration_upgrade_command": True,
         "self_check_command": True,
+        "team_directives_init": True,
         "workflow_catalog": True,
         "bundled_templates": True,
     }
@@ -690,6 +691,12 @@ _register_preset_cmds(app)
 # Bundler subcommand group (specify bundle ...) — see commands/bundle/.
 from .commands.bundle import register as _register_bundle_cmds  # noqa: E402
 _register_bundle_cmds(app)
+
+
+# ===== Team Directives Commands =====
+
+from .commands.team_directives import register as _register_team_directives_cmds  # noqa: E402
+_register_team_directives_cmds(app)
 
 
 # ===== Workflow Commands =====
