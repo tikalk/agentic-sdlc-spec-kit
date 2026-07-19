@@ -63,6 +63,19 @@ Our workflow supports multiple AI agents. Choose your preferred tool:
 
 ## 2. Project Initialization
 
+### Create Team AI Directives
+
+If your team does not already have a directives repository, create a neutral
+one before initializing the project:
+
+```bash
+specify team-directives init ../team-ai-directives --name my-team
+```
+
+This creates the required knowledge-base structure without defining team
+policies or initializing Git. Add and review your team's principles and context,
+then place the repository under version control when ready.
+
 ### For New Projects
 
 Initialize a new project with team AI directives:
@@ -72,8 +85,8 @@ Initialize a new project with team AI directives:
 mkdir my-project
 cd my-project
 
-# Initialize with team-ai-directives
-specify init . --team-ai-directives <DIRECTIVES_URL>
+# Initialize with a local team-ai-directives knowledge base
+specify init . --team-ai-directives ../team-ai-directives
 ```
 
 ### For Existing Projects

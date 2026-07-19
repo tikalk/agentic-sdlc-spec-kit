@@ -2,6 +2,22 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.12.15+adlc10] - 2026-07-19
+
+### Added
+
+- **Neutral team-ai-directives scaffolding**: Added
+  `specify team-directives init [PATH] [--name NAME]` to create a consumable
+  team knowledge base without cloning Tikal-specific directives. The command
+  generates neutral manifest, constitution, CDR, skill registry, MCP example,
+  agent navigation, and tracked empty context directories. It does not create
+  team policy, initialize Git, or attach the knowledge base to a project.
+- **Safe scaffold writes**: New destinations and existing empty directories are
+  supported. Files, symlinks, and non-empty directories are rejected, and
+  partial filesystem writes are rolled back.
+- **Capability reporting**: `specify version --features` now advertises
+  `team_directives_init` for automation and agent feature detection.
+
 # [0.12.15+adlc9] - 2026-07-17
 
 ### Fixed

@@ -66,6 +66,7 @@ class TestVersionCommand:
                 "multi_install_safe_registry_metadata": True,
                 "integration_upgrade_command": True,
                 "self_check_command": True,
+                "team_directives_init": True,
                 "workflow_catalog": True,
                 "bundled_templates": True,
             },
