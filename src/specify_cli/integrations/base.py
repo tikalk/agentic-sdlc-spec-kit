@@ -160,16 +160,65 @@ class IntegrationBase(ABC):
         return []
 
     def effective_invoke_separator(
-        self, parsed_options: dict[str, Any] | None = None
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
     ) -> str:
         """Return the invoke separator for the given options.
 
         Subclasses whose separator depends on runtime options (e.g.
         Copilot in ``--skills`` mode) should override this method.
-        The default implementation ignores *parsed_options* and returns
-        the class-level ``invoke_separator``.
+        The default implementation ignores *parsed_options* and
+        *project_root* and returns the class-level ``invoke_separator``.
         """
         return self.invoke_separator
+
+    def invoke_separator_for_mode(self, skills_enabled: bool) -> str:
+        """Command-ref separator given the project's *resolved* skills state.
+
+        Registration paths (extension / preset command rendering) have no CLI
+        ``parsed_options`` — only the persisted ``ai_skills`` flag — so they
+        resolve the command-reference separator through this hook rather than
+        the static ``AGENT_CONFIGS[key]["invoke_separator"]`` value, which
+        cannot represent an agent whose separator differs between its skills
+        and command layouts.
+
+        The default is mode-independent and returns exactly what
+        ``_build_agent_configs`` would place in ``AGENT_CONFIGS`` (the
+        ``registrar_config`` override if present, else the class-level
+        ``invoke_separator``), so single-layout agents are unaffected.
+        Dual-mode agents whose separator depends on the layout (e.g. Bob:
+        ``-`` for skills, ``.`` for legacy commands) override this.
+        """
+        cfg = self.registrar_config or {}
+        return cfg.get("invoke_separator", self.invoke_separator)
+
+    def is_skills_mode(
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
+    ) -> bool:
+        """Return whether this integration scaffolds skills for these options.
+
+        This is the single, well-defined hook the shared init/install/upgrade
+        machinery consults to decide whether to persist ``ai_skills=True`` and
+        render skill invocations.  It replaces ad-hoc ``isinstance`` /
+        ``getattr(self, "_skills_mode", ...)`` probing so an integration's
+        internal representation never has to leak into shared dispatch code.
+
+        *project_root* is optional context for the ``use`` / ``switch`` /
+        ``upgrade`` path, where no ``setup()`` runs and *parsed_options* may be
+        empty: dual-mode integrations can consult the already-installed
+        on-disk layout to avoid silently migrating an existing project to a
+        different mode.  The default ignores it.
+
+        The default (command-first integrations, e.g. Copilot's default
+        layout) is skills mode only when ``--skills`` was requested.
+        ``SkillsIntegration`` overrides this to return ``True`` by default;
+        skills-first integrations that expose a legacy opt-out (e.g. Bob)
+        override it to honor their own flag.
+        """
+        return bool((parsed_options or {}).get("skills"))
 
     def build_exec_args(
         self,
@@ -1375,6 +1424,14 @@ class SkillsIntegration(IntegrationBase):
     """
 
     invoke_separator = "-"
+
+    def is_skills_mode(
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
+    ) -> bool:
+        """Skills-native integrations scaffold skills unconditionally."""
+        return True
 
     def build_exec_args(
         self,
