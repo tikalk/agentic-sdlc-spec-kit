@@ -79,7 +79,11 @@ class WorkflowDefinition:
     def from_yaml(cls, path: Path) -> WorkflowDefinition:
         """Load a workflow definition from a YAML file."""
         with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            try:
+                data = yaml.safe_load(f)
+            except yaml.YAMLError as exc:
+                msg = f"Invalid YAML in {path}: {exc}"
+                raise ValueError(msg) from exc
         if not isinstance(data, dict):
             msg = f"Workflow YAML must be a mapping, got {type(data).__name__}."
             raise ValueError(msg)
@@ -88,7 +92,11 @@ class WorkflowDefinition:
     @classmethod
     def from_string(cls, content: str) -> WorkflowDefinition:
         """Load a workflow definition from a YAML string."""
-        data = yaml.safe_load(content)
+        try:
+            data = yaml.safe_load(content)
+        except yaml.YAMLError as exc:
+            msg = f"Invalid YAML: {exc}"
+            raise ValueError(msg) from exc
         if not isinstance(data, dict):
             msg = f"Workflow YAML must be a mapping, got {type(data).__name__}."
             raise ValueError(msg)
@@ -727,13 +735,24 @@ class WorkflowEngine:
         ValueError:
             If the workflow YAML is invalid.
         """
+        from .overlays import WorkflowResolver
+
         path = Path(source).expanduser()
 
         # Try as a direct file path first
         if path.suffix.lower() in (".yml", ".yaml") and path.is_file():
             return WorkflowDefinition.from_yaml(path)
 
-        # Try as an installed workflow ID
+        # Try as an installed workflow ID, resolving any overlays.
+        resolver = WorkflowResolver(self.project_root)
+        try:
+            return resolver.resolve(str(source))
+        except FileNotFoundError:
+            # Fall back to the direct workflow.yml path so callers still get
+            # the original error when the workflow id is not installed.
+            pass
+
+        # Legacy direct path check for workflows installed without registry entries.
         installed_path = (
             self.project_root
             / ".specify"
