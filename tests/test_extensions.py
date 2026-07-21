@@ -22,6 +22,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 from tests.conftest import strip_ansi
+from specify_cli import extensions as _ext_module
 from specify_cli.extensions import (
     CatalogEntry,
     CORE_COMMAND_NAMES,
@@ -1225,6 +1226,785 @@ class TestExtensionManager:
         new_config = ext_dir / "test-ext-config.yml"
         assert new_config.exists()
         assert new_config.read_text() == "test: config"
+
+    def test_reinstall_after_keep_config_preserves_config(
+        self, extension_dir, project_dir
+    ):
+        """Reinstalling after `remove --keep-config` must not overwrite preserved config."""
+        manager = ExtensionManager(project_dir)
+
+        # Add a packaged default config so the reinstall has a file to overwrite.
+        # Without the fix, the packaged default would silently win on reinstall.
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\nmax_iterations: 1\n")
+
+        # Install once (packaged default is copied into the installed directory)
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        # Overwrite the installed config with user-customized values
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+
+        # Remove while preserving config
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+        assert "custom-model" in config_file.read_text()
+
+        # Plain reinstall (no --force) — packaged default is still present in
+        # extension_dir, so a naive implementation would overwrite the custom values.
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        # Preserved config must survive the reinstall and beat the packaged default
+        assert config_file.exists()
+        assert "custom-model" in config_file.read_text()
+        assert "99" in config_file.read_text()
+        assert "default-model" not in config_file.read_text()
+
+    def test_reinstall_after_keep_config_preserves_local_config(
+        self, extension_dir, project_dir
+    ):
+        """Local config override files (*-config.local.yml) are also rescued on reinstall."""
+        manager = ExtensionManager(project_dir)
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        local_cfg = ext_dir / "test-ext-config.local.yml"
+        local_cfg.write_text("local_override: true\n")
+
+        manager.remove("test-ext", keep_config=True)
+        assert local_cfg.exists()
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert local_cfg.exists()
+        assert "local_override: true" in local_cfg.read_text()
+
+    def test_reinstall_after_legacy_keep_config_preserves_config(
+        self, extension_dir, project_dir
+    ):
+        """Pre-marker keep-config leftovers are still rescued on reinstall."""
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\nmax_iterations: 1\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: legacy-custom-model\nmax_iterations: 99\n")
+
+        manager.remove("test-ext", keep_config=True)
+        (ext_dir / ".keep-config").unlink()
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+        assert "legacy-custom-model" in config_file.read_text()
+
+        packaged_config.write_text("model: upgraded-default-model\nmax_iterations: 2\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert config_file.exists()
+        assert "legacy-custom-model" in config_file.read_text()
+        assert "99" in config_file.read_text()
+        assert "upgraded-default-model" not in config_file.read_text()
+
+    def test_reinstall_with_symlinked_config_rejects_install(
+        self, extension_dir, project_dir
+    ):
+        """A preserved symlinked config must abort reinstall, not be deleted."""
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        if not can_create_symlink(ext_dir.parent if ext_dir.parent.exists() else project_dir):
+            pytest.skip("Current platform/user cannot create symlinks")
+
+        manager = ExtensionManager(project_dir)
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        # Replace the installed config with a symlink to a file outside dest_dir.
+        config_file = ext_dir / "test-ext-config.yml"
+        external_target = project_dir / "external-config.yml"
+        external_target.write_text("model: linked-model\n")
+        config_file.unlink()
+        os.symlink(external_target, config_file)
+        assert config_file.is_symlink()
+
+        # `remove --keep-config` follows the symlink via is_file() and keeps it.
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.is_symlink()
+
+        # Plain reinstall must reject rather than silently delete the link.
+        with pytest.raises(ValidationError, match="is a symlink"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # The symlink and its target survive; nothing was silently discarded.
+        assert config_file.is_symlink()
+        assert external_target.read_text() == "model: linked-model\n"
+        assert not manager.registry.is_installed("test-ext")
+
+    def test_retry_with_symlinked_live_config_aborts_and_preserves_both(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """A live config replaced by a symlink on retry is a conflict, not overwritten."""
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        if not can_create_symlink(project_dir):
+            pytest.skip("Current platform/user cannot create symlinks")
+
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+        staged_bytes = config_file.read_bytes()
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+
+        original_copytree = shutil.copytree
+        copytree_calls = 0
+
+        def flaky_copytree(*args, **kwargs):
+            nonlocal copytree_calls
+            copytree_calls += 1
+            if copytree_calls == 1:
+                dst = args[1]
+                Path(dst).mkdir(parents=True, exist_ok=True)
+                (Path(dst) / "_partial.txt").write_text("partial")
+                raise OSError("simulated disk full")
+            return original_copytree(*args, **kwargs)
+
+        monkeypatch.setattr(_ext_module.shutil, "copytree", flaky_copytree)
+
+        with pytest.raises(OSError, match="simulated disk full"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        assert staging_dir.exists()
+        assert (staging_dir / ".rescue-complete").exists()
+
+        # Simulate the user replacing the live config with a symlink before retry.
+        external_target = project_dir / "external-config.yml"
+        external_target.write_text("model: newer-linked-model\n")
+        config_file.unlink()
+        os.symlink(external_target, config_file)
+        assert config_file.is_symlink()
+
+        with pytest.raises(ValidationError, match="Preserved extension config conflict"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # Both copies survive: the live symlink choice and the staged backup.
+        assert config_file.is_symlink()
+        assert external_target.read_text() == "model: newer-linked-model\n"
+        assert staging_dir.exists()
+        assert (staging_dir / "test-ext-config.yml").read_bytes() == staged_bytes
+        assert not manager.registry.is_installed("test-ext")
+
+    def test_copytree_failure_restores_stranded_config(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """A copytree failure must not permanently lose a preserved config.
+
+        When copytree raises after the existing directory has been removed, the
+        rollback path must write the rescued bytes back to dest_dir and restore
+        the original file mode, while leaving the extension unregistered.
+        """
+        import stat
+
+        manager = ExtensionManager(project_dir)
+
+        # Add a packaged default config so copytree would overwrite it on success.
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        # Install once so the extension is on disk.
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+
+        # Set a known, non-default mode so we can assert it survives the rollback.
+        if platform.system() != "Windows":
+            config_file.chmod(0o640)
+        original_bytes = config_file.read_bytes()
+        original_mode = config_file.stat().st_mode
+
+        # Remove while preserving the config — it is now a stranded file.
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+
+        # Make copytree create a partial destination then raise so the rollback
+        # path is exercised.
+
+        def failing_copytree(src, dst, **kwargs):
+            Path(dst).mkdir(parents=True, exist_ok=True)
+            (Path(dst) / "_partial.txt").write_text("partial")
+            raise OSError("simulated disk full")
+
+        monkeypatch.setattr(_ext_module.shutil, "copytree", failing_copytree)
+
+        with pytest.raises(OSError, match="simulated disk full"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # The preserved config must have been written back by the rollback path.
+        assert config_file.exists(), "rollback must recreate the config file"
+        assert config_file.read_bytes() == original_bytes
+
+        # On POSIX, the original file mode must be faithfully restored.
+        if platform.system() != "Windows":
+            restored_mode = config_file.stat().st_mode
+            assert stat.S_IMODE(restored_mode) == stat.S_IMODE(original_mode)
+
+        # The extension must remain unregistered after the failed install.
+        assert not manager.registry.is_installed("test-ext")
+
+    def test_extensionignore_load_failure_preserves_kept_config(
+        self, extension_dir, project_dir
+    ):
+        """An .extensionignore load failure must not lose a preserved config.
+
+        `.extensionignore` is loaded/validated before the rescue staging
+        directory is read or created (and thus before dest_dir is deleted), so a
+        ValidationError raised for invalid UTF-8 must abort the reinstall while
+        leaving the kept config authoritative in its documented location. It must
+        NOT publish a stale staging copy that a later retry — after the user
+        fixes the ignore file and edits the kept config — would reload and use to
+        silently overwrite the newer bytes.
+        """
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+        original_bytes = config_file.read_bytes()
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+
+        # Author an .extensionignore that is not valid UTF-8 so the loader
+        # raises before rescue staging is read or created.
+        (extension_dir / ".extensionignore").write_bytes(b"\xff\xfe invalid\n")
+
+        with pytest.raises(ValidationError, match="not valid UTF-8"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # The kept config must remain in its documented location, untouched.
+        assert config_file.exists(), "config must survive the ignore-load failure"
+        assert config_file.read_bytes() == original_bytes
+        assert not manager.registry.is_installed("test-ext")
+
+        # No rescue staging may have been published, so a later retry reads the
+        # live (possibly newly edited) config rather than stale staged bytes.
+        staging_dir = manager._rescue_staging_dir("test-ext")
+        assert not staging_dir.exists()
+
+        # Simulate the user fixing the ignore file and editing the kept config,
+        # then retrying: the retry must adopt the newer bytes, never a stale
+        # staged copy.
+        (extension_dir / ".extensionignore").write_text("*.log\n")
+        config_file.write_text("model: newer-model\n")
+        newer_bytes = config_file.read_bytes()
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert manager.registry.is_installed("test-ext")
+        assert config_file.read_bytes() == newer_bytes
+
+    def test_retry_after_staging_backup_restores_stranded_config(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """A retry after an interrupted install restores the rescued config.
+
+        When the live config is unchanged since the interrupted attempt (it
+        still matches the staged backup), the retry proceeds and yields the
+        preserved bytes, and the staging directory is cleaned up on success.
+        """
+        import stat
+
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+
+        if platform.system() != "Windows":
+            config_file.chmod(0o640)
+        original_bytes = config_file.read_bytes()
+        original_mode = config_file.stat().st_mode
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+        assert not staging_dir.exists()
+
+        original_copytree = shutil.copytree
+        copytree_calls = 0
+
+        def flaky_copytree(*args, **kwargs):
+            nonlocal copytree_calls
+            copytree_calls += 1
+            if copytree_calls == 1:
+                dst = args[1]
+                Path(dst).mkdir(parents=True, exist_ok=True)
+                (Path(dst) / "_partial.txt").write_text("partial")
+                raise OSError("simulated disk full")
+            return original_copytree(*args, **kwargs)
+
+        monkeypatch.setattr(_ext_module.shutil, "copytree", flaky_copytree)
+
+        with pytest.raises(OSError, match="simulated disk full"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        assert staging_dir.exists()
+        assert (staging_dir / ".rescue-complete").exists()
+        assert (staging_dir / "test-ext-config.yml").exists()
+
+        # The rollback restored the preserved bytes to the live config, so it
+        # still agrees with the staged backup — the retry proceeds normally.
+        assert config_file.read_bytes() == original_bytes
+
+        manifest = manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert manifest.id == "test-ext"
+        assert manager.registry.is_installed("test-ext")
+        assert config_file.read_bytes() == original_bytes
+        assert not (ext_dir / "_partial.txt").exists()
+        assert not staging_dir.exists()
+
+        if platform.system() != "Windows":
+            restored_mode = config_file.stat().st_mode
+            assert stat.S_IMODE(restored_mode) == stat.S_IMODE(original_mode)
+
+    def test_retry_restores_config_from_staging_when_live_absent(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """Retry succeeds using only staging when the live config is absent.
+
+        After a copytree failure, staging is complete and the rollback writes
+        the config back to dest_dir.  If a power loss interrupts that rollback
+        the config may be absent on the next attempt.  The retry-from-staging
+        branch (``if staging_is_complete``) must restore the config from staging
+        alone so the original bytes and mode are recovered even when no live copy
+        is present.  This is the critical path that distinguishes the staging
+        branch from the live-dir fallback.
+        """
+        import stat
+
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+
+        if platform.system() != "Windows":
+            config_file.chmod(0o640)
+        original_bytes = config_file.read_bytes()
+        original_mode = config_file.stat().st_mode
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+        assert not staging_dir.exists()
+
+        original_copytree = shutil.copytree
+        copytree_calls = 0
+
+        def flaky_copytree(*args, **kwargs):
+            nonlocal copytree_calls
+            copytree_calls += 1
+            if copytree_calls == 1:
+                dst = args[1]
+                Path(dst).mkdir(parents=True, exist_ok=True)
+                (Path(dst) / "_partial.txt").write_text("partial")
+                raise OSError("simulated disk full")
+            return original_copytree(*args, **kwargs)
+
+        monkeypatch.setattr(_ext_module.shutil, "copytree", flaky_copytree)
+
+        with pytest.raises(OSError, match="simulated disk full"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # Staging is complete after the first failure.
+        assert staging_dir.exists()
+        assert (staging_dir / ".rescue-complete").exists()
+        assert (staging_dir / "test-ext-config.yml").exists()
+
+        # Simulate a power loss that prevented the rollback from writing the
+        # config back: delete the live copy so the retry must rely on staging.
+        config_file.unlink()
+        assert not config_file.exists()
+
+        manifest = manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        # The staging branch must restore the original bytes even though no live
+        # copy was present — proving staging (not the live-dir fallback) was used.
+        assert manifest.id == "test-ext"
+        assert manager.registry.is_installed("test-ext")
+        assert config_file.read_bytes() == original_bytes
+        assert not (ext_dir / "_partial.txt").exists()
+        assert not staging_dir.exists()
+
+        if platform.system() != "Windows":
+            restored_mode = config_file.stat().st_mode
+            assert stat.S_IMODE(restored_mode) == stat.S_IMODE(original_mode)
+
+    def test_retry_ignores_live_only_packaged_config_after_registry_failure(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """Retry should keep packaged live-only configs that still match source."""
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+        original_bytes = config_file.read_bytes()
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+
+        live_only_packaged = extension_dir / "test-ext-config.local.yml"
+        live_only_packaged.write_text("new_default: true\n")
+
+        original_add = manager.registry.add
+        add_calls = 0
+
+        def flaky_add(*args, **kwargs):
+            nonlocal add_calls
+            add_calls += 1
+            if add_calls == 1:
+                raise OSError("simulated registry failure")
+            return original_add(*args, **kwargs)
+
+        monkeypatch.setattr(manager.registry, "add", flaky_add)
+
+        with pytest.raises(OSError, match="simulated registry failure"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+        assert staging_dir.exists()
+        assert (staging_dir / ".rescue-complete").exists()
+        assert config_file.read_bytes() == original_bytes
+        assert (
+            ext_dir / "test-ext-config.local.yml"
+        ).read_text() == "new_default: true\n"
+
+        manifest = manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert manifest.id == "test-ext"
+        assert manager.registry.is_installed("test-ext")
+        assert config_file.read_bytes() == original_bytes
+        assert (
+            ext_dir / "test-ext-config.local.yml"
+        ).read_text() == "new_default: true\n"
+        assert not staging_dir.exists()
+
+    def test_retry_with_edited_live_config_aborts_and_preserves_both(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """A retry must not silently overwrite a config edited after a crash.
+
+        A complete staging directory proves only that staging finished, not
+        that dest_dir was modified. If the user edits the live kept config
+        before retrying, the retry must detect the divergence, preserve both
+        copies, and abort rather than blindly restoring the older staged bytes.
+        """
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+        staged_bytes = config_file.read_bytes()
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+
+        original_copytree = shutil.copytree
+        copytree_calls = 0
+
+        def flaky_copytree(*args, **kwargs):
+            nonlocal copytree_calls
+            copytree_calls += 1
+            if copytree_calls == 1:
+                dst = args[1]
+                Path(dst).mkdir(parents=True, exist_ok=True)
+                (Path(dst) / "_partial.txt").write_text("partial")
+                raise OSError("simulated disk full")
+            return original_copytree(*args, **kwargs)
+
+        monkeypatch.setattr(_ext_module.shutil, "copytree", flaky_copytree)
+
+        with pytest.raises(OSError, match="simulated disk full"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        assert staging_dir.exists()
+        assert (staging_dir / ".rescue-complete").exists()
+
+        # Simulate the user editing the live config before retrying so it now
+        # diverges from the staged backup.
+        config_file.write_text("model: newer-edited-model\n")
+        edited_bytes = config_file.read_bytes()
+        assert edited_bytes != staged_bytes
+
+        with pytest.raises(ValidationError, match="Preserved extension config conflict"):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # Both copies must survive: the edited live config and the staged backup.
+        assert config_file.read_bytes() == edited_bytes
+        assert staging_dir.exists()
+        assert (staging_dir / "test-ext-config.yml").read_bytes() == staged_bytes
+        assert not manager.registry.is_installed("test-ext")
+
+    @pytest.mark.parametrize(
+        "failure_mode",
+        [
+            pytest.param("mkdir", id="mkdir"),
+            pytest.param("os_open", id="os_open"),
+            pytest.param("fsync", id="fsync"),
+        ],
+    )
+    def test_staging_failure_aborts_before_dest_dir_removal(
+        self, extension_dir, project_dir, monkeypatch, failure_mode
+    ):
+        """Staging failures abort the install before dest_dir is removed.
+
+        When mkdir, os.open, or fsync fails while publishing rescue staging,
+        the install must abort before removing dest_dir so the preserved
+        config bytes remain authoritative, any partial staging is cleaned up
+        rather than trusted on retry, and the extension stays unregistered.
+        """
+        import errno as _errno
+
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+        config_file.write_text("model: custom-model\nmax_iterations: 99\n")
+        original_bytes = config_file.read_bytes()
+
+        manager.remove("test-ext", keep_config=True)
+        assert not manager.registry.is_installed("test-ext")
+        assert config_file.exists()
+
+        staging_dir = manager._rescue_staging_dir("test-ext")
+        assert not staging_dir.exists()
+
+        if failure_mode == "mkdir":
+            original_mkdir = Path.mkdir
+
+            def failing_mkdir(self_path, *args, **kwargs):
+                if self_path == staging_dir:
+                    raise OSError("staging mkdir failed")
+                return original_mkdir(self_path, *args, **kwargs)
+
+            monkeypatch.setattr(Path, "mkdir", failing_mkdir)
+
+        elif failure_mode == "os_open":
+            original_os_open = _ext_module.os.open
+
+            def failing_os_open(path, flags, mode=0o777, *args, **kwargs):
+                # Fail only for file creation (O_CREAT) inside the staging
+                # directory so other os.open calls (e.g. directory fsync) are
+                # unaffected.
+                if str(staging_dir) in str(path) and (flags & os.O_CREAT):
+                    raise OSError(_errno.ENOSPC, "No space left on device")
+                return original_os_open(path, flags, mode, *args, **kwargs)
+
+            monkeypatch.setattr(_ext_module.os, "open", failing_os_open)
+
+        else:  # "fsync"
+            def failing_fsync_fd(fd: int) -> None:
+                # Simulate a real storage error (EIO) that the helper propagates.
+                raise OSError(_errno.EIO, "Input/output error")
+
+            monkeypatch.setattr(_ext_module, "_fsync_fd", failing_fsync_fd)
+
+        with pytest.raises(OSError):
+            manager.install_from_directory(
+                extension_dir, "0.1.0", register_commands=False
+            )
+
+        # dest_dir must still exist — the install aborted before rmtree.
+        assert ext_dir.exists(), "dest_dir must survive a staging failure"
+        assert config_file.read_bytes() == original_bytes, (
+            "preserved config must remain authoritative"
+        )
+        # Partial staging must have been cleaned up and not left as complete.
+        assert not staging_dir.exists() or not (
+            staging_dir / ".rescue-complete"
+        ).exists(), "incomplete staging must not be trusted"
+        assert not manager.registry.is_installed("test-ext")
+
+    def test_rescue_staging_dir_is_fixed_length_for_long_ids(self, project_dir):
+        """The rescue staging component length must not grow with the ID length.
+
+        Manifest validation caps the ID character set but not its length, so a
+        very long (but valid) ID must not lengthen the single staging path
+        component past a filesystem's per-component byte limit.
+        """
+        manager = ExtensionManager(project_dir)
+
+        short_dir = manager._rescue_staging_dir("a")
+        long_id = "a" * 250
+        long_dir = manager._rescue_staging_dir(long_id)
+
+        # Same fixed component length regardless of ID length.
+        assert len(short_dir.name) == len(long_dir.name)
+        # Comfortably within the common 255-byte component limit.
+        assert len(long_dir.name.encode("utf-8")) <= 255
+        # Distinct IDs still map to distinct staging directories.
+        assert manager._rescue_staging_dir("b") != short_dir
+
+    def test_failed_install_without_keep_config_does_not_rescue_defaults(
+        self, extension_dir, project_dir, monkeypatch
+    ):
+        """A dir left by a partially-failed install must not trigger the rescue path.
+
+        Any install that copies files but then fails during command, skill, or
+        hook registration also leaves a complete dest_dir with no registry entry.
+        On a later retry from an updated package this branch must not treat the
+        previous package's default config as user-preserved data and restore it
+        over the new defaults.  Only directories explicitly left by
+        ``remove --keep-config`` (which writes a ``.keep-config`` marker) should
+        trigger the rescue path.
+        """
+        manager = ExtensionManager(project_dir)
+
+        packaged_config = extension_dir / "test-ext-config.yml"
+        packaged_config.write_text("model: default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        ext_dir = project_dir / ".specify" / "extensions" / "test-ext"
+        config_file = ext_dir / "test-ext-config.yml"
+
+        # Simulate a partially-failed install: the extension directory is present
+        # with the packaged default config but there is no .keep-config marker and
+        # the extension is not in the registry.  This matches what happens when
+        # copytree succeeds but command/hook registration raises afterwards.
+        manager.registry.remove("test-ext")
+        assert not manager.registry.is_installed("test-ext")
+        assert ext_dir.exists()
+        assert not (ext_dir / ".keep-config").exists()
+
+        # Update the packaged config so a retry with the new package would use
+        # different defaults — the old defaults must NOT be rescued.
+        packaged_config.write_text("model: updated-default-model\n")
+
+        manager.install_from_directory(
+            extension_dir, "0.1.0", register_commands=False
+        )
+
+        assert manager.registry.is_installed("test-ext")
+        # The new packaged default must win; the old default was not user data.
+        assert config_file.read_text() == "model: updated-default-model\n"
 
     def test_install_force_without_existing(self, extension_dir, project_dir):
         """Test force-install when extension is NOT already installed (works normally)."""
