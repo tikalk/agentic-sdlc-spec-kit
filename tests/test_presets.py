@@ -2303,6 +2303,28 @@ class TestPresetCatalog:
             with pytest.raises(PresetError, match="[Ii]ntegrity"):
                 catalog.download_pack("test-pack", target_dir=project_dir)
 
+    def test_download_pack_malformed_url_raises_preset_error(self, project_dir):
+        """A catalog ``download_url`` with a malformed authority (e.g. an
+        unterminated IPv6 bracket) surfaces a clean ``PresetError`` rather than
+        leaking a raw ``ValueError`` from ``urlparse``/``.hostname`` past the
+        command handler (which only catches ``PresetError``). Mirrors the
+        extensions coverage.
+        """
+        from unittest.mock import patch
+
+        catalog = PresetCatalog(project_dir)
+        for bad_url in ("https://[::1", "https://[not-an-ip]/x"):
+            pack_info = {
+                "id": "test-pack",
+                "name": "Test Pack",
+                "version": "1.0.0",
+                "download_url": bad_url,
+                "_install_allowed": True,
+            }
+            with patch.object(catalog, "get_pack_info", return_value=pack_info):
+                with pytest.raises(PresetError, match="malformed"):
+                    catalog.download_pack("test-pack", target_dir=project_dir)
+
     def test_download_pack_without_sha256_skips_verification(self, project_dir):
         """A catalog entry with no ``sha256`` keeps working: verification is
         opt-in, so the backwards-compatible path (``pack_info.get("sha256")``
@@ -5447,6 +5469,82 @@ class TestBundledPresetLocator:
         output = strip_ansi(result.output)
         assert "Invalid URL" in output
         open_url.assert_not_called()
+
+    def test_preset_add_bracketed_host_download_url_exits_cleanly(self, project_dir):
+        """A catalog download_url with a bracketed non-IP host must render cleanly.
+
+        ``download_pack`` raises ``PresetError`` whose message embeds the raw URL
+        (e.g. ``https://[not-an-ip]/x``). The ``preset_add`` handler must escape
+        that message before printing so Rich does not interpret ``[not-an-ip]``
+        as a markup tag and crash while rendering the error.
+        """
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        bad_url = "https://[not-an-ip]/x"
+        catalog_data = {
+            "test-pack": {
+                "name": "Test Pack",
+                "version": "1.0.0",
+                "download_url": bad_url,
+            }
+        }
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(PresetCatalog, "_get_merged_packs", return_value=catalog_data):
+            result = runner.invoke(
+                app,
+                ["preset", "add", "test-pack"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1, result.output
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        output = strip_ansi(result.output)
+        assert "Error:" in output
+        # The malformed URL surfaces verbatim rather than crashing the renderer.
+        assert bad_url in output
+
+    @pytest.mark.parametrize(
+        ("exc_type", "label"),
+        [
+            (PresetCompatibilityError, "Compatibility Error"),
+            (PresetValidationError, "Validation Error"),
+            (PresetError, "Error"),
+        ],
+    )
+    def test_preset_add_exception_handlers_escape_markup(self, project_dir, exc_type, label):
+        """Preset install exceptions can include catalog-controlled values.
+
+        The message must be escaped so Rich does not treat bracketed content as
+        markup and raise while rendering the error.
+        """
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        dev_dir = project_dir / "dev-pack"
+        dev_dir.mkdir()
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch.object(
+                 PresetManager,
+                 "install_from_directory",
+                 side_effect=exc_type("bad [red]preset[/red]"),
+             ):
+            result = runner.invoke(
+                app,
+                ["preset", "add", "--dev", str(dev_dir)],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1, result.output
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert f"{label}:" in result.output
+        assert "bad [red]preset[/red]" in result.output
 
     def test_preset_add_from_url_redirect_error_describes_disallowed_url(self, project_dir, monkeypatch, capsys):
         """Redirect rejection message covers hostless HTTPS, not only non-HTTPS URLs."""
