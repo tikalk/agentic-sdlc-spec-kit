@@ -17,6 +17,7 @@ from fnmatch import fnmatch
 from typing import Callable
 from urllib.parse import urlparse
 
+from .._download_security import is_https_or_localhost_http, is_loopback_url
 from . import get_provider
 from .config import AuthConfigEntry, _default_config_path, find_entries_for_url, load_auth_config
 
@@ -60,8 +61,27 @@ def _hostname_in_hosts(hostname: str, hosts: tuple[str, ...]) -> bool:
 RedirectValidator = Callable[[str, str], None]
 
 
+def _validate_strict_redirect(old_url: str, new_url: str) -> None:
+    target_is_allowed = is_https_or_localhost_http(new_url)
+    remote_to_http_loopback = (
+        urlparse(new_url).scheme == "http"
+        and not is_loopback_url(old_url)
+    )
+    if not target_is_allowed or remote_to_http_loopback:
+        raise urllib.error.URLError(
+            f"unsafe redirect to {new_url}: target must use HTTPS with a hostname, "
+            "or stay within localhost over HTTP (127.0.0.1, ::1)"
+        )
+
+
 class _StripAuthOnRedirect(urllib.request.HTTPRedirectHandler):
-    """Drop ``Authorization`` when a redirect leaves trusted hosts or downgrades."""
+    """Redirect handler that guards every redirect it is installed for.
+
+    1. Run any caller-provided redirect validator.
+    2. Reject redirects that are not HTTPS with a hostname. HTTP loopback is
+       allowed only when the previous hop is also loopback.
+    3. Drop ``Authorization`` when a redirect leaves trusted hosts or downgrades.
+    """
 
     def __init__(
         self,
@@ -82,6 +102,7 @@ class _StripAuthOnRedirect(urllib.request.HTTPRedirectHandler):
 
         if self._redirect_validator is not None:
             self._redirect_validator(req.full_url, newurl)
+        _validate_strict_redirect(req.full_url, newurl)
 
         original_auth = (
             req.get_header("Authorization")
@@ -155,6 +176,10 @@ def open_url(
     *extra_headers* (e.g. ``Accept``) are merged into every attempt.
     *redirect_validator*, when provided, is called with ``(old_url, new_url)``
     before following each redirect and may raise to reject the redirect.
+
+    Redirect scheme safety: every attempt goes through
+    ``_StripAuthOnRedirect``, which rejects redirects to non-HTTPS URLs except
+    HTTP between localhost / 127.0.0.1 / ::1 URLs.
     """
     entries = find_entries_for_url(url, _load_config())
 
@@ -188,7 +213,7 @@ def open_url(
 
     # No entry worked (or none matched) — unauthenticated fallback
     req = _make_req({})
-    if redirect_validator is not None:
-        opener = urllib.request.build_opener(_StripAuthOnRedirect((), redirect_validator))
-        return opener.open(req, timeout=timeout)
-    return urllib.request.urlopen(req, timeout=timeout)  # noqa: S310
+    # No auth is attached on this path, so the handler's host list is empty:
+    # here it runs redirect validation only, not auth stripping.
+    opener = urllib.request.build_opener(_StripAuthOnRedirect((), redirect_validator))
+    return opener.open(req, timeout=timeout)
