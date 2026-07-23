@@ -6607,6 +6607,80 @@ class TestExtensionAddCLI:
         plain = strip_ansi(result.output)
         assert "Invalid URL" in plain
 
+    def test_add_from_bracketed_non_ip_url_exits_cleanly(self, tmp_path):
+        """A bracketed-but-invalid IPv6 host must produce a clean error, not a
+        ValueError traceback. "https://[not-an-ip]/ext.zip" is a malformed
+        authority that raises ValueError during URL validation; the try/except
+        guard around parsing and the .hostname read must turn that into a clean
+        "Invalid URL" message.
+        """
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "add", "my-ext", "--from", "https://[not-an-ip]/ext.zip"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        plain = strip_ansi(result.output)
+        assert "Invalid URL" in plain
+
+    def test_add_from_url_lazy_hostname_valueerror_exits_cleanly(self, tmp_path, monkeypatch):
+        """Synthetic defensive coverage: monkeypatch urlparse() to return an
+        object whose .hostname raises ValueError lazily. This does not reproduce
+        any specific CPython behavior -- it just exercises the case where the
+        ValueError surfaces on the .hostname read rather than at parse time, so a
+        raw ValueError would leak if .hostname were read outside the try/except.
+        """
+        import urllib.parse
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        real_urlparse = urllib.parse.urlparse
+
+        class _LazyHostnameRaiser:
+            def __init__(self, parsed):
+                self._parsed = parsed
+
+            @property
+            def hostname(self):
+                raise ValueError("simulated lazy IPv6 hostname failure")
+
+            def __getattr__(self, name):
+                return getattr(self._parsed, name)
+
+        def _fake_urlparse(url, *args, **kwargs):
+            return _LazyHostnameRaiser(real_urlparse(url, *args, **kwargs))
+
+        monkeypatch.setattr(urllib.parse, "urlparse", _fake_urlparse)
+
+        project_dir = tmp_path / "test-project"
+        project_dir.mkdir()
+        (project_dir / ".specify").mkdir()
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir):
+            result = runner.invoke(
+                app,
+                ["extension", "add", "my-ext", "--from", "https://example.com/ext.zip"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "Invalid URL" in strip_ansi(result.output)
+
     def test_add_status_escapes_extension_markup(self, tmp_path):
         """User-controlled extension names must not be parsed as Rich markup."""
         from rich.markup import escape as escape_markup

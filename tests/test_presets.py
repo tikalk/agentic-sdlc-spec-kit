@@ -5605,6 +5605,58 @@ class TestBundledPresetLocator:
         assert "Invalid URL" in output
         open_url.assert_not_called()
 
+    def test_preset_add_from_bracketed_non_ip_url_exits_cleanly(self, project_dir):
+        """A bracketed-but-invalid IPv6 host in --from must exit cleanly.
+
+        "https://[not-an-ip]/preset.zip" is a malformed authority that raises
+        ValueError during URL validation; the try/except guard around parsing
+        and the .hostname read must turn that into a clean "Invalid URL" message.
+        """
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli.authentication.http.open_url") as open_url:
+            result = runner.invoke(
+                app,
+                ["preset", "add", "--from", "https://[not-an-ip]/preset.zip"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        output = strip_ansi(result.output)
+        assert "Invalid URL" in output
+        open_url.assert_not_called()
+
+    def test_preset_add_from_url_out_of_range_port_exits_cleanly(self, project_dir):
+        """An out-of-range port raises ValueError lazily on .port access.
+
+        The up-front guard reads ``_parsed.port`` (urllib validates the port
+        range/syntax there) inside its try/except, so "https://example.com:99999/
+        preset.zip" must produce a clean "Invalid URL" message rather than
+        leaking a raw ValueError traceback past the CLI.
+        """
+        from typer.testing import CliRunner
+        from unittest.mock import patch
+        from specify_cli import app
+
+        runner = CliRunner()
+        with patch.object(Path, "cwd", return_value=project_dir), \
+             patch("specify_cli.authentication.http.open_url") as open_url:
+            result = runner.invoke(
+                app,
+                ["preset", "add", "--from", "https://example.com:99999/preset.zip"],
+                catch_exceptions=True,
+            )
+
+        assert result.exit_code == 1
+        assert result.exception is None or isinstance(result.exception, SystemExit)
+        assert "Invalid URL" in strip_ansi(result.output)
+        open_url.assert_not_called()
+
     def test_preset_add_bracketed_host_download_url_exits_cleanly(self, project_dir):
         """A catalog download_url with a bracketed non-IP host must render cleanly.
 
