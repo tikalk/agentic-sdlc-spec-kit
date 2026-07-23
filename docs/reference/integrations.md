@@ -257,31 +257,30 @@ Spec Kit tracks one default integration in `.specify/integration.json` with `def
 
 An integration is multi-install safe when it uses a static, unique agent root and command directory, stable command invocation settings, and a separate install manifest whose managed files do not overlap another safe integration. Registry tests enforce those path and manifest invariants. Shared Spec Kit templates remain aligned to the single default integration.
 
-The Isolation column below lists paths Spec Kit manages for that integration (skills/commands roots and any integration-owned rule files). It is not a full inventory of every file an agent may read.
-
-**Agent-context defaults are separate.** The optional agent-context extension maps each integration to a default context file in `extensions/agent-context/agent-context-defaults.json`. Those defaults are independent of multi-install safety: several agents may share a root file such as `AGENTS.md` when the extension is enabled. Multi-install safety does not require a unique context file per safe integration.
+The Command directory column below lists the directory each integration installs its commands or skills into. Context-file targeting is a separate concern from integration multi-install safety: `multi_install_safe` is an integration declaration about command/skill paths, whereas the optional agent-context extension manages a per-agent context file (for example `AGENTS.md` or `CLAUDE.md`) and can even synchronize several anchors at once via its `context_files` setting. Multiple agents mapping to the same context file is expected there and does not affect whether an integration is multi-install safe; see the agent-context extension for details.
 
 The currently declared multi-install safe integrations are:
 
-| Key | Isolation |
-| --- | --------- |
-| `auggie` | `.augment/commands`, `.augment/rules/specify-rules.md` |
-| `claude` | `.claude/skills`, `CLAUDE.md` |
-| `cline` | `.clinerules/workflows`, `.clinerules/specify-rules.md` |
-| `codebuddy` | `.codebuddy/commands`, `CODEBUDDY.md` |
-| `codex` | `.agents/skills`, `AGENTS.md` |
-| `cursor-agent` | `.cursor/skills`, `.cursor/rules/specify-rules.mdc` |
-| `firebender` | `.firebender/commands`, `.firebender/rules/specify-rules.mdc` |
-| `gemini` | `.gemini/commands`, `GEMINI.md` |
+| Key | Command directory |
+| --- | ----------------- |
+| `auggie` | `.augment/commands` |
+| `claude` | `.claude/skills` |
+| `cline` | `.clinerules/workflows` |
+| `codebuddy` | `.codebuddy/commands` |
+| `codex` | `.agents/skills` |
+| `cursor-agent` | `.cursor/skills` |
+| `firebender` | `.firebender/commands` |
+| `gemini` | `.gemini/commands` |
 | `grok` | `.grok/skills` |
-| `junie` | `.junie/commands`, `.junie/AGENTS.md` |
-| `kilocode` | `.kilocode/workflows`, `.kilocode/rules/specify-rules.md` |
-| `qodercli` | `.qoder/commands`, `QODER.md` |
-| `qwen` | `.qwen/commands`, `QWEN.md` |
-| `shai` | `.shai/commands`, `SHAI.md` |
-| `tabnine` | `.tabnine/agent/commands`, `TABNINE.md` |
-| `trae` | `.trae/skills`, `.trae/rules/project_rules.md` |
-| `zcode` | `.zcode/skills`, `ZCODE.md` |
+| `junie` | `.junie/commands` |
+| `kilocode` | `.kilocode/workflows` |
+| `kiro-cli` | `.kiro/prompts` |
+| `qodercli` | `.qoder/commands` |
+| `qwen` | `.qwen/commands` |
+| `shai` | `.shai/commands` |
+| `tabnine` | `.tabnine/agent/commands` |
+| `trae` | `.trae/skills` |
+| `zcode` | `.zcode/skills` |
 
 Integrations that share a command directory with another integration, require dynamic install paths such as `--commands-dir`, or merge shared tool settings are not declared safe by default. They can still be installed alongside another integration with `--force`.
 
