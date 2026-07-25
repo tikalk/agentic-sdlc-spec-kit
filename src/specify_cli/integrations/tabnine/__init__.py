@@ -19,3 +19,12 @@ class TabnineIntegration(TomlIntegration):
         "extension": ".toml",
     }
     multi_install_safe = True
+
+    CANONICAL_TO_NATIVE = {
+        "session_start": "SessionStart",
+        "pre_tool_use": "BeforeTool",
+        "post_tool_use": "AfterTool",
+        "session_end": "SessionEnd",
+    }
+    events_config_file = ".tabnine/agent/settings.json"
+    events_format = "json-nested"

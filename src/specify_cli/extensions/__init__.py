@@ -300,17 +300,22 @@ class ExtensionManifest:
         provides = self.data["provides"]
         commands = provides.get("commands", [])
         hooks = self.data.get("hooks")
+        events = self.data.get("events")
 
         if "commands" in provides and not isinstance(commands, list):
             raise ValidationError("Invalid provides.commands: expected a list")
         if "hooks" in self.data and not isinstance(hooks, dict):
             raise ValidationError("Invalid hooks: expected a mapping")
+        if "events" in self.data:
+            from ..events import validate_events
+            validate_events(self.data)
 
         has_commands = bool(commands)
         has_hooks = bool(hooks)
+        has_events = bool(events)
 
-        if not has_commands and not has_hooks:
-            raise ValidationError("Extension must provide at least one command or hook")
+        if not has_commands and not has_hooks and not has_events:
+            raise ValidationError("Extension must provide at least one command, hook, or event")
 
         # Validate hook values (if present).
         # Each event is a single mapping or a list of mappings.

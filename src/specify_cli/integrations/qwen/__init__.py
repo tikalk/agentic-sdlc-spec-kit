@@ -19,3 +19,14 @@ class QwenIntegration(MarkdownIntegration):
         "extension": ".md",
     }
     multi_install_safe = True
+
+    CANONICAL_TO_NATIVE = {
+        "session_start": "SessionStart",
+        "pre_tool_use": "PreToolUse",
+        "post_tool_use": "PostToolUse",
+        "session_end": "SessionEnd",
+        "user_prompt_submit": "UserPromptSubmit",
+        "stop": "Stop",
+    }
+    events_config_file = ".qwen/settings.json"
+    events_format = "json-nested"

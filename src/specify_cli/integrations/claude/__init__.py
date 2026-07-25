@@ -54,6 +54,17 @@ class ClaudeIntegration(SkillsIntegration):
     }
     multi_install_safe = True
 
+    CANONICAL_TO_NATIVE = {
+        "session_start": "SessionStart",
+        "pre_tool_use": "PreToolUse",
+        "post_tool_use": "PostToolUse",
+        "session_end": "SessionEnd",
+        "user_prompt_submit": "UserPromptSubmit",
+        "stop": "Stop",
+    }
+    events_config_file = ".claude/settings.json"
+    events_format = "json-nested"
+
     @staticmethod
     def inject_argument_hint(content: str, hint: str) -> str:
         """Insert ``argument-hint`` after the first ``description:`` in YAML frontmatter.

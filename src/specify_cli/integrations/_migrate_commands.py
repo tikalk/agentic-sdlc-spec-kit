@@ -342,12 +342,20 @@ def integration_switch(
         target_integration.key, project_root, version=_get_speckit_version()
     )
 
+    from ..events import resolve_events
+    events_map = resolve_events(
+        target_integration.key,
+        target_integration.config,
+        project_root,
+        parsed_options,
+    )
     try:
         target_integration.setup(
             project_root, manifest,
             parsed_options=parsed_options,
             script_type=selected_script,
             raw_options=raw_options,
+            events=events_map,
         )
         manifest.save()
         _set_default_integration(
@@ -566,6 +574,13 @@ def integration_upgrade(
     console.print(f"Upgrading integration: [cyan]{key}[/cyan]")
     new_manifest = IntegrationManifest(key, project_root, version=_get_speckit_version())
 
+    from ..events import resolve_events
+    events_map = resolve_events(
+        key,
+        integration.config,
+        project_root,
+        parsed_options,
+    )
     try:
         integration.setup(
             project_root,
@@ -573,6 +588,7 @@ def integration_upgrade(
             parsed_options=parsed_options,
             script_type=selected_script,
             raw_options=raw_options,
+            events=events_map,
         )
         settings = _with_integration_setting(
             current,
