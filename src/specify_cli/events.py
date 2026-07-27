@@ -582,15 +582,21 @@ def install_integration_events(
                 file=sys.stderr,
             )
 
+    # #3: an empty resolved map (--events false, or override disabling events)
+    # must still strip prior Specify hooks from this integration's native
+    # config rather than leaving them active. The shared dispatcher is left
+    # untouched — another integration may still reference it (#10).
     if not filtered:
+        _remove_native_event_hooks(integration, project_root, manifest)
         return []
 
     created: list[Path] = []
 
-    # 1. Generate events.py dispatcher script
+    # 1. Generate events.py dispatcher script (#12: validate destination first)
     dispatcher_dir = project_root / EVENTS_DISPATCHER_DIR
-    dispatcher_dir.mkdir(parents=True, exist_ok=True)
     dispatcher_path = dispatcher_dir / EVENTS_DISPATCHER_FILENAME
+    _ensure_safe_destination(dispatcher_path)
+    dispatcher_dir.mkdir(parents=True, exist_ok=True)
     dispatcher_path.write_text(_EVENTS_DISPATCHER_TEMPLATE, encoding="utf-8")
     dispatcher_path.chmod(0o755)
     manifest.record_file(
@@ -611,6 +617,7 @@ def install_integration_events(
         # Opencode TS plugin custom merge
         plugin_rel = ".opencode/plugin/speckit-events.ts"
         plugin_path = project_root / plugin_rel
+        _ensure_safe_destination(plugin_path)
         plugin_path.parent.mkdir(parents=True, exist_ok=True)
         plugin_path.write_text(
             _build_opencode_plugin(filtered, canonical_to_native, _resolve_interpreter(project_root)),
@@ -630,9 +637,12 @@ def install_integration_events(
         created.append(config_path)
 
     elif fmt == "copilot-json":
-        # Copilot hooks JSON write (dedicated .github/hooks/speckit.json).
-        # Each handler becomes its own entry in the native event's list (#2),
-        # with bash/powershell variants sharing one resolved interpreter (#16).
+        # Copilot dedicated .github/hooks/speckit.json. Each handler becomes
+        # its own entry in the native event's list (#2), with bash/powershell
+        # variants sharing one resolved interpreter (#16). Entries carry the
+        # ownership marker so a pre-existing user-authored file is merged
+        # (owned entries replaced) rather than overwritten (#8), and teardown
+        # removes only owned entries.
         copilot_hooks: dict[str, list[dict[str, Any]]] = {}
         for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
@@ -650,9 +660,7 @@ def install_integration_events(
                     }
                 )
             copilot_hooks[native] = entries
-        fragment = {"version": 1, "hooks": copilot_hooks}
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text(json.dumps(fragment, indent=2) + "\n", encoding="utf-8")
+        _merge_copilot_json(config_path, copilot_hooks)
         rel = str(config_path.relative_to(project_root))
         if rel not in manifest.files:
             manifest.record_existing(rel)
@@ -744,33 +752,86 @@ def install_integration_events(
     return created
 
 
-def remove_integration_events(integration: IntegrationBase, project_root: Path, manifest: IntegrationManifest) -> None:
-    """Remove Specify-authored event entries from native config."""
+def _remove_native_event_hooks(
+    integration: IntegrationBase,
+    project_root: Path,
+    manifest: IntegrationManifest,
+) -> None:
+    """Remove Specify-authored hooks from *this* integration's native config.
+
+    Used both by full teardown and by the empty-resolved-map install path (#3).
+    Does NOT touch the shared dispatcher (another integration may still
+    reference it — #10).
+    """
     fmt = getattr(integration, "events_format", None)
     config_file = getattr(integration, "events_config_file", None)
-    if config_file:
-        config_path = project_root / config_file
-        if config_path.exists():
-            if fmt == "copilot-json":
-                # Clean delete of dedicated file
-                config_path.unlink(missing_ok=True)
-                manifest.remove(config_file)
-            elif fmt == "toml":
-                _remove_toml_entries(config_path)
-            elif fmt in ("json-nested", "json-flat"):
-                _remove_json_entries(config_path)
-            elif fmt == "ts-plugin":
-                _remove_opencode_entries(config_path)
+    if not config_file:
+        return
+    config_path = project_root / config_file
+    if not config_path.exists():
+        return
+    deleted = False
+    if fmt == "copilot-json":
+        deleted = _remove_copilot_entries(config_path)
+    elif fmt == "toml":
+        deleted = _remove_toml_entries(config_path)
+    elif fmt in ("json-nested", "json-flat"):
+        deleted = _remove_json_entries(config_path)
+    elif fmt == "ts-plugin":
+        deleted = _remove_opencode_entries(config_path)
+    if deleted:
+        manifest.remove(config_file)
 
-    # Clean up dispatcher script
+
+def _other_event_integrations_reference_dispatcher(
+    project_root: Path, excluding_key: str
+) -> bool:
+    """Return True if another installed event-capable integration still
+    references the shared ``.specify/events.py`` dispatcher (#10).
+
+    Inspects each installed integration's manifest (excluding *excluding_key*)
+    for the dispatcher path so uninstalling one multi-install event-capable
+    integration doesn't delete the dispatcher the others still rely on.
+    """
+    from .integrations._helpers import _read_integration_json
+    from .integrations.manifest import IntegrationManifest
+    from .integration_state import installed_integration_keys
+
+    state = _read_integration_json(project_root)
+    for key in installed_integration_keys(state):
+        if key == excluding_key:
+            continue
+        try:
+            manifest = IntegrationManifest.load(key, project_root)
+        except Exception:
+            continue
+        if EVENTS_DISPATCHER_REL in manifest.files:
+            return True
+    return False
+
+
+def remove_integration_events(
+    integration: IntegrationBase, project_root: Path, manifest: IntegrationManifest
+) -> None:
+    """Remove Specify-authored event entries from native config.
+
+    The shared ``.specify/events.py`` dispatcher is deleted only when no other
+    installed event-capable integration still references it (#10); otherwise
+    it is left in place so multi-install setups don't lose the dispatcher
+    mid-stream.
+    """
+    _remove_native_event_hooks(integration, project_root, manifest)
+
+    # Clean up dispatcher script only if no other integration still uses it.
     dispatcher_rel = EVENTS_DISPATCHER_REL
     if dispatcher_rel in manifest.files:
-        dispatcher_path = project_root / dispatcher_rel
-        if dispatcher_path.exists():
-            dispatcher_path.unlink(missing_ok=True)
-        manifest.remove(dispatcher_rel)
+        if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
+            dispatcher_path = project_root / dispatcher_rel
+            if dispatcher_path.exists():
+                dispatcher_path.unlink(missing_ok=True)
+            manifest.remove(dispatcher_rel)
 
-    # Clean up opencode TS plugin
+    # Clean up opencode TS plugin (owned solely by the opencode integration).
     if integration.key == "opencode":
         plugin_rel = ".opencode/plugin/speckit-events.ts"
         if plugin_rel in manifest.files:
@@ -908,32 +969,32 @@ def _build_opencode_plugin(
 
 
 def _merge_opencode_plugin_ref(config_path: Path, ref: str) -> None:
-    existing: dict = {}
-    if config_path.exists():
-        try:
-            existing = json.loads(config_path.read_text(encoding="utf-8"))
-        except Exception:
-            existing = {}
-    if not isinstance(existing, dict):
-        existing = {}
+    """Merge the speckit-events plugin ref into opencode.json.
+
+    Aborts with a warning (#23) when the file cannot be parsed (e.g. JSONC or
+    malformed JSON) instead of resetting user configuration to ``{}``.
+    """
+    existing = _load_user_json(config_path)
+    if existing is None:
+        return
     plugins = existing.get("plugin", [])
     if not isinstance(plugins, list):
         plugins = []
     if ref not in plugins:
         plugins.append(ref)
     existing["plugin"] = plugins
-    config_path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    _safe_write_json(config_path, existing)
 
 
-def _remove_opencode_entries(config_path: Path) -> None:
-    if not config_path.exists():
-        return
-    try:
-        existing = json.loads(config_path.read_text(encoding="utf-8"))
-    except Exception:
-        return
-    if not isinstance(existing, dict):
-        return
+def _remove_opencode_entries(config_path: Path) -> bool:
+    """Remove the speckit-events plugin ref from opencode.json (#23).
+
+    Returns True if the file was deleted (now empty of user content), False
+    otherwise. Aborts without writing when the file cannot be parsed.
+    """
+    existing = _load_user_json(config_path)
+    if existing is None:
+        return False
     plugins = existing.get("plugin", [])
     if isinstance(plugins, list):
         ref = "./.opencode/plugin/speckit-events.ts"
@@ -942,10 +1003,15 @@ def _remove_opencode_entries(config_path: Path) -> None:
             existing["plugin"] = plugins
         else:
             existing.pop("plugin", None)
-        config_path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    if not existing:
+        config_path.unlink(missing_ok=True)
+        return True
+    _safe_write_json(config_path, existing)
+    return False
 
 
 def _merge_toml_fragment(dst: Path, fragment: str) -> None:
+    _ensure_safe_destination(dst)
     existing = ""
     if dst.exists():
         existing = dst.read_text(encoding="utf-8")
@@ -959,9 +1025,13 @@ def _merge_toml_fragment(dst: Path, fragment: str) -> None:
     dst.write_text(existing.rstrip() + "\n\n" + fragment + "\n", encoding="utf-8")
 
 
-def _remove_toml_entries(dst: Path) -> None:
+def _remove_toml_entries(dst: Path) -> bool:
+    """Remove Specify-marked TOML entries; delete the file if now empty (#14).
+
+    Returns True if the file was deleted (no user content remained).
+    """
     if not dst.exists():
-        return
+        return False
     existing = dst.read_text(encoding="utf-8")
     cleaned = re.sub(
         r'\[\[hooks\.\w+\]\]\n(?:(?!\[\[hooks\.\w+\]\]).)*?speckit_marker = true\n*',
@@ -969,16 +1039,104 @@ def _remove_toml_entries(dst: Path) -> None:
         existing,
         flags=re.DOTALL,
     )
+    # If only whitespace/comments remain, the file had no user content —
+    # delete it rather than leaving an empty stub that confuses uninstall.
+    stripped = "\n".join(
+        line for line in cleaned.splitlines()
+        if line.strip() and not line.strip().startswith("#")
+    )
+    if not stripped:
+        dst.unlink(missing_ok=True)
+        return True
     dst.write_text(cleaned, encoding="utf-8")
+    return False
+
+
+def _merge_copilot_json(dst: Path, new_hooks: dict[str, list]) -> None:
+    """Merge Specify-owned hooks into Copilot's dedicated hooks JSON (#8).
+
+    A pre-existing user-authored ``.github/hooks/speckit.json`` is merged
+    (owned entries replaced via markers) rather than overwritten, and a
+    parse failure aborts instead of resetting user content (#22).
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return
+    if not isinstance(existing, dict):
+        existing = {}
+    existing.setdefault("version", 1)
+    existing_hooks = existing.get("hooks", {})
+    if not isinstance(existing_hooks, dict):
+        existing_hooks = {}
+    # #11: strip ALL Specify-marked entries from every event first.
+    cleaned_hooks: dict[str, list] = {}
+    for event, entries in existing_hooks.items():
+        if not isinstance(entries, list):
+            continue
+        kept_entries = _drop_marked_entries(entries)
+        if kept_entries:
+            cleaned_hooks[event] = kept_entries
+    for event, entries in new_hooks.items():
+        cleaned_hooks.setdefault(event, []).extend(entries)
+    if cleaned_hooks:
+        existing["hooks"] = cleaned_hooks
+    else:
+        existing.pop("hooks", None)
+    _safe_write_json(dst, existing)
+
+
+def _remove_copilot_entries(dst: Path) -> bool:
+    """Remove Specify-owned hooks from Copilot's hooks JSON (#8, #14).
+
+    Deletes the file when no user-authored hooks remain; otherwise keeps the
+    file with user content. Aborts (no write) on parse failure (#22).
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return False
+    if not isinstance(existing, dict):
+        return False
+    hooks = existing.get("hooks", {})
+    if not isinstance(hooks, dict):
+        hooks = {}
+    cleaned: dict[str, list] = {}
+    for event, entries in hooks.items():
+        if not isinstance(entries, list):
+            continue
+        kept_entries = _drop_marked_entries(entries)
+        if kept_entries:
+            cleaned[event] = kept_entries
+    if cleaned:
+        existing["hooks"] = cleaned
+    else:
+        existing.pop("hooks", None)
+    # Dedicated Spec-Kit file: delete when only the (Spec-Kit-invented)
+    # ``version`` key would remain — no user content to preserve.
+    user_keys = {k for k in existing if k != "version"}
+    if not user_keys:
+        dst.unlink(missing_ok=True)
+        return True
+    _safe_write_json(dst, existing)
+    return False
 
 
 def _merge_json_fragment(dst: Path, new_hooks: dict) -> None:
-    existing: dict = {}
-    if dst.exists():
-        try:
-            existing = json.loads(dst.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+    """Merge Specify-authored hook entries into a native JSON config.
+
+    Idempotent: removes ALL prior Specify-marked entries from every event in
+    the existing config first (#11), so an override that drops an event (e.g.
+    ``pre_tool_use`` → ``stop``) doesn't leave stale marked entries behind.
+    Marker detection recurses into nested ``hooks`` arrays (#9) so a
+    matcher-group containing Specify-owned inner hooks is recognized and
+    replaced rather than duplicated on every upgrade.
+
+    Aborts with a warning (no write) when the existing file cannot be parsed
+    (#22) — e.g. JSONC with comments — instead of resetting user content to
+    ``{}``.
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return
     if not isinstance(existing, dict):
         existing = {}
 
@@ -987,59 +1145,156 @@ def _merge_json_fragment(dst: Path, new_hooks: dict) -> None:
     if not isinstance(existing_hooks, dict):
         existing_hooks = {}
 
+    # #11: strip ALL Specify-marked entries from every event first.
+    cleaned_hooks: dict[str, list] = {}
+    for event, entries in existing_hooks.items():
+        if not isinstance(entries, list):
+            continue
+        kept_entries = _drop_marked_entries(entries)
+        if kept_entries:
+            cleaned_hooks[event] = kept_entries
+
+    # Then add the newly resolved set.
     for event, entries in new_hooks.items():
-        existing_list = existing_hooks.get(event, [])
-        if not isinstance(existing_list, list):
-            existing_list = []
-        # Filter out existing entries carrying our marker
-        existing_list = [e for e in existing_list if not _has_marker(e)]
-        existing_list.extend(entries)
-        existing_hooks[event] = existing_list
+        cleaned_hooks.setdefault(event, []).extend(entries)
 
-    existing[hooks_key] = existing_hooks
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    if cleaned_hooks:
+        existing[hooks_key] = cleaned_hooks
+    else:
+        existing.pop(hooks_key, None)
+    _safe_write_json(dst, existing)
 
 
-def _remove_json_entries(dst: Path) -> None:
+def _drop_marked_entries(entries: list) -> list:
+    """Return *entries* with Specify-marked hooks removed, preserving user hooks.
+
+    Handles both flat entries (marker on the entry itself) and nested entries
+    (marker on inner ``hooks`` elements). A nested matcher-group whose inner
+    hooks are all Specify-owned is dropped; one with surviving user inner
+    hooks is kept with only the user hooks retained (#9).
+    """
+    kept: list = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            kept.append(entry)
+            continue
+        inner = entry.get("hooks")
+        if isinstance(inner, list):
+            kept_inner = [h for h in inner if not _has_marker(h)]
+            if kept_inner:
+                entry["hooks"] = kept_inner
+                kept.append(entry)
+            # else: outer group was entirely Specify-owned → drop
+        elif _has_marker(entry):
+            pass  # flat Specify-owned entry → drop
+        else:
+            kept.append(entry)
+    return kept
+
+
+def _load_user_json(path: Path) -> dict | None:
+    """Load a user-owned JSON file, aborting (None) on parse failure (#22/#23).
+
+    Returns the parsed dict, or ``None`` when the file is missing or cannot be
+    parsed (e.g. JSONC with comments, or temporarily malformed JSON). Callers
+    must skip the merge rather than resetting user content to ``{}``.
+    """
+    if not path.exists():
+        return {}
     try:
-        existing = json.loads(dst.read_text(encoding="utf-8"))
-    except Exception:
-        return
-    if not isinstance(existing, dict):
-        return
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning(
+            "Could not parse %s (may contain JSONC comments or be malformed); "
+            "skipping event-config merge to preserve user content.",
+            path,
+        )
+        logger.debug("Parse error detail: %s", exc)
+        return None
+    if not isinstance(data, dict):
+        logger.warning("%s is not a JSON object; skipping event-config merge.", path)
+        return None
+    return data
+
+
+def _safe_write_json(dst: Path, data: dict) -> None:
+    """Write *data* as JSON to *dst* after validating the destination (#12)."""
+    _ensure_safe_destination(dst)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    dst.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+
+
+def _ensure_safe_destination(dst: Path) -> None:
+    """Validate a write target is a regular path inside the project (#12).
+
+    Walks each path component and rejects symlinks (which could escape the
+    project — e.g. a symlinked ``.claude`` or ``.specify`` directory pointing
+    outside the repo would redirect writes to external files). Then validates
+    lexical containment so ``..`` traversal is also rejected.
+    """
+    from .agents import CommandRegistrar
+
+    # Walk each component so a symlinked ancestor (e.g. ``.claude`` → outside)
+    # cannot be silently followed. Mirrors IntegrationManifest.record_existing.
+    walked = dst.anchor and Path(dst.anchor) or Path("/")
+    for part in dst.relative_to(dst.anchor).parts if dst.anchor else dst.parts:
+        walked = walked / part
+        if walked.is_symlink():
+            raise ValueError(
+                f"Refusing to write event config through a symlink: {walked}"
+            )
+
+    # Containment check against the nearest existing ancestor directory.
+    base = dst.parent
+    while not base.exists() and base != base.parent:
+        base = base.parent
+    CommandRegistrar._ensure_inside(dst, base)
+
+
+def _remove_json_entries(dst: Path) -> bool:
+    """Remove Specify-authored entries; delete the file if now empty (#14).
+
+    Returns True if the file was deleted (Spec Kit created it and no user
+    content remains), False otherwise.
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return False
     hooks = existing.get("hooks", {})
     if not isinstance(hooks, dict):
-        return
+        return False
     cleaned: dict[str, list] = {}
     for event, entries in hooks.items():
         if not isinstance(entries, list):
             continue
-        kept_entries = []
-        for entry in entries:
-            if not isinstance(entry, dict):
-                kept_entries.append(entry)
-                continue
-            inner = entry.get("hooks")
-            if isinstance(inner, list):
-                kept_inner = [h for h in inner if not _has_marker(h)]
-                if kept_inner:
-                    entry["hooks"] = kept_inner
-                    kept_entries.append(entry)
-            elif _has_marker(entry):
-                pass
-            else:
-                kept_entries.append(entry)
+        kept_entries = _drop_marked_entries(entries)
         if kept_entries:
             cleaned[event] = kept_entries
     if cleaned:
         existing["hooks"] = cleaned
     else:
         existing.pop("hooks", None)
-    dst.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    # #14: if the config is now empty (no user content), delete the file
+    # rather than leaving a ``{}`` that confuses manifest.uninstall().
+    if not existing:
+        dst.unlink(missing_ok=True)
+        return True
+    _safe_write_json(dst, existing)
+    return False
 
 
 def _has_marker(entry: Any) -> bool:
-    if isinstance(entry, dict):
-        return entry.get(_SPECKIT_MARKER, False) is True
+    """Return True if *entry* (or any nested inner hook) is Specify-marked (#9).
+
+    Flat entries carry the marker directly; nested matcher-groups carry it on
+    their inner ``hooks`` elements, so detection recurses one level to
+    recognize groups that are (wholly or partly) Specify-owned.
+    """
+    if not isinstance(entry, dict):
+        return False
+    if entry.get(_SPECKIT_MARKER, False) is True:
+        return True
+    inner = entry.get("hooks")
+    if isinstance(inner, list):
+        return any(_has_marker(h) for h in inner)
     return False

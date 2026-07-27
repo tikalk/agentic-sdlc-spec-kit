@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import platform
 from unittest.mock import MagicMock
 
@@ -10,6 +11,7 @@ import pytest
 
 from specify_cli.events import (
     CANONICAL_EVENTS,
+    EVENTS_DISPATCHER_REL,
     collect_extension_events,
     install_integration_events,
     remove_integration_events,
@@ -467,3 +469,290 @@ class TestCommandRunner:
 
         code = resolve_and_run_event_command("speckit.test", "session_start", "{}", tmp_path)
         assert code == 0
+
+
+# -- Merge/teardown idempotency & safety (Tier 3) ----------------------------
+
+def _claude_manifest(tmp_path):
+    manifest = MagicMock(spec=IntegrationManifest)
+    manifest.files = {}
+    manifest.record_file = MagicMock()
+    manifest.record_existing = MagicMock()
+    manifest.remove = MagicMock()
+    return manifest
+
+
+class TestMergeIdempotency:
+    """#9/#11: marker recursion and full-clean-before-add."""
+
+    def test_upgrade_does_not_duplicate_nested_hooks(self, tmp_path):
+        """#9: re-running install replaces prior Specify inner hooks instead of
+        appending a second matcher-group on every upgrade."""
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        events = {"pre_tool_use": [{"command": "speckit.tdd.validate"}]}
+        for _ in range(2):
+            manifest = _claude_manifest(tmp_path)
+            install_integration_events(integration, tmp_path, manifest, events)
+
+        data = json.loads(config_path.read_text())
+        groups = data["hooks"]["PreToolUse"]
+        # Exactly one matcher-group for Specify (no duplication).
+        assert len(groups) == 1
+        inner = groups[0]["hooks"]
+        assert len(inner) == 1
+        assert "speckit.tdd.validate" in inner[0]["command"]
+
+    def test_override_change_removes_stale_event(self, tmp_path):
+        """#11: when the resolved set changes from pre_tool_use to stop, the
+        old marked pre_tool_use entry is removed, not left active."""
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"stop": [{"command": "speckit.end"}]},
+        )
+
+        data = json.loads(config_path.read_text())
+        assert "PreToolUse" not in data["hooks"]
+        assert "Stop" in data["hooks"]
+
+
+class TestEmptyMapRemoval:
+    """#3: --events false / empty resolved map strips prior hooks."""
+
+    def test_empty_events_removes_prior_hooks(self, tmp_path):
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        assert config_path.is_file()
+
+        # Now resolve to empty (--events false): prior hooks must be removed.
+        install_integration_events(integration, tmp_path, _claude_manifest(tmp_path), {})
+
+        # The dispatcher is shared and left in place (#10); only native hooks
+        # are stripped. The settings file had no user content → deleted (#14).
+        assert not config_path.exists() or "hooks" not in json.loads(config_path.read_text())
+
+
+class TestTeardownDataSafety:
+    """#14/#22/#23: preserve user content, delete Spec-Kit-created empties."""
+
+    def test_remove_deletes_spec_kit_created_config(self, tmp_path):
+        """#14: a config Spec Kit created from scratch is deleted (not left as
+        ``{}``) so manifest.uninstall() doesn't preserve an empty stub."""
+        integration = ClaudeIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        config_path = tmp_path / ".claude/settings.json"
+        assert config_path.is_file()
+
+        remove_integration_events(integration, tmp_path, manifest)
+        assert not config_path.exists()
+
+    def test_remove_preserves_user_content_in_config(self, tmp_path):
+        """#14: a pre-existing config with user content is kept (user hooks
+        survive teardown)."""
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({
+            "hooks": {
+                "PreToolUse": [{
+                    "matcher": "Bash",
+                    "hooks": [{"type": "command", "command": "user-check"}],
+                }]
+            },
+            "userSetting": True,
+        }))
+
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"stop": [{"command": "speckit.end"}]},
+        )
+        remove_integration_events(integration, tmp_path, manifest)
+
+        data = json.loads(config_path.read_text())
+        # User hook and setting preserved; Specify hook gone.
+        assert data["userSetting"] is True
+        assert "Stop" not in data.get("hooks", {})
+        assert data["hooks"]["PreToolUse"][0]["matcher"] == "Bash"
+
+    def test_jsonc_config_not_reset_on_merge(self, tmp_path):
+        """#22: a JSONC/unparseable native config is left untouched on merge."""
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        jsonc = '{\n  // my comment\n  "hooks": {}\n}\n'
+        config_path.write_text(jsonc)
+
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        # User content preserved verbatim — not reset to {}.
+        assert config_path.read_text() == jsonc
+
+    def test_jsonc_opencode_config_not_reset(self, tmp_path):
+        """#23: a malformed opencode.json is preserved, not reset to {}."""
+        integration = OpencodeIntegration()
+        config_path = tmp_path / "opencode.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        malformed = "{ not valid json"
+        config_path.write_text(malformed)
+
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        assert config_path.read_text() == malformed
+
+
+class TestCopilotMergeTeardown:
+    """#8: Copilot dedicated hooks JSON merges owned entries / teardown
+    removes only owned entries."""
+
+    def test_copilot_merge_preserves_user_hooks(self, tmp_path):
+        integration = CopilotIntegration()
+        config_path = tmp_path / ".github/hooks/speckit.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({
+            "version": 1,
+            "hooks": {
+                "sessionStart": [{"type": "command", "bash": "user-hook"}],
+            },
+        }))
+
+        install_integration_events(
+            integration, tmp_path, _claude_manifest(tmp_path),
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        data = json.loads(config_path.read_text())
+        entries = data["hooks"]["sessionStart"]
+        bash_cmds = [e.get("bash") for e in entries]
+        assert "user-hook" in bash_cmds
+        assert any("speckit.boot" in c for c in bash_cmds)
+
+    def test_copilot_teardown_removes_only_owned_entries(self, tmp_path):
+        integration = CopilotIntegration()
+        config_path = tmp_path / ".github/hooks/speckit.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({
+            "version": 1,
+            "hooks": {
+                "sessionStart": [{"type": "command", "bash": "user-hook"}],
+            },
+        }))
+
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        remove_integration_events(integration, tmp_path, manifest)
+
+        data = json.loads(config_path.read_text())
+        # User hook preserved; Spec-Kit entry gone.
+        assert data["hooks"]["sessionStart"][0]["bash"] == "user-hook"
+
+    def test_copilot_teardown_deletes_spec_kit_only_file(self, tmp_path):
+        """#8/#14: when the file held only Spec-Kit entries, teardown deletes it."""
+        integration = CopilotIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        config_path = tmp_path / ".github/hooks/speckit.json"
+        assert config_path.is_file()
+        remove_integration_events(integration, tmp_path, manifest)
+        assert not config_path.exists()
+
+
+class TestSharedDispatcherRefcount:
+    """#10: the shared .specify/events.py dispatcher is not deleted while
+    another installed event-capable integration still references it."""
+
+    def test_dispatcher_kept_when_other_integration_references_it(self, tmp_path):
+        # Simulate two event-capable integrations installed: claude (the one
+        # being uninstalled) and codex (still installed). The codex manifest
+        # lists the dispatcher, so removing claude must not delete it.
+        from specify_cli.integrations.codex import CodexIntegration
+
+        claude = ClaudeIntegration()
+        codex = CodexIntegration()
+
+        # Install claude's events (writes dispatcher + claude config).
+        claude_manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            claude, tmp_path, claude_manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        # Install codex's events (re-writes shared dispatcher + codex config).
+        codex_manifest = MagicMock(spec=IntegrationManifest)
+        codex_manifest.files = {}
+        codex_manifest.record_file = MagicMock()
+        codex_manifest.record_existing = MagicMock()
+        codex_manifest.remove = MagicMock()
+        install_integration_events(
+            codex, tmp_path, codex_manifest,
+            {"pre_tool_use": [{"command": "speckit.codex.check"}]},
+        )
+
+        # Persist a codex manifest on disk so the refcount check finds it.
+        codex_disk = IntegrationManifest(codex.key, tmp_path, version="test")
+        codex_disk._files = {EVENTS_DISPATCHER_REL: "x"}
+        codex_disk.save()
+
+        # Write the integration-state JSON so installed_integration_keys sees codex.
+        import json as _json
+        state_path = tmp_path / ".specify" / "integrations.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(_json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude", "codex"],
+        }))
+
+        dispatcher_path = tmp_path / EVENTS_DISPATCHER_REL
+        assert dispatcher_path.exists()
+
+        # Removing claude should leave the dispatcher (codex still uses it).
+        remove_integration_events(claude, tmp_path, claude_manifest)
+        assert dispatcher_path.exists()
+
+
+class TestSafeWriteDestination:
+    """#12: write targets are validated before any bytes are written."""
+
+    def test_symlinked_config_dir_rejected(self, tmp_path):
+        integration = ClaudeIntegration()
+        # Create a symlinked .claude directory pointing outside the project.
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        linked = tmp_path / ".claude"
+        os.symlink(outside, linked)
+
+        with pytest.raises(ValueError, match="(?i)symlink|escapes|outside"):
+            install_integration_events(
+                integration, tmp_path, _claude_manifest(tmp_path),
+                {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+            )
+        # No content written through the symlink.
+        assert not (outside / "settings.json").exists()
