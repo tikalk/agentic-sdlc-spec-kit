@@ -536,6 +536,25 @@ def _resolve_interpreter(project_root: Path) -> str:
     return IntegrationBase.resolve_python_interpreter(project_root)
 
 
+def _resolve_interpreter_for_target(target_os: str) -> str:
+    """Resolve a Python interpreter for a target OS, independent of the host (#S4).
+
+    Copilot's native config carries both a ``bash`` (POSIX) and a
+    ``powershell`` (Windows) variant in the same checked-in file. Resolving
+    both with the *host* interpreter writes a Linux venv path into the
+    PowerShell hook (or vice-versa), so the config fails on the other OS.
+    Each variant instead gets a portable interpreter for its target shell;
+    the dispatcher script's own ``_find_specify()`` does per-OS venv
+    resolution at runtime.
+    """
+    if target_os == "windows":
+        # Windows: ``python`` is the most portable on PATH; the py launcher
+        # (``py -3``) is the recommended fallback when ``python`` is absent.
+        return "python"
+    # POSIX (bash): ``python3`` is universally available.
+    return "python3"
+
+
 def _native_timeout(integration: IntegrationBase, timeout_seconds: Any) -> int:
     """Return the timeout in the unit the integration's native config expects.
 
@@ -557,6 +576,8 @@ def _dispatcher_command(
     project_root: Path,
     command_name: str,
     event_name: str,
+    *,
+    target_os: str = "host",
 ) -> str:
     """Build the single shell command string that invokes the dispatcher (#6).
 
@@ -565,8 +586,16 @@ def _dispatcher_command(
     ``<interpreter> <dispatcher> <command> <event>``. The interpreter is
     resolved portably (#16); Claude's dispatcher path is prefixed with
     ``${CLAUDE_PROJECT_DIR}/`` (Claude expands it before shell execution).
+
+    ``target_os`` selects an OS-appropriate interpreter for adapters that emit
+    both POSIX and Windows variants into one checked-in file (Copilot): ``host``
+    uses the host-resolved interpreter (venv-aware), while ``posix``/``windows``
+    emit portable interpreters so the config works on either OS (#S4).
     """
-    interpreter = _resolve_interpreter(project_root)
+    if target_os == "host":
+        interpreter = _resolve_interpreter(project_root)
+    else:
+        interpreter = _resolve_interpreter_for_target(target_os)
     if integration.key == "claude":
         dispatcher = "${CLAUDE_PROJECT_DIR}/" + EVENTS_DISPATCHER_REL
     else:
@@ -659,23 +688,30 @@ def install_integration_events(
 
     elif fmt == "copilot-json":
         # Copilot dedicated .github/hooks/speckit.json. Each handler becomes
-        # its own entry in the native event's list (#2), with bash/powershell
-        # variants sharing one resolved interpreter (#16). Entries carry the
-        # ownership marker so a pre-existing user-authored file is merged
-        # (owned entries replaced) rather than overwritten (#8), and teardown
-        # removes only owned entries.
+        # its own entry in the native event's list (#2). The bash and
+        # powershell variants get independent OS-targeted interpreters (#S4)
+        # so a config generated on Linux doesn't write a POSIX venv path into
+        # the PowerShell hook (and vice-versa). Entries carry the ownership
+        # marker so a pre-existing user-authored file is merged (owned entries
+        # replaced) rather than overwritten (#8), and teardown removes only
+        # owned entries.
         copilot_hooks: dict[str, list[dict[str, Any]]] = {}
         for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
             entries: list[dict[str, Any]] = []
             for cfg in handlers:
                 command = cfg.get("command", "")
-                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                bash_cmd = _dispatcher_command(
+                    integration, project_root, command, ev, target_os="posix"
+                )
+                ps_cmd = _dispatcher_command(
+                    integration, project_root, command, ev, target_os="windows"
+                )
                 entries.append(
                     {
                         "type": "command",
-                        "bash": dispatcher_cmd,
-                        "powershell": dispatcher_cmd,
+                        "bash": bash_cmd,
+                        "powershell": ps_cmd,
                         "timeoutSec": _native_timeout(integration, cfg.get("timeout", 60)),
                         _SPECKIT_MARKER: True,
                     }
@@ -731,7 +767,9 @@ def install_integration_events(
                     }
                 )
             cursor_hooks[native] = entries
-        _merge_json_fragment(config_path, cursor_hooks)
+        # #7: Cursor's .cursor/hooks.json schema requires top-level
+        # "version": 1; ensure it (preserving a user's value if present).
+        _merge_json_fragment(config_path, cursor_hooks, version=1)
         rel = str(config_path.relative_to(project_root))
         if rel not in manifest.files:
             manifest.record_existing(rel)
@@ -742,15 +780,20 @@ def install_integration_events(
         # Native schema is a single ``command`` string per hook (not
         # command+args), so each handler renders one complete dispatcher
         # invocation (#6). Gemini timeouts are converted to ms (#7).
+        # Handlers are grouped by distinct matcher so each matcher gets its
+        # own matcher-group (S3); previously all handlers were placed under
+        # the first handler's matcher, so two extensions registering the same
+        # event with different matchers both ran for the first matcher and
+        # neither for the later.
         nested_hooks: dict[str, list[dict[str, Any]]] = {}
         for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
-            matcher = handlers[0].get("matcher", "*") if handlers else "*"
-            inner_hooks: list[dict[str, Any]] = []
+            by_matcher: dict[str, list[dict[str, Any]]] = {}
             for cfg in handlers:
+                matcher = cfg.get("matcher", "*")
                 command = cfg.get("command", "")
                 dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
-                inner_hooks.append(
+                by_matcher.setdefault(matcher, []).append(
                     {
                         "type": "command",
                         "command": dispatcher_cmd,
@@ -759,10 +802,8 @@ def install_integration_events(
                     }
                 )
             nested_hooks[native] = [
-                {
-                    "matcher": matcher,
-                    "hooks": inner_hooks,
-                }
+                {"matcher": matcher, "hooks": inner}
+                for matcher, inner in by_matcher.items()
             ]
         _merge_json_fragment(config_path, nested_hooks)
         rel = str(config_path.relative_to(project_root))
@@ -1183,7 +1224,7 @@ def _remove_copilot_entries(dst: Path) -> bool:
     return False
 
 
-def _merge_json_fragment(dst: Path, new_hooks: dict) -> None:
+def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = None) -> None:
     """Merge Specify-authored hook entries into a native JSON config.
 
     Idempotent: removes ALL prior Specify-marked entries from every event in
@@ -1196,12 +1237,20 @@ def _merge_json_fragment(dst: Path, new_hooks: dict) -> None:
     Aborts with a warning (no write) when the existing file cannot be parsed
     (#22) — e.g. JSONC with comments — instead of resetting user content to
     ``{}``.
+
+    When *version* is given, the top-level ``version`` field is ensured
+    (preserving a user's value if present) so formats that require it — e.g.
+    Cursor's ``.cursor/hooks.json`` schema (``version: 1``) — stay valid on a
+    freshly generated file (#7).
     """
     existing = _load_user_json(dst)
     if existing is None:
         return
     if not isinstance(existing, dict):
         existing = {}
+
+    if version is not None:
+        existing.setdefault("version", version)
 
     hooks_key = "hooks"
     existing_hooks = existing.get(hooks_key, {})

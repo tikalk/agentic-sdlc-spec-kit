@@ -388,8 +388,98 @@ class TestCopilotJsonWriting:
         # #6: a complete shell command string (not command+args).
         assert "speckit.agent-context.update" in entry["bash"]
         assert "session_start" in entry["bash"]
-        assert entry["bash"] == entry["powershell"]
+        # S4: bash and powershell get independent OS-targeted interpreters so
+        # a config generated on one OS works on the other.
+        assert "speckit.agent-context.update" in entry["powershell"]
+        assert entry["bash"] != entry["powershell"]
+        assert entry["bash"].startswith("python3 ")
+        assert entry["powershell"].startswith("python ")
         assert entry["timeoutSec"] == 60
+
+
+# -- Cursor hooks.json version + matcher grouping (#7, S3) -------------------
+
+class TestCursorJsonWriting:
+    """#7: .cursor/hooks.json requires top-level version:1; S3: matcher grouping."""
+
+    def test_cursor_json_includes_version(self, tmp_path):
+        integration = CursorAgentIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        data = json.loads((tmp_path / ".cursor/hooks.json").read_text())
+        assert data["version"] == 1
+        assert "sessionStart" in data["hooks"]
+
+    def test_cursor_json_preserves_user_version(self, tmp_path):
+        integration = CursorAgentIntegration()
+        config_path = tmp_path / ".cursor/hooks.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({"version": 1, "hooks": {}}))
+
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        data = json.loads(config_path.read_text())
+        assert data["version"] == 1
+
+    def test_nested_matcher_grouping_per_distinct_matcher(self, tmp_path):
+        """S3: two handlers with different matchers produce two matcher-groups."""
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "pre_tool_use": [
+                {"command": "speckit.first", "matcher": "Edit"},
+                {"command": "speckit.second", "matcher": "Bash"},
+            ],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+        data = json.loads((tmp_path / ".claude/settings.json").read_text())
+        groups = data["hooks"]["PreToolUse"]
+        matchers = sorted(g["matcher"] for g in groups)
+        assert matchers == ["Bash", "Edit"]
+        # Each group holds exactly its own handler.
+        by_matcher = {g["matcher"]: g["hooks"] for g in groups}
+        assert len(by_matcher["Edit"]) == 1
+        assert "speckit.first" in by_matcher["Edit"][0]["command"]
+        assert len(by_matcher["Bash"]) == 1
+        assert "speckit.second" in by_matcher["Bash"][0]["command"]
+
+    def test_nested_shared_matcher_stays_one_group(self, tmp_path):
+        """S3: handlers sharing a matcher stay in a single matcher-group."""
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "pre_tool_use": [
+                {"command": "speckit.first", "matcher": "Edit"},
+                {"command": "speckit.second", "matcher": "Edit"},
+            ],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+        data = json.loads((tmp_path / ".claude/settings.json").read_text())
+        groups = data["hooks"]["PreToolUse"]
+        assert len(groups) == 1
+        assert groups[0]["matcher"] == "Edit"
+        assert len(groups[0]["hooks"]) == 2
 
 
 # -- Gemini timeout unit (#7) ------------------------------------------------
