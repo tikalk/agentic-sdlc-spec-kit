@@ -452,7 +452,15 @@ def resolve_events(
                     override_file, integration_key,
                 )
             else:
+                # Validate every entry before adopting the override. A single
+                # invalid entry abandons the whole override and keeps the
+                # accumulated built-in + extension layers (#10): previously a
+                # typo reset resolved_override to {} and then assigned that
+                # empty map to events, silently disabling all hooks despite
+                # the "ignored" warning. Only a fully-valid override (including
+                # an explicit `events: {}`) replaces the prior layers.
                 resolved_override: ResolvedEvents = {}
+                override_valid = True
                 for ev, raw in key_events.items():
                     handlers = _normalize_handlers(raw)
                     if not handlers:
@@ -465,13 +473,15 @@ def resolve_events(
                         _validate_resolved_event(ev, handlers)
                     except Exception as exc:
                         logger.warning(
-                            "Override %s: invalid event '%s': %s; ignoring override",
+                            "Override %s: invalid event '%s': %s; ignoring entire override",
                             override_file, ev, exc,
                         )
-                        resolved_override = {}
+                        override_valid = False
                         break
                     resolved_override[ev] = handlers
-                events = resolved_override
+                if override_valid:
+                    events = resolved_override
+                # else: keep the accumulated built-in + extension layers.
 
     return events
 
@@ -687,12 +697,15 @@ def install_integration_events(
         )
         created.append(plugin_path)
 
-        # Merge plugin path into opencode.json
-        _merge_opencode_plugin_ref(config_path, f"./{plugin_rel}")
-        rel = str(config_path.relative_to(project_root))
-        if rel not in manifest.files:
-            manifest.record_existing(rel)
-        created.append(config_path)
+        # Merge plugin path into opencode.json. S5: only track the config
+        # file when the merge actually wrote; a skipped merge (JSONC/malformed)
+        # must not be tracked or manifest.uninstall() would later delete the
+        # user's untouched file.
+        if _merge_opencode_plugin_ref(config_path, f"./{plugin_rel}"):
+            rel = str(config_path.relative_to(project_root))
+            if rel not in manifest.files:
+                manifest.record_existing(rel)
+            created.append(config_path)
 
     elif fmt == "copilot-json":
         # Copilot dedicated .github/hooks/speckit.json. Each handler becomes
@@ -725,11 +738,12 @@ def install_integration_events(
                     }
                 )
             copilot_hooks[native] = entries
-        _merge_copilot_json(config_path, copilot_hooks)
-        rel = str(config_path.relative_to(project_root))
-        if rel not in manifest.files:
-            manifest.record_existing(rel)
-        created.append(config_path)
+        # S5: only track when the merge wrote (skips on JSONC/malformed).
+        if _merge_copilot_json(config_path, copilot_hooks):
+            rel = str(config_path.relative_to(project_root))
+            if rel not in manifest.files:
+                manifest.record_existing(rel)
+            created.append(config_path)
 
     elif fmt == "toml":
         # Codex config.toml custom merge. One [[hooks.<native>.hooks]] block
@@ -777,11 +791,12 @@ def install_integration_events(
             cursor_hooks[native] = entries
         # #7: Cursor's .cursor/hooks.json schema requires top-level
         # "version": 1; ensure it (preserving a user's value if present).
-        _merge_json_fragment(config_path, cursor_hooks, version=1)
-        rel = str(config_path.relative_to(project_root))
-        if rel not in manifest.files:
-            manifest.record_existing(rel)
-        created.append(config_path)
+        # S5: only track when the merge wrote (skips on JSONC/malformed).
+        if _merge_json_fragment(config_path, cursor_hooks, version=1):
+            rel = str(config_path.relative_to(project_root))
+            if rel not in manifest.files:
+                manifest.record_existing(rel)
+            created.append(config_path)
 
     elif fmt == "json-nested":
         # Claude/Qwen/Gemini/Devin/Tabnine nested config JSON merge.
@@ -813,11 +828,12 @@ def install_integration_events(
                 {"matcher": matcher, "hooks": inner}
                 for matcher, inner in by_matcher.items()
             ]
-        _merge_json_fragment(config_path, nested_hooks)
-        rel = str(config_path.relative_to(project_root))
-        if rel not in manifest.files:
-            manifest.record_existing(rel)
-        created.append(config_path)
+        # S5: only track when the merge wrote (skips on JSONC/malformed).
+        if _merge_json_fragment(config_path, nested_hooks):
+            rel = str(config_path.relative_to(project_root))
+            if rel not in manifest.files:
+                manifest.record_existing(rel)
+            created.append(config_path)
 
     return created
 
@@ -892,14 +908,19 @@ def remove_integration_events(
     """
     _remove_native_event_hooks(integration, project_root, manifest)
 
-    # Clean up dispatcher script only if no other integration still uses it.
+    # Drop this integration's manifest claim on the shared dispatcher and
+    # delete the file only when no other installed event-capable integration
+    # still references it (#10). The manifest.remove() runs in both branches
+    # (S1): if we retain the file but leave it tracked, the subsequent
+    # manifest.uninstall() in teardown() sees the matching hash and deletes
+    # the file another integration still depends on.
     dispatcher_rel = EVENTS_DISPATCHER_REL
     if dispatcher_rel in manifest.files:
+        manifest.remove(dispatcher_rel)
         if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
             dispatcher_path = project_root / dispatcher_rel
             if dispatcher_path.exists():
                 dispatcher_path.unlink(missing_ok=True)
-            manifest.remove(dispatcher_rel)
 
     # Clean up opencode TS plugin (owned solely by the opencode integration).
     if integration.key == "opencode":
@@ -938,7 +959,7 @@ def refresh_integration_events(project_root: Path) -> None:
     logs a warning without aborting the others.
     """
     from .integrations import get_integration
-    from .integrations._helpers import _read_integration_json
+    from .integrations._helpers import _read_integration_json, _resolve_integration_options
     from .integrations.manifest import IntegrationManifest
     from .integration_state import installed_integration_keys
 
@@ -956,7 +977,13 @@ def refresh_integration_events(project_root: Path) -> None:
             # Strip prior Specify hooks, then re-emit from the freshly
             # resolved set (which now honors the registry's enabled flag).
             _remove_native_event_hooks(integration, project_root, manifest)
-            events_map = resolve_events(key, integration.config, project_root, None)
+            # S7: resolve this integration's persisted parsed_options so a
+            # stored --events false is honored across extension lifecycle
+            # changes; passing None would re-enable events the user disabled.
+            _, parsed_options = _resolve_integration_options(integration, state, key, None)
+            events_map = resolve_events(
+                key, integration.config, project_root, parsed_options
+            )
             if events_map:
                 install_integration_events(integration, project_root, manifest, events_map)
             manifest.save()
@@ -1080,15 +1107,16 @@ def _build_opencode_plugin(
     )
 
 
-def _merge_opencode_plugin_ref(config_path: Path, ref: str) -> None:
+def _merge_opencode_plugin_ref(config_path: Path, ref: str) -> bool:
     """Merge the speckit-events plugin ref into opencode.json.
 
     Aborts with a warning (#23) when the file cannot be parsed (e.g. JSONC or
-    malformed JSON) instead of resetting user configuration to ``{}``.
+    malformed JSON) instead of resetting user configuration to ``{}``. Returns
+    False when skipped so callers avoid tracking the untouched file (S5).
     """
     existing = _load_user_json(config_path)
     if existing is None:
-        return
+        return False
     plugins = existing.get("plugin", [])
     if not isinstance(plugins, list):
         plugins = []
@@ -1096,6 +1124,7 @@ def _merge_opencode_plugin_ref(config_path: Path, ref: str) -> None:
         plugins.append(ref)
     existing["plugin"] = plugins
     _safe_write_json(config_path, existing)
+    return True
 
 
 def _remove_opencode_entries(config_path: Path) -> bool:
@@ -1164,16 +1193,17 @@ def _remove_toml_entries(dst: Path) -> bool:
     return False
 
 
-def _merge_copilot_json(dst: Path, new_hooks: dict[str, list]) -> None:
+def _merge_copilot_json(dst: Path, new_hooks: dict[str, list]) -> bool:
     """Merge Specify-owned hooks into Copilot's dedicated hooks JSON (#8).
 
     A pre-existing user-authored ``.github/hooks/speckit.json`` is merged
     (owned entries replaced via markers) rather than overwritten, and a
-    parse failure aborts instead of resetting user content (#22).
+    parse failure aborts instead of resetting user content (#22). Returns
+    False when skipped so callers avoid tracking the untouched file (S5).
     """
     existing = _load_user_json(dst)
     if existing is None:
-        return
+        return False
     if not isinstance(existing, dict):
         existing = {}
     existing.setdefault("version", 1)
@@ -1195,6 +1225,7 @@ def _merge_copilot_json(dst: Path, new_hooks: dict[str, list]) -> None:
     else:
         existing.pop("hooks", None)
     _safe_write_json(dst, existing)
+    return True
 
 
 def _remove_copilot_entries(dst: Path) -> bool:
@@ -1232,7 +1263,7 @@ def _remove_copilot_entries(dst: Path) -> bool:
     return False
 
 
-def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = None) -> None:
+def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = None) -> bool:
     """Merge Specify-authored hook entries into a native JSON config.
 
     Idempotent: removes ALL prior Specify-marked entries from every event in
@@ -1244,7 +1275,9 @@ def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = No
 
     Aborts with a warning (no write) when the existing file cannot be parsed
     (#22) — e.g. JSONC with comments — instead of resetting user content to
-    ``{}``.
+    ``{}``. Returns False when the merge was skipped so callers avoid tracking
+    the untouched file (S5: otherwise manifest.uninstall() later deletes the
+    user's JSONC/malformed file).
 
     When *version* is given, the top-level ``version`` field is ensured
     (preserving a user's value if present) so formats that require it — e.g.
@@ -1253,7 +1286,7 @@ def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = No
     """
     existing = _load_user_json(dst)
     if existing is None:
-        return
+        return False
     if not isinstance(existing, dict):
         existing = {}
 
@@ -1283,6 +1316,7 @@ def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = No
     else:
         existing.pop(hooks_key, None)
     _safe_write_json(dst, existing)
+    return True
 
 
 def _drop_marked_entries(entries: list) -> list:

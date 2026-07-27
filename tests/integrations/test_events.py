@@ -1070,3 +1070,172 @@ class TestRefreshIntegrationEvents:
 
         data = json.loads(config_path.read_text())
         assert "SessionStart" in data["hooks"]
+
+    def test_refresh_honors_stored_events_false(self, tmp_path):
+        """S7: a stored --events false must be honored across extension
+        lifecycle refresh; passing None would re-enable events."""
+        from specify_cli.events import refresh_integration_events
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        integration = ClaudeIntegration()
+        manifest = IntegrationManifest(integration.key, tmp_path, version="test")
+        manifest.save()
+        config_path = tmp_path / ".claude/settings.json"
+
+        # Declare an extension event on disk.
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "events:\n  session_start:\n    command: speckit.my-ext.boot\n",
+            encoding="utf-8",
+        )
+        # Store the integration with --events false in parsed_options.
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude"],
+            "integration_settings": {
+                "claude": {"parsed_options": {"events": "false"}},
+            },
+        }))
+
+        refresh_integration_events(tmp_path)
+
+        # No hooks should have been re-created (CLI gate honored).
+        if config_path.exists():
+            assert "hooks" not in json.loads(config_path.read_text())
+
+
+# -- Override preserve-layers (#10) ------------------------------------------
+
+class TestOverridePreserveLayers:
+    """#10: an invalid override entry abandons the whole override and keeps
+    the accumulated built-in + extension layers, instead of disabling all
+    hooks."""
+
+    def test_invalid_override_entry_keeps_prior_layers(self, tmp_path):
+        override_file = tmp_path / ".specify" / "integration-events.yml"
+        override_file.parent.mkdir(parents=True, exist_ok=True)
+        # One valid entry, one invalid (non-string command) — the whole
+        # override is ignored, built-in defaults survive.
+        override_file.write_text(
+            "integrations:\n"
+            "  claude:\n"
+            "    events:\n"
+            "      stop:\n"
+            "        command: speckit.valid.stop\n"
+            "      pre_tool_use:\n"
+            "        command: [not-a-string]\n",
+            encoding="utf-8",
+        )
+        result = resolve_events(
+            "claude",
+            {"events": {"post_tool_use": {"command": "speckit.tdd.validate"}}},
+            tmp_path,
+            None,
+        )
+        # Built-in default survived (override was abandoned on the invalid entry).
+        assert "post_tool_use" in result
+        assert result["post_tool_use"] == [{"command": "speckit.tdd.validate"}]
+
+    def test_explicit_empty_override_disables(self, tmp_path):
+        """A fully-valid explicit `events: {}` override still disables."""
+        override_file = tmp_path / ".specify" / "integration-events.yml"
+        override_file.parent.mkdir(parents=True, exist_ok=True)
+        override_file.write_text(
+            "integrations:\n"
+            "  claude:\n"
+            "    events: {}\n",
+            encoding="utf-8",
+        )
+        result = resolve_events(
+            "claude",
+            {"events": {"post_tool_use": {"command": "speckit.tdd.validate"}}},
+            tmp_path,
+            None,
+        )
+        assert result == {}
+
+
+# -- Skipped-merge not tracked (S5) ------------------------------------------
+
+class TestSkippedMergeNotTracked:
+    """S5: when a merge is skipped on parse failure, the untouched file is
+    not recorded in the manifest, so uninstall() won't later delete it."""
+
+    def test_jsonc_native_config_not_tracked(self, tmp_path):
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        jsonc = '{\n  // my comment\n  "hooks": {}\n}\n'
+        config_path.write_text(jsonc)
+
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        manifest.remove = MagicMock()
+
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        # The JSONC file must NOT have been recorded (would cause uninstall()
+        # to delete it later). Only the dispatcher (which we wrote) is tracked.
+        recorded_rels = [c.args[0] for c in manifest.record_existing.call_args_list]
+        assert str(config_path.relative_to(tmp_path)) not in recorded_rels
+        # User content preserved verbatim.
+        assert config_path.read_text() == jsonc
+
+
+# -- Dispatcher manifest claim dropped on retain (S1) ------------------------
+
+class TestDispatcherManifestClaimDroppedOnRetain:
+    """S1: when the dispatcher is retained (another integration references
+    it), this integration's manifest still drops its claim so the subsequent
+    manifest.uninstall() in teardown() doesn't delete the shared file."""
+
+    def test_full_teardown_keeps_dispatcher_when_other_references_it(self, tmp_path):
+        from specify_cli.integrations.codex import CodexIntegration
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        claude = ClaudeIntegration()
+        codex = CodexIntegration()
+
+        # Install claude's events (writes dispatcher + claude config).
+        claude_manifest = IntegrationManifest(claude.key, tmp_path, version="test")
+        install_integration_events(
+            claude, tmp_path, claude_manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        claude_manifest.save()
+
+        # Install codex's events (re-writes shared dispatcher + codex config).
+        codex_manifest = IntegrationManifest(codex.key, tmp_path, version="test")
+        install_integration_events(
+            codex, tmp_path, codex_manifest,
+            {"pre_tool_use": [{"command": "speckit.codex.check"}]},
+        )
+        codex_manifest.save()
+
+        # integration.json: both installed, codex is default.
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "codex",
+            "installed_integrations": ["claude", "codex"],
+        }))
+
+        dispatcher_path = tmp_path / EVENTS_DISPATCHER_REL
+        assert dispatcher_path.exists()
+
+        # Full teardown of claude (remove + manifest.uninstall): the dispatcher
+        # must survive because codex's manifest still references it.
+        remove_integration_events(claude, tmp_path, claude_manifest)
+        claude_manifest.uninstall(tmp_path, force=True)
+
+        assert dispatcher_path.exists(), (
+            "Shared dispatcher was deleted by teardown() despite another "
+            "integration referencing it (S1)."
+        )
