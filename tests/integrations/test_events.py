@@ -576,6 +576,46 @@ class TestCommandRunner:
         code = resolve_and_run_event_command("nonexistent.command", "session_start", "{}", tmp_path)
         assert code == 0  # no-ops gracefully
 
+    def test_extension_command_resolves_when_file_stem_differs(self, tmp_path):
+        """S8: an extension command whose declared file differs from its
+        command name resolves via the manifest, not a file-stem scan."""
+        from specify_cli.events import _find_command_template
+        from specify_cli.extensions import ExtensionRegistry
+
+        ext_id = "selftest"
+        ext_dir = tmp_path / ".specify" / "extensions" / ext_id
+        cmds_dir = ext_dir / "commands"
+        cmds_dir.mkdir(parents=True)
+        # Command name is speckit.selftest.extension but the file is selftest.md.
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n"
+            "  id: selftest\n"
+            "  name: Selftest\n"
+            "  version: 1.0.0\n"
+            "  description: test\n"
+            "requires:\n"
+            "  speckit_version: '>=0.1'\n"
+            "provides:\n"
+            "  commands:\n"
+            "    - name: speckit.selftest.extension\n"
+            "      file: commands/selftest.md\n",
+            encoding="utf-8",
+        )
+        (cmds_dir / "selftest.md").write_text(
+            "---\ndescription: \"x\"\n---\nBody\n", encoding="utf-8"
+        )
+        ExtensionRegistry(tmp_path / ".specify" / "extensions").add(
+            ext_id, {"enabled": True}
+        )
+
+        template, resolved_ext = _find_command_template(
+            "speckit.selftest.extension", tmp_path
+        )
+        assert template is not None
+        assert template.name == "selftest.md"
+        assert resolved_ext == ext_id
+
     def test_run_command_resolves_and_executes(self, tmp_path):
         # Create a mock core command md file
         cmd_dir = tmp_path / ".specify" / "templates" / "commands"
@@ -781,6 +821,43 @@ class TestTeardownDataSafety:
         assert "Stop" not in data.get("hooks", {})
         assert data["hooks"]["PreToolUse"][0]["matcher"] == "Bash"
 
+    def test_forced_full_teardown_preserves_user_config(self, tmp_path):
+        """S9: a full teardown(force=True) — which runs manifest.uninstall(
+        force=True) after remove_events — must not delete a pre-existing user
+        settings file whose owned entries were cleaned but user content kept.
+        Uses a real manifest to exercise the uninstall path."""
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        integration = ClaudeIntegration()
+        config_path = tmp_path / ".claude/settings.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({
+            "hooks": {
+                "PreToolUse": [{
+                    "matcher": "Bash",
+                    "hooks": [{"type": "command", "command": "user-check"}],
+                }]
+            },
+            "userSetting": True,
+        }))
+
+        manifest = IntegrationManifest(integration.key, tmp_path, version="test")
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"stop": [{"command": "speckit.end"}]},
+        )
+        manifest.save()
+
+        # Full teardown: remove_events + manifest.uninstall(force=True).
+        integration.teardown(tmp_path, manifest, force=True)
+
+        assert config_path.exists(), (
+            "Forced teardown deleted the user's settings file (S9)."
+        )
+        data = json.loads(config_path.read_text())
+        assert data["userSetting"] is True
+        assert data["hooks"]["PreToolUse"][0]["matcher"] == "Bash"
+
     def test_jsonc_config_not_reset_on_merge(self, tmp_path):
         """#22: a JSONC/unparseable native config is left untouched on merge."""
         integration = ClaudeIntegration()
@@ -942,6 +1019,32 @@ class TestSafeWriteDestination:
             )
         # No content written through the symlink.
         assert not (outside / "settings.json").exists()
+
+    def test_toml_teardown_rejects_symlinked_config(self, tmp_path):
+        """R3: TOML teardown validates the destination before read/write, so a
+        symlink swap after install can't make uninstall overwrite an external
+        file."""
+        from specify_cli.integrations.codex import CodexIntegration
+
+        integration = CodexIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        config_path = tmp_path / ".codex" / "config.toml"
+        assert config_path.is_file()
+
+        # Swap the config for a symlink pointing outside the project.
+        outside = tmp_path / "outside.toml"
+        outside.write_text("external = true\n")
+        config_path.unlink()
+        os.symlink(outside, config_path)
+
+        with pytest.raises(ValueError, match="(?i)symlink|escapes|outside"):
+            remove_integration_events(integration, tmp_path, manifest)
+        # External file untouched.
+        assert outside.read_text() == "external = true\n"
 
 
 # -- Validation & lifecycle (Tier 4) -----------------------------------------

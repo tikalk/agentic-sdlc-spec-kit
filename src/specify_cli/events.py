@@ -155,23 +155,35 @@ export default (async ({{ client, project, directory, $ }}) => {{
 # -- Command runner logic (core) --------------------------------------------
 
 def _find_command_template(command_name: str, project_root: Path) -> tuple[Path | None, str | None]:
-    # 1. Check extension .registry
-    registry = project_root / ".specify" / "extensions" / ".registry"
-    if registry.exists():
-        try:
-            data = json.loads(registry.read_text(encoding="utf-8"))
-        except Exception:
-            data = {}
-        for ext_id, meta in data.items():
-            if not isinstance(meta, dict):
-                continue
-            for cmd in meta.get("commands", []):
-                if cmd.get("name") == command_name:
-                    ext_dir = project_root / ".specify" / "extensions" / ext_id
-                    return ext_dir / cmd["file"], ext_id
-
-    # 2. Scan extension directories
+    # 1. Resolve via installed extension manifests (authoritative). The
+    #    registry stores per-agent ``registered_commands`` name-lists, not a
+    #    ``{name, file}`` map, so the command→file mapping lives only in each
+    #    extension's ``extension.yml`` ``provides.commands`` (S8). Match the
+    #    command name to its declared ``file`` so commands whose file stem
+    #    differs from the command name (e.g. ``speckit.selftest.extension`` →
+    #    ``commands/selftest.md``) resolve correctly.
     exts_dir = project_root / ".specify" / "extensions"
+    try:
+        from .extensions import ExtensionManager
+        manager = ExtensionManager(project_root)
+        for ext_id in sorted(manager.registry.keys()):
+            manifest = manager.get_extension(ext_id)
+            if manifest is None:
+                continue
+            for cmd in manifest.commands:
+                if not isinstance(cmd, dict):
+                    continue
+                if cmd.get("name") == command_name and cmd.get("file"):
+                    candidate = exts_dir / ext_id / cmd["file"]
+                    if candidate.exists():
+                        return candidate, ext_id
+    except Exception:
+        # Fall through to the on-disk scan if the registry/manifests can't be
+        # read; event dispatch should degrade gracefully, not crash.
+        pass
+
+    # 2. Scan extension directories by file stem (covers extensions present on
+    #    disk but not resolvable via the manifest above).
     if exts_dir.is_dir():
         for ext_dir in sorted(exts_dir.iterdir()):
             cmds_dir = ext_dir / "commands"
@@ -856,17 +868,21 @@ def _remove_native_event_hooks(
     config_path = project_root / config_file
     if not config_path.exists():
         return
-    deleted = False
     if fmt == "copilot-json":
-        deleted = _remove_copilot_entries(config_path)
+        _remove_copilot_entries(config_path)
     elif fmt == "toml":
-        deleted = _remove_toml_entries(config_path)
+        _remove_toml_entries(config_path)
     elif fmt in ("json-nested", "json-flat"):
-        deleted = _remove_json_entries(config_path)
+        _remove_json_entries(config_path)
     elif fmt == "ts-plugin":
-        deleted = _remove_opencode_entries(config_path)
-    if deleted:
-        manifest.remove(config_file)
+        _remove_opencode_entries(config_path)
+    # Always drop this integration's manifest claim on the native config,
+    # whether the file was deleted or retained with user content (S9). If we
+    # kept a retained file tracked, teardown()'s manifest.uninstall(force=True)
+    # would delete the entire user-owned settings file. After cleanup the file
+    # is either gone or contains only user content, so this integration must
+    # no longer claim it for teardown purposes.
+    manifest.remove(config_file)
 
 
 def _other_event_integrations_reference_dispatcher(
@@ -1173,6 +1189,10 @@ def _remove_toml_entries(dst: Path) -> bool:
     """
     if not dst.exists():
         return False
+    # R3: validate the destination before reading/writing so a symlink swap of
+    # the config after install can't make teardown overwrite a file outside
+    # the project (the merge/write path already validates; teardown must too).
+    _ensure_safe_destination(dst)
     existing = dst.read_text(encoding="utf-8")
     cleaned = re.sub(
         r'\[\[hooks\.\w+\]\]\n(?:(?!\[\[hooks\.\w+\]\]).)*?speckit_marker = true\n*',
