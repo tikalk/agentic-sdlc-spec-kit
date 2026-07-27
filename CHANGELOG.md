@@ -2,29 +2,6 @@
 
 <!-- insert new changelog below this comment -->
 
-## [Unreleased]
-
-### Fixed
-
-- fix(events): resolve ruff lint errors in events module (E402, F401, F541) —
-  add `# noqa: E402` to event-command registration import, remove unused
-  `console` import from `commands/event.py`, remove unused imports from
-  `tests/integrations/test_events.py`, and drop stray f-string prefixes in the
-  opencode plugin builder. Unblocks the CI ruff job for the agent-runtime
-  events feature (#3704).
-- fix(events): make generated native hooks actually execute. The resolved
-  events map now carries an ordered list of handlers per event so two
-  extensions declaring the same event both run (#2). Each adapter renders a
-  single complete shell `command` string (Claude/Gemini/Qwen/Devin/Tabnine
-  reject `command`+`args`) using a portably-resolved Python interpreter
-  instead of hard-coded `python3` (#6, #16). Gemini timeouts are converted
-  from seconds to milliseconds (#7). The core command runner resolves the
-  project's sh/ps/py variant and splits the script command into argv instead
-  of treating `scripts:` strings as bare paths (#4), and the bundled-template
-  fallback now uses the canonical `_assets` resolvers (#5). OpenCode TS
-  plugin failures propagate via `throw new Error` instead of
-  `process.exit(2)`, which killed the host agent (#13).
-
 ## [0.14.1] - 2026-07-23
 
 ### Changed
