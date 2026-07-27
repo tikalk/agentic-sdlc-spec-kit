@@ -28,3 +28,9 @@ class TabnineIntegration(TomlIntegration):
     }
     events_config_file = ".tabnine/agent/settings.json"
     events_format = "json-nested"
+    # Tabnine mirrors Gemini's hook schema (BeforeTool/AfterTool) and, like
+    # Gemini, measures hook timeouts in milliseconds. Declaring the unit makes
+    # the shared formatter convert the 60s default to 60000ms instead of
+    # emitting timeout: 60 (60 ms), which would terminate the dispatcher
+    # before it starts (R5).
+    events_timeout_unit = "ms"

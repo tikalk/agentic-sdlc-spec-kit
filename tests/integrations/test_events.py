@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 import platform
+import shlex
+from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
@@ -389,11 +391,18 @@ class TestCopilotJsonWriting:
         assert "speckit.agent-context.update" in entry["bash"]
         assert "session_start" in entry["bash"]
         # S4: bash and powershell get independent OS-targeted interpreters so
-        # a config generated on one OS works on the other.
+        # a config generated on one OS works on the other. R2: command/event
+        # args are shell-quoted for each target shell.
         assert "speckit.agent-context.update" in entry["powershell"]
         assert entry["bash"] != entry["powershell"]
+        # bash uses POSIX interpreter python3 (shlex.quote leaves safe tokens
+        # bare); powershell uses python single-quoted for PowerShell.
         assert entry["bash"].startswith("python3 ")
-        assert entry["powershell"].startswith("python ")
+        assert entry["powershell"].startswith("'python' ")
+        # PowerShell always single-quotes; POSIX leaves metacharacter-free
+        # identifiers bare (shlex.quote only quotes when needed).
+        assert "'speckit.agent-context.update'" in entry["powershell"]
+        assert "speckit.agent-context.update" in entry["bash"]
         assert entry["timeoutSec"] == 60
 
 
@@ -495,6 +504,91 @@ class TestGeminiTimeoutUnit:
         # 60 (seconds) -> 60000 (ms) for Gemini; unchanged for seconds-based agents.
         assert _native_timeout(integration, 60) == 60000
         assert _native_timeout(ClaudeIntegration(), 60) == 60
+
+    def test_tabnine_timeout_converted_to_ms(self):
+        """R5: Tabnine mirrors Gemini's ms-based hook schema."""
+        from specify_cli.integrations.tabnine import TabnineIntegration
+        from specify_cli.events import _native_timeout
+
+        assert _native_timeout(TabnineIntegration(), 60) == 60000
+
+
+# -- Shell quoting & matcher escaping (R2, R4) -------------------------------
+
+class TestDispatcherCommandQuoting:
+    """R2: dispatcher command components are shell-quoted so spaces and shell
+    metacharacters are passed as single arguments, not reinterpreted."""
+
+    def test_command_metacharacters_are_quoted_posix(self, tmp_path):
+        from specify_cli.events import _dispatcher_command
+
+        cmd = _dispatcher_command(
+            ClaudeIntegration(), tmp_path, "speckit.x; rm -rf /", "pre_tool_use",
+            target_os="posix",
+        )
+        # The metacharacter-bearing command is single-quoted as one argument.
+        assert "'speckit.x; rm -rf /'" in cmd
+
+    def test_interpreter_with_space_is_quoted_posix(self, tmp_path):
+        import shlex
+        from specify_cli.events import _dispatcher_command
+        # Simulate a venv interpreter under a path with spaces.
+        venv = tmp_path / ".venv" / "bin" / "python"
+        venv.parent.mkdir(parents=True)
+        venv.write_text("#!/bin/sh\n")
+        proj = tmp_path
+        cmd = _dispatcher_command(
+            ClaudeIntegration(), proj, "speckit.x.y", "stop", target_os="host",
+        )
+        # The command must tokenize back into interpreter + dispatcher + 2 args.
+        tokens = shlex.split(cmd)
+        # dispatcher token retains the ${CLAUDE_PROJECT_DIR} prefix (unquoted).
+        assert any("events.py" in t for t in tokens)
+        assert "speckit.x.y" in tokens
+        assert "stop" in tokens
+
+    def test_windows_target_uses_powershell_quoting(self, tmp_path):
+        from specify_cli.events import _dispatcher_command
+
+        cmd = _dispatcher_command(
+            CopilotIntegration(), tmp_path, "speckit.x.y", "session_start",
+            target_os="windows",
+        )
+        # PowerShell single-quoted literals.
+        assert "'speckit.x.y'" in cmd
+        assert "'session_start'" in cmd
+
+
+class TestTomlMatcherEscaping:
+    """R4: the TOML matcher is escaped like command, not raw-interpolated."""
+
+    def test_matcher_with_quote_stays_valid_toml(self, tmp_path):
+        from specify_cli.integrations.codex import CodexIntegration
+
+        integration = CodexIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        manifest.remove = MagicMock()
+
+        # A matcher containing a double quote would break a raw TOML basic
+        # string; it must be escaped.
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.x.y", "matcher": 'Ba"sh'}]},
+        )
+        content = (tmp_path / ".codex" / "config.toml").read_text()
+        # Round-trips through a TOML parser without error.
+        try:
+            import tomllib
+            parsed = tomllib.loads(content)
+        except ModuleNotFoundError:
+            import tomli as tomllib  # type: ignore
+            parsed = tomllib.loads(content)
+        # The matcher value survived intact.
+        group = parsed["hooks"]["PreToolUse"][0]
+        assert group["matcher"] == 'Ba"sh'
 
 
 # -- Opencode TS Plugin merging ---------------------------------------------
@@ -695,6 +789,40 @@ class TestCommandRunner:
         assert argv[0] in ("pwsh", "powershell") or argv[0].endswith("pwsh") or argv[0].endswith("powershell")
         assert argv[1] == "-File"
         assert argv[2].endswith(".specify/scripts/powershell/boot.ps1")
+
+    def test_run_command_executes_with_project_root_cwd(self, tmp_path):
+        """R1: the event command runs with cwd set to the project root, not the
+        caller's arbitrary working directory, so project-relative script logic
+        resolves correctly even when the agent fires the hook elsewhere."""
+        if platform.system().lower().startswith("win"):
+            return
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "cwd.md").write_text(
+            "---\ndescription: \"cwd\"\nscripts:\n  sh: scripts/cwd.sh\n---\nBody\n",
+            encoding="utf-8",
+        )
+        script_dir = tmp_path / ".specify" / "scripts"
+        script_dir.mkdir(parents=True)
+        out_file = tmp_path / "cwd.out"
+        script = script_dir / "cwd.sh"
+        # The script records its working directory.
+        script.write_text(f"#!/bin/sh\npwd > {shlex.quote(str(out_file))}\nexit 0\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        # Invoke from a different working directory to prove cwd is forced.
+        import os as _os
+        prev = _os.getcwd()
+        subdir = tmp_path / "sub"
+        subdir.mkdir()
+        try:
+            _os.chdir(subdir)
+            code = resolve_and_run_event_command("speckit.cwd", "session_start", "{}", tmp_path)
+        finally:
+            _os.chdir(prev)
+        assert code == 0
+        recorded = out_file.read_text().strip()
+        assert Path(recorded).resolve() == tmp_path.resolve()
 
 
 # -- Merge/teardown idempotency & safety (Tier 3) ----------------------------

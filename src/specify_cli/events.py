@@ -92,6 +92,10 @@ def main():
     event_name = sys.argv[2]
     payload = sys.stdin.read() if not sys.stdin.isatty() else "{}"
 
+    # The agent may fire the hook from any subdirectory, but `event run`
+    # resolves the project from the process CWD. Anchor the subprocess at the
+    # dispatcher-derived project root so the correct project is used.
+    project_root = Path(__file__).parent.parent.resolve()
     specify_args = _find_specify() + ["event", "run", command_name, event_name]
     try:
         result = subprocess.run(
@@ -100,6 +104,7 @@ def main():
             capture_output=True,
             text=True,
             timeout=120,
+            cwd=str(project_root),
         )
         if result.stdout:
             sys.stdout.write(result.stdout)
@@ -337,6 +342,7 @@ def resolve_and_run_event_command(command_name: str, event_name: str, payload: s
             capture_output=True,
             text=True,
             timeout=120,
+            cwd=str(project_root),
         )
         if result.stdout:
             sys.stdout.write(result.stdout)
@@ -601,6 +607,21 @@ def _native_timeout(integration: IntegrationBase, timeout_seconds: Any) -> int:
     return seconds
 
 
+def _shell_quote(value: str, target_os: str) -> str:
+    """Quote *value* as one argument for the target shell (R2).
+
+    POSIX shells use ``shlex.quote``; PowerShell uses a single-quoted literal
+    with embedded quotes doubled. Prevents a component containing spaces (e.g.
+    a venv interpreter path under a directory with spaces) or shell
+    metacharacters (a malformed extension/override ``command``) from breaking
+    the hook or being interpreted by the native shell instead of passed as one
+    dispatcher argument.
+    """
+    if target_os == "windows" or (target_os == "host" and os.name == "nt"):
+        return "'" + value.replace("'", "''") + "'"
+    return shlex.quote(value)
+
+
 def _dispatcher_command(
     integration: IntegrationBase,
     project_root: Path,
@@ -621,16 +642,28 @@ def _dispatcher_command(
     both POSIX and Windows variants into one checked-in file (Copilot): ``host``
     uses the host-resolved interpreter (venv-aware), while ``posix``/``windows``
     emit portable interpreters so the config works on either OS (#S4).
+
+    Each component is shell-quoted for the target shell (R2) so an interpreter
+    path with spaces or a command/event containing shell metacharacters is
+    passed as a single argument rather than reinterpreted by the native shell.
+    The Claude dispatcher keeps its ``${CLAUDE_PROJECT_DIR}`` prefix unquoted so
+    the shell still expands the variable; both the prefix and the relative
+    dispatcher path are fixed, metacharacter-free strings.
     """
     if target_os == "host":
         interpreter = _resolve_interpreter(project_root)
     else:
         interpreter = _resolve_interpreter_for_target(target_os)
     if integration.key == "claude":
+        # Leave ${CLAUDE_PROJECT_DIR} unquoted so the shell expands it; the
+        # prefix and the relative path are both fixed and metacharacter-free.
         dispatcher = "${CLAUDE_PROJECT_DIR}/" + EVENTS_DISPATCHER_REL
     else:
         dispatcher = EVENTS_DISPATCHER_REL
-    return f"{interpreter} {dispatcher} {command_name} {event_name}"
+    q_interp = _shell_quote(interpreter, target_os)
+    q_command = _shell_quote(command_name, target_os)
+    q_event = _shell_quote(event_name, target_os)
+    return f"{q_interp} {dispatcher} {q_command} {q_event}"
 
 
 def install_integration_events(
@@ -767,7 +800,7 @@ def install_integration_events(
                 command = cfg.get("command", "")
                 dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
                 lines.append(f'[[hooks.{native}]]')
-                lines.append(f'matcher = "{cfg.get("matcher", "*")}"')
+                lines.append(f'matcher = {_toml_quote(str(cfg.get("matcher", "*")))}')
                 lines.append('')
                 lines.append(f'[[hooks.{native}.hooks]]')
                 lines.append('type = "command"')
