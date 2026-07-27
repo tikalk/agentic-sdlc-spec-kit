@@ -193,6 +193,50 @@ class TestCanonicalEventMapping:
         assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "userPromptSubmitted"
 
 
+# -- Event-capable adapters declare --events (#8, #9) ------------------------
+
+class TestEventCapableOptionsComposition:
+    """Event-capable integrations must declare --events so the documented
+    --events false opt-out is accepted."""
+
+    def _has_option(self, opts, name):
+        return any(o.name == name for o in opts)
+
+    def test_copilot_declares_events(self):
+        # #9: CopilotIntegration.options() composed with super() so --events
+        # is declared alongside --skills.
+        opts = CopilotIntegration().options()
+        assert self._has_option(opts, "--skills")
+        assert self._has_option(opts, "--events"), (
+            "Copilot is event-capable but --events is not declared; "
+            "--integration-options \"--events false\" would be rejected."
+        )
+
+    def test_devin_declares_events(self):
+        # #8: DevinIntegration.options() composed with super() so --events
+        # is declared alongside --skills.
+        from specify_cli.integrations.devin import DevinIntegration
+        opts = DevinIntegration().options()
+        assert self._has_option(opts, "--skills")
+        assert self._has_option(opts, "--events"), (
+            "Devin is event-capable but --events is not declared; "
+            "--integration-options \"--events false\" would be rejected."
+        )
+
+    def test_cursor_declares_events(self):
+        # Cursor already composed correctly; assert it stays that way.
+        opts = CursorAgentIntegration().options()
+        assert self._has_option(opts, "--skills")
+        assert self._has_option(opts, "--events")
+
+    def test_codex_declares_events(self):
+        # Codex already composed correctly; assert it stays that way.
+        from specify_cli.integrations.codex import CodexIntegration
+        opts = CodexIntegration().options()
+        assert self._has_option(opts, "--skills")
+        assert self._has_option(opts, "--events")
+
+
 # -- validate_events --------------------------------------------------------
 
 class TestValidateEvents:

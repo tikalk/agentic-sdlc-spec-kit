@@ -172,14 +172,19 @@ class CopilotIntegration(IntegrationBase):
 
     @classmethod
     def options(cls) -> list[IntegrationOption]:
-        return [
+        # Compose with super() so the base class declares --events for this
+        # event-capable integration; otherwise --integration-options
+        # "--events false" is rejected as unknown (#9).
+        opts = super().options()
+        opts.append(
             IntegrationOption(
                 "--skills",
                 is_flag=True,
                 default=False,
                 help="Scaffold commands as agent skills (speckit-<name>/SKILL.md) instead of .agent.md files",
             ),
-        ]
+        )
+        return opts
 
     def _resolve_executable(self) -> str:
         """Return the Copilot CLI executable, respecting the env-var override.

@@ -66,11 +66,16 @@ class DevinIntegration(SkillsIntegration):
 
     @classmethod
     def options(cls) -> list[IntegrationOption]:
-        return [
+        # Compose with super() so the base class declares --events for this
+        # event-capable integration; otherwise --integration-options
+        # "--events false" is rejected as unknown (#8).
+        opts = super().options()
+        opts.append(
             IntegrationOption(
                 "--skills",
                 is_flag=True,
                 default=True,
                 help="Install as agent skills (default for Devin)",
             ),
-        ]
+        )
+        return opts
