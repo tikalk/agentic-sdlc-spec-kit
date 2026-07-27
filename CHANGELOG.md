@@ -2,6 +2,17 @@
 
 <!-- insert new changelog below this comment -->
 
+## [Unreleased]
+
+### Fixed
+
+- fix(events): resolve ruff lint errors in events module (E402, F401, F541) —
+  add `# noqa: E402` to event-command registration import, remove unused
+  `console` import from `commands/event.py`, remove unused imports from
+  `tests/integrations/test_events.py`, and drop stray f-string prefixes in the
+  opencode plugin builder. Unblocks the CI ruff job for the agent-runtime
+  events feature (#3704).
+
 ## [0.14.1] - 2026-07-23
 
 ### Changed

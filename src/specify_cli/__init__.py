@@ -510,7 +510,7 @@ _register_integration_cmds(app)
 
 
 # ===== Event Commands =====
-from .commands.event import register as _register_event_cmds
+from .commands.event import register as _register_event_cmds  # noqa: E402
 _register_event_cmds(app)
 
 # Re-export selected helpers to preserve the public import surface.

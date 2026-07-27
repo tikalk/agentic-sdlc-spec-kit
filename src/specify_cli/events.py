@@ -620,9 +620,9 @@ def _build_opencode_plugin(filtered_events: dict[str, dict[str, Any]], canonical
 
     if event_handlers:
         plugin_returns.append(
-            f"    event: async ({{ event }}) => {{\n"
+            "    event: async ({ event }) => {\n"
             + "\n".join(event_handlers) + "\n"
-            f"    }},"
+            "    },"
         )
 
     return _TS_PLUGIN_TEMPLATE.format(

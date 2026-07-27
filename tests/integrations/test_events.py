@@ -4,32 +4,23 @@ from __future__ import annotations
 
 import json
 import platform
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
-import yaml
 
 from specify_cli.events import (
     CANONICAL_EVENTS,
     collect_extension_events,
-    events_stale_exclusions,
     install_integration_events,
     remove_integration_events,
     resolve_events,
     validate_events,
     resolve_and_run_event_command,
 )
-from specify_cli.integrations.base import IntegrationBase
 from specify_cli.integrations.manifest import IntegrationManifest
 from specify_cli.integrations.claude import ClaudeIntegration
 from specify_cli.integrations.cursor_agent import CursorAgentIntegration
-from specify_cli.integrations.codex import CodexIntegration
 from specify_cli.integrations.opencode import OpencodeIntegration
-from specify_cli.integrations.qwen import QwenIntegration
-from specify_cli.integrations.gemini import GeminiIntegration
-from specify_cli.integrations.devin import DevinIntegration
-from specify_cli.integrations.tabnine import TabnineIntegration
 from specify_cli.integrations.copilot import CopilotIntegration
 
 

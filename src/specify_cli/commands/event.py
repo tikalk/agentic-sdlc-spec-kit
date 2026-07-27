@@ -6,8 +6,6 @@ from pathlib import Path
 import sys
 import typer
 
-from .._console import console
-
 event_app = typer.Typer(
     name="event",
     help="Manage and execute event-driven commands",
