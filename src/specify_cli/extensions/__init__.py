@@ -3154,22 +3154,35 @@ class ExtensionCatalog(CatalogStackBase):
             if verified_only and not ext_data.get("verified", False):
                 continue
 
-            if author and ext_data.get("author", "").lower() != author.lower():
-                continue
+            if author:
+                author_val = ext_data.get("author", "")
+                if not isinstance(author_val, str):
+                    author_val = str(author_val) if author_val is not None else ""
+                if author_val.lower() != author.lower():
+                    continue
 
-            if tag and tag.lower() not in [t.lower() for t in ext_data.get("tags", [])]:
-                continue
+            if tag:
+                raw_tags = ext_data.get("tags", [])
+                tags_list = raw_tags if isinstance(raw_tags, list) else []
+                if tag.lower() not in [
+                    t.lower() for t in tags_list if isinstance(t, str)
+                ]:
+                    continue
 
             if query:
                 # Search in name, description, and tags
                 query_lower = query.lower()
+                raw_tags = ext_data.get("tags", [])
+                tags_list = raw_tags if isinstance(raw_tags, list) else []
+                name_val = ext_data.get("name", "")
+                desc_val = ext_data.get("description", "")
                 searchable_text = " ".join(
                     [
-                        ext_data.get("name", ""),
-                        ext_data.get("description", ""),
+                        str(name_val) if name_val else "",
+                        str(desc_val) if desc_val else "",
                         ext_id,
                     ]
-                    + ext_data.get("tags", [])
+                    + [t for t in tags_list if isinstance(t, str)]
                 ).lower()
 
                 if query_lower not in searchable_text:
