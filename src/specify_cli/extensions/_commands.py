@@ -790,10 +790,24 @@ def extension_search(
 
             # Stats
             stats = []
-            if ext.get('downloads') is not None:
-                stats.append(f"Downloads: {ext['downloads']:,}")
-            if ext.get('stars') is not None:
-                stats.append(f"Stars: {ext['stars']}")
+            downloads = ext.get('downloads')
+            if downloads is not None:
+                # Catalog fields are untrusted; a non-numeric ``downloads``
+                # (e.g. the JSON string "1500") would crash the ``:,`` format
+                # with "Cannot specify ',' with 's'". Only group-format numbers,
+                # and escape the fallback: the joined stats are rendered as Rich
+                # markup, so a value like "[/red]foo" would raise MarkupError
+                # (matching how every other catalog field here is escaped).
+                stats.append(
+                    f"Downloads: {downloads:,}"
+                    if isinstance(downloads, (int, float))
+                    else f"Downloads: {_escape_markup(str(downloads))}"
+                )
+            stars = ext.get('stars')
+            if stars is not None:
+                # Same untrusted-value/Rich-markup hazard as `downloads` above,
+                # in the same joined string.
+                stats.append(f"Stars: {_escape_markup(str(stars))}")
             if stats:
                 console.print(f"  [dim]{' | '.join(stats)}[/dim]")
 
@@ -971,10 +985,24 @@ def _print_extension_info(ext_info: dict, manager):
 
     # Statistics
     stats = []
-    if ext_info.get('downloads') is not None:
-        stats.append(f"Downloads: {ext_info['downloads']:,}")
-    if ext_info.get('stars') is not None:
-        stats.append(f"Stars: {ext_info['stars']}")
+    downloads = ext_info.get('downloads')
+    if downloads is not None:
+        # Catalog fields are untrusted; a non-numeric ``downloads`` (e.g. the
+        # JSON string "1500") would crash the ``:,`` format with "Cannot
+        # specify ',' with 's'". Only group-format numbers, and escape the
+        # fallback: the joined stats are rendered as Rich markup, so a value
+        # like "[/red]foo" would raise MarkupError (matching how every other
+        # catalog field here is escaped).
+        stats.append(
+            f"Downloads: {downloads:,}"
+            if isinstance(downloads, (int, float))
+            else f"Downloads: {_escape_markup(str(downloads))}"
+        )
+    stars = ext_info.get('stars')
+    if stars is not None:
+        # Same untrusted-value/Rich-markup hazard as `downloads` above, in the
+        # same joined string.
+        stats.append(f"Stars: {_escape_markup(str(stars))}")
     if stats:
         console.print(f"[bold]Statistics:[/bold] {' | '.join(stats)}")
         console.print()
