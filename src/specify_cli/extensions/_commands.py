@@ -627,6 +627,11 @@ def extension_add(
         console.print(f"\n[bold]{_escape_markup(str(manifest.name))}[/bold] (v{_escape_markup(str(manifest.version))})")
         console.print(f"  {_escape_markup(str(manifest.description))}")
 
+        # #1: regenerate native event config for installed event-capable
+        # integrations so the new extension's events take effect immediately.
+        from ..events import refresh_integration_events
+        refresh_integration_events(project_root)
+
         for warning in manifest.warnings:
             console.print(f"\n[yellow]⚠  Compatibility warning:[/yellow] {_escape_markup(str(warning))}")
 
@@ -733,6 +738,11 @@ def extension_remove(
             console.print(f"\nConfig files preserved in .specify/extensions/{safe_extension_id}/")
         else:
             console.print(f"\nConfig files backed up to .specify/extensions/.backup/{safe_extension_id}/")
+
+        # #1: regenerate native event config so the removed extension's events
+        # are stripped from installed integrations.
+        from ..events import refresh_integration_events
+        refresh_integration_events(project_root)
         console.print(f"\nTo reinstall: specify extension add {safe_extension_id}")
     else:
         console.print("[red]Error:[/red] Failed to remove extension")
@@ -1501,6 +1511,11 @@ def extension_enable(
 
     console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' enabled")
 
+    # #1: regenerate native event config so the enabled extension's events
+    # are re-emitted in installed integrations.
+    from ..events import refresh_integration_events
+    refresh_integration_events(project_root)
+
 
 @extension_app.command("disable")
 def extension_disable(
@@ -1544,6 +1559,11 @@ def extension_disable(
     console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: specify extension enable {_escape_markup(str(extension_id))}")
+
+    # #1: regenerate native event config so the disabled extension's events
+    # are stripped from installed integrations.
+    from ..events import refresh_integration_events
+    refresh_integration_events(project_root)
 
 
 @extension_app.command("set-priority")

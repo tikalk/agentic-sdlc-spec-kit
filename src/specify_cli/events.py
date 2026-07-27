@@ -474,14 +474,35 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
     Returns a mapping of event name → list of handler configs. Multiple
     extensions declaring the same event each contribute a handler (in
     extension-directory sort order), so callers can emit all of them (#2).
+
+    Honors the extension registry's ``enabled`` flag (#1): an explicitly
+    disabled extension's events are skipped so disabling an extension actually
+    deactivates its runtime hooks. Extensions absent from the registry (e.g.
+    a partially-staged install) are still included to preserve the on-disk
+    scan behavior.
     """
+    from .extensions import ExtensionRegistry
+
     events: ResolvedEvents = {}
     exts_dir = project_root / ".specify" / "extensions"
     if not exts_dir.is_dir():
         return events
 
+    # Build the set of explicitly-disabled extension IDs. Extensions not
+    # tracked in the registry are treated as enabled (backward compat).
+    disabled_ids: set[str] = set()
+    try:
+        registry = ExtensionRegistry(exts_dir)
+        for ext_id, meta in registry.list_by_priority(include_disabled=True):
+            if not isinstance(meta, dict) or not meta.get("enabled", True):
+                disabled_ids.add(ext_id)
+    except Exception:
+        pass
+
     for ext_dir in sorted(exts_dir.iterdir()):
         if not ext_dir.is_dir():
+            continue
+        if ext_dir.name in disabled_ids:
             continue
         ext_yml = ext_dir / "extension.yml"
         if not ext_yml.exists():
@@ -856,6 +877,44 @@ def events_stale_exclusions(integration_key: str) -> set[str]:
     return exclusions
 
 
+def refresh_integration_events(project_root: Path) -> None:
+    """Re-resolve and re-emit native event config for every installed
+    event-capable integration (#1).
+
+    Called after extension state changes (install/uninstall/enable/disable)
+    so that extension-declared events are regenerated in each installed
+    integration's native config — otherwise the documented install-after-
+    ``specify init`` flow is inert and disabled/removed extension events stay
+    active. Each integration is refreshed independently; a failure for one
+    logs a warning without aborting the others.
+    """
+    from .integrations import get_integration
+    from .integrations._helpers import _read_integration_json
+    from .integrations.manifest import IntegrationManifest
+    from .integration_state import installed_integration_keys
+
+    state = _read_integration_json(project_root)
+    for key in installed_integration_keys(state):
+        integration = get_integration(key)
+        if integration is None or not integration.supports_events():
+            continue
+        try:
+            manifest = IntegrationManifest.load(key, project_root)
+        except Exception as exc:
+            logger.warning("Could not load manifest for '%s'; skipping event refresh: %s", key, exc)
+            continue
+        try:
+            # Strip prior Specify hooks, then re-emit from the freshly
+            # resolved set (which now honors the registry's enabled flag).
+            _remove_native_event_hooks(integration, project_root, manifest)
+            events_map = resolve_events(key, integration.config, project_root, None)
+            if events_map:
+                install_integration_events(integration, project_root, manifest, events_map)
+            manifest.save()
+        except Exception as exc:
+            logger.warning("Failed to refresh events for '%s': %s", key, exc)
+
+
 # -- Manifest validation ---------------------------------------------------
 
 def validate_events(data: dict[str, Any]) -> None:
@@ -871,9 +930,13 @@ def validate_events(data: dict[str, Any]) -> None:
                 raise ValidationError(
                     f"Invalid event '{event_name}': expected a mapping"
                 )
-            if not event_config.get("command"):
+            command = event_config.get("command")
+            # #17: command must be a non-empty string. A truthy non-string
+            # (e.g. command: [foo]) would pass a bare truthiness check and
+            # later render into invalid native configuration.
+            if not isinstance(command, str) or not command.strip():
                 raise ValidationError(
-                    f"Event '{event_name}' missing required 'command' field"
+                    f"Event '{event_name}' missing required 'command' string"
                 )
             if event_name not in CANONICAL_EVENTS:
                 raise ValidationError(

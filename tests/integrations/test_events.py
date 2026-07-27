@@ -723,7 +723,7 @@ class TestSharedDispatcherRefcount:
 
         # Write the integration-state JSON so installed_integration_keys sees codex.
         import json as _json
-        state_path = tmp_path / ".specify" / "integrations.json"
+        state_path = tmp_path / ".specify" / "integration.json"
         state_path.parent.mkdir(parents=True, exist_ok=True)
         state_path.write_text(_json.dumps({
             "default_integration": "claude",
@@ -756,3 +756,131 @@ class TestSafeWriteDestination:
             )
         # No content written through the symlink.
         assert not (outside / "settings.json").exists()
+
+
+# -- Validation & lifecycle (Tier 4) -----------------------------------------
+
+class TestValidateEventsCommandType:
+    """#17: command must be a non-empty string, not just truthy."""
+
+    def test_non_string_command_rejected(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": ["speckit.tdd.validate"]}}}
+        with pytest.raises(ValidationError, match="(?i)command.*string"):
+            validate_events(data)
+
+    def test_empty_string_command_rejected(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": "  "}}}
+        with pytest.raises(ValidationError, match="(?i)command.*string"):
+            validate_events(data)
+
+
+class TestCollectExtensionEventsEnabledFlag:
+    """#1: collect_extension_events honors the registry's enabled flag."""
+
+    def test_disabled_extension_events_skipped(self, tmp_path):
+        from specify_cli.extensions import ExtensionRegistry
+
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "extension:\n  id: my-ext\n  name: My Ext\n  version: 1.0.0\n"
+            "  description: test\n"
+            "schema_version: '1.0'\n"
+            "requires:\n  speckit_version: '>=0.1'\n"
+            "provides:\n  commands: []\n"
+            "events:\n  session_start:\n    command: speckit.my-ext.boot\n",
+            encoding="utf-8",
+        )
+        registry = ExtensionRegistry(tmp_path / ".specify" / "extensions")
+        registry.add("my-ext", {"enabled": False})
+
+        result = collect_extension_events(tmp_path)
+        assert result == {}
+
+    def test_enabled_extension_events_collected(self, tmp_path):
+        from specify_cli.extensions import ExtensionRegistry
+
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "extension:\n  id: my-ext\n  name: My Ext\n  version: 1.0.0\n"
+            "  description: test\n"
+            "schema_version: '1.0'\n"
+            "requires:\n  speckit_version: '>=0.1'\n"
+            "provides:\n  commands: []\n"
+            "events:\n  session_start:\n    command: speckit.my-ext.boot\n",
+            encoding="utf-8",
+        )
+        registry = ExtensionRegistry(tmp_path / ".specify" / "extensions")
+        registry.add("my-ext", {"enabled": True})
+
+        result = collect_extension_events(tmp_path)
+        assert result == {"session_start": [{"command": "speckit.my-ext.boot"}]}
+
+
+class TestRefreshIntegrationEvents:
+    """#1: refresh_integration_events regenerates native config after
+    extension state changes."""
+
+    def test_refresh_strips_removed_extension_events(self, tmp_path):
+        from specify_cli.events import refresh_integration_events
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        # Install claude with an event sourced from a (simulated) extension.
+        integration = ClaudeIntegration()
+        manifest = IntegrationManifest(integration.key, tmp_path, version="test")
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.my-ext.check"}]},
+        )
+        manifest.save()
+        config_path = tmp_path / ".claude/settings.json"
+        assert config_path.is_file()
+
+        # Record claude as installed so refresh finds it.
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude"],
+        }))
+        # No extension declares events now → refresh should strip the prior hook
+        # (the config is deleted when no user content remains, #14).
+        refresh_integration_events(tmp_path)
+
+        if config_path.exists():
+            data = json.loads(config_path.read_text())
+            assert "PreToolUse" not in data.get("hooks", {})
+        # If the file is gone, the hooks were stripped (and the empty config
+        # deleted) — also correct.
+
+    def test_refresh_emits_newly_declared_extension_events(self, tmp_path):
+        from specify_cli.events import refresh_integration_events
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        integration = ClaudeIntegration()
+        manifest = IntegrationManifest(integration.key, tmp_path, version="test")
+        # Initially no events.
+        manifest.save()
+        config_path = tmp_path / ".claude/settings.json"
+
+        # Declare an extension event on disk.
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "events:\n  session_start:\n    command: speckit.my-ext.boot\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude"],
+        }))
+
+        refresh_integration_events(tmp_path)
+
+        data = json.loads(config_path.read_text())
+        assert "SessionStart" in data["hooks"]
