@@ -29,3 +29,8 @@ class GeminiIntegration(TomlIntegration):
     }
     events_config_file = ".gemini/settings.json"
     events_format = "json-nested"
+    # Gemini measures hook timeouts in milliseconds, unlike Claude/Cursor/Codex
+    # which use seconds. The shared formatter converts via _native_timeout (#7)
+    # so the default 60s becomes 60000ms instead of terminating the dispatcher
+    # after 60ms.
+    events_timeout_unit = "ms"

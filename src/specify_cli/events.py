@@ -10,7 +10,9 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
+import shlex
 import sys
 import subprocess
 import platform
@@ -125,14 +127,17 @@ import * as path from 'path';
 const DISPATCHER = path.join(process.cwd(), '.specify', 'events.py');
 
 function runEvent(command: string, event: string, input: any): void {{
+  let result;
   try {{
-    execSync(`python3 ${{DISPATCHER}} ${{command}} ${{event}}`, {{
+    result = execSync(`{interpreter} ${{DISPATCHER}} ${{command}} ${{event}}`, {{
       input: JSON.stringify(input),
       stdio: ['pipe', 'inherit', 'inherit'],
       timeout: 60000,
     }});
   }} catch (e) {{
-    process.exit(2);
+    // Propagate to OpenCode's hook machinery so only this hook is rejected,
+    // not the entire host process. process.exit() would kill the agent.
+    throw new Error(`specify event ${{command}} (${{event}}) failed: ${{(e as Error).message}}`);
   }}
 }}
 
@@ -174,7 +179,7 @@ def _find_command_template(command_name: str, project_root: Path) -> tuple[Path 
                     if f.stem == command_name:
                         return f, ext_dir.name
 
-    # 3. Check core templates
+    # 3. Check core templates in the project
     core = project_root / ".specify" / "templates" / "commands"
     if core.is_dir():
         stem = command_name.replace("speckit.", "").replace("spec.", "")
@@ -182,23 +187,43 @@ def _find_command_template(command_name: str, project_root: Path) -> tuple[Path 
         if candidate.exists():
             return candidate, None
 
-    # Fallback to package bundled templates
-    try:
-        import inspect
-        pkg_dir = Path(inspect.getfile(validate_events)).resolve().parent
-        core_pack = pkg_dir / "core_pack" / "templates" / "commands"
-        if core_pack.is_dir():
-            stem = command_name.replace("speckit.", "").replace("spec.", "")
-            candidate = core_pack / f"{stem}.md"
-            if candidate.exists():
-                return candidate, None
-    except Exception:
-        pass
+    # 4. Fallback to package-bundled templates via the canonical asset
+    #    resolvers (wheel: core_pack/commands; source: repo-root
+    #    templates/commands). The previous bespoke inspect.getfile() math
+    #    pointed at core_pack/templates/commands, which never exists in a
+    #    wheel build (force-include maps templates/commands -> core_pack/commands).
+    from ._assets import _locate_core_pack, _repo_root
+    core_pack = _locate_core_pack()
+    candidate_dirs = [
+        core_pack / "commands" if core_pack is not None else None,
+        _repo_root() / "templates" / "commands",
+    ]
+    stem = command_name.replace("speckit.", "").replace("spec.", "")
+    for candidate_dir in candidate_dirs:
+        if candidate_dir is None or not candidate_dir.is_dir():
+            continue
+        candidate = candidate_dir / f"{stem}.md"
+        if candidate.exists():
+            return candidate, None
 
     return None, None
 
 
-def _extract_script_path(template_path: Path, project_root: Path, ext_id: str | None) -> str | None:
+def _resolve_event_command_argv(
+    template_path: Path, project_root: Path, ext_id: str | None
+) -> list[str] | None:
+    """Resolve a command template's ``scripts:`` entry to a runnable argv.
+
+    ``scripts:`` values are command strings (e.g. ``scripts/bash/setup-plan.sh --json``),
+    not bare paths, so joining the whole value into a ``Path`` made ``exists()``
+    false and real commands silently no-op'd. This resolves the stored variant
+    (honoring the project's sh/ps/py selection), splits the command string
+    safely into argv, and prepends the appropriate interpreter (Python for
+    ``.py``, the platform shell otherwise). Returns ``None`` if no runnable
+    script is declared.
+    """
+    from .integrations.base import IntegrationBase
+
     content = template_path.read_text(encoding="utf-8")
     m = re.match(r'^---\n(.*?)\n---', content, re.DOTALL)
     if not m:
@@ -213,15 +238,66 @@ def _extract_script_path(template_path: Path, project_root: Path, ext_id: str | 
     scripts = fm_data.get("scripts", {})
     if not isinstance(scripts, dict):
         return None
-    default = "ps" if platform.system().lower().startswith("win") else "sh"
-    script_rel = scripts.get(default) or scripts.get("sh") or scripts.get("py")
-    if not script_rel:
+    # Determine the requested variant from the project's persisted selection,
+    # falling back to the platform default — same logic MarkdownIntegration
+    # uses for command scaffolding.
+    requested = _load_project_script_type(project_root)
+    try:
+        variant = IntegrationBase.select_script_variant(requested, scripts)
+    except ValueError:
         return None
+    script_cmd = scripts.get(variant)
+    if not isinstance(script_cmd, str) or not script_cmd.strip():
+        return None
+
+    # Resolve the script's project-relative base so a leading path component
+    # (e.g. ``scripts/bash/setup-plan.sh``) is anchored under .specify/ (core)
+    # or .specify/extensions/<id>/ (extension).
+    if variant == "py":
+        # .py files aren't directly executable on Windows; prefix the resolved
+        # interpreter. build_python_invocation returns a shell-quoted command
+        # string, so split it back into argv for subprocess.
+        invocation = IntegrationBase.build_python_invocation(script_cmd, project_root)
+        try:
+            return shlex.split(invocation, posix=(os.name != "nt"))
+        except ValueError:
+            return None
+
+    # sh / ps: the command string is "<relpath> [args...]". Resolve the
+    # leading path component against the project, then rejoin with the
+    # remaining tokens.
+    tokens = shlex.split(script_cmd, posix=(os.name != "nt"))
+    if not tokens:
+        return None
+    script_rel = tokens[0]
     if ext_id:
-        script_abs = project_root / ".specify" / "extensions" / ext_id / script_rel
+        base = project_root / ".specify" / "extensions" / ext_id
     else:
-        script_abs = project_root / ".specify" / script_rel
-    return str(script_abs) if script_abs.exists() else None
+        base = project_root / ".specify"
+    script_abs = base / script_rel
+    if not script_abs.exists():
+        return None
+    return [str(script_abs), *tokens[1:]]
+
+
+def _load_project_script_type(project_root: Path) -> str:
+    """Return the project's persisted script type ('sh'|'ps'|'py').
+
+    Falls back to the platform default when init-options are absent or
+    unreadable so event dispatch still works in a partially-initialized
+    project.
+    """
+    default = "ps" if platform.system().lower().startswith("win") else "sh"
+    try:
+        from ._init_options import load_init_options
+        opts = load_init_options(project_root)
+        if isinstance(opts, dict):
+            script = opts.get("script")
+            if isinstance(script, str) and script in ("sh", "ps", "py"):
+                return script
+    except Exception:
+        pass
+    return default
 
 
 def resolve_and_run_event_command(command_name: str, event_name: str, payload: str, project_root: Path) -> int:
@@ -230,13 +306,13 @@ def resolve_and_run_event_command(command_name: str, event_name: str, payload: s
     if not template_path:
         logger.warning("Event command '%s' not found", command_name)
         return 0
-    script_path = _extract_script_path(template_path, project_root, ext_id)
-    if not script_path:
+    argv = _resolve_event_command_argv(template_path, project_root, ext_id)
+    if not argv:
         logger.warning("No script found for event command '%s'", command_name)
         return 0
     try:
         result = subprocess.run(
-            [script_path],
+            argv,
             input=payload,
             capture_output=True,
             text=True,
@@ -259,29 +335,98 @@ def resolve_and_run_event_command(command_name: str, event_name: str, payload: s
 
 # -- Sourcing events map (CLI/Orchestration domain) -------------------------
 
+# Resolved events map: each canonical event name maps to an *ordered list* of
+# handler configs. Built-in defaults and per-extension declarations both
+# contribute, so two extensions declaring ``session_start`` both run (finding
+# #2) instead of the last one silently winning.
+ResolvedEvents = dict[str, list[dict[str, Any]]]
+
+
+def _normalize_handlers(value: Any) -> list[dict[str, Any]]:
+    """Coerce a single handler config or a list of them into a validated list.
+
+    Accepts both the legacy single-mapping shape (``{command: ...}``) and the
+    explicit list shape (``[{command: ...}, ...]``). Drops any entry that is
+    not a mapping or lacks a ``command`` with a warning, so a malformed user
+    override never reaches installation and crashes on ``cfg.get(...)`` (#21).
+    """
+    if isinstance(value, dict):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    handlers: list[dict[str, Any]] = []
+    for entry in value:
+        if not isinstance(entry, dict):
+            logger.warning("Skipping malformed event handler (expected a mapping): %r", entry)
+            continue
+        handlers.append(entry)
+    return handlers
+
+
+def _validate_resolved_event(event_name: str, handlers: list[dict[str, Any]]) -> None:
+    """Validate a resolved event's handlers, raising a user-facing error.
+
+    Raised for structural problems the user must fix (unknown event name,
+    handler missing a ``command``, or ``command`` not a non-empty string per
+    #17). Malformed-but-skipable entries are already dropped by
+    ``_normalize_handlers``.
+    """
+    from .extensions import ValidationError
+
+    if event_name not in CANONICAL_EVENTS:
+        raise ValidationError(
+            f"Unknown event '{event_name}': must be one of {sorted(CANONICAL_EVENTS)}"
+        )
+    for handler in handlers:
+        command = handler.get("command")
+        if not isinstance(command, str) or not command.strip():
+            raise ValidationError(
+                f"Event '{event_name}' handler missing required non-empty 'command' string"
+            )
+
+
 def resolve_events(
     integration_key: str,
     integration_config: dict[str, Any] | None,
     project_root: Path,
     parsed_options: dict[str, Any] | None,
-) -> dict[str, dict[str, Any]]:
-    """Resolve the final event set for an integration."""
+) -> ResolvedEvents:
+    """Resolve the final event set for an integration.
+
+    Returns a mapping of canonical event name → ordered list of handler
+    configs. Layers (lowest → highest precedence):
+
+    1. CLI gate ``--events false`` → empty map (caller still removes prior
+       native hooks; see ``install_integration_events``).
+    2. Built-in defaults from ``integration_config["events"]`` (single-config
+       per event, wrapped as one-element lists).
+    3. Extension-declared ``events:`` — appended per extension so multiple
+       extensions can declare the same event (#2).
+    4. User YAML override (``.specify/integration-events.yml``) — replaces the
+       accumulated set entirely when the integration key is present. Validated
+       (#21) before returning; a malformed override is warned about and
+       ignored rather than crashing downstream.
+    """
     # Layer 1: CLI flag gate
     if parsed_options:
         events_flag = str(parsed_options.get("events", "true")).lower()
         if events_flag in ("false", "0", "no", "off"):
             return {}
 
-    # Layer 4: built-in defaults from integration config
-    events: dict[str, dict[str, Any]] = {}
+    events: ResolvedEvents = {}
+
+    # Layer 2: built-in defaults from integration config
     if integration_config and isinstance(integration_config.get("events"), dict):
-        events = dict(integration_config["events"])
+        for ev, cfg in integration_config["events"].items():
+            handlers = _normalize_handlers(cfg)
+            if handlers:
+                events.setdefault(ev, []).extend(handlers)
 
-    # Layer 3: extension-declared events
-    ext_events = collect_extension_events(project_root)
-    events.update(ext_events)
+    # Layer 3: extension-declared events (accumulated, not overwriting)
+    for ev, handlers in collect_extension_events(project_root).items():
+        events.setdefault(ev, []).extend(handlers)
 
-    # Layer 2: user YAML override (replaces entirely if key present)
+    # Layer 4: user YAML override (replaces entirely if key present)
     override_file = project_root / YAML_OVERRIDE_FILENAME
     if override_file.exists():
         try:
@@ -290,19 +435,47 @@ def resolve_events(
             logger.warning("Could not parse %s; ignoring override", override_file)
             override = {}
         integrations = override.get("integrations", {}) if isinstance(override, dict) else {}
-        if integration_key in integrations:
+        if isinstance(integrations, dict) and integration_key in integrations:
             key_data = integrations[integration_key]
-            if isinstance(key_data, dict):
-                events = key_data.get("events", {}) or {}
+            key_events = key_data.get("events", {}) if isinstance(key_data, dict) else {}
+            if not isinstance(key_events, dict):
+                logger.warning(
+                    "Override %s: 'events' for '%s' is not a mapping; ignoring override",
+                    override_file, integration_key,
+                )
             else:
-                events = {}
+                resolved_override: ResolvedEvents = {}
+                for ev, raw in key_events.items():
+                    handlers = _normalize_handlers(raw)
+                    if not handlers:
+                        logger.warning(
+                            "Override %s: event '%s' has no valid handler; skipping entry",
+                            override_file, ev,
+                        )
+                        continue
+                    try:
+                        _validate_resolved_event(ev, handlers)
+                    except Exception as exc:
+                        logger.warning(
+                            "Override %s: invalid event '%s': %s; ignoring override",
+                            override_file, ev, exc,
+                        )
+                        resolved_override = {}
+                        break
+                    resolved_override[ev] = handlers
+                events = resolved_override
 
     return events
 
 
-def collect_extension_events(project_root: Path) -> dict[str, dict[str, Any]]:
-    """Scan all installed extensions for ``events:`` declarations."""
-    events: dict[str, dict[str, Any]] = {}
+def collect_extension_events(project_root: Path) -> ResolvedEvents:
+    """Scan all installed extensions for ``events:`` declarations.
+
+    Returns a mapping of event name → list of handler configs. Multiple
+    extensions declaring the same event each contribute a handler (in
+    extension-directory sort order), so callers can emit all of them (#2).
+    """
+    events: ResolvedEvents = {}
     exts_dir = project_root / ".specify" / "extensions"
     if not exts_dir.is_dir():
         return events
@@ -323,29 +496,86 @@ def collect_extension_events(project_root: Path) -> dict[str, dict[str, Any]]:
         if not isinstance(runtime, dict):
             continue
         for event, config in runtime.items():
-            if isinstance(config, dict):
-                events[event] = config
+            handlers = _normalize_handlers(config)
+            if handlers:
+                events.setdefault(event, []).extend(handlers)
     return events
 
 
 # -- Writing/Merging Config (Integration domain) ---------------------------
 
+def _resolve_interpreter(project_root: Path) -> str:
+    """Resolve a portable Python interpreter for native hook commands (#16).
+
+    Delegates to ``IntegrationBase.resolve_python_interpreter`` so generated
+    commands honor the project venv and never hard-code ``python3`` (which is
+    commonly absent on Windows even when ``py.exe``/``python.exe`` exist).
+    """
+    from .integrations.base import IntegrationBase
+    return IntegrationBase.resolve_python_interpreter(project_root)
+
+
+def _native_timeout(integration: IntegrationBase, timeout_seconds: Any) -> int:
+    """Return the timeout in the unit the integration's native config expects.
+
+    Claude/Cursor/Codex/Copilot measure timeouts in seconds; Gemini measures
+    in milliseconds (#7). An integration declares its unit via
+    ``events_timeout_unit`` (``"s"`` default, ``"ms"`` for Gemini).
+    """
+    try:
+        seconds = int(timeout_seconds)
+    except (TypeError, ValueError):
+        seconds = 60
+    if getattr(integration, "events_timeout_unit", "s") == "ms":
+        return seconds * 1000
+    return seconds
+
+
+def _dispatcher_command(
+    integration: IntegrationBase,
+    project_root: Path,
+    command_name: str,
+    event_name: str,
+) -> str:
+    """Build the single shell command string that invokes the dispatcher (#6).
+
+    Claude/Gemini/Qwen/Devin/Tabnine accept one ``command`` string (not a
+    ``command``+``args`` split), so each adapter renders a complete invocation:
+    ``<interpreter> <dispatcher> <command> <event>``. The interpreter is
+    resolved portably (#16); Claude's dispatcher path is prefixed with
+    ``${CLAUDE_PROJECT_DIR}/`` (Claude expands it before shell execution).
+    """
+    interpreter = _resolve_interpreter(project_root)
+    if integration.key == "claude":
+        dispatcher = "${CLAUDE_PROJECT_DIR}/" + EVENTS_DISPATCHER_REL
+    else:
+        dispatcher = EVENTS_DISPATCHER_REL
+    return f"{interpreter} {dispatcher} {command_name} {event_name}"
+
+
 def install_integration_events(
     integration: IntegrationBase,
     project_root: Path,
     manifest: IntegrationManifest,
-    events: dict[str, dict[str, Any]],
+    events: ResolvedEvents,
 ) -> list[Path]:
-    """Generate dispatcher, merge native config, return created files."""
+    """Generate dispatcher, merge native config, return created files.
+
+    ``events`` maps each canonical event to an ordered list of handler configs
+    (#2); every handler is emitted as a separate native hook entry so two
+    extensions declaring ``session_start`` both run.
+    """
     canonical_to_native = getattr(integration, "CANONICAL_TO_NATIVE", {})
     if not canonical_to_native:
         return []
 
-    # Filter to only supported events
-    filtered: dict[str, dict[str, Any]] = {}
-    for ev, cfg in events.items():
+    # Filter to only supported events, preserving all handlers per event.
+    filtered: ResolvedEvents = {}
+    for ev, handlers in events.items():
+        if not isinstance(handlers, list):
+            continue
         if ev in canonical_to_native:
-            filtered[ev] = cfg
+            filtered[ev] = handlers
         else:
             print(
                 f"\u26a0\ufe0f  {integration.key} does not support '{ev}' events; skipping",
@@ -382,7 +612,10 @@ def install_integration_events(
         plugin_rel = ".opencode/plugin/speckit-events.ts"
         plugin_path = project_root / plugin_rel
         plugin_path.parent.mkdir(parents=True, exist_ok=True)
-        plugin_path.write_text(_build_opencode_plugin(filtered, canonical_to_native), encoding="utf-8")
+        plugin_path.write_text(
+            _build_opencode_plugin(filtered, canonical_to_native, _resolve_interpreter(project_root)),
+            encoding="utf-8",
+        )
         manifest.record_file(
             plugin_rel,
             plugin_path.read_bytes(),
@@ -397,19 +630,26 @@ def install_integration_events(
         created.append(config_path)
 
     elif fmt == "copilot-json":
-        # Copilot hooks JSON write (creates dedicated .github/hooks/speckit.json)
-        copilot_hooks = {}
-        for ev, cfg in filtered.items():
+        # Copilot hooks JSON write (dedicated .github/hooks/speckit.json).
+        # Each handler becomes its own entry in the native event's list (#2),
+        # with bash/powershell variants sharing one resolved interpreter (#16).
+        copilot_hooks: dict[str, list[dict[str, Any]]] = {}
+        for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
-            command = cfg.get("command", "")
-            copilot_hooks[native] = [
-                {
-                    "type": "command",
-                    "bash": f"python3 {EVENTS_DISPATCHER_REL} {command} {ev}",
-                    "powershell": f"python3 {EVENTS_DISPATCHER_REL} {command} {ev}",
-                    "timeoutSec": cfg.get("timeout", 60),
-                }
-            ]
+            entries: list[dict[str, Any]] = []
+            for cfg in handlers:
+                command = cfg.get("command", "")
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                entries.append(
+                    {
+                        "type": "command",
+                        "bash": dispatcher_cmd,
+                        "powershell": dispatcher_cmd,
+                        "timeoutSec": _native_timeout(integration, cfg.get("timeout", 60)),
+                        _SPECKIT_MARKER: True,
+                    }
+                )
+            copilot_hooks[native] = entries
         fragment = {"version": 1, "hooks": copilot_hooks}
         config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(json.dumps(fragment, indent=2) + "\n", encoding="utf-8")
@@ -419,21 +659,23 @@ def install_integration_events(
         created.append(config_path)
 
     elif fmt == "toml":
-        # Codex config.toml custom merge
+        # Codex config.toml custom merge. One [[hooks.<native>.hooks]] block
+        # per handler so multiple handlers per event all emit (#2).
         lines: list[str] = []
-        for ev, cfg in filtered.items():
+        for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
-            timeout = cfg.get("timeout", 60)
-            command = cfg.get("command", "")
-            lines.append(f'[[hooks.{native}]]')
-            lines.append(f'matcher = "{cfg.get("matcher", "*")}"')
-            lines.append('')
-            lines.append(f'[[hooks.{native}.hooks]]')
-            lines.append('type = "command"')
-            lines.append(f'command = \'python3 {EVENTS_DISPATCHER_REL} {command} {ev}\'')
-            lines.append(f'timeout = {timeout}')
-            lines.append('speckit_marker = true')
-            lines.append('')
+            for cfg in handlers:
+                command = cfg.get("command", "")
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                lines.append(f'[[hooks.{native}]]')
+                lines.append(f'matcher = "{cfg.get("matcher", "*")}"')
+                lines.append('')
+                lines.append(f'[[hooks.{native}.hooks]]')
+                lines.append('type = "command"')
+                lines.append(f'command = {_toml_quote(dispatcher_cmd)}')
+                lines.append(f'timeout = {_native_timeout(integration, cfg.get("timeout", 60))}')
+                lines.append('speckit_marker = true')
+                lines.append('')
         _merge_toml_fragment(config_path, "\n".join(lines))
         rel = str(config_path.relative_to(project_root))
         if rel not in manifest.files:
@@ -441,20 +683,25 @@ def install_integration_events(
         created.append(config_path)
 
     elif fmt == "json-flat":
-        # Cursor hooks.json custom merge
-        cursor_hooks = {}
-        for ev, cfg in filtered.items():
+        # Cursor hooks.json custom merge. Flat command-string entries, one
+        # per handler (#2), single resolved command string (#6/#16).
+        cursor_hooks: dict[str, list[dict[str, Any]]] = {}
+        for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
-            command = cfg.get("command", "")
-            cursor_hooks[native] = [
-                {
-                    "command": f"python3 {EVENTS_DISPATCHER_REL} {command} {ev}",
-                    "type": "command",
-                    "timeout": cfg.get("timeout", 60),
-                    "matcher": cfg.get("matcher", "*"),
-                    _SPECKIT_MARKER: True,
-                }
-            ]
+            entries: list[dict[str, Any]] = []
+            for cfg in handlers:
+                command = cfg.get("command", "")
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                entries.append(
+                    {
+                        "command": dispatcher_cmd,
+                        "type": "command",
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        "matcher": cfg.get("matcher", "*"),
+                        _SPECKIT_MARKER: True,
+                    }
+                )
+            cursor_hooks[native] = entries
         _merge_json_fragment(config_path, cursor_hooks)
         rel = str(config_path.relative_to(project_root))
         if rel not in manifest.files:
@@ -462,28 +709,30 @@ def install_integration_events(
         created.append(config_path)
 
     elif fmt == "json-nested":
-        # Claude/Qwen/Gemini/Devin/Tabnine nested config JSON merge
-        nested_hooks = {}
-        bridge_path_prefix = "${CLAUDE_PROJECT_DIR}/" if integration.key == "claude" else ""
-        for ev, cfg in filtered.items():
+        # Claude/Qwen/Gemini/Devin/Tabnine nested config JSON merge.
+        # Native schema is a single ``command`` string per hook (not
+        # command+args), so each handler renders one complete dispatcher
+        # invocation (#6). Gemini timeouts are converted to ms (#7).
+        nested_hooks: dict[str, list[dict[str, Any]]] = {}
+        for ev, handlers in filtered.items():
             native = canonical_to_native[ev]
-            command = cfg.get("command", "")
+            matcher = handlers[0].get("matcher", "*") if handlers else "*"
+            inner_hooks: list[dict[str, Any]] = []
+            for cfg in handlers:
+                command = cfg.get("command", "")
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                inner_hooks.append(
+                    {
+                        "type": "command",
+                        "command": dispatcher_cmd,
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        _SPECKIT_MARKER: True,
+                    }
+                )
             nested_hooks[native] = [
                 {
-                    "matcher": cfg.get("matcher", "*"),
-                    "hooks": [
-                        {
-                            "type": "command",
-                            "command": "python3",
-                            "args": [
-                                bridge_path_prefix + EVENTS_DISPATCHER_REL,
-                                command,
-                                ev,
-                            ],
-                            "timeout": cfg.get("timeout", 60),
-                            _SPECKIT_MARKER: True,
-                        }
-                    ],
+                    "matcher": matcher,
+                    "hooks": inner_hooks,
                 }
             ]
         _merge_json_fragment(config_path, nested_hooks)
@@ -579,29 +828,55 @@ def has_events(data: dict[str, Any]) -> bool:
 
 # -- Helper merging functions ----------------------------------------------
 
-def _build_opencode_plugin(filtered_events: dict[str, dict[str, Any]], canonical_to_native: dict[str, str]) -> str:
+def _toml_quote(value: str) -> str:
+    """Render *value* as a TOML basic string via the shared escaper."""
+    from ._toml_string import escape_toml_basic
+    return escape_toml_basic(value)
+
+
+def _build_opencode_plugin(
+    filtered_events: ResolvedEvents,
+    canonical_to_native: dict[str, str],
+    interpreter: str,
+) -> str:
+    """Render the opencode TS plugin for the resolved event set.
+
+    Each canonical event may carry multiple handlers (#2); all handlers for a
+    native event are invoked from one generated function. The dispatcher is
+    launched with the resolved Python interpreter (#16) instead of a
+    hard-coded ``python3``.
+    """
     event_entries: list[str] = []
     plugin_returns: list[str] = []
     event_handlers: list[str] = []
 
-    for ev, cfg in filtered_events.items():
+    for ev, handlers in filtered_events.items():
         native = canonical_to_native[ev]
-        command = cfg.get("command", "")
-        matcher = cfg.get("matcher", "*")
+
+        # Build the body: one runEvent() call per handler, with an optional
+        # tool-name matcher guard for tool.execute.* hooks.
+        body_lines: list[str] = []
+        for cfg in handlers:
+            command = str(cfg.get("command", ""))
+            matcher = cfg.get("matcher", "*")
+            if native.startswith("tool.execute."):
+                if matcher and matcher != "*":
+                    tools = [t.strip().strip('"') for t in matcher.split("|")]
+                    checks = " || ".join(f"input.tool === '{t.lower()}'" for t in tools)
+                    body_lines.append(
+                        f"    if ({checks}) {{ runEvent('{command}', '{ev}', input); }}"
+                    )
+                else:
+                    body_lines.append(f"    runEvent('{command}', '{ev}', input);")
+            else:
+                body_lines.append(f"    runEvent('{command}', '{ev}', input);")
 
         if native.startswith("tool.execute."):
             ts_hook = native
-            match_cond = ""
-            if matcher and matcher != "*":
-                tools = [t.strip().strip('"') for t in matcher.split("|")]
-                checks = " || ".join(f"input.tool === '{t.lower()}'" for t in tools)
-                match_cond = f"if ({checks}) {{"
-            else:
-                match_cond = "{"
             event_entries.append(
-                f"function _{ev}(input: any) {match_cond}\n"
-                f"    runEvent('{command}', '{ev}', input);\n"
-                f"  }}"
+                f"function _{ev}(input: any) {{\n"
+                + "\n".join(body_lines) + "\n"
+                "  }"
             )
             plugin_returns.append(
                 f"    \"{ts_hook}\": async (input: any, output: any) => {{\n"
@@ -611,8 +886,8 @@ def _build_opencode_plugin(filtered_events: dict[str, dict[str, Any]], canonical
         else:
             event_entries.append(
                 f"function _{ev}(input: any) {{\n"
-                f"    runEvent('{command}', '{ev}', input);\n"
-                f"  }}"
+                + "\n".join(body_lines) + "\n"
+                "  }"
             )
             event_handlers.append(
                 f"      if (event.type === '{native}') {{ _{ev}(event); }}"
@@ -626,6 +901,7 @@ def _build_opencode_plugin(filtered_events: dict[str, dict[str, Any]], canonical
         )
 
     return _TS_PLUGIN_TEMPLATE.format(
+        interpreter=interpreter,
         event_entries="\n\n".join(event_entries),
         plugin_returns="\n".join(plugin_returns),
     )

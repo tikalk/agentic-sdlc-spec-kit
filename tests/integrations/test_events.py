@@ -47,7 +47,7 @@ class TestResolveEvents:
             tmp_path,
             None,
         )
-        assert result == {"post_tool_use": {"command": "speckit.tdd.validate"}}
+        assert result == {"post_tool_use": [{"command": "speckit.tdd.validate"}]}
 
     def test_layer3_extension_events_appended(self, tmp_path):
         """Extension-declared events are resolved and appended."""
@@ -67,7 +67,22 @@ class TestResolveEvents:
         )
         assert "post_tool_use" in result
         assert "session_start" in result
-        assert result["session_start"] == {"command": "speckit.my-ext.boot"}
+        assert result["session_start"] == [{"command": "speckit.my-ext.boot"}]
+
+    def test_layer3_multiple_extensions_same_event_accumulate(self, tmp_path):
+        """Two extensions declaring the same event both run (#2)."""
+        for ext_id, cmd in (("my-ext", "speckit.my-ext.boot"), ("other-ext", "speckit.other.boot")):
+            ext_dir = tmp_path / ".specify" / "extensions" / ext_id
+            ext_dir.mkdir(parents=True)
+            (ext_dir / "extension.yml").write_text(
+                f"events:\n  session_start:\n    command: {cmd}\n",
+                encoding="utf-8",
+            )
+        result = resolve_events("claude", None, tmp_path, None)
+        assert result["session_start"] == [
+            {"command": "speckit.my-ext.boot"},
+            {"command": "speckit.other.boot"},
+        ]
 
     def test_layer2_yaml_override_replaces(self, tmp_path):
         """integration-events.yml override replaces baseline entirely."""
@@ -88,7 +103,7 @@ class TestResolveEvents:
             tmp_path,
             None,
         )
-        assert result == {"stop": {"command": "speckit.override.stop"}}
+        assert result == {"stop": [{"command": "speckit.override.stop"}]}
 
     def test_layer2_empty_events_disables(self, tmp_path):
         """Empty events override disables events."""
@@ -137,7 +152,7 @@ class TestCollectExtensionEvents:
             encoding="utf-8",
         )
         result = collect_extension_events(tmp_path)
-        assert result == {"pre_tool_use": {"command": "speckit.my-ext.check"}}
+        assert result == {"pre_tool_use": [{"command": "speckit.my-ext.check"}]}
 
     def test_invalid_yaml_skipped(self, tmp_path):
         ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
@@ -215,7 +230,7 @@ class TestClaudeJsonMerging:
         manifest.record_existing = MagicMock()
 
         events = {
-            "pre_tool_use": {"command": "speckit.tdd.validate", "matcher": "Edit|Write"},
+            "pre_tool_use": [{"command": "speckit.tdd.validate", "matcher": "Edit|Write"}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
 
@@ -225,6 +240,36 @@ class TestClaudeJsonMerging:
         assert "hooks" in data
         assert "PreToolUse" in data["hooks"]
         assert data["hooks"]["PreToolUse"][0]["matcher"] == "Edit|Write"
+        # #6: native schema is a single `command` string, not command+args.
+        inner = data["hooks"]["PreToolUse"][0]["hooks"][0]
+        assert isinstance(inner["command"], str)
+        assert "args" not in inner
+        assert "speckit.tdd.validate" in inner["command"]
+        assert "pre_tool_use" in inner["command"]
+        # The dispatcher path must be prefixed with ${CLAUDE_PROJECT_DIR}/ for Claude.
+        assert "${CLAUDE_PROJECT_DIR}/" in inner["command"]
+
+    def test_claude_emits_all_handlers_for_same_event(self, tmp_path):
+        """#2: two handlers on the same event both appear in the native config."""
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "pre_tool_use": [
+                {"command": "speckit.tdd.validate"},
+                {"command": "speckit.other.check"},
+            ],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+
+        data = json.loads((tmp_path / ".claude/settings.json").read_text())
+        inner_hooks = data["hooks"]["PreToolUse"][0]["hooks"]
+        commands = [h["command"] for h in inner_hooks]
+        assert any("speckit.tdd.validate" in c for c in commands)
+        assert any("speckit.other.check" in c for c in commands)
 
     def test_remove_preserves_user_hooks(self, tmp_path):
         integration = ClaudeIntegration()
@@ -257,7 +302,7 @@ class TestClaudeJsonMerging:
         )
 
         events = {
-            "pre_tool_use": {"command": "speckit.tdd.validate"},
+            "pre_tool_use": [{"command": "speckit.tdd.validate"}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
         remove_integration_events(integration, tmp_path, manifest)
@@ -282,7 +327,7 @@ class TestCopilotJsonWriting:
         manifest.record_existing = MagicMock()
 
         events = {
-            "session_start": {"command": "speckit.agent-context.update", "timeout": 60},
+            "session_start": [{"command": "speckit.agent-context.update", "timeout": 60}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
 
@@ -294,9 +339,26 @@ class TestCopilotJsonWriting:
         assert "sessionStart" in data["hooks"]
         entry = data["hooks"]["sessionStart"][0]
         assert entry["type"] == "command"
+        # #6: a complete shell command string (not command+args).
         assert "speckit.agent-context.update" in entry["bash"]
         assert "session_start" in entry["bash"]
+        assert entry["bash"] == entry["powershell"]
         assert entry["timeoutSec"] == 60
+
+
+# -- Gemini timeout unit (#7) ------------------------------------------------
+
+class TestGeminiTimeoutUnit:
+    """Gemini measures hook timeouts in milliseconds, not seconds."""
+
+    def test_gemini_timeout_converted_to_ms(self, tmp_path):
+        from specify_cli.integrations.gemini import GeminiIntegration
+        from specify_cli.events import _native_timeout
+
+        integration = GeminiIntegration()
+        # 60 (seconds) -> 60000 (ms) for Gemini; unchanged for seconds-based agents.
+        assert _native_timeout(integration, 60) == 60000
+        assert _native_timeout(ClaudeIntegration(), 60) == 60
 
 
 # -- Opencode TS Plugin merging ---------------------------------------------
@@ -312,8 +374,8 @@ class TestOpencodePluginMerging:
         manifest.record_existing = MagicMock()
 
         events = {
-            "pre_tool_use": {"command": "speckit.tdd.validate", "matcher": "Edit"},
-            "session_start": {"command": "speckit.agent-context.update"},
+            "pre_tool_use": [{"command": "speckit.tdd.validate", "matcher": "Edit"}],
+            "session_start": [{"command": "speckit.agent-context.update"}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
 
@@ -325,6 +387,48 @@ class TestOpencodePluginMerging:
         assert "session.created" in content
         assert "speckit.tdd.validate" in content
         assert "speckit.agent-context.update" in content
+        # #13: failures must propagate via throw, not process.exit(2) which
+        # would kill the OpenCode host process.
+        assert "process.exit(2)" not in content
+        assert "throw new Error" in content
+
+    def test_opencode_ts_plugin_uses_resolved_interpreter(self, tmp_path):
+        """#16: the dispatcher is launched with a resolved interpreter (venv
+        when present), not a hard-coded ``python3``."""
+        integration = OpencodeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        # Create a project venv so resolve_python_interpreter returns it.
+        venv_bin = tmp_path / ".venv" / "bin" / "python"
+        venv_bin.parent.mkdir(parents=True)
+        venv_bin.write_text("#!/bin/sh\n")
+
+        events = {"session_start": [{"command": "speckit.boot"}]}
+        install_integration_events(integration, tmp_path, manifest, events)
+        content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
+        assert ".venv/bin/python" in content
+
+    def test_opencode_ts_plugin_emits_all_handlers(self, tmp_path):
+        """#2: multiple handlers on the same native event all invoke runEvent."""
+        integration = OpencodeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "session_start": [
+                {"command": "speckit.first.boot"},
+                {"command": "speckit.second.boot"},
+            ],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+        content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
+        assert "speckit.first.boot" in content
+        assert "speckit.second.boot" in content
 
 
 # -- Command runner test (core execution) -----------------------------------
