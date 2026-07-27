@@ -604,6 +604,58 @@ class TestCommandRunner:
         code = resolve_and_run_event_command("speckit.test", "session_start", "{}", tmp_path)
         assert code == 0
 
+    def test_py_variant_anchored_under_specify(self, tmp_path):
+        """S2: the py variant resolves scripts/... under .specify/, not the
+        project root, and prepends the resolved interpreter."""
+        from specify_cli.events import _resolve_event_command_argv
+
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "boot.md").write_text(
+            "---\n"
+            "description: \"Boot\"\n"
+            "scripts:\n"
+            "  py: scripts/python/boot.py\n"
+            "---\nBody\n",
+            encoding="utf-8",
+        )
+        py_dir = tmp_path / ".specify" / "scripts" / "python"
+        py_dir.mkdir(parents=True)
+        (py_dir / "boot.py").write_text("import sys; sys.exit(0)\n", encoding="utf-8")
+
+        argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
+        assert argv is not None
+        # Interpreter first, then the .specify-anchored script path.
+        assert len(argv) >= 2
+        assert argv[1].endswith(".specify/scripts/python/boot.py")
+        assert ".specify" in argv[1]
+
+    def test_ps_variant_prefixed_with_powershell_launcher(self, tmp_path):
+        """S6: the ps variant prefixes argv with pwsh/powershell -File so
+        subprocess.run(shell=False) can execute the .ps1 script."""
+        from specify_cli.events import _resolve_event_command_argv
+
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "boot.md").write_text(
+            "---\n"
+            "description: \"Boot\"\n"
+            "scripts:\n"
+            "  ps: scripts/powershell/boot.ps1\n"
+            "---\nBody\n",
+            encoding="utf-8",
+        )
+        ps_dir = tmp_path / ".specify" / "scripts" / "powershell"
+        ps_dir.mkdir(parents=True)
+        (ps_dir / "boot.ps1").write_text("exit 0\n", encoding="utf-8")
+
+        argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
+        assert argv is not None
+        # Launcher (pwsh or powershell), -File, then the .specify-anchored script.
+        assert argv[0] in ("pwsh", "powershell") or argv[0].endswith("pwsh") or argv[0].endswith("powershell")
+        assert argv[1] == "-File"
+        assert argv[2].endswith(".specify/scripts/powershell/boot.ps1")
+
 
 # -- Merge/teardown idempotency & safety (Tier 3) ----------------------------
 

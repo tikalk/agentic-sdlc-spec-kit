@@ -13,6 +13,7 @@ import logging
 import os
 import re
 import shlex
+import shutil
 import sys
 import subprocess
 import platform
@@ -250,34 +251,41 @@ def _resolve_event_command_argv(
     if not isinstance(script_cmd, str) or not script_cmd.strip():
         return None
 
-    # Resolve the script's project-relative base so a leading path component
-    # (e.g. ``scripts/bash/setup-plan.sh``) is anchored under .specify/ (core)
-    # or .specify/extensions/<id>/ (extension).
-    if variant == "py":
-        # .py files aren't directly executable on Windows; prefix the resolved
-        # interpreter. build_python_invocation returns a shell-quoted command
-        # string, so split it back into argv for subprocess.
-        invocation = IntegrationBase.build_python_invocation(script_cmd, project_root)
-        try:
-            return shlex.split(invocation, posix=(os.name != "nt"))
-        except ValueError:
-            return None
-
-    # sh / ps: the command string is "<relpath> [args...]". Resolve the
-    # leading path component against the project, then rejoin with the
-    # remaining tokens.
-    tokens = shlex.split(script_cmd, posix=(os.name != "nt"))
-    if not tokens:
-        return None
-    script_rel = tokens[0]
+    # Base under which the script's leading path component is anchored —
+    # .specify/ (core) or .specify/extensions/<id>/ (extension). All variants
+    # share this anchoring so a `scripts/...` token resolves correctly (S2:
+    # the py branch previously invoked build_python_invocation() on the raw
+    # command string, leaving `scripts/...` anchored at the project root).
     if ext_id:
         base = project_root / ".specify" / "extensions" / ext_id
     else:
         base = project_root / ".specify"
-    script_abs = base / script_rel
+
+    tokens = shlex.split(script_cmd, posix=(os.name != "nt"))
+    if not tokens:
+        return None
+    script_abs = base / tokens[0]
     if not script_abs.exists():
         return None
-    return [str(script_abs), *tokens[1:]]
+    rest_args = tokens[1:]
+
+    if variant == "py":
+        # .py files aren't directly executable on Windows; prefix the resolved
+        # interpreter. argv is passed to subprocess.run(shell=False), so no
+        # shell quoting is needed.
+        interpreter = IntegrationBase.resolve_python_interpreter(project_root)
+        return [interpreter, str(script_abs), *rest_args]
+
+    if variant == "ps":
+        # PowerShell scripts cannot be executed directly by
+        # subprocess.run(shell=False); invoke via `pwsh -File` (PowerShell 7+),
+        # falling back to `powershell -File` (Windows PowerShell) when pwsh is
+        # absent (S6). The default Windows script type would otherwise fail.
+        launcher = shutil.which("pwsh") or shutil.which("powershell") or "pwsh"
+        return [launcher, "-File", str(script_abs), *rest_args]
+
+    # sh: the script is chmod'd executable during install.
+    return [str(script_abs), *rest_args]
 
 
 def _load_project_script_type(project_root: Path) -> str:
