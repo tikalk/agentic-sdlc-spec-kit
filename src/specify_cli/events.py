@@ -32,7 +32,13 @@ logger = logging.getLogger(__name__)
 
 EVENTS_DISPATCHER_DIR = Path(".specify")
 EVENTS_DISPATCHER_FILENAME = "events.py"
-EVENTS_DISPATCHER_REL = str(EVENTS_DISPATCHER_DIR / EVENTS_DISPATCHER_FILENAME)
+# POSIX-form (forward-slash) relative path so it matches manifest keys, which
+# are always stored in POSIX form (record_file/record_existing normalize via
+# .as_posix()). On Windows, str(Path(".specify")/"events.py") yields
+# ".specify\\events.py", which never matched a manifest key, so the shared-
+# dispatcher manifest-claim drop was skipped and uninstall(force=True) deleted
+# the dispatcher another integration still depended on.
+EVENTS_DISPATCHER_REL = (EVENTS_DISPATCHER_DIR / EVENTS_DISPATCHER_FILENAME).as_posix()
 
 YAML_OVERRIDE_FILENAME = Path(".specify") / "integration-events.yml"
 

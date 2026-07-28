@@ -6,7 +6,7 @@ import json
 import os
 import platform
 import shlex
-from pathlib import Path
+from pathlib import Path, PurePath
 from unittest.mock import MagicMock
 
 import pytest
@@ -759,9 +759,10 @@ class TestCommandRunner:
 
         argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
         assert argv is not None
-        # Interpreter first, then the .specify-anchored script path.
+        # Interpreter first, then the .specify-anchored script path. Compare in
+        # POSIX form so the assertion holds on Windows (backslash paths) too.
         assert len(argv) >= 2
-        assert argv[1].endswith(".specify/scripts/python/boot.py")
+        assert PurePath(argv[1]).as_posix().endswith(".specify/scripts/python/boot.py")
         assert ".specify" in argv[1]
 
     def test_ps_variant_prefixed_with_powershell_launcher(self, tmp_path):
@@ -785,10 +786,12 @@ class TestCommandRunner:
 
         argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
         assert argv is not None
-        # Launcher (pwsh or powershell), -File, then the .specify-anchored script.
-        assert argv[0] in ("pwsh", "powershell") or argv[0].endswith("pwsh") or argv[0].endswith("powershell")
+        # Launcher (pwsh or powershell), -File, then the .specify-anchored
+        # script. shutil.which may return a full path with an .EXE suffix on
+        # Windows, so match by stem (case-insensitive).
+        assert PurePath(argv[0]).stem.lower() in ("pwsh", "powershell")
         assert argv[1] == "-File"
-        assert argv[2].endswith(".specify/scripts/powershell/boot.ps1")
+        assert PurePath(argv[2]).as_posix().endswith(".specify/scripts/powershell/boot.ps1")
 
     def test_run_command_executes_with_project_root_cwd(self, tmp_path):
         """R1: the event command runs with cwd set to the project root, not the
