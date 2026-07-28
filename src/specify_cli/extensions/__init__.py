@@ -433,6 +433,33 @@ class ExtensionManifest:
                         f"The extension author should update the manifest."
                     )
 
+        # C11: apply the same rename + alias-lift canonicalization to event
+        # command references. Without this, an event referencing a command
+        # that was auto-corrected (e.g. speckit.boot -> speckit.<id>.boot)
+        # keeps the obsolete name, dispatch reports no command, and the event
+        # silently no-ops.
+        events_data = self.data.get("events", {})
+        if isinstance(events_data, dict):
+            for event_name, event_config in events_data.items():
+                if not isinstance(event_config, dict):
+                    continue
+                command_ref = event_config.get("command")
+                if not isinstance(command_ref, str):
+                    continue
+                after_rename = rename_map.get(command_ref, command_ref)
+                parts = after_rename.split(".")
+                if len(parts) == 2 and parts[0] == ext["id"]:
+                    final_ref = f"speckit.{ext['id']}.{parts[1]}"
+                else:
+                    final_ref = after_rename
+                if final_ref != command_ref:
+                    event_config["command"] = final_ref
+                    self.warnings.append(
+                        f"Event '{event_name}' referenced command '{command_ref}'; "
+                        f"updated to canonical form '{final_ref}'. "
+                        f"The extension author should update the manifest."
+                    )
+
     @staticmethod
     def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
         """Try to auto-correct a non-conforming command name to the required pattern.

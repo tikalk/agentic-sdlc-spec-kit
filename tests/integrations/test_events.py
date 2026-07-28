@@ -1391,6 +1391,122 @@ class TestOverridePreserveLayers:
         )
         assert result == {}
 
+    def test_empty_handler_override_abandons_override(self, tmp_path):
+        """C4: a malformed handler (`stop: []` or `stop: bad-value`) abandons
+        the whole override and keeps prior layers, rather than disabling."""
+        override_file = tmp_path / ".specify" / "integration-events.yml"
+        override_file.parent.mkdir(parents=True, exist_ok=True)
+        override_file.write_text(
+            "integrations:\n"
+            "  claude:\n"
+            "    events:\n"
+            "      stop: []\n",
+            encoding="utf-8",
+        )
+        result = resolve_events(
+            "claude",
+            {"events": {"post_tool_use": {"command": "speckit.tdd.validate"}}},
+            tmp_path,
+            None,
+        )
+        # Built-in default survived (override abandoned on the empty handler).
+        assert "post_tool_use" in result
+
+    def test_non_mapping_integration_entry_abandons_override(self, tmp_path):
+        """C6: a non-mapping integration entry (`claude: bad`) is ignored as
+        malformed, not treated as a valid explicit disable."""
+        override_file = tmp_path / ".specify" / "integration-events.yml"
+        override_file.parent.mkdir(parents=True, exist_ok=True)
+        override_file.write_text(
+            "integrations:\n"
+            "  claude: bad\n",
+            encoding="utf-8",
+        )
+        result = resolve_events(
+            "claude",
+            {"events": {"post_tool_use": {"command": "speckit.tdd.validate"}}},
+            tmp_path,
+            None,
+        )
+        # Built-in default survived (override ignored as malformed).
+        assert "post_tool_use" in result
+
+
+# -- Matcher string validation (C10) -----------------------------------------
+
+class TestMatcherValidation:
+    """C10: matcher must be a string; a non-string matcher is rejected at
+    validation time so it can't crash by_matcher.setdefault later."""
+
+    def test_non_string_matcher_rejected_in_manifest(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": "speckit.x.y", "matcher": []}}}
+        with pytest.raises(ValidationError, match="(?i)matcher.*string"):
+            validate_events(data)
+
+    def test_non_string_matcher_rejected_in_override(self, tmp_path):
+        override_file = tmp_path / ".specify" / "integration-events.yml"
+        override_file.parent.mkdir(parents=True, exist_ok=True)
+        # A matcher of [] would crash by_matcher.setdefault; the override must
+        # be abandoned (built-in defaults survive) rather than crash.
+        override_file.write_text(
+            "integrations:\n"
+            "  claude:\n"
+            "    events:\n"
+            "      pre_tool_use:\n"
+            "        command: speckit.x.y\n"
+            "        matcher: []\n",
+            encoding="utf-8",
+        )
+        result = resolve_events(
+            "claude",
+            {"events": {"stop": {"command": "speckit.end"}}},
+            tmp_path,
+            None,
+        )
+        # Built-in default survived (override abandoned on the bad matcher).
+        assert "stop" in result
+
+
+# -- Event command-ref canonicalization (C11) --------------------------------
+
+class TestEventCommandRefCanonicalization:
+    """C11: an event referencing a command that was auto-corrected is itself
+    rewritten to the canonical name (mirrors hook reference rewriting)."""
+
+    def test_event_command_ref_lifted_to_canonical(self, tmp_path):
+        from specify_cli.extensions import ExtensionManifest
+        import yaml as _yaml
+
+        manifest_path = tmp_path / "extension.yml"
+        manifest_path.write_text(
+            _yaml.dump({
+                "schema_version": "1.0",
+                "extension": {
+                    "id": "my-ext",
+                    "name": "My Ext",
+                    "version": "1.0.0",
+                    "description": "test",
+                },
+                "requires": {"speckit_version": ">=0.1"},
+                "provides": {
+                    "commands": [
+                        {"name": "speckit.my-ext.boot", "file": "commands/boot.md"}
+                    ]
+                },
+                "events": {
+                    "session_start": {"command": "my-ext.boot"},
+                },
+            }),
+            encoding="utf-8",
+        )
+        manifest = ExtensionManifest(manifest_path)
+        assert manifest.data["events"]["session_start"]["command"] == "speckit.my-ext.boot"
+        assert any(
+            "Event 'session_start' referenced command 'my-ext.boot'" in w
+            for w in manifest.warnings
+        )
+
 
 # -- Skipped-merge not tracked (S5) ------------------------------------------
 

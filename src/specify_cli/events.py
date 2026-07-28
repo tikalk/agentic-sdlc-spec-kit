@@ -415,6 +415,15 @@ def _validate_resolved_event(event_name: str, handlers: list[dict[str, Any]]) ->
             raise ValidationError(
                 f"Event '{event_name}' handler missing required non-empty 'command' string"
             )
+        # C10: matcher must be a string (or absent). A non-string matcher such
+        # as `matcher: []` passes extension validation but later crashes
+        # by_matcher.setdefault(matcher, ...) with TypeError: unhashable type.
+        matcher = handler.get("matcher")
+        if matcher is not None and not isinstance(matcher, str):
+            raise ValidationError(
+                f"Event '{event_name}' handler has invalid 'matcher': "
+                "must be a string"
+            )
 
 
 def resolve_events(
@@ -469,43 +478,63 @@ def resolve_events(
         integrations = override.get("integrations", {}) if isinstance(override, dict) else {}
         if isinstance(integrations, dict) and integration_key in integrations:
             key_data = integrations[integration_key]
-            key_events = key_data.get("events", {}) if isinstance(key_data, dict) else {}
-            if not isinstance(key_events, dict):
+            if not isinstance(key_data, dict):
+                # C6: a non-mapping integration entry (e.g. `claude: bad`) must
+                # not be treated as a valid explicit disable. Warn and abandon
+                # the override, keeping the accumulated built-in + extension
+                # layers. Only an explicitly present, mapping-valued `events`
+                # field replaces the prior layers.
                 logger.warning(
-                    "Override %s: 'events' for '%s' is not a mapping; ignoring override",
+                    "Override %s: entry for '%s' is not a mapping; ignoring override",
                     override_file, integration_key,
                 )
             else:
-                # Validate every entry before adopting the override. A single
-                # invalid entry abandons the whole override and keeps the
-                # accumulated built-in + extension layers (#10): previously a
-                # typo reset resolved_override to {} and then assigned that
-                # empty map to events, silently disabling all hooks despite
-                # the "ignored" warning. Only a fully-valid override (including
-                # an explicit `events: {}`) replaces the prior layers.
-                resolved_override: ResolvedEvents = {}
-                override_valid = True
-                for ev, raw in key_events.items():
-                    handlers = _normalize_handlers(raw)
-                    if not handlers:
-                        logger.warning(
-                            "Override %s: event '%s' has no valid handler; skipping entry",
-                            override_file, ev,
-                        )
-                        continue
-                    try:
-                        _validate_resolved_event(ev, handlers)
-                    except Exception as exc:
-                        logger.warning(
-                            "Override %s: invalid event '%s': %s; ignoring entire override",
-                            override_file, ev, exc,
-                        )
-                        override_valid = False
-                        break
-                    resolved_override[ev] = handlers
-                if override_valid:
-                    events = resolved_override
-                # else: keep the accumulated built-in + extension layers.
+                key_events = key_data.get("events", {})
+                if not isinstance(key_events, dict):
+                    logger.warning(
+                        "Override %s: 'events' for '%s' is not a mapping; ignoring override",
+                        override_file, integration_key,
+                    )
+                else:
+                    # Validate every entry before adopting the override. A single
+                    # invalid entry abandons the whole override and keeps the
+                    # accumulated built-in + extension layers (#10): previously a
+                    # typo reset resolved_override to {} and then assigned that
+                    # empty map to events, silently disabling all hooks despite
+                    # the "ignored" warning. Only a fully-valid override (including
+                    # an explicit `events: {}`) replaces the prior layers.
+                    resolved_override: ResolvedEvents = {}
+                    override_valid = True
+                    for ev, raw in key_events.items():
+                        handlers = _normalize_handlers(raw)
+                        if not handlers:
+                            # C4: a malformed handler (e.g. `stop: []` or
+                            # `stop: bad-value`) normalizes to no handlers.
+                            # Abandon the whole override (keep prior layers)
+                            # rather than skipping the entry — otherwise an
+                            # override whose only entry is malformed silently
+                            # disabled every built-in and extension hook. An
+                            # explicit `events: {}` (no entries) remains a
+                            # valid disable.
+                            logger.warning(
+                                "Override %s: event '%s' has no valid handler; ignoring entire override",
+                                override_file, ev,
+                            )
+                            override_valid = False
+                            break
+                        try:
+                            _validate_resolved_event(ev, handlers)
+                        except Exception as exc:
+                            logger.warning(
+                                "Override %s: invalid event '%s': %s; ignoring entire override",
+                                override_file, ev, exc,
+                            )
+                            override_valid = False
+                            break
+                        resolved_override[ev] = handlers
+                    if override_valid:
+                        events = resolved_override
+                    # else: keep the accumulated built-in + extension layers.
 
     return events
 
@@ -1073,6 +1102,13 @@ def validate_events(data: dict[str, Any]) -> None:
                 raise ValidationError(
                     f"Unknown event '{event_name}': "
                     f"must be one of {sorted(CANONICAL_EVENTS)}"
+                )
+            # C10: matcher must be a string (or absent). A non-string matcher
+            # such as `matcher: []` would later crash by_matcher.setdefault.
+            matcher = event_config.get("matcher")
+            if matcher is not None and not isinstance(matcher, str):
+                raise ValidationError(
+                    f"Event '{event_name}' has invalid 'matcher': must be a string"
                 )
 
 
