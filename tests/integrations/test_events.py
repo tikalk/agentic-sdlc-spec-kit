@@ -784,6 +784,14 @@ class TestOpencodePluginMerging:
         # execFileSync (argv, no shell) instead of a shell command string (C9).
         assert "execFileSync" in content
         assert "execSync(`" not in content
+        # R2: venv interpreter is probed for specify_cli importability before
+        # selection (an unrelated project venv shouldn't shadow the fallback).
+        assert "canImportSpecifyCli" in content
+        # S2: the PATH fallback is python on Windows (python3 is commonly
+        # absent there), python3 on POSIX.
+        assert "process.platform === 'win32'" in content
+        assert "'python'" in content
+        assert "'python3'" in content
 
     def test_opencode_ts_plugin_emits_all_handlers(self, tmp_path):
         """#2: multiple handlers on the same native event all invoke runEvent."""
@@ -992,6 +1000,25 @@ class TestCommandRunner:
         assert code == 0
         recorded = out_file.read_text().strip()
         assert Path(recorded).resolve() == tmp_path.resolve()
+
+    def test_dispatcher_probes_venv_for_specify_cli(self, tmp_path):
+        """R2: the generated dispatcher probes a project venv python for
+        specify_cli importability before selecting it, so an unrelated
+        project venv doesn't shadow the PATH `specify` fallback."""
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        content = (tmp_path / EVENTS_DISPATCHER_REL).read_text()
+        assert "_has_specify_cli" in content
+        assert "import specify_cli" in content
+        # The fallback is still present for when no venv qualifies.
+        assert '["specify"]' in content
 
 
 # -- Merge/teardown idempotency & safety (Tier 3) ----------------------------

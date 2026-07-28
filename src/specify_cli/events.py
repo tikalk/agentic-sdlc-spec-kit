@@ -66,9 +66,31 @@ import sys, subprocess, os
 from pathlib import Path
 
 
+def _has_specify_cli(py_exe):
+    """Probe whether *py_exe* can import specify_cli (R2).
+
+    A project-local venv commonly exists but does not have Spec Kit installed
+    (it's installed globally or via uv tool). Selecting that interpreter with
+    ``-m specify_cli`` would fail every event instead of reaching the PATH
+    ``specify`` fallback. Returns True only if the import succeeds.
+    """
+    try:
+        result = subprocess.run(
+            [str(py_exe), "-c", "import specify_cli"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
 def _find_specify():
     project_root = Path(__file__).parent.parent.resolve()
-    # 1. Check local virtualenv
+    # 1. Check local virtualenv for a `specify` executable (preferred — no
+    #    import probe needed, the binary only exists if Spec Kit is installed
+    #    in that venv).
     for candidate in ("venv", ".venv"):
         py_bin = project_root / candidate / "bin" / "specify"
         if py_bin.exists():
@@ -78,13 +100,16 @@ def _find_specify():
         if win_bin.exists():
             return [str(win_bin)]
 
-    # 2. Check python -m specify_cli
+    # 2. Check python -m specify_cli — but only if this venv's python can
+    #    actually import specify_cli (R2). A project-local venv that lacks
+    #    Spec Kit would otherwise shadow the PATH `specify` fallback and fail
+    #    every event.
     for candidate in ("venv", ".venv"):
         py_exe = project_root / candidate / "bin" / "python"
-        if py_exe.exists():
+        if py_exe.exists() and _has_specify_cli(py_exe):
             return [str(py_exe), "-m", "specify_cli"]
         win_py = project_root / candidate / "Scripts" / "python.exe"
-        if win_py.exists():
+        if win_py.exists() and _has_specify_cli(win_py):
             return [str(win_py), "-m", "specify_cli"]
 
     # 3. Fallback to system path specify
@@ -143,15 +168,32 @@ import * as path from 'path';
 let DISPATCHER = '';
 let INTERPRETER = '';
 
+function canImportSpecifyCli(py: string): boolean {{
+  // R2: a project-local venv commonly lacks Spec Kit (installed globally or
+  // via uv tool). Probe the interpreter can import specify_cli before
+  // selecting it, so an unrelated venv doesn't shadow the PATH fallback.
+  try {{
+    execFileSync(py, ['-c', 'import specify_cli'], {{
+      stdio: ['ignore', 'ignore', 'ignore'],
+      timeout: 10000,
+    }});
+    return true;
+  }} catch (e) {{
+    return false;
+  }}
+}}
+
 function resolveDispatcher(directory: string): void {{
   DISPATCHER = path.join(directory, '.specify', 'events.py');
-  // Prefer a project-local venv interpreter, then fall back to python3.
+  // Prefer a project-local venv interpreter that can import specify_cli (R2),
+  // then fall back to a platform-appropriate PATH interpreter (S2: python on
+  // Windows, where python3 is commonly absent; python3 on POSIX).
   const venvPy = path.join(directory, '.venv', 'bin', 'python');
   const venvWin = path.join(directory, '.venv', 'Scripts', 'python.exe');
   INTERPRETER = (
-    (require('fs').existsSync(venvPy) && venvPy) ||
-    (require('fs').existsSync(venvWin) && venvWin) ||
-    'python3'
+    (require('fs').existsSync(venvPy) && canImportSpecifyCli(venvPy) && venvPy) ||
+    (require('fs').existsSync(venvWin) && canImportSpecifyCli(venvWin) && venvWin) ||
+    (process.platform === 'win32' ? 'python' : 'python3')
   ) as string;
 }}
 
