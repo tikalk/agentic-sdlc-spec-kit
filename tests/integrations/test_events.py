@@ -1082,10 +1082,10 @@ class TestCommandRunner:
         recorded = out_file.read_text().strip()
         assert Path(recorded).resolve() == tmp_path.resolve()
 
-    def test_dispatcher_probes_venv_for_specify_cli(self, tmp_path):
-        """R2: the generated dispatcher probes a project venv python for
-        specify_cli importability before selecting it, so an unrelated
-        project venv doesn't shadow the PATH `specify` fallback."""
+    def test_dispatcher_is_self_contained(self, tmp_path):
+        """R1: the generated dispatcher prefers `import specify_cli` (durable
+        install) and falls back to an inline stdlib resolver so it works
+        without a persistent `specify` executable (e.g. one-time uvx)."""
         integration = ClaudeIntegration()
         manifest = MagicMock(spec=IntegrationManifest)
         manifest.files = {}
@@ -1096,10 +1096,71 @@ class TestCommandRunner:
             {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
         )
         content = (tmp_path / EVENTS_DISPATCHER_REL).read_text()
-        assert "_has_specify_cli" in content
-        assert "import specify_cli" in content
-        # The fallback is still present for when no venv qualifies.
-        assert '["specify"]' in content
+        # Delegates to specify_cli when importable.
+        assert "from specify_cli.events import resolve_and_run_event_command" in content
+        assert "except ImportError" in content
+        # Inline stdlib fallback resolver for one-time/temporary installs.
+        assert "_run_inline" in content
+        assert "_find_command_template" in content
+        # No dependency on a persistent `specify` executable.
+        assert '["specify"]' not in content
+
+    def test_dispatcher_inline_fallback_runs_script(self, tmp_path):
+        """R1: with specify_cli.events NOT importable, the inline resolver
+        finds the command template and runs its script (stdlib only)."""
+        import subprocess as _sp
+        import sys as _sys
+
+        # Install events (generates the dispatcher + native config).
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        dispatcher = tmp_path / EVENTS_DISPATCHER_REL
+        assert dispatcher.is_file()
+
+        # Create a core command template whose script writes its payload.
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        out_file = tmp_path / "payload.out"
+        (cmd_dir / "boot.md").write_text(
+            "---\ndescription: \"Boot\"\nscripts:\n  sh: scripts/boot.sh\n---\nBody\n",
+            encoding="utf-8",
+        )
+        script_dir = tmp_path / ".specify" / "scripts"
+        script_dir.mkdir(parents=True)
+        script = script_dir / "boot.sh"
+        script.write_text(f"#!/bin/sh\ncat > {shlex.quote(str(out_file))}\nexit 0\n", encoding="utf-8")
+        script.chmod(0o755)
+
+        if platform.system().lower().startswith("win"):
+            return  # sh is POSIX
+
+        # Force the inline fallback: shadow `specify_cli` with an empty package
+        # (no `events` submodule) so `from specify_cli.events import ...` raises
+        # ModuleNotFoundError (an ImportError subclass), simulating a one-time
+        # install where the package is unavailable at runtime.
+        fake_dir = tmp_path / "_fake"
+        (fake_dir / "specify_cli").mkdir(parents=True)
+        (fake_dir / "specify_cli" / "__init__.py").write_text("", encoding="utf-8")
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(fake_dir)
+        result = _sp.run(
+            [_sys.executable, str(dispatcher), "speckit.boot", "session_start", "60"],
+            input='{"tool_name":"x"}',
+            capture_output=True,
+            text=True,
+            env=env,
+            cwd=str(tmp_path),
+        )
+        # The inline resolver ran the script with the payload.
+        assert out_file.exists(), f"inline fallback did not run script; stderr={result.stderr!r} rc={result.returncode}"
+        assert out_file.read_text() == '{"tool_name":"x"}'
 
     def test_dispatcher_threads_per_handler_timeout(self, tmp_path):
         """S4: the generated dispatcher reads an optional 4th timeout arg and
