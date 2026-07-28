@@ -1325,6 +1325,12 @@ def _build_opencode_plugin(
 
     for ev, handlers in filtered_events.items():
         native = canonical_to_native[ev]
+        # S1: serialize every interpolated value as a JSON string literal so a
+        # quote/backslash/backtick in a command or matcher can't break the
+        # generated TypeScript or inject code. json.dumps produces a valid
+        # TS/JS string literal (double-quoted, fully escaped).
+        ev_lit = json.dumps(ev)
+        native_lit = json.dumps(native)
 
         # Build the body: one runEvent() call per handler, forwarding both
         # input and output (C7). An optional tool-name matcher guard applies
@@ -1332,18 +1338,25 @@ def _build_opencode_plugin(
         body_lines: list[str] = []
         for cfg in handlers:
             command = str(cfg.get("command", ""))
+            command_lit = json.dumps(command)
             matcher = cfg.get("matcher", "*")
             if native.startswith("tool.execute."):
                 if matcher and matcher != "*":
                     tools = [t.strip().strip('"') for t in matcher.split("|")]
-                    checks = " || ".join(f"input.tool === '{t.lower()}'" for t in tools)
+                    checks = " || ".join(
+                        f"input.tool === {json.dumps(t.lower())}" for t in tools
+                    )
                     body_lines.append(
-                        f"    if ({checks}) {{ runEvent('{command}', '{ev}', input, output); }}"
+                        f"    if ({checks}) {{ runEvent({command_lit}, {ev_lit}, input, output); }}"
                     )
                 else:
-                    body_lines.append(f"    runEvent('{command}', '{ev}', input, output);")
+                    body_lines.append(
+                        f"    runEvent({command_lit}, {ev_lit}, input, output);"
+                    )
             else:
-                body_lines.append(f"    runEvent('{command}', '{ev}', input, output);")
+                body_lines.append(
+                    f"    runEvent({command_lit}, {ev_lit}, input, output);"
+                )
 
         if native.startswith("tool.execute."):
             ts_hook = native
@@ -1353,7 +1366,7 @@ def _build_opencode_plugin(
                 "  }"
             )
             plugin_returns.append(
-                f"    \"{ts_hook}\": async (input: any, output: any) => {{\n"
+                f"    {json.dumps(ts_hook)}: async (input: any, output: any) => {{\n"
                 f"      _{ev}(input, output);\n"
                 f"    }},"
             )
@@ -1364,7 +1377,7 @@ def _build_opencode_plugin(
                 "  }"
             )
             event_handlers.append(
-                f"      if (event.type === '{native}') {{ _{ev}(event, event); }}"
+                f"      if (event.type === {native_lit}) {{ _{ev}(event, event); }}"
             )
 
     if event_handlers:

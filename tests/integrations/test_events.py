@@ -827,12 +827,38 @@ class TestOpencodePluginMerging:
         }
         install_integration_events(integration, tmp_path, manifest, events)
         content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
-        # runEvent signature carries both input and output.
-        assert "runEvent('speckit.tdd.validate', 'pre_tool_use', input, output)" in content
-        assert "runEvent('speckit.tdd.after', 'post_tool_use', input, output)" in content
+        # runEvent signature carries both input and output. S1: command/event
+        # are JSON string literals (double-quoted, escaped).
+        assert 'runEvent("speckit.tdd.validate", "pre_tool_use", input, output)' in content
+        assert 'runEvent("speckit.tdd.after", "post_tool_use", input, output)' in content
         # Tool callbacks pass both arguments through.
         assert "_pre_tool_use(input, output)" in content
         assert "_post_tool_use(input, output)" in content
+
+    def test_opencode_ts_plugin_escapes_metacharacters(self, tmp_path):
+        """S1: command/matcher values with quotes/backticks are serialized as
+        JSON string literals so they can't break the generated TypeScript or
+        inject code."""
+        integration = OpencodeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        # A command and matcher containing characters that would break a
+        # single-quoted TS literal.
+        events = {
+            "pre_tool_use": [{"command": "speckit.x'y`code", "matcher": "Ed'it"}],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+        content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
+        # The value must appear inside a JSON double-quoted literal, not a
+        # single-quoted TS literal (which a quote/backtick would break).
+        assert json.dumps("speckit.x'y`code") in content
+        # The dangerous single-quoted form (runEvent('speckit.x'y...')) —
+        # where the embedded quote would terminate the literal — is absent.
+        assert "runEvent('speckit.x" not in content
+        assert json.dumps("ed'it") in content
 
 
 # -- Command runner test (core execution) -----------------------------------
