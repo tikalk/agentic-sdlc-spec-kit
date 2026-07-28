@@ -572,13 +572,22 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
     deactivates its runtime hooks. Extensions absent from the registry (e.g.
     a partially-staged install) are still included to preserve the on-disk
     scan behavior.
+
+    Events are read from a validated ``ExtensionManifest`` (R1) rather than
+    the raw ``extension.yml`` YAML, so the command-reference canonicalization
+    applied during install validation (C11, e.g. ``my-ext.boot`` →
+    ``speckit.my-ext.boot``) is reflected — otherwise refresh would emit the
+    obsolete name and ``_find_command_template`` could not match it, leaving
+    the hook silently inert.
     """
-    from .extensions import ExtensionRegistry
+    from .extensions import ExtensionManager, ExtensionRegistry
 
     events: ResolvedEvents = {}
     exts_dir = project_root / ".specify" / "extensions"
     if not exts_dir.is_dir():
         return events
+
+    manager = ExtensionManager(project_root)
 
     # Build the set of explicitly-disabled extension IDs. Extensions not
     # tracked in the registry are treated as enabled (backward compat).
@@ -591,21 +600,43 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
     except Exception:
         pass
 
-    for ext_dir in sorted(exts_dir.iterdir()):
-        if not ext_dir.is_dir():
+    # Union of extension IDs to consider: registry-tracked IDs (validated
+    # manifests, canonicalized refs) plus on-disk dirs not yet in the registry
+    # (partially-staged installs). The latter fall back to the raw YAML since
+    # no validated manifest is available, preserving the on-disk scan behavior.
+    registry_ids = set()
+    try:
+        registry_ids = set(manager.registry.keys())
+    except Exception:
+        pass
+    on_disk_ids = {
+        d.name for d in exts_dir.iterdir() if d.is_dir() and (d / "extension.yml").exists()
+    }
+    for ext_id in sorted(registry_ids | on_disk_ids):
+        if ext_id in disabled_ids:
             continue
-        if ext_dir.name in disabled_ids:
-            continue
-        ext_yml = ext_dir / "extension.yml"
-        if not ext_yml.exists():
-            continue
-        try:
-            data = yaml.safe_load(ext_yml.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError:
-            continue
-        if not isinstance(data, dict):
-            continue
-        runtime = data.get("events", {}) or {}
+        # Prefer the validated manifest (canonicalized command refs, R1);
+        # fall back to the raw YAML for an on-disk extension not yet
+        # registered (a malformed extension shouldn't abort collection).
+        runtime: dict[str, Any] = {}
+        if ext_id in registry_ids:
+            try:
+                manifest = manager.get_extension(ext_id)
+            except Exception:
+                manifest = None
+            if manifest is not None:
+                runtime = manifest.data.get("events", {}) or {}
+        if not runtime:
+            ext_yml = exts_dir / ext_id / "extension.yml"
+            if not ext_yml.exists():
+                continue
+            try:
+                data = yaml.safe_load(ext_yml.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError:
+                continue
+            if not isinstance(data, dict):
+                continue
+            runtime = data.get("events", {}) or {}
         if not isinstance(runtime, dict):
             continue
         for event, config in runtime.items():
@@ -1106,6 +1137,22 @@ def events_stale_exclusions(integration_key: str) -> set[str]:
     return exclusions
 
 
+class EventRefreshError(RuntimeError):
+    """Raised when refreshing one or more integrations' event config failed.
+
+    Aggregates per-integration failures so a lifecycle command
+    (extension add/remove/enable/disable) can surface that an extension was
+    not fully deactivated — a stale native hook may still be active (R3).
+    """
+
+    def __init__(self, failures: list[tuple[str, str]]) -> None:
+        self.failures = failures
+        details = "; ".join(f"{key}: {detail}" for key, detail in failures)
+        super().__init__(
+            f"event refresh failed for {len(failures)} integration(s): {details}"
+        )
+
+
 def refresh_integration_events(project_root: Path) -> None:
     """Re-resolve and re-emit native event config for every installed
     event-capable integration (#1).
@@ -1115,7 +1162,10 @@ def refresh_integration_events(project_root: Path) -> None:
     integration's native config — otherwise the documented install-after-
     ``specify init`` flow is inert and disabled/removed extension events stay
     active. Each integration is refreshed independently; a failure for one
-    logs a warning without aborting the others.
+    is logged and accumulated but does not abort the others. If any
+    integration failed, :class:`EventRefreshError` is raised at the end so
+    the lifecycle command can't claim the extension was fully deactivated
+    while a stale native hook may still be active (R3).
     """
     from .integrations import get_integration
     from .integrations._helpers import _read_integration_json, _resolve_integration_options
@@ -1123,6 +1173,7 @@ def refresh_integration_events(project_root: Path) -> None:
     from .integration_state import installed_integration_keys
 
     state = _read_integration_json(project_root)
+    failures: list[tuple[str, str]] = []
     for key in installed_integration_keys(state):
         integration = get_integration(key)
         if integration is None or not integration.supports_events():
@@ -1131,6 +1182,7 @@ def refresh_integration_events(project_root: Path) -> None:
             manifest = IntegrationManifest.load(key, project_root)
         except Exception as exc:
             logger.warning("Could not load manifest for '%s'; skipping event refresh: %s", key, exc)
+            failures.append((key, f"manifest load: {exc}"))
             continue
         try:
             # C12: resolve first, then call install_integration_events once.
@@ -1155,6 +1207,10 @@ def refresh_integration_events(project_root: Path) -> None:
             manifest.save()
         except Exception as exc:
             logger.warning("Failed to refresh events for '%s': %s", key, exc)
+            failures.append((key, str(exc)))
+
+    if failures:
+        raise EventRefreshError(failures)
 
 
 # -- Manifest validation ---------------------------------------------------

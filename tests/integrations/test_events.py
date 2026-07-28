@@ -164,6 +164,47 @@ class TestCollectExtensionEvents:
         (ext_dir / "extension.yml").write_text("invalid: - - -", encoding="utf-8")
         assert collect_extension_events(tmp_path) == {}
 
+    def test_event_command_ref_canonicalized_via_manifest(self, tmp_path):
+        """R1: events are read from a validated ExtensionManifest, so an
+        obsolete command ref (e.g. my-ext.boot) is canonicalized
+        (speckit.my-ext.boot) the same way hook refs are at install."""
+        from specify_cli.extensions import ExtensionRegistry
+        import yaml as _yaml
+
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        # Manifest declares an alias-form event command ref (my-ext.boot)
+        # alongside the command it resolves to; the validated manifest lifts
+        # the ref to speckit.my-ext.boot (C11).
+        (ext_dir / "extension.yml").write_text(
+            _yaml.dump({
+                "schema_version": "1.0",
+                "extension": {
+                    "id": "my-ext",
+                    "name": "My Ext",
+                    "version": "1.0.0",
+                    "description": "test",
+                },
+                "requires": {"speckit_version": ">=0.1"},
+                "provides": {
+                    "commands": [
+                        {"name": "speckit.my-ext.boot", "file": "commands/boot.md"}
+                    ]
+                },
+                "events": {"session_start": {"command": "my-ext.boot"}},
+            }),
+            encoding="utf-8",
+        )
+        ExtensionRegistry(tmp_path / ".specify" / "extensions").add(
+            "my-ext", {"enabled": True}
+        )
+
+        result = collect_extension_events(tmp_path)
+        # The ref was canonicalized to speckit.my-ext.boot by the validated
+        # manifest, so dispatch can match it (raw-YAML reading would have
+        # emitted the obsolete my-ext.boot and the hook would no-op).
+        assert result == {"session_start": [{"command": "speckit.my-ext.boot"}]}
+
 
 # -- Class-driven mappings --------------------------------------------------
 
@@ -1791,12 +1832,16 @@ class TestNonDestructiveRefresh:
             "installed_integrations": ["claude"],
         }))
 
-        # Force install_integration_events to fail mid-refresh.
+        # Force install_integration_events to fail mid-refresh. R3: the
+        # failure is now surfaced as EventRefreshError (aggregated) rather
+        # than silently swallowed.
+        from specify_cli.events import EventRefreshError
         with patch(
             "specify_cli.events.install_integration_events",
             side_effect=RuntimeError("simulated write failure"),
         ):
-            refresh_integration_events(tmp_path)
+            with pytest.raises(EventRefreshError, match="simulated write failure"):
+                refresh_integration_events(tmp_path)
 
         # The pre-existing config was NOT destroyed before the failure
         # (install handles cleanup atomically; refresh no longer pre-strips).
