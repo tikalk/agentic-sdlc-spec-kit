@@ -17,6 +17,9 @@ event_app = typer.Typer(
 def event_run(
     command_name: str = typer.Argument(..., help="Name of the command to execute"),
     event_name: str = typer.Argument(..., help="Canonical event name (e.g., session_start)"),
+    timeout: int = typer.Argument(
+        120, help="Per-handler timeout in seconds (passed through from the native hook config)"
+    ),
 ):
     """Resolve and run an event-driven command script with stdin payload."""
     from ..events import resolve_and_run_event_command
@@ -26,7 +29,9 @@ def event_run(
 
     # Run the event command
     project_root = Path.cwd()  # The agent runs events from project root
-    exit_code = resolve_and_run_event_command(command_name, event_name, payload, project_root)
+    exit_code = resolve_and_run_event_command(
+        command_name, event_name, payload, project_root, timeout=timeout
+    )
     raise typer.Exit(code=exit_code)
 
 

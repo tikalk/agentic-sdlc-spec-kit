@@ -121,20 +121,30 @@ def main():
         sys.exit(0)
     command_name = sys.argv[1]
     event_name = sys.argv[2]
+    # Optional 4th arg: the per-handler timeout (in seconds), passed through
+    # from the native hook config so the inner subprocess doesn't impose a
+    # smaller fixed cap (S4). Defaults to 120 for already-deployed dispatchers
+    # that don't pass it.
+    timeout = 120
+    if len(sys.argv) >= 4:
+        try:
+            timeout = int(sys.argv[3])
+        except (TypeError, ValueError):
+            timeout = 120
     payload = sys.stdin.read() if not sys.stdin.isatty() else "{}"
 
     # The agent may fire the hook from any subdirectory, but `event run`
     # resolves the project from the process CWD. Anchor the subprocess at the
     # dispatcher-derived project root so the correct project is used.
     project_root = Path(__file__).parent.parent.resolve()
-    specify_args = _find_specify() + ["event", "run", command_name, event_name]
+    specify_args = _find_specify() + ["event", "run", command_name, event_name, str(timeout)]
     try:
         result = subprocess.run(
             specify_args,
             input=payload,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=timeout,
             cwd=str(project_root),
         )
         if result.stdout:
@@ -370,7 +380,14 @@ def _resolve_event_command_argv(
         launcher = shutil.which("pwsh") or shutil.which("powershell") or "pwsh"
         return [launcher, "-File", str(script_abs), *rest_args]
 
-    # sh: the script is chmod'd executable during install.
+    # sh: the script is chmod'd executable during install on POSIX. On Windows
+    # subprocess.run(shell=False) can't execute a .sh directly, so prefix a
+    # bash/sh launcher when one is available (mirroring the ps branch's
+    # pwsh -File handling, S5).
+    if os.name == "nt":
+        launcher = shutil.which("bash") or shutil.which("sh")
+        if launcher:
+            return [launcher, str(script_abs), *rest_args]
     return [str(script_abs), *rest_args]
 
 
@@ -394,8 +411,20 @@ def _load_project_script_type(project_root: Path) -> str:
     return default
 
 
-def resolve_and_run_event_command(command_name: str, event_name: str, payload: str, project_root: Path) -> int:
-    """Core entry point to resolve and execute an event-driven command."""
+def resolve_and_run_event_command(
+    command_name: str,
+    event_name: str,
+    payload: str,
+    project_root: Path,
+    *,
+    timeout: int = 120,
+) -> int:
+    """Core entry point to resolve and execute an event-driven command.
+
+    *timeout* is the per-handler timeout in seconds, passed through from the
+    native hook config via the dispatcher (S4) so a handler configured above
+    the previous fixed 120s cap can run for its full duration.
+    """
     template_path, ext_id = _find_command_template(command_name, project_root)
     if not template_path:
         logger.warning("Event command '%s' not found", command_name)
@@ -410,7 +439,7 @@ def resolve_and_run_event_command(command_name: str, event_name: str, payload: s
             input=payload,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=timeout,
             cwd=str(project_root),
         )
         if result.stdout:
@@ -767,14 +796,16 @@ def _dispatcher_command(
     event_name: str,
     *,
     target_os: str = "host",
+    timeout_seconds: Any = None,
 ) -> str:
     """Build the single shell command string that invokes the dispatcher (#6).
 
     Claude/Gemini/Qwen/Devin/Tabnine accept one ``command`` string (not a
     ``command``+``args`` split), so each adapter renders a complete invocation:
-    ``<interpreter> <dispatcher> <command> <event>``. The interpreter is
-    resolved portably (#16); Claude's dispatcher path is prefixed with
-    ``${CLAUDE_PROJECT_DIR}/`` (Claude expands it before shell execution).
+    ``<interpreter> <dispatcher> <command> <event> [<timeout>]``. The
+    interpreter is resolved portably (#16); Claude's dispatcher path is
+    prefixed with ``${CLAUDE_PROJECT_DIR}/`` (Claude expands it before shell
+    execution).
 
     ``target_os`` selects an OS-appropriate interpreter for adapters that emit
     both POSIX and Windows variants into one checked-in file (Copilot): ``host``
@@ -789,6 +820,11 @@ def _dispatcher_command(
     word-split (C2). For the explicit ``windows`` target (Copilot's
     powershell field) the quoted interpreter is prefixed with PowerShell's
     call operator ``&`` so the quoted command is actually invoked (C1).
+
+    When *timeout_seconds* is given, the resolved timeout (in the
+    integration's native unit) is appended as a 4th argument so the dispatcher
+    and inner runner honor the per-handler timeout instead of a fixed 120s cap
+    that would kill a handler configured for longer (S4).
     """
     if target_os == "host":
         interpreter = _resolve_interpreter(project_root)
@@ -807,7 +843,15 @@ def _dispatcher_command(
     # C1: PowerShell won't invoke a single-quoted command without the call
     # operator. Prefix & for the explicit windows target only.
     prefix = "& " if target_os == "windows" else ""
-    return f"{prefix}{q_interp} {dispatcher} {q_command} {q_event}"
+    base = f"{prefix}{q_interp} {dispatcher} {q_command} {q_event}"
+    if timeout_seconds is not None:
+        resolved = _native_timeout(integration, timeout_seconds)
+        # Add a small buffer so the inner subprocess isn't killed at the same
+        # instant the native cap fires (the agent kills the dispatcher process,
+        # not the grandchild; the inner cap is a backstop, not the bound).
+        inner_cap = resolved + 5
+        base += f" {_shell_quote(str(inner_cap), target_os)}"
+    return base
 
 
 def install_integration_events(
@@ -912,10 +956,12 @@ def install_integration_events(
             for cfg in handlers:
                 command = cfg.get("command", "")
                 bash_cmd = _dispatcher_command(
-                    integration, project_root, command, ev, target_os="posix"
+                    integration, project_root, command, ev, target_os="posix",
+                    timeout_seconds=cfg.get("timeout", 60),
                 )
                 ps_cmd = _dispatcher_command(
-                    integration, project_root, command, ev, target_os="windows"
+                    integration, project_root, command, ev, target_os="windows",
+                    timeout_seconds=cfg.get("timeout", 60),
                 )
                 entries.append(
                     {
@@ -942,7 +988,7 @@ def install_integration_events(
             native = canonical_to_native[ev]
             for cfg in handlers:
                 command = cfg.get("command", "")
-                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev, timeout_seconds=cfg.get("timeout", 60))
                 lines.append(f'[[hooks.{native}]]')
                 lines.append(f'matcher = {_toml_quote(str(cfg.get("matcher", "*")))}')
                 lines.append('')
@@ -967,7 +1013,7 @@ def install_integration_events(
             entries: list[dict[str, Any]] = []
             for cfg in handlers:
                 command = cfg.get("command", "")
-                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev, timeout_seconds=cfg.get("timeout", 60))
                 entries.append(
                     {
                         "command": dispatcher_cmd,
@@ -1004,7 +1050,7 @@ def install_integration_events(
             for cfg in handlers:
                 matcher = cfg.get("matcher", "*")
                 command = cfg.get("command", "")
-                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev, timeout_seconds=cfg.get("timeout", 60))
                 by_matcher.setdefault(matcher, []).append(
                     {
                         "type": "command",
@@ -1035,7 +1081,7 @@ def install_integration_events(
             for cfg in handlers:
                 matcher = cfg.get("matcher", "*")
                 command = cfg.get("command", "")
-                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev, timeout_seconds=cfg.get("timeout", 60))
                 by_matcher.setdefault(matcher, []).append(
                     {
                         "type": "command",

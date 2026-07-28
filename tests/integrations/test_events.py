@@ -1046,6 +1046,59 @@ class TestCommandRunner:
         # The fallback is still present for when no venv qualifies.
         assert '["specify"]' in content
 
+    def test_dispatcher_threads_per_handler_timeout(self, tmp_path):
+        """S4: the generated dispatcher reads an optional 4th timeout arg and
+        uses it for the inner subprocess, instead of a fixed 120s cap that
+        would kill a handler configured for longer."""
+        integration = ClaudeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate", "timeout": 300}]},
+        )
+        content = (tmp_path / EVENTS_DISPATCHER_REL).read_text()
+        # The dispatcher accepts a 4th argv element as the timeout.
+        assert "sys.argv[3]" in content
+        assert "timeout=timeout" in content
+
+    def test_native_command_carries_resolved_timeout(self, tmp_path):
+        """S4: the generated native hook command appends the resolved timeout
+        so the dispatcher receives it. Claude uses seconds (default unit)."""
+        from specify_cli.events import _dispatcher_command
+        cmd = _dispatcher_command(
+            ClaudeIntegration(), tmp_path, "speckit.x.y", "stop",
+            timeout_seconds=300,
+        )
+        # 300s + 5s buffer is appended as the 4th arg.
+        assert " 305" in cmd
+
+    def test_sh_variant_uses_launcher_on_windows(self, tmp_path):
+        """S5: on Windows the sh variant prefixes a bash/sh launcher so
+        subprocess.run(shell=False) can execute the .sh script."""
+        from specify_cli.events import _resolve_event_command_argv
+
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "boot.md").write_text(
+            "---\ndescription: \"Boot\"\nscripts:\n  sh: scripts/bash/boot.sh\n---\nBody\n",
+            encoding="utf-8",
+        )
+        sh_dir = tmp_path / ".specify" / "scripts" / "bash"
+        sh_dir.mkdir(parents=True)
+        (sh_dir / "boot.sh").write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+
+        argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
+        assert argv is not None
+        # On POSIX the script runs directly; on Windows a launcher prefixes it.
+        if platform.system().lower().startswith("win"):
+            assert PurePath(argv[0]).stem.lower() in ("bash", "sh")
+            assert PurePath(argv[1]).as_posix().endswith(".specify/scripts/bash/boot.sh")
+        else:
+            assert PurePath(argv[0]).as_posix().endswith(".specify/scripts/bash/boot.sh")
+
 
 # -- Merge/teardown idempotency & safety (Tier 3) ----------------------------
 
