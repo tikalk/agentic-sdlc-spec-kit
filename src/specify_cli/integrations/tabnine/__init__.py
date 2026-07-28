@@ -25,6 +25,11 @@ class TabnineIntegration(TomlIntegration):
         "pre_tool_use": "BeforeTool",
         "post_tool_use": "AfterTool",
         "session_end": "SessionEnd",
+        # Tabnine's Gemini-compatible schema also provides BeforeAgent and
+        # AfterAgent (S7); mapping them so user_prompt_submit and stop
+        # extension handlers fire instead of being skipped.
+        "user_prompt_submit": "BeforeAgent",
+        "stop": "AfterAgent",
     }
     events_config_file = ".tabnine/agent/settings.json"
     events_format = "json-nested"

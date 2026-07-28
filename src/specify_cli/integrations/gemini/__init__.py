@@ -25,6 +25,10 @@ class GeminiIntegration(TomlIntegration):
         "pre_tool_use": "BeforeTool",
         "post_tool_use": "AfterTool",
         "session_end": "SessionEnd",
+        # Gemini exposes BeforeAgent for the per-turn prompt-submit lifecycle
+        # point (S6); its own Claude-hook migration maps UserPromptSubmit to
+        # BeforeAgent. Mapping it so extension handlers fire.
+        "user_prompt_submit": "BeforeAgent",
         "stop": "AfterAgent",
     }
     events_config_file = ".gemini/settings.json"

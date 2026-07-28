@@ -235,6 +235,22 @@ class TestCanonicalEventMapping:
         assert integration.CANONICAL_TO_NATIVE["session_start"] == "sessionStart"
         assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "userPromptSubmitted"
 
+    def test_gemini_mapping_includes_before_agent(self):
+        # S6: Gemini exposes BeforeAgent for user_prompt_submit and AfterAgent
+        # for stop (verified against Gemini CLI's hooks docs).
+        from specify_cli.integrations.gemini import GeminiIntegration
+        integration = GeminiIntegration()
+        assert integration.CANONICAL_TO_NATIVE["pre_tool_use"] == "BeforeTool"
+        assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "BeforeAgent"
+        assert integration.CANONICAL_TO_NATIVE["stop"] == "AfterAgent"
+
+    def test_tabnine_mapping_includes_before_agent(self):
+        # S7: Tabnine's Gemini-compatible schema provides BeforeAgent/AfterAgent.
+        from specify_cli.integrations.tabnine import TabnineIntegration
+        integration = TabnineIntegration()
+        assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "BeforeAgent"
+        assert integration.CANONICAL_TO_NATIVE["stop"] == "AfterAgent"
+
 
 # -- Event-capable adapters declare --events (#8, #9) ------------------------
 
