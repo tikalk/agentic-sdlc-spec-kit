@@ -7,7 +7,7 @@ import os
 import platform
 import shlex
 from pathlib import Path, PurePath
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -1589,3 +1589,90 @@ class TestDispatcherManifestClaimDroppedOnRetain:
             "Shared dispatcher was deleted by teardown() despite another "
             "integration referencing it (S1)."
         )
+
+
+# -- Dispatcher stale-cleanup exclusion (C3) ---------------------------------
+
+class TestDispatcherStaleExclusion:
+    """C3: the shared dispatcher is excluded from the generic upgrade stale
+    pass so an --events false upgrade doesn't delete it and break other
+    installed event-capable integrations."""
+
+    def test_dispatcher_in_stale_exclusions(self):
+        from specify_cli.events import events_stale_exclusions
+        exclusions = events_stale_exclusions("claude")
+        assert EVENTS_DISPATCHER_REL in exclusions
+
+
+# -- Cursor version-only stub deletion (C5) ----------------------------------
+
+class TestCursorVersionOnlyStubDeletion:
+    """C5: a Spec-Kit-created Cursor file retaining only {"version": 1} after
+    all owned hooks are removed is deleted, not left as a generated stub."""
+
+    def test_version_only_cursor_file_deleted_on_teardown(self, tmp_path):
+        integration = CursorAgentIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        manifest.remove = MagicMock()
+
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        config_path = tmp_path / ".cursor/hooks.json"
+        assert config_path.is_file()
+        assert json.loads(config_path.read_text()).get("version") == 1
+
+        remove_integration_events(integration, tmp_path, manifest)
+        # No user content remained (only the Spec-Kit-managed version field) →
+        # the file is deleted for a clean teardown, not left as a stub.
+        assert not config_path.exists()
+
+
+# -- Non-destructive refresh (C12) -------------------------------------------
+
+class TestNonDestructiveRefresh:
+    """C12: refresh resolves first then installs once; a failure during install
+    no longer destroys the working native config before the new one is written."""
+
+    def test_refresh_failure_preserves_existing_config(self, tmp_path):
+        from specify_cli.events import refresh_integration_events
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        integration = ClaudeIntegration()
+        manifest = IntegrationManifest(integration.key, tmp_path, version="test")
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        manifest.save()
+        config_path = tmp_path / ".claude/settings.json"
+        original = config_path.read_text()
+
+        # Declare an extension event so refresh would try to re-emit.
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "events:\n  session_start:\n    command: speckit.my-ext.boot\n",
+            encoding="utf-8",
+        )
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude"],
+        }))
+
+        # Force install_integration_events to fail mid-refresh.
+        with patch(
+            "specify_cli.events.install_integration_events",
+            side_effect=RuntimeError("simulated write failure"),
+        ):
+            refresh_integration_events(tmp_path)
+
+        # The pre-existing config was NOT destroyed before the failure
+        # (install handles cleanup atomically; refresh no longer pre-strips).
+        assert config_path.read_text() == original

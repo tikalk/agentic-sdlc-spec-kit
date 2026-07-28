@@ -1028,6 +1028,13 @@ def events_stale_exclusions(integration_key: str) -> set[str]:
         exclusions.add(config_file)
     if integration_key == "opencode":
         exclusions.add(".opencode/plugin/speckit-events.ts")
+    # C3: the shared dispatcher is written into every event-capable
+    # integration's manifest but is reference-counted across them. An upgrade
+    # with --events false omits events.py from the new manifest, so the generic
+    # stale pass would delete it without the refcount check, breaking any other
+    # installed event-capable integration. Protect it here; its deletion is
+    # left to remove_integration_events(), which checks the refcount.
+    exclusions.add(EVENTS_DISPATCHER_REL)
     return exclusions
 
 
@@ -1058,9 +1065,14 @@ def refresh_integration_events(project_root: Path) -> None:
             logger.warning("Could not load manifest for '%s'; skipping event refresh: %s", key, exc)
             continue
         try:
-            # Strip prior Specify hooks, then re-emit from the freshly
-            # resolved set (which now honors the registry's enabled flag).
-            _remove_native_event_hooks(integration, project_root, manifest)
+            # C12: resolve first, then call install_integration_events once.
+            # The previous flow ran _remove_native_event_hooks *before*
+            # resolution, so any later failure (invalid destination, write
+            # error, formatter error) destroyed the working native config
+            # before the new one was written. install_integration_events
+            # already removes stale Specify-marked entries and handles an
+            # empty map (stripping prior hooks), so the destructive pre-step
+            # is both unsafe and redundant.
             # S7: resolve this integration's persisted parsed_options so a
             # stored --events false is honored across extension lifecycle
             # changes; passing None would re-enable events the user disabled.
@@ -1068,8 +1080,10 @@ def refresh_integration_events(project_root: Path) -> None:
             events_map = resolve_events(
                 key, integration.config, project_root, parsed_options
             )
-            if events_map:
-                install_integration_events(integration, project_root, manifest, events_map)
+            # install_integration_events handles both the populated case
+            # (writes new config, stripping stale owned entries) and the empty
+            # case (strips prior hooks for --events false / disabled override).
+            install_integration_events(integration, project_root, manifest, events_map)
             manifest.save()
         except Exception as exc:
             logger.warning("Failed to refresh events for '%s': %s", key, exc)
@@ -1523,9 +1537,14 @@ def _remove_json_entries(dst: Path) -> bool:
         existing["hooks"] = cleaned
     else:
         existing.pop("hooks", None)
-    # #14: if the config is now empty (no user content), delete the file
-    # rather than leaving a ``{}`` that confuses manifest.uninstall().
-    if not existing:
+    # #14/C5: if the config is now empty of user content, delete the file
+    # rather than leaving a stub that confuses manifest.uninstall(). A
+    # Spec-Kit-created Cursor file retains {"version": 1} after all owned
+    # hooks are removed (we added the version field); treat the version-only
+    # case as empty too, mirroring _remove_copilot_entries, so clean teardown
+    # doesn't leave a generated stub behind.
+    user_keys = {k for k in existing if k != "version"}
+    if not user_keys:
         dst.unlink(missing_ok=True)
         return True
     _safe_write_json(dst, existing)
