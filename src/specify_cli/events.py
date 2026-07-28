@@ -44,6 +44,13 @@ YAML_OVERRIDE_FILENAME = Path(".specify") / "integration-events.yml"
 
 _SPECKIT_MARKER = "__speckit_event__"
 
+# Buffer (seconds) added to the native hook timeout so the agent's outer cap
+# fires after the dispatcher's inner subprocess timeout, letting the inner
+# kill its child cleanly instead of being killed mid-flight (which orphans
+# the grandchild script process). The dispatcher receives the raw seconds
+# (no buffer); the native config field gets seconds + buffer (R2).
+EVENT_TIMEOUT_BUFFER = 5
+
 # Canonical event names (snake_case)
 CANONICAL_EVENTS = frozenset({
     "session_start",
@@ -207,16 +214,18 @@ function resolveDispatcher(directory: string): void {{
   ) as string;
 }}
 
-function runEvent(command: string, event: string, input: any, output: any): void {{
+function runEvent(command: string, event: string, input: any, output: any, timeoutSec: number): void {{
   if (!DISPATCHER) return;
   try {{
     // execFileSync with an argv array invokes the interpreter directly — no
     // shell — so command/event strings with metacharacters can't break out
-    // of the dispatcher argument (C9).
-    execFileSync(INTERPRETER, [DISPATCHER, command, event], {{
+    // of the dispatcher argument (C9). The dispatcher arg is seconds; the
+    // execFileSync timeout is ms with a buffer so the outer cap fires after
+    // the dispatcher's inner subprocess (S3).
+    execFileSync(INTERPRETER, [DISPATCHER, command, event, String(timeoutSec)], {{
       input: JSON.stringify({{ input, output }}),
       stdio: ['pipe', 'inherit', 'inherit'],
-      timeout: 60000,
+      timeout: (timeoutSec + {buffer}) * 1000,
     }});
   }} catch (e) {{
     // Propagate to OpenCode's hook machinery so only this hook is rejected,
@@ -845,12 +854,12 @@ def _dispatcher_command(
     prefix = "& " if target_os == "windows" else ""
     base = f"{prefix}{q_interp} {dispatcher} {q_command} {q_event}"
     if timeout_seconds is not None:
-        resolved = _native_timeout(integration, timeout_seconds)
-        # Add a small buffer so the inner subprocess isn't killed at the same
-        # instant the native cap fires (the agent kills the dispatcher process,
-        # not the grandchild; the inner cap is a backstop, not the bound).
-        inner_cap = resolved + 5
-        base += f" {_shell_quote(str(inner_cap), target_os)}"
+        # R2: the dispatcher interprets this argument as seconds, so pass the
+        # raw seconds — NOT _native_timeout(...) (which converts to ms for
+        # Gemini/Qwen/Tabnine and would yield 60000 seconds). The buffer is
+        # applied to the native hook timeout field (in the adapter formatters)
+        # so the agent's outer cap fires after the inner subprocess timeout.
+        base += f" {_shell_quote(str(int(timeout_seconds)), target_os)}"
     return base
 
 
@@ -971,7 +980,7 @@ def install_integration_events(
                         "type": "command",
                         "bash": bash_cmd,
                         "powershell": ps_cmd,
-                        "timeoutSec": _native_timeout(integration, cfg.get("timeout", 60)),
+                        "timeoutSec": _native_timeout(integration, cfg.get("timeout", 60) + EVENT_TIMEOUT_BUFFER),
                         _SPECKIT_MARKER: True,
                     }
                 )
@@ -998,7 +1007,7 @@ def install_integration_events(
                 lines.append(f'[[hooks.{native}.hooks]]')
                 lines.append('type = "command"')
                 lines.append(f'command = {_toml_quote(dispatcher_cmd)}')
-                lines.append(f'timeout = {_native_timeout(integration, cfg.get("timeout", 60))}')
+                lines.append(f'timeout = {_native_timeout(integration, cfg.get("timeout", 60) + EVENT_TIMEOUT_BUFFER)}')
                 lines.append('speckit_marker = true')
                 lines.append('')
         _merge_toml_fragment(config_path, "\n".join(lines))
@@ -1021,7 +1030,7 @@ def install_integration_events(
                     {
                         "command": dispatcher_cmd,
                         "type": "command",
-                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60) + EVENT_TIMEOUT_BUFFER),
                         "matcher": cfg.get("matcher", "*"),
                         _SPECKIT_MARKER: True,
                     }
@@ -1058,7 +1067,7 @@ def install_integration_events(
                     {
                         "type": "command",
                         "command": dispatcher_cmd,
-                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60) + EVENT_TIMEOUT_BUFFER),
                         _SPECKIT_MARKER: True,
                     }
                 )
@@ -1089,7 +1098,7 @@ def install_integration_events(
                     {
                         "type": "command",
                         "command": dispatcher_cmd,
-                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60) + EVENT_TIMEOUT_BUFFER),
                         _SPECKIT_MARKER: True,
                     }
                 )
@@ -1399,6 +1408,10 @@ def _build_opencode_plugin(
             command = str(cfg.get("command", ""))
             command_lit = json.dumps(command)
             matcher = cfg.get("matcher", "*")
+            # S3: thread the per-handler timeout (seconds) to runEvent so the
+            # execFileSync cap and dispatcher arg match the configuration
+            # instead of a fixed 60000ms / 120s.
+            timeout_sec = int(cfg.get("timeout", 60))
             if native.startswith("tool.execute."):
                 if matcher and matcher != "*":
                     tools = [t.strip().strip('"') for t in matcher.split("|")]
@@ -1406,15 +1419,15 @@ def _build_opencode_plugin(
                         f"input.tool === {json.dumps(t.lower())}" for t in tools
                     )
                     body_lines.append(
-                        f"    if ({checks}) {{ runEvent({command_lit}, {ev_lit}, input, output); }}"
+                        f"    if ({checks}) {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }}"
                     )
                 else:
                     body_lines.append(
-                        f"    runEvent({command_lit}, {ev_lit}, input, output);"
+                        f"    runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec});"
                     )
             else:
                 body_lines.append(
-                    f"    runEvent({command_lit}, {ev_lit}, input, output);"
+                    f"    runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec});"
                 )
 
         if native.startswith("tool.execute."):
@@ -1447,6 +1460,7 @@ def _build_opencode_plugin(
         )
 
     return _TS_PLUGIN_TEMPLATE.format(
+        buffer=EVENT_TIMEOUT_BUFFER,
         event_entries="\n\n".join(event_entries),
         plugin_returns="\n".join(plugin_returns),
     )

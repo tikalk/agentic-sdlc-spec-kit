@@ -464,7 +464,9 @@ class TestCopilotJsonWriting:
         # identifiers bare (shlex.quote only quotes when needed).
         assert "'speckit.agent-context.update'" in entry["powershell"]
         assert "speckit.agent-context.update" in entry["bash"]
-        assert entry["timeoutSec"] == 60
+        # R2: native timeout gets the buffer (60 + 5 = 65) so the agent's
+        # outer cap fires after the dispatcher's inner subprocess timeout.
+        assert entry["timeoutSec"] == 65
 
 
 # -- Cursor hooks.json version + matcher grouping (#7, S3) -------------------
@@ -844,9 +846,10 @@ class TestOpencodePluginMerging:
         install_integration_events(integration, tmp_path, manifest, events)
         content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
         # runEvent signature carries both input and output. S1: command/event
-        # are JSON string literals (double-quoted, escaped).
-        assert 'runEvent("speckit.tdd.validate", "pre_tool_use", input, output)' in content
-        assert 'runEvent("speckit.tdd.after", "post_tool_use", input, output)' in content
+        # are JSON string literals (double-quoted, escaped). S3: the per-
+        # handler timeout (seconds) is threaded as the 5th arg.
+        assert 'runEvent("speckit.tdd.validate", "pre_tool_use", input, output, 60)' in content
+        assert 'runEvent("speckit.tdd.after", "post_tool_use", input, output, 60)' in content
         # Tool callbacks pass both arguments through.
         assert "_pre_tool_use(input, output)" in content
         assert "_post_tool_use(input, output)" in content
@@ -1088,8 +1091,23 @@ class TestCommandRunner:
             ClaudeIntegration(), tmp_path, "speckit.x.y", "stop",
             timeout_seconds=300,
         )
-        # 300s + 5s buffer is appended as the 4th arg.
-        assert " 305" in cmd
+        # R2: the raw seconds (no conversion, no buffer) are appended as the
+        # 4th arg; the buffer goes on the native hook timeout field instead.
+        assert " 300" in cmd
+
+    def test_dispatcher_timeout_not_unit_converted_for_ms_adapters(self, tmp_path):
+        """R2: the dispatcher arg is always seconds — for Gemini/Qwen/Tabnine
+        (ms adapters) the timeout must NOT be converted to milliseconds
+        (which previously yielded 60000 seconds)."""
+        from specify_cli.events import _dispatcher_command
+        from specify_cli.integrations.gemini import GeminiIntegration
+        cmd = _dispatcher_command(
+            GeminiIntegration(), tmp_path, "speckit.x.y", "pre_tool_use",
+            timeout_seconds=60,
+        )
+        # 60 seconds (not 60000) is passed to the dispatcher.
+        assert " 60" in cmd
+        assert " 60000" not in cmd
 
     def test_sh_variant_uses_launcher_on_windows(self, tmp_path):
         """S5: on Windows the sh variant prefixes a bash/sh launcher so
