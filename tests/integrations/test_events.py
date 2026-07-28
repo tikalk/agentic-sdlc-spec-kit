@@ -294,8 +294,11 @@ class TestClaudeJsonMerging:
         assert "args" not in inner
         assert "speckit.tdd.validate" in inner["command"]
         assert "pre_tool_use" in inner["command"]
-        # The dispatcher path must be prefixed with ${CLAUDE_PROJECT_DIR}/ for Claude.
+        # The dispatcher path must be prefixed with ${CLAUDE_PROJECT_DIR}/ for
+        # Claude, and double-quoted so a project path with spaces doesn't
+        # word-split (C2) while the variable still expands.
         assert "${CLAUDE_PROJECT_DIR}/" in inner["command"]
+        assert '"${CLAUDE_PROJECT_DIR}/.specify/events.py"' in inner["command"]
 
     def test_claude_emits_all_handlers_for_same_event(self, tmp_path):
         """#2: two handlers on the same event both appear in the native config."""
@@ -396,9 +399,10 @@ class TestCopilotJsonWriting:
         assert "speckit.agent-context.update" in entry["powershell"]
         assert entry["bash"] != entry["powershell"]
         # bash uses POSIX interpreter python3 (shlex.quote leaves safe tokens
-        # bare); powershell uses python single-quoted for PowerShell.
+        # bare); powershell uses python single-quoted with the & call operator
+        # so the quoted command is actually invoked (C1).
         assert entry["bash"].startswith("python3 ")
-        assert entry["powershell"].startswith("'python' ")
+        assert entry["powershell"].startswith("& 'python' ")
         # PowerShell always single-quotes; POSIX leaves metacharacter-free
         # identifiers bare (shlex.quote only quotes when needed).
         assert "'speckit.agent-context.update'" in entry["powershell"]
@@ -542,7 +546,8 @@ class TestDispatcherCommandQuoting:
         )
         # The command must tokenize back into interpreter + dispatcher + 2 args.
         tokens = shlex.split(cmd)
-        # dispatcher token retains the ${CLAUDE_PROJECT_DIR} prefix (unquoted).
+        # dispatcher token carries the ${CLAUDE_PROJECT_DIR} prefix (double-
+        # quoted in the raw string, but shlex.split strips the quotes).
         assert any("events.py" in t for t in tokens)
         assert "speckit.x.y" in tokens
         assert "stop" in tokens
@@ -554,9 +559,29 @@ class TestDispatcherCommandQuoting:
             CopilotIntegration(), tmp_path, "speckit.x.y", "session_start",
             target_os="windows",
         )
-        # PowerShell single-quoted literals.
+        # PowerShell single-quoted literals, and the & call operator so the
+        # quoted interpreter is actually invoked (C1).
+        assert cmd.startswith("& ")
         assert "'speckit.x.y'" in cmd
         assert "'session_start'" in cmd
+
+    def test_host_target_never_emits_powershell_quotes(self, tmp_path):
+        """C1: the host target uses POSIX quoting on every platform so a
+        single-command-string hook (Claude/Gemini/etc.) stays invocable —
+        never 'python' (which PowerShell wouldn't invoke without &)."""
+        from specify_cli.events import _shell_quote
+        # Safe tokens pass through bare under host (POSIX), not PS-quoted.
+        assert _shell_quote("python3", "host") == "python3"
+        assert _shell_quote("speckit.x.y", "host") == "speckit.x.y"
+
+    def test_claude_dispatcher_double_quoted_for_spaces(self, tmp_path):
+        """C2: Claude's ${CLAUDE_PROJECT_DIR} dispatcher path is double-quoted
+        so a project path containing spaces doesn't word-split."""
+        from specify_cli.events import _dispatcher_command
+        cmd = _dispatcher_command(
+            ClaudeIntegration(), tmp_path, "speckit.x.y", "stop", target_os="host",
+        )
+        assert '"${CLAUDE_PROJECT_DIR}/.specify/events.py"' in cmd
 
 
 class TestTomlMatcherEscaping:

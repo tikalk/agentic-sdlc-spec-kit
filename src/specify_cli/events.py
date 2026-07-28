@@ -645,15 +645,24 @@ def _native_timeout(integration: IntegrationBase, timeout_seconds: Any) -> int:
 def _shell_quote(value: str, target_os: str) -> str:
     """Quote *value* as one argument for the target shell (R2).
 
-    POSIX shells use ``shlex.quote``; PowerShell uses a single-quoted literal
-    with embedded quotes doubled. Prevents a component containing spaces (e.g.
-    a venv interpreter path under a directory with spaces) or shell
-    metacharacters (a malformed extension/override ``command``) from breaking
-    the hook or being interpreted by the native shell instead of passed as one
-    dispatcher argument.
+    ``host`` and ``posix`` targets use ``shlex.quote`` (POSIX shells). Safe
+    tokens — ``python3``, ``speckit.ext.cmd`` — pass through bare, so a
+    single-``command``-string hook (Claude/Gemini/etc.) stays invocable on
+    every platform. ``windows`` targets use a PowerShell single-quoted literal
+    with embedded quotes doubled, for Copilot's dedicated ``powershell`` field.
+
+    Prevents a component containing spaces (e.g. a venv interpreter path under
+    a directory with spaces) or shell metacharacters (a malformed
+    extension/override ``command``) from breaking the hook or being
+    interpreted by the native shell instead of passed as one dispatcher
+    argument.
     """
-    if target_os == "windows" or (target_os == "host" and os.name == "nt"):
+    if target_os == "windows":
         return "'" + value.replace("'", "''") + "'"
+    # "host" and "posix" both use POSIX quoting. On Windows the single-
+    # command-string formats (Claude/Gemini/Qwen/Devin/Tabnine) are run via
+    # Git Bash or the agent's POSIX-ish shell, so POSIX quoting is correct and
+    # avoids emitting 'python' (which PowerShell wouldn't invoke without &).
     return shlex.quote(value)
 
 
@@ -681,24 +690,30 @@ def _dispatcher_command(
     Each component is shell-quoted for the target shell (R2) so an interpreter
     path with spaces or a command/event containing shell metacharacters is
     passed as a single argument rather than reinterpreted by the native shell.
-    The Claude dispatcher keeps its ``${CLAUDE_PROJECT_DIR}`` prefix unquoted so
-    the shell still expands the variable; both the prefix and the relative
-    dispatcher path are fixed, metacharacter-free strings.
+    The Claude dispatcher is double-quoted (``"${CLAUDE_PROJECT_DIR}/..."``) so
+    the variable still expands but a project path with spaces doesn't
+    word-split (C2). For the explicit ``windows`` target (Copilot's
+    powershell field) the quoted interpreter is prefixed with PowerShell's
+    call operator ``&`` so the quoted command is actually invoked (C1).
     """
     if target_os == "host":
         interpreter = _resolve_interpreter(project_root)
     else:
         interpreter = _resolve_interpreter_for_target(target_os)
-    if integration.key == "claude":
-        # Leave ${CLAUDE_PROJECT_DIR} unquoted so the shell expands it; the
-        # prefix and the relative path are both fixed and metacharacter-free.
-        dispatcher = "${CLAUDE_PROJECT_DIR}/" + EVENTS_DISPATCHER_REL
-    else:
-        dispatcher = EVENTS_DISPATCHER_REL
     q_interp = _shell_quote(interpreter, target_os)
     q_command = _shell_quote(command_name, target_os)
     q_event = _shell_quote(event_name, target_os)
-    return f"{q_interp} {dispatcher} {q_command} {q_event}"
+    if integration.key == "claude":
+        # C2: double-quote so ${CLAUDE_PROJECT_DIR} still expands (double
+        # quotes allow variable expansion in POSIX shells) but a project path
+        # containing spaces doesn't word-split.
+        dispatcher = '"${CLAUDE_PROJECT_DIR}/' + EVENTS_DISPATCHER_REL + '"'
+    else:
+        dispatcher = _shell_quote(EVENTS_DISPATCHER_REL, target_os)
+    # C1: PowerShell won't invoke a single-quoted command without the call
+    # operator. Prefix & for the explicit windows target only.
+    prefix = "& " if target_os == "windows" else ""
+    return f"{prefix}{q_interp} {dispatcher} {q_command} {q_event}"
 
 
 def install_integration_events(
