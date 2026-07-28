@@ -516,6 +516,75 @@ class TestGeminiTimeoutUnit:
 
         assert _native_timeout(TabnineIntegration(), 60) == 60000
 
+    def test_qwen_timeout_converted_to_ms(self):
+        """U1: Qwen Code command hooks use milliseconds (default 60000)."""
+        from specify_cli.integrations.qwen import QwenIntegration
+        from specify_cli.events import _native_timeout
+
+        assert _native_timeout(QwenIntegration(), 60) == 60000
+
+
+# -- Devin root-nested format (U2) + Copilot agentStop (U3) ------------------
+
+class TestDevinRootNestedFormat:
+    """U2: Devin's hooks.v1.json is a root event map with no 'hooks' wrapper."""
+
+    def test_devin_events_written_at_root(self, tmp_path):
+        from specify_cli.integrations.devin import DevinIntegration
+        integration = DevinIntegration()
+        assert integration.events_format == "json-root-nested"
+
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        manifest.remove = MagicMock()
+
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        data = json.loads((tmp_path / ".devin/hooks.v1.json").read_text())
+        # Event keys are top-level (no "hooks" wrapper).
+        assert "PreToolUse" in data
+        assert "hooks" not in data
+
+    def test_devin_teardown_removes_owned_and_preserves_user(self, tmp_path):
+        from specify_cli.integrations.devin import DevinIntegration
+        integration = DevinIntegration()
+        config_path = tmp_path / ".devin/hooks.v1.json"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text(json.dumps({
+            "PreToolUse": [{
+                "matcher": "exec",
+                "hooks": [{"type": "command", "command": "user-check"}],
+            }]
+        }))
+
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+        manifest.remove = MagicMock()
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"stop": [{"command": "speckit.end"}]},
+        )
+        remove_integration_events(integration, tmp_path, manifest)
+
+        data = json.loads(config_path.read_text())
+        # User hook preserved at the root; Specify's Stop gone.
+        assert "Stop" not in data
+        assert data["PreToolUse"][0]["matcher"] == "exec"
+
+
+class TestCopilotAgentStop:
+    """U3: Copilot maps the canonical stop lifecycle to native agentStop."""
+
+    def test_copilot_stop_mapping(self):
+        integration = CopilotIntegration()
+        assert integration.CANONICAL_TO_NATIVE.get("stop") == "agentStop"
+
 
 # -- Shell quoting & matcher escaping (R2, R4) -------------------------------
 

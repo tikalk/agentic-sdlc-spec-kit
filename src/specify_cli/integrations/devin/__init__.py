@@ -40,7 +40,10 @@ class DevinIntegration(SkillsIntegration):
         "stop": "Stop",
     }
     events_config_file = ".devin/hooks.v1.json"
-    events_format = "json-nested"
+    # Devin's hooks.v1.json is a root event map ({"PreToolUse": [...]}) with no
+    # top-level "hooks" wrapper (U2), unlike the settings.json formats. The
+    # json-root-nested writer/remover operate directly on the root event keys.
+    events_format = "json-root-nested"
 
     def build_exec_args(
         self,

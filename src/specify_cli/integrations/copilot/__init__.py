@@ -124,6 +124,9 @@ class CopilotIntegration(IntegrationBase):
         "post_tool_use": "postToolUse",
         "session_end": "sessionEnd",
         "user_prompt_submit": "userPromptSubmitted",
+        # Copilot CLI supports the canonical per-turn stop lifecycle as native
+        # agentStop (U3); mapping it so an extension's stop handler fires.
+        "stop": "agentStop",
     }
     events_config_file = ".github/hooks/speckit.json"
     events_format = "copilot-json"

@@ -951,6 +951,36 @@ def install_integration_events(
                 manifest.record_existing(rel)
             created.append(config_path)
 
+    elif fmt == "json-root-nested":
+        # Devin hooks.v1.json: a root event map ({"PreToolUse": [...]}) with
+        # no top-level "hooks" wrapper (U2). Same matcher-grouping and single
+        # command string as json-nested, but written to the root.
+        root_hooks: dict[str, list[dict[str, Any]]] = {}
+        for ev, handlers in filtered.items():
+            native = canonical_to_native[ev]
+            by_matcher: dict[str, list[dict[str, Any]]] = {}
+            for cfg in handlers:
+                matcher = cfg.get("matcher", "*")
+                command = cfg.get("command", "")
+                dispatcher_cmd = _dispatcher_command(integration, project_root, command, ev)
+                by_matcher.setdefault(matcher, []).append(
+                    {
+                        "type": "command",
+                        "command": dispatcher_cmd,
+                        "timeout": _native_timeout(integration, cfg.get("timeout", 60)),
+                        _SPECKIT_MARKER: True,
+                    }
+                )
+            root_hooks[native] = [
+                {"matcher": matcher, "hooks": inner}
+                for matcher, inner in by_matcher.items()
+            ]
+        if _merge_json_root(config_path, root_hooks):
+            rel = str(config_path.relative_to(project_root))
+            if rel not in manifest.files:
+                manifest.record_existing(rel)
+            created.append(config_path)
+
     return created
 
 
@@ -978,6 +1008,8 @@ def _remove_native_event_hooks(
         _remove_toml_entries(config_path)
     elif fmt in ("json-nested", "json-flat"):
         _remove_json_entries(config_path)
+    elif fmt == "json-root-nested":
+        _remove_json_root_entries(config_path)
     elif fmt == "ts-plugin":
         _remove_opencode_entries(config_path)
     # Always drop this integration's manifest claim on the native config,
@@ -1464,6 +1496,72 @@ def _merge_json_fragment(dst: Path, new_hooks: dict, *, version: int | None = No
         existing.pop(hooks_key, None)
     _safe_write_json(dst, existing)
     return True
+
+
+def _merge_json_root(dst: Path, new_hooks: dict) -> bool:
+    """Merge Specify-authored hooks into a root-nested JSON config (Devin U2).
+
+    Devin's ``.devin/hooks.v1.json`` is a root event map
+    (``{"PreToolUse": [...]}``) with no ``hooks`` wrapper, so the event keys
+    are top-level. Same idempotent strip-all-marked-then-add semantics and
+    JSONC-abort behavior as ``_merge_json_fragment``.
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return False
+    if not isinstance(existing, dict):
+        existing = {}
+
+    # #11: strip ALL Specify-marked entries from every root event first.
+    cleaned: dict[str, list] = {}
+    for event, entries in existing.items():
+        if not isinstance(entries, list):
+            # Preserve non-list user fields at the root (Devin has none, but
+            # be defensive against a mixed user file).
+            cleaned[event] = entries  # type: ignore[assignment]
+            continue
+        kept_entries = _drop_marked_entries(entries)
+        if kept_entries:
+            cleaned[event] = kept_entries
+
+    # Then add the newly resolved set (list values only).
+    for event, entries in new_hooks.items():
+        cleaned.setdefault(event, []).extend(entries)
+
+    if cleaned:
+        existing = cleaned
+    else:
+        existing = {}
+    if not existing:
+        dst.unlink(missing_ok=True)
+        return True
+    _safe_write_json(dst, existing)
+    return True
+
+
+def _remove_json_root_entries(dst: Path) -> bool:
+    """Remove Specify-authored entries from a root-nested JSON config (Devin U2).
+
+    Deletes the file when no user content remains (C5/#14 mirror).
+    """
+    existing = _load_user_json(dst)
+    if existing is None:
+        return False
+    if not isinstance(existing, dict):
+        return False
+    cleaned: dict[str, Any] = {}
+    for event, entries in existing.items():
+        if not isinstance(entries, list):
+            cleaned[event] = entries
+            continue
+        kept_entries = _drop_marked_entries(entries)
+        if kept_entries:
+            cleaned[event] = kept_entries
+    if not cleaned:
+        dst.unlink(missing_ok=True)
+        return True
+    _safe_write_json(dst, cleaned)
+    return False
 
 
 def _drop_marked_entries(entries: list) -> list:
