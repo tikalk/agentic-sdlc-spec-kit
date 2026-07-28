@@ -256,10 +256,17 @@ def _find_command_template(command_name: str, project_root: Path) -> tuple[Path 
     #    differs from the command name (e.g. ``speckit.selftest.extension`` →
     #    ``commands/selftest.md``) resolve correctly.
     exts_dir = project_root / ".specify" / "extensions"
+    # S1: build the set of explicitly-disabled extension IDs so dispatch skips
+    # disabled extensions (a stale hook would otherwise keep executing a
+    # disabled extension's command). Applied to both the manifest loop and the
+    # on-disk fallback below.
+    disabled_ids = _disabled_extension_ids(project_root)
     try:
         from .extensions import ExtensionManager
         manager = ExtensionManager(project_root)
         for ext_id in sorted(manager.registry.keys()):
+            if ext_id in disabled_ids:
+                continue
             manifest = manager.get_extension(ext_id)
             if manifest is None:
                 continue
@@ -276,9 +283,12 @@ def _find_command_template(command_name: str, project_root: Path) -> tuple[Path 
         pass
 
     # 2. Scan extension directories by file stem (covers extensions present on
-    #    disk but not resolvable via the manifest above).
+    #    disk but not resolvable via the manifest above). S1: skip disabled
+    #    extensions here too so the disk fallback can't re-enable them.
     if exts_dir.is_dir():
         for ext_dir in sorted(exts_dir.iterdir()):
+            if ext_dir.name in disabled_ids:
+                continue
             cmds_dir = ext_dir / "commands"
             if cmds_dir.is_dir():
                 for f in cmds_dir.glob("*.md"):
@@ -640,6 +650,32 @@ def resolve_events(
     return events
 
 
+def _disabled_extension_ids(project_root: Path) -> set[str]:
+    """Return the set of explicitly-disabled extension IDs.
+
+    Extensions not tracked in the registry are treated as enabled (backward
+    compat). Used by ``collect_extension_events`` and ``_find_command_template``
+    so a disabled extension's events and commands are never emitted or
+    executed (S1) — otherwise a stale native hook would keep running a
+    disabled extension after its config file was preserved (e.g. a JSONC
+    parse failure that skipped native cleanup).
+    """
+    from .extensions import ExtensionRegistry
+
+    exts_dir = project_root / ".specify" / "extensions"
+    disabled_ids: set[str] = set()
+    if not exts_dir.is_dir():
+        return disabled_ids
+    try:
+        registry = ExtensionRegistry(exts_dir)
+        for ext_id, meta in registry.list_by_priority(include_disabled=True):
+            if not isinstance(meta, dict) or not meta.get("enabled", True):
+                disabled_ids.add(ext_id)
+    except Exception:
+        pass
+    return disabled_ids
+
+
 def collect_extension_events(project_root: Path) -> ResolvedEvents:
     """Scan all installed extensions for ``events:`` declarations.
 
@@ -660,7 +696,7 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
     obsolete name and ``_find_command_template`` could not match it, leaving
     the hook silently inert.
     """
-    from .extensions import ExtensionManager, ExtensionRegistry
+    from .extensions import ExtensionManager
 
     events: ResolvedEvents = {}
     exts_dir = project_root / ".specify" / "extensions"
@@ -671,14 +707,7 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
 
     # Build the set of explicitly-disabled extension IDs. Extensions not
     # tracked in the registry are treated as enabled (backward compat).
-    disabled_ids: set[str] = set()
-    try:
-        registry = ExtensionRegistry(exts_dir)
-        for ext_id, meta in registry.list_by_priority(include_disabled=True):
-            if not isinstance(meta, dict) or not meta.get("enabled", True):
-                disabled_ids.add(ext_id)
-    except Exception:
-        pass
+    disabled_ids = _disabled_extension_ids(project_root)
 
     # Union of extension IDs to consider: registry-tracked IDs (validated
     # manifests, canonicalized refs) plus on-disk dirs not yet in the registry

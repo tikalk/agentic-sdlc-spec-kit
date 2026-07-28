@@ -929,6 +929,42 @@ class TestCommandRunner:
         assert template.name == "selftest.md"
         assert resolved_ext == ext_id
 
+    def test_disabled_extension_command_not_resolved(self, tmp_path):
+        """S1: a disabled extension's command is skipped by
+        _find_command_template (both the manifest loop and the disk-fallback
+        scan), so a stale hook can't execute a disabled extension."""
+        from specify_cli.events import _find_command_template
+        from specify_cli.extensions import ExtensionRegistry
+        import yaml as _yaml
+
+        # Manifest-resolvable path (step 1).
+        ext_dir = tmp_path / ".specify" / "extensions" / "my-ext"
+        cmds_dir = ext_dir / "commands"
+        cmds_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            _yaml.dump({
+                "schema_version": "1.0",
+                "extension": {"id": "my-ext", "name": "My Ext", "version": "1.0.0",
+                              "description": "test"},
+                "requires": {"speckit_version": ">=0.1"},
+                "provides": {"commands": [{"name": "speckit.my-ext.boot",
+                                           "file": "commands/boot.md"}]},
+                "events": {"session_start": {"command": "speckit.my-ext.boot"}},
+            }),
+            encoding="utf-8",
+        )
+        (cmds_dir / "boot.md").write_text("---\ndescription: \"x\"\n---\nBody\n", encoding="utf-8")
+        ExtensionRegistry(tmp_path / ".specify" / "extensions").add(
+            "my-ext", {"enabled": False}
+        )
+        template, _ = _find_command_template("speckit.my-ext.boot", tmp_path)
+        assert template is None, "Disabled extension's command was resolved (manifest loop)."
+
+        # Disk-fallback path (step 2): stem == command name.
+        (cmds_dir / "speckit.my-ext.boot.md").write_text("---\ndescription: \"x\"\n---\nBody\n", encoding="utf-8")
+        template, _ = _find_command_template("speckit.my-ext.boot", tmp_path)
+        assert template is None, "Disabled extension's command was resolved (disk fallback)."
+
     def test_run_command_resolves_and_executes(self, tmp_path):
         # Create a mock core command md file
         cmd_dir = tmp_path / ".specify" / "templates" / "commands"
