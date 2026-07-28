@@ -885,10 +885,13 @@ def install_integration_events(
 
     # #3: an empty resolved map (--events false, or override disabling events)
     # must still strip prior Specify hooks from this integration's native
-    # config rather than leaving them active. The shared dispatcher is left
-    # untouched — another integration may still reference it (#10).
+    # config rather than leaving them active. S3: also run the shared-
+    # dispatcher refcount cleanup so an --events false upgrade of the last
+    # event integration doesn't orphan .specify/events.py permanently (the
+    # new manifest no longer claims it and stale cleanup excludes it).
     if not filtered:
         _remove_native_event_hooks(integration, project_root, manifest)
+        _cleanup_shared_dispatcher(integration, project_root, manifest)
         return []
 
     created: list[Path] = []
@@ -1167,6 +1170,29 @@ def _other_event_integrations_reference_dispatcher(
     return False
 
 
+def _cleanup_shared_dispatcher(
+    integration: IntegrationBase, project_root: Path, manifest: IntegrationManifest
+) -> None:
+    """Drop this integration's manifest claim on the shared dispatcher and
+    delete the file only when no other installed event-capable integration
+    still references it (#10, S3).
+
+    The manifest.remove() runs in both branches (S1): if we retain the file
+    but leave it tracked, the subsequent manifest.uninstall() in teardown()
+    sees the matching hash and deletes the file another integration still
+    depends on. Used by full teardown and by the empty-resolved-map install
+    path so an ``--events false`` upgrade of the last event integration
+    doesn't orphan ``.specify/events.py`` permanently (S3).
+    """
+    dispatcher_rel = EVENTS_DISPATCHER_REL
+    if dispatcher_rel in manifest.files:
+        manifest.remove(dispatcher_rel)
+        if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
+            dispatcher_path = project_root / dispatcher_rel
+            if dispatcher_path.exists():
+                dispatcher_path.unlink(missing_ok=True)
+
+
 def remove_integration_events(
     integration: IntegrationBase, project_root: Path, manifest: IntegrationManifest
 ) -> None:
@@ -1178,20 +1204,7 @@ def remove_integration_events(
     mid-stream.
     """
     _remove_native_event_hooks(integration, project_root, manifest)
-
-    # Drop this integration's manifest claim on the shared dispatcher and
-    # delete the file only when no other installed event-capable integration
-    # still references it (#10). The manifest.remove() runs in both branches
-    # (S1): if we retain the file but leave it tracked, the subsequent
-    # manifest.uninstall() in teardown() sees the matching hash and deletes
-    # the file another integration still depends on.
-    dispatcher_rel = EVENTS_DISPATCHER_REL
-    if dispatcher_rel in manifest.files:
-        manifest.remove(dispatcher_rel)
-        if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
-            dispatcher_path = project_root / dispatcher_rel
-            if dispatcher_path.exists():
-                dispatcher_path.unlink(missing_ok=True)
+    _cleanup_shared_dispatcher(integration, project_root, manifest)
 
     # Clean up opencode TS plugin (owned solely by the opencode integration).
     if integration.key == "opencode":

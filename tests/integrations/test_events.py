@@ -1862,6 +1862,46 @@ class TestDispatcherManifestClaimDroppedOnRetain:
             "integration referencing it (S1)."
         )
 
+    def test_empty_map_upgrade_deletes_dispatcher_for_last_integration(self, tmp_path):
+        """S3: an --events false upgrade (empty resolved map) of the last
+        event-capable integration deletes the shared dispatcher instead of
+        orphaning it (the new manifest wouldn't claim it and stale cleanup
+        excludes it)."""
+        from specify_cli.integrations.codex import CodexIntegration
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        claude = ClaudeIntegration()
+        codex = CodexIntegration()
+        # Install both so the dispatcher is shared.
+        cm = IntegrationManifest(claude.key, tmp_path, version="test")
+        install_integration_events(claude, tmp_path, cm, {"pre_tool_use": [{"command": "speckit.x"}]})
+        cm.save()
+        xm = IntegrationManifest(codex.key, tmp_path, version="test")
+        install_integration_events(codex, tmp_path, xm, {"pre_tool_use": [{"command": "speckit.y"}]})
+        xm.save()
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "codex",
+            "installed_integrations": ["claude", "codex"],
+        }))
+        dispatcher_path = tmp_path / EVENTS_DISPATCHER_REL
+        assert dispatcher_path.exists()
+
+        # Codex upgrades to --events false (empty map): claude still references
+        # the dispatcher, so it must be retained.
+        install_integration_events(codex, tmp_path, xm, {})
+        xm.save()
+        assert dispatcher_path.exists(), "Dispatcher deleted while claude still references it."
+
+        # Now claude also goes --events false: no integration references the
+        # dispatcher, so it must be deleted (not orphaned).
+        install_integration_events(claude, tmp_path, cm, {})
+        cm.save()
+        assert not dispatcher_path.exists(), (
+            "Dispatcher orphaned after the last event integration disabled events (S3)."
+        )
+
 
 # -- Dispatcher stale-cleanup exclusion (C3) ---------------------------------
 
