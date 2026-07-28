@@ -647,16 +647,18 @@ class TestOpencodePluginMerging:
         assert "process.exit(2)" not in content
         assert "throw new Error" in content
 
-    def test_opencode_ts_plugin_uses_resolved_interpreter(self, tmp_path):
-        """#16: the dispatcher is launched with a resolved interpreter (venv
-        when present), not a hard-coded ``python3``."""
+    def test_opencode_ts_plugin_resolves_interpreter_and_directory_at_load(self, tmp_path):
+        """C8/C9: the dispatcher + interpreter are resolved per-project at
+        plugin load from the `directory` OpenCode passes (not process.cwd()),
+        preferring a project venv, and the dispatcher is launched via
+        execFileSync (argv, no shell)."""
         integration = OpencodeIntegration()
         manifest = MagicMock(spec=IntegrationManifest)
         manifest.files = {}
         manifest.record_file = MagicMock()
         manifest.record_existing = MagicMock()
 
-        # Create a project venv so resolve_python_interpreter returns it.
+        # Create a project venv so the plugin's runtime resolver prefers it.
         venv_bin = tmp_path / ".venv" / "bin" / "python"
         venv_bin.parent.mkdir(parents=True)
         venv_bin.write_text("#!/bin/sh\n")
@@ -664,7 +666,14 @@ class TestOpencodePluginMerging:
         events = {"session_start": [{"command": "speckit.boot"}]}
         install_integration_events(integration, tmp_path, manifest, events)
         content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
-        assert ".venv/bin/python" in content
+        # Runtime venv-interpreter preference is baked into the resolver.
+        assert ".venv" in content and "python" in content
+        # Dispatcher is resolved from `directory`, not process.cwd() (C8).
+        assert "path.join(process.cwd()" not in content
+        assert "directory" in content
+        # execFileSync (argv, no shell) instead of a shell command string (C9).
+        assert "execFileSync" in content
+        assert "execSync(`" not in content
 
     def test_opencode_ts_plugin_emits_all_handlers(self, tmp_path):
         """#2: multiple handlers on the same native event all invoke runEvent."""
@@ -684,6 +693,28 @@ class TestOpencodePluginMerging:
         content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
         assert "speckit.first.boot" in content
         assert "speckit.second.boot" in content
+
+    def test_opencode_ts_plugin_forwards_output(self, tmp_path):
+        """C7: tool callbacks forward both input and output to runEvent so
+        pre_tool_use can inspect tool args and post_tool_use the result."""
+        integration = OpencodeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "pre_tool_use": [{"command": "speckit.tdd.validate", "matcher": "Edit"}],
+            "post_tool_use": [{"command": "speckit.tdd.after"}],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+        content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
+        # runEvent signature carries both input and output.
+        assert "runEvent('speckit.tdd.validate', 'pre_tool_use', input, output)" in content
+        assert "runEvent('speckit.tdd.after', 'post_tool_use', input, output)" in content
+        # Tool callbacks pass both arguments through.
+        assert "_pre_tool_use(input, output)" in content
+        assert "_post_tool_use(input, output)" in content
 
 
 # -- Command runner test (core execution) -----------------------------------

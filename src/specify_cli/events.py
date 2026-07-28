@@ -133,16 +133,36 @@ if __name__ == "__main__":
 
 # -- TS plugin template (opencode) ----------------------------------------
 
-_TS_PLUGIN_TEMPLATE = '''import {{ execSync }} from 'child_process';
+_TS_PLUGIN_TEMPLATE = '''import {{ execFileSync }} from 'child_process';
 import * as path from 'path';
 
-const DISPATCHER = path.join(process.cwd(), '.specify', 'events.py');
+// The dispatcher + interpreter are resolved per-project at plugin load from
+// the `directory` OpenCode passes to the plugin factory (C8), not
+// process.cwd() — OpenCode may be launched from a parent directory or host
+// another workspace, in which case process.cwd() points at the wrong project.
+let DISPATCHER = '';
+let INTERPRETER = '';
 
-function runEvent(command: string, event: string, input: any): void {{
-  let result;
+function resolveDispatcher(directory: string): void {{
+  DISPATCHER = path.join(directory, '.specify', 'events.py');
+  // Prefer a project-local venv interpreter, then fall back to python3.
+  const venvPy = path.join(directory, '.venv', 'bin', 'python');
+  const venvWin = path.join(directory, '.venv', 'Scripts', 'python.exe');
+  INTERPRETER = (
+    (require('fs').existsSync(venvPy) && venvPy) ||
+    (require('fs').existsSync(venvWin) && venvWin) ||
+    'python3'
+  ) as string;
+}}
+
+function runEvent(command: string, event: string, input: any, output: any): void {{
+  if (!DISPATCHER) return;
   try {{
-    result = execSync(`{interpreter} ${{DISPATCHER}} ${{command}} ${{event}}`, {{
-      input: JSON.stringify(input),
+    // execFileSync with an argv array invokes the interpreter directly — no
+    // shell — so command/event strings with metacharacters can't break out
+    // of the dispatcher argument (C9).
+    execFileSync(INTERPRETER, [DISPATCHER, command, event], {{
+      input: JSON.stringify({{ input, output }}),
       stdio: ['pipe', 'inherit', 'inherit'],
       timeout: 60000,
     }});
@@ -156,6 +176,7 @@ function runEvent(command: string, event: string, input: any): void {{
 {event_entries}
 
 export default (async ({{ client, project, directory, $ }}) => {{
+  resolveDispatcher(directory);
   return {{
 {plugin_returns}
   }};
@@ -783,7 +804,7 @@ def install_integration_events(
         _ensure_safe_destination(plugin_path)
         plugin_path.parent.mkdir(parents=True, exist_ok=True)
         plugin_path.write_text(
-            _build_opencode_plugin(filtered, canonical_to_native, _resolve_interpreter(project_root)),
+            _build_opencode_plugin(filtered, canonical_to_native),
             encoding="utf-8",
         )
         manifest.record_file(
@@ -1157,14 +1178,16 @@ def _toml_quote(value: str) -> str:
 def _build_opencode_plugin(
     filtered_events: ResolvedEvents,
     canonical_to_native: dict[str, str],
-    interpreter: str,
 ) -> str:
     """Render the opencode TS plugin for the resolved event set.
 
     Each canonical event may carry multiple handlers (#2); all handlers for a
-    native event are invoked from one generated function. The dispatcher is
-    launched with the resolved Python interpreter (#16) instead of a
-    hard-coded ``python3``.
+    native event are invoked from one generated function. The dispatcher and
+    interpreter are resolved per-project at plugin load from the ``directory``
+    OpenCode passes (C8); the dispatcher is launched with ``execFileSync`` and
+    an argv array (C9). Both the ``input`` and ``output`` callback arguments
+    are forwarded to ``runEvent`` (C7) so pre_tool_use can inspect tool
+    arguments and post_tool_use can inspect the result.
     """
     event_entries: list[str] = []
     plugin_returns: list[str] = []
@@ -1173,8 +1196,9 @@ def _build_opencode_plugin(
     for ev, handlers in filtered_events.items():
         native = canonical_to_native[ev]
 
-        # Build the body: one runEvent() call per handler, with an optional
-        # tool-name matcher guard for tool.execute.* hooks.
+        # Build the body: one runEvent() call per handler, forwarding both
+        # input and output (C7). An optional tool-name matcher guard applies
+        # to tool.execute.* hooks.
         body_lines: list[str] = []
         for cfg in handlers:
             command = str(cfg.get("command", ""))
@@ -1184,33 +1208,33 @@ def _build_opencode_plugin(
                     tools = [t.strip().strip('"') for t in matcher.split("|")]
                     checks = " || ".join(f"input.tool === '{t.lower()}'" for t in tools)
                     body_lines.append(
-                        f"    if ({checks}) {{ runEvent('{command}', '{ev}', input); }}"
+                        f"    if ({checks}) {{ runEvent('{command}', '{ev}', input, output); }}"
                     )
                 else:
-                    body_lines.append(f"    runEvent('{command}', '{ev}', input);")
+                    body_lines.append(f"    runEvent('{command}', '{ev}', input, output);")
             else:
-                body_lines.append(f"    runEvent('{command}', '{ev}', input);")
+                body_lines.append(f"    runEvent('{command}', '{ev}', input, output);")
 
         if native.startswith("tool.execute."):
             ts_hook = native
             event_entries.append(
-                f"function _{ev}(input: any) {{\n"
+                f"function _{ev}(input: any, output: any) {{\n"
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
             plugin_returns.append(
                 f"    \"{ts_hook}\": async (input: any, output: any) => {{\n"
-                f"      _{ev}(input);\n"
+                f"      _{ev}(input, output);\n"
                 f"    }},"
             )
         else:
             event_entries.append(
-                f"function _{ev}(input: any) {{\n"
+                f"function _{ev}(input: any, output: any) {{\n"
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
             event_handlers.append(
-                f"      if (event.type === '{native}') {{ _{ev}(event); }}"
+                f"      if (event.type === '{native}') {{ _{ev}(event, event); }}"
             )
 
     if event_handlers:
@@ -1221,7 +1245,6 @@ def _build_opencode_plugin(
         )
 
     return _TS_PLUGIN_TEMPLATE.format(
-        interpreter=interpreter,
         event_entries="\n\n".join(event_entries),
         plugin_returns="\n".join(plugin_returns),
     )
