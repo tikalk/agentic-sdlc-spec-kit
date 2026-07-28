@@ -1484,6 +1484,13 @@ def extension_update(
                 console.print(f"   • {_escape_markup(str(ext_name))}: {_escape_markup(str(error))}")
             raise typer.Exit(1)
 
+        # S4: regenerate native event config after a successful update. An
+        # update replaces the installed extension.yml, so any added/removed/
+        # changed event declarations would otherwise leave native configs
+        # stale until a manual integration upgrade.
+        if updated_extensions:
+            _refresh_events_and_warn(project_root)
+
     except ValidationError as e:
         console.print(f"\n[red]Validation Error:[/red] {_escape_markup(str(e))}")
         raise typer.Exit(1)
