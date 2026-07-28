@@ -197,6 +197,45 @@ class TestPresetManifest:
             with pytest.raises(PresetValidationError, match="YAML mapping"):
                 PresetManifest(manifest_path)
 
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            5, "oops", {"a": 1},   # truthy non-lists
+            0, False, None, "", {},  # FALSY non-lists: must not fall through to
+                                     # the misleading "at least one template"
+        ],
+    )
+    def test_non_list_templates_raises_validation_error(
+        self, temp_dir, valid_pack_data, bad
+    ):
+        """A non-list provides.templates raises the accurate type error, not a raw
+        'int object is not iterable' TypeError and not the misleading "must provide
+        at least one template" (which a falsy non-list hit while the type check
+        sat behind the emptiness check) — mirrors ExtensionManifest."""
+        valid_pack_data["provides"]["templates"] = bad
+        manifest_path = temp_dir / "preset.yml"
+        manifest_path.write_text(yaml.dump(valid_pack_data), encoding="utf-8")
+        with pytest.raises(PresetValidationError, match="templates.*expected a list"):
+            PresetManifest(manifest_path)
+
+    # NOTE: the empty-list case (a well-typed container with no templates, which
+    # must keep the "must provide at least one template" message after the
+    # type-before-emptiness reordering) is already covered by
+    # test_no_templates_provided below.
+
+    @pytest.mark.parametrize("bad_entry", [None, 5, "oops", ["nested"]])
+    def test_non_mapping_template_entry_raises_validation_error(
+        self, temp_dir, valid_pack_data, bad_entry
+    ):
+        """A non-mapping template entry (null/scalar/list) raises PresetValidationError,
+        not a raw 'argument of type ... is not iterable' TypeError from the
+        `"type" not in tmpl` membership test — mirrors ExtensionManifest."""
+        valid_pack_data["provides"]["templates"] = [bad_entry]
+        manifest_path = temp_dir / "preset.yml"
+        manifest_path.write_text(yaml.dump(valid_pack_data), encoding="utf-8")
+        with pytest.raises(PresetValidationError, match="must be a mapping"):
+            PresetManifest(manifest_path)
+
     def test_missing_schema_version(self, temp_dir, valid_pack_data):
         """Test missing schema_version field."""
         del valid_pack_data["schema_version"]
