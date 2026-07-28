@@ -1223,12 +1223,22 @@ def _cleanup_shared_dispatcher(
     doesn't orphan ``.specify/events.py`` permanently (S3).
     """
     dispatcher_rel = EVENTS_DISPATCHER_REL
+    # Drop this integration's manifest claim if present. The remove() is
+    # conditional (S1): an upgrade passes a *fresh* manifest that may never
+    # have claimed the dispatcher, so the key may be absent — that's a no-op.
     if dispatcher_rel in manifest.files:
         manifest.remove(dispatcher_rel)
-        if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
-            dispatcher_path = project_root / dispatcher_rel
-            if dispatcher_path.exists():
-                dispatcher_path.unlink(missing_ok=True)
+    # S2: run the no-other-references deletion independently of whether the
+    # new manifest currently contains the key. An ``integration upgrade
+    # --events false`` passes a fresh manifest that never recorded the
+    # dispatcher, so gating the deletion on its presence orphans the file the
+    # old on-disk manifest owned — and stale cleanup excludes it (C3). If no
+    # other installed event-capable integration references the dispatcher,
+    # delete it; otherwise leave it for them.
+    if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
+        dispatcher_path = project_root / dispatcher_rel
+        if dispatcher_path.exists():
+            dispatcher_path.unlink(missing_ok=True)
 
 
 def remove_integration_events(

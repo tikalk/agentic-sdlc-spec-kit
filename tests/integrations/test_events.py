@@ -1972,6 +1972,40 @@ class TestDispatcherManifestClaimDroppedOnRetain:
             "Dispatcher orphaned after the last event integration disabled events (S3)."
         )
 
+    def test_fresh_manifest_upgrade_deletes_dispatcher_when_last(self, tmp_path):
+        """S2: an upgrade passing a *fresh* manifest (that never recorded the
+        dispatcher) still deletes the shared dispatcher when no other
+        integration references it — the deletion isn't gated on the new
+        manifest's claim."""
+        from specify_cli.integrations.manifest import IntegrationManifest
+
+        claude = ClaudeIntegration()
+        # Install claude with an old manifest that records the dispatcher.
+        old = IntegrationManifest(claude.key, tmp_path, version="test")
+        install_integration_events(claude, tmp_path, old, {"pre_tool_use": [{"command": "speckit.x"}]})
+        old.save()
+        state_path = tmp_path / ".specify" / "integration.json"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_text(json.dumps({
+            "default_integration": "claude",
+            "installed_integrations": ["claude"],
+        }))
+        dispatcher_path = tmp_path / EVENTS_DISPATCHER_REL
+        assert dispatcher_path.exists()
+
+        # Simulate the upgrade path: a fresh manifest (like
+        # IntegrationManifest(key, project_root, version=...) in
+        # _migrate_commands) that never recorded the dispatcher.
+        fresh = IntegrationManifest(claude.key, tmp_path, version="test")
+        assert EVENTS_DISPATCHER_REL not in fresh.files
+        install_integration_events(claude, tmp_path, fresh, {})
+
+        # The dispatcher must be deleted (no other integration references it),
+        # not orphaned just because the fresh manifest didn't claim it.
+        assert not dispatcher_path.exists(), (
+            "Dispatcher orphaned after upgrade with a fresh manifest (S2)."
+        )
+
 
 # -- Dispatcher stale-cleanup exclusion (C3) ---------------------------------
 
