@@ -683,6 +683,12 @@ def _validate_resolved_event(event_name: str, handlers: list[dict[str, Any]]) ->
                 f"Event '{event_name}' handler has invalid 'matcher': "
                 "must be a string"
             )
+        timeout = handler.get("timeout")
+        if timeout is not None:
+            if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                raise ValidationError(
+                    f"Event '{event_name}' handler has invalid 'timeout': must be a positive integer"
+                )
 
 
 def resolve_events(
@@ -1548,6 +1554,12 @@ def validate_events(data: dict[str, Any]) -> None:
                 raise ValidationError(
                     f"Event '{event_name}' has invalid 'matcher': must be a string"
                 )
+            timeout = event_config.get("timeout")
+            if timeout is not None:
+                if not isinstance(timeout, int) or isinstance(timeout, bool) or timeout <= 0:
+                    raise ValidationError(
+                        f"Event '{event_name}' has invalid 'timeout': must be a positive integer"
+                    )
 
 
 def has_events(data: dict[str, Any]) -> bool:
@@ -1590,10 +1602,11 @@ def _build_opencode_plugin(
         ev_lit = json.dumps(ev)
         native_lit = json.dumps(native)
 
-        # Build the body: one runEvent() call per handler, forwarding both
-        # input and output (C7). An optional tool-name matcher guard applies
-        # to tool.execute.* hooks.
-        body_lines: list[str] = []
+        # Build the body: one runEvent() call per handler wrapped in try/catch,
+        # forwarding both input and output (C7). An optional tool-name matcher
+        # guard applies to tool.execute.* hooks. All handlers execute before
+        # any aggregate error is thrown.
+        body_lines: list[str] = ["    const errors: string[] = [];"]
         for cfg in handlers:
             command = str(cfg.get("command", ""))
             command_lit = json.dumps(command)
@@ -1609,16 +1622,17 @@ def _build_opencode_plugin(
                         f"input.tool === {json.dumps(t.lower())}" for t in tools
                     )
                     body_lines.append(
-                        f"    if ({checks}) {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }}"
+                        f"    try {{ if ({checks}) {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }} }} catch (e) {{ errors.push((e as Error).message); }}"
                     )
                 else:
                     body_lines.append(
-                        f"    runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec});"
+                        f"    try {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }} catch (e) {{ errors.push((e as Error).message); }}"
                     )
             else:
                 body_lines.append(
-                    f"    runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec});"
+                    f"    try {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }} catch (e) {{ errors.push((e as Error).message); }}"
                 )
+        body_lines.append("    if (errors.length > 0) { throw new Error(errors.join('; ')); }")
 
         if native.startswith("tool.execute."):
             ts_hook = native

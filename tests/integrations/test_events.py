@@ -829,6 +829,10 @@ class TestOpencodePluginMerging:
         content = (tmp_path / ".opencode/plugin/speckit-events.ts").read_text()
         assert "speckit.first.boot" in content
         assert "speckit.second.boot" in content
+        # Suppressed #6: each handler call is wrapped in try/catch and errors aggregated.
+        assert "try {" in content
+        assert "errors.push(" in content
+        assert "throw new Error(errors.join" in content
 
     def test_opencode_ts_plugin_forwards_output(self, tmp_path):
         """C7: tool callbacks forward both input and output to runEvent so
@@ -1910,6 +1914,28 @@ class TestMatcherValidation:
         )
         # Built-in default survived (override abandoned on the bad matcher).
         assert "stop" in result
+
+
+class TestTimeoutValidation:
+    """Validate that non-integer, boolean, or non-positive timeouts are rejected."""
+
+    def test_non_int_timeout_rejected_in_manifest(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": "speckit.x.y", "timeout": "60"}}}
+        with pytest.raises(ValidationError, match="(?i)timeout.*positive integer"):
+            validate_events(data)
+
+    def test_boolean_timeout_rejected_in_manifest(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": "speckit.x.y", "timeout": True}}}
+        with pytest.raises(ValidationError, match="(?i)timeout.*positive integer"):
+            validate_events(data)
+
+    def test_zero_or_negative_timeout_rejected_in_manifest(self):
+        from specify_cli.extensions import ValidationError
+        data = {"events": {"pre_tool_use": {"command": "speckit.x.y", "timeout": 0}}}
+        with pytest.raises(ValidationError, match="(?i)timeout.*positive integer"):
+            validate_events(data)
 
 
 # -- Event command-ref canonicalization (C11) --------------------------------
