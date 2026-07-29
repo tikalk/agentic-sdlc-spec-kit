@@ -1255,6 +1255,7 @@ def _remove_native_event_hooks(
     config_path = project_root / config_file
     if not config_path.exists():
         return
+    _ensure_safe_destination(config_path)
     if fmt == "copilot-json":
         _remove_copilot_entries(config_path)
     elif fmt == "toml":
@@ -1331,6 +1332,7 @@ def _cleanup_shared_dispatcher(
     if not _other_event_integrations_reference_dispatcher(project_root, integration.key):
         dispatcher_path = project_root / dispatcher_rel
         if dispatcher_path.exists():
+            _ensure_safe_destination(dispatcher_path)
             dispatcher_path.unlink(missing_ok=True)
 
 
@@ -1353,6 +1355,7 @@ def remove_integration_events(
         if plugin_rel in manifest.files:
             plugin_path = project_root / plugin_rel
             if plugin_path.exists():
+                _ensure_safe_destination(plugin_path)
                 plugin_path.unlink(missing_ok=True)
             manifest.remove(plugin_rel)
 
@@ -1624,6 +1627,7 @@ def _remove_opencode_entries(config_path: Path) -> bool:
     Returns True if the file was deleted (now empty of user content), False
     otherwise. Aborts without writing when the file cannot be parsed.
     """
+    _ensure_safe_destination(config_path)
     existing = _load_user_json(config_path)
     if existing is None:
         return False
@@ -1729,6 +1733,7 @@ def _remove_copilot_entries(dst: Path) -> bool:
     Deletes the file when no user-authored hooks remain; otherwise keeps the
     file with user content. Aborts (no write) on parse failure (#22).
     """
+    _ensure_safe_destination(dst)
     existing = _load_user_json(dst)
     if existing is None:
         return False
@@ -1860,6 +1865,7 @@ def _remove_json_root_entries(dst: Path) -> bool:
 
     Deletes the file when no user content remains (C5/#14 mirror).
     """
+    _ensure_safe_destination(dst)
     existing = _load_user_json(dst)
     if existing is None:
         return False
@@ -1972,6 +1978,7 @@ def _remove_json_entries(dst: Path) -> bool:
     Returns True if the file was deleted (Spec Kit created it and no user
     content remains), False otherwise.
     """
+    _ensure_safe_destination(dst)
     existing = _load_user_json(dst)
     if existing is None:
         return False

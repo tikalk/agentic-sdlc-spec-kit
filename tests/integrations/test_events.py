@@ -1580,6 +1580,47 @@ class TestSafeWriteDestination:
         # External file untouched.
         assert outside.read_text() == "external = true\n"
 
+    def test_json_remover_rejects_symlinked_config(self, tmp_path):
+        """Removers validate destination before reading or unlinking."""
+        integration = ClaudeIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        config_path = tmp_path / ".claude" / "settings.json"
+        assert config_path.is_file()
+
+        outside = tmp_path / "outside.json"
+        outside.write_text('{"external": true}')
+        config_path.unlink()
+        os.symlink(outside, config_path)
+
+        with pytest.raises(ValueError, match="(?i)symlink|escapes|outside"):
+            remove_integration_events(integration, tmp_path, manifest)
+        assert outside.read_text() == '{"external": true}'
+
+    def test_plugin_remover_rejects_symlinked_plugin(self, tmp_path):
+        """OpenCode plugin cleanup validates destination before unlinking."""
+        integration = OpencodeIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"session_start": [{"command": "speckit.boot"}]},
+        )
+        plugin_path = tmp_path / ".opencode" / "plugin" / "speckit-events.ts"
+        assert plugin_path.is_file()
+
+        outside = tmp_path / "outside.ts"
+        outside.write_text("// external")
+        plugin_path.unlink()
+        os.symlink(outside, plugin_path)
+
+        manifest.files[".opencode/plugin/speckit-events.ts"] = "hash"
+        with pytest.raises(ValueError, match="(?i)symlink|escapes|outside"):
+            remove_integration_events(integration, tmp_path, manifest)
+        assert outside.read_text() == "// external"
+
 
 # -- Validation & lifecycle (Tier 4) -----------------------------------------
 
