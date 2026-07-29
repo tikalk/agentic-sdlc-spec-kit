@@ -2526,7 +2526,7 @@ class TestIfThenStep:
         assert any("missing 'condition'" in e for e in errors)
 
     @pytest.mark.parametrize("bad", [["a", "b"], {"k": "v"}, 5, 1.5])
-    def test_validate_rejects_non_string_condition(self, bad):
+    def test_validate_rejects_non_string_non_bool_condition(self, bad):
         # A list/dict/number condition is returned unchanged by
         # evaluate_expression, and evaluate_condition then bool()-coerces it, so
         # it silently resolves to its truthiness (e.g. [1, 2] is always True)
@@ -2943,7 +2943,7 @@ class TestWhileStep:
         # max_iterations is optional (defaults to 10)
 
     @pytest.mark.parametrize("bad", [["a", "b"], {"k": "v"}, 5, 1.5])
-    def test_validate_rejects_non_string_condition(self, bad):
+    def test_validate_rejects_non_string_non_bool_condition(self, bad):
         from specify_cli.workflows.steps.while_loop import WhileStep
 
         step = WhileStep()
@@ -3075,7 +3075,7 @@ class TestDoWhileStep:
         # max_iterations is optional (defaults to 10)
 
     @pytest.mark.parametrize("bad", [["a", "b"], {"k": "v"}, 5, 1.5])
-    def test_validate_rejects_non_string_condition(self, bad):
+    def test_validate_rejects_non_string_non_bool_condition(self, bad):
         from specify_cli.workflows.steps.do_while import DoWhileStep
 
         step = DoWhileStep()
