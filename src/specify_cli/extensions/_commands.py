@@ -71,6 +71,30 @@ def _display_project_path(*args, **kwargs):
     return _f(*args, **kwargs)
 
 
+def _refresh_events_and_warn(project_root: Path) -> None:
+    """Refresh native event config and surface failures (R3).
+
+    The extension has already been added/removed/enabled/disabled by the time
+    this runs, so a refresh failure must not abort the command — but it must
+    be surfaced, because a stale native hook may still be active (e.g. a
+    disabled extension's hook still resolves and runs). Prints a warning with
+    the per-integration failures so the user knows deactivation was incomplete.
+    """
+    from ..events import EventRefreshError, refresh_integration_events
+
+    try:
+        refresh_integration_events(project_root)
+    except EventRefreshError as exc:
+        console.print(
+            f"\n[yellow]⚠[/yellow]  Extension updated, but event refresh failed "
+            f"for {len(exc.failures)} integration(s); a stale native hook may "
+            f"still be active. Re-run [cyan]specify integration upgrade "
+            f"<key>[cyan][/cyan][/cyan] to retry."
+        )
+        for key, detail in exc.failures:
+            console.print(f"    {key}: {_escape_markup(detail)}")
+
+
 def _load_catalog_command_config(project_root: Path, config_path: Path) -> dict:
     """Load extension catalog CLI config with user-facing shape errors."""
     try:
@@ -653,6 +677,10 @@ def extension_add(
         console.print(f"\n[bold]{_escape_markup(str(manifest.name))}[/bold] (v{_escape_markup(str(manifest.version))})")
         console.print(f"  {_escape_markup(str(manifest.description))}")
 
+        # #1: regenerate native event config for installed event-capable
+        # integrations so the new extension's events take effect immediately.
+        _refresh_events_and_warn(project_root)
+
         for warning in manifest.warnings:
             console.print(f"\n[yellow]⚠  Compatibility warning:[/yellow] {_escape_markup(str(warning))}")
 
@@ -759,6 +787,10 @@ def extension_remove(
             console.print(f"\nConfig files preserved in .specify/extensions/{safe_extension_id}/")
         else:
             console.print(f"\nConfig files backed up to .specify/extensions/.backup/{safe_extension_id}/")
+
+        # #1: regenerate native event config so the removed extension's events
+        # are stripped from installed integrations.
+        _refresh_events_and_warn(project_root)
         console.print(f"\nTo reinstall: specify extension add {safe_extension_id}")
     else:
         console.print("[red]Error:[/red] Failed to remove extension")
@@ -2126,6 +2158,13 @@ def extension_update(
                 console.print(f"   • {_escape_markup(str(ext_name))}: {_escape_markup(str(error))}")
             raise typer.Exit(1)
 
+        # S4: regenerate native event config after a successful update. An
+        # update replaces the installed extension.yml, so any added/removed/
+        # changed event declarations would otherwise leave native configs
+        # stale until a manual integration upgrade.
+        if updated_extensions:
+            _refresh_events_and_warn(project_root)
+
     except ValidationError as e:
         console.print(f"\n[red]Validation Error:[/red] {_escape_markup(str(e))}")
         raise typer.Exit(1)
@@ -2175,6 +2214,10 @@ def extension_enable(
 
     console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' enabled")
 
+    # #1: regenerate native event config so the enabled extension's events
+    # are re-emitted in installed integrations.
+    _refresh_events_and_warn(project_root)
+
 
 @extension_app.command("disable")
 def extension_disable(
@@ -2218,6 +2261,10 @@ def extension_disable(
     console.print(f"[green]✓[/green] Extension '{_escape_markup(str(display_name))}' disabled")
     console.print("\nCommands will no longer be available. Hooks will not execute.")
     console.print(f"To re-enable: specify extension enable {_escape_markup(str(extension_id))}")
+
+    # #1: regenerate native event config so the disabled extension's events
+    # are stripped from installed integrations.
+    _refresh_events_and_warn(project_root)
 
 
 @extension_app.command("set-priority")

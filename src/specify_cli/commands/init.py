@@ -443,12 +443,20 @@ def register(app: typer.Typer) -> None:
                     if extra:
                         integration_parsed_options.update(extra)
 
+                from ..events import resolve_events
+                events_map = resolve_events(
+                    resolved_integration.key,
+                    resolved_integration.config,
+                    project_path,
+                    integration_parsed_options or None,
+                )
                 resolved_integration.setup(
                     project_path,
                     manifest,
                     parsed_options=integration_parsed_options or None,
                     script_type=selected_script,
                     raw_options=integration_options,
+                    events=events_map,
                 )
                 manifest.save()
 

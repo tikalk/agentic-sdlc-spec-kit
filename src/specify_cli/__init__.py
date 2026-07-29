@@ -514,6 +514,11 @@ _register_extension_cmds(app)
 from .integrations._commands import register as _register_integration_cmds  # noqa: E402
 _register_integration_cmds(app)
 
+
+# ===== Event Commands =====
+from .commands.event import register as _register_event_cmds  # noqa: E402
+_register_event_cmds(app)
+
 # Re-export selected helpers to preserve the public import surface.
 from .integrations._helpers import (  # noqa: E402
     _clear_init_options_for_integration as _clear_init_options_for_integration,

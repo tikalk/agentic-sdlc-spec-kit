@@ -30,6 +30,7 @@ import yaml
 from .._invocation_style import get_invocation_prefix, is_dollar_skills_agent
 from .._toml_string import escape_toml_basic as _escape_toml_basic
 from .._toml_string import has_illegal_toml_control as _has_illegal_toml_control
+from ..events import install_integration_events, remove_integration_events
 
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
@@ -159,7 +160,17 @@ class IntegrationBase(ABC):
     @classmethod
     def options(cls) -> list[IntegrationOption]:
         """Return options this integration accepts. Default: none."""
-        return []
+        opts = []
+        if bool(getattr(cls, "CANONICAL_TO_NATIVE", None) and getattr(cls, "events_config_file", None)):
+            opts.append(
+                IntegrationOption(
+                    "--events",
+                    is_flag=False,
+                    default="true",
+                    help="Enable/disable runtime events (true|false, default: true)",
+                )
+            )
+        return opts
 
     def effective_invoke_separator(
         self,
@@ -480,7 +491,11 @@ class IntegrationBase(ABC):
         tracking) would otherwise be deleted even though they are still
         managed.  Subclasses list such paths here to protect them.
         """
-        return set()
+        exclusions = set()
+        if self.supports_events():
+            from ..events import events_stale_exclusions
+            exclusions.update(events_stale_exclusions(self.key))
+        return exclusions
 
     def commands_dest(self, project_root: Path) -> Path:
         """Return the absolute path to the commands output directory.
@@ -916,7 +931,31 @@ class IntegrationBase(ABC):
 
         Returns ``(removed, skipped)`` file lists.
         """
+        self.remove_events(project_root, manifest)
         return manifest.uninstall(project_root, force=force)
+
+    def emit_events(
+        self,
+        project_root: Path,
+        manifest: IntegrationManifest,
+        events: dict[str, dict[str, Any]] | None = None,
+        parsed_options: dict[str, Any] | None = None,
+        **opts: Any,
+    ) -> list[Path]:
+        """Emit native event configuration for this integration."""
+        return install_integration_events(self, project_root, manifest, events or {})
+
+    def remove_events(
+        self,
+        project_root: Path,
+        manifest: IntegrationManifest,
+    ) -> None:
+        """Remove Specify-authored event entries from native config."""
+        remove_integration_events(self, project_root, manifest)
+
+    def supports_events(self) -> bool:
+        """Return True if this integration supports agent-native events."""
+        return bool(getattr(self, "CANONICAL_TO_NATIVE", None) and getattr(self, "events_config_file", None))
 
     # -- Convenience helpers for subclasses -------------------------------
 
@@ -1021,6 +1060,12 @@ class MarkdownIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1228,6 +1273,12 @@ class TomlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1464,6 +1515,12 @@ class YamlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
+
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1740,5 +1797,11 @@ class SkillsIntegration(IntegrationBase):
             )
             created.append(dst)
 
+
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
