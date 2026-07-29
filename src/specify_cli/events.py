@@ -89,16 +89,71 @@ from pathlib import Path
 def _find_command_template(command_name, project_root):
     """Locate the command's .md template. Returns (path, ext_id|None)."""
     exts_dir = project_root / ".specify" / "extensions"
-    # 1. On-disk extension commands by file stem (covers stem == command name).
+    disabled_ids = set()
+    registry_file = exts_dir / ".registry"
+    if registry_file.is_file():
+        try:
+            reg_data = json.loads(registry_file.read_text(encoding="utf-8"))
+            for ext_id, meta in reg_data.get("extensions", {}).items():
+                if isinstance(meta, dict) and meta.get("enabled") is False:
+                    disabled_ids.add(ext_id)
+        except Exception:
+            pass
+
     stem = command_name.replace("speckit.", "").replace("spec.", "")
+
+    # 1. Manifest-driven resolution from extension.yml in enabled extensions (Suppressed #1)
     if exts_dir.is_dir():
         for ext_dir in sorted(exts_dir.iterdir()):
+            if not ext_dir.is_dir() or ext_dir.name in disabled_ids:
+                continue
+            ext_yml = ext_dir / "extension.yml"
+            if ext_yml.is_file():
+                try:
+                    yml_text = ext_yml.read_text(encoding="utf-8")
+                    cur_name = None
+                    cur_file = None
+                    in_provides = False
+                    in_commands = False
+                    for line in yml_text.splitlines():
+                        stripped = line.strip()
+                        if stripped == "provides:":
+                            in_provides = True
+                            continue
+                        if in_provides and stripped == "commands:":
+                            in_commands = True
+                            continue
+                        if in_commands and stripped and not line[0].isspace():
+                            in_provides = False
+                            in_commands = False
+                            continue
+                        if in_commands:
+                            if "name:" in line:
+                                cur_name = line.split("name:", 1)[1].strip().strip('"').strip("'")
+                            if "file:" in line:
+                                cur_file = line.split("file:", 1)[1].strip().strip('"').strip("'")
+                            if cur_name and cur_file:
+                                if cur_name == command_name:
+                                    candidate = ext_dir / cur_file
+                                    if candidate.exists():
+                                        return candidate, ext_dir.name
+                                cur_name = None
+                                cur_file = None
+                except Exception:
+                    pass
+
+    # 2. On-disk extension commands by file stem (non-disabled extensions)
+    if exts_dir.is_dir():
+        for ext_dir in sorted(exts_dir.iterdir()):
+            if not ext_dir.is_dir() or ext_dir.name in disabled_ids:
+                continue
             cmds_dir = ext_dir / "commands"
             if cmds_dir.is_dir():
                 for f in cmds_dir.glob("*.md"):
-                    if f.stem == command_name:
+                    if f.stem == command_name or f.stem == stem:
                         return f, ext_dir.name
-    # 2. Core templates in the project.
+
+    # 3. Core templates in the project
     core = project_root / ".specify" / "templates" / "commands"
     if core.is_dir():
         candidate = core / (stem + ".md")
