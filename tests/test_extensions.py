@@ -49,6 +49,38 @@ from specify_cli._utils import version_satisfies
 _MINIMAL_ZIP_BYTES = b"PK\x05\x06" + b"\x00" * 18
 
 
+def _open_test_download_zip(project_root, download_dir, zip_filename):
+    """Cross-platform stand-in for the POSIX-only secure cache primitive.
+
+    Mirrors production behavior by making the leaf disappear from disk while
+    the descriptor stays open. On POSIX the file is unlinked immediately; on
+    Windows an in-use file cannot be unlinked, so it is opened with
+    ``O_TEMPORARY`` and removed automatically when the descriptor closes.
+    """
+    target = download_dir / zip_filename
+    o_temporary = getattr(os, "O_TEMPORARY", 0)
+    if o_temporary:
+        return os.open(
+            target,
+            os.O_RDWR | os.O_CREAT | os.O_EXCL | o_temporary,
+            0o600,
+        )
+    fd = os.open(target, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+    try:
+        os.unlink(target)
+    except OSError:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _validate_safe_cache_dir_test_stand_in(project_root):
+    """Cross-platform stand-in for the secure cache validator."""
+    download_dir = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+    download_dir.mkdir(parents=True, exist_ok=True)
+    return download_dir
+
+
 def can_create_symlink(tmp_path: Path) -> bool:
     """Return True when the current platform/user can create file symlinks."""
     target = tmp_path / "symlink-target.txt"
@@ -2228,6 +2260,33 @@ class TestExtensionManager:
             manager.install_from_zip(zip_path, "0.1.0")
 
         assert not manager.registry.is_installed("test-ext")
+
+    @pytest.mark.skipif(os.name == "nt", reason="requires replacing an open file")
+    def test_install_from_zip_uses_open_archive_after_path_replacement(
+        self, extension_dir, project_dir, temp_dir
+    ):
+        """An authoritative archive stream must survive pathname replacement."""
+        import zipfile
+
+        zip_path = temp_dir / "original-extension.zip"
+        with zipfile.ZipFile(zip_path, "w") as archive:
+            for file_path in extension_dir.rglob("*"):
+                if file_path.is_file():
+                    archive.write(file_path, file_path.relative_to(extension_dir))
+
+        manager = ExtensionManager(project_dir)
+        with zip_path.open("rb") as archive_file:
+            zip_path.unlink()
+            with zipfile.ZipFile(zip_path, "w"):
+                pass
+            manifest = manager.install_from_zip(
+                zip_path,
+                "0.1.0",
+                archive_file=archive_file,
+            )
+
+        assert manifest.id == "test-ext"
+        assert manager.registry.is_installed("test-ext")
 
     def test_install_duplicate_error_mentions_force(self, extension_dir, project_dir):
         """Test that duplicate install error message suggests --force."""
@@ -7391,7 +7450,15 @@ class TestExtensionAddCLI:
 
         manifest_id = "[red]bad[/red]"
 
-        def fake_install_from_zip(self_obj, zip_path, speckit_version, priority=10, force=False):
+        def fake_install_from_zip(
+            self_obj,
+            zip_path,
+            speckit_version,
+            priority=10,
+            force=False,
+            *,
+            archive_file=None,
+        ):
             return SimpleNamespace(
                 id=manifest_id,
                 name="Bad Extension",
@@ -7405,7 +7472,9 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch("specify_cli.authentication.http.open_url", return_value=FakeResponse(_MINIMAL_ZIP_BYTES)), \
+             patch("specify_cli.extensions._commands._safe_open_download_zip", side_effect=_open_test_download_zip), \
              patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip), \
              patch.object(ExtensionRegistry, "get", return_value={}):
             result = runner.invoke(
@@ -7453,6 +7522,7 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch(
                  "specify_cli.authentication.http.open_url",
                  side_effect=urllib.error.URLError("bad [red]download[/red]"),
@@ -7494,6 +7564,7 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch(
                  "specify_cli.authentication.http.open_url",
                  return_value=FakeResponse(b"<!DOCTYPE html><html>Sign in</html>"),
@@ -7544,6 +7615,7 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch(
                  "specify_cli.authentication.http.open_url",
                  return_value=FakeResponse(_MINIMAL_ZIP_BYTES),
@@ -7599,7 +7671,15 @@ class TestExtensionAddCLI:
             seen["headers"] = extra_headers
             return FakeResponse(_MINIMAL_ZIP_BYTES)
 
-        def fake_install(self_obj, zip_path, speckit_version, priority=10, force=False):
+        def fake_install(
+            self_obj,
+            zip_path,
+            speckit_version,
+            priority=10,
+            force=False,
+            *,
+            archive_file=None,
+        ):
             return SimpleNamespace(
                 id="x", name="X", version="1.0.0", description="", warnings=[], commands=[], hooks=[]
             )
@@ -7607,8 +7687,10 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch("specify_cli.authentication.http.github_provider_hosts", return_value=("ghes.example",)), \
              patch("specify_cli.authentication.http.open_url", side_effect=fake_open_url), \
+             patch("specify_cli.extensions._commands._safe_open_download_zip", side_effect=_open_test_download_zip), \
              patch.object(ExtensionManager, "install_from_zip", fake_install):
             result = runner.invoke(
                 app,
@@ -7681,10 +7763,19 @@ class TestExtensionAddCLI:
         downloads_dir = project_dir / ".specify" / "extensions" / ".cache" / "downloads"
         installed = {}
 
-        def fake_install_from_zip(self_obj, zip_path, speckit_version, priority=10, force=False):
+        def fake_install_from_zip(
+            self_obj,
+            zip_path,
+            speckit_version,
+            priority=10,
+            force=False,
+            *,
+            archive_file=None,
+        ):
             captured_path = Path(zip_path)
             installed["zip_path"] = captured_path
-            installed["zip_bytes"] = captured_path.read_bytes()
+            installed["zip_bytes"] = archive_file.read()
+            archive_file.seek(0)
             return SimpleNamespace(
                 id="escape",
                 name="Escape Test",
@@ -7698,7 +7789,9 @@ class TestExtensionAddCLI:
         runner = CliRunner()
         with patch.object(Path, "cwd", return_value=project_dir), \
              patch("typer.confirm", return_value=True), \
+             patch("specify_cli.extensions._commands._validate_safe_cache_dir", side_effect=_validate_safe_cache_dir_test_stand_in), \
              patch("specify_cli.authentication.http.open_url", return_value=FakeResponse(_MINIMAL_ZIP_BYTES)), \
+             patch("specify_cli.extensions._commands._safe_open_download_zip", side_effect=_open_test_download_zip), \
              patch.object(ExtensionManager, "install_from_zip", fake_install_from_zip):
             result = runner.invoke(
                 app,
