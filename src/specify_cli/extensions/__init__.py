@@ -9,13 +9,14 @@ without bloating the core framework.
 from __future__ import annotations
 
 import copy
+import errno
 import hashlib
 import json
 import os
 import re
 import shutil
+import stat
 import tempfile
-import zipfile
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -27,6 +28,13 @@ from packaging import version as pkg_version
 from packaging.specifiers import InvalidSpecifier, SpecifierSet
 
 from .._assets import _locate_core_pack, _repo_root
+from .._download_security import (
+    MAX_JSON_CATALOG_BYTES,
+    build_safe_download_path,
+    is_https_or_localhost_http,
+    read_response_limited,
+    safe_extract_zip,
+)
 from .._init_options import is_ai_skills_enabled
 from .._invocation_style import is_dollar_skills_agent, is_slash_skills_agent
 from .._utils import dump_frontmatter, relative_extension_path_violation, version_satisfies
@@ -121,6 +129,51 @@ def _load_core_command_names() -> frozenset[str]:
 CORE_COMMAND_NAMES = _load_core_command_names()
 
 
+def _fsync_fd(fd: int) -> None:
+    """Sync a file descriptor, raising on real storage errors."""
+    try:
+        os.fsync(fd)
+    except AttributeError:
+        return
+    except NotImplementedError:
+        return
+    except OSError as exc:
+        if exc.errno in {errno.ENOTSUP, errno.EOPNOTSUPP, errno.EINVAL, errno.EBADF}:
+            return
+        raise
+
+
+def _fsync_directory(path: Path) -> None:
+    """Sync a directory when the platform supports it."""
+    if not path.exists():
+        return
+    if os.name == "nt":
+        return
+    try:
+        dir_fd = os.open(str(path), os.O_RDONLY | getattr(os, "O_DIRECTORY", 0))
+    except (AttributeError, NotImplementedError):
+        return
+    except OSError as exc:
+        if exc.errno in {errno.ENOTSUP, errno.EOPNOTSUPP, errno.EINVAL, errno.EBADF}:
+            return
+        try:
+            dir_fd = os.open(str(path), os.O_RDONLY)
+        except (AttributeError, NotImplementedError):
+            return
+        except OSError as exc2:
+            if exc2.errno in {errno.ENOTSUP, errno.EOPNOTSUPP, errno.EINVAL, errno.EBADF}:
+                return
+            raise
+    try:
+        _fsync_fd(dir_fd)
+    finally:
+        try:
+            os.close(dir_fd)
+        except OSError:
+            # Cleanup after an fsync failure should not mask the original error.
+            pass
+
+
 class ExtensionError(Exception):
     """Base exception for extension-related errors."""
 
@@ -156,7 +209,7 @@ def normalize_priority(value: Any, default: int = DEFAULT_HOOK_PRIORITY) -> int:
         return default
     try:
         priority = int(value)
-    except (TypeError, ValueError):
+    except (TypeError, ValueError, OverflowError):
         return default
     return priority if priority >= 1 else default
 
@@ -230,8 +283,25 @@ class ExtensionManifest:
                 f"(expected {self.SCHEMA_VERSION})"
             )
 
+        # The REQUIRED_FIELDS loop above only checks key PRESENCE, so a section
+        # that is written but left empty (``provides:`` -> None) or given the
+        # wrong shape (``provides: []``) passes it and then fails on first use:
+        # ``field not in None`` raises TypeError and ``None.get(...)`` raises
+        # AttributeError. Neither is a ValidationError, so both escape the
+        # callers that already handle malformed manifests -- list_installed()'s
+        # "Corrupted extension" fallback catches ValidationError only, so one bad
+        # extension made ``specify extension list`` exit 1 with a raw
+        # AttributeError instead of listing the rest. Guard each required
+        # section's shape, mirroring the nested guards below ("Invalid
+        # provides.commands: expected a list", "Invalid hooks: expected a
+        # mapping") and _load_yaml's document-root check.
+
         # Validate extension metadata
         ext = self.data["extension"]
+        if not isinstance(ext, dict):
+            raise ValidationError(
+                f"Invalid extension: expected a mapping, got {type(ext).__name__}"
+            )
         for field in ["id", "name", "version", "description"]:
             if field not in ext:
                 raise ValidationError(f"Missing extension.{field}")
@@ -266,33 +336,37 @@ class ExtensionManifest:
 
         # Validate requires section
         requires = self.data["requires"]
+        if not isinstance(requires, dict):
+            raise ValidationError(
+                f"Invalid requires: expected a mapping, got {type(requires).__name__}"
+            )
         if "speckit_version" not in requires:
             raise ValidationError("Missing requires.speckit_version")
 
         # Validate provides section
         provides = self.data["provides"]
+        if not isinstance(provides, dict):
+            raise ValidationError(
+                f"Invalid provides: expected a mapping, got {type(provides).__name__}"
+            )
         commands = provides.get("commands", [])
         hooks = self.data.get("hooks")
+        events = self.data.get("events")
 
         if "commands" in provides and not isinstance(commands, list):
             raise ValidationError("Invalid provides.commands: expected a list")
         if "hooks" in self.data and not isinstance(hooks, dict):
             raise ValidationError("Invalid hooks: expected a mapping")
-
-        # Tikalk fork: validate runtime_hooks via fork module
-        _has_runtime_hooks = False
-        try:
-            from .._hooks_fork import validate_runtime_hooks, has_runtime_hooks
-            validate_runtime_hooks(self.data)
-            _has_runtime_hooks = has_runtime_hooks(self.data)
-        except ImportError:
-            pass
+        if "events" in self.data:
+            from ..events import validate_events
+            validate_events(self.data)
 
         has_commands = bool(commands)
         has_hooks = bool(hooks)
+        has_events = bool(events)
 
-        if not has_commands and not has_hooks and not _has_runtime_hooks:
-            raise ValidationError("Extension must provide at least one command, hook, or runtime_hook")
+        if not has_commands and not has_hooks and not has_events:
+            raise ValidationError("Extension must provide at least one command, hook, or event")
 
         # Validate hook values (if present).
         # Each event is a single mapping or a list of mappings.
@@ -380,6 +454,12 @@ class ExtensionManifest:
                     raise ValidationError(
                         f"Aliases for command '{cmd['name']}' must be strings"
                     )
+                alias_reason = relative_extension_path_violation(alias)
+                if alias_reason:
+                    raise ValidationError(
+                        f"Invalid alias {alias!r} for command "
+                        f"'{cmd['name']}': {alias_reason}"
+                    )
 
         # Rewrite any hook command references that pointed at a renamed command or
         # an alias-form ref (ext.cmd → speckit.ext.cmd).  Always emit a warning when
@@ -406,6 +486,33 @@ class ExtensionManifest:
                     entry["command"] = final_ref
                     self.warnings.append(
                         f"Hook '{hook_name}' referenced command '{command_ref}'; "
+                        f"updated to canonical form '{final_ref}'. "
+                        f"The extension author should update the manifest."
+                    )
+
+        # C11: apply the same rename + alias-lift canonicalization to event
+        # command references. Without this, an event referencing a command
+        # that was auto-corrected (e.g. speckit.boot -> speckit.<id>.boot)
+        # keeps the obsolete name, dispatch reports no command, and the event
+        # silently no-ops.
+        events_data = self.data.get("events", {})
+        if isinstance(events_data, dict):
+            for event_name, event_config in events_data.items():
+                if not isinstance(event_config, dict):
+                    continue
+                command_ref = event_config.get("command")
+                if not isinstance(command_ref, str):
+                    continue
+                after_rename = rename_map.get(command_ref, command_ref)
+                parts = after_rename.split(".")
+                if len(parts) == 2 and parts[0] == ext["id"]:
+                    final_ref = f"speckit.{ext['id']}.{parts[1]}"
+                else:
+                    final_ref = after_rename
+                if final_ref != command_ref:
+                    event_config["command"] = final_ref
+                    self.warnings.append(
+                        f"Event '{event_name}' referenced command '{command_ref}'; "
                         f"updated to canonical form '{final_ref}'. "
                         f"The extension author should update the manifest."
                     )
@@ -477,11 +584,6 @@ class ExtensionManifest:
         """Get hook definitions."""
         return self.data.get("hooks", {})
 
-    @property
-    def runtime_hooks(self) -> Dict[str, Any]:
-        """Get runtime hook definitions (agent lifecycle, not workflow)."""
-        return self.data.get("runtime_hooks", {})
-
     def get_hash(self) -> str:
         """Calculate SHA256 hash of manifest file."""
         with open(self.path, "rb") as f:
@@ -510,7 +612,7 @@ class ExtensionRegistry:
             return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
 
         try:
-            with open(self.registry_path, "r") as f:
+            with open(self.registry_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             # Validate loaded data is a dict (handles corrupted registry files)
             if not isinstance(data, dict):
@@ -526,7 +628,7 @@ class ExtensionRegistry:
     def _save(self):
         """Save registry to disk."""
         self.extensions_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.registry_path, "w") as f:
+        with open(self.registry_path, "w", encoding="utf-8") as f:
             json.dump(self.data, f, indent=2)
 
     def add(self, extension_id: str, metadata: dict):
@@ -733,6 +835,55 @@ class ExtensionManager:
         self.extensions_dir = project_root / ".specify" / "extensions"
         self.registry = ExtensionRegistry(self.extensions_dir)
 
+    def _rescue_staging_dir(self, extension_id: str) -> Path:
+        """Fixed-length staging directory path for a preserved-config rescue.
+
+        The extension ID can be arbitrarily long (manifest validation caps only
+        the character set, not the length), so embedding it verbatim in a single
+        path component could push the ``.rescue-staging-<id>`` directory past a
+        filesystem's per-component byte limit and make every reinstall after
+        ``--keep-config`` fail with ``ENAMETOOLONG`` even though the extension
+        installs fine at ``dest_dir``. Hash the ID to a fixed-length suffix so
+        the component length is bounded regardless of ID length.
+        """
+        digest = hashlib.sha256(extension_id.encode("utf-8")).hexdigest()[:16]
+        return self.extensions_dir / f".rescue-staging-{digest}"
+
+    @staticmethod
+    def _has_keep_config_marker(directory: Path) -> bool:
+        """Return True when *directory* contains a valid ``.keep-config`` marker.
+
+        The marker is a regular (non-symlink) file written by
+        ``remove(..., keep_config=True)`` to record explicit provenance.  Its
+        content is intentionally empty — only presence matters, not content.
+        The symlink guard prevents a crafted symlink from fooling the check.
+        """
+        marker = directory / ".keep-config"
+        return marker.is_file() and not marker.is_symlink()
+
+    @staticmethod
+    def _is_legacy_keep_config_leftover(directory: Path) -> bool:
+        """Return True for the pre-marker ``remove(..., keep_config=True)`` layout.
+
+        Older CLI releases preserved only top-level config files and removed every
+        other entry, but they did not write ``.keep-config``. Recognize that exact
+        config-only leftover so upgrades still preserve user config, while
+        excluding partially-failed installs that still contain copied payload such
+        as ``extension.yml`` or command directories.
+        """
+        if not directory.is_dir() or directory.is_symlink():
+            return False
+
+        has_config = False
+        for entry in directory.iterdir():
+            if entry.name.endswith(("-config.yml", "-config.local.yml")) and (
+                entry.is_file() or entry.is_symlink()
+            ):
+                has_config = True
+                continue
+            return False
+        return has_config
+
     @staticmethod
     def _collect_manifest_command_names(manifest: ExtensionManifest) -> Dict[str, str]:
         """Collect command and alias names declared by a manifest.
@@ -742,7 +893,7 @@ class ExtensionManager:
         - primary commands must use this extension's namespace
         - command namespaces must not shadow core commands
         - duplicate command/alias names inside one manifest are rejected
-        - aliases are validated for type and uniqueness only (no pattern enforcement)
+        - aliases are free-form but must remain safe relative output paths
 
         Args:
             manifest: Parsed extension manifest
@@ -777,6 +928,12 @@ class ExtensionManager:
                 if not isinstance(name, str):
                     raise ValidationError(
                         f"{kind.capitalize()} for command '{primary_name}' must be a string"
+                    )
+
+                path_reason = relative_extension_path_violation(name)
+                if path_reason:
+                    raise ValidationError(
+                        f"Invalid {kind} {name!r}: {path_reason}"
                     )
 
                 # Enforce canonical pattern only for primary command names;
@@ -944,18 +1101,21 @@ class ExtensionManager:
 
         return _ignore
 
-    def _get_skills_dir(self) -> Optional[Path]:
+    def _get_skills_dir(self, *, create: bool = True) -> Optional[Path]:
         """Return the active skills directory for extension skill registration.
 
         Delegates to :func:`resolve_active_skills_dir` which reads
         init-options, applies the Kimi native-skills fallback, and
-        safely creates the directory when ``ai_skills`` is enabled.
+        safely creates the directory when ``ai_skills`` is enabled and
+        ``create`` is true. Read-only callers can pass ``create=False`` to
+        resolve the configured target without changing the filesystem.
 
         Returns ``None`` (instead of raising) when the directory cannot
         be created due to symlink, containment, or permission issues so
         that callers can fall back gracefully.
         """
         from .. import (
+            _get_skills_dir as resolve_configured_skills_dir,
             _print_cli_warning,
             load_init_options,
             resolve_active_skills_dir,
@@ -977,6 +1137,41 @@ class ExtensionManager:
                 return None
             return skills_dir
 
+        opts = load_init_options(self.project_root)
+        if not isinstance(opts, dict):
+            return None
+        selected_ai = opts.get("ai")
+        if not isinstance(selected_ai, str) or not selected_ai:
+            return None
+
+        from ..agents import CommandRegistrar
+
+        registrar = CommandRegistrar()
+        agent_config = registrar.AGENT_CONFIGS.get(selected_ai)
+        ai_skills_enabled = is_ai_skills_enabled(opts)
+        if not create:
+            if not ai_skills_enabled and selected_ai != "kimi":
+                return None
+            configured_skills_dir = resolve_configured_skills_dir(
+                self.project_root, selected_ai
+            )
+            from ..shared_infra import _validate_safe_shared_directory
+
+            try:
+                _validate_safe_shared_directory(
+                    self.project_root, configured_skills_dir
+                )
+            except (OSError, ValueError):
+                return None
+            skills_dir = configured_skills_dir
+            if agent_config and agent_config.get("extension") == "/SKILL.md":
+                skills_dir = registrar._resolve_agent_dir(
+                    selected_ai, agent_config, self.project_root
+                )
+            if ai_skills_enabled:
+                return skills_dir
+            return skills_dir if skills_dir.is_dir() else None
+
         try:
             skills_dir = resolve_active_skills_dir(self.project_root)
         except (ValueError, OSError) as exc:
@@ -991,29 +1186,165 @@ class ExtensionManager:
         if skills_dir is None:
             return None
 
-        opts = load_init_options(self.project_root)
-        if not isinstance(opts, dict):
-            return _ensure_usable(skills_dir)
-        selected_ai = opts.get("ai")
-        if not isinstance(selected_ai, str) or not selected_ai:
-            return _ensure_usable(skills_dir)
-
-        from ..agents import CommandRegistrar
-
-        registrar = CommandRegistrar()
-        agent_config = registrar.AGENT_CONFIGS.get(selected_ai)
         if agent_config and agent_config.get("extension") == "/SKILL.md":
-            agent_skills_dir = registrar._resolve_agent_dir(
+            skills_dir = registrar._resolve_agent_dir(
                 selected_ai, agent_config, self.project_root
             )
-            return _ensure_usable(agent_skills_dir)
         return _ensure_usable(skills_dir)
+
+    @staticmethod
+    def _skill_name_for_command(command_name: str) -> str:
+        """Return the generated skill directory name for an extension command."""
+        short_name = command_name
+        if short_name.startswith("speckit."):
+            short_name = short_name[len("speckit.") :]
+        return f"speckit-{short_name.replace('.', '-')}"
+
+    def _active_command_registration_scope(self) -> Optional[set[str]]:
+        """Return the agents a new extension install may render commands for.
+
+        ``None`` means legacy detection-based registration when init-options
+        is absent. An empty set means registration must fail closed.
+        """
+        from .. import load_init_options
+        from .._init_options import (
+            MISSING_INIT_OPTIONS_FILE,
+            resolve_active_agent_for_registration,
+        )
+
+        active_agent = resolve_active_agent_for_registration(self.project_root)
+        if active_agent is MISSING_INIT_OPTIONS_FILE:
+            return None
+        if active_agent is None:
+            return set()
+
+        from ..agents import CommandRegistrar as AgentRegistrar
+
+        agent_config = AgentRegistrar().AGENT_CONFIGS.get(active_agent)
+        if (
+            agent_config
+            and is_ai_skills_enabled(load_init_options(self.project_root))
+            and agent_config.get("extension") != "/SKILL.md"
+        ):
+            # Command-backed integrations render extension artifacts through
+            # _register_extension_skills while their skills mode is active.
+            return set()
+        return {active_agent}
+
+    def _command_registration_targets(self) -> Dict[str, Path]:
+        """Return current or recoverable command roots for a new install."""
+        from ..agents import CommandRegistrar as AgentRegistrar
+
+        registrar = AgentRegistrar()
+        agent_scope = self._active_command_registration_scope()
+        active_skills_agent = registrar._active_skills_agent(self.project_root)
+        recoverable_active_skills_dir = (
+            self._get_skills_dir(create=False)
+            if active_skills_agent is not None
+            else None
+        )
+        targets: Dict[str, Path] = {}
+
+        for agent_name, agent_config in registrar.AGENT_CONFIGS.items():
+            if agent_scope is not None and agent_name not in agent_scope:
+                continue
+
+            active_skills_output = (
+                agent_name == active_skills_agent
+                and agent_config.get("extension") == "/SKILL.md"
+            )
+            commands_dir = registrar._resolve_agent_dir(
+                agent_name, agent_config, self.project_root
+            )
+            active_output_is_recoverable = (
+                active_skills_output
+                and recoverable_active_skills_dir is not None
+                and registrar._same_lexical_path(
+                    commands_dir, recoverable_active_skills_dir
+                )
+            )
+            detect_dir = agent_config.get("detect_dir")
+            if (
+                detect_dir
+                and not (self.project_root / detect_dir).is_dir()
+                and not active_output_is_recoverable
+            ):
+                continue
+
+            if commands_dir.is_dir() or active_output_is_recoverable:
+                targets[agent_name] = commands_dir
+
+        return targets
+
+    def _register_commands_for_active_agent(
+        self,
+        manifest: ExtensionManifest,
+        extension_dir: Path,
+        link_outputs: bool = False,
+    ) -> Dict[str, List[str]]:
+        """Register extension commands for the active integration only.
+
+        Maintainer-requested behavior for #2948: ``extension add`` treats the
+        project as single-active — only the integration recorded in
+        init-options gets command files. Non-active integrations receive them
+        when selected via ``integration use`` / ``switch`` (rescaffold).
+
+        Projects without a recorded active integration at all (pre-init-options
+        layouts or direct library use, i.e. init-options.json does not
+        exist) fall back to detection-based registration for all agents. A
+        *recorded* active key that has no registrar config (e.g. ``generic``,
+        which is deliberately excluded from ``AGENT_CONFIGS``) is not treated
+        as "no active integration" — it must not cause registration to
+        target other detected agents.
+
+        An init-options.json that exists but is corrupted, unreadable, or
+        has a malformed/empty ``ai`` value (e.g. ``[]`` or ``null``) is also
+        not "no active integration" — fail closed (register nothing) rather
+        than fall back to registering every detected agent, which would
+        otherwise happen because a corrupted file loads the same as an
+        absent one.
+
+        Returns:
+            Mapping of agent name to registered command names, matching the
+            ``registered_commands`` registry shape.
+        """
+        registrar = CommandRegistrar()
+        agent_scope = self._active_command_registration_scope()
+
+        if agent_scope is None:
+            return registrar.register_commands_for_all_agents(
+                manifest,
+                extension_dir,
+                self.project_root,
+                link_outputs=link_outputs,
+                create_missing_active_skills_dir=True,
+            )
+
+        if not agent_scope:
+            # init-options.json exists but could not provide a valid active
+            # agent, or the active command-backed integration is in skills
+            # mode. Fail closed instead of falling back to all agents.
+            return {}
+
+        active_agent = next(iter(agent_scope))
+
+        # Route through the all-agents pass restricted to the active agent so
+        # detection and missing-skills-dir recovery safeguards still apply.
+        return registrar.register_commands_for_all_agents(
+            manifest,
+            extension_dir,
+            self.project_root,
+            link_outputs=link_outputs,
+            create_missing_active_skills_dir=True,
+            only_agent=active_agent,
+        )
 
     def _register_extension_skills(
         self,
         manifest: ExtensionManifest,
         extension_dir: Path,
         link_outputs: bool = False,
+        force: bool = False,
     ) -> List[str]:
         """Generate SKILL.md files for extension commands as agent skills.
 
@@ -1027,6 +1358,11 @@ class ExtensionManager:
             extension_dir: Installed extension directory.
             link_outputs: If True, create dev-mode symlinks for rendered
                 skill files when supported by the OS.
+            force: If True, overwrite existing SKILL.md files even when they
+                are not dev-mode symlinks.  Use in the upgrade path, where
+                ``setup()`` has just freshly regenerated core-template skill
+                files and the skip guard would otherwise prevent extension
+                content from being layered on top.
 
         Returns:
             List of skill names that were created (for registry storage).
@@ -1038,6 +1374,7 @@ class ExtensionManager:
         from .. import load_init_options
         from ..agents import CommandRegistrar
         from ..integrations import get_integration
+        from ..integrations.base import IntegrationBase
 
         written: List[str] = []
         opts = load_init_options(self.project_root)
@@ -1049,6 +1386,30 @@ class ExtensionManager:
         registrar = CommandRegistrar()
         agent_config = registrar.AGENT_CONFIGS.get(selected_ai, {})
         integration = get_integration(selected_ai)
+        ai_skills_enabled = is_ai_skills_enabled(opts)
+
+        def _resolve_command_ref_tokens(body: str) -> str:
+            """Resolve explicit command-ref tokens with the active skill style."""
+
+            def _replacement(match: re.Match[str]) -> str:
+                command_name = "speckit." + match.group(1).lower().replace("_", ".")
+                if is_dollar_skills_agent(selected_ai, ai_skills_enabled):
+                    return "$" + command_name.replace("speckit.", "speckit-").replace(
+                        ".", "-"
+                    )
+                if is_slash_skills_agent(selected_ai, ai_skills_enabled):
+                    return "/" + command_name.replace("speckit.", "speckit-").replace(
+                        ".", "-"
+                    )
+                if integration is not None:
+                    return integration.build_command_invocation(command_name)
+                return IntegrationBase.resolve_command_refs(
+                    match.group(0), agent_config.get("invoke_separator", ".")
+                )
+
+            return re.sub(
+                r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__", _replacement, body
+            )
 
         for cmd_info in manifest.commands:
             cmd_name = cmd_info["name"]
@@ -1101,6 +1462,9 @@ class ExtensionManager:
             cache_root = extension_dir / ".specify-dev" / "extension-skills"
             cache_file = cache_root / skill_name / "SKILL.md"
             use_dev_symlink = link_outputs and not agent_config.get("dev_no_symlink")
+            skill_dir_preexists = (
+                skill_subdir.exists() or skill_subdir.is_symlink()
+            )
             CommandRegistrar._ensure_inside(cache_file, cache_root)
             if skill_file.exists() or skill_file.is_symlink():
                 is_expected_dev_symlink = self._is_expected_dev_symlink(
@@ -1108,9 +1472,17 @@ class ExtensionManager:
                 )
                 # Do not overwrite user-customized skills, but allow dev-mode
                 # symlinks that point back to this extension's generated cache
-                # to be refreshed on a subsequent dev install.
-                if not is_expected_dev_symlink:
+                # to be refreshed on a subsequent dev install.  In the upgrade
+                # path (force=True) the file was just written by setup(), so
+                # overwriting it with the composed extension content is correct.
+                if not is_expected_dev_symlink and not force:
                     continue
+            elif skill_dir_preexists and not force:
+                # Never add files to a pre-existing user directory. Without a
+                # verifiable SKILL.md ownership marker, rollback/removal cannot
+                # distinguish our output from unrelated user artifacts.
+                # Skipped when force=True (upgrade path).
+                continue
 
             # Create skill directory; track whether we created it so we can clean
             # up safely if reading the source file subsequently fails.
@@ -1139,6 +1511,7 @@ class ExtensionManager:
             body = registrar.resolve_skill_placeholders(
                 selected_ai, frontmatter, body, self.project_root, extension_id=manifest.id
             )
+            body = _resolve_command_ref_tokens(body)
 
             original_desc = frontmatter.get("description", "")
             description = original_desc or f"Extension command: {cmd_name}"
@@ -1213,6 +1586,141 @@ class ExtensionManager:
         except OSError:
             return False
 
+    def _find_extension_skill_dirs(
+        self,
+        skill_names: List[str],
+        extension_id: str,
+        skills_dir: Optional[Path] = None,
+        *,
+        create_skills_dir: bool = True,
+    ) -> List[Path]:
+        """Return owned skill directories that removal is allowed to delete.
+
+        This is the single discovery path used by both update backups and
+        unregistration. Keeping the ownership and containment checks shared
+        prevents rollback from backing up a different set of artifacts than
+        ``remove()`` later deletes.
+        """
+        if not skill_names:
+            return []
+
+        requested_skills_dir = skills_dir
+
+        project_root = Path(os.path.abspath(self.project_root))
+        fallback_candidates = {
+            candidate: trusted_root
+            for candidate, trusted_root in self._extension_skill_candidate_dirs().items()
+            if trusted_root == project_root
+        }
+        if requested_skills_dir is None:
+            candidate_dirs = dict(fallback_candidates)
+        elif skills_dir:
+            candidate = Path(os.path.abspath(skills_dir))
+            trusted_root = self._extension_skill_trusted_root(candidate)
+            candidate_dirs = (
+                {candidate: trusted_root} if trusted_root is not None else {}
+            )
+        else:
+            candidate_dirs = {}
+
+        from ..shared_infra import _validate_safe_shared_directory
+
+        owned_dirs: List[Path] = []
+        seen_dirs: set[Path] = set()
+        for skills_candidate, trusted_root in candidate_dirs.items():
+            try:
+                # Validate roots lexically before resolving them. Otherwise a
+                # symlinked root resolves to its target and makes descendants
+                # appear contained within itself. Explicit configured roots can
+                # legitimately be global (for example Hermes), while fallback
+                # roots remain restricted to this project.
+                _validate_safe_shared_directory(trusted_root, skills_candidate)
+            except (OSError, ValueError):
+                continue
+            if not skills_candidate.is_dir():
+                continue
+            for skill_name in skill_names:
+                # Guard against path traversal from a corrupted registry entry.
+                sn_path = Path(skill_name)
+                if sn_path.is_absolute() or len(sn_path.parts) != 1:
+                    continue
+                skill_subdir = skills_candidate / skill_name
+                try:
+                    _validate_safe_shared_directory(trusted_root, skill_subdir)
+                    resolved_skill_dir = skill_subdir.resolve()
+                except (OSError, ValueError):
+                    continue
+                if resolved_skill_dir in seen_dirs or not skill_subdir.is_dir():
+                    continue
+
+                skill_md = skill_subdir / "SKILL.md"
+                if not skill_md.is_file():
+                    continue
+                try:
+                    from ..agents import CommandRegistrar as _Registrar
+
+                    raw = skill_md.read_text(encoding="utf-8")
+                    fm, _ = _Registrar.parse_frontmatter(raw)
+                    source = (
+                        fm.get("metadata", {}).get("source", "")
+                        if isinstance(fm, dict)
+                        else ""
+                    )
+                    if source != f"extension:{extension_id}":
+                        continue
+                except Exception:
+                    # If ownership cannot be verified, preserve the directory.
+                    continue
+
+                seen_dirs.add(resolved_skill_dir)
+                owned_dirs.append(resolved_skill_dir)
+
+        return owned_dirs
+
+    def _extension_skill_trusted_root(self, candidate: Path) -> Optional[Path]:
+        """Return the project or home root allowed to contain *candidate*."""
+        candidate = Path(os.path.abspath(candidate))
+        for root in (
+            Path(os.path.abspath(self.project_root)),
+            Path(os.path.abspath(Path.home())),
+        ):
+            if candidate.is_relative_to(root):
+                return root
+        return None
+
+    def _extension_skill_candidate_dirs(self) -> Dict[Path, Path]:
+        """Return every configured skill output and its trusted root."""
+        from .. import AGENT_CONFIG, DEFAULT_SKILLS_DIR
+        from ..agents import CommandRegistrar
+
+        candidates: Dict[Path, Path] = {}
+
+        def add_candidate(candidate: Path) -> None:
+            candidate = Path(os.path.abspath(candidate))
+            trusted_root = self._extension_skill_trusted_root(candidate)
+            if trusted_root is not None:
+                candidates[candidate] = trusted_root
+
+        for cfg in AGENT_CONFIG.values():
+            folder = cfg.get("folder", "")
+            if folder:
+                add_candidate(
+                    self.project_root / folder.rstrip("/") / "skills"
+                )
+        add_candidate(self.project_root / DEFAULT_SKILLS_DIR)
+
+        registrar = CommandRegistrar()
+        for agent_name, agent_config in registrar.AGENT_CONFIGS.items():
+            if agent_config.get("extension") != "/SKILL.md":
+                continue
+            add_candidate(
+                registrar._resolve_agent_dir(
+                    agent_name, agent_config, self.project_root
+                )
+            )
+
+        return candidates
+
     def _unregister_extension_skills(
         self,
         skill_names: List[str],
@@ -1224,130 +1732,119 @@ class ExtensionManager:
         Called during extension removal to clean up skill files that
         were created by ``_register_extension_skills()``.
 
-        If *skills_dir* is not provided and ``_get_skills_dir()`` returns
-        ``None`` (e.g. the user removed init-options.json or toggled
-        ai_skills after installation), we fall back to scanning all known
-        agent skills directories so that orphaned skill directories are
-        still cleaned up.  In that case each candidate directory is
-        verified against the SKILL.md ``metadata.source`` field before
-        removal to avoid accidentally deleting user-created skills with
-        the same name.
+        When *skills_dir* is omitted, project-local agent skill directories
+        are scanned. Home-scoped outputs require explicit agent provenance:
+        the legacy flat registry and ``metadata.source`` marker do not
+        identify which project created a global skill.
 
         Args:
             skill_names: List of skill names to remove.
             extension_id: Extension ID used to verify ownership during
                 fallback candidate scanning.
-            skills_dir: Optional explicit skills directory to use instead
-                of resolving via ``_get_skills_dir()``.  Useful when the
-                caller needs to target a specific agent's skills directory
-                regardless of the currently-active agent in init-options.
+            skills_dir: Optional explicit skills directory to scope
+                cleanup to. Useful when the caller needs to target a
+                specific agent's skills directory regardless of the
+                currently-active agent in init-options. When omitted,
+                every configured agent's skills directory is scanned
+                instead of resolving just the currently active one.
+        """
+        for skill_subdir in self._find_extension_skill_dirs(
+            skill_names, extension_id, skills_dir=skills_dir
+        ):
+            shutil.rmtree(skill_subdir)
+
+    def _extension_owned_skill_names(
+        self, skill_names: List[str], extension_id: str
+    ) -> List[str]:
+        """Return the subset of *skill_names* still marker-verified anywhere.
+
+        ``registered_skills`` is a single flat list shared across every
+        agent this extension has ever been activated under (skills are
+        only ever rendered for the currently active agent, so there is no
+        per-agent registry key to consult). A name can therefore still be
+        globally owned by this extension even after it's removed from one
+        particular agent's directory, if an earlier activation under a
+        *different* agent left its own marker-verified mirror behind.
+
+        This scans the same candidate directories (every configured
+        agent's skills folder, deduped by shared path, plus the default
+        skills directory) as the fallback branch of
+        :meth:`_unregister_extension_skills`, but read-only: no directory
+        is created and a name is only kept if at least one candidate
+        directory contains a ``SKILL.md`` whose ``metadata.source`` field
+        matches this exact extension (the same ownership marker
+        :meth:`_register_extension_skills` writes), so an unrelated
+        directory or user-created skill of the same name can't cause a
+        false positive. Symlink/containment safety mirrors the existing
+        fallback scan: each candidate path is resolved and the resulting
+        skill subdirectory is required to stay within it before any file
+        is read.
         """
         if not skill_names:
-            return
+            return []
 
-        if skills_dir is None:
-            skills_dir = self._get_skills_dir()
+        from ..shared_infra import _validate_safe_shared_directory
 
-        if skills_dir:
-            # Fast path: we know the exact skills directory
+        marker = f"extension:{extension_id}"
+        owned: set = set()
+        for (
+            skills_candidate,
+            trusted_root,
+        ) in self._extension_skill_candidate_dirs().items():
+            if len(owned) == len(skill_names):
+                break  # every name already confirmed owned somewhere
+            if not skills_candidate.is_dir():
+                continue
+            # Reject the candidate directory itself (any path component)
+            # if it's a symlink escaping the project root, before probing
+            # anything inside it. Resolving it and only checking children
+            # relative to the already-resolved candidate (the previous
+            # approach) would silently follow the symlink instead of
+            # rejecting it, letting a marker-matching SKILL.md outside the
+            # project be falsely attributed.
+            try:
+                _validate_safe_shared_directory(trusted_root, skills_candidate)
+            except (ValueError, OSError):
+                continue
             for skill_name in skill_names:
-                # Guard against path traversal from a corrupted registry entry:
-                # reject names that are absolute, contain path separators, or
-                # resolve to a path outside the skills directory.
+                if skill_name in owned:
+                    continue
                 sn_path = Path(skill_name)
                 if sn_path.is_absolute() or len(sn_path.parts) != 1:
                     continue
+                skill_subdir = skills_candidate / skill_name
+                # Validate every path component down to the skill's own
+                # subdirectory, not just the already-validated candidate
+                # parent: a per-skill child can itself be a symlink to
+                # another directory whose resolved target still lands
+                # inside this same candidate, which the previous
+                # resolve()+relative_to() containment check alone would
+                # not catch (#2948).
                 try:
-                    skill_subdir = (skills_dir / skill_name).resolve()
-                    skill_subdir.relative_to(skills_dir.resolve())  # raises if outside
-                except (OSError, ValueError):
+                    _validate_safe_shared_directory(trusted_root, skill_subdir)
+                except (ValueError, OSError):
                     continue
                 if not skill_subdir.is_dir():
                     continue
-                # Safety check: only delete if SKILL.md exists and its
-                # metadata.source matches exactly this extension — mirroring
-                # the fallback branch — so a corrupted registry entry cannot
-                # delete an unrelated user skill.
                 skill_md = skill_subdir / "SKILL.md"
                 if not skill_md.is_file():
                     continue
                 try:
-                    import yaml as _yaml
+                    from ..agents import CommandRegistrar as _Registrar
 
                     raw = skill_md.read_text(encoding="utf-8")
-                    source = ""
-                    if raw.startswith("---"):
-                        parts = raw.split("---", 2)
-                        if len(parts) >= 3:
-                            fm = _yaml.safe_load(parts[1]) or {}
-                            source = (
-                                fm.get("metadata", {}).get("source", "")
-                                if isinstance(fm, dict)
-                                else ""
-                            )
-                    if source != f"extension:{extension_id}":
-                        continue
+                    fm, _ = _Registrar.parse_frontmatter(raw)
+                    source = (
+                        fm.get("metadata", {}).get("source", "")
+                        if isinstance(fm, dict)
+                        else ""
+                    )
                 except (OSError, UnicodeDecodeError, Exception):
                     continue
-                shutil.rmtree(skill_subdir)
-        else:
-            # Fallback: scan all possible agent skills directories
-            from .. import AGENT_CONFIG, DEFAULT_SKILLS_DIR
+                if source == marker:
+                    owned.add(skill_name)
 
-            candidate_dirs: set[Path] = set()
-            for cfg in AGENT_CONFIG.values():
-                folder = cfg.get("folder", "")
-                if folder:
-                    candidate_dirs.add(
-                        self.project_root / folder.rstrip("/") / "skills"
-                    )
-            candidate_dirs.add(self.project_root / DEFAULT_SKILLS_DIR)
-
-            for skills_candidate in candidate_dirs:
-                if not skills_candidate.is_dir():
-                    continue
-                for skill_name in skill_names:
-                    # Same path-traversal guard as the fast path above
-                    sn_path = Path(skill_name)
-                    if sn_path.is_absolute() or len(sn_path.parts) != 1:
-                        continue
-                    try:
-                        skill_subdir = (skills_candidate / skill_name).resolve()
-                        skill_subdir.relative_to(
-                            skills_candidate.resolve()
-                        )  # raises if outside
-                    except (OSError, ValueError):
-                        continue
-                    if not skill_subdir.is_dir():
-                        continue
-                    # Safety check: only delete if SKILL.md exists and its
-                    # metadata.source matches exactly this extension.  If the
-                    # file is missing or unreadable we skip to avoid deleting
-                    # unrelated user-created directories.
-                    skill_md = skill_subdir / "SKILL.md"
-                    if not skill_md.is_file():
-                        continue
-                    try:
-                        import yaml as _yaml
-
-                        raw = skill_md.read_text(encoding="utf-8")
-                        source = ""
-                        if raw.startswith("---"):
-                            parts = raw.split("---", 2)
-                            if len(parts) >= 3:
-                                fm = _yaml.safe_load(parts[1]) or {}
-                                source = (
-                                    fm.get("metadata", {}).get("source", "")
-                                    if isinstance(fm, dict)
-                                    else ""
-                                )
-                        # Only remove skills explicitly created by this extension
-                        if source != f"extension:{extension_id}":
-                            continue
-                    except (OSError, UnicodeDecodeError, Exception):
-                        # If we can't verify, skip to avoid accidental deletion
-                        continue
-                    shutil.rmtree(skill_subdir)
+        return [name for name in skill_names if name in owned]
 
     def check_compatibility(
         self, manifest: ExtensionManifest, speckit_version: str
@@ -1470,24 +1967,427 @@ class ExtensionManager:
                 backup_config_dir.unlink()
             did_remove = self.remove(manifest.id)
 
+        # Load and validate .extensionignore BEFORE reading/creating the rescue
+        # staging directory (and thus before deleting dest_dir). The loader can
+        # raise ValidationError (invalid UTF-8) or OSError; doing it first means
+        # such a failure aborts while the kept config is still authoritative in
+        # its documented location, rather than leaving a freshly published
+        # staging copy that a later retry (after the user edits the kept config)
+        # would reload and use to overwrite the newer bytes. Any staging left by
+        # an earlier destructive attempt is intentionally left intact here.
+        ignore_fn = self._load_extensionignore(source_dir)
+
+        # Rescue any config files left behind by a prior `remove --keep-config`.
+        # When an extension is removed with --keep-config, it is no longer in
+        # the registry but its config files remain in dest_dir.  A subsequent
+        # plain (non-force) install would delete that directory unconditionally,
+        # silently discarding the preserved config.  We read those files into
+        # memory and also write a durable staging copy outside dest_dir so
+        # that a partial rmtree, failed copytree, or partial restore cannot
+        # permanently discard the user's original bytes on a retry.  The
+        # staging dir is removed only after every config has been successfully
+        # restored.
+        stranded_configs: dict[str, tuple[bytes, int]] = {}
+        rescue_staging_dir = self._rescue_staging_dir(manifest.id)
+        # A staging directory is trusted only when this completion marker is
+        # present.  The marker is written after every staged file is complete
+        # and removed before the non-atomic cleanup, so a crash mid-staging or
+        # mid-cleanup can never leave a partial directory that a retry mistakes
+        # for a complete durable backup.
+        rescue_complete_marker = rescue_staging_dir / ".rescue-complete"
+        staging_is_complete = (
+            rescue_staging_dir.is_dir()
+            and not rescue_staging_dir.is_symlink()
+            and rescue_complete_marker.is_file()
+            and not rescue_complete_marker.is_symlink()
+        )
+
+        if staging_is_complete and not self.registry.is_installed(manifest.id):
+            # A previous install attempt staged the configs but never
+            # completed cleanly.  Reload from the durable backup so the
+            # original bytes are used on retry rather than whatever
+            # mixture of packaged defaults and partial restores remains
+            # on disk.  Only load non-symlinked files whose names match
+            # the two recognised config suffixes so a tampered staging
+            # directory cannot inject arbitrary files.
+            #
+            # A complete staging directory proves only that staging finished,
+            # not that dest_dir was ever modified: a crash after staging was
+            # synced but before the rmtree below leaves the live kept config
+            # intact. If the user then edits that live config before retrying,
+            # blindly preferring the staged bytes would silently overwrite the
+            # newer config. The staged and live copies are indistinguishable
+            # in provenance from disk alone (a genuine post-crash edit vs. a
+            # packaged default written by a partially-completed copytree), so
+            # when a live config disagrees with its staged copy we must not
+            # silently pick either — preserve both and abort, letting the user
+            # resolve it. dest_dir is still untouched here, so raising is safe.
+            def _recognized_config_names(
+                directory: Path, *, follow_symlinks: bool = True
+            ) -> set[str]:
+                names: set[str] = set()
+                if not directory.is_dir():
+                    return names
+                for entry in directory.iterdir():
+                    if not entry.name.endswith(
+                        ("-config.yml", "-config.local.yml")
+                    ):
+                        continue
+                    if follow_symlinks:
+                        if entry.is_file() and not entry.is_symlink():
+                            names.add(entry.name)
+                    else:
+                        # Include symlinks without following them so that
+                        # live-only symlinked configs are detected and
+                        # preserved rather than silently deleted.
+                        if entry.is_file() or entry.is_symlink():
+                            names.add(entry.name)
+                return names
+
+            conflicting: set[str] = set()
+            staged_names = _recognized_config_names(rescue_staging_dir)
+            live_names = _recognized_config_names(
+                dest_dir, follow_symlinks=False
+            )
+
+            def _matches_source_config_baseline(config_name: str) -> bool:
+                source_file = source_dir / config_name
+                live_file = dest_dir / config_name
+                if source_file.is_symlink() or live_file.is_symlink():
+                    return False
+                if not source_file.is_file() or not live_file.is_file():
+                    return False
+                try:
+                    source_stat = source_file.stat()
+                    source_bytes = source_file.read_bytes()
+                    live_stat = live_file.stat()
+                    live_bytes = live_file.read_bytes()
+                except OSError:
+                    return False
+                return live_bytes == source_bytes and stat.S_IMODE(
+                    live_stat.st_mode
+                ) == stat.S_IMODE(source_stat.st_mode)
+
+            # A live-only config created after the interrupted attempt is not
+            # enumerated by staging, so without this it would be silently
+            # deleted by the rmtree below and its bytes lost. Live-only files
+            # that still match the current package baseline are safe: they were
+            # copied by the interrupted install and can be recreated on retry.
+            # Only truly divergent live-only configs are conflicts.
+            live_only = live_names - staged_names
+            conflicting.update(
+                name
+                for name in live_only
+                if not _matches_source_config_baseline(name)
+            )
+            # Load original permission bits from the sidecar JSON written by
+            # the staging step.  Staged files are kept at mode 0o600 so that
+            # rmtree always succeeds on Windows, so staged_stat.st_mode would
+            # always be 0o600 and must not be used for mode comparisons or
+            # restoration; the sidecar records the true original mode.
+            rescue_modes_file = rescue_staging_dir / ".rescue-modes.json"
+            _staged_modes: dict[str, int] = {}
+            if rescue_modes_file.is_file() and not rescue_modes_file.is_symlink():
+                try:
+                    _loaded_modes = json.loads(rescue_modes_file.read_bytes())
+                except (OSError, ValueError):
+                    # Ignore unreadable/invalid sidecar metadata and fall back
+                    # to each staged file's mode for compatibility.
+                    pass
+                else:
+                    # json.loads() succeeds for any valid JSON document, so a
+                    # sidecar containing e.g. `[]` or a string would otherwise
+                    # crash later at _staged_modes.get() or stat.S_IMODE().
+                    # Accept only a mapping of string filenames to integer modes
+                    # (bool is rejected despite subclassing int); anything else
+                    # falls back to each staged file's own mode.
+                    if isinstance(_loaded_modes, dict) and all(
+                        isinstance(name, str)
+                        and isinstance(recorded_mode, int)
+                        and not isinstance(recorded_mode, bool)
+                        for name, recorded_mode in _loaded_modes.items()
+                    ):
+                        _staged_modes = _loaded_modes
+            for staged_name in sorted(staged_names):
+                staged_file = rescue_staging_dir / staged_name
+                staged_stat = staged_file.stat()
+                staged_bytes = staged_file.read_bytes()
+                # Prefer the sidecar-recorded mode; fall back to the staged
+                # file's own mode for backwards-compat with staging dirs
+                # written before the sidecar was introduced.
+                staged_mode = _staged_modes.get(
+                    staged_name, stat.S_IMODE(staged_stat.st_mode)
+                )
+                live_file = dest_dir / staged_name
+                if live_file.is_symlink():
+                    # A user may have replaced the live config with a symlink
+                    # after the interrupted attempt. It cannot be compared by
+                    # bytes/mode against the staged copy, and the rmtree below
+                    # would silently delete this newer choice and restore the
+                    # older staged file. Treat any live symlink as a conflict so
+                    # both are preserved and the user resolves it.
+                    conflicting.add(staged_name)
+                elif live_file.is_file():
+                    # A live config that cannot be read or stat'ed must not be
+                    # treated as non-conflicting: the rmtree below would delete
+                    # it and restore the stale staged copy. Abort while dest_dir
+                    # is untouched so no newer or permission-restricted config is
+                    # lost. Divergence also includes permission-only edits (for
+                    # example tightening a secret-bearing config from 0644 to
+                    # 0600), which byte equality alone would miss and then revert.
+                    try:
+                        live_stat = live_file.stat()
+                        live_bytes = live_file.read_bytes()
+                    except OSError:
+                        conflicting.add(staged_name)
+                    else:
+                        if live_bytes != staged_bytes or stat.S_IMODE(
+                            live_stat.st_mode
+                        ) != staged_mode:
+                            conflicting.add(staged_name)
+                stranded_configs[staged_name] = (staged_bytes, staged_mode)
+            if conflicting:
+                # Split into two cases for accurate user guidance: files that
+                # exist in both locations but have diverged, and files that
+                # exist only in the live directory with no rescue-backup copy.
+                both_diverged = conflicting - live_only
+                live_only_conflict = conflicting & live_only
+                msg_parts: list[str] = [
+                    f"Preserved extension config conflict for '{manifest.id}':"
+                ]
+                if both_diverged:
+                    names = ", ".join(sorted(both_diverged))
+                    msg_parts.append(
+                        f"The current config(s) ({names}) in {dest_dir} differ"
+                        f" from their rescued backup in {rescue_staging_dir}."
+                        " Both copies have been preserved."
+                    )
+                if live_only_conflict:
+                    names = ", ".join(sorted(live_only_conflict))
+                    msg_parts.append(
+                        f"The config(s) ({names}) exist only in {dest_dir}"
+                        f" with no counterpart in the rescued backup at"
+                        f" {rescue_staging_dir}."
+                    )
+                msg_parts.append(
+                    f"Reconcile {dest_dir} and {rescue_staging_dir} to the"
+                    f" desired final state, delete {rescue_staging_dir},"
+                    " then reinstall."
+                )
+                raise ValidationError(" ".join(msg_parts))
+        elif (
+            dest_dir.exists()
+            and not self.registry.is_installed(manifest.id)
+            and (
+                self._has_keep_config_marker(dest_dir)
+                or self._is_legacy_keep_config_leftover(dest_dir)
+            )
+        ):
+            for cfg_file in (
+                list(dest_dir.glob("*-config.yml"))
+                + list(dest_dir.glob("*-config.local.yml"))
+            ):
+                if cfg_file.is_symlink():
+                    # `remove --keep-config` preserves a symlinked config
+                    # because Path.is_file() follows symlinks. Its bytes cannot
+                    # be safely rescued (the target may live outside dest_dir),
+                    # and the rmtree below would delete the link and silently
+                    # discard the kept configuration. Reject the reinstall while
+                    # dest_dir is untouched so the user resolves it rather than
+                    # losing the linked config.
+                    raise ValidationError(
+                        "Preserved extension config for "
+                        f"'{manifest.id}' is a symlink ({cfg_file.name}) in "
+                        f"{dest_dir}, which cannot be safely rescued during "
+                        "reinstall. Resolve manually — replace the symlink with "
+                        "a regular file or remove it — then reinstall."
+                    )
+                if cfg_file.is_file():
+                    stranded_configs[cfg_file.name] = (
+                        cfg_file.read_bytes(),
+                        cfg_file.stat().st_mode,
+                    )
+
+        if stranded_configs and not staging_is_complete:
+            # Write a durable backup outside dest_dir before any
+            # destructive operation so the original bytes survive a
+            # crash or partial failure at any later step.  The staging
+            # dir is cleaned up only after every restore succeeds.
+            #
+            # Any pre-existing staging dir here lacks the completion marker
+            # (staging_is_complete is False), so it is a stale partial from an
+            # interrupted attempt — remove it first for a clean write.
+            if rescue_staging_dir.is_symlink():
+                rescue_staging_dir.unlink()
+            elif rescue_staging_dir.is_dir():
+                shutil.rmtree(rescue_staging_dir)
+            elif rescue_staging_dir.exists():
+                rescue_staging_dir.unlink()
+            try:
+                rescue_staging_dir.mkdir(parents=True, exist_ok=True)
+                for filename, (content, mode) in stranded_configs.items():
+                    staged = rescue_staging_dir / filename
+                    # Create the staging file with mode 0600 before writing so
+                    # the preserved bytes are never transiently readable by other
+                    # local users, even on a umask that would produce 0644.
+                    # O_BINARY (0 on POSIX) is required so Windows does not open
+                    # the descriptor in text mode and translate the preserved
+                    # bytes' "\n" into "\r\n" as they are written.
+                    fd = os.open(
+                        str(staged),
+                        os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+                        0o600,
+                    )
+                    try:
+                        # os.write() may write fewer bytes than requested, so
+                        # loop until the whole buffer is on disk — a truncated
+                        # "durable" backup would be trusted over the intact
+                        # config on a retry and cause silent data loss.
+                        view = memoryview(content)
+                        written = 0
+                        while written < len(view):
+                            written += os.write(fd, view[written:])
+                        # Do NOT chmod the staged file: setting a read-only
+                        # mode (e.g. 0o444) makes the file undeletable on
+                        # Windows and causes shutil.rmtree to fail during
+                        # cleanup.  Original modes are recorded separately in
+                        # .rescue-modes.json so they can be reapplied when the
+                        # config is actually restored.
+                        _fsync_fd(fd)
+                    finally:
+                        os.close(fd)
+                # Persist the original permission bits in a sidecar JSON file
+                # so a retry can correctly reapply them even though the staged
+                # files themselves are kept at their creation mode (0o600).
+                rescue_modes_file = rescue_staging_dir / ".rescue-modes.json"
+                modes_payload = json.dumps(
+                    {
+                        filename: stat.S_IMODE(mode)
+                        for filename, (_, mode) in stranded_configs.items()
+                    },
+                    sort_keys=True,
+                ).encode()
+                modes_fd = os.open(
+                    str(rescue_modes_file),
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0),
+                    0o600,
+                )
+                try:
+                    view = memoryview(modes_payload)
+                    written = 0
+                    while written < len(view):
+                        written += os.write(modes_fd, view[written:])
+                    _fsync_fd(modes_fd)
+                finally:
+                    os.close(modes_fd)
+                # Flush the staging directory metadata before publishing the
+                # completion marker so a crash cannot leave a visible marker with
+                # only a subset of staged files.
+                _fsync_directory(rescue_staging_dir)
+                # Write the completion marker only after every staged file is
+                # fully written so a retry trusts staging only when it is whole.
+                marker_fd = os.open(
+                    str(rescue_complete_marker),
+                    os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                    0o600,
+                )
+                try:
+                    _fsync_fd(marker_fd)
+                finally:
+                    os.close(marker_fd)
+                _fsync_directory(rescue_staging_dir)
+                _fsync_directory(rescue_staging_dir.parent)
+            except BaseException:
+                # Durable staging failed (or was interrupted).  Continuing with
+                # only the in-memory copy would reintroduce the permanent-loss
+                # path this staging exists to close: the rmtree below could
+                # delete the originals and a later restore failure would leave
+                # no on-disk copy.  dest_dir is still untouched here, so clean
+                # up the partial staging dir and abort the install instead of
+                # proceeding destructively.
+                shutil.rmtree(rescue_staging_dir, ignore_errors=True)
+                raise
+
         # Install extension (dest_dir computed above during self-install guard)
         if dest_dir.exists():
             shutil.rmtree(dest_dir)
 
-        ignore_fn = self._load_extensionignore(source_dir)
-        shutil.copytree(source_dir, dest_dir, ignore=ignore_fn)
+        def _restore_stranded_config_file(
+            target: Path, content: bytes, preserved_mode: int
+        ) -> None:
+            tmp_path: Path | None = None
+            try:
+                # A short fixed prefix, not f".{target.name}.": the preserved
+                # config filename may itself already be near the filesystem's
+                # per-component byte limit, and NamedTemporaryFile appends a
+                # random suffix to the prefix — reusing the full name would push
+                # the temp file past the limit and raise ENAMETOOLONG on every
+                # retry. tempfile already guarantees collision avoidance.
+                with tempfile.NamedTemporaryFile(
+                    mode="wb",
+                    dir=target.parent,
+                    prefix=".cfg-restore.",
+                    delete=False,
+                ) as tmp:
+                    tmp_path = Path(tmp.name)
+                    tmp.write(content)
+                    tmp.flush()
+                    _fsync_fd(tmp.fileno())
+                try:
+                    tmp_path.chmod(stat.S_IMODE(preserved_mode))
+                except (NotImplementedError, OSError):
+                    pass  # Best-effort; chmod may not be supported on all platforms.
+                os.replace(tmp_path, target)
+                try:
+                    target_fd = os.open(str(target), os.O_RDONLY)
+                except (AttributeError, OSError, NotImplementedError):
+                    target_fd = None
+                try:
+                    if target_fd is not None:
+                        _fsync_fd(target_fd)
+                finally:
+                    if target_fd is not None:
+                        try:
+                            os.close(target_fd)
+                        except OSError:
+                            pass  # best-effort close during cleanup; ignore errors
+                _fsync_directory(target.parent)
+            except BaseException:
+                if tmp_path is not None and tmp_path.exists():
+                    tmp_path.unlink()
+                raise
 
-        # Register commands with AI agents
+        try:
+            shutil.copytree(source_dir, dest_dir, ignore=ignore_fn)
+        except BaseException:
+            # copytree failed — dest_dir may be absent or only partially
+            # created.  Write the rescued configs back now so they are not
+            # permanently lost even though the install did not complete.
+            if stranded_configs:
+                dest_dir.mkdir(parents=True, exist_ok=True)
+                for filename, (content, mode) in stranded_configs.items():
+                    target = dest_dir / filename
+                    _restore_stranded_config_file(target, content, mode)
+            raise
+
+        # Restore stranded configs rescued before the rmtree above.
+        for filename, (content, mode) in stranded_configs.items():
+            target = dest_dir / filename
+            _restore_stranded_config_file(target, content, mode)
+
+        # NOTE: the durable staging backup is intentionally NOT cleaned up
+        # here.  Command/skill/hook registration and the final registry.add()
+        # below can still fail; if we discarded the backup and provenance now,
+        # such a failure would leave the extension unregistered with no durable
+        # rescue copy, so the next plain retry would skip rescue and overwrite
+        # the restored user config with packaged defaults.  Cleanup is deferred
+        # until after registry.add() succeeds (see post-commit cleanup below).
+
+        # Register commands with AI agents (active integration only, #2948)
         registered_commands = {}
         if register_commands:
-            registrar = CommandRegistrar()
-            # Register for all detected agents
-            registered_commands = registrar.register_commands_for_all_agents(
-                manifest,
-                dest_dir,
-                self.project_root,
-                link_outputs=link_commands,
-                create_missing_active_skills_dir=True,
+            registered_commands = self._register_commands_for_active_agent(
+                manifest, dest_dir, link_outputs=link_commands
             )
 
         # Auto-register extension commands as agent skills when skills mode
@@ -1547,6 +2447,42 @@ class ExtensionManager:
             },
         )
 
+        # Post-commit cleanup: the registry now records this extension as
+        # installed, so the rescue guard (`not self.registry.is_installed`)
+        # will never misread a leftover staging dir on a future run.  The
+        # durable backup has therefore served its purpose and can be removed
+        # best-effort — a cleanup failure must not fail an install that has
+        # already committed successfully.
+        if rescue_staging_dir.is_dir() and not rescue_staging_dir.is_symlink():
+            # Remove the completion marker before the non-atomic rmtree so a
+            # crash mid-cleanup cannot leave a staging dir that a retry would
+            # wrongly trust as a complete durable backup.
+            try:
+                rescue_complete_marker.unlink(missing_ok=True)
+                _fsync_directory(rescue_staging_dir)
+                shutil.rmtree(rescue_staging_dir)
+                _fsync_directory(rescue_staging_dir.parent)
+            except OSError:
+                pass  # Best-effort; install already committed to the registry.
+
+        # Restore execute bits on shipped POSIX scripts. copytree here (and the
+        # zipfile.extractall in install_from_zip, which delegates to this method) does
+        # not restore a stripped Unix mode, so a bundled *.sh would land non-executable
+        # and a documented `.specify/extensions/<id>/scripts/...` invocation would fail
+        # with "Permission denied". This is the single sink every install route funnels
+        # through (extension add / update / bundle), so fixing it here covers them all.
+        # No-op on Windows (helper returns early).
+        #
+        # Deliberately the whole-project call, not a scoped one. The helper's contract
+        # is "make .specify scripts executable" — the same idempotent invariant that
+        # init and migrate restore — so re-establishing it after an install is exactly
+        # its job. A scoped variant would only spare re-walking already-correct files,
+        # a handful of stats that are negligible beside the copy/extract this method just
+        # did, and it would cost a per-caller scan-scope argument on an otherwise simple,
+        # widely-used interface. The simpler call wins.
+        from .. import ensure_executable_scripts
+        ensure_executable_scripts(self.project_root)
+
         return manifest
 
     def install_from_zip(
@@ -1579,21 +2515,7 @@ class ExtensionManager:
         with tempfile.TemporaryDirectory() as tmpdir:
             temp_path = Path(tmpdir)
 
-            # Extract ZIP safely (prevent Zip Slip attack)
-            with zipfile.ZipFile(zip_path, "r") as zf:
-                # Validate all paths first before extracting anything
-                temp_path_resolved = temp_path.resolve()
-                for member in zf.namelist():
-                    member_path = (temp_path / member).resolve()
-                    # Use is_relative_to for safe path containment check
-                    try:
-                        member_path.relative_to(temp_path_resolved)
-                    except ValueError:
-                        raise ValidationError(
-                            f"Unsafe path in ZIP archive: {member} (potential path traversal)"
-                        )
-                # Only extract after all paths are validated
-                zf.extractall(temp_path)
+            safe_extract_zip(zip_path, temp_path, error_type=ValidationError)
 
             # Find extension directory (may be nested)
             extension_dir = temp_path
@@ -1663,6 +2585,12 @@ class ExtensionManager:
                         shutil.rmtree(child)
                     else:
                         child.unlink()
+                # Write a provenance marker so install_from_directory can
+                # distinguish this --keep-config leftover from a directory left
+                # by a partially-failed install (which must not have its
+                # packaged default configs treated as user-preserved data).
+                # Content is intentionally empty — only presence matters.
+                (extension_dir / ".keep-config").write_text("")
         else:
             # Backup config files before deleting
             if extension_dir.exists():
@@ -1699,13 +2627,27 @@ class ExtensionManager:
             return []
         return [item for item in value if isinstance(item, str)]
 
-    def unregister_agent_artifacts(self, agent_name: str) -> None:
+    def unregister_agent_artifacts(
+        self,
+        agent_name: str,
+        *,
+        enabled_only: bool = False,
+        commands_only: bool = False,
+    ) -> None:
         """Remove extension files registered for a specific agent.
 
         Extension command files are tracked per agent in ``registered_commands``.
         Extension skills are scoped to the provided *agent_name*; they are removed
         from that agent's skills directory (resolved via its integration config)
         and the registry field is cleared.
+
+        Set ``enabled_only=True`` when a caller is about to re-register enabled
+        extensions and must preserve disabled extensions' existing artifacts and
+        registry entries.
+
+        Set ``commands_only=True`` for command-directory reconciliation where
+        skill artifacts are outside the target agent's lifecycle and must not
+        be touched.
 
         Skips cleanup when *agent_name* is not a supported agent to avoid
         losing registry entries while leaving orphaned files on disk.
@@ -1725,6 +2667,9 @@ class ExtensionManager:
         agent_skills_dir = resolve_skills_dir(self.project_root, agent_name)
 
         for ext_id, metadata in self.registry.list().items():
+            if enabled_only and not metadata.get("enabled", True):
+                continue
+
             updates: Dict[str, Any] = {}
 
             registered_commands = metadata.get("registered_commands", {})
@@ -1747,47 +2692,66 @@ class ExtensionManager:
             registered_skills = self._valid_name_list(
                 metadata.get("registered_skills", [])
             )
-            if registered_skills:
-                # Only pass the resolved skills_dir when it actually exists.
-                # Otherwise let _unregister_extension_skills fall back to
-                # scanning all known agent skills directories, which is useful
-                # for cleaning up stale entries created by earlier installs.
-                skills_dir = agent_skills_dir if agent_skills_dir.is_dir() else None
+            if registered_skills and not commands_only:
+                # Always pass the explicit, agent-scoped skills_dir — even
+                # when it doesn't currently exist on disk. This method must
+                # stay scoped to *this* agent only; omitting skills_dir (a
+                # bare ``None``) tells _unregister_extension_skills "this is
+                # a genuinely unscoped removal", which triggers its
+                # all-configured-agents fallback scan — reserved for
+                # ExtensionManager.remove()'s full project cleanup. If this
+                # agent's directory doesn't exist, there is nothing under it
+                # to clean up; the fast path below is a safe no-op in that
+                # case (every candidate skill_subdir.is_dir() check fails).
                 self._unregister_extension_skills(
-                    registered_skills, ext_id, skills_dir=skills_dir
+                    registered_skills, ext_id, skills_dir=agent_skills_dir
                 )
 
-                # Only reconcile registry state when cleanup was scoped to a
-                # specific existing directory. When skills_dir is None,
-                # _unregister_extension_skills falls back to scanning multiple
-                # candidate directories, so agent_skills_dir cannot be used to
-                # infer what was removed.  When skills_dir is set,
-                # _unregister_extension_skills may intentionally skip deletion
-                # when ownership cannot be verified (e.g., corrupted/missing
-                # SKILL.md or mismatching metadata.source).  Only drop registry
-                # entries for skill directories that were actually removed so
-                # future cleanup attempts can still find skipped ones.
-                if skills_dir is not None:
-                    remaining_skills = [
-                        skill_name
-                        for skill_name in registered_skills
-                        if (skills_dir / skill_name).is_dir()
-                    ]
+                # Only reconcile registry state when this agent's directory
+                # actually exists. When it's absent, this agent never had
+                # any of these skills mirrored under its own directory in
+                # the first place, so there is nothing to conclude about
+                # global ``registered_skills`` tracking from that absence —
+                # other agents' directories may still legitimately hold
+                # live mirrors for these same names (the flat list is
+                # agent-agnostic). Recomputing "remaining" against an
+                # absent directory would incorrectly conclude every name
+                # was removed and drop them all from the registry, silently
+                # orphaning any still-live mirrors under other agents'
+                # directories from future cleanup/removal.
+                #
+                # When the directory does exist, _unregister_extension_skills
+                # may intentionally skip deletion when ownership cannot be
+                # verified (e.g., corrupted/missing SKILL.md or mismatching
+                # metadata.source). A name no longer present under *this*
+                # agent's directory isn't necessarily gone everywhere either
+                # — registered_skills is a single flat list shared across
+                # every agent this extension was ever activated under, so
+                # an earlier activation under a different, still-active
+                # agent may have left its own marker-verified mirror behind.
+                # Recompute across every safe, supported skills directory
+                # (the same helper used for the analogous toggle-cleanup
+                # case) rather than just this one, or a still-existing
+                # mirror elsewhere would be silently dropped from tracking
+                # and orphaned on later removal (#2948).
+                if agent_skills_dir.is_dir():
+                    remaining_skills = self._extension_owned_skill_names(
+                        registered_skills, ext_id
+                    )
                     if remaining_skills != registered_skills:
                         updates["registered_skills"] = remaining_skills
 
             if updates:
                 self.registry.update(ext_id, updates)
 
-    def register_enabled_extensions_for_agent(self, agent_name: str) -> None:
+    def register_enabled_extensions_for_agent(self, agent_name: str, *, force: bool = False) -> None:
         """Register installed, enabled extensions for ``agent_name``.
 
         Command-file registration is scoped to the explicit ``agent_name``
-        argument, so this method can be used after install, upgrade, or switch.
-        Extension skill rendering is still scoped to the active ``ai`` /
-        ``ai_skills`` settings in init-options, so non-active skills-mode
-        targets receive command files here. Per-agent skills parity is tracked
-        separately in #2948.
+        argument. Since #2948, callers pass the active agent only (``use`` /
+        ``switch`` activate the target first; ``upgrade`` calls it only for
+        the active integration), so extension skill rendering — scoped to the
+        active ``ai`` / ``ai_skills`` init-options — matches ``agent_name``.
         """
         if not agent_name:
             return
@@ -1808,6 +2772,22 @@ class ExtensionManager:
             and bool(agent_config)
             and agent_config.get("extension") != "/SKILL.md"
         )
+        # Mirror image of skills_mode_active: this agent is command-backed,
+        # active, and currently in command mode. Used to detect a
+        # skills -> command toggle for this same agent, where the skills
+        # phase below returns empty (its directory no longer resolves) but
+        # a previously-written extension SKILL.md is now stale (#2948).
+        command_mode_active = (
+            active_agent == agent_name
+            and not ai_skills_enabled
+            and bool(agent_config)
+            and agent_config.get("extension") != "/SKILL.md"
+        )
+        agent_skills_dir = None
+        if agent_config and agent_config.get("extension") != "/SKILL.md":
+            from .. import _get_skills_dir as _resolve_agent_skills_dir
+
+            agent_skills_dir = _resolve_agent_skills_dir(self.project_root, agent_name)
 
         for ext_id, metadata in self.registry.list().items():
             if not metadata.get("enabled", True):
@@ -1824,6 +2804,10 @@ class ExtensionManager:
             # registration of the remaining enabled extensions for this agent.
             try:
                 updates: Dict[str, Any] = {}
+                # Set when a command -> skills toggle for this same agent
+                # defers stale command-mode cleanup until the skills
+                # replacement below confirms success (#2948).
+                deferred_stale_commands: Optional[List[str]] = None
 
                 if agent_config and not skills_mode_active:
                     registered = registrar.register_commands_for_agent(
@@ -1843,21 +2827,42 @@ class ExtensionManager:
                         new_registered.pop(agent_name, None)
                     if new_registered != registered_commands:
                         updates["registered_commands"] = new_registered
+                elif agent_config and skills_mode_active:
+                    # Toggled command -> skills for this same agent: the
+                    # commands phase above is skipped. A command file this
+                    # extension previously wrote for this agent while
+                    # command mode was active is still on disk and still
+                    # tracked, but it must NOT be removed yet — the skills
+                    # phase below is an independently fallible replacement
+                    # step, and deleting the old artifact before it
+                    # succeeds would leave neither the old command file nor
+                    # a new skill file if skills registration raises. The
+                    # actual removal is deferred until after the skills
+                    # phase below completes without raising (#2948).
+                    registered_commands = metadata.get("registered_commands", {})
+                    if isinstance(registered_commands, dict) and registered_commands.get(
+                        agent_name
+                    ):
+                        deferred_stale_commands = self._valid_name_list(
+                            registered_commands.get(agent_name)
+                        )
+                    else:
+                        deferred_stale_commands = None
+                else:
+                    deferred_stale_commands = None
 
                 # Extension *skills* are only ever rendered for the active agent:
                 # `_register_extension_skills` resolves the skills dir and
                 # frontmatter from init-options["ai"], ignoring ``agent_name``.
-                # When this method runs for a non-active agent — as install/upgrade
-                # now do for a secondary integration (#2886) — the skills pass would
-                # re-render the *active* agent's extension skills as a side effect,
+                # Running the skills pass for a non-active agent would re-render
+                # the *active* agent's extension skills as a side effect,
                 # resurrecting skill files the user deliberately deleted. Skip it
-                # unless the target is the active agent; `switch` is unaffected
-                # because it activates the target before registering. (Rendering
-                # skills for a non-active target is tracked separately in #2948.)
+                # unless the target is the active agent (defense in depth: since
+                # #2948 callers only pass the active agent anyway).
                 if agent_name == active_agent:
                     try:
                         registered_skills = self._register_extension_skills(
-                            manifest, ext_dir
+                            manifest, ext_dir, force=force
                         )
                     except Exception as skills_err:
                         # Skills are a companion artifact.  If command registration
@@ -1884,6 +2889,140 @@ class ExtensionManager:
                                 dict.fromkeys(existing_skills + registered_skills)
                             )
                             updates["registered_skills"] = merged_skills
+                        elif command_mode_active and agent_skills_dir is not None:
+                            # Mirror image: toggled skills -> command for
+                            # this same agent. _register_extension_skills
+                            # returned empty because this agent's skills
+                            # directory no longer resolves once ai_skills is
+                            # off, but a SKILL.md this extension wrote while
+                            # skills mode was active may still be tracked
+                            # and still on disk. Remove it narrowly for this
+                            # agent's directory only (#2948).
+                            existing_skills = self._valid_name_list(
+                                metadata.get("registered_skills", [])
+                            )
+                            owned_here = [
+                                name
+                                for name in existing_skills
+                                if (agent_skills_dir / name).is_dir()
+                            ]
+                            # Only retire a skill mirror when the
+                            # replacement command for the same logical
+                            # command was actually written this call —
+                            # `registered` (from register_commands_for_agent
+                            # above) may be empty or a partial subset
+                            # (missing source file, safety rejection,
+                            # corrupted manifest), and removing a skill
+                            # mirror whose command replacement never
+                            # landed would leave neither artifact (#2948).
+                            replaced_skill_names = {
+                                HookExecutor._skill_name_from_command(cmd_name)
+                                for cmd_name in (registered or [])
+                            }
+                            to_remove = [
+                                name for name in owned_here
+                                if name in replaced_skill_names
+                            ]
+                            if to_remove:
+                                self._unregister_extension_skills(
+                                    to_remove, ext_id, skills_dir=agent_skills_dir
+                                )
+                                # registered_skills is a single flat list
+                                # shared across every agent this extension
+                                # was ever activated under (unlike presets'
+                                # per-agent dict), so a name removed from
+                                # *this* agent's directory may still have a
+                                # marker-verified mirror under a different,
+                                # previously-active agent's directory.
+                                # Recompute across every safe, supported
+                                # skills directory rather than just this
+                                # one, or a still-existing mirror elsewhere
+                                # would be silently dropped from tracking
+                                # and orphaned on later removal (#2948).
+                                remaining = self._extension_owned_skill_names(
+                                    existing_skills, ext_id
+                                )
+                                if remaining != existing_skills:
+                                    updates["registered_skills"] = remaining
+
+                        # The skills phase above completed without raising
+                        # (this ``else:`` is only reached on success), so a
+                        # deferred command -> skills toggle cleanup queued
+                        # above is now safe to apply: the replacement skill
+                        # registration is confirmed, so the stale
+                        # command-mode artifact can finally be removed
+                        # without risking a transient state where neither
+                        # artifact exists. Only retire a stale command
+                        # whose corresponding skill was actually returned
+                        # this call — `registered_skills` may be empty or
+                        # a partial subset (missing source file, safety
+                        # rejection, corrupted manifest), and unregistering
+                        # a command whose skill replacement never landed
+                        # would leave neither artifact (#2948).
+                        if deferred_stale_commands:
+                            replaced_skill_names = set(registered_skills or [])
+                            # Commands may carry aliases (CommandRegistrar.
+                            # register_commands_for_agent() tracks and
+                            # returns primary + alias names flattened
+                            # together into one list), but
+                            # _register_extension_skills() only ever
+                            # renders/returns the *primary* command name's
+                            # skill — running an alias's own name through
+                            # _skill_name_from_command() never matches
+                            # anything real, so an alias would stay
+                            # tracked/on-disk forever even after its
+                            # primary's skill replacement landed. Map each
+                            # stale name back to its manifest command's
+                            # primary so the whole primary+alias group is
+                            # retired or kept together, based solely on
+                            # whether the *primary*'s skill replacement
+                            # actually landed (#2948).
+                            alias_to_primary: Dict[str, str] = {}
+                            for cmd_info in manifest.commands:
+                                primary_name = cmd_info.get("name")
+                                if not isinstance(primary_name, str):
+                                    continue
+                                for alias in cmd_info.get("aliases", []) or []:
+                                    if isinstance(alias, str):
+                                        alias_to_primary[alias] = primary_name
+
+                            group_fully_replaced: Dict[str, bool] = {}
+                            for cmd_name in deferred_stale_commands:
+                                primary_name = alias_to_primary.get(cmd_name, cmd_name)
+                                if primary_name in group_fully_replaced:
+                                    continue
+                                group_fully_replaced[primary_name] = (
+                                    HookExecutor._skill_name_from_command(primary_name)
+                                    in replaced_skill_names
+                                )
+
+                            fully_replaced = [
+                                cmd_name for cmd_name in deferred_stale_commands
+                                if group_fully_replaced.get(
+                                    alias_to_primary.get(cmd_name, cmd_name), False
+                                )
+                            ]
+                            if fully_replaced:
+                                registrar.unregister_commands(
+                                    {agent_name: fully_replaced}, self.project_root
+                                )
+                                registered_commands = metadata.get(
+                                    "registered_commands", {}
+                                )
+                                if isinstance(registered_commands, dict) and (
+                                    registered_commands.get(agent_name)
+                                ):
+                                    new_registered = copy.deepcopy(registered_commands)
+                                    remaining_commands = [
+                                        c for c in new_registered[agent_name]
+                                        if c not in fully_replaced
+                                    ]
+                                    if remaining_commands:
+                                        new_registered[agent_name] = remaining_commands
+                                    else:
+                                        new_registered.pop(agent_name, None)
+                                    if new_registered != registered_commands:
+                                        updates["registered_commands"] = new_registered
 
                 if updates:
                     self.registry.update(ext_id, updates)
@@ -2052,6 +3191,7 @@ class CommandRegistrar:
         project_root: Path,
         link_outputs: bool = False,
         create_missing_active_skills_dir: bool = False,
+        only_agent: Optional[str] = None,
     ) -> Dict[str, List[str]]:
         """Register extension commands for all detected agents."""
         context_note = f"\n<!-- Extension: {manifest.id} -->\n<!-- Config: .specify/extensions/{manifest.id}/ -->\n"
@@ -2063,6 +3203,7 @@ class CommandRegistrar:
             context_note=context_note,
             link_outputs=link_outputs,
             create_missing_active_skills_dir=create_missing_active_skills_dir,
+            only_agent=only_agent,
             extension_id=manifest.id,
         )
 
@@ -2124,14 +3265,23 @@ class ExtensionCatalog(CatalogStackBase):
         url: str,
         timeout: int = 10,
         extra_headers: Optional[Dict[str, str]] = None,
+        redirect_validator=None,
     ):
         """Open a URL with provider-based auth, trying each configured provider.
 
         Delegates to :func:`specify_cli.authentication.http.open_url`.
+        *redirect_validator*, when provided, is invoked as ``(old_url, new_url)``
+        before EACH redirect hop so an HTTPS host guarantee can be enforced on
+        every intermediate URL, not just the terminal one.
         """
         from specify_cli.authentication.http import open_url
 
-        return open_url(url, timeout, extra_headers=extra_headers)
+        return open_url(
+            url,
+            timeout,
+            extra_headers=extra_headers,
+            redirect_validator=redirect_validator,
+        )
 
     def _resolve_github_release_asset_api_url(
         self,
@@ -2355,8 +3505,32 @@ class ExtensionCatalog(CatalogStackBase):
 
         # Fetch from network
         try:
-            with self._open_url(entry.url, timeout=10) as response:
-                catalog_data = json.loads(response.read())
+            # Validate EVERY redirect hop, not just the terminal URL. _open_url
+            # follows redirects; _StripAuthOnRedirect drops auth on an HTTPS->HTTP
+            # downgrade AND whenever the redirect leaves the configured trusted
+            # hosts, but the payload itself is still fetched and trusted, and it
+            # supplies each extension's download_url + sha256 (so a redirected
+            # payload defeats sha256 verification). A terminal-only check also
+            # misses an https -> http -> attacker-https chain. redirect_validator
+            # runs before each hop; the final geturl() check is kept as a
+            # belt-and-braces guard. Mirrors bundler/services/adapters.py.
+            def _validate_redirect(_old_url: str, new_url: str) -> None:
+                self._validate_catalog_url(new_url)
+
+            with self._open_url(
+                entry.url, timeout=10, redirect_validator=_validate_redirect
+            ) as response:
+                final_url = response.geturl()
+                if final_url != entry.url:
+                    self._validate_catalog_url(final_url)
+                catalog_data = json.loads(
+                    read_response_limited(
+                        response,
+                        max_bytes=MAX_JSON_CATALOG_BYTES,
+                        error_type=ExtensionError,
+                        label=f"extension catalog {entry.url}",
+                    )
+                )
 
             self._validate_catalog_payload(catalog_data, entry.url)
 
@@ -2532,8 +3706,26 @@ class ExtensionCatalog(CatalogStackBase):
         try:
             import urllib.error
 
-            with self._open_url(catalog_url, timeout=10) as response:
-                catalog_data = json.loads(response.read())
+            # Same redirect hardening as _fetch_single_catalog: validate every
+            # redirect hop AND the final URL so this legacy single-catalog path
+            # is not vulnerable to an HTTPS->HTTP redirected payload either.
+            def _validate_redirect(_old_url: str, new_url: str) -> None:
+                self._validate_catalog_url(new_url)
+
+            with self._open_url(
+                catalog_url, timeout=10, redirect_validator=_validate_redirect
+            ) as response:
+                final_url = response.geturl()
+                if final_url != catalog_url:
+                    self._validate_catalog_url(final_url)
+                catalog_data = json.loads(
+                    read_response_limited(
+                        response,
+                        max_bytes=MAX_JSON_CATALOG_BYTES,
+                        error_type=ExtensionError,
+                        label=f"extension catalog {catalog_url}",
+                    )
+                )
 
             # Validate catalog structure. Reuses the same helper as
             # ``_fetch_single_catalog`` so all three branches (root type,
@@ -2602,22 +3794,35 @@ class ExtensionCatalog(CatalogStackBase):
             if verified_only and not ext_data.get("verified", False):
                 continue
 
-            if author and ext_data.get("author", "").lower() != author.lower():
-                continue
+            if author:
+                author_val = ext_data.get("author", "")
+                if not isinstance(author_val, str):
+                    author_val = str(author_val) if author_val is not None else ""
+                if author_val.lower() != author.lower():
+                    continue
 
-            if tag and tag.lower() not in [t.lower() for t in ext_data.get("tags", [])]:
-                continue
+            if tag:
+                raw_tags = ext_data.get("tags", [])
+                tags_list = raw_tags if isinstance(raw_tags, list) else []
+                if tag.lower() not in [
+                    t.lower() for t in tags_list if isinstance(t, str)
+                ]:
+                    continue
 
             if query:
                 # Search in name, description, and tags
                 query_lower = query.lower()
+                raw_tags = ext_data.get("tags", [])
+                tags_list = raw_tags if isinstance(raw_tags, list) else []
+                name_val = ext_data.get("name", "")
+                desc_val = ext_data.get("description", "")
                 searchable_text = " ".join(
                     [
-                        ext_data.get("name", ""),
-                        ext_data.get("description", ""),
+                        str(name_val) if name_val else "",
+                        str(desc_val) if desc_val else "",
                         ext_id,
                     ]
-                    + ext_data.get("tags", [])
+                    + [t for t in tags_list if isinstance(t, str)]
                 ).lower()
 
                 if query_lower not in searchable_text:
@@ -2678,13 +3883,33 @@ class ExtensionCatalog(CatalogStackBase):
         download_url = ext_info.get("download_url")
         if not download_url:
             raise ExtensionError(f"Extension '{extension_id}' has no download URL")
+        if not isinstance(download_url, str):
+            raise ExtensionError(
+                f"Extension download URL is malformed: {download_url}"
+            )
 
         # Validate download URL requires HTTPS (prevent man-in-the-middle attacks)
         from urllib.parse import urlparse
 
-        parsed = urlparse(download_url)
-        is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
+        # A malformed authority (e.g. an unterminated IPv6 bracket
+        # "https://[::1") makes urlparse / hostname access raise ValueError.
+        # The download_url comes from catalog payload data, so surface a clean
+        # ExtensionError rather than leaking a raw ValueError past the command
+        # handler (which only catches ExtensionError). Mirrors catalogs (#3435)
+        # and workflows/catalog.py (#3484).
+        try:
+            parsed = urlparse(download_url)
+            hostname = parsed.hostname
+            parsed.port
+        except ValueError:
+            raise ExtensionError(
+                f"Extension download URL is malformed: {download_url}"
+            ) from None
+        if not hostname:
+            raise ExtensionError(
+                f"Extension download URL is malformed: {download_url}"
+            )
+        if not is_https_or_localhost_http(download_url):
             raise ExtensionError(
                 f"Extension download URL must use HTTPS: {download_url}"
             )
@@ -2692,11 +3917,16 @@ class ExtensionCatalog(CatalogStackBase):
         # Determine target path
         if target_dir is None:
             target_dir = self.cache_dir / "downloads"
-        target_dir.mkdir(parents=True, exist_ok=True)
-
+        target_dir = Path(target_dir)
         version = ext_info.get("version", "unknown")
-        zip_filename = f"{extension_id}-{version}.zip"
-        zip_path = target_dir / zip_filename
+        zip_path = build_safe_download_path(
+            target_dir,
+            extension_id,
+            version,
+            error_type=ExtensionError,
+            label="extension",
+        )
+        target_dir.mkdir(parents=True, exist_ok=True)
 
         extra_headers = None
         resolved_download_url = self._resolve_github_release_asset_api_url(download_url)
@@ -2709,7 +3939,11 @@ class ExtensionCatalog(CatalogStackBase):
             with self._open_url(
                 download_url, timeout=60, extra_headers=extra_headers
             ) as response:
-                zip_data = response.read()
+                zip_data = read_response_limited(
+                    response,
+                    error_type=ExtensionError,
+                    label=f"extension '{extension_id}' download",
+                )
 
             verify_archive_sha256(
                 zip_data, ext_info.get("sha256"), extension_id, ExtensionError
@@ -2727,10 +3961,8 @@ class ExtensionCatalog(CatalogStackBase):
 
     def clear_cache(self):
         """Clear the catalog cache (both legacy and URL-hash-based files)."""
-        if self.cache_file.exists():
-            self.cache_file.unlink()
-        if self.cache_metadata_file.exists():
-            self.cache_metadata_file.unlink()
+        self.cache_file.unlink(missing_ok=True)
+        self.cache_metadata_file.unlink(missing_ok=True)
         # Also clear any per-URL hash-based cache files
         if self.cache_dir.exists():
             for extra_cache in self.cache_dir.glob("catalog-*.json"):
@@ -3135,6 +4367,7 @@ class HookExecutor:
         dollar_skill_mode = is_dollar_skills_agent(selected_ai, ai_skills_enabled)
         kimi_skill_mode = selected_ai == "kimi"
         cline_mode = selected_ai == "cline"
+        forge_mode = selected_ai == "forge"
 
         skill_name = self._skill_name_from_command(command_id, self.project_root)
         if dollar_skill_mode and skill_name:
@@ -3145,6 +4378,10 @@ class HookExecutor:
             from ..integrations.cline import format_cline_command_name
 
             return f"/{format_cline_command_name(command_id)}"
+        if forge_mode:
+            from ..integrations.forge import format_forge_command_name
+
+            return f"/{format_forge_command_name(command_id)}"
 
         use_slash = is_slash_skills_agent(selected_ai, ai_skills_enabled)
 

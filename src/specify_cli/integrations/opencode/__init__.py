@@ -1,6 +1,6 @@
 """opencode integration."""
 
-from ..base import IntegrationOption, MarkdownIntegration
+from ..base import MarkdownIntegration
 
 
 class OpencodeIntegration(MarkdownIntegration):
@@ -20,16 +20,14 @@ class OpencodeIntegration(MarkdownIntegration):
         "extension": ".md",
     }
 
-    @classmethod
-    def options(cls) -> list[IntegrationOption]:
-        return [
-            IntegrationOption(
-                "--hooks",
-                is_flag=False,
-                default="true",
-                help="Enable/disable runtime hooks (true|false, default: true)",
-            ),
-        ]
+    CANONICAL_TO_NATIVE = {
+        "pre_tool_use": "tool.execute.before",
+        "post_tool_use": "tool.execute.after",
+        "session_start": "session.created",
+        "session_end": "session.deleted",
+    }
+    events_config_file = "opencode.json"
+    events_format = "ts-plugin"
 
     def build_exec_args(
         self,

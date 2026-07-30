@@ -313,7 +313,7 @@ class TestClaudeIntegration:
         assert "user-invocable: true" in content
 
         metadata = manager.registry.get("claude-skill-command")
-        assert "speckit-research" in metadata.get("registered_skills", [])
+        assert "speckit-research" in metadata.get("registered_skills", {}).get("claude", [])
 
 
 class TestClaudeArgumentHints:

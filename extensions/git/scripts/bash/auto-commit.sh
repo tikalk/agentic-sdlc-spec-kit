@@ -3,34 +3,57 @@
 # Automatically commit changes after a Spec Kit command completes.
 # Checks per-command config keys in git-config.yml before committing.
 #
-# Usage: auto-commit.sh [--message "commit message"] <event_name>
+# Usage: auto-commit.sh <event_name> [generated_message]
+#        auto-commit.sh <event_name> --message-file <path>
 #   e.g.: auto-commit.sh after_specify
-#   e.g.: auto-commit.sh --message "feat: add login" after_implement
+#   e.g.: auto-commit.sh after_specify --message-file /tmp/commit-msg.txt  (commit_style: conventional)
+#
+# --message-file is the preferred way to supply an agent-generated commit
+# message: it reads the message from a file instead of a shell argument,
+# so message content (which may contain quotes, `$(...)`, backticks, etc.)
+# is never interpolated into a shell command line.
 
 set -e
 
-CUSTOM_MESSAGE=""
-PASSTHROUGH_ARGS=()
+EVENT_NAME="${1:-}"
+if [ -z "$EVENT_NAME" ]; then
+    echo "Usage: $0 <event_name> [generated_message | --message-file <path>]" >&2
+    exit 1
+fi
+shift || true
 
+# Optional second argument: an agent-generated commit message (used when
+# commit_style: conventional is configured). Prefer --message-file over
+# passing the message directly as a shell argument.
+GENERATED_MESSAGE=""
 while [ $# -gt 0 ]; do
     case "$1" in
-        --message)
-            shift
-            CUSTOM_MESSAGE="$1"
-            shift
+        --message-file)
+            _message_file="${2:-}"
+            if [ -z "$_message_file" ]; then
+                echo "[specify] Error: --message-file requires a path argument" >&2
+                exit 1
+            fi
+            if [ ! -f "$_message_file" ]; then
+                echo "[specify] Error: message file '$_message_file' not found" >&2
+                exit 1
+            fi
+            GENERATED_MESSAGE="$(cat "$_message_file")"
+            # The message file is a transport-only artifact: its content is
+            # now captured above, so remove it immediately. Otherwise, if it
+            # was written inside the worktree, it would be picked up as an
+            # untracked change by both the "any changes?" check below and by
+            # `git add .`, polluting the commit or defeating the no-changes
+            # short-circuit even when nothing else changed.
+            rm -f "$_message_file"
+            shift 2
             ;;
         *)
-            PASSTHROUGH_ARGS+=("$1")
+            GENERATED_MESSAGE="$1"
             shift
             ;;
     esac
 done
-
-EVENT_NAME="${PASSTHROUGH_ARGS[0]:-}"
-if [ -z "$EVENT_NAME" ]; then
-    echo "Usage: $0 [--message \"commit message\"] <event_name>" >&2
-    exit 1
-fi
 
 SCRIPT_DIR="$(CDPATH="" cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -64,8 +87,22 @@ fi
 _config_file="$REPO_ROOT/.specify/extensions/git/git-config.yml"
 _enabled=false
 _commit_msg=""
+_commit_style="fixed"
 
 if [ -f "$_config_file" ]; then
+    # Top-level scalar key: commit_style (fixed | conventional)
+    _style_val=$(grep -m1 '^commit_style:' "$_config_file" 2>/dev/null | sed 's/^commit_style:[[:space:]]*//' | sed 's/[[:space:]]\{1,\}#.*$//' | sed 's/[[:space:]]*$//' | sed 's/^["'\'']//' | sed 's/["'\'']*$//' | tr '[:upper:]' '[:lower:]')
+    if [ -n "$_style_val" ]; then
+        case "$_style_val" in
+            fixed|conventional)
+                _commit_style="$_style_val"
+                ;;
+            *)
+                echo "[specify] Warning: unknown commit_style '$_style_val' in git-config.yml (expected 'fixed' or 'conventional'); defaulting to 'fixed'" >&2
+                ;;
+        esac
+    fi
+
     # Parse the auto_commit section for this event.
     # Look for auto_commit.<event_name>.enabled and .message
     # Also check auto_commit.default as fallback.
@@ -112,7 +149,12 @@ if [ -f "$_config_file" ]; then
                     [ "$_val" = "false" ] && _enabled=false
                 fi
                 if echo "$_line" | grep -Eq '[[:space:]]+message:'; then
-                    _commit_msg=$(echo "$_line" | sed 's/^[^:]*:[[:space:]]*//' | sed 's/^["'\'']//' | sed 's/["'\'']*$//')
+                    # Trim trailing whitespace before stripping the closing quote:
+                    # a value like `message: "Done"  ` (trailing spaces after the
+                    # quote) would otherwise leave the quote dangling (`Done"  `),
+                    # since the closing-quote strip is anchored to end-of-string.
+                    # The PowerShell twin .Trim()s first; match it for parity.
+                    _commit_msg=$(echo "$_line" | sed 's/^[^:]*:[[:space:]]*//' | sed 's/[[:space:]]*$//' | sed 's/^["'\'']//' | sed 's/["'\'']*$//')
                 fi
             fi
         fi
@@ -127,7 +169,7 @@ if [ -f "$_config_file" ]; then
         fi
     fi
 else
-    # No config file -- auto-commit disabled by default
+    # No config file — auto-commit disabled by default
     exit 0
 fi
 
@@ -141,15 +183,24 @@ if git diff --quiet HEAD 2>/dev/null && git diff --cached --quiet 2>/dev/null &&
     exit 0
 fi
 
+# In conventional mode, the commit message must be supplied by the agent
+# (via the generated_message argument); never fall back to the fixed message.
+if [ "$_commit_style" = "conventional" ]; then
+    if [ -n "$GENERATED_MESSAGE" ]; then
+        _commit_msg="$GENERATED_MESSAGE"
+    else
+        echo "[specify] Error: commit_style is 'conventional' but no generated commit message was supplied; aborting auto-commit (pass --message-file <path>, or a raw message as arg 2, or set commit_style: fixed)" >&2
+        exit 1
+    fi
+fi
+
 # Derive a human-readable command name from the event
 # e.g., after_specify -> specify, before_plan -> plan
 _command_name=$(echo "$EVENT_NAME" | sed 's/^after_//' | sed 's/^before_//')
 _phase=$(echo "$EVENT_NAME" | grep -q '^before_' && echo 'before' || echo 'after')
 
-# Use custom message if provided via --message flag, or configured, otherwise default
-if [ -n "$CUSTOM_MESSAGE" ]; then
-    _commit_msg="$CUSTOM_MESSAGE"
-elif [ -z "$_commit_msg" ]; then
+# Use custom message if configured, otherwise default
+if [ -z "$_commit_msg" ]; then
     _commit_msg="[Spec Kit] Auto-commit ${_phase} ${_command_name}"
 fi
 

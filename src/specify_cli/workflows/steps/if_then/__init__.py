@@ -22,9 +22,32 @@ class IfThenStep(StepBase):
         result = evaluate_condition(condition, context)
 
         if result:
+            branch_name = "then"
             branch = config.get("then", [])
         else:
+            branch_name = "else"
             branch = config.get("else", [])
+
+        # The engine does not auto-validate step config (see
+        # ``WorkflowEngine.load_workflow``), and it feeds ``next_steps`` straight
+        # into ``_execute_steps`` which iterates them as step mappings. A
+        # non-list branch (a single mapping or scalar authoring mistake) would
+        # otherwise be iterated element-wise — a dict yields its string keys, a
+        # str its characters — and crash the whole run with AttributeError on
+        # ``.get()``. ``validate`` already rejects a non-list branch; fail this
+        # step loudly on an unvalidated run instead, mirroring the switch/fan-out
+        # steps. A missing ``else`` defaults to ``[]`` and stays valid.
+        if branch is None and branch_name == "else":
+            branch = []
+        elif not isinstance(branch, list):
+            return StepResult(
+                status=StepStatus.FAILED,
+                output={"condition_result": result},
+                error=(
+                    f"If step {config.get('id', '?')!r}: {branch_name!r} must be "
+                    f"a list of steps, got {type(branch).__name__}."
+                ),
+            )
 
         return StepResult(
             status=StepStatus.COMPLETED,
@@ -37,6 +60,24 @@ class IfThenStep(StepBase):
         if "condition" not in config:
             errors.append(
                 f"If step {config.get('id', '?')!r} is missing 'condition' field."
+            )
+        elif not isinstance(config["condition"], (str, bool)):
+            # execute() feeds 'condition' to evaluate_condition(), which first
+            # delegates to evaluate_expression() -- that returns a non-string
+            # unchanged -- and then coerces the result with bool(). So a
+            # list/dict/number condition silently resolves to its truthiness
+            # (e.g. condition: [1, 2] is always True) with no error, branching
+            # wrongly on an authoring mistake. Reject those at validation,
+            # mirroring the prompt/shell/command 'must be a string' checks.
+            #
+            # A literal ``bool`` stays valid: an unquoted ``condition: false``
+            # is idiomatic YAML, evaluate_condition() already resolves it
+            # exactly (bool passthrough, then a no-op bool()), and this step
+            # itself defaults ``condition`` to ``False``. "true"/"false" and an
+            # expression like "{{ ... }}" are strings, so they stay valid too.
+            errors.append(
+                f"If step {config.get('id', '?')!r}: 'condition' must be a "
+                f"string or boolean, got {type(config['condition']).__name__}."
             )
         if "then" not in config:
             errors.append(

@@ -39,6 +39,10 @@
       href: reference/workflows.md
     - name: Bundles
       href: reference/bundles.md
+    - name: Agentic SDD
+      href: reference/agentic-sdd.md
+    - name: Agentic Bug Fix
+      href: reference/agentic-bugfix.md
     - name: Authentication
       href: reference/authentication.md
 
@@ -51,6 +55,8 @@
       href: concepts/spec-persistence.md
     - name: Handling Complex Features
       href: concepts/complex-features.md
+    - name: Spec of Specs
+      href: concepts/spec-of-specs.md
 
 # Development workflows
 - name: Development

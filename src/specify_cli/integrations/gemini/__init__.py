@@ -1,6 +1,6 @@
 """Gemini CLI integration."""
 
-from ..base import IntegrationOption, TomlIntegration
+from ..base import TomlIntegration
 
 
 class GeminiIntegration(TomlIntegration):
@@ -20,13 +20,21 @@ class GeminiIntegration(TomlIntegration):
     }
     multi_install_safe = True
 
-    @classmethod
-    def options(cls) -> list[IntegrationOption]:
-        return [
-            IntegrationOption(
-                "--hooks",
-                is_flag=False,
-                default="true",
-                help="Enable/disable runtime hooks (true|false, default: true)",
-            ),
-        ]
+    CANONICAL_TO_NATIVE = {
+        "session_start": "SessionStart",
+        "pre_tool_use": "BeforeTool",
+        "post_tool_use": "AfterTool",
+        "session_end": "SessionEnd",
+        # Gemini exposes BeforeAgent for the per-turn prompt-submit lifecycle
+        # point (S6); its own Claude-hook migration maps UserPromptSubmit to
+        # BeforeAgent. Mapping it so extension handlers fire.
+        "user_prompt_submit": "BeforeAgent",
+        "stop": "AfterAgent",
+    }
+    events_config_file = ".gemini/settings.json"
+    events_format = "json-nested"
+    # Gemini measures hook timeouts in milliseconds, unlike Claude/Cursor/Codex
+    # which use seconds. The shared formatter converts via _native_timeout (#7)
+    # so the default 60s becomes 60000ms instead of terminating the dispatcher
+    # after 60ms.
+    events_timeout_unit = "ms"

@@ -96,37 +96,46 @@ class BundleManifest:
         if not isinstance(data, dict):
             raise BundlerError("Manifest must be a YAML mapping at the top level.")
 
-        schema_version = str(data.get("schema_version", "")).strip()
+        schema_version = _text(data.get("schema_version"))
 
         bundle_raw = data.get("bundle")
         if not isinstance(bundle_raw, dict):
             raise BundlerError("Manifest is missing the required 'bundle' mapping.")
         meta = BundleMeta(
-            id=str(bundle_raw.get("id", "")).strip(),
-            name=str(bundle_raw.get("name", "")).strip(),
-            version=str(bundle_raw.get("version", "")).strip(),
-            role=str(bundle_raw.get("role", "")).strip(),
-            description=str(bundle_raw.get("description", "")).strip(),
-            author=str(bundle_raw.get("author", "")).strip(),
-            license=str(bundle_raw.get("license", "")).strip(),
+            id=_text(bundle_raw.get("id")),
+            name=_text(bundle_raw.get("name")),
+            version=_text(bundle_raw.get("version")),
+            role=_text(bundle_raw.get("role")),
+            description=_text(bundle_raw.get("description")),
+            author=_text(bundle_raw.get("author")),
+            license=_text(bundle_raw.get("license")),
         )
 
-        requires_raw = data.get("requires") or {}
-        if not isinstance(requires_raw, dict):
+        requires_raw = data.get("requires")
+        if requires_raw is None:
+            requires_raw = {}
+        elif not isinstance(requires_raw, dict):
             raise BundlerError("'requires' must be a mapping when present.")
         requires = Requires(
-            speckit_version=str(requires_raw.get("speckit_version", "")).strip(),
+            speckit_version=_text(requires_raw.get("speckit_version")),
             tools=_parse_str_list(requires_raw.get("tools"), "requires.tools"),
             mcp=_parse_str_list(requires_raw.get("mcp"), "requires.mcp"),
         )
 
         integration = None
         integration_raw = data.get("integration")
+        # Mirror the requires/provides guards above: a present-but-non-mapping
+        # 'integration' (e.g. a bare string "copilot") was silently dropped,
+        # leaving the bundle wrongly integration-agnostic. Reject it instead.
+        if integration_raw is not None and not isinstance(integration_raw, dict):
+            raise BundlerError("'integration' must be a mapping when present.")
         if isinstance(integration_raw, dict) and integration_raw.get("id"):
             integration = IntegrationRef(id=str(integration_raw["id"]).strip())
 
-        provides = data.get("provides") or {}
-        if not isinstance(provides, dict):
+        provides = data.get("provides")
+        if provides is None:
+            provides = {}
+        elif not isinstance(provides, dict):
             raise BundlerError("'provides' must be a mapping when present.")
 
         tags_raw = data.get("tags")
@@ -211,6 +220,22 @@ class BundleManifest:
         return self.integration is None
 
 
+def _text(raw: Any) -> str:
+    """Coerce a manifest scalar into stripped text, mapping an explicit null to ``""``.
+
+    A ``.get(key, "")`` default only covers a *missing* key. A key that is
+    present but null -- how YAML spells an empty field (``author:`` with nothing
+    after it) -- yields ``None``, and ``str(None)`` is the literal ``"None"``.
+    That text is non-empty, so it sailed past the ``if not value`` required-field
+    checks in :meth:`BundleManifest.structural_errors`: an empty required field
+    was silently accepted and the bundle shipped ``"None"`` as its
+    author/license/description.
+    """
+    if raw is None:
+        return ""
+    return str(raw).strip()
+
+
 def _parse_str_list(raw: Any, field_name: str) -> tuple[str, ...]:
     """Coerce a manifest list-of-strings field into a tuple of strings.
 
@@ -238,7 +263,7 @@ def _parse_refs(kind: str, raw: Any) -> list[ComponentRef]:
         refs.append(
             ComponentRef(
                 kind=kind,
-                id=str(item.get("id", "")).strip(),
+                id=_text(item.get("id")),
                 version=(str(item["version"]).strip() if item.get("version") else None),
                 source=(str(item["source"]).strip() if item.get("source") else None),
                 priority=priority,

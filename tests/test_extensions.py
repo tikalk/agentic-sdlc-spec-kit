@@ -573,7 +573,7 @@ class TestExtensionManifest:
         with open(manifest_path, 'w') as f:
             yaml.dump(valid_manifest_data, f)
 
-        with pytest.raises(ValidationError, match="must provide at least one command, hook, or runtime_hook"):
+        with pytest.raises(ValidationError, match="must provide at least one command, hook, or event"):
             ExtensionManifest(manifest_path)
 
     def test_hooks_only_extension(self, temp_dir, valid_manifest_data):
@@ -1113,6 +1113,8 @@ class TestExtensionManager:
             project_root,
             link_outputs=False,
             create_missing_active_skills_dir=False,
+            extension_id=None,
+            only_agent=None,
         ):
             captured["create_missing_active_skills_dir"] = (
                 create_missing_active_skills_dir
@@ -1148,6 +1150,7 @@ class TestExtensionManager:
             link_outputs=False,
             create_missing_active_skills_dir=False,
             extension_id=None,
+            only_agent=None,
         ):
             captured["create_missing_active_skills_dir"] = (
                 create_missing_active_skills_dir
@@ -2322,7 +2325,7 @@ Run {SCRIPT}
         """Without init metadata, Windows fallback should prefer ps scripts over sh."""
         import yaml
 
-        monkeypatch.setattr("specify_cli.agents.platform.system", lambda: "Windows")
+        monkeypatch.setattr("specify_cli.integrations.base.platform.system", lambda: "Windows")
 
         ext_dir = temp_dir / "ext-script-windows-fallback"
         ext_dir.mkdir()

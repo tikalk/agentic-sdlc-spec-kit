@@ -25,6 +25,13 @@ issue_format: jira
 # Commit message used by `git commit` during repository initialization
 init_commit_message: "[Spec Kit] Initial commit"
 
+# Commit message style used by auto-commit hooks (speckit.git.commit):
+# "fixed"        - default; use the configured/static messages below.
+# "conventional" - ask the agent to inspect the diff and generate a
+#                  Conventional Commit message (e.g. "feat: add OAuth spec")
+#                  instead of using the messages configured below.
+commit_style: fixed
+
 # Feature isolation mode. Controls whether `git.feature` creates a normal
 # feature branch (existing behavior) or provisions a feature-level worktree
 # at .worktrees/<feature>/. Valid values: "branch" (default), "worktree".

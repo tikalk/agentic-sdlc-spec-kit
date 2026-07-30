@@ -10,7 +10,21 @@ The toolkit supports multiple AI coding assistants, allowing teams to use their 
 
 ---
 
-## General practices
+## Quickstart — Add a New Integration in 5 Steps
+
+If you are new to the codebase and want to add support for a new AI agent, here is the shortest path from zero to a working integration:
+
+1. **Choose a base class** — most agents only need `MarkdownIntegration`. See [Choose a base class](#1-choose-a-base-class).
+2. **Create a subpackage** — add `src/specify_cli/integrations/<package_dir>/__init__.py` with the required `key`, `config`, and `registrar_config` fields.
+3. **Register it** — add one import and one `_register()` call in `src/specify_cli/integrations/__init__.py` (both alphabetical).
+4. **Write a test file** — create `tests/integrations/test_integration_<key>.py` (hyphens in the key become underscores in the filename).
+5. **Run and verify** — use `specify init --integration <key>` to exercise the full install/uninstall cycle.
+
+Each step is expanded under [Adding a New Integration](#adding-a-new-integration). Note that agent **context files** (`CLAUDE.md`, `AGENTS.md`, …) are **not** handled by the integration — that is owned by the opt-in `agent-context` extension; see [Context file behavior](#4-context-file-behavior).
+
+---
+
+## Integration Architecture
 
 ### Python
 
@@ -34,7 +48,31 @@ The registry is the **single source of truth for Python integration metadata**. 
 
 - Any changes to `__init__.py` for the Specify CLI require a version rev in `pyproject.toml` and addition to `CHANGELOG.md`.
 
-## Adding New Agent Support
+## IntegrationManifest — File Tracking
+
+`manifest.py` provides the `IntegrationManifest` class, which records every file an integration installs. This record is what makes uninstall reliable and safe.
+
+### How it works
+
+`setup()` receives an `IntegrationManifest` and writes files through it rather than touching the filesystem directly:
+
+```python
+# Produce a new file and record its hash for later verification.
+manifest.record_file("commands/speckit.plan.md", processed_content)
+
+# Adopt a pre-existing file the integration is now responsible for.
+manifest.record_existing(".vscode/settings.json")
+```
+
+The manifest is persisted at `.specify/integrations/<key>.manifest.json` (one per integration, keyed by `key`) and stores a SHA-256 hash per file. When the user runs `specify integration uninstall <key>`, `teardown()` delegates to `manifest.uninstall()`, which removes only files whose current hash still matches the recorded value — so files the user later edited by hand are skipped, not clobbered (use `specify integration uninstall <key> --force` to remove modified tracked files anyway).
+
+### Why this matters
+
+Without hash-tracked manifests, uninstall would either remove files it should not (destructive) or leave orphans behind (messy). If you write a custom `setup()`, route **every** file you create through `manifest.record_file(...)` (or `record_existing(...)` for files you adopt) so uninstall can reason about them.
+
+---
+
+## Adding a New Integration
 
 This section explains how to add support for new AI agents/assistants to the Specify CLI. Use this guide as a reference when integrating new AI tools into the Spec-Driven Development workflow.
 
@@ -61,13 +99,14 @@ class KilocodeIntegration(MarkdownIntegration):
     key = "kilocode"
     config = {
         "name": "Kilo Code",
-        "folder": ".kilocode/",
-        "commands_subdir": "workflows",
+        "folder": ".kilo/",
+        "commands_subdir": "commands",
         "install_url": None,
         "requires_cli": False,
     }
     registrar_config = {
-        "dir": ".kilocode/workflows",
+        "dir": ".kilo/commands",
+        "legacy_dir": ".kilocode/workflows",
         "format": "markdown",
         "args": "$ARGUMENTS",
         "extension": ".md",
@@ -217,7 +256,7 @@ shell commands, and other important information, read the current plan
 "
 ```
 
-- The Specify CLI does **not** write this config. When `context_file` is empty, the extension's bundled scripts self-seed it by looking up the active integration's key in the extension's own `agent-context-defaults.json` map (`extensions/agent-context/scripts/bash/update-agent-context.sh` and `.ps1`). The CLI registry is never consulted — all agent→context-file knowledge lives inside the extension.
+- The Specify CLI does **not** write this config. When `context_file` is empty, the extension's bundled scripts self-seed it by looking up the active integration's key in the extension's own `agent-context-defaults.json` map (`extensions/agent-context/scripts/bash/update-agent-context.sh`, `.ps1`, and `extensions/agent-context/scripts/python/update_agent_context.py`). The CLI registry is never consulted — all agent→context-file knowledge lives inside the extension.
 - `context_markers.{start,end}` are read solely by the extension's scripts; they default to the Spec Kit markers shown above and can be customized by editing `agent-context-config.yml` directly.
 
 Existing projects created by older Spec Kit versions keep working: any previously written managed section or extension config is left intact and is only ever updated by the extension when run.
@@ -231,8 +270,8 @@ Only add custom setup logic when the agent needs non-standard behavior. Integrat
 specify init my-project --integration <key>
 
 # Verify files were created in the commands directory configured by
-# config["folder"] + config["commands_subdir"] (for example, .kilocode/workflows/)
-ls -R my-project/.kilocode/workflows/
+# config["folder"] + config["commands_subdir"] (for example, .kilo/commands/)
+ls -R my-project/.kilo/commands/
 
 # Uninstall cleanly
 cd my-project && specify integration uninstall <key>
@@ -330,6 +369,25 @@ Work within integrated development environments:
 
 ## Command File Formats
 
+### Script References (`scripts:` frontmatter)
+
+Core command templates (`templates/commands/*.md`) that invoke a helper script declare it in a `scripts:` frontmatter block with one line per supported script type. The `{SCRIPT}` placeholder in the command body is replaced at install time with the entry matching the project's selected script type (`--script sh|ps|py`):
+
+```yaml
+scripts:
+  sh: scripts/bash/setup-plan.sh --json
+  ps: scripts/powershell/setup-plan.ps1 -Json
+  py: scripts/python/setup_plan.py --json
+```
+
+| Key  | Script type            | Location                   |
+| ---- | ---------------------- | -------------------------- |
+| `sh` | POSIX shell (bash/zsh) | `scripts/bash/*.sh`        |
+| `ps` | PowerShell             | `scripts/powershell/*.ps1` |
+| `py` | Python                 | `scripts/python/*.py`      |
+
+All three entries must be present and behaviorally equivalent — agents parse the same stdout contract (`FEATURE_DIR:…`, `AVAILABLE_DOCS:…`, `--json` shapes) regardless of which one runs. (The bundled `agent-context` and `git` extension command templates also invoke helpers but do not yet use `scripts:` frontmatter — see [Script Types and Migration](#script-types-and-migration).)
+
 ### Markdown Format
 
 Used by: Claude, Cursor, GitHub Copilot, opencode, Windsurf, Junie, Kiro CLI, Amp, SHAI, IBM Bob, Kimi Code, Qwen, Pi, Codex, Auggie, CodeBuddy, Qoder, Roo Code, Kilo Code, Trae, Antigravity, Mistral Vibe, iFlow, Forge
@@ -398,46 +456,42 @@ Command content with {SCRIPT} and {{args}} placeholders.
 
 Different agents use different argument placeholders:
 
-- **Markdown/prompt-based**: `$ARGUMENTS`
-- **TOML-based**: `{{args}}`
-- **Forge-specific**: `{{parameters}}` (uses custom parameter syntax)
-- **Script placeholders**: `{SCRIPT}` (replaced with actual script path)
+- **Markdown/prompt-based**: `$ARGUMENTS` (default for most markdown agents)
+- **TOML-based**: `{{args}}` (e.g., Gemini)
+- **YAML-based**: `{{args}}` (e.g., Goose)
+- **Custom**: some agents override the default (e.g., Forge uses `{{parameters}}`)
+- **Script placeholders**: `{SCRIPT}` (replaced with the resolved command from the template's `scripts:` frontmatter, per the project's `--script sh|ps|py` selection)
 - **Agent placeholders**: `__AGENT__` (replaced with agent name)
 
-## Runtime Hooks
+## Runtime Events
 
-Hook-capable integrations (`claude`, `cursor-agent`, `codex`, `opencode`) support agent-native runtime hooks that wire slash commands to lifecycle events (`PreToolUse`, `PostToolUse`, `Stop`, `SessionStart`, `SessionEnd`). All hook logic lives in the fork leaf module `_hooks_fork.py`.
+Event-capable integrations (`claude`, `cursor-agent`, `codex`, `opencode`, `qwen`, `gemini`, `devin`, `tabnine`) support agent-native runtime events that wire slash commands to lifecycle hooks (`session_start`, `pre_tool_use`, `post_tool_use`, `session_end`, `user_prompt_submit`, `stop`). Since the `0.14.4` upstream merge, this is owned by the upstream `src/specify_cli/events.py` module — the fork's earlier `_hooks_fork.py` was retired in favor of it.
 
-### Declaring hooks
+- **How it works**: An integration declares `CANONICAL_TO_NATIVE`, `events_config_file`, and `events_format` class attributes; `IntegrationBase.options()` then auto-adds the `--events` flag. Native event config is generated/merged by `events.py` and dispatched via the `specify event run` command.
+- **Extension-declared**: Extensions add an `events:` block (separate from workflow `hooks:`) in `extension.yml`, validated by `validate_events()`. The fork's `agent-context` extension declares a `session_start` event that refreshes the managed context-file section when an agent session starts.
+- **User override**: `.specify/integration-events.yml` can replace the event set per integration key.
 
-- **Built-in defaults**: Set `config["hooks"]` in the integration class and declare `options()` returning `IntegrationOption(name="--hooks", default="true")`.
-- **Extension-declared**: Extensions add a `runtime_hooks:` block (separate from workflow `hooks:`) in `extension.yml`.
-- **User override**: Users create `.specify/integration-hooks.yml` to replace the hook set per integration key.
+See `integrations/README.md` and `extensions/EXTENSION-DEVELOPMENT-GUIDE.md` → `events` for full documentation.
 
-### Implementation requirements for hook-capable integrations
+## Script Types and Migration
 
-1. Add `--hooks` to `options()`:
-   ```python
-   IntegrationOption(name="--hooks", is_flag=False, default="true",
-                     help="Enable/disable runtime hooks (true|false, default: true)")
-   ```
-2. `stale_cleanup_exclusions()` must include the native settings file path (delegated to `hooks_stale_exclusions()` in `_hooks_fork.py`).
-3. The integration's `setup()` and `teardown()` callouts are already in `IntegrationBase` — no per-class changes needed.
+Spec Kit ships every core workflow script in three interchangeable variants — POSIX shell (`sh`), PowerShell (`ps`), and Python (`py`) — selected per project with `specify init --script sh|ps|py`. Each core command template that invokes a helper script carries all three in its `scripts:` frontmatter (templates that don't call a script, e.g. `constitution`/`specify`, have no `scripts:` block); see [Script References](#script-references-scripts-frontmatter).
 
-### Native config targets
+### Why Python is recommended
 
-| Integration | Config file | Adapter class |
-|-------------|-------------|---------------|
-| `claude` | `.claude/settings.json` | `ClaudeHookAdapter` (JSON nested) |
-| `cursor-agent` | `.cursor/hooks.json` | `CursorHookAdapter` (JSON flat, camelCase) |
-| `codex` | `.codex/config.toml` | `CodexHookAdapter` (TOML, requires `/hooks` trust) |
-| `opencode` | `.opencode/plugin/speckit-hooks.ts` + `opencode.json` | `OpencodeHookAdapter` (TS plugin) |
-| `qwen` | `.qwen/settings.json` | `QwenHookAdapter` (JSON nested, identity mapping) |
-| `gemini` | `.gemini/settings.json` | `GeminiHookAdapter` (JSON nested, `BeforeTool`/`AfterTool`) |
-| `devin` | `.devin/hooks.v1.json` | `DevinHookAdapter` (JSON nested, identity mapping) |
-| `tabnine` | `.tabnine/agent/settings.json` | `TabnineHookAdapter` (JSON nested, `BeforeTool`/`AfterTool`) |
+- **No extra runtime.** The `specify` CLI is already Python, so the interpreter is guaranteed present — `py` adds no new dependency.
+- **Path toward a single source of truth.** The shell variants require paired `.sh` + `.ps1` maintenance and diverge on JSON handling (`jq` vs manual parsing). The Python variant avoids `jq` and is intended to eventually replace that dual-maintenance — but that consolidation has not happened yet: all three variants are still maintained in parallel (see the parity rule below).
+- **Parity-tested.** The Python ports are covered by tests — output-parity tests against the shell scripts where the contract is stdout-based, and direct unit tests elsewhere — so the stdout contract agents rely on stays stable.
 
-See `integrations/README.md` → Runtime Hooks and `extensions/EXTENSION-DEVELOPMENT-GUIDE.md` → `runtime_hooks` for full documentation.
+### Defaults and availability
+
+- `py` is available today for the core command templates (via their `scripts:` frontmatter). The bundled extensions (`agent-context`, `git`) ship Python script variants on disk, but their command templates still hard-code the Bash/PowerShell invocations, so `--script py` does not yet route those extension commands to Python — wiring `py` into the extension command templates is tracked separately.
+- Selection is per project: interactive `specify init` prompts for the script type, while non-interactive runs default to a shell variant by OS (`sh` on Linux/macOS, `ps` on Windows). `py` is chosen at the prompt or via `--script py`.
+- `sh` and `ps` remain fully supported. Nothing is removed, and `py` is not yet the default.
+
+### Parity rule for contributors
+
+All three script types are first-class: any change to a workflow script must update `sh`, `ps`, and `py` together and keep their tests (parity and unit) green. Making `py` the default and eventually retiring `sh`/`ps` is future work gated on adoption, tracked under the script-unification epic ([#3277](https://github.com/github/spec-kit/issues/3277)) — not something to act on from this doc.
 
 ## Special Processing Requirements
 
@@ -579,7 +633,57 @@ Disclosure is **continuous**, not a one-time event. A single AI-disclosure parag
 
 ---
 
-*This documentation should be updated whenever new agents are added to maintain accuracy and completeness.*
+## Error Handling and Debugging
+
+### Common Errors and Fixes
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| `Integration '<key>' not found` | Missing `_register()` call | Add `_register(<Name>Integration())` inside `_register_builtins()` |
+| `NameError: name '<Name>Integration' is not defined` at startup | Missing import | Add `from .<package_dir> import <Name>Integration` inside `_register_builtins()` |
+| CLI check fails for a `requires_cli: True` agent | `key` does not match the executable name | Set `key` to the exact name `shutil.which(key)` must resolve (e.g. `"cursor-agent"`, not `"cursor"`) |
+| Command files have the wrong argument syntax | Wrong `args` value in `registrar_config` | Use `$ARGUMENTS` for Markdown agents, `{{args}}` for TOML/YAML agents, or the agent's custom placeholder |
+| `ModuleNotFoundError` on a brand-new subpackage under pytest only | Ambient interpreter with a stale editable `.pth` | Run inside this tree's own venv (see Common Pitfall 6) |
+| Uninstall leaves files behind, or skips files you expected removed | Files not recorded via the manifest, or their hash changed after install | Route every created file through `manifest.record_file(...)`; user-edited files are intentionally skipped unless `force=True` |
+| Context file (`CLAUDE.md`, etc.) not updated | Expecting the CLI to manage it | Context files are owned by the opt-in `agent-context` extension, not the integration — see [Context file behavior](#4-context-file-behavior) |
+
+### Debugging Tips
+
+**Inspect the manifest** to see what an installed integration tracks:
+
+```bash
+cat .specify/integrations/<key>.manifest.json
+```
+
+**Verify a CLI tool is detected** before debugging a `requires_cli` agent:
+
+```bash
+which <key>        # Should print the executable path if installed
+```
+
+**Verify the installed output structure** after `specify init`:
+
+```bash
+find my-project/<folder> -type f
+```
+
+---
+
+## Contribution Checklist
+
+Before opening or merging an integration PR, confirm the following:
+
+- [ ] Added the integration subpackage under `src/specify_cli/integrations/<package_dir>/`.
+- [ ] Registered it (import **and** `_register()`) in `src/specify_cli/integrations/__init__.py`, both alphabetical.
+- [ ] Added or updated tests in `tests/integrations/test_integration_<key>.py`.
+- [ ] Verified the install/uninstall flow with `specify init --integration <key>`.
+- [ ] Did **not** add `context_file` handling to the CLI (that belongs to the `agent-context` extension).
+- [ ] Updated devcontainer files if the agent needs a VS Code extension or CLI install step.
+- [ ] Updated this guide or other relevant docs if the integration has special setup or limitations.
+
+---
+
+*This documentation should be updated whenever new integrations are added to maintain accuracy and completeness.*
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

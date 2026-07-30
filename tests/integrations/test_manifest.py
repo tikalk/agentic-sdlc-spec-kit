@@ -220,6 +220,56 @@ class TestManifestUninstall:
         m.uninstall()
         assert not m.manifest_path.exists()
 
+    def test_remove_manifest_false_preserves_manifest_file(self, tmp_path):
+        """Regression (review #3415, 4724160183): a partial cleanup must not
+        delete ``{key}.manifest.json``.
+
+        The upgrade stale-file pass builds a throwaway manifest sharing the
+        integration's key over a subset of files and uninstalls it.  With
+        ``remove_manifest=False`` the tracked files are still removed but the
+        real, freshly-saved manifest for that key survives — otherwise a
+        layout-shrinking upgrade (e.g. Bob migrating legacy commands → skills)
+        would leave the integration untracked and un-upgradeable.
+        """
+        m = IntegrationManifest("test", tmp_path, version="1.0")
+        m.record_file("f.txt", "content")
+        m.save()
+        assert m.manifest_path.exists()
+        removed, skipped = m.uninstall(remove_manifest=False)
+        assert len(removed) == 1
+        assert not (tmp_path / "f.txt").exists()
+        assert m.manifest_path.exists(), (
+            "remove_manifest=False must keep the manifest file on disk"
+        )
+
+    def test_undeletable_manifest_is_skipped_not_raised(self, tmp_path):
+        """An undeletable manifest must not abort the whole uninstall.
+
+        The tracked files are removed *before* the manifest, so raising here
+        loses the ``(removed, skipped)`` result the caller needs: the CLI's
+        post-uninstall bookkeeping (reassigning the default integration,
+        rewriting/removing ``integration.json``, clearing init options) never
+        runs, leaving a removed integration still recorded as installed.
+
+        Leaving a directory at the manifest path is a portable way to make
+        ``unlink()`` fail with no chmod and no monkeypatch: it raises
+        ``IsADirectoryError`` on Linux and ``PermissionError`` on
+        Windows/macOS, both ``OSError`` subclasses.
+        """
+        m = IntegrationManifest("test", tmp_path, version="1.0")
+        m.record_file("f.txt", "content")
+        m.save()
+        m.manifest_path.unlink()
+        m.manifest_path.mkdir()
+
+        removed, skipped = m.uninstall()
+
+        assert removed == [tmp_path / "f.txt"]
+        assert not (tmp_path / "f.txt").exists()
+        assert m.manifest_path in skipped, (
+            "an undeletable manifest must be reported in skipped"
+        )
+
     def test_cleans_empty_parent_dirs(self, tmp_path):
         m = IntegrationManifest("test", tmp_path)
         m.record_file("a/b/c/f.txt", "content")

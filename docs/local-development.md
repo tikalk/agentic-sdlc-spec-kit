@@ -2,7 +2,7 @@
 
 This guide shows how to iterate on the `specify` CLI locally without publishing a release or committing to `main` first.
 
-> Scripts now have both Bash (`.sh`) and PowerShell (`.ps1`) variants. The CLI auto-selects based on OS unless you pass `--script sh|ps`.
+> Scripts are available as Bash (`.sh`), PowerShell (`.ps1`), and Python (`.py`) variants. Interactive `specify init` prompts you to choose one; non-interactive runs default to a shell variant for your OS. Pass `--script sh|ps|py` to select explicitly.
 
 ## 1. Clone and Switch Branches
 
@@ -120,10 +120,10 @@ generated metadata, then add the import and `_register()` call in
 
 ## 7. Run Lint / Basic Checks
 
-CI enforces `ruff check src/` (see `.github/workflows/test.yml`), so run it locally before pushing:
+CI enforces `ruff check src tests` (see `.github/workflows/test.yml`), so run it locally before pushing:
 
 ```bash
-uvx ruff check src/
+uvx ruff check src tests
 ```
 
 You can also quickly sanity check importability:
@@ -189,7 +189,7 @@ rm -rf .venv dist build *.egg-info
 | `ModuleNotFoundError: typer` | Run `uv pip install -e .` |
 | Scripts not executable (Linux) | Re-run init or `chmod +x scripts/*.sh` |
 | Git commands unavailable | Install the git extension with `specify extension add git` |
-| Wrong script type downloaded | Pass `--script sh` or `--script ps` explicitly |
+| Wrong script type downloaded | Pass `--script sh`, `--script ps`, or `--script py` explicitly |
 | TLS errors on corporate network | Configure your environment's certificate store or proxy. The `--skip-tls` flag is deprecated and has no effect. |
 
 ## 14. Next Steps

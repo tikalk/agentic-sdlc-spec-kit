@@ -1,5 +1,9 @@
 ---
 description: "Refresh the managed Spec Kit section in coding agent context file(s)"
+scripts:
+  sh: scripts/bash/update-agent-context.sh
+  ps: scripts/powershell/update-agent-context.ps1
+  py: scripts/python/update_agent_context.py
 ---
 
 # Update Coding Agent Context

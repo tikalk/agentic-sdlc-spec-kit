@@ -100,8 +100,19 @@ def resolve_github_release_asset_api_url(
     import json
     import urllib.error
 
-    parsed = urlparse(download_url)
-    hostname = (parsed.hostname or "").lower()
+    from specify_cli._download_security import read_response_limited
+
+    # Accessing ``.hostname`` (like ``.port`` below) raises ValueError on a
+    # malformed authority, e.g. an invalid bracketed IPv6 host
+    # ``https://[not-an-ip]/...``. The function's contract is to return None for
+    # anything it can't resolve, not to raise, so guard the read. ``download_url``
+    # is server-controlled here (a catalog ``download_url`` payload), so a
+    # malformed value must not leak a raw traceback past the caller.
+    try:
+        parsed = urlparse(download_url)
+        hostname = (parsed.hostname or "").lower()
+    except ValueError:
+        return None
     parts = [unquote(part) for part in parsed.path.strip("/").split("/")]
 
     is_ghes = (
@@ -148,8 +159,9 @@ def resolve_github_release_asset_api_url(
     if len(parts) < 6 or parts[2:4] != ["releases", "download"]:
         return None
 
-    owner, repo, tag = parts[0], parts[1], parts[4]
-    asset_name = "/".join(parts[5:])
+    owner, repo = parts[0], parts[1]
+    tag = "/".join(parts[4:-1])
+    asset_name = parts[-1]
     encoded_tag = quote(tag, safe="")
     release_url = f"{api_base}/repos/{owner}/{repo}/releases/tags/{encoded_tag}"
 
@@ -158,10 +170,13 @@ def resolve_github_release_asset_api_url(
         if redirect_validator is not None:
             open_kwargs["redirect_validator"] = redirect_validator
         with open_url_fn(release_url, **open_kwargs) as response:
-            raw_release_data = response.read(max_metadata_bytes + 1)
-            if len(raw_release_data) > max_metadata_bytes:
-                raise ValueError("GitHub release metadata exceeds size limit")
-            release_data = json.loads(raw_release_data)
+            release_data = json.loads(
+                read_response_limited(
+                    response,
+                    max_bytes=max_metadata_bytes,
+                    label=f"GitHub release metadata {release_url}",
+                )
+            )
     except (
         urllib.error.URLError,
         json.JSONDecodeError,

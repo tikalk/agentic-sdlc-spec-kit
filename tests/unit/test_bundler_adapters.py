@@ -20,6 +20,7 @@ def _source(url: str) -> CatalogSource:
 class _FakeResponse:
     def __init__(self, body: bytes, final_url: str) -> None:
         self._body = body
+        self._offset = 0
         self._final_url = final_url
 
     def __enter__(self) -> "_FakeResponse":
@@ -31,8 +32,12 @@ class _FakeResponse:
     def geturl(self) -> str:
         return self._final_url
 
-    def read(self) -> bytes:
-        return self._body
+    def read(self, size: int = -1) -> bytes:
+        if size < 0:
+            size = len(self._body) - self._offset
+        start = self._offset
+        self._offset = min(len(self._body), self._offset + size)
+        return self._body[start:self._offset]
 
 
 def test_http_fetch_uses_shared_client_and_rejects_redirect_downgrade(monkeypatch):
@@ -69,6 +74,76 @@ def test_http_fetch_rejects_non_https_final_url(monkeypatch):
     fetcher = adapters.make_catalog_fetcher(allow_network=True)
     with pytest.raises(BundlerError, match="must use HTTPS"):
         fetcher(_source("https://example.com/c.json"))
+
+
+def test_http_fetch_bounds_catalog_response(monkeypatch):
+    body = b'{"schema_version":"1.0","bundles":{}}'
+
+    def fake_open_url(url, timeout=10, extra_headers=None, redirect_validator=None):
+        return _FakeResponse(body, url)
+
+    monkeypatch.setattr("specify_cli.authentication.http.open_url", fake_open_url)
+    monkeypatch.setattr(adapters, "MAX_JSON_CATALOG_BYTES", len(body) - 1)
+
+    fetcher = adapters.make_catalog_fetcher(allow_network=True)
+    with pytest.raises(BundlerError, match="exceeds maximum size"):
+        fetcher(_source("https://example.com/c.json"))
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://[::1",
+        "https://example.com:notaport/catalog.json",
+        "https://example.com:70000/catalog.json",
+    ],
+)
+def test_fetch_rejects_malformed_source_url_cleanly(url):
+    fetcher = adapters.make_catalog_fetcher(allow_network=True)
+    with pytest.raises(BundlerError, match="URL is malformed"):
+        fetcher(_source(url))
+
+
+def test_builtin_community_catalog_fetches_repository_catalog_online(monkeypatch):
+    captured: dict = {}
+
+    def fake_http_get_json(source_id, url):
+        captured["source_id"] = source_id
+        captured["url"] = url
+        return {"schema_version": "1.0", "bundles": {}}
+
+    monkeypatch.setattr(adapters, "_http_get_json", fake_http_get_json)
+
+    fetcher = adapters.make_catalog_fetcher(allow_network=True)
+    result = fetcher(_source("builtin://community"))
+
+    assert result["bundles"] == {}
+    assert captured == {
+        "source_id": "team",
+        "url": adapters.COMMUNITY_CATALOG_URL,
+    }
+
+
+def test_builtin_community_catalog_uses_core_pack_snapshot_offline(
+    monkeypatch, tmp_path
+):
+    catalog_path = tmp_path / "bundles" / "catalog.community.json"
+    catalog_path.parent.mkdir()
+    catalog_path.write_text(
+        '{"schema_version":"1.0","bundles":{"packaged":{'
+        '"id":"packaged","name":"Packaged","version":"1.0.0",'
+        '"role":"developer","description":"Packaged catalog entry.",'
+        '"author":"Spec Kit","license":"MIT","download_url":"",'
+        '"requires":{"speckit_version":">=0.1.0"},'
+        '"provides":{},"verified":false}}}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(adapters, "_locate_core_pack", lambda: tmp_path)
+
+    fetcher = adapters.make_catalog_fetcher(allow_network=False)
+    result = fetcher(_source("builtin://community"))
+
+    assert "packaged" in result["bundles"]
 
 
 @pytest.mark.parametrize(

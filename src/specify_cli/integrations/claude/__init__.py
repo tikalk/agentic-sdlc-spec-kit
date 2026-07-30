@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..base import IntegrationOption, SkillsIntegration
+from ..base import SkillsIntegration
 from ..._utils import dump_frontmatter
 
 # Mapping of command template stem → argument-hint text shown inline
@@ -54,16 +54,16 @@ class ClaudeIntegration(SkillsIntegration):
     }
     multi_install_safe = True
 
-    @classmethod
-    def options(cls) -> list[IntegrationOption]:
-        return [
-            IntegrationOption(
-                "--hooks",
-                is_flag=False,
-                default="true",
-                help="Enable/disable runtime hooks (true|false, default: true)",
-            ),
-        ]
+    CANONICAL_TO_NATIVE = {
+        "session_start": "SessionStart",
+        "pre_tool_use": "PreToolUse",
+        "post_tool_use": "PostToolUse",
+        "session_end": "SessionEnd",
+        "user_prompt_submit": "UserPromptSubmit",
+        "stop": "Stop",
+    }
+    events_config_file = ".claude/settings.json"
+    events_format = "json-nested"
 
     @staticmethod
     def inject_argument_hint(content: str, hint: str) -> str:
@@ -201,6 +201,7 @@ class ClaudeIntegration(SkillsIntegration):
         """
         updated = super().post_process_skill_content(content)
         updated = self._inject_frontmatter_flag(updated, "user-invocable")
+        updated = self._inject_frontmatter_flag(updated, "disable-model-invocation", "false")
 
         stem = self._skill_stem_from_content(updated)
         if stem:
