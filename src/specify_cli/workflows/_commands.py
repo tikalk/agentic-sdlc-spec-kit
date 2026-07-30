@@ -889,6 +889,18 @@ def _require_specify_project(*args, **kwargs):
     return project_root
 
 
+def _failed_step_error(state: Any) -> str | None:
+    """Terminal error for a failed/aborted run, if any.
+
+    Returns the run-level error persisted by the engine at the moment
+    the run terminated. Returns ``None`` for non-terminal statuses so
+    the caller can print unconditionally.
+    """
+    if getattr(state.status, "value", state.status) not in ("failed", "aborted"):
+        return None
+    return getattr(state, "error", None)
+
+
 def _workflow_run_payload(state: Any) -> dict[str, Any]:
     """Machine-readable summary of a run/resume outcome."""
     payload = {
@@ -901,6 +913,9 @@ def _workflow_run_payload(state: Any) -> dict[str, Any]:
     gate = _gate_outcome(state)
     if gate is not None:
         payload["gate"] = gate
+    error = _failed_step_error(state)
+    if error is not None:
+        payload["error"] = error
     return payload
 
 
@@ -1161,6 +1176,10 @@ def workflow_run(
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     if state.status.value == "paused":
         console.print(f"\nResume with: [cyan]specify workflow resume {state.run_id}[/cyan]")
 
@@ -1271,6 +1290,10 @@ def workflow_resume(
     color = status_colors.get(state.status.value, "white")
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
 
@@ -1337,6 +1360,10 @@ def workflow_status(
 
         if state.current_step_id:
             console.print(f"  Current:  {state.current_step_id}")
+
+        err_msg = _failed_step_error(state)
+        if err_msg:
+            console.print(f"  [red]Error:    {_escape_markup(err_msg)}[/red]")
 
         if state.step_results:
             console.print(f"\n  [bold]Steps ({len(state.step_results)}):[/bold]")
