@@ -5003,9 +5003,9 @@ class TestExtensionCatalog:
         catalog = self._make_catalog(temp_dir)
 
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
+        mock_response.read.side_effect = io.BytesIO(json.dumps(
             {"schema_version": "1.0", "extensions": {}}
-        ).encode()
+        ).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_response.geturl.return_value = "http://evil.test/catalog.json"
@@ -5051,9 +5051,9 @@ class TestExtensionCatalog:
 
         catalog = self._make_catalog(temp_dir)
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(
+        mock_response.read.side_effect = io.BytesIO(json.dumps(
             {"schema_version": "1.0", "extensions": {}}
-        ).encode()
+        ).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_response.geturl.return_value = "http://evil.test/catalog.json"
