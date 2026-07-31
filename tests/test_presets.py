@@ -1731,7 +1731,7 @@ class TestPresetCatalog:
 
         catalog_data = {"schema_version": "1.0", "presets": {}}
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(catalog_data).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(catalog_data).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_response.geturl.return_value = "https://raw.githubusercontent.com/org/repo/main/presets/catalog.json"
@@ -1787,9 +1787,10 @@ class TestPresetCatalog:
         catalog = PresetCatalog(project_dir)
 
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = PresetCatalogEntry(
             url="https://example.com/catalog.json",
@@ -1856,9 +1857,10 @@ class TestPresetCatalog:
             "presets": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = PresetCatalogEntry(
             url=catalog.DEFAULT_CATALOG_URL,
@@ -1903,9 +1905,10 @@ class TestPresetCatalog:
 
         catalog = PresetCatalog(project_dir)
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             with pytest.raises(PresetError, match="Invalid preset catalog format"):
@@ -1944,9 +1947,10 @@ class TestPresetCatalog:
             "presets": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             result = catalog.fetch_catalog(force_refresh=False)
@@ -1982,9 +1986,10 @@ class TestPresetCatalog:
             "presets": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             result = catalog.fetch_catalog(force_refresh=False)
@@ -2052,9 +2057,10 @@ class TestPresetCatalog:
             "presets": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode("utf-8")
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode("utf-8")).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         # Record every ``write_text`` call's encoding kwarg so the
         # assertion observes the production writer's argument directly.
@@ -2100,10 +2106,13 @@ class TestPresetCatalog:
             "schema_version": "1.0",
             "presets": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
-        mock_response.__enter__ = lambda s: s
-        mock_response.__exit__ = MagicMock(return_value=False)
+        def make_response():
+            mock_response = MagicMock()
+            mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
+            mock_response.__enter__ = lambda s: s
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.geturl.return_value = catalog.DEFAULT_CATALOG_URL
+            return mock_response
 
         # Simulate an unwritable cache dir: every write_text under the
         # cache directory raises PermissionError (an OSError subclass).
@@ -2116,7 +2125,7 @@ class TestPresetCatalog:
 
         monkeypatch.setattr(_PathCls, "write_text", failing_write_text)
 
-        with patch.object(catalog, "_open_url", return_value=mock_response):
+        with patch.object(catalog, "_open_url", side_effect=lambda *a, **kw: make_response()):
             # Legacy single-catalog path.
             assert catalog.fetch_catalog(force_refresh=True) == valid
 
@@ -2153,9 +2162,10 @@ class TestPresetCatalog:
             },
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = PresetCatalogEntry(
             url="https://example.com/catalog.json",
@@ -3330,7 +3340,7 @@ class TestPresetSkills:
 
         # Verify it was recorded in registry
         metadata = manager.registry.get("self-test")
-        assert "speckit-specify" in metadata.get("registered_skills", [])
+        assert any("speckit-specify" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def _install_arg_hint_preset(self, project_dir, temp_dir, ai, skills_dir, description, arg_hint):
         """Install a preset whose command declares argument-hint; return the SKILL.md path."""
@@ -3786,7 +3796,7 @@ class TestPresetSkills:
 
         assert (skills_dir / "speckit-specify").is_file()
         metadata = manager.registry.get("self-test")
-        assert "speckit-specify" not in metadata.get("registered_skills", [])
+        assert not any("speckit-specify" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def test_no_skills_registered_when_no_skill_dir_exists(self, project_dir, temp_dir):
         """Skills should not be created when no existing skill dir is found."""
@@ -3800,7 +3810,7 @@ class TestPresetSkills:
         install_self_test_preset(manager)
 
         metadata = manager.registry.get("self-test")
-        assert metadata.get("registered_skills", []) == []
+        assert metadata.get("registered_skills", {}) == {}
 
     def test_extension_skill_override_matches_hyphenated_multisegment_name(self, project_dir, temp_dir):
         """Preset overrides for speckit.<ext>.<cmd> should target speckit-<ext>-<cmd> skills."""
@@ -3849,7 +3859,7 @@ class TestPresetSkills:
         assert "# Speckit Speckit Fakeext Cmd Skill" in content
 
         metadata = manager.registry.get("ext-skill-override")
-        assert "speckit-fakeext-cmd" in metadata.get("registered_skills", [])
+        assert any("speckit-fakeext-cmd" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def test_extension_skill_restored_on_preset_remove(self, project_dir, temp_dir):
         """Preset removal should restore an extension-backed skill instead of deleting it."""
@@ -4100,7 +4110,7 @@ class TestPresetSkills:
         assert "name: speckit-specify" in content
 
         metadata = manager.registry.get("self-test")
-        assert "speckit-specify" in metadata.get("registered_skills", [])
+        assert any("speckit-specify" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def test_kimi_skill_updated_even_when_ai_skills_disabled(self, project_dir, temp_dir):
         """Kimi presets should still propagate command overrides to existing skills."""
@@ -4120,7 +4130,7 @@ class TestPresetSkills:
         assert "name: speckit-specify" in content
 
         metadata = manager.registry.get("self-test")
-        assert "speckit-specify" in metadata.get("registered_skills", [])
+        assert any("speckit-specify" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def test_kimi_new_skill_created_even_when_ai_skills_disabled(self, project_dir, temp_dir):
         """Kimi native skills should still receive brand-new preset commands."""
@@ -4169,7 +4179,7 @@ class TestPresetSkills:
         assert "name: speckit-research" in content
 
         metadata = manager.registry.get("kimi-new-skill")
-        assert "speckit-research" in metadata.get("registered_skills", [])
+        assert any("speckit-research" in v for v in metadata.get("registered_skills", {}).values() if isinstance(v, list))
 
     def test_kimi_preset_skill_override_resolves_script_placeholders(self, project_dir, temp_dir):
         """Kimi preset skill overrides should resolve placeholders and rewrite project paths."""
@@ -6690,10 +6700,11 @@ def test_preset_wrapper_resolves_ghes_asset_when_host_configured(tmp_path, monke
     def fake_open(url, timeout=None, extra_headers=None):
         captured.append(url)
         resp = MagicMock()
-        resp.read.return_value = json.dumps({
+        resp.read.side_effect = io.BytesIO(json.dumps({
             "assets": [{"name": "pack.zip",
                         "url": "https://ghes.example/api/v3/repos/o/r/releases/assets/9"}]
-        }).encode()
+        }).encode()).read
+        resp.geturl.return_value = url
         yield resp
 
     monkeypatch.setattr(catalog, "_open_url", fake_open)

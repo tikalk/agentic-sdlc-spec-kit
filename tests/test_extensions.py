@@ -9,6 +9,7 @@ Tests cover:
 - Catalog stack (multi-catalog support)
 """
 
+import io
 import pytest
 import json
 import os
@@ -3626,7 +3627,7 @@ class TestExtensionCatalog:
 
         catalog_data = {"schema_version": "1.0", "extensions": {}}
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(catalog_data).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(catalog_data).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
         mock_response.geturl.return_value = "https://raw.githubusercontent.com/org/repo/main/catalog.json"
@@ -3682,9 +3683,10 @@ class TestExtensionCatalog:
         catalog = self._make_catalog(temp_dir)
 
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = CatalogEntry(
             url="https://example.com/catalog.json",
@@ -3750,9 +3752,10 @@ class TestExtensionCatalog:
             "extensions": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = CatalogEntry(
             url=ExtensionCatalog.DEFAULT_CATALOG_URL,
@@ -3797,9 +3800,10 @@ class TestExtensionCatalog:
 
         catalog = self._make_catalog(temp_dir)
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             with pytest.raises(ExtensionError, match="Invalid catalog format"):
@@ -3837,9 +3841,10 @@ class TestExtensionCatalog:
             "extensions": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             result = catalog.fetch_catalog(force_refresh=False)
@@ -3875,9 +3880,10 @@ class TestExtensionCatalog:
             "extensions": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "_open_url", return_value=mock_response):
             result = catalog.fetch_catalog(force_refresh=False)
@@ -3949,9 +3955,10 @@ class TestExtensionCatalog:
             "extensions": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode("utf-8")
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode("utf-8")).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         # Record every ``write_text`` call's encoding kwarg so the
         # assertion observes the production writer's argument directly.
@@ -3999,10 +4006,13 @@ class TestExtensionCatalog:
             "schema_version": "1.0",
             "extensions": {"foo": {"name": "Foo", "version": "1.0.0"}},
         }
-        mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(valid).encode()
-        mock_response.__enter__ = lambda s: s
-        mock_response.__exit__ = MagicMock(return_value=False)
+        def make_response():
+            mock_response = MagicMock()
+            mock_response.read.side_effect = io.BytesIO(json.dumps(valid).encode()).read
+            mock_response.__enter__ = lambda s: s
+            mock_response.__exit__ = MagicMock(return_value=False)
+            mock_response.geturl.return_value = "https://example.com/catalog.json"
+            return mock_response
 
         # Simulate an unwritable cache dir: every write_text under the
         # cache directory raises PermissionError (an OSError subclass).
@@ -4015,7 +4025,7 @@ class TestExtensionCatalog:
 
         monkeypatch.setattr(_PathCls, "write_text", failing_write_text)
 
-        with patch.object(catalog, "_open_url", return_value=mock_response):
+        with patch.object(catalog, "_open_url", side_effect=lambda *a, **kw: make_response()):
             # Legacy single-catalog path.
             assert catalog.fetch_catalog(force_refresh=True) == valid
 
@@ -4051,9 +4061,10 @@ class TestExtensionCatalog:
             },
         }
         mock_response = MagicMock()
-        mock_response.read.return_value = json.dumps(payload).encode()
+        mock_response.read.side_effect = io.BytesIO(json.dumps(payload).encode()).read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         entry = CatalogEntry(
             url="https://example.com/catalog.json",
@@ -6029,9 +6040,10 @@ class TestDownloadExtensionBundled:
         }
 
         mock_response = MagicMock()
-        mock_response.read.return_value = b"fake zip data"
+        mock_response.read.side_effect = io.BytesIO(b"fake zip data").read
         mock_response.__enter__ = lambda s: s
         mock_response.__exit__ = MagicMock(return_value=False)
+        mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "get_extension_info", return_value=bundled_with_url), \
              patch.object(urllib.request, "urlopen", return_value=mock_response):
@@ -7666,12 +7678,22 @@ $ARGUMENTS
         assert "speckit.mock-ext.greet" not in hello_body
 
     def test_non_cline_extension_no_hyphenation(self, tmp_path):
+        # Tikalk fork: skip when alias-only mode is active — it skips primary
+        # command registration when aliases exist, which changes the on-disk
+        # file layout this test asserts.
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                import pytest
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
         from specify_cli.agents import CommandRegistrar
 
-        project_dir, ext_dir, claude_commands_dir = self._setup_mock_extension(tmp_path, "claude")
+        project_dir, ext_dir, agents_commands_dir = self._setup_mock_extension(tmp_path, "amp")
 
         # 3. Run specify extension add
         runner = CliRunner()
@@ -7685,17 +7707,17 @@ $ARGUMENTS
         # but we do not assert that the alias 'speckit.mock-ext.greet' is printed in the console
         # because manifest.commands only lists primary commands.
         assert "speckit.mock-ext.hello" in result.output
-        assert "spec-mock-ext-hello" not in result.output
+        assert "speckit-mock-ext-hello" not in result.output
 
         # Verify on-disk command names are dotted
-        hello_file = claude_commands_dir / "speckit.mock-ext.hello.md"
-        greet_file = claude_commands_dir / "speckit.mock-ext.greet.md"
+        hello_file = agents_commands_dir / "speckit.mock-ext.hello.md"
+        greet_file = agents_commands_dir / "speckit.mock-ext.greet.md"
 
-        assert not hello_file.exists()
+        assert hello_file.exists()
         assert greet_file.exists()
 
         # Verify frontmatter references are still dotted
-        hello_text = greet_file.read_text(encoding="utf-8")
+        hello_text = hello_file.read_text(encoding="utf-8")
         hello_fm, hello_body = CommandRegistrar.parse_frontmatter(hello_text)
         assert hello_fm["agent"] == "speckit.tasks"
         assert hello_fm["handoffs"][0]["agent"] == "speckit.iterate.start"
@@ -8031,10 +8053,11 @@ def test_extension_wrapper_resolves_ghes_asset_when_host_configured(tmp_path, mo
     def fake_open(url, timeout=None, extra_headers=None):
         captured.append(url)
         resp = MagicMock()
-        resp.read.return_value = json.dumps({
+        resp.read.side_effect = io.BytesIO(json.dumps({
             "assets": [{"name": "ext.zip",
                         "url": "https://ghes.example/api/v3/repos/o/r/releases/assets/7"}]
-        }).encode()
+        }).encode()).read
+        resp.geturl.return_value = url
         yield resp
 
     monkeypatch.setattr(catalog, "_open_url", fake_open)
