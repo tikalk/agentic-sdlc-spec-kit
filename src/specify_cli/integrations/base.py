@@ -39,7 +39,7 @@ except ImportError:
         if dim:
             style = f"dim {style}"
         return f"[{style}]{text}[/]"
-from .._invocation_style import get_invocation_prefix, is_dollar_skills_agent
+from .._invocation_style import get_invocation_prefix
 from .._toml_string import escape_toml_basic as _escape_toml_basic
 from .._toml_string import has_illegal_toml_control as _has_illegal_toml_control
 from ..events import install_integration_events, remove_integration_events

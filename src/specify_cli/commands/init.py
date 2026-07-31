@@ -595,6 +595,10 @@ def register(app: typer.Typer) -> None:
                 }
                 if _FORK:
                     if team_ai_directives:
+                        from pathlib import Path as _Path
+                        _td_path = _Path(team_ai_directives).expanduser()
+                        if _td_path.exists():
+                            team_ai_directives = str(_td_path.resolve())
                         init_opts["team_ai_directives"] = team_ai_directives
                 if resolved_integration.is_skills_mode(
                     integration_parsed_options or None, project_root=project_path

@@ -242,8 +242,6 @@ class PromptStep(StepBase):
             except OSError:
                 return None
 
-        import subprocess
-
         try:
             result = subprocess.run(
                 exec_args,
