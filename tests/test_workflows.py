@@ -27,9 +27,9 @@ import yaml
 # dispatch tests.  When ``run_and_tee`` is available (fork), it replaces
 # ``subprocess.run`` in the dispatch paths.
 try:
-    from specify_cli._workflows_fork import run_and_tee
+    import importlib.util as _importlib_util
 
-    _FORK_HAS_TEE = True
+    _FORK_HAS_TEE = _importlib_util.find_spec("specify_cli._workflows_fork") is not None
 except ImportError:
     _FORK_HAS_TEE = False
 

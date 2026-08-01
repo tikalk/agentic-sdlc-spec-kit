@@ -129,24 +129,24 @@ class TestEvalsExtensionBash:
 
         init_result = _run_bash(project, "init", "--json")
         assert init_result.returncode == 0, init_result.stderr
-        init_payload = _assert_last_json_success(init_result, "init")
+        _assert_last_json_success(init_result, "init")
         assert (project / "evals" / "promptfoo" / "goldset.md").exists()
 
         specify_result = _run_bash(project, "specify", "--json")
         assert specify_result.returncode == 0, specify_result.stderr
-        specify_payload = _assert_last_json_success(specify_result, "specify")
+        _assert_last_json_success(specify_result, "specify")
         assert (project / ".specify" / "drafts" / "eval-template.md").exists()
 
         _create_accepted_draft(project)
 
         clarify_result = _run_bash(project, "clarify", "--json")
         assert clarify_result.returncode == 0, clarify_result.stderr
-        clarify_payload = _assert_last_json_success(clarify_result, "clarify")
+        _assert_last_json_success(clarify_result, "clarify")
         assert (project / "evals" / "promptfoo" / "goldset.json").exists()
 
         implement_result = _run_bash(project, "implement", "--json")
         assert implement_result.returncode == 0, implement_result.stderr
-        implement_payload = _assert_last_json_success(implement_result, "implement")
+        _assert_last_json_success(implement_result, "implement")
         assert (project / "evals" / "promptfoo" / "graders" / "check_regulatory_compliance.py").exists()
         assert (project / "evals" / "promptfoo" / "config-tier1.js").exists()
 
@@ -168,24 +168,24 @@ class TestEvalsExtensionPowerShell:
 
         init_result = _run_pwsh(project, "init", "-Json")
         assert init_result.returncode == 0, init_result.stderr
-        init_payload = _assert_last_json_success(init_result, "init")
+        _assert_last_json_success(init_result, "init")
         assert (project / "evals" / "promptfoo" / "goldset.md").exists()
 
         specify_result = _run_pwsh(project, "specify", "-Json")
         assert specify_result.returncode == 0, specify_result.stderr
-        specify_payload = _assert_last_json_success(specify_result, "specify")
+        _assert_last_json_success(specify_result, "specify")
         assert (project / ".specify" / "drafts" / "eval-template.md").exists()
 
         _create_accepted_draft(project)
 
         clarify_result = _run_pwsh(project, "clarify", "-Json")
         assert clarify_result.returncode == 0, clarify_result.stderr
-        clarify_payload = _assert_last_json_success(clarify_result, "clarify")
+        _assert_last_json_success(clarify_result, "clarify")
         assert (project / "evals" / "promptfoo" / "goldset.json").exists()
 
         implement_result = _run_pwsh(project, "implement", "-Json")
         assert implement_result.returncode == 0, implement_result.stderr
-        implement_payload = _assert_last_json_success(implement_result, "implement")
+        _assert_last_json_success(implement_result, "implement")
         assert (project / "evals" / "promptfoo" / "graders" / "check_context_adherence.py").exists()
         assert (project / "evals" / "promptfoo" / "config-tier2.js").exists()
 

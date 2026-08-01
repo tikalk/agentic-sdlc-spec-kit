@@ -1,9 +1,7 @@
 """Tests for project-level skill installation via install_project_skills()."""
 
 from unittest.mock import patch
-from pathlib import Path
 import json
-import pytest
 from specify_cli._init_fork import install_project_skills
 
 

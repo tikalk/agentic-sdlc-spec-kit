@@ -469,7 +469,7 @@ class TestClaudeDisableModelInvocation:
 
     def test_setup_sets_disable_model_invocation_false(self, tmp_path):
         """Commands with model-invocation: true get disable-model-invocation: false."""
-        from specify_cli._core_fork import _inject_frontmatter_flag, inject_model_invocation_flag
+        from specify_cli._core_fork import inject_model_invocation_flag
         content = (
             "---\nname: test\ndescription: test\nmodel-invocation: true\n---\n\nBody\n"
         )
