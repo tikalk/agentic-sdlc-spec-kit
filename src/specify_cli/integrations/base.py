@@ -957,6 +957,20 @@ class IntegrationBase(ABC):
         """Return True if this integration supports agent-native events."""
         return bool(getattr(self, "CANONICAL_TO_NATIVE", None) and getattr(self, "events_config_file", None))
 
+    # Context-injection envelope for hook stdout, keyed by canonical event
+    # (with "*" as the fallback). Not every agent injects a hook's plain-text
+    # stdout as model context: Gemini/Tabnine/Qwen/Devin are JSON-only
+    # protocols (plain text becomes user-facing noise), Copilot discards
+    # non-JSON stdout, and Cursor parses stdout as JSON. Values:
+    #   "hookSpecificOutput" → {"hookSpecificOutput": {"additionalContext": ...}}
+    #   "additionalContext"  → {"additionalContext": ...}   (top-level, Copilot)
+    #   "additional_context" → {"additional_context": ...}  (top-level, Cursor)
+    #   "suppress"           → emit nothing (strict-JSON agents on events whose
+    #                          output can't be used)
+    # Absent (no matching key and no "*") → plain stdout passthrough
+    # (Claude/Codex inject plain stdout; opencode injects via its TS plugin).
+    events_context_envelope: dict[str, str] = {}
+
     # -- Convenience helpers for subclasses -------------------------------
 
     def install(

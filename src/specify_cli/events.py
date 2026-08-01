@@ -251,7 +251,7 @@ def _resolve_argv(template_path, project_root, ext_id):
     return [str(script_abs), *rest]
 
 
-def _run_inline(command_name, payload, project_root, timeout):
+def _run_inline(command_name, payload, project_root, timeout, envelope="plain"):
     """Resolve and run the event command with stdlib only (no specify_cli)."""
     template_path, ext_id = _find_command_template(command_name, project_root)
     if not template_path:
@@ -269,7 +269,7 @@ def _run_inline(command_name, payload, project_root, timeout):
             cwd=str(project_root),
         )
         if result.stdout:
-            sys.stdout.write(result.stdout)
+            _emit(result.stdout, envelope)
         if result.returncode != 0:
             if result.stderr:
                 sys.stderr.write(result.stderr)
@@ -281,6 +281,42 @@ def _run_inline(command_name, payload, project_root, timeout):
     except Exception as e:
         print(f"Event {command_name} error: {e}", file=sys.stderr)
         return 2
+
+
+def _emit(output, envelope):
+    """Write handler output to stdout in the agent's context-injection shape.
+
+    Not every agent injects a hook's plain-text stdout as model context:
+    Gemini/Tabnine/Qwen/Devin are JSON-only protocols (plain text becomes
+    user-facing noise, never context), Copilot discards non-JSON stdout, and
+    Cursor parses stdout as JSON. The native hook command passes the envelope
+    as the dispatcher's 5th argument (see events_context_envelope on the
+    integration classes):
+
+      hookSpecificOutput → {"hookSpecificOutput": {"additionalContext": ...}}
+      additionalContext  → {"additionalContext": ...}   (top-level, Copilot)
+      additional_context → {"additional_context": ...}  (top-level, Cursor)
+      suppress           → emit nothing (strict-JSON agents on events whose
+                           output can't be used)
+      plain (default)    → passthrough (Claude/Codex inject plain stdout)
+
+    Empty output emits nothing under any envelope (an empty additionalContext
+    is useless noise).
+    """
+    if not output:
+        return
+    if envelope == "suppress":
+        return
+    if envelope == "hookSpecificOutput":
+        sys.stdout.write(json.dumps({"hookSpecificOutput": {"additionalContext": output}}) + "\\n")
+        return
+    if envelope == "additionalContext":
+        sys.stdout.write(json.dumps({"additionalContext": output}) + "\\n")
+        return
+    if envelope == "additional_context":
+        sys.stdout.write(json.dumps({"additional_context": output}) + "\\n")
+        return
+    sys.stdout.write(output)
 
 
 def main():
@@ -297,6 +333,12 @@ def main():
             timeout = int(sys.argv[3])
         except (TypeError, ValueError):
             timeout = 120
+    # Optional 5th arg: context-injection envelope for stdout (C13): plain
+    # (default), hookSpecificOutput, additionalContext, additional_context,
+    # or suppress. Unknown values fall back to plain passthrough.
+    envelope = sys.argv[4] if len(sys.argv) >= 5 else "plain"
+    if envelope not in ("plain", "hookSpecificOutput", "additionalContext", "additional_context", "suppress"):
+        envelope = "plain"
     payload = sys.stdin.read() if not sys.stdin.isatty() else "{}"
     project_root = Path(__file__).parent.parent.resolve()
 
@@ -307,14 +349,14 @@ def main():
         from specify_cli.events import resolve_and_run_event_command
         sys.exit(
             resolve_and_run_event_command(
-                command_name, _event_name, payload, project_root, timeout=timeout
+                command_name, _event_name, payload, project_root, timeout=timeout, envelope=envelope
             )
         )
-    except ImportError:
+    except (ImportError, TypeError):
         pass
 
     # Fallback: self-contained stdlib resolver (one-time/temporary installs).
-    sys.exit(_run_inline(command_name, payload, project_root, timeout))
+    sys.exit(_run_inline(command_name, payload, project_root, timeout, envelope))
 
 
 if __name__ == "__main__":
@@ -362,17 +404,21 @@ function resolveDispatcher(directory: string): void {{
   ) as string;
 }}
 
-function runEvent(command: string, event: string, input: any, output: any, timeoutSec: number): void {{
-  if (!DISPATCHER) return;
+function runEvent(command: string, event: string, input: any, output: any, timeoutSec: number): string {{
+  if (!DISPATCHER) return '';
   try {{
     // execFileSync with an argv array invokes the interpreter directly — no
     // shell — so command/event strings with metacharacters can't break out
     // of the dispatcher argument (C9). The dispatcher arg is seconds; the
     // execFileSync timeout is ms with a buffer so the outer cap fires after
-    // the dispatcher's inner subprocess (S3).
-    execFileSync(INTERPRETER, [DISPATCHER, command, event, String(timeoutSec)], {{
+    // the dispatcher's inner subprocess (S3). stdout is captured and
+    // returned so context-injection hooks (experimental.chat.system.transform,
+    // chat.message) can push it into their outputs; stderr stays inherited so
+    // dispatcher errors remain visible (C11).
+    return execFileSync(INTERPRETER, [DISPATCHER, command, event, String(timeoutSec)], {{
       input: JSON.stringify({{ input, output }}),
-      stdio: ['pipe', 'inherit', 'inherit'],
+      stdio: ['pipe', 'pipe', 'inherit'],
+      encoding: 'utf-8',
       timeout: (timeoutSec + {buffer}) * 1000,
     }});
   }} catch (e) {{
@@ -585,12 +631,20 @@ def resolve_and_run_event_command(
     project_root: Path,
     *,
     timeout: int = 120,
+    envelope: str = "plain",
 ) -> int:
     """Core entry point to resolve and execute an event-driven command.
 
     *timeout* is the per-handler timeout in seconds, passed through from the
     native hook config via the dispatcher (S4) so a handler configured above
     the previous fixed 120s cap can run for its full duration.
+
+    *envelope* selects how the handler's stdout is emitted for the agent's
+    context-injection protocol (C13): ``plain`` passthrough (Claude/Codex
+    inject plain stdout), ``hookSpecificOutput``/``additionalContext``/
+    ``additional_context`` JSON wrappers (Gemini/Tabnine/Qwen/Devin, Copilot,
+    Cursor respectively), or ``suppress`` (strict-JSON agents on events whose
+    output can't be used).
     """
     template_path, ext_id = _find_command_template(command_name, project_root)
     if not template_path:
@@ -610,7 +664,7 @@ def resolve_and_run_event_command(
             cwd=str(project_root),
         )
         if result.stdout:
-            sys.stdout.write(result.stdout)
+            _emit_event_stdout(result.stdout, envelope)
         if result.returncode != 0:
             if result.stderr:
                 sys.stderr.write(result.stderr)
@@ -622,6 +676,28 @@ def resolve_and_run_event_command(
     except Exception as e:
         sys.stderr.write(f"Event command {command_name} error: {e}\n")
         return 2
+
+
+def _emit_event_stdout(output: str, envelope: str) -> None:
+    """Write handler stdout in the agent's context-injection shape (C13).
+
+    Mirrors the ``_emit`` helper inside the generated dispatcher template;
+    keep both in sync. Empty output emits nothing under any envelope.
+    """
+    if not output:
+        return
+    if envelope == "suppress":
+        return
+    if envelope == "hookSpecificOutput":
+        sys.stdout.write(json.dumps({"hookSpecificOutput": {"additionalContext": output}}) + "\n")
+        return
+    if envelope == "additionalContext":
+        sys.stdout.write(json.dumps({"additionalContext": output}) + "\n")
+        return
+    if envelope == "additional_context":
+        sys.stdout.write(json.dumps({"additional_context": output}) + "\n")
+        return
+    sys.stdout.write(output)
 
 
 # -- Sourcing events map (CLI/Orchestration domain) -------------------------
@@ -1017,6 +1093,12 @@ def _dispatcher_command(
     integration's native unit) is appended as a 4th argument so the dispatcher
     and inner runner honor the per-handler timeout instead of a fixed 120s cap
     that would kill a handler configured for longer (S4).
+
+    When the integration declares a context-injection envelope for this
+    canonical event (``events_context_envelope``, C13), the envelope token is
+    appended as a 5th argument so the dispatcher wraps stdout in the JSON
+    shape the agent's hook protocol requires. Plain-passthrough agents
+    (Claude/Codex) declare no envelope and get no extra argument.
     """
     if target_os == "host":
         interpreter = _resolve_interpreter(project_root)
@@ -1043,7 +1125,22 @@ def _dispatcher_command(
         # applied to the native hook timeout field (in the adapter formatters)
         # so the agent's outer cap fires after the inner subprocess timeout.
         base += f" {_shell_quote(str(int(timeout_seconds)), target_os)}"
+    envelope = _context_envelope_for(integration, event_name)
+    if envelope:
+        base += f" {_shell_quote(envelope, target_os)}"
     return base
+
+
+def _context_envelope_for(integration: IntegrationBase, canonical_event: str) -> str | None:
+    """Resolve the context-injection envelope for an integration + event (C13).
+
+    The event key wins; ``"*"`` is the fallback. Returns ``None`` when the
+    integration declares no envelope for the event (plain stdout passthrough).
+    """
+    mapping = getattr(integration, "events_context_envelope", None) or {}
+    if canonical_event in mapping:
+        return mapping[canonical_event]
+    return mapping.get("*")
 
 
 def install_integration_events(
@@ -1588,6 +1685,14 @@ def _build_opencode_plugin(
     an argv array (C9). Both the ``input`` and ``output`` callback arguments
     are forwarded to ``runEvent`` (C7) so pre_tool_use can inspect tool
     arguments and post_tool_use can inspect the result.
+
+    Context-injection natives get dedicated hook bodies: for
+    ``experimental.chat.system.transform`` the handlers' concatenated stdout
+    is pushed into ``output.system`` (system-prompt injection, re-applied per
+    LLM request so the context survives compaction); for ``chat.message`` it
+    is pushed as a synthetic text part on the user message (C11). Other
+    natives keep their side-effect behavior (tool.execute.* args mutation;
+    session.* lifecycle events via the generic ``event`` hook).
     """
     event_entries: list[str] = []
     plugin_returns: list[str] = []
@@ -1602,11 +1707,16 @@ def _build_opencode_plugin(
         ev_lit = json.dumps(ev)
         native_lit = json.dumps(native)
 
+        is_injection = native in ("experimental.chat.system.transform", "chat.message")
+
         # Build the body: one runEvent() call per handler wrapped in try/catch,
         # forwarding both input and output (C7). An optional tool-name matcher
         # guard applies to tool.execute.* hooks. All handlers execute before
-        # any aggregate error is thrown.
+        # any aggregate error is thrown. Injection hooks additionally collect
+        # each handler's stdout and return the concatenation.
         body_lines: list[str] = ["    const errors: string[] = [];"]
+        if is_injection:
+            body_lines.append("    const contexts: string[] = [];")
         for cfg in handlers:
             command = str(cfg.get("command", ""))
             command_lit = json.dumps(command)
@@ -1628,6 +1738,10 @@ def _build_opencode_plugin(
                     body_lines.append(
                         f"    try {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }} catch (e) {{ errors.push((e as Error).message); }}"
                     )
+            elif is_injection:
+                body_lines.append(
+                    f"    try {{ const ctx = runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); if (ctx) contexts.push(ctx); }} catch (e) {{ errors.push((e as Error).message); }}"
+                )
             else:
                 body_lines.append(
                     f"    try {{ runEvent({command_lit}, {ev_lit}, input, output, {timeout_sec}); }} catch (e) {{ errors.push((e as Error).message); }}"
@@ -1644,6 +1758,39 @@ def _build_opencode_plugin(
             plugin_returns.append(
                 f"    {json.dumps(ts_hook)}: async (input: any, output: any) => {{\n"
                 f"      _{ev}(input, output);\n"
+                f"    }},"
+            )
+        elif native == "experimental.chat.system.transform":
+            body_lines.append('    return contexts.join("\\n\\n");')
+            event_entries.append(
+                f"function _{ev}(input: any, output: any): string {{\n"
+                + "\n".join(body_lines) + "\n"
+                "  }"
+            )
+            plugin_returns.append(
+                f"    {native_lit}: async (input: any, output: any) => {{\n"
+                f"      const ctx = _{ev}(input, output);\n"
+                f"      if (ctx) output.system.push(ctx);\n"
+                f"    }},"
+            )
+        elif native == "chat.message":
+            body_lines.append('    return contexts.join("\\n\\n");')
+            event_entries.append(
+                f"function _{ev}(input: any, output: any): string {{\n"
+                + "\n".join(body_lines) + "\n"
+                "  }"
+            )
+            # Part id must start with "prt" (opencode's Identifier brand): an
+            # invalid id fails the user-part schema validation and crashes the
+            # whole session (C12). Derive it from the last existing part so the
+            # brand survives an opencode prefix change, falling back to "prt_"
+            # when output.parts is empty.
+            plugin_returns.append(
+                f"    {native_lit}: async (input: any, output: any) => {{\n"
+                f"      const ctx = _{ev}(input, output);\n"
+                f"      if (!ctx) return;\n"
+                f"      const base = output.parts[output.parts.length - 1]?.id ?? \"prt_\" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);\n"
+                f"      output.parts.push({{ id: base + \".speckit\" + Math.random().toString(36).slice(2, 8), sessionID: input.sessionID, messageID: output.message.id, type: \"text\", text: ctx, synthetic: true }});\n"
                 f"    }},"
             )
         else:
