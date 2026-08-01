@@ -9,7 +9,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
-from tests.conftest import _cmd_prefix, _skill_prefix
+from tests.conftest import _cmd_prefix
 
 
 class TestBobIntegrationRegistration:
