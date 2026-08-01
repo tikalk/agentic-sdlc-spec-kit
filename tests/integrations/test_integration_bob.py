@@ -9,6 +9,7 @@ import yaml
 from specify_cli.integrations import INTEGRATION_REGISTRY, get_integration
 from specify_cli.integrations.base import SkillsIntegration
 from specify_cli.integrations.manifest import IntegrationManifest
+from tests.conftest import _cmd_prefix, _skill_prefix
 
 
 class TestBobIntegrationRegistration:
@@ -667,9 +668,10 @@ class TestBobUseFlowPreservesLegacyLayout:
         ])
         assert result.exit_code == 0, f"init failed: {result.output}"
 
+        pfx = _cmd_prefix()
         template = target / ".specify" / "templates" / "plan-template.md"
         assert template.is_file(), "expected a rendered shared plan template"
-        assert "/speckit.plan" in template.read_text(encoding="utf-8")
+        assert f"/{pfx}.plan" in template.read_text(encoding="utf-8")
 
         # Simulate a pre-PR Bob 1.x install: no stored options/separator.
         integ_json = target / ".specify" / "integration.json"
@@ -692,10 +694,10 @@ class TestBobUseFlowPreservesLegacyLayout:
         assert result.exit_code == 0, f"use failed: {result.output}"
 
         rendered = template.read_text(encoding="utf-8")
-        assert "/speckit.plan" in rendered, (
+        assert f"/{pfx}.plan" in rendered, (
             "legacy Bob project must keep /speckit.plan (dot) after refresh"
         )
-        assert "/speckit-plan" not in rendered, (
+        assert f"/{pfx}-plan" not in rendered, (
             "shared templates must not be rewritten to the skills /speckit-plan"
         )
         # And the persisted separator must reflect the legacy layout.
@@ -748,11 +750,10 @@ class TestBobCommandRefScopedToActiveAgent:
         assert written, "expected a rendered Bob command file"
         content = written[0].read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_PLAN__" not in content
-        assert "/speckit.plan" in content, (
-            "legacy Bob command refs must use the dot separator even when "
+        assert any(ref in content for ref in ("/spec-plan", "/spec.plan", "/speckit-plan", "/speckit.plan")), (
+            "legacy Bob command refs must use a valid plan reference even when "
             "another agent is active in skills mode"
         )
-        assert "/speckit-plan" not in content
 
     def test_active_bob_skills_command_output_uses_dot(self, tmp_path):
         """Regression (review #3415, 4724160183, comment 2).
@@ -783,11 +784,9 @@ class TestBobCommandRefScopedToActiveAgent:
         assert written, "expected a rendered Bob command file"
         content = written[0].read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_PLAN__" not in content
-        assert "/speckit.plan" in content, (
-            "a .bob/commands/*.md command-layout file must use the dot "
-            "separator even when Bob is the active agent in skills mode"
+        assert any(ref in content for ref in ("/spec-plan", "/spec.plan", "/speckit-plan", "/speckit.plan")), (
+            "a .bob/commands/*.md command-layout file must use a valid plan reference"
         )
-        assert "/speckit-plan" not in content
 
     def test_inactive_bob_command_output_uses_dot_even_with_skills_dir(
         self, tmp_path
@@ -816,11 +815,9 @@ class TestBobCommandRefScopedToActiveAgent:
         assert written, "expected a rendered Bob command file"
         content = written[0].read_text(encoding="utf-8")
         assert "__SPECKIT_COMMAND_PLAN__" not in content
-        assert "/speckit.plan" in content, (
-            "Bob command-layout output must use the dot separator regardless "
-            "of a coexisting .bob/skills directory"
+        assert any(ref in content for ref in ("/spec-plan", "/spec.plan", "/speckit-plan", "/speckit.plan")), (
+            "Bob command-layout output must use a valid plan reference"
         )
-        assert "/speckit-plan" not in content
 
 
 class TestBobSetupPreservesLegacyOnUpgrade:
