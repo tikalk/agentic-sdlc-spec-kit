@@ -222,8 +222,8 @@ class BobIntegration(IntegrationBase):
             return False
         if project_root is not None:
             bob_dir = Path(project_root) / ".bob"
-            has_managed_skills = any((bob_dir / "skills").glob("speckit-*"))
-            has_managed_commands = any((bob_dir / "commands").glob("speckit.*.md"))
+            has_managed_skills = any((bob_dir / "skills").glob("speckit-*")) or any((bob_dir / "skills").glob("spec-*"))
+            has_managed_commands = any((bob_dir / "commands").glob("speckit.*.md")) or any((bob_dir / "commands").glob("spec.*.md"))
             if has_managed_commands and not has_managed_skills:
                 return False
         return True

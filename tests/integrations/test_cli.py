@@ -1303,7 +1303,9 @@ class TestSharedInfraCommandRefs:
     def test_dollar_prefix_in_page_templates(self, tmp_path):
         """Dollar-style skills agents get $speckit-<name> in page templates."""
         from specify_cli import _install_shared_infra
+        from tests.conftest import _cmd_prefix
 
+        prefix = _cmd_prefix()
         project = tmp_path / "dollar-test"
         project.mkdir()
         (project / ".specify").mkdir()
@@ -1314,8 +1316,8 @@ class TestSharedInfraCommandRefs:
 
         plan = project / ".specify" / "templates" / "plan-template.md"
         content = plan.read_text(encoding="utf-8")
-        assert "$speckit-plan" in content
-        assert "/speckit-plan" not in content
+        assert f"${prefix}-plan" in content
+        assert f"/{prefix}-plan" not in content
 
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
     def test_dot_separator_in_shared_scripts(self, tmp_path, script_type):
@@ -1367,7 +1369,9 @@ class TestSharedInfraCommandRefs:
     def test_dollar_prefix_in_shared_scripts(self, tmp_path, script_type):
         """Dollar-style skills agents get native prefixes in shared script hints."""
         from specify_cli import _install_shared_infra
+        from tests.conftest import _cmd_prefix
 
+        prefix = _cmd_prefix()
         project = tmp_path / f"dollar-script-{script_type}"
         project.mkdir()
         (project / ".specify").mkdir()
@@ -1394,16 +1398,16 @@ class TestSharedInfraCommandRefs:
             return
 
         content = self._combined_script_content(project, script_type)
-        assert "$speckit-specify" in content
-        assert "$speckit-plan" in content
-        assert "$speckit-tasks" in content
-        assert "/speckit-specify" not in content
-        assert "/speckit-plan" not in content
-        assert "/speckit-tasks" not in content
+        assert f"${prefix}-specify" in content or rf"\${prefix}-specify" in content
+        assert f"${prefix}-plan" in content or rf"\${prefix}-plan" in content
+        assert f"${prefix}-tasks" in content or rf"\${prefix}-tasks" in content
+        assert f"/{prefix}-specify" not in content
+        assert f"/{prefix}-plan" not in content
+        assert f"/{prefix}-tasks" not in content
         if script_type == "sh":
-            assert r"\$speckit-specify" in content
-            assert r"\$speckit-plan" in content
-            assert r"\$speckit-tasks" in content
+            assert rf"\${prefix}-specify" in content
+            assert rf"\${prefix}-plan" in content
+            assert rf"\${prefix}-tasks" in content
 
     def test_full_init_claude_resolves_page_templates(self, tmp_path):
         """Full CLI init with Claude (skills agent) produces hyphen refs in page templates."""

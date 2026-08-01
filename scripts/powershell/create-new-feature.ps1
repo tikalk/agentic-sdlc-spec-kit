@@ -91,6 +91,21 @@ function Get-HighestNumberFromSpecs {
     return $highest
 }
 
+function Test-SpecPrefixInUse {
+    param(
+        [string]$SpecsDir,
+        [string]$FeatureNum
+    )
+
+    if (-not (Test-Path -LiteralPath $SpecsDir -PathType Container)) {
+        return $false
+    }
+
+    return $null -ne (Get-ChildItem -LiteralPath $SpecsDir -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "$FeatureNum-*" } |
+        Select-Object -First 1)
+}
+
 function Get-HighestNumberFromBranches {
     param()
     
@@ -239,6 +254,32 @@ if ($Timestamp) {
     }
 
     $featureNum = ('{0:000}' -f $Number)
+
+    # Treat an explicit number as a preference when its prefix is already used
+    # by a feature directory. Auto-detected numbers are already conflict-free.
+    if ($PSBoundParameters.ContainsKey('Number')) {
+        $specConflict = $false
+        $requestedBranchName = "$featureNum-$branchSuffix"
+        $requestedDir = Join-Path $specsDir $requestedBranchName
+        if (-not $AllowExistingBranch -or -not (Test-Path -LiteralPath $requestedDir -PathType Container)) {
+            $specConflict = Test-SpecPrefixInUse -SpecsDir $specsDir -FeatureNum $featureNum
+        }
+
+        if ($specConflict) {
+            $requestedNum = $featureNum
+            [long]$resolvedNumber = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+            do {
+                if ($resolvedNumber -eq [long]::MaxValue) {
+                    Write-Error "Error: feature number must be between 0 and $([long]::MaxValue), got '9223372036854775808'"
+                    exit 1
+                }
+                $resolvedNumber++
+                $featureNum = ('{0:000}' -f $resolvedNumber)
+            } while (Test-SpecPrefixInUse -SpecsDir $specsDir -FeatureNum $featureNum)
+            [Console]::Error.WriteLine("[specify] Warning: -Number $requestedNum conflicts with an existing spec directory; using $featureNum instead")
+        }
+    }
+
     $branchName = "$featureNum-$branchSuffix"
 }
 

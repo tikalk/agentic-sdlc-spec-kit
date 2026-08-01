@@ -15,6 +15,7 @@ DRY_RUN=false
 ALLOW_EXISTING=false
 SHORT_NAME=""
 BRANCH_NUMBER=""
+NUMBER_EXPLICIT=false
 USE_TIMESTAMP=false
 ARGS=()
 i=1
@@ -56,6 +57,7 @@ while [ $i -le $# ]; do
                 exit 1
             fi
             BRANCH_NUMBER="$next_arg"
+            NUMBER_EXPLICIT=true
             ;;
         --timestamp)
             USE_TIMESTAMP=true
@@ -98,6 +100,20 @@ if [ -z "$FEATURE_DESCRIPTION" ]; then
     exit 1
 fi
 
+MAX_FEATURE_NUMBER=9223372036854775807
+MAX_BRANCH_LENGTH=244
+
+is_feature_number_in_range() {
+    local value="$1"
+    local normalized="${value#"${value%%[!0]*}"}"
+    [ -n "$normalized" ] || normalized=0
+    [ ${#normalized} -lt ${#MAX_FEATURE_NUMBER} ] && return 0
+    [ ${#normalized} -gt ${#MAX_FEATURE_NUMBER} ] && return 1
+    # Equal-length digit strings must be compared without arithmetic overflow.
+    # shellcheck disable=SC2071
+    [[ "$normalized" < "$MAX_FEATURE_NUMBER" || "$normalized" == "$MAX_FEATURE_NUMBER" ]]
+}
+
 # Function to get highest number from specs directory
 get_highest_from_specs() {
     local specs_dir="$1"
@@ -110,15 +126,45 @@ get_highest_from_specs() {
             # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
             if echo "$dirname" | grep -Eq '^[0-9]{3,}-' && ! echo "$dirname" | grep -Eq '^[0-9]{8}-[0-9]{6}-'; then
                 number=$(echo "$dirname" | grep -Eo '^[0-9]+')
-                number=$((10#$number))
-                if [ "$number" -gt "$highest" ]; then
-                    highest=$number
+                if is_feature_number_in_range "$number"; then
+                    number=$((10#$number))
+                    if [ "$number" -gt "$highest" ]; then
+                        highest=$number
+                    fi
                 fi
             fi
         done
     fi
 
     echo "$highest"
+}
+
+# Return success when a spec directory owns the given numeric prefix.
+spec_prefix_exists() {
+    local specs_dir="$1"
+    local feature_num="$2"
+
+    for spec_path in "$specs_dir/${feature_num}-"*; do
+        [ -d "$spec_path" ] && return 0
+    done
+    return 1
+}
+
+# Fit a feature prefix and suffix within GitHub's branch-name limit.
+fit_branch_name() {
+    local feature_num="$1"
+    local branch_suffix="$2"
+    local branch_name="${feature_num}-${branch_suffix}"
+
+    if [ ${#branch_name} -gt $MAX_BRANCH_LENGTH ]; then
+        local prefix_length=$(( ${#feature_num} + 1 ))
+        local max_suffix_length=$((MAX_BRANCH_LENGTH - prefix_length))
+        local truncated_suffix
+        truncated_suffix=$(printf '%s' "$branch_suffix" | cut -c "1-$max_suffix_length" | sed 's/-$//')
+        branch_name="${feature_num}-${truncated_suffix}"
+    fi
+
+    printf '%s' "$branch_name"
 }
 
 # Function to clean and format a branch name
@@ -249,17 +295,59 @@ else
     # Determine branch number from existing feature directories
     if [ -z "$BRANCH_NUMBER" ]; then
         HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
+        if [ "$HIGHEST" -eq "$MAX_FEATURE_NUMBER" ]; then
+            echo "Error: feature number must be between 0 and $MAX_FEATURE_NUMBER, got '9223372036854775808'" >&2
+            exit 1
+        fi
         BRANCH_NUMBER=$((HIGHEST + 1))
+    fi
+
+    if [ -n "$BRANCH_NUMBER" ] && [[ ! "$BRANCH_NUMBER" =~ ^[0-9]+$ ]]; then
+        echo "Error: --number must be an unsigned integer, got '$BRANCH_NUMBER'" >&2
+        exit 1
+    fi
+
+    # Bash arithmetic is signed 64-bit; reject digit strings that would wrap.
+    if [ -n "$BRANCH_NUMBER" ] && ! is_feature_number_in_range "$BRANCH_NUMBER"; then
+        echo "Error: --number must be between 0 and $MAX_FEATURE_NUMBER, got '$BRANCH_NUMBER'" >&2
+        exit 1
     fi
 
     # Force base-10 interpretation to prevent octal conversion (e.g., 010 → 8 in octal, but should be 10 in decimal)
     FEATURE_NUM=$(printf "%03d" "$((10#$BRANCH_NUMBER))")
+
+    # Treat an explicit number as a preference when its prefix is already used
+    # by a feature directory. Auto-detected numbers are already conflict-free.
+    if [ "$NUMBER_EXPLICIT" = true ]; then
+        SPEC_CONFLICT=false
+        REQUESTED_BRANCH_NAME=$(fit_branch_name "$FEATURE_NUM" "$BRANCH_SUFFIX")
+        REQUESTED_DIR="$SPECS_DIR/$REQUESTED_BRANCH_NAME"
+        if [ "$ALLOW_EXISTING" != true ] || [ ! -d "$REQUESTED_DIR" ]; then
+            spec_prefix_exists "$SPECS_DIR" "$FEATURE_NUM" && SPEC_CONFLICT=true
+        fi
+
+        if [ "$SPEC_CONFLICT" = true ]; then
+            REQUESTED_NUM="$FEATURE_NUM"
+            HIGHEST=$(get_highest_from_specs "$SPECS_DIR")
+            BRANCH_NUMBER=$HIGHEST
+            while true; do
+                if [ "$BRANCH_NUMBER" -eq "$MAX_FEATURE_NUMBER" ]; then
+                    echo "Error: feature number must be between 0 and $MAX_FEATURE_NUMBER, got '9223372036854775808'" >&2
+                    exit 1
+                fi
+                BRANCH_NUMBER=$((BRANCH_NUMBER + 1))
+                FEATURE_NUM=$(printf "%03d" "$((10#$BRANCH_NUMBER))")
+                spec_prefix_exists "$SPECS_DIR" "$FEATURE_NUM" || break
+            done
+            >&2 echo "[specify] Warning: --number $REQUESTED_NUM conflicts with an existing spec directory; using $FEATURE_NUM instead"
+        fi
+    fi
+
     BRANCH_NAME="${FEATURE_NUM}-${BRANCH_SUFFIX}"
 fi
 
 # GitHub enforces a 244-byte limit on branch names
 # Validate and truncate if necessary
-MAX_BRANCH_LENGTH=244
 if [ ${#BRANCH_NAME} -gt $MAX_BRANCH_LENGTH ]; then
     # Calculate how much we need to trim from suffix
     # Account for prefix length: timestamp (15) + hyphen (1) = 16, or sequential (3) + hyphen (1) = 4

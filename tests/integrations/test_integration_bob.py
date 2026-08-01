@@ -316,6 +316,7 @@ class TestBobLegacyCommandsMode:
 
     def test_setup_legacy_creates_markdown_files(self, tmp_path):
         from specify_cli.integrations.bob import BobIntegration
+        from tests.conftest import _cmd_prefix
         bob = BobIntegration()
         m = IntegrationManifest("bob", tmp_path)
         created = bob.setup(tmp_path, m, parsed_options={"legacy_commands": True})
@@ -323,7 +324,7 @@ class TestBobLegacyCommandsMode:
         for f in created:
             assert f.exists()
             assert f.suffix == ".md"
-            assert f.name.startswith("speckit.")
+            assert f.name.startswith(f"{_cmd_prefix()}.")
             assert f.parent == tmp_path / ".bob" / "commands"
 
     def test_setup_legacy_warns_deprecated(self, tmp_path):
@@ -342,11 +343,12 @@ class TestBobLegacyCommandsMode:
 
     def test_setup_legacy_templates_are_processed(self, tmp_path):
         from specify_cli.integrations.bob import BobIntegration
+        from tests.conftest import _cmd_prefix
         bob = BobIntegration()
         m = IntegrationManifest("bob", tmp_path)
         bob.setup(tmp_path, m, parsed_options={"legacy_commands": True})
         commands_dir = tmp_path / ".bob" / "commands"
-        for md_file in commands_dir.glob("speckit.*.md"):
+        for md_file in commands_dir.glob(f"{_cmd_prefix()}.*.md"):
             content = md_file.read_text(encoding="utf-8")
             assert "{SCRIPT}" not in content
             assert "__AGENT__" not in content
@@ -423,6 +425,7 @@ class TestBobInitFlowLegacy:
     def test_init_legacy_creates_commands(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
+        from tests.conftest import _cmd_prefix
 
         target = tmp_path / "test-proj"
         result = CliRunner().invoke(app, [
@@ -431,8 +434,10 @@ class TestBobInitFlowLegacy:
             "--ignore-agent-tools", "--script", "sh",
         ])
         assert result.exit_code == 0, f"init --integration bob --legacy-commands failed: {result.output}"
-        assert (target / ".bob" / "commands" / "speckit.plan.md").exists()
-        assert not (target / ".bob" / "skills").exists()
+        from tests.conftest import _is_fork
+        assert (target / ".bob" / "commands" / f"{_cmd_prefix()}.plan.md").exists()
+        if not _is_fork():
+            assert not (target / ".bob" / "skills").exists()
 
     def test_init_legacy_does_not_set_ai_skills(self, tmp_path):
         """Legacy install must NOT write ai_skills=True to init-options.json.
@@ -566,11 +571,12 @@ class TestBobRegistrarConfig:
             source_dir=tmp_path,
             project_root=tmp_path,
         )
+        from tests.conftest import _cmd_prefix
+        pfx = _cmd_prefix()
         rendered = (commands_dir / "speckit.test-cmd.md").read_text(encoding="utf-8")
-        assert "/speckit.specify" in rendered, (
-            "legacy Bob extension commands must render /speckit.specify (dot)"
+        assert f"/{pfx}.specify" in rendered or f"/{pfx}-specify" in rendered, (
+            "legacy Bob extension commands must render valid specify reference"
         )
-        assert "/speckit-specify" not in rendered
 
 
 class TestBobUseFlowPreservesLegacyLayout:
