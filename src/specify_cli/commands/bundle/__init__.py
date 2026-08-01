@@ -142,6 +142,8 @@ def _run_init(integration: str, *, script_type: str, offline: bool = False) -> N
             integration=integration,
             integration_options=None,
             team_ai_directives=None,
+            extensions=None,
+            trust_extension_urls=False,
         )
     except typer.Exit as exc:
         if exc.exit_code:

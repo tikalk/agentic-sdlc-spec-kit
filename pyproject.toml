@@ -1,6 +1,6 @@
 [project]
 name = "agentic-sdlc-specify-cli"
-version = "0.14.4+adlc1"
+version = "0.15.1+adlc1"
 description = "Specify CLI (tikalk fork). Agentic SDLC toolkit for Spec-Driven Development with pre-installed extensions and AI integrations."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -65,6 +65,7 @@ packages = ["src/specify_cli"]
 "workflows/speckit" = "specify_cli/core_pack/workflows/speckit"
 # Bundled presets (installable via `specify preset add <name>` or `specify init --preset <name>`)
 "presets/lean" = "specify_cli/core_pack/presets/lean"
+"presets/constitution-sync" = "specify_cli/core_pack/presets/constitution-sync"
 # Community bundle catalog snapshot (used for offline discovery)
 "bundles/catalog.community.json" = "specify_cli/core_pack/bundles/catalog.community.json"
 
