@@ -209,12 +209,13 @@ class TestCopilotIntegration:
     def test_setup_falls_back_to_bundled_command_template_without_preset_override(self, tmp_path):
         """Copilot should keep using the bundled specify command template when no preset override exists."""
         from specify_cli.integrations.copilot import CopilotIntegration
+        from tests.conftest import _cmd_prefix
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
 
         copilot.setup(tmp_path, m)
 
-        specify_file = tmp_path / ".github" / "agents" / "speckit.specify.agent.md"
+        specify_file = tmp_path / ".github" / "agents" / f"{_cmd_prefix()}.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
         assert "Create or update the feature specification" in content
         assert "preset override content" not in content
@@ -222,6 +223,7 @@ class TestCopilotIntegration:
     def test_setup_uses_preset_command_override_when_present(self, tmp_path):
         """Copilot should prefer a preset-provided command template over the bundled one."""
         from specify_cli.integrations.copilot import CopilotIntegration
+        from tests.conftest import _cmd_prefix
         copilot = CopilotIntegration()
         m = IntegrationManifest("copilot", tmp_path)
 
@@ -238,7 +240,7 @@ class TestCopilotIntegration:
 
         copilot.setup(tmp_path, m)
 
-        specify_file = tmp_path / ".github" / "agents" / "speckit.specify.agent.md"
+        specify_file = tmp_path / ".github" / "agents" / f"{_cmd_prefix()}.specify.agent.md"
         content = specify_file.read_text(encoding="utf-8")
         assert "preset override content" in content
         assert "Create or update the feature specification" not in content

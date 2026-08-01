@@ -269,8 +269,10 @@ class TestDroidCommandInvocation:
     """Skills agents use the hyphenated ``/speckit-<name>`` slash form."""
 
     def test_build_command_invocation_uses_hyphenated_skill_name(self):
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
         i = get_integration("droid")
         assert i.build_command_invocation("speckit.plan", "feature-x") == (
-            "/speckit-plan feature-x"
+            f"/{prefix}-plan feature-x"
         )
-        assert i.build_command_invocation("plan") == "/speckit-plan"
+        assert i.build_command_invocation("plan") == f"/{prefix}-plan"
