@@ -121,11 +121,13 @@ class TestGrokNextSteps:
         assert ".grok/skills" in result.output, (
             f"Expected .grok/skills install path in next steps but got:\n{result.output}"
         )
-        assert "/speckit-plan" in result.output, (
-            f"Expected /speckit-plan in next steps but got:\n{result.output}"
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
+        assert f"/{prefix}-plan" in result.output, (
+            f"Expected /{prefix}-plan in next steps but got:\n{result.output}"
         )
-        assert "/speckit.plan" not in result.output, (
-            f"Should not show /speckit.plan for Grok skills mode:\n{result.output}"
+        assert f"/{prefix}.plan" not in result.output, (
+            f"Should not show /{prefix}.plan for Grok skills mode:\n{result.output}"
         )
 
 
@@ -181,7 +183,9 @@ class TestGrokInitOptions:
                 }
             ],
         )
-        assert "Executing: `/speckit-plan`" in message, (
-            "Hook rendering must produce /speckit-plan for Grok without hint injection"
+        from tests.conftest import _skill_prefix
+        pfx = _skill_prefix("plan", project_root=project)
+        assert f"Executing: `/{pfx}-plan`" in message, (
+            f"Hook rendering must produce /{pfx}-plan for Grok without hint injection"
         )
-        assert "EXECUTE_COMMAND_INVOCATION: /speckit-plan" in message
+        assert f"EXECUTE_COMMAND_INVOCATION: /{pfx}-plan" in message
