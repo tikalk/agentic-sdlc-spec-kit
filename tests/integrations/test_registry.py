@@ -264,7 +264,7 @@ class TestMultiInstallSafeContracts:
             )
             files = manifest.get("files", {})
             assert isinstance(files, dict), f"{key} manifest files must be an object"
-            manifests[key] = set(files.keys())
+            manifests[key] = {p.replace("\\", "/") for p in files.keys()}
 
         SHARED_INFRA_FILES = {".specify/events.py"}
         for first, second in _multi_install_safe_pairs():
