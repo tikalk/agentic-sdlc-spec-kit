@@ -415,7 +415,8 @@ class TestReadSkipWarning:
             project,
         )
 
-        assert registered == ["speckit.myext.hello", "group/run"]
+        # Fork behavior: only the alias is registered when aliases exist
+        assert registered == ["group/run"]
         assert (agents_dir / "group" / "run.agent.md").is_file()
         assert (
             project

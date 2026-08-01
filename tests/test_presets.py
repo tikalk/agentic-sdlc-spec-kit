@@ -2197,21 +2197,23 @@ class TestPresetCatalog:
         zip_bytes = zip_buf.getvalue()
 
         release_response = MagicMock()
-        release_response.read.return_value = json.dumps(
-            {
-                "assets": [
-                    {
-                        "name": "test-pack.zip",
-                        "url": "https://api.github.com/repos/org/repo/releases/assets/1",
-                    }
-                ]
-            }
-        ).encode()
+        release_response.read.side_effect = io.BytesIO(
+            json.dumps(
+                {
+                    "assets": [
+                        {
+                            "name": "test-pack.zip",
+                            "url": "https://api.github.com/repos/org/repo/releases/assets/1",
+                        }
+                    ]
+                }
+            ).encode()
+        ).read
         release_response.__enter__ = lambda s: s
         release_response.__exit__ = MagicMock(return_value=False)
 
         asset_response = MagicMock()
-        asset_response.read.return_value = zip_bytes
+        asset_response.read.side_effect = io.BytesIO(zip_bytes).read
         asset_response.__enter__ = lambda s: s
         asset_response.__exit__ = MagicMock(return_value=False)
 
@@ -2255,7 +2257,7 @@ class TestPresetCatalog:
         zip_bytes = zip_buf.getvalue()
 
         resp = MagicMock()
-        resp.read.return_value = zip_bytes
+        resp.read.side_effect = io.BytesIO(zip_bytes).read
         # Configure the context-manager protocol explicitly so `with resp`
         # yields `resp` itself, independent of how the protocol is invoked.
         resp.__enter__.return_value = resp
@@ -2343,7 +2345,7 @@ class TestPresetCatalog:
         zip_bytes = zip_buf.getvalue()
 
         asset_response = MagicMock()
-        asset_response.read.return_value = zip_bytes
+        asset_response.read.side_effect = io.BytesIO(zip_bytes).read
         asset_response.__enter__ = lambda s: s
         asset_response.__exit__ = MagicMock(return_value=False)
 

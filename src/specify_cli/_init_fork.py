@@ -1677,7 +1677,10 @@ def _install_bundled_presets(
                     "source": "local",
                     "manifest_hash": manifest.get_hash(),
                     "enabled": True,
-                    "priority": 10,
+                    # Bundled presets are fork defaults: rank below explicitly
+                    # user-installed presets (default priority 10) so a preset
+                    # chosen via `--preset`/`preset install` wins on a tie.
+                    "priority": 20,
                     "registered_commands": registered_commands,
                     "registered_skills": registered_skills,
                 },

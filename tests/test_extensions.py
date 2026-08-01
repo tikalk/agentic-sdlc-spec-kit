@@ -4098,21 +4098,23 @@ class TestExtensionCatalog:
         zip_bytes = zip_buf.getvalue()
 
         release_response = MagicMock()
-        release_response.read.return_value = json.dumps(
-            {
-                "assets": [
-                    {
-                        "name": "test-ext.zip",
-                        "url": "https://api.github.com/repos/org/repo/releases/assets/1",
-                    }
-                ]
-            }
-        ).encode()
+        release_response.read.side_effect = io.BytesIO(
+            json.dumps(
+                {
+                    "assets": [
+                        {
+                            "name": "test-ext.zip",
+                            "url": "https://api.github.com/repos/org/repo/releases/assets/1",
+                        }
+                    ]
+                }
+            ).encode()
+        ).read
         release_response.__enter__ = lambda s: s
         release_response.__exit__ = MagicMock(return_value=False)
 
         asset_response = MagicMock()
-        asset_response.read.return_value = zip_bytes
+        asset_response.read.side_effect = io.BytesIO(zip_bytes).read
         asset_response.__enter__ = lambda s: s
         asset_response.__exit__ = MagicMock(return_value=False)
 
@@ -4157,9 +4159,10 @@ class TestExtensionCatalog:
     def _mock_response(self, data):
         """Build a context-manager mock HTTP response returning ``data``."""
         from unittest.mock import MagicMock
+        import io
 
         resp = MagicMock()
-        resp.read.return_value = data
+        resp.read.side_effect = io.BytesIO(data).read
         # Configure the context-manager protocol explicitly so `with resp`
         # yields `resp` itself, independent of how the protocol is invoked.
         resp.__enter__.return_value = resp
@@ -4243,7 +4246,7 @@ class TestExtensionCatalog:
         zip_bytes = zip_buf.getvalue()
 
         asset_response = MagicMock()
-        asset_response.read.return_value = zip_bytes
+        asset_response.read.side_effect = io.BytesIO(zip_bytes).read
         asset_response.__enter__ = lambda s: s
         asset_response.__exit__ = MagicMock(return_value=False)
 
@@ -6022,7 +6025,6 @@ class TestDownloadExtensionBundled:
     def test_download_extension_allows_bundled_with_url(self, temp_dir):
         """download_extension should allow bundled extensions that have a download_url (newer version)."""
         from unittest.mock import patch, MagicMock
-        import urllib.request
 
         project_dir = temp_dir / "project"
         project_dir.mkdir()
@@ -6046,7 +6048,7 @@ class TestDownloadExtensionBundled:
         mock_response.geturl.return_value = "https://example.com/catalog.json"
 
         with patch.object(catalog, "get_extension_info", return_value=bundled_with_url), \
-             patch.object(urllib.request, "urlopen", return_value=mock_response):
+             patch.object(catalog, "_open_url", return_value=mock_response):
             result = catalog.download_extension("git")
             assert result.name == "git-2.0.0.zip"
 
