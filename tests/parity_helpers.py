@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -43,6 +44,10 @@ def install_scripts(repo: Path, script: str) -> None:
     ps_dir.mkdir(parents=True, exist_ok=True)
     shutil.copy(PS_DIR / "common.ps1", ps_dir / "common.ps1")
     shutil.copy(PS_DIR / f"{script}.ps1", ps_dir / f"{script}.ps1")
+    if (PS_DIR / "discovery-functions.ps1").is_file():
+        shutil.copy(
+            PS_DIR / "discovery-functions.ps1", ps_dir / "discovery-functions.ps1"
+        )
 
     py_dir = repo / ".specify" / "scripts" / "python"
     py_dir.mkdir(parents=True, exist_ok=True)
@@ -96,7 +101,24 @@ def run(
 
 
 def json_stdout(result: subprocess.CompletedProcess[str]) -> object:
-    return json.loads(result.stdout)
+    return _normalize_last_refresh_json(json.loads(result.stdout))
+
+
+def _normalize_last_refresh_json(obj: object) -> object:
+    """Replace non-deterministic discovery timestamps so cross-process runs
+    (bash/powershell/python at different wall-clock seconds) compare equal."""
+    if isinstance(obj, dict):
+        return {
+            key: (
+                "<TIME>"
+                if key == "last_refresh"
+                else _normalize_last_refresh_json(value)
+            )
+            for key, value in obj.items()
+        }
+    if isinstance(obj, list):
+        return [_normalize_last_refresh_json(value) for value in obj]
+    return obj
 
 
 def write_feature_json(
@@ -112,8 +134,12 @@ def write_feature_json(
 def normalize_repo_paths(text: str, repo: Path) -> str:
     """Replace the repo path with a placeholder so two-repo runs compare equal."""
     repo_paths = sorted({str(repo), str(repo.resolve())}, key=len, reverse=True)
+    variants: set[str] = set()
     for repo_path in repo_paths:
-        text = text.replace(repo_path, "<REPO>")
+        variants.add(repo_path)
+        variants.add(repo_path.replace(" ", r"\ "))
+    for variant in sorted(variants, key=len, reverse=True):
+        text = text.replace(variant, "<REPO>")
     return text.replace("\r\n", "\n")
 
 
@@ -123,6 +149,11 @@ def normalize_script_names(text: str, repo: Path, script: str) -> str:
     bash_script = str(repo / ".specify" / "scripts" / "bash" / f"{script}.sh")
     py_script = str(repo / ".specify" / "scripts" / "python" / f"{py_name}.py")
     return text.replace(bash_script, "<SCRIPT>").replace(py_script, "<SCRIPT>")
+
+
+def normalize_last_refresh(text: str) -> str:
+    """Replace discovery last_refresh timestamps in raw stdout/stderr text."""
+    return re.sub(r'"last_refresh":"[^"]*"', '"last_refresh":"<TIME>"', text)
 
 
 def normalize_status_text(text: str) -> str:

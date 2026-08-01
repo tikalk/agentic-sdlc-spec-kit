@@ -1555,15 +1555,22 @@ class TestPromptStep:
         config = {"id": "test", "type": "prompt", "prompt": "hello"}
 
         resolved = r"C:\tools\claude.CMD"
-        mock_result = MagicMock()
-        mock_result.returncode = 0
-        mock_result.stdout = ""
-        mock_result.stderr = ""
+
+        if _FORK_HAS_TEE:
+            mock_return = {"exit_code": 0, "stdout": "", "stderr": ""}
+            mock_target = "specify_cli.workflows.steps.prompt.run_and_tee"
+        else:
+            mock_result = MagicMock()
+            mock_result.returncode = 0
+            mock_result.stdout = ""
+            mock_result.stderr = ""
+            mock_return = mock_result
+            mock_target = "subprocess.run"
 
         with patch(
             "specify_cli.workflows.steps.prompt.shutil.which",
             lambda name: resolved,
-        ), patch("subprocess.run", return_value=mock_result) as run:
+        ), patch(mock_target, return_value=mock_return) as run:
             result = step.execute(config, ctx)
 
         assert result.status == StepStatus.COMPLETED

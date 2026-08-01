@@ -16,6 +16,7 @@ from tests.parity_helpers import (
     install_scripts,
     json_stdout,
     make_repo,
+    normalize_last_refresh,
     normalize_repo_paths,
     normalize_script_names,
     ps_cmd,
@@ -372,9 +373,9 @@ def test_python_full_run_matches_bash(repo_pair: tuple[Path, Path]) -> None:
     py = run(py_cmd(repo_b, SCRIPT, "--json", description), repo_b)
 
     assert py.returncode == bash.returncode == 0
-    assert normalize_repo_paths(py.stdout, repo_b) == normalize_repo_paths(
-        bash.stdout, repo_a
-    )
+    assert normalize_last_refresh(
+        normalize_repo_paths(py.stdout, repo_b)
+    ) == normalize_last_refresh(normalize_repo_paths(bash.stdout, repo_a))
     assert normalize_repo_paths(py.stderr, repo_b) == normalize_repo_paths(
         bash.stderr, repo_a
     )
@@ -462,9 +463,9 @@ def test_python_existing_prefix_auto_correct_matches_bash(
         repo_b,
     )
     assert py_retry.returncode == bash_retry.returncode == 0
-    assert normalize_repo_paths(py_retry.stdout, repo_b) == normalize_repo_paths(
-        bash_retry.stdout, repo_a
-    )
+    assert normalize_last_refresh(
+        normalize_repo_paths(py_retry.stdout, repo_b)
+    ) == normalize_last_refresh(normalize_repo_paths(bash_retry.stdout, repo_a))
 
 
 @requires_bash
@@ -756,7 +757,7 @@ def test_all_variants_non_dry_text_mode_match(tmp_path: Path) -> None:
 def test_python_persist_hints_match_bash_for_spaced_repo_path(
     tmp_path: Path,
 ) -> None:
-    """Paths with spaces must be quoted identically (shlex.quote format) so
+    """Paths with spaces must be escaped identically (bash %q backslash form) so
     the side-by-side text/stderr comparison holds."""
     bash_repo = _setup_repo(tmp_path, "my proj a")
     py_repo = _setup_repo(tmp_path, "my proj b")
@@ -771,7 +772,7 @@ def test_python_persist_hints_match_bash_for_spaced_repo_path(
     assert normalize_repo_paths(bash.stderr, bash_repo) == normalize_repo_paths(
         py.stderr, py_repo
     )
-    assert "export SPECIFY_FEATURE_DIRECTORY='<REPO>/specs/007-x'" in (
+    assert "export SPECIFY_FEATURE_DIRECTORY=<REPO>/specs/007-x" in (
         normalize_repo_paths(py.stderr, py_repo)
     )
 

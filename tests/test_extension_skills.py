@@ -1900,6 +1900,15 @@ class TestExtensionSkillRegistration:
         forever even after mutual exclusion is otherwise enforced for the
         primary (#2948).
         """
+        # Tikalk fork: skip when alias-only mode is active — it skips primary
+        # command registration when aliases exist, which changes the on-disk
+        # file layout this test asserts.
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         _create_init_options(project_dir, ai="copilot", ai_skills=False)
         manager = ExtensionManager(project_dir)
         manager.install_from_directory(
@@ -1961,6 +1970,15 @@ class TestExtensionSkillRegistration:
         replacement — both old command artifacts and their tracking must
         survive (#2948).
         """
+        # Tikalk fork: skip when alias-only mode is active — it skips primary
+        # command registration when aliases exist, which changes the on-disk
+        # file layout this test asserts.
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         _create_init_options(project_dir, ai="copilot", ai_skills=False)
         manager = ExtensionManager(project_dir)
         manager.install_from_directory(

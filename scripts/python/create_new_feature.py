@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import datetime
 import json
+import os
 import re
-import shlex
 import shutil
 import sys
+import time
+import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,6 +47,18 @@ def _int64_from_digits(value: str) -> int | None:
     return int(normalized, 10)
 
 
+_BASH_Q_SAFE = frozenset(
+    "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.+%@=:/"
+)
+
+
+def _bash_quote(value: str) -> str:
+    """Mirror bash `printf %q` backslash-escaping for the persist hints."""
+    if value == "":
+        return "''"
+    return "".join(ch if ch in _BASH_Q_SAFE else "\\" + ch for ch in value)
+
+
 def _persistence_assignments(
     branch_name: str, feature_dir: str, *, powershell: bool
 ) -> tuple[str, str]:
@@ -56,8 +70,8 @@ def _persistence_assignments(
             f"$env:SPECIFY_FEATURE_DIRECTORY = {quoted_dir}",
         )
     return (
-        f"export SPECIFY_FEATURE={shlex.quote(branch_name)}",
-        f"export SPECIFY_FEATURE_DIRECTORY={shlex.quote(feature_dir)}",
+        f"export SPECIFY_FEATURE={_bash_quote(branch_name)}",
+        f"export SPECIFY_FEATURE_DIRECTORY={_bash_quote(feature_dir)}",
     )
 
 
@@ -72,17 +86,17 @@ def _help_text(argv0: str) -> str:
     return f"""{_usage(argv0)}
 
 Options:
-  --json              Output in JSON format
-  --dry-run           Compute feature name and paths without creating directories or files
-  --allow-existing-branch  Reuse an existing feature directory if it already exists
-  --short-name <name> Provide a custom short name (2-4 words) for the feature
-  --number N          Prefer a feature number (auto-corrected if its specs prefix exists)
-  --timestamp         Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering
-  --help, -h          Show this help message
+  --json                  Output in JSON format
+  --dry-run               Compute branch name and paths without creating branches, directories, or files
+  --allow-existing-branch Switch to branch if it already exists instead of failing
+  --short-name <name>     Provide a custom short name (2-4 words) for the branch
+  --number N              Specify branch number manually (overrides auto-detection)
+  --timestamp             Use timestamp prefix (YYYYMMDD-HHMMSS) instead of sequential numbering
+  --help, -h              Show this help message
 
 Examples:
   {argv0} 'Add user authentication system' --short-name 'user-auth'
-  {argv0} 'Implement OAuth2 integration for API' --number 5
+  {argv0} --number 5 'Feature with specific number'
   {argv0} --timestamp --short-name 'user-auth' 'Add user authentication'
 """
 
@@ -239,6 +253,208 @@ def _has_spec_prefix_conflict(
         return False
 
     return _spec_prefix_exists(specs_dir, feature_num)
+
+
+def _discover_directives(team_directives_dir: Path) -> dict:
+    """Mirror the bash twin's discover_directives() (fork issue #69)."""
+    if not team_directives_dir.is_dir():
+        return {
+            "candidates": {
+                "constitution": "",
+                "personas": [],
+                "rules": [],
+                "skills": [],
+                "examples": [],
+            },
+            "search_metadata": {
+                "keywords": [],
+                "files_searched": 0,
+                "files_with_matches": 0,
+            },
+        }
+
+    constitution = ""
+    if (team_directives_dir / "constitutions" / "constitution.md").is_file():
+        constitution = str(team_directives_dir / "constitutions" / "constitution.md")
+    elif (team_directives_dir / "constitution.md").is_file():
+        constitution = str(team_directives_dir / "constitution.md")
+
+    return {
+        "candidates": {
+            "constitution": constitution,
+            "personas": [],
+            "rules": [],
+            "skills": [],
+            "examples": [],
+        },
+        "search_metadata": {
+            "keywords": [],
+            "files_searched": 0,
+            "files_with_matches": 0,
+        },
+    }
+
+
+def _manifest_skill_ids(skills_block: object) -> list[tuple[str, object]]:
+    """Yield (skill_id, info) pairs from a required/recommended skills dict."""
+    if not isinstance(skills_block, dict):
+        return []
+    return [
+        (skill_id, info)
+        for skill_id, info in skills_block.items()
+        if isinstance(skill_id, str)
+    ]
+
+
+def _download_skill(skill_url: str, cache_dir: Path) -> bool:
+    """Download a remote SKILL.md into the cache; True only if non-empty."""
+    try:
+        with urllib.request.urlopen(skill_url, timeout=15) as response:
+            data = response.read()
+        if not data:
+            return False
+        (cache_dir / "SKILL.md").write_bytes(data)
+        return True
+    except Exception:
+        return False
+
+
+def _discover_skills(
+    team_directives_dir: Path,
+    skills_cache_dir: Path,
+    *,
+    max_skills: int = 5,
+    threshold: float = 0.7,
+) -> dict:
+    """Mirror the bash twin's discover_skills() (fork issue #49)."""
+    skills_cache_dir.mkdir(parents=True, exist_ok=True)
+
+    cache_marker = skills_cache_dir / ".last_refresh"
+    now_epoch = int(time.time())
+    one_day = 86400
+
+    need_refresh = True
+    if cache_marker.is_file():
+        try:
+            last_refresh = int(cache_marker.read_text(encoding="utf-8").strip())
+            if now_epoch - last_refresh <= one_day:
+                need_refresh = False
+        except ValueError:
+            need_refresh = True
+
+    if need_refresh and (team_directives_dir / "skills").is_dir():
+        print("[specify] Refreshing skills cache (daily refresh)...", file=sys.stderr)
+        for child in (team_directives_dir / "skills").iterdir():
+            try:
+                if child.is_dir():
+                    shutil.copytree(
+                        child, skills_cache_dir / child.name, dirs_exist_ok=True
+                    )
+                else:
+                    shutil.copy2(child, skills_cache_dir / child.name)
+            except OSError:
+                pass
+        cache_marker.write_text(f"{now_epoch}\n", encoding="utf-8")
+
+    required_skills: list[str] = []
+    blocked_skills: list[str] = []
+
+    manifest_path = team_directives_dir / ".skills.json"
+    if manifest_path.is_file():
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            manifest = None
+        skills_block = manifest.get("skills", {}) if isinstance(manifest, dict) else {}
+        if isinstance(skills_block, dict):
+            for group in ("required", "recommended"):
+                for skill_id, info in _manifest_skill_ids(
+                    skills_block.get(group)
+                ):
+                    url = info.get("url") if isinstance(info, dict) else None
+                    if url:
+                        cache_dir = skills_cache_dir / Path(skill_id).name
+                        cache_dir.mkdir(parents=True, exist_ok=True)
+                        if _download_skill(url, cache_dir):
+                            required_skills.append(skill_id)
+                    elif skill_id.startswith("local:"):
+                        required_skills.append(skill_id)
+                    elif (
+                        (skills_cache_dir / skill_id).is_dir()
+                        and (skills_cache_dir / skill_id / "SKILL.md").is_file()
+                    ):
+                        required_skills.append(skill_id)
+            blocked = skills_block.get("blocked")
+            if isinstance(blocked, list):
+                blocked_skills = list(blocked)
+            elif isinstance(blocked, dict):
+                blocked_skills = list(blocked.values())
+
+    cached_skills: list[str] = []
+    if skills_cache_dir.is_dir():
+        try:
+            subdirs = [
+                entry
+                for entry in skills_cache_dir.iterdir()
+                if entry.is_dir() and entry.name != ".last_refresh"
+            ]
+        except OSError:
+            subdirs = []
+        for skill_dir in sorted(subdirs):
+            skill_name = skill_dir.name
+            if skill_name in required_skills:
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if not skill_md.is_file() or skill_md.stat().st_size == 0:
+                continue
+            cached_skills.append(skill_name)
+
+    candidate_list: list[str] = []
+    for skill_id in required_skills:
+        if skill_id in blocked_skills:
+            continue
+        if skill_id.startswith("local:"):
+            skill_path = team_directives_dir / skill_id[len("local:"):]
+            skill_name = Path(skill_path).name
+        else:
+            skill_path = skills_cache_dir / skill_id
+            skill_name = skill_id
+        skill_md = skill_path / "SKILL.md"
+        if not skill_md.is_file() or skill_md.stat().st_size == 0:
+            continue
+        candidate_list.append(f"required:{skill_name}")
+
+    for skill_name in cached_skills:
+        if skill_name in blocked_skills:
+            continue
+        if f"required:{skill_name}" in candidate_list:
+            continue
+        candidate_list.append(skill_name)
+
+    candidates: list[dict] = []
+    for skill_id in candidate_list[:max_skills]:
+        skill_name = (
+            skill_id[len("required:"):]
+            if skill_id.startswith("required:")
+            else skill_id
+        )
+        source = skill_id.split(":", 1)[0]
+        base_relevance = 1.0 if source == "required" else 0.65
+        candidates.append(
+            {
+                "id": skill_id,
+                "name": skill_name,
+                "source": source,
+                "base_relevance": base_relevance,
+            }
+        )
+
+    return {
+        "candidates": candidates,
+        "last_refresh": datetime.datetime.now(
+            datetime.timezone.utc
+        ).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -399,11 +615,22 @@ def main(argv: list[str] | None = None) -> int:
         print(f"# To persist: {feature_assignment}", file=sys.stderr)
         print(f"#              {directory_assignment}", file=sys.stderr)
 
+    team_directives_dir = Path(
+        os.environ.get("SPECIFY_TEAM_DIRECTIVES")
+        or repo_root / ".specify" / "extensions" / "team-ai-directives"
+    )
+    discovered_directives = _discover_directives(team_directives_dir)
+    discovered_skills = _discover_skills(
+        team_directives_dir, repo_root / ".specify" / "skills"
+    )
+
     if args.json_mode:
         payload: dict[str, object] = {
             "BRANCH_NAME": branch_name,
             "SPEC_FILE": str(spec_file),
             "FEATURE_NUM": feature_num,
+            "DISCOVERED_DIRECTIVES": discovered_directives,
+            "DISCOVERED_SKILLS": discovered_skills,
         }
         if args.dry_run:
             payload["DRY_RUN"] = True
