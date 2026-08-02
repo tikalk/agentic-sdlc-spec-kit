@@ -95,9 +95,12 @@ function Get-HighestNumberFromSpecs {
     if (Test-Path $SpecsDir) {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
+                $digits = $matches[1]
                 [long]$num = 0
-                if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
-                    $highest = $num
+                if ([long]::TryParse($digits, [ref]$num)) {
+                    if ($num -gt $highest) { $highest = $num }
+                } else {
+                    $highest = [long]::MaxValue
                 }
             }
         }
@@ -123,9 +126,12 @@ function Get-HighestNumberFromNames {
         $hasTimestampPrefix = $name -match '^\d{8}-\d{6}-'
         $hasMalformedTimestamp = ($name -match '^\d{7}-\d{6}-') -or ($name -match '^(?:\d{7}|\d{8})-\d{6}$')
         if ($name -match '^(\d{3,})-' -and -not $hasTimestampPrefix -and -not $hasMalformedTimestamp) {
+            $digits = $matches[1]
             [long]$num = 0
-            if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
-                $highest = $num
+            if ([long]::TryParse($digits, [ref]$num)) {
+                if ($num -gt $highest) { $highest = $num }
+            } else {
+                $highest = [long]::MaxValue
             }
         }
     }
@@ -682,15 +688,21 @@ if ($env:GIT_BRANCH_NAME) {
         # explicit value (including 0) is honored, matching the bash twin's
         # `[ -z "$BRANCH_NUMBER" ]` check.
         if (-not $PSBoundParameters.ContainsKey('Number')) {
+            [long]$highest = 0
             if ($DryRun -and $hasGit) {
-                $Number = [string](Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix)
+                $highest = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
             } elseif ($DryRun) {
-                $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
+                $highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
             } elseif ($hasGit) {
-                $Number = [string](Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix)
+                $highest = Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix
             } else {
-                $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
+                $highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
             }
+            if ($highest -ge [long]::MaxValue) {
+                [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
+                exit 1
+            }
+            $Number = [string]($highest + 1)
         }
 
         [long]$numericVal = [long]::Parse($Number)

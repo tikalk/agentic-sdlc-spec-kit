@@ -81,9 +81,12 @@ function Get-HighestNumberFromSpecs {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
             # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
+                $digits = $matches[1]
                 [long]$num = 0
-                if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
-                    $highest = $num
+                if ([long]::TryParse($digits, [ref]$num)) {
+                    if ($num -gt $highest) { $highest = $num }
+                } else {
+                    $highest = [long]::MaxValue
                 }
             }
         }
@@ -263,7 +266,12 @@ if ($Timestamp) {
 } else {
     # Determine branch number from existing feature directories.
     if (-not $PSBoundParameters.ContainsKey('Number')) {
-        $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
+        [long]$highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+        if ($highest -eq [long]::MaxValue) {
+            [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
+            exit 1
+        }
+        $Number = [string]($highest + 1)
     }
 
     [long]$numericVal = [long]::Parse($Number)
