@@ -235,18 +235,18 @@ if ($ShortName) {
 
 # Validate -Number if specified
 if ($PSBoundParameters.ContainsKey('Number')) {
-    if ($Number -notmatch '^-?\d+$') {
-        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
-        exit 1
-    }
-    if ($Number -match '^-') {
-        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
-        exit 1
-    }
-    [long]$parsedNum = 0
-    if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
-        [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
-        exit 1
+    if ([string]::IsNullOrWhiteSpace($Number)) {
+        $null = $PSBoundParameters.Remove('Number')
+    } else {
+        if ($Number -notmatch '^\d+$') {
+            [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+            exit 1
+        }
+        [long]$parsedNum = 0
+        if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
+            [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
+            exit 1
+        }
     }
 }
 
@@ -274,6 +274,11 @@ if ($Timestamp) {
     if ($PSBoundParameters.ContainsKey('Number')) {
         $specConflict = $false
         $requestedBranchName = "$featureNum-$branchSuffix"
+        if ($requestedBranchName.Length -gt 244) {
+            $maxSuffix = 244 - ($featureNum.Length + 1)
+            $truncated = $branchSuffix.Substring(0, [Math]::Min($branchSuffix.Length, $maxSuffix)) -replace '-$', ''
+            $requestedBranchName = "$featureNum-$truncated"
+        }
         $requestedDir = Join-Path $specsDir $requestedBranchName
         if (-not $AllowExistingBranch -or -not (Test-Path -LiteralPath $requestedDir -PathType Container)) {
             $specConflict = Test-SpecPrefixInUse -SpecsDir $specsDir -FeatureNum $featureNum
@@ -284,7 +289,7 @@ if ($Timestamp) {
             [long]$resolvedNumber = Get-HighestNumberFromSpecs -SpecsDir $specsDir
             do {
                 if ($resolvedNumber -eq [long]::MaxValue) {
-                    Write-Error "Error: feature number must be between 0 and $([long]::MaxValue), got '9223372036854775808'"
+                    [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
                     exit 1
                 }
                 $resolvedNumber++
@@ -419,5 +424,7 @@ if ($Json) {
     if (-not $DryRun) {
         Write-Output "SPECIFY_FEATURE set to: $branchName"
         Write-Output "SPECIFY_FEATURE_DIRECTORY set to: $featureDir"
+        [Console]::Error.WriteLine("# To persist: `$env:SPECIFY_FEATURE = '$branchName'")
+        [Console]::Error.WriteLine("#              `$env:SPECIFY_FEATURE_DIRECTORY = '$featureDir'")
     }
 }
