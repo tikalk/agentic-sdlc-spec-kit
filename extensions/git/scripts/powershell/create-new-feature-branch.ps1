@@ -711,9 +711,9 @@ if ((Get-Utf8ByteCount -Value $branchName) -gt $maxBranchLength) {
         throw "Branch template prefix exceeds GitHub's 244-byte branch name limit."
     }
 
-    Write-Warning "[specify] Branch name exceeded GitHub's 244-byte limit"
-    Write-Warning "[specify] Original: $originalBranchName ($(Get-Utf8ByteCount -Value $originalBranchName) bytes)"
-    Write-Warning "[specify] Truncated to: $branchName ($(Get-Utf8ByteCount -Value $branchName) bytes)"
+    [Console]::Error.WriteLine("[specify] Warning: Branch name exceeded GitHub's 244-byte limit")
+    [Console]::Error.WriteLine("[specify] Original: $originalBranchName ($(Get-Utf8ByteCount -Value $originalBranchName) bytes)")
+    [Console]::Error.WriteLine("[specify] Truncated to: $branchName ($(Get-Utf8ByteCount -Value $branchName) bytes)")
 }
 
 # Resolve isolation mode now that $repoRoot is known.

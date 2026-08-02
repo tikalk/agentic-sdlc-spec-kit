@@ -314,9 +314,9 @@ if ($branchName.Length -gt $maxBranchLength) {
     $originalBranchName = $branchName
     $branchName = "$featureNum-$truncatedSuffix"
     
-    Write-Warning "[specify] Branch name exceeded GitHub's 244-byte limit"
-    Write-Warning "[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)"
-    Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
+    [Console]::Error.WriteLine("[specify] Warning: Branch name exceeded GitHub's 244-byte limit")
+    [Console]::Error.WriteLine("[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)")
+    [Console]::Error.WriteLine("[specify] Truncated to: $branchName ($($branchName.Length) bytes)")
 }
 
 $featureDir = Join-Path $specsDir $branchName
@@ -399,17 +399,19 @@ $DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -T
 $DISCOVERED_SKILLS = Discover-Skills -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR -SkillsCachePath (Join-Path $repoRoot '.specify/skills')
 
 if ($Json) {
+    $discoveredDirectivesObj = if ($DISCOVERED_DIRECTIVES) { $DISCOVERED_DIRECTIVES | ConvertFrom-Json } else { $null }
+    $discoveredSkillsObj = if ($DISCOVERED_SKILLS) { $DISCOVERED_SKILLS | ConvertFrom-Json } else { $null }
     $obj = [PSCustomObject]@{ 
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
-        DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
-        DISCOVERED_SKILLS = $DISCOVERED_SKILLS
+        DISCOVERED_DIRECTIVES = $discoveredDirectivesObj
+        DISCOVERED_SKILLS = $discoveredSkillsObj
     }
     if ($DryRun) {
         $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
     }
-    $obj | ConvertTo-Json -Compress
+    $obj | ConvertTo-Json -Compress -Depth 10
 } else {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "SPEC_FILE: $specFile"

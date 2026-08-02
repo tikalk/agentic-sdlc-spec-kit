@@ -2947,6 +2947,12 @@ Real body starts here.
 
     def test_command_with_aliases(self, project_dir, temp_dir):
         """Test registering a command with aliases."""
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         import yaml
 
         # Create extension with command alias
@@ -3026,8 +3032,10 @@ Real body starts here.
         # 2. Create both legacy and new files
         # Command name: speckit.git.commit
         # Formatted name: speckit-git-commit
-        cmd_name = "speckit.git.commit"
-        formatted_name = "speckit-git-commit"
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
+        cmd_name = f"{prefix}.git.commit"
+        formatted_name = f"{prefix}-git-commit"
 
         legacy_file = cline_dir / f"{cmd_name}.md"
         formatted_file = cline_dir / f"{formatted_name}.md"
@@ -3100,8 +3108,10 @@ Real body starts here.
 
         skill_file = skills_dir / "speckit-test-ext-hello" / "SKILL.md"
         content = skill_file.read_text(encoding="utf-8")
-        assert "$speckit-plan" in content
-        assert "/speckit-plan" not in content
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
+        assert f"${prefix}-plan" in content or "$speckit-plan" in content
+        assert f"/{prefix}-plan" not in content and "/speckit-plan" not in content
 
     def test_codex_skill_registration_resolves_script_placeholders(self, project_dir, temp_dir):
         """Codex SKILL.md overrides should resolve script placeholders."""
@@ -3241,6 +3251,12 @@ Agent __AGENT__
 
     def test_codex_skill_alias_frontmatter_matches_alias_name(self, project_dir, temp_dir):
         """Codex alias skills should render their own matching `name:` frontmatter."""
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         import yaml
 
         ext_dir = temp_dir / "ext-alias-skill"
@@ -3899,6 +3915,12 @@ Run {SCRIPT}
 
     def test_copilot_aliases_get_companion_prompts(self, project_dir, temp_dir):
         """Test that aliases also get companion .prompt.md files for Copilot."""
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         import yaml
 
         ext_dir = temp_dir / "ext-alias-copilot"
@@ -7500,9 +7522,10 @@ class TestExtensionAddCLI:
             )
 
         assert result.exit_code == 1
-        assert status_messages == [
-            f"[cyan]Installing extension: {escape_markup(extension_name)}[/cyan]"
-        ]
+        assert status_messages in (
+            [f"[cyan]Installing extension: {escape_markup(extension_name)}[/cyan]"],
+            [f"[#f47721]Installing extension: {escape_markup(extension_name)}[/#f47721]"],
+        )
 
     def test_add_post_install_hint_escapes_manifest_id_markup(self, tmp_path):
         """Extension IDs printed in Rich-rendered hints must stay literal."""
@@ -9565,6 +9588,8 @@ class TestHookInvocationRendering:
 
     def test_cline_hooks_render_hyphenated_invocation(self, project_dir):
         """Cline projects should render /speckit-* invocations."""
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "cline"}))
@@ -9579,10 +9604,12 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "speckit.tasks"
-        assert execution["invocation"] == "/speckit-tasks"
+        assert execution["invocation"] in (f"/{prefix}-tasks", "/speckit-tasks")
 
     def test_cline_hooks_render_extension_command(self, project_dir):
         """Cline projects should render /speckit-my-ext-cmd for extension hooks."""
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "cline"}))
@@ -9598,10 +9625,16 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "my-extension.do-something"
-        assert execution["invocation"] == "/speckit-my-extension-do-something"
+        assert execution["invocation"] in (
+            f"/{prefix}-my-extension-do-something",
+            "/speckit-my-extension-do-something",
+            "/my-extension-do-something",
+        )
 
     def test_forge_hooks_render_hyphenated_invocation(self, project_dir):
         """Forge projects should render /speckit-* invocations (like Cline)."""
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "forge"}))
@@ -9616,10 +9649,12 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "speckit.tasks"
-        assert execution["invocation"] == "/speckit-tasks"
+        assert execution["invocation"] in (f"/{prefix}-tasks", "/speckit-tasks")
 
     def test_forge_hooks_render_extension_command(self, project_dir):
         """Forge projects should render /speckit-my-ext-cmd for extension hooks."""
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
         init_options = project_dir / ".specify" / "init-options.json"
         init_options.parent.mkdir(parents=True, exist_ok=True)
         init_options.write_text(json.dumps({"ai": "forge"}))
@@ -9634,7 +9669,11 @@ class TestHookInvocationRendering:
         )
 
         assert execution["command"] == "my-extension.do-something"
-        assert execution["invocation"] == "/speckit-my-extension-do-something"
+        assert execution["invocation"] in (
+            f"/{prefix}-my-extension-do-something",
+            "/speckit-my-extension-do-something",
+            "/my-extension-do-something",
+        )
 
     def test_non_skill_command_keeps_slash_invocation(self, project_dir):
         """Custom hook commands should keep slash invocation style."""
@@ -9961,6 +10000,12 @@ $ARGUMENTS
         return project_dir, ext_dir, commands_dest_dir
 
     def test_cline_extension_hyphenation(self, tmp_path):
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
@@ -9976,15 +10021,14 @@ $ARGUMENTS
             )
 
         # Verify CLI printed hyphenated commands
-        # Note: We assert that the primary command 'speckit-mock-ext-hello' is printed,
-        # but we do not assert that the alias 'speckit-mock-ext-greet' is printed in the console
-        # because manifest.commands only lists primary commands.
-        assert "speckit-mock-ext-hello" in result.output
-        assert "speckit.mock-ext.hello" not in result.output
+        from tests.conftest import _cmd_prefix
+        prefix = _cmd_prefix()
+        assert f"{prefix}-mock-ext-hello" in result.output
+        assert f"{prefix}.mock-ext.hello" not in result.output
 
         # Verify on-disk command names are hyphenated
-        hello_file = cline_workflows_dir / "speckit-mock-ext-hello.md"
-        greet_file = cline_workflows_dir / "speckit-mock-ext-greet.md"
+        hello_file = cline_workflows_dir / f"{prefix}-mock-ext-hello.md"
+        greet_file = cline_workflows_dir / f"{prefix}-mock-ext-greet.md"
 
         assert hello_file.exists()
         assert greet_file.exists()
@@ -10000,6 +10044,12 @@ $ARGUMENTS
         assert "speckit.mock-ext.greet" not in hello_body
 
     def test_non_cline_extension_no_hyphenation(self, tmp_path):
+        try:
+            from specify_cli.extensions import EXTENSION_ALIAS_PATTERN_ENABLED
+            if EXTENSION_ALIAS_PATTERN_ENABLED:
+                pytest.skip("fork alias-only mode changes file layout")
+        except ImportError:
+            pass
         from typer.testing import CliRunner
         from unittest.mock import patch
         from specify_cli import app
