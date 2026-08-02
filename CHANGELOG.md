@@ -2,6 +2,53 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.15.1+adlc1] - 2026-08-02
+
+### Added
+
+- **Upstream merge (0.14.4 → 0.15.1)**: Continued adoption of upstream
+  `github/spec-kit` releases. Package version base reset to upstream `0.15.1`
+  with fork counter reset (`0.14.4+adlc1` → `0.15.1+adlc1`). Includes upstream
+  `0.15.0`/`0.15.1` fixes: tar archive support for installs (#3874), opt-in
+  `constitution-sync` preset (#3873), TOCTOU race elimination in file unlinks
+  (#3819), `verdict_input` gate binding (#3725), workflow step-metadata
+  escaping (#3863), non-object workflow cache rejection (#3860), non-UTF-8
+  manifest/VS Code settings normalization (#3862/#3833), `.NET` Framework-safe
+  PowerShell init-dir trim (#3872), Rich markup escaping in `workflow resolve`
+  output (#3879), and the `bundle update --force` mislead fix via
+  `refresh()` on `DefaultPrimitiveInstaller` (#3452).
+- **Wheel asset path alignment**: Bundled preset `force-include` paths in
+  `pyproject.toml` remapped to `specify_cli/core_pack/presets/<id>` to match the
+  upstream `0.15.1` locator in `_locate_bundled_preset`.
+
+### Changed
+
+- **Command prefix**: `_cmd_prefix()` returns `"spec"` on the fork (vs
+  `"speckit"` upstream). Test assertions across `test_cli.py`,
+  `test_integration_{bob,copilot,droid,grok}.py`, `test_extensions.py`, and
+  `test_presets.py` use `_cmd_prefix()` or accept `spec-*` variants.
+- **Fork alias-only mode**: `EXTENSION_ALIAS_PATTERN_ENABLED`
+  (`_core_fork.py:42`) skips primary command registration when aliases exist;
+  tests asserting command-mode primary+alias co-existence are guarded with
+  `pytest.skip("fork alias-only mode changes file layout")`.
+- **Manifest disjoint checks**: `SHARED_INFRA_FILES = {".specify/events.py"}`
+  excluded from pairwise disjoint manifest checks in `test_registry.py`;
+  manifest paths normalized with `p.replace("\\", "/")` for Windows CI.
+- **PowerShell feature scripts hardened**: `-Number` parameter typed as
+  `[string]` with explicit Int64 parsing to prevent parameter-binder crashes on
+  non-numeric/overflow inputs; empty `-Number ""` stripped from
+  `$PSBoundParameters` before delegation; `Get-NextBranchNumber` double-increment
+  removed (fixes `001` vs `002` off-by-one); numeric prefixes exceeding
+  `[long]::MaxValue` ignored; non-dry text mode prints persist hints to both
+  `stdout` and `stderr`. Applied to `scripts/powershell/create-new-feature.ps1`
+  and `extensions/git/scripts/powershell/create-new-feature-branch.ps1`.
+- **Test suite alignment**: `test_authentication.py` synced to upstream `0.14.4`
+  with `gitlab` → `bitbucket` replacement for `test_unknown_provider_raises`;
+  `test_integration_catalog.py` mocks `_auth_http.open_url` instead of
+  `urllib.request.urlopen`; upstream #2948 behavior adopted for integration
+  upgrade (non-active integrations skip extension backfill). All platforms green.
+- **Lint**: Ruff clean across `src/` and `tests/`.
+
 # [0.14.4+adlc1] - 2026-07-30
 
 ### Added
