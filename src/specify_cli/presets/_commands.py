@@ -280,7 +280,6 @@ def preset_add(
                 console.print(f"Installing preset {accent(pack_info.get('name', preset_id))}...")
 
                 try:
-                try:
                     archive_path = catalog.download_pack(preset_id)
                     manifest = manager.install_from_zip(
                         archive_path,
