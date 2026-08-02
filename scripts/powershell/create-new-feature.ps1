@@ -434,7 +434,20 @@ if ($Json) {
     if (-not $DryRun) {
         Write-Output "SPECIFY_FEATURE set to: $branchName"
         Write-Output "SPECIFY_FEATURE_DIRECTORY set to: $featureDir"
-        [Console]::Error.WriteLine("# To persist: `$env:SPECIFY_FEATURE = '$branchName'")
-        [Console]::Error.WriteLine("#              `$env:SPECIFY_FEATURE_DIRECTORY = '$featureDir'")
+
+        # Persist hints use PowerShell single-quote escaping, matching the git
+        # extension twin. Emit to BOTH stdout (mirroring the bash/python twins'
+        # "# To persist in your shell:" lines) and stderr (their
+        # "# To persist:" lines), so PowerShell callers see the hint regardless
+        # of which stream they read.
+        $quotedBranch = "'" + $branchName.Replace("'", "''") + "'"
+        $quotedDir = "'" + $featureDir.Replace("'", "''") + "'"
+        $featureAssignment = "`$env:SPECIFY_FEATURE = $quotedBranch"
+        $directoryAssignment = "`$env:SPECIFY_FEATURE_DIRECTORY = $quotedDir"
+
+        Write-Output "# To persist in your shell: $featureAssignment"
+        Write-Output "#                           $directoryAssignment"
+        [Console]::Error.WriteLine("# To persist: $featureAssignment")
+        [Console]::Error.WriteLine("#              $directoryAssignment")
     }
 }

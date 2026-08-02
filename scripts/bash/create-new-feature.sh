@@ -57,7 +57,11 @@ while [ $i -le $# ]; do
                 exit 1
             fi
             BRANCH_NUMBER="$next_arg"
-            NUMBER_EXPLICIT=true
+            # Treat an empty --number value as omitted (auto-detect), matching
+            # the Python twin's falsy check and the PowerShell twin's
+            # bound-param removal — so it skips the explicit-number conflict
+            # preference path instead of warning on a phantom collision.
+            [ -n "$next_arg" ] && NUMBER_EXPLICIT=true
             ;;
         --timestamp)
             USE_TIMESTAMP=true
