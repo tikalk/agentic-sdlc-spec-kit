@@ -65,14 +65,18 @@ if ($Help) {
 }
 
 if ($PSBoundParameters.ContainsKey('Number')) {
-    if ($Number -notmatch '^\d+$') {
-        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
-        exit 1
-    }
-    [long]$parsedNum = 0
-    if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
-        [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
-        exit 1
+    if ([string]::IsNullOrWhiteSpace($Number)) {
+        $null = $PSBoundParameters.Remove('Number')
+    } else {
+        if ($Number -notmatch '^\d+$') {
+            [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+            exit 1
+        }
+        [long]$parsedNum = 0
+        if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
+            [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
+            exit 1
+        }
     }
 }
 
@@ -95,12 +99,9 @@ function Get-HighestNumberFromSpecs {
     if (Test-Path $SpecsDir) {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
-                $digits = $matches[1]
                 [long]$num = 0
-                if ([long]::TryParse($digits, [ref]$num)) {
-                    if ($num -gt $highest) { $highest = $num }
-                } else {
-                    $highest = [long]::MaxValue
+                if ([long]::TryParse($matches[1], [ref]$num) -and $num -ge 0 -and $num -gt $highest) {
+                    $highest = $num
                 }
             }
         }
@@ -126,12 +127,9 @@ function Get-HighestNumberFromNames {
         $hasTimestampPrefix = $name -match '^\d{8}-\d{6}-'
         $hasMalformedTimestamp = ($name -match '^\d{7}-\d{6}-') -or ($name -match '^(?:\d{7}|\d{8})-\d{6}$')
         if ($name -match '^(\d{3,})-' -and -not $hasTimestampPrefix -and -not $hasMalformedTimestamp) {
-            $digits = $matches[1]
             [long]$num = 0
-            if ([long]::TryParse($digits, [ref]$num)) {
-                if ($num -gt $highest) { $highest = $num }
-            } else {
-                $highest = [long]::MaxValue
+            if ([long]::TryParse($matches[1], [ref]$num) -and $num -ge 0 -and $num -gt $highest) {
+                $highest = $num
             }
         }
     }
@@ -688,21 +686,21 @@ if ($env:GIT_BRANCH_NAME) {
         # explicit value (including 0) is honored, matching the bash twin's
         # `[ -z "$BRANCH_NUMBER" ]` check.
         if (-not $PSBoundParameters.ContainsKey('Number')) {
-            [long]$highest = 0
+            [long]$numVal = 0
             if ($DryRun -and $hasGit) {
-                $highest = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
+                $numVal = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
             } elseif ($DryRun) {
-                $highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+                $numVal = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
             } elseif ($hasGit) {
-                $highest = Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix
+                $numVal = Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix
             } else {
-                $highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+                $numVal = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
             }
-            if ($highest -ge [long]::MaxValue) {
-                [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
+            if ($numVal -lt 0) {
+                [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '$numVal'")
                 exit 1
             }
-            $Number = [string]($highest + 1)
+            $Number = [string]$numVal
         }
 
         [long]$numericVal = [long]::Parse($Number)

@@ -14,6 +14,11 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 
+# If -Number is empty/whitespace, remove it from $PSBoundParameters (treated as omitted)
+if ($PSBoundParameters.ContainsKey('Number') -and [string]::IsNullOrWhiteSpace($Number)) {
+    $null = $PSBoundParameters.Remove('Number')
+}
+
 # Delegate to git extension if installed
 $RepoRoot = (Resolve-Path "$PSScriptRoot/../../..").Path
 $ExtScript = Join-Path $RepoRoot ".specify/extensions/git/scripts/powershell/create-new-feature-branch.ps1"
@@ -81,12 +86,9 @@ function Get-HighestNumberFromSpecs {
         Get-ChildItem -Path $SpecsDir -Directory | ForEach-Object {
             # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
-                $digits = $matches[1]
                 [long]$num = 0
-                if ([long]::TryParse($digits, [ref]$num)) {
-                    if ($num -gt $highest) { $highest = $num }
-                } else {
-                    $highest = [long]::MaxValue
+                if ([long]::TryParse($matches[1], [ref]$num) -and $num -ge 0 -and $num -gt $highest) {
+                    $highest = $num
                 }
             }
         }
