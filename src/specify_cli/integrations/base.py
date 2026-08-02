@@ -14,6 +14,7 @@ Provides:
 from __future__ import annotations
 
 import os
+import platform
 import re
 import shlex
 import shutil
@@ -38,14 +39,16 @@ except ImportError:
         if dim:
             style = f"dim {style}"
         return f"[{style}]{text}[/]"
+from .._invocation_style import get_invocation_prefix
 from .._toml_string import escape_toml_basic as _escape_toml_basic
 from .._toml_string import has_illegal_toml_control as _has_illegal_toml_control
+from ..events import install_integration_events, remove_integration_events
 
 if TYPE_CHECKING:
     from .manifest import IntegrationManifest
 
 _HOOK_COMMAND_NOTE = (
-    "- When constructing slash commands from hook command names, "
+    "- When constructing command invocations from hook command names, "
     "replace dots (`.`) with hyphens (`-`). "
     "For example, `speckit.git.commit` → `/speckit-git-commit`.\n"
 )
@@ -243,7 +246,17 @@ class IntegrationBase(ABC):
     @classmethod
     def options(cls) -> list[IntegrationOption]:
         """Return options this integration accepts. Default: none."""
-        return []
+        opts = []
+        if bool(getattr(cls, "CANONICAL_TO_NATIVE", None) and getattr(cls, "events_config_file", None)):
+            opts.append(
+                IntegrationOption(
+                    "--events",
+                    is_flag=False,
+                    default="true",
+                    help="Enable/disable runtime events (true|false, default: true)",
+                )
+            )
+        return opts
 
     def detect_native_worktree(self) -> bool:
         """Return True if this integration's CLI tool handles worktrees natively.
@@ -265,16 +278,65 @@ class IntegrationBase(ABC):
         return detect_native_worktree(self.key)
 
     def effective_invoke_separator(
-        self, parsed_options: dict[str, Any] | None = None
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
     ) -> str:
         """Return the invoke separator for the given options.
 
         Subclasses whose separator depends on runtime options (e.g.
         Copilot in ``--skills`` mode) should override this method.
-        The default implementation ignores *parsed_options* and returns
-        the class-level ``invoke_separator``.
+        The default implementation ignores *parsed_options* and
+        *project_root* and returns the class-level ``invoke_separator``.
         """
         return self.invoke_separator
+
+    def invoke_separator_for_mode(self, skills_enabled: bool) -> str:
+        """Command-ref separator given the project's *resolved* skills state.
+
+        Registration paths (extension / preset command rendering) have no CLI
+        ``parsed_options`` — only the persisted ``ai_skills`` flag — so they
+        resolve the command-reference separator through this hook rather than
+        the static ``AGENT_CONFIGS[key]["invoke_separator"]`` value, which
+        cannot represent an agent whose separator differs between its skills
+        and command layouts.
+
+        The default is mode-independent and returns exactly what
+        ``_build_agent_configs`` would place in ``AGENT_CONFIGS`` (the
+        ``registrar_config`` override if present, else the class-level
+        ``invoke_separator``), so single-layout agents are unaffected.
+        Dual-mode agents whose separator depends on the layout (e.g. Bob:
+        ``-`` for skills, ``.`` for legacy commands) override this.
+        """
+        cfg = self.registrar_config or {}
+        return cfg.get("invoke_separator", self.invoke_separator)
+
+    def is_skills_mode(
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
+    ) -> bool:
+        """Return whether this integration scaffolds skills for these options.
+
+        This is the single, well-defined hook the shared init/install/upgrade
+        machinery consults to decide whether to persist ``ai_skills=True`` and
+        render skill invocations.  It replaces ad-hoc ``isinstance`` /
+        ``getattr(self, "_skills_mode", ...)`` probing so an integration's
+        internal representation never has to leak into shared dispatch code.
+
+        *project_root* is optional context for the ``use`` / ``switch`` /
+        ``upgrade`` path, where no ``setup()`` runs and *parsed_options* may be
+        empty: dual-mode integrations can consult the already-installed
+        on-disk layout to avoid silently migrating an existing project to a
+        different mode.  The default ignores it.
+
+        The default (command-first integrations, e.g. Copilot's default
+        layout) is skills mode only when ``--skills`` was requested.
+        ``SkillsIntegration`` overrides this to return ``True`` by default;
+        skills-first integrations that expose a legacy opt-out (e.g. Bob)
+        override it to honor their own flag.
+        """
+        return bool((parsed_options or {}).get("skills"))
 
     def build_exec_args(
         self,
@@ -567,22 +629,11 @@ class IntegrationBase(ABC):
         tracking) would otherwise be deleted even though they are still
         managed.  Subclasses list such paths here to protect them.
         """
-        exclusions: set[str] = set()
-        # Tikalk fork: protect runtime hook config files
-        try:
-            from .._hooks_fork import hooks_stale_exclusions
-            exclusions.update(hooks_stale_exclusions(self.key))
-        except ImportError:
-            pass
+        exclusions = set()
+        if self.supports_events():
+            from ..events import events_stale_exclusions
+            exclusions.update(events_stale_exclusions(self.key))
         return exclusions
-
-    def supports_runtime_hooks(self) -> bool:
-        """Return True if this agent supports native runtime hooks."""
-        try:
-            from .._hooks_fork import resolve_adapter
-            return resolve_adapter(self.key) is not None
-        except ImportError:
-            return False
 
     def commands_dest(self, project_root: Path) -> Path:
         """Return the absolute path to the commands output directory.
@@ -723,7 +774,10 @@ class IntegrationBase(ABC):
 
     @staticmethod
     def resolve_command_refs(
-        content: str, separator: str = ".", project_root: Path | None = None
+        content: str,
+        separator: str = ".",
+        project_root: Path | None = None,
+        prefix: str = "/",
     ) -> str:
         """Replace ``__SPECKIT_COMMAND_<NAME>__`` placeholders with invocations.
 
@@ -738,6 +792,10 @@ class IntegrationBase(ABC):
         When *project_root* is provided, installed presets are scanned and
         custom placeholders such as ``__SPECKIT_COMMAND_CHANGE_IMPLEMENT__``
         are resolved to the preset's alias (e.g. ``/change.implement``).
+
+        *prefix* defaults to ``"/"`` but may be ``"$"`` or ``"/skill:"`` for
+        agents whose native skills invocation uses a different chat prefix.
+        It only applies to the non-preset fallback path.
         """
         if project_root is None:
             project_root = Path.cwd()
@@ -750,7 +808,7 @@ class IntegrationBase(ABC):
                 cmd_path = placeholder_map[placeholder]
                 return "/" + cmd_path.replace(".", separator).replace("-", separator)
             return (
-                "/"
+                prefix
                 + _get_command_prefix()
                 + separator
                 + placeholder.lower().replace("_", separator)
@@ -879,6 +937,46 @@ class IntegrationBase(ABC):
         return "\n".join(result)
 
     @staticmethod
+    def build_python_invocation(
+        script_command: str, project_root: Path | None = None
+    ) -> str:
+        """Build a Python script command for the current platform shell."""
+        interpreter = IntegrationBase.resolve_python_interpreter(project_root)
+        if os.name == "nt" and not re.fullmatch(r"[A-Za-z0-9_./:\\-]+", interpreter):
+            quoted_interpreter = interpreter.replace("'", "''")
+            interpreter = f"& '{quoted_interpreter}'"
+        elif os.name != "nt":
+            interpreter = shlex.quote(interpreter)
+        return f"{interpreter} {script_command}"
+
+    @staticmethod
+    def select_script_variant(
+        requested: object, script_commands: dict[str, str]
+    ) -> str:
+        """Select the requested variant or a runnable platform fallback."""
+        if isinstance(requested, str) and requested in script_commands:
+            return requested
+
+        platform_variant = (
+            "ps" if platform.system().lower().startswith("win") else "sh"
+        )
+        secondary_variant = "sh" if platform_variant == "ps" else "ps"
+        fallbacks = (
+            (platform_variant, "py")
+            if requested == "py"
+            else (platform_variant, secondary_variant, "py")
+        )
+        for candidate in fallbacks:
+            if candidate in script_commands:
+                return candidate
+
+        available = ", ".join(sorted(script_commands)) or "none"
+        raise ValueError(
+            "No runnable script variant for this platform: "
+            f"requested {requested!r}; available: {available}"
+        )
+
+    @staticmethod
     def _interpreter_runs(path: str) -> bool:
         """Return True when *path* executes as a Python interpreter.
 
@@ -912,7 +1010,8 @@ class IntegrationBase(ABC):
         """Process a raw command template into agent-ready content.
 
         Performs the same transformations as the release script:
-        1. Extract ``scripts.<script_type>`` value from YAML frontmatter
+        1. Select ``scripts.<script_type>`` from YAML frontmatter, falling
+           back to a runnable platform shell or Python variant when unavailable
         2. Replace ``{SCRIPT}`` with the extracted script command
         3. Strip ``scripts:`` section from frontmatter
         4. Replace ``{ARGS}`` and ``$ARGUMENTS`` with *arg_placeholder*
@@ -923,37 +1022,46 @@ class IntegrationBase(ABC):
         9. Resolve canonical command names to alias forms
         """
         # 1. Extract script command from frontmatter
-        script_command = ""
-        script_pattern = re.compile(
-            rf"^\s*{re.escape(script_type)}:\s*(.+)$", re.MULTILINE
-        )
+        script_commands: dict[str, str] = {}
+        script_pattern = re.compile(r"^\s*([A-Za-z0-9_-]+):\s*(.+)$")
         # Find the scripts: block
+        in_frontmatter = False
         in_scripts = False
         for line in content.splitlines():
-            if line.strip() == "scripts:":
+            if line == "---":
+                if in_frontmatter:
+                    break
+                in_frontmatter = True
+                continue
+            if not in_frontmatter:
+                continue
+            if line == "scripts:":
                 in_scripts = True
                 continue
             if in_scripts and line and not line[0].isspace():
-                in_scripts = False
+                break
             if in_scripts:
                 m = script_pattern.match(line)
                 if m:
-                    script_command = m.group(1).strip()
-                    break
+                    script_commands[m.group(1)] = m.group(2).strip()
+
+        selected_script_type = (
+            IntegrationBase.select_script_variant(script_type, script_commands)
+            if script_commands
+            else ""
+        )
+
+        script_command = script_commands.get(selected_script_type, "")
 
         # 2. Replace {SCRIPT}
         if script_command:
             # For the Python script type, prefix the resolved interpreter so
             # the command is portable (``.py`` files are not directly
             # executable on Windows).
-            if script_type == "py":
-                interpreter = IntegrationBase.resolve_python_interpreter(project_root)
-                # Quote the interpreter if it contains whitespace (e.g. an
-                # absolute ``sys.executable`` path under Windows
-                # ``Program Files``) so it isn't split into multiple args.
-                if any(ch.isspace() for ch in interpreter):
-                    interpreter = f'"{interpreter}"'
-                script_command = f"{interpreter} {script_command}"
+            if selected_script_type == "py":
+                script_command = IntegrationBase.build_python_invocation(
+                    script_command, project_root
+                )
             content = content.replace("{SCRIPT}", script_command)
 
         # 3. Strip scripts: section from frontmatter
@@ -999,7 +1107,12 @@ class IntegrationBase(ABC):
         content = CommandRegistrar.rewrite_project_relative_paths(content)
 
         # 8. Replace __SPECKIT_COMMAND_<NAME>__ with invocation strings
-        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_root)
+        invocation_prefix = get_invocation_prefix(
+            agent_name, invoke_separator == "-"
+        )
+        content = IntegrationBase.resolve_command_refs(
+            content, invoke_separator, project_root, invocation_prefix
+        )
 
         # 9. Resolve handoff agent references in frontmatter
         content = IntegrationBase.resolve_handoff_agents(content, invoke_separator)
@@ -1117,13 +1230,31 @@ class IntegrationBase(ABC):
 
         Returns ``(removed, skipped)`` file lists.
         """
-        # Tikalk fork: remove agent runtime hooks before manifest uninstall
-        try:
-            from .._hooks_fork import remove_integration_hooks
-            remove_integration_hooks(self, project_root, manifest)
-        except ImportError:
-            pass
+        self.remove_events(project_root, manifest)
         return manifest.uninstall(project_root, force=force)
+
+    def emit_events(
+        self,
+        project_root: Path,
+        manifest: IntegrationManifest,
+        events: dict[str, dict[str, Any]] | None = None,
+        parsed_options: dict[str, Any] | None = None,
+        **opts: Any,
+    ) -> list[Path]:
+        """Emit native event configuration for this integration."""
+        return install_integration_events(self, project_root, manifest, events or {})
+
+    def remove_events(
+        self,
+        project_root: Path,
+        manifest: IntegrationManifest,
+    ) -> None:
+        """Remove Specify-authored event entries from native config."""
+        remove_integration_events(self, project_root, manifest)
+
+    def supports_events(self) -> bool:
+        """Return True if this integration supports agent-native events."""
+        return bool(getattr(self, "CANONICAL_TO_NATIVE", None) and getattr(self, "events_config_file", None))
 
     # -- Convenience helpers for subclasses -------------------------------
 
@@ -1228,15 +1359,11 @@ class MarkdownIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
-        # Tikalk fork: install agent runtime hooks
-        try:
-            from .._hooks_fork import install_integration_hooks
-            hook_files = install_integration_hooks(
-                self, project_root, manifest, parsed_options
-            )
-            created.extend(hook_files)
-        except ImportError:
-            pass
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1444,15 +1571,11 @@ class TomlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
-        # Tikalk fork: install agent runtime hooks
-        try:
-            from .._hooks_fork import install_integration_hooks
-            hook_files = install_integration_hooks(
-                self, project_root, manifest, parsed_options
-            )
-            created.extend(hook_files)
-        except ImportError:
-            pass
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1689,15 +1812,11 @@ class YamlIntegration(IntegrationBase):
             )
             created.append(dst_file)
 
-        # Tikalk fork: install agent runtime hooks
-        try:
-            from .._hooks_fork import install_integration_hooks
-            hook_files = install_integration_hooks(
-                self, project_root, manifest, parsed_options
-            )
-            created.extend(hook_files)
-        except ImportError:
-            pass
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created
 
@@ -1723,6 +1842,14 @@ class SkillsIntegration(IntegrationBase):
     """
 
     invoke_separator = "-"
+
+    def is_skills_mode(
+        self,
+        parsed_options: dict[str, Any] | None = None,
+        project_root: Path | None = None,
+    ) -> bool:
+        """Skills-native integrations scaffold skills unconditionally."""
+        return True
 
     def build_exec_args(
         self,
@@ -1755,18 +1882,22 @@ class SkillsIntegration(IntegrationBase):
                 stem = stem[len(prefix):]
                 break
 
+        invocation_prefix = "/"
+
         # Extension commands keep their own namespace; core commands live under
         # COMMAND_PREFIX.
         if "." in stem:
-            invocation = f"/{stem.replace('.', '-')}"
+            invocation = f"{invocation_prefix}{stem.replace('.', '-')}"
         else:
-            invocation = f"/{_get_command_prefix()}-{stem}"
+            invocation = f"{invocation_prefix}{_get_command_prefix()}-{stem}"
         if args:
             invocation = f"{invocation} {args}"
         return invocation
 
     @staticmethod
-    def _inject_hook_command_note(content: str) -> str:
+    def _inject_hook_command_note(
+        content: str, invocation_prefix: str = "/"
+    ) -> str:
         """Insert a dot-to-hyphen note before each hook output instruction.
 
         Targets the line ``- For each executable hook, output the following``
@@ -1775,6 +1906,11 @@ class SkillsIntegration(IntegrationBase):
         above them.
         """
         note = _HOOK_COMMAND_NOTE.rstrip("\n")
+        if invocation_prefix != "/":
+            note = note.replace(
+                "`/speckit-git-commit`",
+                f"`{invocation_prefix}speckit-git-commit`",
+            )
 
         def repl(m: re.Match[str]) -> str:
             indent = m.group(1)
@@ -1808,10 +1944,13 @@ class SkillsIntegration(IntegrationBase):
         Called by external skill generators (presets, extensions) to let
         the integration inject agent-specific frontmatter or body
         transformations.  The base implementation injects shared skills
-        guidance for converting dotted hook command names to hyphenated
-        slash commands.  Subclasses may override — see ``ClaudeIntegration``.
+        guidance for converting dotted hook command names to the agent-native
+        hyphenated command invocation (e.g. ``/speckit-git-commit`` or
+        ``$speckit-git-commit``).  Subclasses may override -- see
+        ``ClaudeIntegration``.
         """
-        return self._inject_hook_command_note(content)
+        invocation_prefix = get_invocation_prefix(self.key, True)
+        return self._inject_hook_command_note(content, invocation_prefix)
 
     def setup(
         self,
@@ -1881,13 +2020,27 @@ class SkillsIntegration(IntegrationBase):
             except Exception:
                 skill_name = f"speckit-{command_name.replace('.', '-')}"
 
-            # Parse frontmatter for description
+            # Parse frontmatter for description. Locate the closing ``---`` on
+            # its own line rather than with ``raw.split("---", 2)`` — a bare
+            # substring split stops at the first ``---`` *anywhere*, including
+            # one inside a value such as ``description: Separate sections
+            # with ---``, which truncates the frontmatter and drops later keys.
+            # The block between the delimiters is parsed unstripped so trailing
+            # newlines in literal (``|``) block scalars survive.
             frontmatter: dict[str, Any] = {}
             if raw.startswith("---"):
-                parts = raw.split("---", 2)
-                if len(parts) >= 3:
+                fm_lines = raw.splitlines(keepends=True)
+                fm_close = next(
+                    (
+                        i
+                        for i in range(1, len(fm_lines))
+                        if fm_lines[i].rstrip() == "---"
+                    ),
+                    None,
+                )
+                if fm_close is not None:
                     try:
-                        fm = yaml.safe_load(parts[1])
+                        fm = yaml.safe_load("".join(fm_lines[1:fm_close]))
                         if isinstance(fm, dict):
                             frontmatter = fm
                     except yaml.YAMLError:
@@ -1902,11 +2055,27 @@ class SkillsIntegration(IntegrationBase):
             # Strip the processed frontmatter — we rebuild it for skills.
             # Preserve leading whitespace in the body to match release ZIP
             # output byte-for-byte (the template body starts with \n after
-            # the closing ---).
+            # the closing ---). Scan for the closing ``---`` on its own line
+            # rather than ``split("---", 2)`` so a ``---`` embedded in a value
+            # does not truncate the frontmatter and spill it into the body.
             if processed_body.startswith("---"):
-                parts = processed_body.split("---", 2)
-                if len(parts) >= 3:
-                    processed_body = parts[2]
+                body_lines = processed_body.splitlines(keepends=True)
+                close_idx = next(
+                    (
+                        i
+                        for i in range(1, len(body_lines))
+                        if body_lines[i].rstrip() == "---"
+                    ),
+                    None,
+                )
+                if close_idx is not None:
+                    # Keep whatever trails the ``---`` marker on the closing
+                    # line (normally just the newline) so the body stays
+                    # byte-for-byte identical to ``split("---", 2)[2]``. The
+                    # line-anchored check guarantees ``---`` sits at index 0.
+                    processed_body = body_lines[close_idx][3:] + "".join(
+                        body_lines[close_idx + 1 :]
+                    )
 
             # Select description — use the original template description
             # to stay byte-for-byte identical with release ZIP output.
@@ -1946,14 +2115,10 @@ class SkillsIntegration(IntegrationBase):
             )
             created.append(dst)
 
-        # Tikalk fork: install agent runtime hooks
-        try:
-            from .._hooks_fork import install_integration_hooks
-            hook_files = install_integration_hooks(
-                self, project_root, manifest, parsed_options
-            )
-            created.extend(hook_files)
-        except ImportError:
-            pass
+        # Install agent runtime events
+        event_files = self.emit_events(
+            project_root, manifest, events=opts.get("events"), parsed_options=parsed_options
+        )
+        created.extend(event_files)
 
         return created

@@ -219,7 +219,7 @@ class SkillsIntegrationTests:
             "---\n"
             "name: test\n"
             "---\n\n"
-            "- When constructing slash commands from hook command names, "
+            "- When constructing command invocations from hook command names, "
             "replace dots (`.`) with hyphens (`-`). "
             "For example, `speckit.git.commit` → `/speckit-git-commit`.\n"
             "- For each executable hook, output the following first block:\n"
@@ -445,6 +445,7 @@ class SkillsIntegrationTests:
             ".specify/integration.json",
             f".specify/integrations/{self.KEY}.manifest.json",
             ".specify/integrations/speckit.manifest.json",
+            ".specify/memory/.constitution-template.json",
             ".specify/memory/constitution.md",
         ]
         # Script variant

@@ -12,6 +12,7 @@ import yaml
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 from ._console import console
+from ._download_security import normalize_zip_member_name
 
 try:
     from ._init_fork import accent, accent_style
@@ -40,19 +41,22 @@ def relative_extension_path_violation(value: Any) -> str | None:
     ``None`` when it is an acceptable relative path within the extension
     directory.
 
-    Policy: the value must be a non-empty string with no leading/trailing
-    whitespace, no absolute/anchored form, and no ``..`` traversal. The value is
+    Policy: the value must be a non-empty, portable file path with no
+    leading/trailing whitespace, absolute/anchored form, ``..`` traversal,
+    platform-reserved component, or directory-only suffix. The value is
     evaluated under both POSIX and Windows path semantics because a native
     ``Path`` is OS-dependent (a ``PurePosixPath`` on POSIX does not interpret
-    Windows drive/UNC forms, and ``C:foo`` is anchored but not ``is_absolute()``
-    yet resolves against the CWD on its drive). Rejecting any non-empty anchor
-    covers POSIX-absolute (``/abs``), Windows drive-relative (``C:foo``), Windows
-    absolute (``C:\\foo``), and UNC/rooted forms.
+    Windows drive/UNC forms, and ``C:foo`` is anchored but not
+    ``is_absolute()`` yet resolves against the CWD on its drive). Rejecting any
+    non-empty anchor covers POSIX-absolute (``/abs``), Windows drive-relative
+    (``C:foo``), Windows absolute (``C:\\foo``), and UNC/rooted forms.
     """
     if not isinstance(value, str) or not value:
         return "must be a non-empty string"
     if value.strip() != value:
         return "must not have leading or trailing whitespace"
+    if "\\" in value:
+        return "must use forward slashes as path separators"
     posix_path = PurePosixPath(value)
     win_path = PureWindowsPath(value)
     if (
@@ -64,6 +68,15 @@ def relative_extension_path_violation(value: Any) -> str | None:
         return (
             "must be a relative path within the extension directory "
             "(no absolute paths, drive letters, or '..' segments)"
+        )
+    if value.endswith(("/", "\\")):
+        return "must name a file or command, not a directory"
+    try:
+        normalize_zip_member_name(value)
+    except ValueError:
+        return (
+            "must use portable path components "
+            "(no reserved names or platform-invalid characters)"
         )
     return None
 
@@ -82,21 +95,14 @@ def run_command(
     cmd: list[str],
     check_return: bool = True,
     capture: bool = False,
-    shell: bool = False,
 ) -> str | None:
     """Run a command without invoking a shell and optionally capture output.
 
-    The ``shell`` parameter is kept in the signature so existing keyword
-    callers (and the re-export from ``specify_cli``) don't raise ``TypeError``,
-    but only the default ``shell=False`` is honoured. ``shell=True`` is
-    rejected with ``ValueError`` rather than silently ignored, so the
-    unsupported mode fails loudly instead of running with a different meaning.
+    Commands are always executed with ``shell=False`` and must be passed as an
+    argv ``list[str]``. There is deliberately no ``shell`` parameter: the
+    argv-list contract makes shell interpolation impossible by construction, so
+    the shell-injection surface cannot be re-enabled at a call site.
     """
-    if shell:
-        raise ValueError(
-            "run_command() does not support shell=True; pass argv as a list"
-        )
-
     try:
         if capture:
             result = subprocess.run(cmd, check=check_return, capture_output=True, text=True)

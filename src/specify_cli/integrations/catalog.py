@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import yaml
 from packaging import version as pkg_version
 
+from .._download_security import MAX_JSON_METADATA_BYTES, read_response_limited
 from ..catalogs import CatalogEntry, CatalogStackBase
 
 
@@ -38,6 +39,25 @@ class IntegrationValidationError(IntegrationCatalogError):
 
 class IntegrationDescriptorError(Exception):
     """Raised when an integration.yml descriptor is invalid."""
+
+
+def _catalog_shape_error(payload: Any) -> Optional[str]:
+    """Return a human-readable reason if *payload* is not a valid integration
+    catalog document, else ``None``.
+
+    Shared by the fresh-fetch and cache-read paths so both enforce the same
+    format contract: a JSON object carrying ``schema_version`` and a mapping
+    ``integrations``. Keeping a single validator prevents the two paths from
+    drifting (e.g. a cache that skips the ``schema_version`` check and lets an
+    older/poisoned payload bypass validation).
+    """
+    if not isinstance(payload, dict):
+        return "expected a JSON object"
+    if "schema_version" not in payload or "integrations" not in payload:
+        return "missing required 'schema_version' or 'integrations' key"
+    if not isinstance(payload.get("integrations"), dict):
+        return "'integrations' must be a JSON object"
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -153,7 +173,18 @@ class IntegrationCatalog(CatalogStackBase):
                     cached_at = cached_at.replace(tzinfo=timezone.utc)
                 age = (datetime.now(timezone.utc) - cached_at).total_seconds()
                 if age < self.CACHE_DURATION:
-                    return json.loads(cache_file.read_text(encoding="utf-8"))
+                    cached = json.loads(cache_file.read_text(encoding="utf-8"))
+                    # A poisoned/older-format cache must clear the SAME shape
+                    # contract as a fresh fetch (via the shared validator) —
+                    # otherwise a payload like [], {"integrations": []}, or one
+                    # missing "schema_version" is returned and later crashes on
+                    # .items()/.get() or silently bypasses the format contract.
+                    # The ValueError is caught just below, which drops the
+                    # corrupt cache and refetches from source.
+                    shape_error = _catalog_shape_error(cached)
+                    if shape_error is not None:
+                        raise ValueError(f"cached catalog has invalid shape: {shape_error}")
+                    return cached
             except (json.JSONDecodeError, ValueError, KeyError, TypeError, AttributeError, OSError, UnicodeError):
                 # Cache is invalid or stale metadata; delete and refetch from source.
                 try:
@@ -170,22 +201,19 @@ class IntegrationCatalog(CatalogStackBase):
                 final_url = resp.geturl()
                 if final_url != entry.url:
                     self._validate_catalog_url(final_url)
-                catalog_data = json.loads(resp.read())
+                catalog_data = json.loads(
+                    read_response_limited(
+                        resp,
+                        max_bytes=MAX_JSON_METADATA_BYTES,
+                        error_type=IntegrationCatalogError,
+                        label=f"catalog from {entry.url}",
+                    )
+                )
 
-            if not isinstance(catalog_data, dict):
+            shape_error = _catalog_shape_error(catalog_data)
+            if shape_error is not None:
                 raise IntegrationCatalogError(
-                    f"Invalid catalog format from {entry.url}: expected a JSON object"
-                )
-            if (
-                "schema_version" not in catalog_data
-                or "integrations" not in catalog_data
-            ):
-                raise IntegrationCatalogError(
-                    f"Invalid catalog format from {entry.url}"
-                )
-            if not isinstance(catalog_data.get("integrations"), dict):
-                raise IntegrationCatalogError(
-                    f"Invalid catalog format from {entry.url}: 'integrations' must be a JSON object"
+                    f"Invalid catalog format from {entry.url}: {shape_error}"
                 )
 
             try:
@@ -429,7 +457,8 @@ class IntegrationCatalog(CatalogStackBase):
                     )
                 try:
                     normalized_priority = int(raw_priority)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, OverflowError):
+                    # OverflowError: int(float("inf")) — a ``priority: .inf``.
                     raise IntegrationValidationError(
                         f"Invalid catalog entry at index {idx} in {config_path}: "
                         f"'priority' must be an integer, got "
@@ -537,7 +566,8 @@ class IntegrationCatalog(CatalogStackBase):
             else:
                 try:
                     priority = int(raw_priority)
-                except (TypeError, ValueError):
+                except (TypeError, ValueError, OverflowError):
+                    # OverflowError: int(float("inf")) — a ``priority: .inf``.
                     priority = yaml_idx + 1
             priority_pairs.append((priority, yaml_idx))
         if not priority_pairs:

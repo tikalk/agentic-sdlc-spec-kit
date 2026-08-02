@@ -14,13 +14,12 @@ from .. import BundlerError
 from ..lib.yamlio import dump_yaml, ensure_within, load_yaml
 from ..models.catalog import (
     CONFIG_FILENAME,
+    CONFIG_SCHEMA_VERSION,
     BUILTIN_DEFAULT_STACK,
     CatalogSource,
     InstallPolicy,
     Scope,
 )
-
-CONFIG_SCHEMA_VERSION = "1.0"
 
 _BUILTIN_IDS = {raw["id"] for raw in BUILTIN_DEFAULT_STACK}
 
@@ -40,9 +39,12 @@ def _read(project_root: Path) -> list[dict]:
     path = ensure_within(project_root, _config_path(project_root))
     if not path.exists():
         return []
+    # ``load_yaml`` returns ``{}`` only for an empty document and the raw parse
+    # otherwise, so a non-mapping top level — a falsy ``[]``/``false``/``0``/``''``
+    # or an explicit null (``load_yaml`` -> ``None``) — is caught by the isinstance
+    # guard below and raised like a truthy one, staying consistent with the other
+    # reader of this file (models/catalog._merge_config).
     data = load_yaml(path)
-    if data is None:
-        return []
     if not isinstance(data, dict):
         raise BundlerError(
             f"Malformed catalog config at {path}: expected a mapping at the top "
@@ -143,6 +145,15 @@ def add_source(
         raise BundlerError("A catalog url is required.")
     try:
         parsed = urlparse(url)
+        # Read .hostname inside the try: a bracketed-but-invalid IPv6 authority
+        # (e.g. "https://[not-an-ip]/c.json") parses cleanly under urlparse() on
+        # Python < 3.14 but raises ValueError lazily on the first .hostname access
+        # (the raise moved eager into urlparse() only in 3.14). Reading it here
+        # keeps that ValueError inside the guard instead of leaking a raw
+        # traceback past the CLI's `except BundlerError`. Reuse the value below.
+        hostname = parsed.hostname
+        # Accessing ``port`` performs urllib's syntax/range validation.
+        _ = parsed.port
     except ValueError as exc:
         raise BundlerError(f"Invalid catalog url: '{url}'.") from exc
     if not (parsed.scheme or parsed.path):
@@ -161,13 +172,13 @@ def add_source(
         # netloc — netloc is truthy for host-less URLs like "https://:8080"
         # or "https://user@". Validating here keeps junk out of
         # bundle-catalogs.yml instead of failing later at fetch time.
-        is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
+        is_localhost = hostname in ("localhost", "127.0.0.1", "::1")
         if parsed.scheme.lower() != "https" and not is_localhost:
             raise BundlerError(
                 f"Catalog url must use HTTPS (got {parsed.scheme}://). "
                 "HTTP is only allowed for localhost."
             )
-        if not parsed.hostname:
+        if not hostname:
             raise BundlerError(f"Catalog url must be a valid URL with a host: {url}")
 
     url = _canonicalize_url(url)

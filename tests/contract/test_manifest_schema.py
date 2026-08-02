@@ -26,6 +26,45 @@ def test_missing_required_field_is_reported_by_name():
     assert any("bundle.license" in e for e in errors)
 
 
+@pytest.mark.parametrize(
+    "field", ["name", "role", "description", "author", "license"]
+)
+def test_explicit_null_bundle_field_is_reported_as_missing(field):
+    """A field present but null is how YAML spells an empty value (`author:`).
+
+    `str(None)` is the literal text "None", which is non-empty, so it passed the
+    required-field checks: the bundle validated clean and shipped "None" as its
+    author/license/description.
+    """
+    data = valid_manifest_dict()
+    data["bundle"][field] = None
+    manifest = BundleManifest.from_dict(data)
+    assert getattr(manifest.bundle, field) == ""
+    assert any(f"bundle.{field}" in e for e in manifest.structural_errors())
+
+
+def test_explicit_null_speckit_version_is_reported_as_missing():
+    data = valid_manifest_dict()
+    data["requires"]["speckit_version"] = None
+    manifest = BundleManifest.from_dict(data)
+    assert manifest.requires.speckit_version == ""
+    assert any("speckit_version" in e for e in manifest.structural_errors())
+
+
+def test_explicit_null_component_id_is_not_named_none():
+    """A null component id must not become a component literally named "None"."""
+    data = valid_manifest_dict()
+    for kind, items in (data.get("provides") or {}).items():
+        if isinstance(items, list) and items and isinstance(items[0], dict):
+            items[0]["id"] = None
+            break
+    else:  # pragma: no cover - fixture is expected to provide components
+        pytest.skip("fixture has no component list to null out")
+    manifest = BundleManifest.from_dict(data)
+    assert manifest.components, "fixture is expected to declare components"
+    assert all(ref.id != "None" for ref in manifest.components)
+
+
 def test_unsupported_schema_version_is_rejected():
     data = valid_manifest_dict(schema_version="9.9")
     errors = BundleManifest.from_dict(data).structural_errors()
@@ -124,3 +163,44 @@ def test_string_mcp_rejected_not_split_per_character():
     data["requires"]["mcp"] = "github"
     with pytest.raises(BundlerError, match="'requires.mcp' must be a list of strings"):
         BundleManifest.from_dict(data)
+
+
+def test_string_integration_rejected_not_silently_dropped():
+    # A present-but-non-mapping 'integration' (a bare string) was silently
+    # dropped, leaving the bundle wrongly integration-agnostic. Reject it like
+    # the sibling requires/provides mapping fields.
+    data = valid_manifest_dict()
+    data["integration"] = "copilot"
+    with pytest.raises(BundlerError, match="'integration' must be a mapping when present"):
+        BundleManifest.from_dict(data)
+
+
+@pytest.mark.parametrize("bad", [[], "", 0, False, "extensions"])
+def test_non_mapping_provides_rejected_including_falsy(bad):
+    # `data.get("provides") or {}` coerced a FALSY non-mapping ([], '', 0, False)
+    # to {} before the type check, so a malformed manifest passed validation as
+    # a bundle that provides nothing. Only an absent/None value means "empty".
+    data = valid_manifest_dict()
+    data["provides"] = bad
+    with pytest.raises(BundlerError, match="'provides' must be a mapping when present"):
+        BundleManifest.from_dict(data)
+
+
+@pytest.mark.parametrize("bad", [[], "", 0, False, "speckit>=0.1"])
+def test_non_mapping_requires_rejected_including_falsy(bad):
+    # Same falsy-coercion hole for `requires`.
+    data = valid_manifest_dict()
+    data["requires"] = bad
+    with pytest.raises(BundlerError, match="'requires' must be a mapping when present"):
+        BundleManifest.from_dict(data)
+
+
+def test_absent_provides_and_requires_do_not_raise_mapping_error():
+    # Absent (None) optional mappings default to empty and must NOT trigger the
+    # "must be a mapping when present" guard — that is reserved for present
+    # non-mappings. (Structural completeness, e.g. requires.speckit_version, is
+    # a separate concern checked by structural_errors().)
+    data = valid_manifest_dict()
+    data.pop("provides", None)
+    data.pop("requires", None)
+    BundleManifest.from_dict(data)  # does not raise BundlerError

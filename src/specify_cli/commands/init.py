@@ -65,14 +65,159 @@ def _stdin_is_interactive() -> bool:
     return sys.stdin.isatty()
 
 
+def _ext_spec_is_url(ext_spec: str) -> bool:
+    """Return True when *ext_spec* is an http(s) URL rather than a name/path."""
+    from urllib.parse import urlparse
+
+    try:
+        return urlparse(ext_spec).scheme in ("http", "https")
+    except ValueError:
+        return False
+
+
+def _confirm_extension_url_trust(
+    url_specs: list[str], *, trust_override: bool
+) -> dict[str, bool]:
+    """Resolve trust for each URL-based extension before the Live display.
+
+    URL installs pull an arbitrary external extension, so they get the same
+    default-deny confirmation as ``extension add --from``. Returns a mapping of
+    ``url_spec -> approved``. With *trust_override* every URL is pre-approved.
+    In a non-interactive session without the override, every URL is denied
+    (the prompt cannot be answered), mirroring the default-deny posture.
+    """
+    from rich.markup import escape as _escape_markup
+    from rich.panel import Panel
+
+    approvals: dict[str, bool] = {}
+    interactive = _stdin_is_interactive()
+    for spec in url_specs:
+        if trust_override:
+            approvals[spec] = True
+            continue
+        if not interactive:
+            approvals[spec] = False
+            continue
+        console.print()
+        console.print(
+            Panel(
+                "[bold]You are installing an extension from an external URL that is not\n"
+                "listed in any of your configured extension catalogs.[/bold]\n\n"
+                f"URL: {_escape_markup(spec)}\n\n"
+                "Only install extensions from sources you trust.",
+                title="[bold yellow]⚠ Untrusted Source[/bold yellow]",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
+        console.print()
+        approvals[spec] = typer.confirm(
+            f"Install extension from {spec}?", default=False
+        )
+    return approvals
+
+
+def _install_extension_during_init(project_path: Path, ext_spec: str, speckit_version: str) -> str:
+    """Install a single extension during ``specify init``.
+
+    Handles bundled extension names, local directory paths, and HTTPS URLs.
+    Returns a short status message on success.
+    Raises ``ValueError`` on failure so the caller can convert it to a
+    tracker error without aborting the entire init.
+    """
+    from urllib.parse import urlparse
+
+    from .._assets import _locate_bundled_extension
+    from ..extensions import ExtensionCatalog, ExtensionError, ExtensionManager
+    from ..extensions._commands import (
+        _resolve_catalog_extension,
+        install_extension_from_url,
+    )
+
+    manager = ExtensionManager(project_path)
+
+    # --- URL ---
+    parsed = urlparse(ext_spec)
+    if parsed.scheme in ("http", "https"):
+        try:
+            manifest = install_extension_from_url(
+                manager, project_path, ext_spec, speckit_version
+            )
+        except ExtensionError as exc:
+            raise ValueError(str(exc)) from exc
+        return f"{manifest.name} v{manifest.version} installed"
+
+    # --- Local path ---
+    if ext_spec.startswith(("./", "../", "/", "~/", ".\\", "..\\")) or Path(ext_spec).is_absolute():
+        source_path = Path(ext_spec).expanduser().resolve()
+        if not source_path.exists():
+            raise ValueError(f"Directory not found: {source_path}")
+        if not (source_path / "extension.yml").exists():
+            raise ValueError(f"No extension.yml found in {source_path}")
+        manifest = manager.install_from_directory(source_path, speckit_version)
+        return f"{manifest.name} v{manifest.version} installed"
+
+    # --- Bundled extension name or catalog ID ---
+    bundled_path = _locate_bundled_extension(ext_spec)
+    if bundled_path is not None:
+        if manager.registry.is_installed(ext_spec):
+            return "already installed"
+        manifest = manager.install_from_directory(bundled_path, speckit_version)
+        return f"{manifest.name} v{manifest.version} installed"
+
+    # Fall back to catalog
+    catalog = ExtensionCatalog(project_path)
+    ext_info, catalog_error = _resolve_catalog_extension(ext_spec, catalog, "add")
+    if catalog_error:
+        raise ValueError(f"Could not query extension catalog: {catalog_error}")
+    if not ext_info:
+        raise ValueError(f"Extension '{ext_spec}' not found in bundled extensions or catalog")
+
+    resolved_id = ext_info["id"]
+    if resolved_id != ext_spec:
+        bundled_path = _locate_bundled_extension(resolved_id)
+        if bundled_path is not None:
+            if manager.registry.is_installed(resolved_id):
+                return "already installed"
+            manifest = manager.install_from_directory(bundled_path, speckit_version)
+            return f"{manifest.name} v{manifest.version} installed"
+
+    if ext_info.get("bundled") and not ext_info.get("download_url"):
+        from ..extensions import REINSTALL_COMMAND
+
+        raise ValueError(
+            f"Extension '{resolved_id}' is bundled with spec-kit but not found in the installed package. "
+            f"Try reinstalling spec-kit: {REINSTALL_COMMAND}"
+        )
+
+    if not ext_info.get("_install_allowed", True):
+        catalog_name = ext_info.get("_catalog_name", "community")
+        raise ValueError(
+            f"Extension '{ext_spec}' is in the '{catalog_name}' catalog but installation is not allowed from that catalog"
+        )
+
+    zip_path = catalog.download_extension(resolved_id)
+    try:
+        manifest = manager.install_from_zip(zip_path, speckit_version)
+    finally:
+        zip_path.unlink(missing_ok=True)
+    return f"{manifest.name} v{manifest.version} installed"
+
+
 def ensure_constitution_from_template(
     project_path: Path, tracker: StepTracker | None = None
 ) -> None:
-    """Copy constitution template to memory if it doesn't exist."""
+    """Materialize the resolved constitution template to memory if missing.
+
+    Resolution walks the full priority stack (project overrides → installed
+    presets → extensions → core) via :class:`PresetResolver`, so a preset that
+    ships a ``constitution-template`` (e.g. ``strategy: replace`` with a ratified
+    constitution) can seed the memory file. When nothing overrides it, the
+    resolver falls through to the core template.
+    """
+    from ..presets import _materialize_constitution_template
+
     memory_constitution = project_path / ".specify" / "memory" / "constitution.md"
-    template_constitution = (
-        project_path / ".specify" / "templates" / "constitution-template.md"
-    )
 
     if memory_constitution.exists():
         if tracker:
@@ -80,18 +225,21 @@ def ensure_constitution_from_template(
             tracker.skip("constitution", "existing file preserved")
         return
 
-    if not template_constitution.exists():
-        if tracker:
-            tracker.add("constitution", "Constitution setup")
-            tracker.error("constitution", "template not found")
-        return
-
     try:
-        memory_constitution.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(template_constitution, memory_constitution)
+        materialization = _materialize_constitution_template(
+            project_path, memory_constitution
+        )
+        if materialization is None:
+            if tracker:
+                tracker.add("constitution", "Constitution setup")
+                tracker.error("constitution", "template not found")
+            return
         if tracker:
             tracker.add("constitution", "Constitution setup")
-            tracker.complete("constitution", "copied from template")
+            if materialization == "copied":
+                tracker.complete("constitution", "copied from template")
+            else:
+                tracker.complete("constitution", "composed from template")
         else:
             console.print(accent("Initialized constitution from template"))
     except Exception as e:
@@ -112,7 +260,7 @@ def register(app: typer.Typer) -> None:
             help="Name for your new project directory (optional if using --here, or use '.' for current directory)",
         ),
         script_type: str = typer.Option(
-            None, "--script", help="Script type to use: sh or ps"
+            None, "--script", help="Script type to use: sh, ps, or py"
         ),
         ignore_agent_tools: bool = typer.Option(
             False,
@@ -173,6 +321,16 @@ def register(app: typer.Typer) -> None:
             "--team-ai-directives",
             help="URL or local path to team-ai-directives repository",
         ),
+        extensions: list[str] | None = typer.Option(
+            None,
+            "--extension",
+            help="Install an extension during initialization (bundled name, local path, or HTTPS URL). Repeatable.",
+        ),
+        trust_extension_urls: bool = typer.Option(
+            False,
+            "--trust-extension-urls",
+            help="Pre-authorize installing extensions from external URLs without the interactive trust prompt (required for non-interactive URL installs).",
+        ),
     ):
         """
         Initialize a new Specify project.
@@ -205,6 +363,10 @@ def register(app: typer.Typer) -> None:
             specify init --here --integration gemini
             specify init my-project --integration generic --integration-options="--commands-dir .myagent/commands/"  # Bring your own agent; requires --commands-dir
             specify init my-project --integration claude --preset healthcare-compliance  # With preset
+            specify init my-project --integration copilot --extension git  # With bundled extension
+            specify init my-project --extension git --extension selftest  # Multiple extensions
+            specify init my-project --extension ./my-extensions/custom-ext  # Local path extension
+            specify init my-project --extension https://example.com/extensions/my-ext.zip --trust-extension-urls  # URL extension (non-interactive)
         """
         # Lazy imports to avoid circular dependency — __init__.py imports this module
         from .. import (
@@ -214,6 +376,7 @@ def register(app: typer.Typer) -> None:
             save_init_options,
         )
         from ..integration_runtime import (
+            invoke_prefix_for_integration as _invoke_prefix_for_integration,
             with_integration_setting as _with_integration_setting,
         )
         from ..integrations._commands import (
@@ -452,6 +615,28 @@ def register(app: typer.Typer) -> None:
         ]:
             tracker.add(key, label)
 
+        if extensions:
+            from rich.markup import escape as _escape_markup
+
+            for i, ext_spec in enumerate(extensions):
+                tracker.add(
+                    f"extension-{i}", f"Install extension: {_escape_markup(ext_spec)}"
+                )
+
+        tracker.add("final", "Finalize")
+
+        # Resolve trust for URL-based extensions BEFORE entering the Live
+        # display: the confirmation prompt cannot be shown/answered underneath
+        # the Rich Live spinner. URL installs are default-deny unless the user
+        # confirms interactively or passes --trust-extension-urls.
+        extension_url_approvals: dict[str, bool] = {}
+        if extensions:
+            url_specs = [e for e in extensions if _ext_spec_is_url(e)]
+            if url_specs:
+                extension_url_approvals = _confirm_extension_url_trust(
+                    url_specs, trust_override=trust_extension_urls
+                )
+
         # Disable transient mode on Windows: PowerShell 5.1's legacy console
         # hangs when Rich tries to restore cursor state via VT escape sequences.
         _transient = sys.platform != "win32"
@@ -478,12 +663,20 @@ def register(app: typer.Typer) -> None:
                     if extra:
                         integration_parsed_options.update(extra)
 
+                from ..events import resolve_events
+                events_map = resolve_events(
+                    resolved_integration.key,
+                    resolved_integration.config,
+                    project_path,
+                    integration_parsed_options or None,
+                )
                 resolved_integration.setup(
                     project_path,
                     manifest,
                     parsed_options=integration_parsed_options or None,
                     script_type=selected_script,
                     raw_options=integration_options,
+                    events=events_map,
                 )
                 manifest.save()
 
@@ -494,6 +687,7 @@ def register(app: typer.Typer) -> None:
                     script_type=selected_script,
                     raw_options=integration_options,
                     parsed_options=integration_parsed_options or None,
+                    project_root=project_path,
                 )
                 _write_integration_json(
                     project_path,
@@ -514,14 +708,18 @@ def register(app: typer.Typer) -> None:
                     tracker=tracker,
                     force=force,
                     invoke_separator=resolved_integration.effective_invoke_separator(
-                        integration_parsed_options
+                        integration_parsed_options, project_root=project_path
+                    ),
+                    invoke_prefix=_invoke_prefix_for_integration(
+                        resolved_integration,
+                        resolved_integration.key,
+                        integration_parsed_options,
+                        project_path,
                     ),
                 )
                 tracker.complete(
                     "shared-infra", f"scripts ({selected_script}) + templates"
                 )
-
-                ensure_constitution_from_template(project_path, tracker=tracker)
 
                 try:
                     bundled_wf = _locate_bundled_workflow("speckit")
@@ -572,11 +770,13 @@ def register(app: typer.Typer) -> None:
                 }
                 if _FORK:
                     if team_ai_directives:
+                        from pathlib import Path as _Path
+                        _td_path = _Path(team_ai_directives).expanduser()
+                        if _td_path.exists():
+                            team_ai_directives = str(_td_path.resolve())
                         init_opts["team_ai_directives"] = team_ai_directives
-                from ..integrations.base import SkillsIntegration as _SkillsPersist
-
-                if isinstance(resolved_integration, _SkillsPersist) or getattr(
-                    resolved_integration, "_skills_mode", False
+                if resolved_integration.is_skills_mode(
+                    integration_parsed_options or None, project_root=project_path
                 ):
                     init_opts["ai_skills"] = True
                 save_init_options(project_path, init_opts)
@@ -653,6 +853,46 @@ def register(app: typer.Typer) -> None:
                             continuing="Continuing without the optional preset.",
                         )
 
+                # Install extensions specified via --extension
+                if extensions:
+                    from rich.markup import escape as _escape_markup
+
+                    from ..extensions._commands import _refresh_events_and_warn
+
+                    speckit_ver = get_speckit_version()
+                    any_extension_installed = False
+                    for i, ext_spec in enumerate(extensions):
+                        tracker.start(f"extension-{i}")
+                        # Skip URL extensions the user did not confirm as trusted
+                        # (default-deny; resolved before the Live display).
+                        if _ext_spec_is_url(ext_spec) and not extension_url_approvals.get(
+                            ext_spec, False
+                        ):
+                            tracker.error(
+                                f"extension-{i}",
+                                "skipped: untrusted URL not confirmed "
+                                "(use --trust-extension-urls)",
+                            )
+                            continue
+                        try:
+                            status_msg = _install_extension_during_init(
+                                project_path, ext_spec, speckit_ver
+                            )
+                            tracker.complete(f"extension-{i}", status_msg)
+                            any_extension_installed = True
+                        except Exception as ext_err:
+                            sanitized_ext = str(ext_err).replace("\n", " ").strip()
+                            tracker.error(
+                                f"extension-{i}",
+                                f"failed: {_escape_markup(sanitized_ext[:120])}",
+                            )
+
+                    # Refresh native event configuration once after the batch so
+                    # that an extension declaring ``events:`` has its hooks
+                    # activated, mirroring the ``extension add`` path.
+                    if any_extension_installed:
+                        _refresh_events_and_warn(project_path)
+
                 if _FORK:
                     tracker.start("project-skills")
                     try:
@@ -674,6 +914,11 @@ def register(app: typer.Typer) -> None:
                         _fork_post_init(project_path, selected_ai, tracker=tracker)
                     except Exception as post_err:
                         console.print(f"[yellow]Warning: post_init hook failed: {post_err}[/yellow]")
+
+                # Seed the constitution AFTER preset installation so that a
+                # preset-provided constitution-template (resolved via the
+                # priority stack) wins over the core template.
+                ensure_constitution_from_template(project_path, tracker=tracker)
 
                 tracker.complete("final", "project ready")
             except (typer.Exit, SystemExit):
@@ -745,11 +990,9 @@ def register(app: typer.Typer) -> None:
             steps_lines.append("1. You're already in the project directory!")
             step_num = 2
 
-        from ..integrations.base import SkillsIntegration as _SkillsInt
-
-        _is_skills_integration = isinstance(
-            resolved_integration, _SkillsInt
-        ) or getattr(resolved_integration, "_skills_mode", False)
+        _is_skills_integration = resolved_integration.is_skills_mode(
+            integration_parsed_options or None, project_root=project_path
+        )
 
         codex_skill_mode = selected_ai == "codex" and _is_skills_integration
         zcode_skill_mode = selected_ai == "zcode" and _is_skills_integration
@@ -763,7 +1006,10 @@ def register(app: typer.Typer) -> None:
         copilot_skill_mode = selected_ai == "copilot" and _is_skills_integration
         devin_skill_mode = selected_ai == "devin"
         zed_skill_mode = selected_ai == "zed" and _is_skills_integration
+        grok_skill_mode = selected_ai == "grok" and _is_skills_integration
         cline_skill_mode = selected_ai == "cline"
+        forge_skill_mode = selected_ai == "forge"
+        bob_skill_mode = selected_ai == "bob" and _is_skills_integration
         native_skill_mode = (
             codex_skill_mode
             or zcode_skill_mode
@@ -775,6 +1021,8 @@ def register(app: typer.Typer) -> None:
             or copilot_skill_mode
             or devin_skill_mode
             or zed_skill_mode
+            or grok_skill_mode
+            or bob_skill_mode
         )
 
         if codex_skill_mode:
@@ -794,6 +1042,16 @@ def register(app: typer.Typer) -> None:
             step_num += 1
         if zed_skill_mode:
             steps_lines.append(f"{step_num}. Start Zed in this project directory; spec-kit skills were installed to {accent('.agents/skills')}")
+            step_num += 1
+        if grok_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Grok Build in this project directory; spec-kit skills were installed to [cyan].grok/skills[/cyan]"
+            )
+            step_num += 1
+        if bob_skill_mode:
+            steps_lines.append(
+                f"{step_num}. Start Bob in this project directory; spec-kit skills were installed to [cyan].bob/skills[/cyan]"
+            )
             step_num += 1
         usage_label = "skills" if native_skill_mode else "slash commands"
 
@@ -818,6 +1076,7 @@ def register(app: typer.Typer) -> None:
             if (
                 _is_slash_skills_agent(selected_ai, _ai_skills_enabled)
                 or cline_skill_mode
+                or forge_skill_mode
             ):
                 return f"/{_cmd_prefix}-{name}"
             return f"/{_cmd_prefix}.{name}"

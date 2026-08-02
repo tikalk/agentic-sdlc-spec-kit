@@ -7,15 +7,15 @@ command files into agent-specific directories in the correct format.
 """
 
 import os
-import platform
 import re
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 
 from ._init_options import is_ai_skills_enabled, load_init_options
+from ._invocation_style import get_invocation_prefix
 from ._toml_string import escape_toml_basic as _escape_toml_basic
 from ._toml_string import has_illegal_toml_control as _has_illegal_toml_control
 from ._utils import relative_extension_path_violation
@@ -114,13 +114,24 @@ class CommandRegistrar:
         if not content.startswith("---"):
             return {}, content
 
-        # Find second ---
-        end_marker = content.find("---", 3)
-        if end_marker == -1:
+        # The closing delimiter is a line that is exactly ``---`` (a YAML
+        # document separator), not any ``---`` substring. Scanning with
+        # ``content.find("---", 3)`` stops at the first ``---`` *anywhere* —
+        # including one embedded in a frontmatter value (e.g. a description like
+        # "Separate sections with ---") or inside an indented literal block —
+        # which truncates the frontmatter and spills the remainder into the
+        # body. Match on line boundaries instead, mirroring the line-anchored
+        # scan in ``VibeIntegration._inject_frontmatter_flag``.
+        lines = content.splitlines(keepends=True)
+        end_line = next(
+            (i for i in range(1, len(lines)) if lines[i].rstrip() == "---"),
+            None,
+        )
+        if end_line is None:
             return {}, content
 
-        frontmatter_str = content[3:end_marker].strip()
-        body = content[end_marker + 3 :].strip()
+        frontmatter_str = "".join(lines[1:end_line]).strip()
+        body = "".join(lines[end_line + 1 :]).strip()
 
         try:
             frontmatter = yaml.safe_load(frontmatter_str) or {}
@@ -260,7 +271,7 @@ class CommandRegistrar:
         return text
 
     def render_markdown_command(
-        self, frontmatter: dict, body: str, source_id: str, context_note: str = None
+        self, frontmatter: dict, body: str, source_id: str, context_note: Optional[str] = None
     ) -> str:
         """Render command in Markdown format.
 
@@ -291,8 +302,20 @@ class CommandRegistrar:
         toml_lines = []
 
         if "description" in frontmatter:
+            # Frontmatter comes from ``yaml.safe_load``, so ``description`` can
+            # be any YAML type: ``description:`` with no value yields None,
+            # ``description: 2`` an int, an unquoted ``true`` a bool.
+            # ``_render_basic_toml_string`` iterates the value and calls ord()
+            # on each character, so a non-string raises a raw TypeError -- and a
+            # list of single-character items is silently concatenated into a
+            # wrong value (``["a", "b"]`` -> ``"ab"``). Coerce first, matching
+            # ``render_yaml_command`` below and ``TomlIntegration
+            # ._extract_description``, which both normalise it already.
+            description = frontmatter["description"]
+            if not isinstance(description, str):
+                description = str(description) if description is not None else ""
             toml_lines.append(
-                f"description = {self._render_basic_toml_string(frontmatter['description'])}"
+                f"description = {self._render_basic_toml_string(description)}"
             )
             toml_lines.append("")
 
@@ -481,26 +504,19 @@ class CommandRegistrar:
             init_opts = {}
 
         script_variant = init_opts.get("script")
-        if script_variant not in {"sh", "ps"}:
-            fallback_order = []
-            default_variant = (
-                "ps" if platform.system().lower().startswith("win") else "sh"
+        if scripts:
+            from specify_cli.integrations.base import IntegrationBase
+
+            script_variant = IntegrationBase.select_script_variant(
+                script_variant, scripts
             )
-            secondary_variant = "sh" if default_variant == "ps" else "ps"
-
-            if default_variant in scripts:
-                fallback_order.append(default_variant)
-            if secondary_variant in scripts:
-                fallback_order.append(secondary_variant)
-
-            for key in scripts:
-                if key not in fallback_order:
-                    fallback_order.append(key)
-
-            script_variant = fallback_order[0] if fallback_order else None
 
         script_command = scripts.get(script_variant) if script_variant else None
         if script_command:
+            if script_variant == "py":
+                script_command = IntegrationBase.build_python_invocation(
+                    script_command, project_root
+                )
             script_command = script_command.replace("{ARGS}", "$ARGUMENTS")
             body = body.replace("{SCRIPT}", script_command)
 
@@ -617,8 +633,8 @@ class CommandRegistrar:
         source_id: str,
         source_dir: Path,
         project_root: Path,
-        context_note: str = None,
-        _resolved_dir: Path = None,
+        context_note: Optional[str] = None,
+        _resolved_dir: Optional[Path] = None,
         link_outputs: bool = False,
         extension_id: Optional[str] = None,
     ) -> List[str]:
@@ -666,11 +682,58 @@ class CommandRegistrar:
         except ImportError:
             _ALIAS_ENABLED = False
 
+        # Resolve the command-reference separator for the file THIS registrar
+        # is about to write.  The separator must match the *output layout* the
+        # registrar produces for this agent — not the project's persisted
+        # ``ai_skills`` flag, and not unrelated sibling directories on disk.  A
+        # skill scaffold ("/SKILL.md") uses the skills separator; any
+        # command-layout output (".md", ".agent.md", ".toml", …) uses the
+        # command separator.
+        #
+        # This holds for the *active* agent too.  Dual-layout agents (Bob,
+        # Copilot) write their skills via their own setup()/skills path, so
+        # ``register_commands`` only ever emits their command-layout files.
+        # Deriving the separator from ``ai_skills`` would render such a
+        # ``.bob/commands/*.md`` (or ``.github/agents/*.agent.md``) file with
+        # ``/speckit-*`` whenever that agent is active in skills mode — even
+        # though a command-layout file must use ``/speckit.*``.  Deriving it
+        # from the agent's static output config avoids that mismatch and stays
+        # correct when a stale ``.bob/skills`` directory coexists with
+        # ``.bob/commands``.
+        _sep = agent_config.get("invoke_separator", ".")
+        registrar_writes_skills = agent_config.get("extension") == "/SKILL.md"
+        try:
+            from specify_cli.integrations import get_integration  # noqa: PLC0415
+
+            _integ = get_integration(agent_name)
+            if _integ is not None:
+                _sep = _integ.invoke_separator_for_mode(registrar_writes_skills)
+        except Exception:
+            pass
+        _prefix = get_invocation_prefix(agent_name, registrar_writes_skills)
+
         for cmd_info in commands:
             cmd_name = cmd_info["name"]
             aliases = cmd_info.get("aliases", [])
             cmd_file = cmd_info["file"]
             _skip_primary = _ALIAS_ENABLED and bool(aliases)
+            name_reason = relative_extension_path_violation(cmd_name)
+            if name_reason:
+                raise ValueError(
+                    f"Invalid command name {cmd_name!r}: {name_reason}"
+                )
+            if aliases is None:
+                aliases = []
+            if not isinstance(aliases, list):
+                raise ValueError(
+                    f"Aliases for command {cmd_name!r} must be a list"
+                )
+            for alias in aliases:
+                alias_reason = relative_extension_path_violation(alias)
+                if alias_reason:
+                    raise ValueError(
+                        f"Invalid command alias {alias!r}: {alias_reason}"
+                    )
 
             # Guard against path traversal using the single shared policy in
             # relative_extension_path_violation(), so the runtime guard stays
@@ -754,14 +817,19 @@ class CommandRegistrar:
             )
 
             # Resolve __SPECKIT_COMMAND_*__ tokens using the agent's invoke separator.
-            # The separator is sourced from agent_config (populated by _build_agent_configs,
-            # which propagates each integration's invoke_separator class attribute).
+            # For dual-layout agents (e.g. Bob) the separator differs between the
+            # skills and command layouts, so a single static AGENT_CONFIGS value is
+            # insufficient. ``_sep`` (resolved above) is derived from the *output
+            # layout* this registrar writes — a "/SKILL.md" scaffold uses the skills
+            # separator, any command-layout file uses the command separator — not
+            # the project's persisted ai_skills state. Single-layout agents fall back
+            # to the static AGENT_CONFIGS value unchanged (invoke_separator_for_mode
+            # default).
             # Deferred import of IntegrationBase avoids a circular import at module load
             # (base.py itself imports CommandRegistrar lazily).
             from specify_cli.integrations.base import IntegrationBase  # noqa: PLC0415
 
-            _sep = agent_config.get("invoke_separator", ".")
-            body = IntegrationBase.resolve_command_refs(body, _sep, project_root)
+            body = IntegrationBase.resolve_command_refs(body, _sep, project_root, _prefix)
 
             # Post-process integration lookup (shared by primary and alias paths)
             _integration = None
@@ -989,10 +1057,16 @@ class CommandRegistrar:
             project_root: Path to project root
             cmd_name: Command name (e.g. 'speckit.my-ext.example')
         """
+        name_reason = relative_extension_path_violation(cmd_name)
+        if name_reason:
+            raise ValueError(
+                f"Invalid Copilot prompt name {cmd_name!r}: {name_reason}"
+            )
         prompts_dir = project_root / ".github" / "prompts"
         prompts_dir.mkdir(parents=True, exist_ok=True)
         prompt_file = prompts_dir / f"{cmd_name}.prompt.md"
         CommandRegistrar._ensure_inside(prompt_file, prompts_dir)
+        prompt_file.parent.mkdir(parents=True, exist_ok=True)
         prompt_file.write_text(f"---\nagent: {cmd_name}\n---\n", encoding="utf-8")
 
     @staticmethod
@@ -1048,10 +1122,11 @@ class CommandRegistrar:
         source_id: str,
         source_dir: Path,
         project_root: Path,
-        context_note: str = None,
+        context_note: Optional[str] = None,
         link_outputs: bool = False,
         create_missing_active_skills_dir: bool = False,
         extension_id: Optional[str] = None,
+        only_agent: Optional[str] = None,
     ) -> Dict[str, List[str]]:
         """Register commands for all detected agents in the project.
 
@@ -1069,6 +1144,8 @@ class CommandRegistrar:
                 skills directory) and is skipped when safe resolution or
                 creation fails.
             extension_id: Extension id when rendering extension-owned commands.
+            only_agent: If set, restrict registration to this single agent
+                while keeping all detection and recovery safeguards (#2948).
 
         Returns:
             Dictionary mapping agent names to list of registered commands
@@ -1092,6 +1169,8 @@ class CommandRegistrar:
                 )
         active_created_skills_dir: Optional[Path] = None
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
+            if only_agent is not None and agent_name != only_agent:
+                continue
             active_skills_output = (
                 agent_name == active_skills_agent
                 and agent_config.get("extension") == "/SKILL.md"
@@ -1197,6 +1276,8 @@ class CommandRegistrar:
         context_note: Optional[str] = None,
         link_outputs: bool = False,
         extension_id: Optional[str] = None,
+        only_agent: Optional[str] = None,
+        extra_agents: Optional[Iterable[str]] = None,
     ) -> Dict[str, List[str]]:
         """Register commands for all non-skill agents in the project.
 
@@ -1213,13 +1294,29 @@ class CommandRegistrar:
             link_outputs: If True, create dev-mode symlinks for rendered
                 command files when supported by the OS.
             extension_id: Extension id when rendering extension-owned commands.
+            only_agent: If set, restrict registration to this single agent
+                (#2948). An agent name that matches no configured agent
+                (e.g. an empty string) yields no registrations at all.
+            extra_agents: Additional agent names to register for besides
+                ``only_agent``. Used by post-removal reconciliation to also
+                restore surviving content into historical agent directories
+                a just-removed preset actually wrote to, not only the
+                currently active agent (#2948). Ignored when ``only_agent``
+                is ``None`` (already unrestricted).
 
         Returns:
             Dictionary mapping agent names to list of registered commands
         """
         results = {}
         self._ensure_configs()
+        extra_agents_set = frozenset(extra_agents) if extra_agents else frozenset()
         for agent_name, agent_config in self.AGENT_CONFIGS.items():
+            if (
+                only_agent is not None
+                and agent_name != only_agent
+                and agent_name not in extra_agents_set
+            ):
+                continue
             if agent_config.get("extension") == "/SKILL.md":
                 continue
             detect_dir_str = agent_config.get("detect_dir")

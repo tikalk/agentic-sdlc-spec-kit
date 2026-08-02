@@ -296,6 +296,39 @@ def test_python_normal_mode_persists_feature_json(prereq_repo: Path) -> None:
     assert data["feature_directory"] == "specs/002-other"
 
 
+@requires_bash
+def test_persisted_feature_json_is_lexical_when_specs_is_symlink(
+    prereq_repo: Path, tmp_path: Path
+) -> None:
+    """A symlinked specs/ dir must persist "specs/NNN" like Bash does with its
+    lexical prefix strip — resolve() would escape the repo and store a
+    machine-specific absolute path."""
+    real_specs = tmp_path / "real-specs"
+    feat = real_specs / "002-other"
+    feat.mkdir(parents=True)
+    (feat / "plan.md").write_text("# plan\n", encoding="utf-8")
+    repo = prereq_repo.resolve()
+    try:
+        (repo / "specs").symlink_to(real_specs, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlinks not supported on this platform")
+    env = _clean_env()
+    env["SPECIFY_FEATURE_DIRECTORY"] = str(repo / "specs" / "002-other")
+    feature_json = repo / ".specify" / "feature.json"
+
+    bash = _run(_bash_cmd(prereq_repo, "--json"), prereq_repo, env=env)
+    assert bash.returncode == 0, bash.stderr
+    bash_persisted = json.loads(feature_json.read_text(encoding="utf-8"))
+    feature_json.unlink()
+
+    py = _run(_py_cmd(prereq_repo, "--json"), prereq_repo, env=env)
+    assert py.returncode == 0, py.stderr
+    py_persisted = json.loads(feature_json.read_text(encoding="utf-8"))
+
+    assert py_persisted == bash_persisted
+    assert py_persisted["feature_directory"] == "specs/002-other"
+
+
 @pytest.mark.parametrize(
     ("args", "expected"),
     [
@@ -337,3 +370,69 @@ def test_python_branch_falls_back_to_feature_dir_basename(prereq_repo: Path) -> 
 
     assert py.returncode == 0, py.stderr
     assert _json_stdout(py)["BRANCH"] == "001-my-feature"
+
+
+class TestGetInvokeSeparatorTolerance:
+    """`get_invoke_separator` must fall back to "." for an unusable
+    `integration.json`, matching its bash and PowerShell twins.
+
+    The bash twin tries jq -> python3 -> awk and keeps its `separator="."`
+    default on any parse failure; the PowerShell twin likewise returns ".".
+    The Python twin instead indexed the parsed value directly, so two shapes
+    escaped its `except (OSError, json.JSONDecodeError)`:
+
+      * a non-mapping top level (`[]`, `"forge"`, `42`, `null`) is valid JSON,
+        so JSONDecodeError never fires and `.get()` raised AttributeError;
+      * a non-UTF-8 file raises UnicodeDecodeError -- a ValueError, not an
+        OSError. Realistic on Windows, where PowerShell 5.1's `Out-File`/`>`
+        default to UTF-16.
+
+    The sibling `read_feature_json_feature_directory` in the same module
+    already guards both.
+    """
+
+    @staticmethod
+    def _load_common():
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("_speckit_common_py", COMMON_PY)
+        module = importlib.util.module_from_spec(spec)
+        # Register before exec: the module defines @dataclass types, and
+        # dataclasses resolves cls.__module__ through sys.modules.
+        sys.modules[spec.name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:  # pragma: no cover - defensive cleanup
+            sys.modules.pop(spec.name, None)
+            raise
+        return module
+
+    def _repo(self, tmp_path: Path, body: str | bytes) -> Path:
+        (tmp_path / ".specify").mkdir(parents=True, exist_ok=True)
+        target = tmp_path / ".specify" / "integration.json"
+        if isinstance(body, bytes):
+            target.write_bytes(body)
+        else:
+            target.write_text(body, encoding="utf-8")
+        return tmp_path
+
+    @pytest.mark.parametrize(
+        "body", ["[]", '[{"a": 1}]', '"forge"', "42", "true", "null"]
+    )
+    def test_non_mapping_integration_json_falls_back(self, tmp_path: Path, body: str):
+        common = self._load_common()
+        assert common.get_invoke_separator(self._repo(tmp_path, body)) == "."
+
+    def test_non_utf8_integration_json_falls_back(self, tmp_path: Path):
+        common = self._load_common()
+        raw = '{"default_integration": "forge"}'.encode("utf-16")
+        assert common.get_invoke_separator(self._repo(tmp_path, raw)) == "."
+
+    def test_hyphen_separator_is_still_honoured(self, tmp_path: Path):
+        """Regression guard: the real feature must keep working."""
+        common = self._load_common()
+        body = json.dumps({
+            "default_integration": "droid",
+            "integration_settings": {"droid": {"invoke_separator": "-"}},
+        })
+        assert common.get_invoke_separator(self._repo(tmp_path, body)) == "-"

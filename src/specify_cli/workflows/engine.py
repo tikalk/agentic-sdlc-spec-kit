@@ -42,6 +42,17 @@ class WorkflowDefinition:
         self.source_path = source_path
 
         workflow = data.get("workflow", {})
+        # A present-but-non-mapping ``workflow:`` block (bare ``workflow:`` ->
+        # None, or ``workflow: <str/list>``) would crash the following
+        # ``workflow.get(...)`` calls with AttributeError, so construction fails
+        # before any validation can run. Normalize the local to {} instead: the
+        # header fields fall back to their defaults and ``validate_workflow``
+        # (which reads those parsed attributes) reports the missing
+        # ``workflow.id``/``workflow.name``. ``self.data`` is deliberately left
+        # holding the raw value, since it is what gets written back out when a
+        # definition is serialized. Mirrors the default_options guard below.
+        if not isinstance(workflow, dict):
+            workflow = {}
         self.id: str = workflow.get("id", "")
         self.name: str = workflow.get("name", "")
         self.version: str = workflow.get("version", "0.0.0")
@@ -79,7 +90,11 @@ class WorkflowDefinition:
     def from_yaml(cls, path: Path) -> WorkflowDefinition:
         """Load a workflow definition from a YAML file."""
         with open(path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
+            try:
+                data = yaml.safe_load(f)
+            except yaml.YAMLError as exc:
+                msg = f"Invalid YAML in {path}: {exc}"
+                raise ValueError(msg) from exc
         if not isinstance(data, dict):
             msg = f"Workflow YAML must be a mapping, got {type(data).__name__}."
             raise ValueError(msg)
@@ -88,7 +103,11 @@ class WorkflowDefinition:
     @classmethod
     def from_string(cls, content: str) -> WorkflowDefinition:
         """Load a workflow definition from a YAML string."""
-        data = yaml.safe_load(content)
+        try:
+            data = yaml.safe_load(content)
+        except yaml.YAMLError as exc:
+            msg = f"Invalid YAML: {exc}"
+            raise ValueError(msg) from exc
         if not isinstance(data, dict):
             msg = f"Workflow YAML must be a mapping, got {type(data).__name__}."
             raise ValueError(msg)
@@ -193,6 +212,20 @@ def validate_workflow(definition: WorkflowDefinition) -> list[str]:
                     f"Must be 'string', 'number', or 'boolean'."
                 )
 
+            # ``enum`` must be a list. Checked here — not only via the
+            # ``_coerce_input`` call below — because that call is reached only
+            # when a ``default`` is present, and the ``integration: auto`` case
+            # strips ``enum`` before coercing; a scalar/string ``enum`` on an
+            # input with no default (or the auto-integration default) would
+            # otherwise slip through here and then crash ``_resolve_inputs`` with
+            # a raw ``TypeError`` at run time. ``None`` means "no enum".
+            enum_values = input_def.get("enum")
+            if enum_values is not None and not isinstance(enum_values, list):
+                errors.append(
+                    f"Input {input_name!r} has invalid 'enum': must be a list, "
+                    f"got {type(enum_values).__name__}."
+                )
+
             # Validate the default eagerly so authoring mistakes (e.g. a
             # default not in the declared enum, or a non-numeric default for
             # a number input) surface at install/validation time instead of
@@ -201,13 +234,28 @@ def validate_workflow(definition: WorkflowDefinition) -> list[str]:
             # enum-membership check is exempted for that exact case — the
             # declared type is still enforced (e.g. ``type: number`` paired
             # with ``default: "auto"`` is still rejected).
+            enum_is_valid = enum_values is None or isinstance(enum_values, list)
             if "default" in input_def:
                 default_value = input_def["default"]
                 is_auto_integration = (
                     input_name == "integration" and default_value == "auto"
                 )
+                # Strip ``enum`` from the definition handed to ``_coerce_input``
+                # when either:
+                #   * this is the auto-integration sentinel (enum-membership is
+                #     a runtime concern, exempted for ``"auto"``), or
+                #   * the ``enum`` is malformed (non-list) and already reported
+                #     above — leaving it in would make ``_coerce_input`` re-raise
+                #     the same enum-shape error re-framed as an "invalid default"
+                #     (a confusing duplicate).
+                # Removing *only* ``enum`` (rather than skipping the check
+                # entirely) preserves the default's type validation: a
+                # ``type: string`` input with ``default: 5, enum: 5`` still
+                # reports the wrong-typed default alongside the enum error,
+                # instead of hiding it.
+                strip_enum = is_auto_integration or not enum_is_valid
                 validation_input_def: dict[str, Any] = input_def
-                if is_auto_integration and "enum" in input_def:
+                if strip_enum and "enum" in input_def:
                     validation_input_def = {
                         key: value
                         for key, value in input_def.items()
@@ -260,7 +308,16 @@ def validate_workflow(definition: WorkflowDefinition) -> list[str]:
         errors.append("Workflow has no steps defined.")
 
     seen_ids: set[str] = set()
-    _validate_steps(definition.steps, seen_ids, errors)
+    # ``input_defs`` maps declared workflow input names to their definitions —
+    # used by ``_validate_steps`` to cross-reference gate ``verdict_input``
+    # bindings (both that the name exists and that its ``enum`` permits the
+    # reset sentinel). ``None`` means the inputs block itself is malformed
+    # (already reported above); the cross-check is then disabled so one
+    # authoring mistake does not cascade into N spurious "undeclared" errors.
+    input_defs: dict[str, Any] | None = (
+        dict(definition.inputs) if isinstance(definition.inputs, dict) else None
+    )
+    _validate_steps(definition.steps, seen_ids, errors, input_defs)
 
     return errors
 
@@ -269,8 +326,16 @@ def _validate_steps(
     steps: list[dict[str, Any]],
     seen_ids: set[str],
     errors: list[str],
+    input_defs: dict[str, Any] | None = None,
+    inside_fan_out: bool = False,
 ) -> None:
-    """Recursively validate a list of steps."""
+    """Recursively validate a list of steps.
+
+    ``input_defs`` maps declared workflow input names to their definitions (or
+    is ``None`` when the inputs block is malformed). ``inside_fan_out`` is
+    threaded through nested control-flow steps so gate verdict bindings can be
+    rejected anywhere inside a fan-out template.
+    """
     from . import STEP_REGISTRY
 
     for step_config in steps:
@@ -363,30 +428,101 @@ def _validate_steps(
                             f"unknown or not-yet-declared step id {wid!r}."
                         )
 
+        # Gate verdict_input: fan-out items cannot bind shared workflow inputs
+        # as per-item verdicts. Outside fan-out, the binding must reference a
+        # declared workflow input because ``_resolve_inputs`` drops undeclared
+        # names at both initial run and resume. Only check a non-empty string;
+        # malformed shapes are already reported by ``GateStep.validate()``.
+        if step_type == "gate":
+            verdict_input = step_config.get("verdict_input")
+            if isinstance(verdict_input, str) and verdict_input:
+                if inside_fan_out:
+                    errors.append(
+                        f"Gate step {step_id!r}: 'verdict_input' is not "
+                        "supported inside fan-out templates."
+                    )
+                elif input_defs is not None and verdict_input not in input_defs:
+                    errors.append(
+                        f"Gate step {step_id!r}: 'verdict_input' references "
+                        f"undeclared input {verdict_input!r}."
+                    )
+                elif input_defs is not None:
+                    # ``on_reject: retry`` resets the bound input to "" before
+                    # pausing, and every later resume re-resolves the persisted
+                    # inputs through ``_coerce_input``. If the input declares an
+                    # ``enum`` that omits "", that reset value is instantly
+                    # illegal: the run pauses fine, but the next resume that
+                    # supplies any input raises "value '' not in allowed
+                    # values", and no verdict can be routed through the gate
+                    # again. Require the enum to admit the sentinel so the
+                    # retry cycle the field advertises is actually reachable.
+                    verdict_def = input_defs.get(verdict_input)
+                    enum_values = (
+                        verdict_def.get("enum")
+                        if isinstance(verdict_def, dict)
+                        else None
+                    )
+                    if (
+                        step_config.get("on_reject") == "retry"
+                        and isinstance(enum_values, list)
+                        and "" not in enum_values
+                    ):
+                        errors.append(
+                            f"Gate step {step_id!r}: on_reject='retry' resets "
+                            f"verdict input {verdict_input!r} to '' when the "
+                            f"gate is rejected, but that input's 'enum' does "
+                            f"not allow ''. Add '' to the enum or use "
+                            f"on_reject='abort'/'skip'."
+                        )
+
         # Recursively validate nested steps
         for nested_key in ("then", "else", "steps"):
             nested = step_config.get(nested_key)
             if isinstance(nested, list):
-                _validate_steps(nested, seen_ids, errors)
+                _validate_steps(
+                    nested,
+                    seen_ids,
+                    errors,
+                    input_defs,
+                    inside_fan_out=inside_fan_out,
+                )
 
         # Validate switch cases
         cases = step_config.get("cases")
         if isinstance(cases, dict):
             for _case_key, case_steps in cases.items():
                 if isinstance(case_steps, list):
-                    _validate_steps(case_steps, seen_ids, errors)
+                    _validate_steps(
+                        case_steps,
+                        seen_ids,
+                        errors,
+                        input_defs,
+                        inside_fan_out=inside_fan_out,
+                    )
 
         # Validate switch default
         default = step_config.get("default")
         if isinstance(default, list):
-            _validate_steps(default, seen_ids, errors)
+            _validate_steps(
+                default,
+                seen_ids,
+                errors,
+                input_defs,
+                inside_fan_out=inside_fan_out,
+            )
 
         # Validate fan-out nested step (template — not added to seen_ids
         # since the engine generates parentId:templateId:index at runtime)
         fan_step = step_config.get("step")
         if isinstance(fan_step, dict):
             fan_errors: list[str] = []
-            _validate_steps([fan_step], set(), fan_errors)
+            _validate_steps(
+                [fan_step],
+                set(),
+                fan_errors,
+                input_defs,
+                inside_fan_out=True,
+            )
             errors.extend(fan_errors)
 
 
@@ -508,9 +644,11 @@ class RunState:
         # append_log is never called while _lock is held, the two never nest.
         self._log_lock = threading.Lock()
         self.inputs: dict[str, Any] = {}
+        self.workflow_dir: str | None = None
         self.created_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = self.created_at
         self.log_entries: list[dict[str, Any]] = []
+        self.error: str | None = None
 
     @property
     def runs_dir(self) -> Path:
@@ -562,8 +700,10 @@ class RunState:
                 "current_step_index": self.current_step_index,
                 "current_step_id": self.current_step_id,
                 "step_results": self.step_results,
+                "workflow_dir": self.workflow_dir,
                 "created_at": self.created_at,
                 "updated_at": self.updated_at,
+                "error": self.error,
             }
             self._atomic_write_json(runs_dir / "state.json", state_data)
             self._atomic_write_json(runs_dir / "inputs.json", {"inputs": self.inputs})
@@ -654,8 +794,10 @@ class RunState:
         state.current_step_index = state_data.get("current_step_index", 0)
         state.current_step_id = state_data.get("current_step_id")
         state.step_results = state_data.get("step_results", {})
+        state.workflow_dir = state_data.get("workflow_dir")
         state.created_at = state_data.get("created_at", "")
         state.updated_at = state_data.get("updated_at", "")
+        state.error = state_data.get("error")
 
         inputs_path = runs_dir / "inputs.json"
         if inputs_path.exists():
@@ -724,13 +866,24 @@ class WorkflowEngine:
         ValueError:
             If the workflow YAML is invalid.
         """
+        from .overlays import WorkflowResolver
+
         path = Path(source).expanduser()
 
         # Try as a direct file path first
         if path.suffix.lower() in (".yml", ".yaml") and path.is_file():
             return WorkflowDefinition.from_yaml(path)
 
-        # Try as an installed workflow ID
+        # Try as an installed workflow ID, resolving any overlays.
+        resolver = WorkflowResolver(self.project_root)
+        try:
+            return resolver.resolve(str(source))
+        except FileNotFoundError:
+            # Fall back to the direct workflow.yml path so callers still get
+            # the original error when the workflow id is not installed.
+            pass
+
+        # Legacy direct path check for workflows installed without registry entries.
         installed_path = (
             self.project_root
             / ".specify"
@@ -810,6 +963,12 @@ class WorkflowEngine:
         # Resolve inputs
         resolved_inputs = self._resolve_inputs(definition, inputs or {})
         state.inputs = resolved_inputs
+        workflow_dir = (
+            str(definition.source_path.resolve().parent)
+            if definition.source_path is not None
+            else None
+        )
+        state.workflow_dir = workflow_dir
         state.status = RunStatus.RUNNING
         state.save()
 
@@ -820,6 +979,7 @@ class WorkflowEngine:
             default_options=definition.default_options,
             project_root=str(self.project_root),
             run_id=state.run_id,
+            workflow_dir=workflow_dir,
         )
 
         # Execute steps
@@ -832,6 +992,7 @@ class WorkflowEngine:
             return state
         except Exception as exc:
             state.status = RunStatus.FAILED
+            state.error = str(exc)
             state.append_log({"event": "workflow_failed", "error": str(exc)})
             state.save()
             raise
@@ -885,10 +1046,12 @@ class WorkflowEngine:
             default_options=definition.default_options,
             project_root=str(self.project_root),
             run_id=state.run_id,
+            workflow_dir=state.workflow_dir,
         )
 
         from . import STEP_REGISTRY
 
+        state.error = None
         state.status = RunStatus.RUNNING
         state.save()
 
@@ -909,6 +1072,7 @@ class WorkflowEngine:
             return state
         except Exception as exc:
             state.status = RunStatus.FAILED
+            state.error = str(exc)
             state.append_log({"event": "resume_failed", "error": str(exc)})
             state.save()
             raise
@@ -968,6 +1132,7 @@ class WorkflowEngine:
             step_impl = registry.get(step_type)
             if not step_impl:
                 state.status = RunStatus.FAILED
+                state.error = f"Unknown step type: {step_type!r}"
                 state.append_log(
                     {
                         "event": "step_failed",
@@ -995,6 +1160,7 @@ class WorkflowEngine:
                 or step_config.get("input", {}),
                 "output": result.output,
                 "status": result.status.value,
+                "error": result.error,
             }
             self._record_result(context, state, step_id, step_data)
 
@@ -1020,6 +1186,7 @@ class WorkflowEngine:
                 # is for transient/expected step failures only.
                 if result.output.get("aborted"):
                     state.status = RunStatus.ABORTED
+                    state.error = result.error
                     state.append_log(
                         {
                             "event": "workflow_aborted",
@@ -1062,6 +1229,7 @@ class WorkflowEngine:
                     continue
 
                 state.status = RunStatus.FAILED
+                state.error = result.error
                 state.append_log(
                     {
                         "event": "step_failed",
@@ -1197,9 +1365,9 @@ class WorkflowEngine:
         already flipped), so the prefix never drops the actual halting item.
 
         ``max_concurrency`` is coerced with ``int()``; a value that cannot be
-        coerced (``None``, a non-numeric string, …) or that coerces to <= 1 runs
-        sequentially, while a numeric string like ``"4"`` or a float like ``4.0``
-        is honored.
+        coerced (``None``, a non-numeric string, ``.inf``/``.nan``, …) or that
+        coerces to <= 1 runs sequentially, while a numeric string like ``"4"`` or
+        a float like ``4.0`` is honored.
         """
         if not items:
             return []
@@ -1207,7 +1375,9 @@ class WorkflowEngine:
         halting = (RunStatus.PAUSED, RunStatus.FAILED, RunStatus.ABORTED)
         try:
             workers = max(1, int(max_concurrency))
-        except (TypeError, ValueError):
+        except (TypeError, ValueError, OverflowError):
+            # OverflowError: int(float("inf")) — a YAML ``max_concurrency: .inf``
+            # would otherwise crash the whole run instead of falling back.
             workers = 1
         # Never spin up more workers than there is work — bounds a user-controlled
         # max_concurrency from over-allocating threads.
@@ -1233,11 +1403,18 @@ class WorkflowEngine:
         # Sequential path — identical to the historical behavior.
         if workers <= 1:
             results: list[Any] = []
-            for item_idx, item_val in enumerate(items):
-                context.item = item_val
-                results.append(run_item(item_idx, context))
-                if state.status in halting:
-                    break
+            previous_item = context.item
+            previous_inside_fan_out = context.inside_fan_out
+            context.inside_fan_out = True
+            try:
+                for item_idx, item_val in enumerate(items):
+                    context.item = item_val
+                    results.append(run_item(item_idx, context))
+                    if state.status in halting:
+                        break
+            finally:
+                context.item = previous_item
+                context.inside_fan_out = previous_inside_fan_out
             return results
 
         # Concurrent path — bounded sliding window; results assembled in item order.
@@ -1248,7 +1425,14 @@ class WorkflowEngine:
             # Each item runs against its own context copy so context.item is not
             # clobbered across threads; the shared steps dict is written only on the
             # disjoint parentId:templateId:index key (GIL-safe on distinct keys).
-            return run_item(idx, dataclasses.replace(context, item=items[idx]))
+            return run_item(
+                idx,
+                dataclasses.replace(
+                    context,
+                    item=items[idx],
+                    inside_fan_out=True,
+                ),
+            )
 
         def item_halt_status(idx: int) -> RunStatus | None:
             # If THIS item's own execution halted the run, return the resulting run
@@ -1329,6 +1513,16 @@ class WorkflowEngine:
             # pool joined; restore the halting item's own outcome so the final run
             # status matches the sequential semantics.
             state.status = halted_status
+            # Restore the halting item's error so it matches the terminal
+            # status — a concurrent item may have overwritten state.error
+            # before the pool joined. Assign unconditionally when a record
+            # exists (even when the halting item's own error is falsy) so a
+            # third-party step returning FAILED with no message never inherits
+            # an unrelated concurrent item's error; this mirrors the sequential
+            # path, which sets state.error = result.error verbatim.
+            halt_rec = context.steps.get(item_id(halted_at))
+            if isinstance(halt_rec, dict):
+                state.error = halt_rec.get("error")
             return slots[: halted_at + 1]
         return slots[:collected]
 
@@ -1339,6 +1533,14 @@ class WorkflowEngine:
     ) -> dict[str, Any]:
         """Resolve workflow inputs against definitions and provided values."""
         resolved: dict[str, Any] = {}
+        # execute()/resume() accept UNVALIDATED definitions (load_workflow does
+        # not validate). A non-mapping ``inputs:`` block (bare ``inputs:`` ->
+        # None, or ``inputs: []``) is stored raw, so iterating ``.items()`` here
+        # would crash the run with AttributeError. Treat a non-mapping inputs
+        # block as "no inputs"; validate_workflow reports the malformed shape
+        # via its own isinstance check.
+        if not isinstance(definition.inputs, dict):
+            return {}
         for name, input_def in definition.inputs.items():
             if not isinstance(input_def, dict):
                 continue
@@ -1368,11 +1570,18 @@ class WorkflowEngine:
             # definition (``string`` rejects non-strings, ``number`` rejects
             # bools and uncoercible values, ``boolean`` rejects non-bools),
             # so ill-typed values still fail fast here.
+            #
+            # ``execute()`` accepts unvalidated definitions, so a malformed
+            # (non-list) ``enum`` can reach here. Only strip a *list* ``enum``:
+            # a scalar/string ``enum`` must stay in the definition so
+            # ``_coerce_input`` raises the clean shape ``ValueError`` instead of
+            # being silently exempted by the ``auto`` membership skip (which
+            # would otherwise let ``enum: 5`` resolve successfully).
             coerce_input_def = input_def
             if (
                 name == "integration"
                 and value == "auto"
-                and "enum" in input_def
+                and isinstance(input_def.get("enum"), list)
             ):
                 coerce_input_def = {
                     key: val
@@ -1417,6 +1626,22 @@ class WorkflowEngine:
         """Coerce a provided input value to the declared type."""
         input_type = input_def.get("type", "string")
         enum_values = input_def.get("enum")
+
+        # ``enum`` must be a list. A scalar (``enum: 5``, ``enum: true``) makes
+        # the ``value not in enum_values`` membership test below raise a raw
+        # ``TypeError`` ("argument of type 'int' is not ... iterable"), which
+        # escapes ``validate_workflow``'s ``except ValueError`` and breaks its
+        # "return errors, never raise" contract — and crashes ``_resolve_inputs``
+        # outright at run time. A bare string is just as wrong: ``value in "abc"``
+        # is a silent substring/character test, not enum membership. Require a
+        # list so both forms fail fast with a clear message. ``None`` means "no
+        # enum" and is left alone.
+        if enum_values is not None and not isinstance(enum_values, list):
+            msg = (
+                f"Input {name!r} has invalid 'enum': must be a list, got "
+                f"{type(enum_values).__name__}."
+            )
+            raise ValueError(msg)
 
         if input_type == "number":
             # Reject bools explicitly: ``bool`` is a subclass of ``int`` so

@@ -3,6 +3,7 @@
 import io
 import json
 import os
+import runpy
 
 import pytest
 import yaml
@@ -241,6 +242,66 @@ class TestInitIntegrationFlag:
         assert "preset install exploded with context" in normalized
         assert "Continuing without the optional preset" in normalized
         assert "Project ready" in normalized or "project ready" in normalized.lower()
+
+    def test_init_with_local_preset_seeds_manifest_constitution(
+        self, tmp_path, monkeypatch
+    ):
+        from typer.testing import CliRunner
+        from specify_cli import app
+        from specify_cli.presets import PresetManager
+
+        monkeypatch.setattr(
+            PresetManager,
+            "_seed_constitution_from_preset",
+            lambda *_args, **_kwargs: None,
+        )
+
+        preset_dir = tmp_path / "constitution-preset"
+        (preset_dir / "organization").mkdir(parents=True)
+        preset_content = "# Ratified Organization Constitution\n"
+        (preset_dir / "organization" / "ratified.md").write_text(preset_content)
+        (preset_dir / "preset.yml").write_text(
+            yaml.safe_dump({
+                "schema_version": "1.0",
+                "preset": {
+                    "id": "constitution-preset",
+                    "name": "Constitution Preset",
+                    "version": "1.0.0",
+                    "description": "Provides a ratified constitution",
+                },
+                "requires": {"speckit_version": ">=0.1.0"},
+                "provides": {
+                    "templates": [{
+                        "type": "template",
+                        "name": "constitution-template",
+                        "file": "organization/ratified.md",
+                        "strategy": "replace",
+                    }]
+                },
+            })
+        )
+        project = tmp_path / "init-with-preset"
+
+        result = CliRunner().invoke(
+            app,
+            [
+                "init",
+                str(project),
+                "--integration",
+                "copilot",
+                "--script",
+                "sh",
+                "--ignore-agent-tools",
+                "--preset",
+                str(preset_dir),
+            ],
+            catch_exceptions=False,
+        )
+
+        assert result.exit_code == 0, result.output
+        assert (
+            project / ".specify" / "memory" / "constitution.md"
+        ).read_text() == preset_content
 
     def test_integration_claude_here_preserves_preexisting_commands(self, tmp_path):
         from typer.testing import CliRunner
@@ -1239,6 +1300,25 @@ class TestSharedInfraCommandRefs:
         assert "__SPECKIT_COMMAND_" not in content
         assert f"/{prefix}-tasks" in content
 
+    def test_dollar_prefix_in_page_templates(self, tmp_path):
+        """Dollar-style skills agents get $speckit-<name> in page templates."""
+        from specify_cli import _install_shared_infra
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        project = tmp_path / "dollar-test"
+        project.mkdir()
+        (project / ".specify").mkdir()
+
+        _install_shared_infra(
+            project, "sh", invoke_separator="-", invoke_prefix="$"
+        )
+
+        plan = project / ".specify" / "templates" / "plan-template.md"
+        content = plan.read_text(encoding="utf-8")
+        assert f"${prefix}-plan" in content
+        assert f"/{prefix}-plan" not in content
+
     @pytest.mark.parametrize("script_type", ["sh", "ps"])
     def test_dot_separator_in_shared_scripts(self, tmp_path, script_type):
         """Markdown agents get /<prefix>.<name> in shared script hints."""
@@ -1284,6 +1364,50 @@ class TestSharedInfraCommandRefs:
         assert f"/{prefix}.specify" not in content
         assert f"/{prefix}.plan" not in content
         assert f"/{prefix}.tasks" not in content
+
+    @pytest.mark.parametrize("script_type", ["sh", "ps", "py"])
+    def test_dollar_prefix_in_shared_scripts(self, tmp_path, script_type):
+        """Dollar-style skills agents get native prefixes in shared script hints."""
+        from specify_cli import _install_shared_infra
+        from tests.conftest import _cmd_prefix
+
+        prefix = _cmd_prefix()
+        project = tmp_path / f"dollar-script-{script_type}"
+        project.mkdir()
+        (project / ".specify").mkdir()
+
+        _install_shared_infra(
+            project, script_type, invoke_separator="-", invoke_prefix="$"
+        )
+
+        if script_type == "py":
+            state = {
+                "integration": "codex",
+                "integration_settings": {
+                    "codex": {"invoke_separator": "-"},
+                },
+            }
+            (project / ".specify" / "integration.json").write_text(
+                json.dumps(state), encoding="utf-8"
+            )
+            common = project / ".specify" / "scripts" / "python" / "common.py"
+            namespace = runpy.run_path(str(common))
+            assert namespace["format_speckit_command"]("plan", project) == (
+                "$speckit-plan"
+            )
+            return
+
+        content = self._combined_script_content(project, script_type)
+        assert f"${prefix}-specify" in content or rf"\${prefix}-specify" in content
+        assert f"${prefix}-plan" in content or rf"\${prefix}-plan" in content
+        assert f"${prefix}-tasks" in content or rf"\${prefix}-tasks" in content
+        assert f"/{prefix}-specify" not in content
+        assert f"/{prefix}-plan" not in content
+        assert f"/{prefix}-tasks" not in content
+        if script_type == "sh":
+            assert rf"\${prefix}-specify" in content
+            assert rf"\${prefix}-plan" in content
+            assert rf"\${prefix}-tasks" in content
 
     def test_full_init_claude_resolves_page_templates(self, tmp_path):
         """Full CLI init with Claude (skills agent) produces hyphen refs in page templates."""
@@ -1417,6 +1541,18 @@ class TestIntegrationCatalogDiscoveryCLI:
             "_install_allowed": True,
         },
     ]
+    MARKUP_INTEGRATION = {
+        "id": "[red]markup-id[/red]",
+        "name": "[green]Markup Name[/green]",
+        "version": "[blue]1.0.0[/blue]",
+        "description": "[yellow]Markup Description[/yellow]",
+        "author": "[magenta]Markup Author[/magenta]",
+        "license": "[cyan]Markup License[/cyan]",
+        "repository": "[bold]Markup Repository[/bold]",
+        "tags": ["[italic]markup-tag[/italic]"],
+        "_catalog_name": "[underline]markup-catalog[/underline]",
+        "_install_allowed": False,
+    }
 
     def _make_project(self, tmp_path):
         project = tmp_path / "proj"
@@ -1880,6 +2016,25 @@ class TestIntegrationCatalogDiscoveryCLI:
         # acme-coder is flagged _install_allowed=False, so we should warn
         assert "Not directly installable" in result.output
 
+    def test_search_escapes_catalog_markup(self, tmp_path, monkeypatch):
+        project = self._make_project(tmp_path)
+        self._patch_catalog(monkeypatch, integrations=[self.MARKUP_INTEGRATION])
+
+        result = self._invoke(["integration", "search"], project)
+
+        assert result.exit_code == 0, result.output
+        output = _normalize_cli_output(result.output)
+        for value in (
+            self.MARKUP_INTEGRATION["id"],
+            self.MARKUP_INTEGRATION["name"],
+            self.MARKUP_INTEGRATION["version"],
+            self.MARKUP_INTEGRATION["description"],
+            self.MARKUP_INTEGRATION["author"],
+            self.MARKUP_INTEGRATION["tags"][0],
+            self.MARKUP_INTEGRATION["_catalog_name"],
+        ):
+            assert value in output
+
     # -- info --------------------------------------------------------------
 
     def test_info_found(self, tmp_path, monkeypatch):
@@ -1902,6 +2057,19 @@ class TestIntegrationCatalogDiscoveryCLI:
         assert result.exit_code == 1
         assert "not found" in result.output
 
+    def test_info_not_found_escapes_query_markup(self, tmp_path, monkeypatch):
+        project = self._make_project(tmp_path)
+        self._patch_catalog(monkeypatch)
+        integration_id = "[red]does-not-exist[/red]"
+
+        result = self._invoke(
+            ["integration", "info", integration_id],
+            project,
+        )
+
+        assert result.exit_code == 1
+        assert integration_id in _normalize_cli_output(result.output)
+
     def test_info_builtin_not_in_catalog(self, tmp_path, monkeypatch):
         project = self._make_project(tmp_path)
         # Empty catalog, but copilot is a registered built-in.
@@ -1909,6 +2077,30 @@ class TestIntegrationCatalogDiscoveryCLI:
         result = self._invoke(["integration", "info", "copilot"], project)
         assert result.exit_code == 0, result.output
         assert "Built-in integration" in result.output
+
+    def test_info_escapes_catalog_markup(self, tmp_path, monkeypatch):
+        project = self._make_project(tmp_path)
+        self._patch_catalog(monkeypatch, integrations=[self.MARKUP_INTEGRATION])
+
+        result = self._invoke(
+            ["integration", "info", self.MARKUP_INTEGRATION["id"]],
+            project,
+        )
+
+        assert result.exit_code == 0, result.output
+        output = _normalize_cli_output(result.output)
+        for value in (
+            self.MARKUP_INTEGRATION["id"],
+            self.MARKUP_INTEGRATION["name"],
+            self.MARKUP_INTEGRATION["version"],
+            self.MARKUP_INTEGRATION["description"],
+            self.MARKUP_INTEGRATION["author"],
+            self.MARKUP_INTEGRATION["license"],
+            self.MARKUP_INTEGRATION["repository"],
+            self.MARKUP_INTEGRATION["tags"][0],
+            self.MARKUP_INTEGRATION["_catalog_name"],
+        ):
+            assert value in output
 
     # -- validation vs network guidance ------------------------------------
 
@@ -2318,3 +2510,279 @@ def test_refresh_shared_templates_preserves_recovered_user_file(tmp_path):
 
     # Recovered user content must survive (fail-before: replaced by bundled body).
     assert user_file.read_text(encoding="utf-8") == "# USER CUSTOM CONTENT\n"
+
+
+class TestExtensionFlag:
+    """Tests for the --extension flag on specify init."""
+
+    def _run_init(self, tmp_path, args, project_name="ext-test"):
+        from unittest.mock import patch
+        from typer.testing import CliRunner
+        from specify_cli import app
+
+        project = tmp_path / project_name
+        project.mkdir(exist_ok=True)
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(project)
+            runner = CliRunner()
+            # Patch get_speckit_version to return a stable (non-dev) version so that
+            # the extension compatibility check (SpecifierSet(">=0.2.0")) passes.
+            with patch(
+                "specify_cli.commands.init.get_speckit_version",
+                return_value="0.8.2",
+            ):
+                result = runner.invoke(app, [
+                    "init", "--here",
+                    "--integration", "copilot",
+                    "--script", "sh",
+                    "--ignore-agent-tools",
+                ] + args, catch_exceptions=False)
+        finally:
+            os.chdir(old_cwd)
+        return project, result
+
+    def test_bundled_extension_installed(self, tmp_path):
+        """--extension git installs the bundled git extension."""
+        project, result = self._run_init(tmp_path, ["--extension", "git"], project_name="ext-bundled")
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+
+        ext_dir = project / ".specify" / "extensions" / "git"
+        assert ext_dir.exists(), "git extension directory not found"
+        assert (ext_dir / "extension.yml").exists(), "extension.yml not found"
+
+        # Tracker should show extension step as done
+        normalized = _normalize_cli_output(result.output)
+        assert "Install extension: git" in normalized
+
+    def test_multiple_extensions_installed(self, tmp_path):
+        """--extension can be specified multiple times."""
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", "git", "--extension", "selftest"],
+            project_name="ext-multi",
+        )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+
+        ext_dir_git = project / ".specify" / "extensions" / "git"
+        ext_dir_selftest = project / ".specify" / "extensions" / "selftest"
+        assert ext_dir_git.exists(), "git extension not installed"
+        assert ext_dir_selftest.exists(), "selftest extension not installed"
+
+    def test_local_path_extension_installed(self, tmp_path):
+        """--extension /abs/path installs from a local absolute directory path."""
+        from specify_cli import _locate_bundled_extension
+
+        # Use the bundled git extension directory as our "local" extension source
+        bundled_git = _locate_bundled_extension("git")
+        assert bundled_git is not None, "bundled git extension not found; cannot run test"
+
+        # Pass the absolute path directly (starts with "/")
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", str(bundled_git)],
+            project_name="ext-local",
+        )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+
+        ext_dir = project / ".specify" / "extensions" / "git"
+        assert ext_dir.exists(), "extension from local path not installed"
+
+    def test_unknown_extension_shows_error_in_tracker(self, tmp_path):
+        """An unknown extension name records a tracker error but does not abort init."""
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", "nonexistent-xyz-ext"],
+            project_name="ext-unknown",
+        )
+
+        assert result.exit_code == 0, "init should not abort on unknown extension"
+        normalized = _normalize_cli_output(result.output)
+        assert "failed" in normalized.lower(), "expected 'failed' for unknown extension"
+
+    def test_extension_flag_works_with_preset(self, tmp_path):
+        """--extension and --preset can be combined."""
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", "git", "--preset", "lean"],
+            project_name="ext-preset",
+        )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+
+        ext_dir = project / ".specify" / "extensions" / "git"
+        assert ext_dir.exists(), "git extension not installed alongside preset"
+
+    @staticmethod
+    def _zip_bytes_from_dir(source_dir):
+        """Build in-memory ZIP bytes from an extension directory (yml at root)."""
+        import io
+        import zipfile
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for path in sorted(source_dir.rglob("*")):
+                if path.is_file():
+                    zf.write(path, arcname=str(path.relative_to(source_dir)))
+        return buf.getvalue()
+
+    def test_url_extension_rejects_non_https(self, tmp_path):
+        """A non-HTTPS URL is rejected before any download; init is not aborted."""
+        project, result = self._run_init(
+            tmp_path,
+            ["--extension", "http://example.com/ext.zip", "--trust-extension-urls"],
+            project_name="ext-http",
+        )
+
+        assert result.exit_code == 0, "init should not abort on a rejected URL"
+        normalized = _normalize_cli_output(result.output)
+        assert "failed" in normalized.lower()
+        # No extension directory should have been created for the bad URL.
+        assert not (project / ".specify" / "extensions" / "ext").exists()
+
+    def test_url_extension_skipped_without_trust(self, tmp_path):
+        """Non-interactive URL install without --trust-extension-urls is denied."""
+        from unittest.mock import patch
+
+        with patch(
+            "specify_cli.commands.init._stdin_is_interactive", return_value=False
+        ), patch("specify_cli.authentication.http.open_url") as mock_open:
+            project, result = self._run_init(
+                tmp_path,
+                ["--extension", "https://example.com/git.zip"],
+                project_name="ext-url-denied",
+            )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+        # Default-deny: no download attempted, nothing installed.
+        mock_open.assert_not_called()
+        normalized = _normalize_cli_output(result.output)
+        assert "untrusted url" in normalized.lower()
+        assert not (project / ".specify" / "extensions" / "git").exists()
+
+    def test_url_extension_interactive_confirm_installs(self, tmp_path):
+        """An interactive 'yes' to the trust prompt allows the URL install."""
+        import io
+
+        from unittest.mock import patch
+
+        from specify_cli import _locate_bundled_extension
+
+        bundled_git = _locate_bundled_extension("git")
+        assert bundled_git is not None, "bundled git extension not found"
+        zip_bytes = self._zip_bytes_from_dir(bundled_git)
+
+        class FakeResponse(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        def _cache_dir_stand_in(project_root):
+            d = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+
+        def _open_download_zip(project_root, download_dir, zip_filename):
+            target = download_dir / zip_filename
+            o_temporary = getattr(os, "O_TEMPORARY", 0)
+            if o_temporary:
+                return os.open(
+                    target, os.O_RDWR | os.O_CREAT | os.O_EXCL | o_temporary, 0o600
+                )
+            fd = os.open(target, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.unlink(target)
+            except OSError:
+                os.close(fd)
+                raise
+            return fd
+
+        with patch(
+            "specify_cli.commands.init._stdin_is_interactive", return_value=True
+        ), patch("typer.confirm", return_value=True), patch(
+            "specify_cli.authentication.http.open_url",
+            return_value=FakeResponse(zip_bytes),
+        ), patch(
+            "specify_cli.extensions._commands._validate_safe_cache_dir",
+            side_effect=_cache_dir_stand_in,
+        ), patch(
+            "specify_cli.extensions._commands._safe_open_download_zip",
+            side_effect=_open_download_zip,
+        ):
+            project, result = self._run_init(
+                tmp_path,
+                ["--extension", "https://example.com/git.zip"],
+                project_name="ext-url-confirm",
+            )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+        assert (project / ".specify" / "extensions" / "git").exists()
+
+    def test_url_extension_installs_zip(self, tmp_path):
+        """A successful HTTPS ZIP download installs via the shared hardened path."""
+        import io
+
+        from unittest.mock import patch
+
+        from specify_cli import _locate_bundled_extension
+
+        bundled_git = _locate_bundled_extension("git")
+        assert bundled_git is not None, "bundled git extension not found"
+        zip_bytes = self._zip_bytes_from_dir(bundled_git)
+
+        class FakeResponse(io.BytesIO):
+            def __enter__(self):
+                return self
+
+            def __exit__(self, exc_type, exc, tb):
+                return False
+
+        def _cache_dir_stand_in(project_root):
+            d = project_root / ".specify" / "extensions" / ".cache" / "downloads"
+            d.mkdir(parents=True, exist_ok=True)
+            return d
+
+        def _open_download_zip(project_root, download_dir, zip_filename):
+            target = download_dir / zip_filename
+            o_temporary = getattr(os, "O_TEMPORARY", 0)
+            if o_temporary:
+                return os.open(
+                    target, os.O_RDWR | os.O_CREAT | os.O_EXCL | o_temporary, 0o600
+                )
+            fd = os.open(target, os.O_RDWR | os.O_CREAT | os.O_EXCL, 0o600)
+            try:
+                os.unlink(target)
+            except OSError:
+                os.close(fd)
+                raise
+            return fd
+
+        with patch(
+            "specify_cli.authentication.http.open_url",
+            return_value=FakeResponse(zip_bytes),
+        ), patch(
+            "specify_cli.extensions._commands._validate_safe_cache_dir",
+            side_effect=_cache_dir_stand_in,
+        ), patch(
+            "specify_cli.extensions._commands._safe_open_download_zip",
+            side_effect=_open_download_zip,
+        ):
+            project, result = self._run_init(
+                tmp_path,
+                ["--extension", "https://example.com/git.zip", "--trust-extension-urls"],
+                project_name="ext-url",
+            )
+
+        assert result.exit_code == 0, f"init failed:\n{result.output}"
+        ext_dir = project / ".specify" / "extensions" / "git"
+        assert ext_dir.exists(), "extension from URL not installed"
+        assert (ext_dir / "extension.yml").exists()
+        # Transient download archive must not linger in the cache.
+        cache_dir = project / ".specify" / "extensions" / ".cache" / "downloads"
+        leftover = list(cache_dir.glob("*.zip")) if cache_dir.exists() else []
+        assert not leftover, f"download cache not cleaned: {leftover}"

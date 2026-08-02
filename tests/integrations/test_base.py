@@ -582,16 +582,24 @@ class TestProcessTemplatePyScriptType:
         assert "python" not in result
 
     def test_py_quotes_interpreter_with_spaces(self, monkeypatch):
+        import shlex
+        from types import SimpleNamespace
+        # An interpreter path containing whitespace (e.g. Windows
+        # ``Program Files``) must be quoted so it isn't split into args.
+        interpreter = r"C:\Program Files\Python\python.exe"
         monkeypatch.setattr(
             "specify_cli.integrations.base.shutil.which", lambda name: None
         )
         monkeypatch.setattr(
             "specify_cli.integrations.base.sys.executable",
-            r"C:\Program Files\Python\python.exe",
+            interpreter,
+        )
+        monkeypatch.setattr(
+            "specify_cli.integrations.base.os", SimpleNamespace(name="posix")
         )
         result = IntegrationBase.process_template(self.CONTENT, "agent", "py")
         assert (
-            '"C:\\Program Files\\Python\\python.exe" '
+            f"{shlex.quote(interpreter)} "
             ".specify/scripts/python/check-prerequisites.py --json"
         ) in result
 

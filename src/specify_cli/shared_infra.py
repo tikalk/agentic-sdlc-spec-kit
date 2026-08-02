@@ -286,9 +286,20 @@ _BASH_FORMAT_COMMAND_RE = re.compile(
 _POWERSHELL_FORMAT_COMMAND_RE = re.compile(
     r"Format-SpecKitCommand\s+-CommandName\s+(['\"])([A-Za-z0-9_.-]+)\1(?:\s+-RepoRoot\s+[^\r\n]+)?"
 )
+_PYTHON_FORMAT_COMMAND_RETURN_RE = re.compile(
+    r'return f"/speckit\{separator\}\{name\}"'
+)
+_BASH_FORMATTER_RETURN_RE = re.compile(
+    r'''printf '/speckit%s%s\\n' "\$separator" "\$command_name"'''
+)
+_POWERSHELL_FORMATTER_RETURN_RE = re.compile(
+    r'return "/speckit\$separator\$name"'
+)
 
 
-def _format_speckit_command(command_name: str, separator: str) -> str:
+def _format_speckit_command(
+    command_name: str, separator: str, prefix: str = "/"
+) -> str:
     try:
         from ._core_fork import COMMAND_PREFIX
     except ImportError:
@@ -299,18 +310,36 @@ def _format_speckit_command(command_name: str, separator: str) -> str:
     elif name.startswith("speckit-"):
         name = name[len("speckit-") :]
     name = name.replace(".", separator)
-    return f"/{COMMAND_PREFIX}{separator}{name}"
+    return f"{prefix}{COMMAND_PREFIX}{separator}{name}"
 
 
-def _resolve_dynamic_command_refs(content: str, separator: str) -> str:
+def _resolve_dynamic_command_refs(
+    content: str, separator: str, prefix: str = "/"
+) -> str:
     """Render script runtime command helpers for managed shared infra copies."""
 
+    bash_prefix = r"\$" if prefix == "$" else prefix
     content = _BASH_FORMAT_COMMAND_RE.sub(
-        lambda match: _format_speckit_command(match.group(2), separator),
+        lambda match: _format_speckit_command(
+            match.group(2), separator, bash_prefix
+        ),
         content,
     )
-    return _POWERSHELL_FORMAT_COMMAND_RE.sub(
-        lambda match: f"'{_format_speckit_command(match.group(2), separator)}'",
+    content = _POWERSHELL_FORMAT_COMMAND_RE.sub(
+        lambda match: f"'{_format_speckit_command(match.group(2), separator, prefix)}'",
+        content,
+    )
+    content = _BASH_FORMATTER_RETURN_RE.sub(
+        f'''printf '{prefix}speckit%s%s\\\\n' "$separator" "$command_name"''',
+        content,
+    )
+    powershell_prefix = "`$" if prefix == "$" else prefix
+    content = _POWERSHELL_FORMATTER_RETURN_RE.sub(
+        f'return "{powershell_prefix}speckit$separator$name"',
+        content,
+    )
+    return _PYTHON_FORMAT_COMMAND_RETURN_RE.sub(
+        f'return f"{prefix}speckit{{separator}}{{name}}"',
         content,
     )
 
@@ -323,6 +352,7 @@ def refresh_shared_templates(
     repo_root: Path,
     console: Any,
     invoke_separator: str,
+    invoke_prefix: str = "/",
     force: bool = False,
 ) -> None:
     """Refresh default-sensitive shared templates without touching scripts."""
@@ -354,7 +384,9 @@ def refresh_shared_templates(
                 continue
 
         content = src.read_text(encoding="utf-8")
-        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
+        content = IntegrationBase.resolve_command_refs(
+            content, invoke_separator, project_path, invoke_prefix
+        )
         planned_updates.append((dst, rel, content))
 
     for dst, rel, content in planned_updates:
@@ -381,6 +413,7 @@ def install_shared_infra(
     console: Any,
     force: bool = False,
     invoke_separator: str = ".",
+    invoke_prefix: str = "/",
     refresh_managed: bool = False,
     refresh_hint: str | None = None,
 ) -> bool:
@@ -420,8 +453,13 @@ def install_shared_infra(
     # Track every shared path the current bundle produces so we can detect
     # manifest entries the core no longer ships (stale-script cleanup, #3076).
     seen_rels: set[str] = set()
-    scripts_scanned = False
-    variant_dir = {"sh": "bash", "py": "python"}.get(script_type, "powershell")
+    scanned_variant_dirs: set[str] = set()
+    shell_variant = "powershell" if os.name == "nt" else "bash"
+    variant_dirs = (
+        ("python", shell_variant)
+        if script_type == "py"
+        else ("bash" if script_type == "sh" else "powershell",)
+    )
 
     def _decide_overwrite(rel: str, dst: Path) -> tuple[bool, str | None]:
         """Return (write, bucket) where bucket is 'skip', 'preserved', or None."""
@@ -476,69 +514,73 @@ def install_shared_infra(
     if scripts_src.is_dir():
         dest_scripts = project_path / ".specify" / "scripts"
         if _ensure_or_bucket_dir(dest_scripts):
-            variant_src = scripts_src / variant_dir
-            if variant_src.is_dir():
+            for variant_dir in variant_dirs:
+                variant_src = scripts_src / variant_dir
+                if not variant_src.is_dir():
+                    continue
                 dest_variant = dest_scripts / variant_dir
-                if _ensure_or_bucket_dir(dest_variant):
-                    for src_path in variant_src.rglob("*"):
-                        if not src_path.is_file():
-                            continue
-                        # Python bytecode caches are local artifacts, not
-                        # workflow scripts — never install them.
-                        if "__pycache__" in src_path.parts:
-                            continue
-                        # Mark scanned only once a real source file is seen. An
-                        # empty (or symlink-skipped) variant keeps this False, so
-                        # stale-cleanup is skipped — otherwise it would treat every
-                        # tracked script as obsolete and delete it. (The safety
-                        # hinge is this flag, not ``seen_rels``, which also holds
-                        # template paths populated later.)
-                        scripts_scanned = True
+                if not _ensure_or_bucket_dir(dest_variant):
+                    continue
+                for src_path in variant_src.rglob("*"):
+                    if not src_path.is_file():
+                        continue
+                    # Python bytecode caches are local artifacts, not
+                    # workflow scripts — never install them.
+                    if "__pycache__" in src_path.parts:
+                        continue
+                    # Mark scanned only once a real source file is seen. An
+                    # empty (or symlink-skipped) variant stays untracked, so
+                    # stale-cleanup cannot treat its managed scripts as obsolete.
+                    scanned_variant_dirs.add(variant_dir)
 
-                        rel_path = src_path.relative_to(variant_src)
-                        dst_path = dest_variant / rel_path
-                        rel = dst_path.relative_to(project_path).as_posix()
-                        seen_rels.add(rel)
-                        if not _safe_dest_or_bucket(dst_path, rel, parent_must_exist=False):
-                            continue
-                        write, bucket = _decide_overwrite(rel, dst_path)
-                        if not write:
-                            if bucket == "preserved":
-                                preserved_user_files.append(rel)
-                            else:
-                                skipped_files.append(rel)
-                                # Record the existing-on-disk file in the manifest so a
-                                # fresh manifest run against an already-populated
-                                # ``.specify/`` tree does not silently drop it (#2107).
-                                # ``prior_hashes`` is the function-scope snapshot taken
-                                # at entry, so this membership check is O(1) and avoids
-                                # the repeated ``dict(self._files)`` copy that
-                                # ``manifest.files`` performs on every access.
-                                if dst_path.is_file() and rel not in prior_hashes:
-                                    try:
-                                        manifest.record_existing(rel, recovered=True)
-                                    except (OSError, ValueError) as exc:
-                                        # Tolerate races / permission issues / non-file
-                                        # collisions so one weird path does not abort
-                                        # the whole install.
-                                        console.print(
-                                            f"[yellow]⚠[/yellow]  could not record {rel} in manifest: {exc}"
-                                        )
-                            continue
+                    rel_path = src_path.relative_to(variant_src)
+                    dst_path = dest_variant / rel_path
+                    rel = dst_path.relative_to(project_path).as_posix()
+                    seen_rels.add(rel)
+                    if not _safe_dest_or_bucket(dst_path, rel, parent_must_exist=False):
+                        continue
+                    write, bucket = _decide_overwrite(rel, dst_path)
+                    if not write:
+                        if bucket == "preserved":
+                            preserved_user_files.append(rel)
+                        else:
+                            skipped_files.append(rel)
+                            # Record the existing-on-disk file in the manifest so a
+                            # fresh manifest run against an already-populated
+                            # ``.specify/`` tree does not silently drop it (#2107).
+                            # ``prior_hashes`` is the function-scope snapshot taken
+                            # at entry, so this membership check is O(1) and avoids
+                            # the repeated ``dict(self._files)`` copy that
+                            # ``manifest.files`` performs on every access.
+                            if dst_path.is_file() and rel not in prior_hashes:
+                                try:
+                                    manifest.record_existing(rel, recovered=True)
+                                except (OSError, ValueError) as exc:
+                                    # Tolerate races / permission issues / non-file
+                                    # collisions so one weird path does not abort
+                                    # the whole install.
+                                    console.print(
+                                        f"[yellow]⚠[/yellow]  could not record {rel} in manifest: {exc}"
+                                    )
+                        continue
 
-                        if not _ensure_or_bucket_dir(dst_path.parent):
-                            continue
-                        content = src_path.read_text(encoding="utf-8")
-                        content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
-                        content = _resolve_dynamic_command_refs(content, invoke_separator)
-                        planned_copies.append(
-                            (
-                                dst_path,
-                                rel,
-                                content.encode("utf-8"),
-                                src_path.stat().st_mode & 0o777,
-                            )
+                    if not _ensure_or_bucket_dir(dst_path.parent):
+                        continue
+                    content = src_path.read_text(encoding="utf-8")
+                    content = IntegrationBase.resolve_command_refs(
+                        content, invoke_separator, project_path, invoke_prefix
+                    )
+                    content = _resolve_dynamic_command_refs(
+                        content, invoke_separator, invoke_prefix
+                    )
+                    planned_copies.append(
+                        (
+                            dst_path,
+                            rel,
+                            content.encode("utf-8"),
+                            src_path.stat().st_mode & 0o777,
                         )
+                    )
 
     templates_src = shared_templates_source(core_pack=core_pack, repo_root=repo_root)
     if templates_src.is_dir():
@@ -579,7 +621,9 @@ def install_shared_infra(
                     continue
 
                 content = src.read_text(encoding="utf-8")
-                content = IntegrationBase.resolve_command_refs(content, invoke_separator, project_path)
+                content = IntegrationBase.resolve_command_refs(
+                    content, invoke_separator, project_path, invoke_prefix
+                )
                 planned_templates.append((dst, rel, content))
 
     for dst_path, rel, content, mode in planned_copies:
@@ -636,14 +680,16 @@ def install_shared_infra(
     # agent-context extension. Left behind, such an orphan can crash when it
     # sources a refreshed ``common.sh`` (#3076). Only run when the script source
     # was actually scanned (so a missing/empty source never triggers mass
-    # deletion), scoped to the active variant, and only for *managed* copies —
+    # deletion), scoped to the selected variants, and only for *managed* copies —
     # a user-customized file (hash diverges), a symlink, or a recovered entry is
     # preserved by ``_is_managed``.
-    if scripts_scanned:
+    if scanned_variant_dirs:
         stale_removed: list[str] = []
-        script_prefix = f".specify/scripts/{variant_dir}/"
+        script_prefixes = tuple(
+            f".specify/scripts/{variant_dir}/" for variant_dir in scanned_variant_dirs
+        )
         for rel in list(prior_hashes):
-            if rel in seen_rels or not rel.startswith(script_prefix):
+            if rel in seen_rels or not rel.startswith(script_prefixes):
                 continue
             # Guard corrupted/hand-edited manifest keys BEFORE any filesystem
             # access: absolute, ``..``, or (on Windows) drive-relative keys such

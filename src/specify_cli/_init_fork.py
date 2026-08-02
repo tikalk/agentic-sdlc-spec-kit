@@ -683,6 +683,18 @@ def sync_team_ai_directives(
             if zip_path.exists():
                 zip_path.unlink()
     else:
+        # Check if it looks like a local path that doesn't exist
+        if not repo_url.startswith(("http://", "https://", "ftp://")):
+            resolved = potential_path.resolve()
+            raise ValueError(
+                f"Local path does not exist: {repo_url}\n"
+                f"  Resolved to: {resolved}\n"
+                f"  Use an absolute path or run from the directory containing the path.\n"
+                f"  Expected:\n"
+                f"  - Local directory path (existing)\n"
+                f"  - ZIP file URL (ending in .zip)\n"
+                f"  - GitHub/GitLab archive URL"
+            )
         raise ValueError(
             "Invalid team-ai-directives URL. Expected:\n"
             "  - Local directory path\n"
@@ -1665,7 +1677,10 @@ def _install_bundled_presets(
                     "source": "local",
                     "manifest_hash": manifest.get_hash(),
                     "enabled": True,
-                    "priority": 10,
+                    # Bundled presets are fork defaults: rank below explicitly
+                    # user-installed presets (default priority 10) so a preset
+                    # chosen via `--preset`/`preset install` wins on a tie.
+                    "priority": 20,
                     "registered_commands": registered_commands,
                     "registered_skills": registered_skills,
                 },

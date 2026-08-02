@@ -327,12 +327,18 @@ class IntegrationManifest:
         project_root: Path | None = None,
         *,
         force: bool = False,
+        remove_manifest: bool = True,
     ) -> tuple[list[Path], list[Path]]:
         """Remove tracked files whose hash still matches.
 
         Parameters:
-            project_root: Override for the project root.
-            force:        If ``True``, remove files even if modified.
+            project_root:    Override for the project root.
+            force:           If ``True``, remove files even if modified.
+            remove_manifest: If ``True`` (default), also delete this
+                integration's ``{key}.manifest.json``. Set ``False`` for
+                *partial* cleanups (e.g. the upgrade stale-file pass, which
+                builds a throwaway manifest over a subset of files) so the
+                real, freshly-saved manifest for the same key is not destroyed.
 
         Returns:
             ``(removed, skipped)`` — absolute paths.
@@ -393,8 +399,20 @@ class IntegrationManifest:
 
         # Remove the manifest file itself
         manifest = root / ".specify" / "integrations" / f"{self.key}.manifest.json"
-        if manifest.exists():
-            manifest.unlink()
+        if remove_manifest and manifest.exists():
+            try:
+                manifest.unlink()
+            except OSError:
+                # An undeletable manifest (read-only file, a directory left at
+                # the path, a Windows lock) must not abort the uninstall after
+                # the tracked files were already removed: the caller would lose
+                # the (removed, skipped) result and never run its post-uninstall
+                # bookkeeping. Report it like any other file we could not
+                # remove, mirroring the path.unlink() guard above. The
+                # empty-parent cleanup below is left unconditional: with the
+                # manifest still on disk its parent is non-empty, so the first
+                # rmdir() raises and breaks immediately.
+                skipped.append(manifest)
             parent = manifest.parent
             while parent != root:
                 try:
@@ -453,6 +471,10 @@ class IntegrationManifest:
         path = inst.manifest_path
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
+        except UnicodeDecodeError as exc:
+            raise ValueError(
+                f"Integration manifest at {path} is not valid UTF-8"
+            ) from exc
         except json.JSONDecodeError as exc:
             raise ValueError(
                 f"Integration manifest at {path} contains invalid JSON"

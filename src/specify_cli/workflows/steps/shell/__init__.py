@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import subprocess
 from typing import Any
 
@@ -40,6 +41,13 @@ class ShellStep(StepBase):
                 error=timeout_error,
                 output={"exit_code": -1, "stdout": "", "stderr": "invalid timeout"},
             )
+
+        env = {**os.environ}
+        if context.workflow_dir:
+            env["SPECKIT_WORKFLOW_DIR"] = context.workflow_dir
+        else:
+            env.pop("SPECKIT_WORKFLOW_DIR", None)
+
         # NOTE: shell=True is required to support pipes, redirects, and
         # multi-command expressions in workflow YAML.  Workflow authors
         # control commands; catalog-installed workflows should be reviewed
@@ -51,6 +59,7 @@ class ShellStep(StepBase):
                 capture_output=True,
                 text=True,
                 cwd=cwd,
+                env=env,
                 timeout=timeout,
             )
             output = {
@@ -112,12 +121,20 @@ class ShellStep(StepBase):
         if "timeout" not in config:
             return None
         timeout = config["timeout"]
-        if (
-            isinstance(timeout, bool)
-            or not isinstance(timeout, (int, float))
-            or not math.isfinite(timeout)
-            or timeout <= 0
-        ):
+        try:
+            invalid_timeout = (
+                isinstance(timeout, bool)
+                or not isinstance(timeout, (int, float))
+                or not math.isfinite(timeout)
+                or timeout <= 0
+            )
+        except OverflowError:
+            # An int too large to convert to float (e.g. a 400-digit YAML
+            # scalar) is not a bool and *is* an int, so it clears every clause
+            # before ``isfinite()`` and raises there — and would raise the same
+            # from subprocess.run(timeout=...). Mirrors the prompt step.
+            invalid_timeout = True
+        if invalid_timeout:
             return (
                 f"Shell step {config.get('id', '?')!r}: 'timeout' must be a "
                 f"positive number of seconds, got {timeout!r}."

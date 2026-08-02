@@ -89,12 +89,15 @@ class TestCatalogURLValidation:
         [
             "https://[::1",                 # unclosed ipv6 bracket
             "https://[not-an-ip]/c.json",   # bracketed non-ip host
+            "https://example.com:notaport/c.json",  # non-numeric port
+            "https://example.com:65536/c.json",     # out-of-range port
         ],
     )
     def test_malformed_url_rejected_cleanly(self, url):
-        # A malformed authority makes urlparse/hostname raise ValueError. The
-        # validator must turn that into its normal catalog error, not leak a
-        # raw ValueError to the caller.
+        # A malformed authority makes urlparse/hostname raise ValueError, and a
+        # bad port makes ``parsed.port`` raise it. The validator must turn that
+        # into its normal catalog error, not leak a raw ValueError to the caller
+        # (or, for a bad port, accept the URL and fail later at fetch time).
         with pytest.raises(IntegrationCatalogError, match="malformed"):
             IntegrationCatalog._validate_catalog_url(url)
 
@@ -206,31 +209,24 @@ class TestCatalogFetch:
     """Tests that use a local HTTP server stub via monkeypatch."""
 
     def _patch_urlopen(self, monkeypatch, catalog_data):
-        """Patch authentication.http.urllib.request.urlopen to return *catalog_data*."""
-
-        class FakeResponse:
-            def __init__(self, data, url=""):
-                self._data = json.dumps(data).encode()
-                self._url = url if isinstance(url, str) else url.full_url
-
-            def read(self):
-                return self._data
-
-            def geturl(self):
-                return self._url
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                pass
-
-        def fake_urlopen(req, timeout=10):
-            url = req if isinstance(req, str) else req.full_url
-            return FakeResponse(catalog_data, url)
-
+        """Patch authentication.http.open_url to return *catalog_data*."""
+        import io
+        from unittest.mock import MagicMock
         import specify_cli.authentication.http as _auth_http
-        monkeypatch.setattr(_auth_http.urllib.request, "urlopen", fake_urlopen)
+
+        if isinstance(catalog_data, (dict, list)):
+            raw = json.dumps(catalog_data).encode("utf-8")
+        else:
+            raw = str(catalog_data).encode("utf-8")
+
+        mock_resp = MagicMock()
+        mock_resp.read.side_effect = io.BytesIO(raw).read
+        mock_resp.headers = {}
+        mock_resp.geturl.return_value = "https://example.com/catalog.json"
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+
+        monkeypatch.setattr(_auth_http, "open_url", lambda url, timeout=10: mock_resp)
 
     def test_fetch_and_search_all(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -594,8 +590,15 @@ class TestIntegrationListCatalog:
             def __exit__(self, *a):
                 pass
 
-        monkeypatch.setattr(_auth_http.urllib.request, "urlopen",
-                            lambda req, timeout=10: FakeResponse(catalog, req if isinstance(req, str) else req.full_url))
+        import io
+        from unittest.mock import MagicMock
+        mock_resp = MagicMock()
+        mock_resp.read.side_effect = io.BytesIO(json.dumps(catalog).encode("utf-8")).read
+        mock_resp.headers = {}
+        mock_resp.geturl.return_value = "https://example.com/catalog.json"
+        mock_resp.__enter__ = lambda s: s
+        mock_resp.__exit__ = MagicMock(return_value=False)
+        monkeypatch.setattr(_auth_http, "open_url", lambda req, timeout=10: mock_resp)
 
         old = os.getcwd()
         try:

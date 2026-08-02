@@ -12,7 +12,7 @@ import json
 import os
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import typer
@@ -20,7 +20,18 @@ import yaml
 from rich.markup import escape as _escape_markup
 
 from .._console import console, err_console
+from .._download_security import (
+    archive_format_from_content_type,
+    archive_format_from_name,
+    archive_suffix,
+    detect_archive_format,
+    is_https_or_localhost_http,
+    is_safe_download_redirect,
+    read_response_limited,
+    safe_extract_archive,
+)
 from .._project import _resolve_init_dir_override
+from ..shared_infra import verify_archive_sha256
 
 # Tikalk fork: use make_typer for BannerGroup theming on the primary workflow
 # apps. Falls back to a plain typer.Typer when the fork helper is unavailable.
@@ -69,6 +80,13 @@ workflow_step_catalog_app = make_typer(
     help="Manage step catalogs",
 )
 workflow_step_app.add_typer(workflow_step_catalog_app, name="catalog")
+
+workflow_overlay_app = typer.Typer(
+    name="overlay",
+    help="Manage workflow overlays",
+    add_completion=False,
+)
+workflow_app.add_typer(workflow_overlay_app, name="overlay")
 
 
 def _error_console(json_output: bool):
@@ -212,6 +230,10 @@ def _reject_unsafe_workflow_storage(project_root: Path) -> None:
     _reject_unsafe_dir(
         project_root / ".specify" / "workflows" / "runs",
         ".specify/workflows/runs",
+    )
+    _reject_unsafe_dir(
+        project_root / ".specify" / "workflows" / "overlays",
+        ".specify/workflows/overlays",
     )
 
 
@@ -387,33 +409,18 @@ def _resolve_installed_workflow_ownership(
 
 
 _WORKFLOW_ID_PATTERN = re.compile(r"^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$")
-_RESERVED_WORKFLOW_IDS: frozenset[str] = frozenset({"runs", "steps"})
+_RESERVED_WORKFLOW_IDS: frozenset[str] = frozenset({"overlays", "runs", "steps"})
 
 
 def _reject_insecure_download_redirect(old_url: str, new_url: str) -> None:
     """Reject insecure redirects before they are followed."""
     import urllib.error
-    from ipaddress import ip_address
-    from urllib.parse import urlparse
 
-    def _is_loopback_http(url: str) -> bool:
-        parsed = urlparse(url)
-        if parsed.scheme != "http":
-            return False
-        host = parsed.hostname or ""
-        if host == "localhost":
-            return True
-        try:
-            return ip_address(host).is_loopback
-        except ValueError:
-            return False
-
-    if urlparse(new_url).scheme == "https":
-        return
-    if _is_loopback_http(old_url) and _is_loopback_http(new_url):
+    if is_safe_download_redirect(old_url, new_url):
         return
     raise urllib.error.URLError(
-        "redirect target must use HTTPS; loopback HTTP may only redirect from loopback HTTP"
+        "redirect target must use HTTPS without entering a local target; "
+        "loopback HTTP may only redirect from another loopback URL"
     )
 
 
@@ -422,6 +429,12 @@ def _reject_insecure_download_redirect(old_url: str, new_url: str) -> None:
 # a ceiling any legitimate workflow definition should ever approach.
 _MAX_WORKFLOW_YAML_BYTES = 5 * 1024 * 1024  # 5 MiB
 _DOWNLOAD_CHUNK_SIZE = 65536
+# Custom step packages contain executable Python, metadata, and optional helper
+# files downloaded one-by-one rather than as an archive. Mirror the archive
+# ceilings so a catalog cannot turn individually valid files into an unbounded
+# aggregate download.
+_MAX_STEP_PACKAGE_FILES = 512
+_MAX_STEP_PACKAGE_BYTES = 50 * 1024 * 1024  # 50 MiB
 
 
 def _read_response_within_limit(response, max_bytes: int | None = None) -> bytes:
@@ -468,6 +481,42 @@ def _read_response_within_limit(response, max_bytes: int | None = None) -> bytes
             raise ValueError(f"response exceeds the {max_bytes}-byte workflow size limit")
         chunks.append(chunk)
     return b"".join(chunks)
+
+
+def _workflow_yaml_is_declared(
+    source_name: str, content_type: str | None
+) -> bool:
+    """Return whether response metadata explicitly identifies workflow YAML."""
+    from urllib.parse import urlparse
+
+    path = urlparse(source_name).path.casefold()
+    media_type = (content_type or "").split(";", 1)[0].strip().casefold()
+    return path.endswith((".yml", ".yaml")) or media_type in {
+        "application/yaml",
+        "application/x-yaml",
+        "text/yaml",
+        "text/x-yaml",
+    }
+
+
+def _sniff_workflow_archive_format(data: bytes):
+    """Return a supported archive format when suffixless response bytes match."""
+    from io import BytesIO
+
+    try:
+        return detect_archive_format(
+            Path("workflow-download"),
+            archive_file=BytesIO(data),
+        )
+    except ValueError:
+        return None
+
+
+def _enforce_workflow_yaml_size(data: bytes) -> None:
+    if len(data) > _MAX_WORKFLOW_YAML_BYTES:
+        raise ValueError(
+            f"response exceeds the {_MAX_WORKFLOW_YAML_BYTES}-byte workflow size limit"
+        )
 
 
 def _validate_workflow_id_or_exit(workflow_id: str) -> None:
@@ -894,6 +943,231 @@ def _discard_committed_backup_file(backup_file: Path | None) -> None:
         )
 
 
+def _workflow_package_root(extracted_root: Path) -> Path:
+    """Resolve a root-level or single-nested workflow package."""
+    if (extracted_root / "workflow.yml").is_file():
+        return extracted_root
+    entries = list(extracted_root.iterdir())
+    if (
+        len(entries) == 1
+        and entries[0].is_dir()
+        and not entries[0].is_symlink()
+        and (entries[0] / "workflow.yml").is_file()
+    ):
+        return entries[0]
+    raise ValueError(
+        "Archive must contain workflow.yml at its root or in exactly one "
+        "top-level directory"
+    )
+
+
+def _validate_local_workflow_package(package_dir: Path) -> None:
+    """Reject links and special files before copying a local package."""
+    import stat
+
+    for root, dirnames, filenames in os.walk(package_dir, followlinks=False):
+        root_path = Path(root)
+        for name in [*dirnames, *filenames]:
+            path = root_path / name
+            mode = path.lstat().st_mode
+            if stat.S_ISLNK(mode):
+                raise ValueError(f"Workflow package contains symlink: {path}")
+            if not stat.S_ISDIR(mode) and not stat.S_ISREG(mode):
+                raise ValueError(f"Workflow package contains unsupported file: {path}")
+
+
+def _workflow_package_has_companions(package_dir: Path) -> bool:
+    """Return whether a directory contains anything beyond workflow.yml."""
+    return any(path.name != "workflow.yml" for path in package_dir.iterdir())
+
+
+def _install_workflow_package(
+    project_root: Path,
+    workflows_dir: Path,
+    package_dir: Path,
+    source_label: str,
+    *,
+    expected_id: str | None = None,
+    expected_version: str | None = None,
+    expected_installed_version: str | None = None,
+    catalog_info: dict[str, Any] | None = None,
+) -> None:
+    """Validate and atomically install a complete workflow package directory."""
+    import shutil
+    import tempfile
+
+    from .engine import WorkflowDefinition, validate_workflow
+
+    workflow_file = package_dir / "workflow.yml"
+    try:
+        _validate_local_workflow_package(package_dir)
+        workflow_bytes = workflow_file.read_bytes()
+        definition = WorkflowDefinition.from_string(workflow_bytes.decode("utf-8"))
+    except (OSError, UnicodeDecodeError, ValueError, yaml.YAMLError) as exc:
+        console.print(
+            f"[red]Error:[/red] Invalid workflow package: "
+            f"{_escape_markup(str(exc))}"
+        )
+        raise typer.Exit(1)
+
+    errors = validate_workflow(definition)
+    if errors:
+        console.print("[red]Error:[/red] Workflow validation failed:")
+        for error in errors:
+            console.print(f"  • {_escape_markup(str(error))}")
+        raise typer.Exit(1)
+    if not isinstance(definition.id, str) or not definition.id.strip():
+        console.print("[red]Error:[/red] Workflow definition has an empty or missing 'id'")
+        raise typer.Exit(1)
+    if expected_id is not None and definition.id != expected_id:
+        console.print(
+            f"[red]Error:[/red] Workflow ID in YAML "
+            f"({_escape_markup(repr(definition.id))}) does not match the requested "
+            f"workflow ID ({_escape_markup(repr(expected_id))})."
+        )
+        raise typer.Exit(1)
+    if expected_version is not None and str(definition.version) != expected_version:
+        console.print(
+            f"[red]Error:[/red] Downloaded workflow version "
+            f"({_escape_markup(str(definition.version))}) does not match the catalog "
+            f"version ({_escape_markup(expected_version)})."
+        )
+        raise typer.Exit(1)
+
+    dest_dir = _safe_workflow_id_dir(workflows_dir, definition.id)
+    staged_dir = Path(
+        tempfile.mkdtemp(prefix=f".{definition.id}.installing-", dir=workflows_dir)
+    )
+    try:
+        package_root = package_dir.resolve()
+
+        def ignore_reserved_package_entries(
+            source: str, names: list[str]
+        ) -> set[str]:
+            if Path(source).resolve() == package_root and "overlays" in names:
+                return {"overlays"}
+            return set()
+
+        shutil.copytree(
+            package_dir,
+            staged_dir,
+            dirs_exist_ok=True,
+            ignore=ignore_reserved_package_entries,
+        )
+    except OSError as exc:
+        shutil.rmtree(staged_dir, ignore_errors=True)
+        console.print(
+            f"[red]Error:[/red] Failed to stage workflow package: "
+            f"{_escape_markup(str(exc))}"
+        )
+        raise typer.Exit(1)
+
+    backup_dir: Path | None = None
+    try:
+        with _workflow_install_transaction(project_root):
+            registry = _open_workflow_registry(project_root)
+            existing = registry.get(definition.id)
+            if expected_installed_version is not None and (
+                not isinstance(existing, dict)
+                or existing.get("source") != "catalog"
+                or str(existing.get("version")) != expected_installed_version
+            ):
+                console.print(
+                    f"[yellow]Warning:[/yellow] Workflow "
+                    f"'{_escape_markup(definition.id)}' changed during update; "
+                    "rerun the command."
+                )
+                raise typer.Exit(1)
+            if dest_dir.exists():
+                backup_dir = Path(
+                    tempfile.mkdtemp(
+                        prefix=f".{definition.id}.backup-",
+                        dir=workflows_dir,
+                    )
+                )
+                backup_dir.rmdir()
+                os.replace(dest_dir, backup_dir)
+            try:
+                os.replace(staged_dir, dest_dir)
+            except BaseException:
+                if backup_dir is not None:
+                    os.replace(backup_dir, dest_dir)
+                    backup_dir = None
+                raise
+
+            entry = {
+                "name": definition.name,
+                "version": definition.version,
+                "description": definition.description,
+                "source": source_label,
+            }
+            if catalog_info is not None:
+                entry.update(
+                    {
+                        "source": "catalog",
+                        "catalog_name": catalog_info.get("_catalog_name", ""),
+                        "url": catalog_info.get("url", ""),
+                    }
+                )
+            if isinstance(existing, dict) and not existing.get("enabled", True):
+                entry["enabled"] = False
+            try:
+                registry.add(definition.id, entry)
+            except (OSError, TypeError, ValueError):
+                failed_dir: Path | None = None
+                try:
+                    failed_dir = Path(
+                        tempfile.mkdtemp(
+                            prefix=f".{definition.id}.failed-",
+                            dir=workflows_dir,
+                        )
+                    )
+                    failed_dir.rmdir()
+                    os.replace(dest_dir, failed_dir)
+                    if backup_dir is not None:
+                        os.replace(backup_dir, dest_dir)
+                        backup_dir = None
+                except OSError as rollback_exc:
+                    console.print(
+                        "[yellow]Warning:[/yellow] Failed to fully restore the prior "
+                        f"workflow package: {_escape_markup(str(rollback_exc))}"
+                    )
+                finally:
+                    if failed_dir is not None and failed_dir.exists():
+                        try:
+                            shutil.rmtree(failed_dir)
+                        except OSError as cleanup_exc:
+                            console.print(
+                                "[yellow]Warning:[/yellow] Could not remove failed "
+                                f"workflow package: {_escape_markup(str(cleanup_exc))}"
+                            )
+                raise
+    except typer.Exit:
+        raise
+    except (OSError, TypeError, ValueError) as exc:
+        console.print(
+            f"[red]Error:[/red] Failed to install workflow package: "
+            f"{_escape_markup(str(exc))}"
+        )
+        raise typer.Exit(1)
+    finally:
+        if staged_dir.exists():
+            shutil.rmtree(staged_dir, ignore_errors=True)
+
+    if backup_dir is not None:
+        try:
+            shutil.rmtree(backup_dir)
+        except OSError as exc:
+            console.print(
+                "[yellow]Warning:[/yellow] Workflow installed, but its backup "
+                f"directory could not be removed: {_escape_markup(str(exc))}"
+            )
+    console.print(
+        f"[green]✓[/green] Workflow '{_escape_markup(definition.name)}' "
+        f"({_escape_markup(definition.id)}) installed"
+    )
+
+
 # Root helper re-fetched at call time so test monkeypatching of
 # `specify_cli._require_specify_project` keeps working after the move.
 def _require_specify_project(*args, **kwargs):
@@ -902,6 +1176,18 @@ def _require_specify_project(*args, **kwargs):
     project_root = _f(*args, **kwargs)
     _reject_unsafe_workflow_storage(project_root)
     return project_root
+
+
+def _failed_step_error(state: Any) -> str | None:
+    """Terminal error for a failed/aborted run, if any.
+
+    Returns the run-level error persisted by the engine at the moment
+    the run terminated. Returns ``None`` for non-terminal statuses so
+    the caller can print unconditionally.
+    """
+    if getattr(state.status, "value", state.status) not in ("failed", "aborted"):
+        return None
+    return getattr(state, "error", None)
 
 
 def _workflow_run_payload(state: Any) -> dict[str, Any]:
@@ -916,6 +1202,9 @@ def _workflow_run_payload(state: Any) -> dict[str, Any]:
     gate = _gate_outcome(state)
     if gate is not None:
         payload["gate"] = gate
+    error = _failed_step_error(state)
+    if error is not None:
+        payload["error"] = error
     return payload
 
 
@@ -1069,7 +1358,18 @@ def workflow_run(
     load_custom_steps(project_root)
     engine = WorkflowEngine(project_root)
     if not json_output:
-        engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
+        # Escape the literal bracket (\[) so Rich renders `[<step id>]` instead
+        # of parsing it as a style tag named after the step id -- which it
+        # silently swallows (losing the only identifying content on the line),
+        # applies as formatting when the id happens to be a real style such as
+        # `bold`, or raises MarkupError when the id forms a closing tag (`/`),
+        # failing the whole run. Escape the interpolated values too, since both
+        # come from workflow YAML. Mirrors the `\[<type>]` step-graph precedent
+        # in workflow_info below.
+        engine.on_step_start = lambda sid, label: console.print(
+            f"  \u25b8 \\[{_escape_markup(str(sid))}] "
+            f"{_escape_markup(str(label))} \u2026"
+        )
 
     err = _error_console(json_output)
 
@@ -1165,6 +1465,10 @@ def workflow_run(
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
     console.print(f"[dim]Run ID: {state.run_id}[/dim]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     if state.status.value == "paused":
         console.print(f"\nResume with: {accent(f'specify workflow resume {state.run_id}')}")
 
@@ -1191,7 +1495,18 @@ def workflow_resume(
     load_custom_steps(project_root)
     engine = WorkflowEngine(project_root)
     if not json_output:
-        engine.on_step_start = lambda sid, label: console.print(f"  \u25b8 [{sid}] {label} \u2026")
+        # Escape the literal bracket (\[) so Rich renders `[<step id>]` instead
+        # of parsing it as a style tag named after the step id -- which it
+        # silently swallows (losing the only identifying content on the line),
+        # applies as formatting when the id happens to be a real style such as
+        # `bold`, or raises MarkupError when the id forms a closing tag (`/`),
+        # failing the whole run. Escape the interpolated values too, since both
+        # come from workflow YAML. Mirrors the `\[<type>]` step-graph precedent
+        # in workflow_info below.
+        engine.on_step_start = lambda sid, label: console.print(
+            f"  \u25b8 \\[{_escape_markup(str(sid))}] "
+            f"{_escape_markup(str(label))} \u2026"
+        )
 
     inputs = _parse_input_values(input_values, json_output=json_output)
     err = _error_console(json_output)
@@ -1264,6 +1579,10 @@ def workflow_resume(
     color = status_colors.get(state.status.value, "white")
     console.print(f"\n[{color}]Status: {state.status.value}[/{color}]")
 
+    err_msg = _failed_step_error(state)
+    if err_msg:
+        console.print(f"[red]Error:[/red] {_escape_markup(err_msg)}")
+
     raise typer.Exit(_run_outcome_exit_code(state.status.value))
 
 
@@ -1283,14 +1602,18 @@ def workflow_status(
     engine = WorkflowEngine(project_root)
 
     if run_id:
+        # Route errors to stderr under --json so the stdout JSON stream stays
+        # parseable (mirrors `workflow run`/`workflow resume`); both handlers
+        # fire before the json_output branch below.
+        err = _error_console(json_output)
         try:
             from .engine import RunState
             state = RunState.load(run_id, project_root)
         except FileNotFoundError:
-            console.print(f"[red]Error:[/red] Run not found: {run_id}")
+            err.print(f"[red]Error:[/red] Run not found: {run_id}")
             raise typer.Exit(1)
         except ValueError as exc:
-            console.print(f"[red]Error:[/red] {_escape_markup(str(exc))}")
+            err.print(f"[red]Error:[/red] {_escape_markup(str(exc))}")
             raise typer.Exit(1)
 
         if json_output:
@@ -1326,6 +1649,10 @@ def workflow_status(
 
         if state.current_step_id:
             console.print(f"  Current:  {state.current_step_id}")
+
+        err_msg = _failed_step_error(state)
+        if err_msg:
+            console.print(f"  [red]Error:    {_escape_markup(err_msg)}[/red]")
 
         if state.step_results:
             console.print(f"\n  [bold]Steps ({len(state.step_results)}):[/bold]")
@@ -1561,19 +1888,51 @@ def workflow_add(
     # precedence over --from so a URL that would be ignored is never fetched.
     if dev:
         dev_path = Path(source).expanduser()
-        if dev_path.is_file() and dev_path.suffix in (".yml", ".yaml"):
+        if dev_path.is_file() and dev_path.suffix.lower() in (".yml", ".yaml"):
             _validate_and_install_local(dev_path, str(dev_path))
+            return
+        if dev_path.is_file() and archive_format_from_name(str(dev_path)) is not None:
+            import tempfile
+
+            with tempfile.TemporaryDirectory(
+                prefix="speckit-workflow-archive-"
+            ) as tmpdir:
+                extracted_root = Path(tmpdir)
+                try:
+                    safe_extract_archive(dev_path, extracted_root)
+                    package_root = _workflow_package_root(extracted_root)
+                except ValueError as exc:
+                    console.print(
+                        f"[red]Error:[/red] Invalid workflow archive: "
+                        f"{_escape_markup(str(exc))}"
+                    )
+                    raise typer.Exit(1)
+                _install_workflow_package(
+                    project_root,
+                    workflows_dir,
+                    package_root,
+                    str(dev_path),
+                )
             return
         if dev_path.is_dir():
             dev_wf_file = dev_path / "workflow.yml"
             if not dev_wf_file.is_file():
                 console.print(f"[red]Error:[/red] No workflow.yml found in {_escape_markup(source)}")
                 raise typer.Exit(1)
-            _validate_and_install_local(dev_wf_file, str(dev_path))
+            if _workflow_package_has_companions(dev_path):
+                _install_workflow_package(
+                    project_root,
+                    workflows_dir,
+                    dev_path,
+                    str(dev_path),
+                )
+            else:
+                _validate_and_install_local(dev_wf_file, str(dev_path))
             return
         console.print(
-            "[red]Error:[/red] --dev source must be a workflow YAML file or a "
-            f"directory containing workflow.yml: {_escape_markup(source)}"
+            "[red]Error:[/red] --dev source must be a workflow YAML file, "
+            "supported archive, or directory containing workflow.yml: "
+            f"{_escape_markup(source)}"
         )
         raise typer.Exit(1)
 
@@ -1585,24 +1944,15 @@ def workflow_add(
         else (source if source.startswith(("http://", "https://")) else None)
     )
     if download_url is not None:
-        from ipaddress import ip_address
         from urllib.parse import urlparse
         from specify_cli.authentication.http import open_url as _open_url
 
         try:
-            parsed_src = urlparse(download_url)
+            urlparse(download_url).port
         except ValueError:
             console.print(f"[red]Error:[/red] Invalid URL: {_escape_markup(download_url)}")
             raise typer.Exit(1)
-        src_host = parsed_src.hostname or ""
-        src_loopback = src_host == "localhost"
-        if not src_loopback:
-            try:
-                src_loopback = ip_address(src_host).is_loopback
-            except ValueError:
-                # Host is not an IP literal (e.g., a DNS name); keep default non-loopback.
-                pass
-        if parsed_src.scheme != "https" and not (parsed_src.scheme == "http" and src_loopback):
+        if not is_https_or_localhost_http(download_url):
             console.print("[red]Error:[/red] Only HTTPS URLs are allowed, except HTTP for localhost.")
             raise typer.Exit(1)
 
@@ -1645,6 +1995,7 @@ def workflow_add(
 
         import tempfile
         tmp_path: Path | None = None
+        downloaded_archive_format = None
         try:
             with _open_url(
                 download_url,
@@ -1653,27 +2004,53 @@ def workflow_add(
                 redirect_validator=_reject_insecure_download_redirect,
             ) as resp:
                 final_url = resp.geturl()
-                final_parsed = urlparse(final_url)
-                final_host = final_parsed.hostname or ""
-                final_lb = final_host == "localhost"
-                if not final_lb:
-                    try:
-                        final_lb = ip_address(final_host).is_loopback
-                    except ValueError:
-                        # Redirect host is not an IP literal; keep loopback as determined above.
-                        pass
-                if final_parsed.scheme != "https" and not (final_parsed.scheme == "http" and final_lb):
+                if not is_https_or_localhost_http(final_url):
                     console.print(
                         f"[red]Error:[/red] URL redirected to non-HTTPS: {_escape_markup(final_url)}"
                     )
                     raise typer.Exit(1)
-                with tempfile.NamedTemporaryFile(suffix=".yml", delete=False) as tmp:
+                content_type = (
+                    resp.getheader("Content-Type")
+                    if hasattr(resp, "getheader")
+                    else None
+                )
+                downloaded_archive_format = (
+                    archive_format_from_name(final_url)
+                    or archive_format_from_name(download_url)
+                    or archive_format_from_content_type(content_type)
+                )
+                declared_yaml = _workflow_yaml_is_declared(final_url, content_type)
+                suffix = (
+                    archive_suffix(downloaded_archive_format)
+                    if downloaded_archive_format is not None
+                    else ".yml" if declared_yaml else ".download"
+                )
+                with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                     # Assign tmp_path immediately: NamedTemporaryFile(delete=False)
                     # creates the file on disk right away, before any bytes are
                     # written, so a failure in the size-limited read below must
                     # still be able to find and remove it.
                     tmp_path = Path(tmp.name)
-                    tmp.write(_read_response_within_limit(resp))
+                    if downloaded_archive_format is not None:
+                        downloaded_content = read_response_limited(
+                            resp,
+                            error_type=ValueError,
+                            label="workflow archive download",
+                        )
+                    elif declared_yaml:
+                        downloaded_content = _read_response_within_limit(resp)
+                    else:
+                        downloaded_content = read_response_limited(
+                            resp,
+                            error_type=ValueError,
+                            label="workflow download",
+                        )
+                        downloaded_archive_format = (
+                            _sniff_workflow_archive_format(downloaded_content)
+                        )
+                        if downloaded_archive_format is None:
+                            _enforce_workflow_yaml_size(downloaded_content)
+                    tmp.write(downloaded_content)
         except typer.Exit:
             raise
         except Exception as exc:
@@ -1687,19 +2064,44 @@ def workflow_add(
                 except OSError as cleanup_exc:
                     console.print(
                         "[yellow]Warning:[/yellow] Could not remove temporary "
-                        f"download file {_escape_markup(str(tmp_path))}: "
-                        f"{_escape_markup(str(cleanup_exc))}"
+                        f"workflow download file: {_escape_markup(str(cleanup_exc))} "
+                        f"(path: {_escape_markup(str(tmp_path))})"
                     )
             console.print(f"[red]Error:[/red] Failed to download workflow: {_escape_markup(str(exc))}")
             raise typer.Exit(1)
         try:
-            # When installed via --from, the positional argument names the
-            # workflow the user expects — enforce it like the catalog branch.
-            _validate_and_install_local(
-                tmp_path,
-                download_url,
-                expected_id=source if from_url else None,
-            )
+            if downloaded_archive_format is None:
+                _validate_and_install_local(
+                    tmp_path,
+                    download_url,
+                    expected_id=source if from_url else None,
+                )
+            else:
+                with tempfile.TemporaryDirectory(
+                    prefix="speckit-workflow-archive-"
+                ) as extract_dir:
+                    extracted_root = Path(extract_dir)
+                    try:
+                        safe_extract_archive(
+                            tmp_path,
+                            extracted_root,
+                            source_name=final_url,
+                            content_type=content_type,
+                        )
+                        package_root = _workflow_package_root(extracted_root)
+                    except ValueError as exc:
+                        console.print(
+                            f"[red]Error:[/red] Invalid workflow archive: "
+                            f"{_escape_markup(str(exc))}"
+                        )
+                        raise typer.Exit(1)
+                    _install_workflow_package(
+                        project_root,
+                        workflows_dir,
+                        package_root,
+                        download_url,
+                        expected_id=source if from_url else None,
+                    )
         finally:
             # Best-effort: _validate_and_install_local may already have
             # committed the file + registry entry (success) or already
@@ -1712,23 +2114,57 @@ def workflow_add(
             except OSError as exc:
                 console.print(
                     "[yellow]Warning:[/yellow] Could not remove temporary "
-                    f"download file {_escape_markup(str(tmp_path))}: "
-                    f"{_escape_markup(str(exc))}"
+                    f"workflow download file: {_escape_markup(str(exc))} "
+                    f"(path: {_escape_markup(str(tmp_path))})"
                 )
         return
 
     # Try as a local file/directory
     source_path = Path(source)
     if source_path.exists():
-        if source_path.is_file() and source_path.suffix in (".yml", ".yaml"):
+        if source_path.is_file() and source_path.suffix.lower() in (".yml", ".yaml"):
             _validate_and_install_local(source_path, str(source_path))
+            return
+        elif (
+            source_path.is_file()
+            and archive_format_from_name(str(source_path)) is not None
+        ):
+            import tempfile
+
+            with tempfile.TemporaryDirectory(
+                prefix="speckit-workflow-archive-"
+            ) as tmpdir:
+                extracted_root = Path(tmpdir)
+                try:
+                    safe_extract_archive(source_path, extracted_root)
+                    package_root = _workflow_package_root(extracted_root)
+                except ValueError as exc:
+                    console.print(
+                        f"[red]Error:[/red] Invalid workflow archive: "
+                        f"{_escape_markup(str(exc))}"
+                    )
+                    raise typer.Exit(1)
+                _install_workflow_package(
+                    project_root,
+                    workflows_dir,
+                    package_root,
+                    str(source_path),
+                )
             return
         elif source_path.is_dir():
             wf_file = source_path / "workflow.yml"
             if not wf_file.is_file():
                 console.print(f"[red]Error:[/red] No workflow.yml found in {_escape_markup(source)}")
                 raise typer.Exit(1)
-            _validate_and_install_local(wf_file, str(source_path))
+            if _workflow_package_has_companions(source_path):
+                _install_workflow_package(
+                    project_root,
+                    workflows_dir,
+                    source_path,
+                    str(source_path),
+                )
+            else:
+                _validate_and_install_local(wf_file, str(source_path))
             return
 
     # Try from catalog
@@ -1794,27 +2230,17 @@ def _install_workflow_from_catalog(
         raise typer.Exit(1)
 
     # Validate URL scheme (HTTPS required, HTTP allowed for localhost only)
-    from ipaddress import ip_address
     from urllib.parse import urlparse
 
     try:
         parsed_url = urlparse(workflow_url)
-        url_host = parsed_url.hostname or ""
+        parsed_url.port
     except ValueError:
         console.print(
             f"[red]Error:[/red] Workflow '{safe_wf_id}' has a malformed install URL."
         )
         raise typer.Exit(1)
-    is_loopback = False
-    if url_host == "localhost":
-        is_loopback = True
-    else:
-        try:
-            is_loopback = ip_address(url_host).is_loopback
-        except ValueError:
-            # Host is not an IP literal (e.g., a regular hostname); treat as non-loopback.
-            pass
-    if parsed_url.scheme != "https" and not (parsed_url.scheme == "http" and is_loopback):
+    if not is_https_or_localhost_http(workflow_url):
         console.print(
             f"[red]Error:[/red] Workflow '{safe_wf_id}' has an invalid install URL. "
             "Only HTTPS URLs are allowed, except HTTP for localhost/loopback."
@@ -1843,6 +2269,9 @@ def _install_workflow_from_catalog(
         )
         raise typer.Exit(1)
 
+    original_workflow_url = workflow_url
+    downloaded_archive_format = None
+    archive_content_type = None
     try:
         from specify_cli.authentication.http import open_url as _open_url
         from specify_cli.authentication.http import github_provider_hosts as _github_provider_hosts
@@ -1868,25 +2297,44 @@ def _install_workflow_from_catalog(
         ) as response:
             # Validate final URL after redirects
             final_url = response.geturl()
-            final_parsed = urlparse(final_url)
-            final_host = final_parsed.hostname or ""
-            final_loopback = final_host == "localhost"
-            if not final_loopback:
-                try:
-                    final_loopback = ip_address(final_host).is_loopback
-                except ValueError:
-                    # Host is not an IP literal (e.g., a regular hostname); treat as non-loopback.
-                    pass
-            if final_parsed.scheme != "https" and not (final_parsed.scheme == "http" and final_loopback):
+            if not is_https_or_localhost_http(final_url):
                 _safe_discard_staged_workflow_file(staged_file, workflow_dir, existed_before)
                 console.print(
                     f"[red]Error:[/red] Workflow '{safe_wf_id}' redirected to non-HTTPS URL: {_escape_markup(final_url)}"
                 )
                 raise typer.Exit(1)
+            archive_content_type = (
+                response.getheader("Content-Type")
+                if hasattr(response, "getheader")
+                else None
+            )
+            downloaded_archive_format = (
+                archive_format_from_name(final_url)
+                or archive_format_from_name(original_workflow_url)
+                or archive_format_from_content_type(archive_content_type)
+            )
             # Written to the staging file, never workflow_file directly, so a
             # reinstall's prior working copy is never touched until the
             # atomic commit below runs.
-            downloaded_content = _read_response_within_limit(response)
+            if downloaded_archive_format is not None:
+                downloaded_content = read_response_limited(
+                    response,
+                    error_type=ValueError,
+                    label=f"workflow '{workflow_id}' archive download",
+                )
+            elif _workflow_yaml_is_declared(final_url, archive_content_type):
+                downloaded_content = _read_response_within_limit(response)
+            else:
+                downloaded_content = read_response_limited(
+                    response,
+                    error_type=ValueError,
+                    label=f"workflow '{workflow_id}' download",
+                )
+                downloaded_archive_format = _sniff_workflow_archive_format(
+                    downloaded_content
+                )
+                if downloaded_archive_format is None:
+                    _enforce_workflow_yaml_size(downloaded_content)
             staged_file.write_bytes(downloaded_content)
     except typer.Exit:
         raise
@@ -1894,6 +2342,59 @@ def _install_workflow_from_catalog(
         _safe_discard_staged_workflow_file(staged_file, workflow_dir, existed_before)
         console.print(f"[red]Error:[/red] Failed to install workflow '{safe_wf_id}' from catalog: {_escape_markup(str(exc))}")
         raise typer.Exit(1)
+
+    if downloaded_archive_format is not None:
+        try:
+            verify_archive_sha256(
+                downloaded_content,
+                info.get("sha256"),
+                workflow_id,
+                ValueError,
+            )
+            import tempfile
+            from io import BytesIO
+
+            with tempfile.TemporaryDirectory(
+                prefix="speckit-workflow-archive-"
+            ) as extract_dir:
+                extracted_root = Path(extract_dir)
+                safe_extract_archive(
+                    staged_file.path,
+                    extracted_root,
+                    archive_file=BytesIO(downloaded_content),
+                    source_name=original_workflow_url,
+                    content_type=archive_content_type,
+                )
+                package_root = _workflow_package_root(extracted_root)
+                _safe_discard_staged_workflow_file(
+                    staged_file,
+                    workflow_dir,
+                    existed_before,
+                )
+                _install_workflow_package(
+                    project_root,
+                    workflows_dir,
+                    package_root,
+                    workflow_url,
+                    expected_id=workflow_id,
+                    expected_version=expected_version,
+                    expected_installed_version=expected_installed_version,
+                    catalog_info={**info, "url": workflow_url},
+                )
+        except typer.Exit:
+            raise
+        except (OSError, ValueError) as exc:
+            _safe_discard_staged_workflow_file(
+                staged_file,
+                workflow_dir,
+                existed_before,
+            )
+            console.print(
+                f"[red]Error:[/red] Invalid workflow archive: "
+                f"{_escape_markup(str(exc))}"
+            )
+            raise typer.Exit(1)
+        return
 
     # Validate the downloaded workflow (still staged, not yet committed)
     # before registering.
@@ -2374,7 +2875,7 @@ def workflow_search(
         if desc:
             console.print(f"    {_escape_markup(str(desc))}")
         tags = wf.get("tags", [])
-        if tags:
+        if isinstance(tags, list) and tags:
             safe_tags = _escape_markup(", ".join(str(t) for t in tags))
             console.print(f"    [dim]Tags: {safe_tags}[/dim]")
         console.print()
@@ -2403,16 +2904,30 @@ def workflow_info(
         # Local workflow definition not found on disk; fall back to
         # catalog/registry lookup below.
         pass
+    except ValueError as exc:
+        console.print(f"[red]Error:[/red] Invalid workflow: {_escape_markup(str(exc))}")
+        raise typer.Exit(1)
 
     if definition:
-        console.print(f"\n{accent(definition.name, bold=True)} ({definition.id})")
-        console.print(f"  Version:     {definition.version}")
+        # Escape every user-controlled field: workflow.yml values (name,
+        # version, author, description, integration, input names/types) are not
+        # trusted, and console.print has Rich markup enabled, so an unescaped
+        # `[...]` in any of them is parsed as a style tag and silently swallowed
+        # (same defect fixed for the step graph below; the sibling workflow_list
+        # already escapes all of these).
+        console.print(
+            f"\n{accent(_escape_markup(str(definition.name)), bold=True)} "
+            f"({_escape_markup(str(definition.id))})"
+        )
+        console.print(f"  Version:     {_escape_markup(str(definition.version))}")
         if definition.author:
-            console.print(f"  Author:      {definition.author}")
+            console.print(f"  Author:      {_escape_markup(str(definition.author))}")
         if definition.description:
-            console.print(f"  Description: {definition.description}")
+            console.print(f"  Description: {_escape_markup(str(definition.description))}")
         if definition.default_integration:
-            console.print(f"  Integration: {definition.default_integration}")
+            console.print(
+                f"  Integration: {_escape_markup(str(definition.default_integration))}"
+            )
         if installed:
             console.print(f"  {accent('Installed')}")
 
@@ -2421,13 +2936,24 @@ def workflow_info(
             for name, inp in definition.inputs.items():
                 if isinstance(inp, dict):
                     req = "required" if inp.get("required") else "optional"
-                    console.print(f"    {name} ({inp.get('type', 'string')}) — {req}")
+                    console.print(
+                        f"    {_escape_markup(str(name))} "
+                        f"({_escape_markup(str(inp.get('type', 'string')))}) — {req}"
+                    )
 
         if definition.steps:
             console.print(f"\n  [bold]Steps ({len(definition.steps)}):[/bold]")
             for step in definition.steps:
                 stype = step.get("type", "command")
-                console.print(f"    → {step.get('id', '?')} [{stype}]")
+                # Escape the literal bracket (\[) so Rich renders `[<type>]`
+                # instead of parsing it as a style tag named after the step
+                # type (which it silently swallows); escape id/type too, as
+                # the sibling workflow_list does. Mirrors the `\[disabled]`
+                # precedent above.
+                console.print(
+                    f"    → {_escape_markup(str(step.get('id', '?')))} "
+                    f"\\[{_escape_markup(str(stype))}]"
+                )
         return
 
     # Try catalog
@@ -2438,15 +2964,24 @@ def workflow_info(
         info = None
 
     if info:
-        console.print(f"\n{accent(info.get('name', workflow_id), bold=True)} ({workflow_id})")
-        console.print(f"  Version:     {info.get('version', '?')}")
+        # Catalog-derived fields are untrusted; escape them so bracketed content
+        # is rendered literally rather than parsed (and swallowed) as Rich markup.
+        console.print(
+            f"\n{accent(_escape_markup(str(info.get('name', workflow_id))), bold=True)} "
+            f"({_escape_markup(str(workflow_id))})"
+        )
+        console.print(f"  Version:     {_escape_markup(str(info.get('version', '?')))}")
         if info.get("description"):
-            console.print(f"  Description: {info['description']}")
-        if info.get("tags"):
-            console.print(f"  Tags:        {', '.join(info['tags'])}")
+            console.print(f"  Description: {_escape_markup(str(info['description']))}")
+        info_tags = info.get("tags", [])
+        if isinstance(info_tags, list) and info_tags:
+            safe_tags = _escape_markup(", ".join(str(t) for t in info_tags))
+            console.print(f"  Tags:        {safe_tags}")
         console.print("  [yellow]Not installed[/yellow]")
     else:
-        console.print(f"[red]Error:[/red] Workflow '{workflow_id}' not found")
+        console.print(
+            f"[red]Error:[/red] Workflow '{_escape_markup(str(workflow_id))}' not found"
+        )
         raise typer.Exit(1)
 
 
@@ -2467,10 +3002,10 @@ def workflow_catalog_list():
     console.print(f"\n{accent('Workflow Catalog Sources:', bold=True)}\n")
     for i, cfg in enumerate(configs):
         install_status = accent('install allowed') if cfg["install_allowed"] else "[yellow]discovery only[/yellow]"
-        console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")
-        console.print(f"      {cfg['url']}")
+        console.print(f"  [{i}] [bold]{_escape_markup(str(cfg['name']))}[/bold] — {install_status}")
+        console.print(f"      {_escape_markup(str(cfg['url']))}")
         if cfg.get("description"):
-            console.print(f"      [dim]{cfg['description']}[/dim]")
+            console.print(f"      [dim]{_escape_markup(str(cfg['description']))}[/dim]")
         console.print()
 
 
@@ -2541,9 +3076,10 @@ def workflow_step_list():
         console.print("  [bold]Custom (installed):[/bold]")
         for key in sorted(installed):
             meta = installed[key] or {}
-            name = meta.get("name", key)
-            version = meta.get("version", "?")
-            console.print(f"    • [bold]{name}[/bold] ({key}) v{version}")
+            name = _escape_markup(str(meta.get("name", key)))
+            safe_key = _escape_markup(str(key))
+            version = _escape_markup(str(meta.get("version", "?")))
+            console.print(f"    • [bold]{name}[/bold] ({safe_key}) v{version}")
         console.print()
 
     if not built_in and not installed:
@@ -2678,14 +3214,39 @@ def workflow_step_add(
         )
         raise typer.Exit(1)
 
-    step_yml_url = info.get("step_yml_url") or info.get("url")
-    if not step_yml_url:
+    declared_step_yml_url = info.get("step_yml_url")
+    if declared_step_yml_url is not None and not isinstance(
+        declared_step_yml_url, str
+    ):
+        console.print(
+            f"[red]Error:[/red] Catalog entry for '{step_id}' has a malformed "
+            "step.yml URL; expected a non-empty string"
+        )
+        raise typer.Exit(1)
+    step_yml_url = declared_step_yml_url or info.get("url")
+    if step_yml_url is None or (
+        isinstance(step_yml_url, str) and not step_yml_url.strip()
+    ):
         console.print(f"[red]Error:[/red] Catalog entry for '{step_id}' has no URL")
+        raise typer.Exit(1)
+    if not isinstance(step_yml_url, str):
+        console.print(
+            f"[red]Error:[/red] Catalog entry for '{step_id}' has a malformed "
+            "step.yml URL; expected a non-empty string"
+        )
         raise typer.Exit(1)
 
     # Derive __init__.py URL: replace trailing step.yml with __init__.py
     # or use explicit init_url if provided.
     init_url = info.get("init_url")
+    if init_url is not None and (
+        not isinstance(init_url, str) or not init_url.strip()
+    ):
+        console.print(
+            f"[red]Error:[/red] Catalog entry for '{step_id}' has a malformed "
+            "__init__.py URL; expected a non-empty string"
+        )
+        raise typer.Exit(1)
     if not init_url:
         if step_yml_url.endswith("step.yml"):
             init_url = step_yml_url[: -len("step.yml")] + "__init__.py"
@@ -2696,28 +3257,52 @@ def workflow_step_add(
             )
             raise typer.Exit(1)
 
-    from urllib.parse import urlparse
+    # Preflight the declared file count before creating a staging directory or
+    # issuing any request. The two required files are always part of the package;
+    # duplicate declarations for them in extra_files are ignored below and do
+    # not count twice.
+    extra_files = info.get("extra_files")
+    if extra_files is not None and not isinstance(extra_files, dict):
+        console.print(
+            "[yellow]Warning:[/yellow] Catalog entry 'extra_files' is not a mapping; "
+            "additional package files will not be downloaded."
+        )
+        extra_files = {}
+
+    def _is_required_package_file(rel_path: object) -> bool:
+        """Match portable path/case aliases of the two required package files."""
+        if not isinstance(rel_path, str):
+            return False
+        parts = PurePosixPath(rel_path.replace("\\", "/")).parts
+        return len(parts) == 1 and parts[0].casefold() in {
+            "step.yml",
+            "__init__.py",
+        }
+
+    declared_extra_count = sum(
+        1
+        for rel_path in (extra_files or {})
+        if not _is_required_package_file(rel_path)
+    )
+    package_file_count = 2 + declared_extra_count
+    if package_file_count > _MAX_STEP_PACKAGE_FILES:
+        console.print(
+            f"[red]Error:[/red] Step package declares {package_file_count} files, "
+            f"exceeding the {_MAX_STEP_PACKAGE_FILES}-file limit"
+        )
+        raise typer.Exit(1)
+
     from specify_cli.authentication.http import open_url as _open_url
 
     def _safe_fetch(url: str) -> bytes:
-        parsed = urlparse(url)
-        is_localhost = parsed.hostname in ("localhost", "127.0.0.1", "::1")
-        if parsed.scheme != "https" and not (parsed.scheme == "http" and is_localhost):
+        if not is_https_or_localhost_http(url):
             raise ValueError(f"Refusing to fetch from non-HTTPS URL: {url}")
-        if not parsed.hostname:
-            raise ValueError(f"Refusing to fetch from URL with no hostname: {url}")
         with _open_url(
             url, timeout=30, redirect_validator=_reject_insecure_download_redirect
         ) as resp:
             final_url = resp.geturl()
-            final_parsed = urlparse(final_url)
-            final_is_localhost = final_parsed.hostname in ("localhost", "127.0.0.1", "::1")
-            if final_parsed.scheme != "https" and not (
-                final_parsed.scheme == "http" and final_is_localhost
-            ):
+            if not is_https_or_localhost_http(final_url):
                 raise ValueError(f"Redirect to non-HTTPS URL: {final_url}")
-            if not final_parsed.hostname:
-                raise ValueError(f"Redirect to URL with no hostname: {final_url}")
             return _read_response_within_limit(resp)
 
     _validate_step_id_or_exit(step_id)
@@ -2761,6 +3346,14 @@ def workflow_step_add(
             init_py_content = _safe_fetch(init_url)
         except Exception as exc:
             console.print(f"[red]Error:[/red] Failed to download step files: {exc}")
+            raise typer.Exit(1)
+
+        package_bytes = len(step_yml_content) + len(init_py_content)
+        if package_bytes > _MAX_STEP_PACKAGE_BYTES:
+            console.print(
+                f"[red]Error:[/red] Step package exceeds the "
+                f"{_MAX_STEP_PACKAGE_BYTES}-byte total size limit"
+            )
             raise typer.Exit(1)
 
         # Validate step.yml
@@ -2807,13 +3400,6 @@ def workflow_step_add(
         # relative-path → URL. step.yml and __init__.py are ignored here (already
         # written). Paths are validated to stay within the step package directory to
         # prevent path-traversal attacks.
-        extra_files = info.get("extra_files")
-        if extra_files is not None and not isinstance(extra_files, dict):
-            console.print(
-                "[yellow]Warning:[/yellow] Catalog entry 'extra_files' is not a mapping; "
-                "additional package files will not be downloaded."
-            )
-            extra_files = {}
         for rel_path, file_url in (extra_files or {}).items():
             if not isinstance(rel_path, str) or not rel_path.strip():
                 console.print(
@@ -2821,7 +3407,7 @@ def workflow_step_add(
                     "empty or non-string path key"
                 )
                 raise typer.Exit(1)
-            if rel_path in ("step.yml", "__init__.py"):
+            if _is_required_package_file(rel_path):
                 continue  # already written above
             # Reject dot-path segments ('', '.', '..') that would refer to the
             # package directory itself (IsADirectoryError) or escape it.
@@ -2855,6 +3441,13 @@ def workflow_step_add(
             except Exception as exc:
                 console.print(
                     f"[red]Error:[/red] Failed to download extra file '{rel_path}': {exc}"
+                )
+                raise typer.Exit(1)
+            package_bytes += len(file_content)
+            if package_bytes > _MAX_STEP_PACKAGE_BYTES:
+                console.print(
+                    f"[red]Error:[/red] Step package exceeds the "
+                    f"{_MAX_STEP_PACKAGE_BYTES}-byte total size limit"
                 )
                 raise typer.Exit(1)
             try:
@@ -3029,13 +3622,15 @@ def workflow_step_search(
         install_note = (
             "" if step.get("_install_allowed", True) else " [dim](discovery only)[/dim]"
         )
+        name = _escape_markup(str(step.get("name", step.get("id", "?"))))
+        step_id = _escape_markup(str(step.get("id", "?")))
+        version = _escape_markup(str(step.get("version", "?")))
         console.print(
-            f"  [bold]{step.get('name', step.get('id', '?'))}[/bold]"
-            f" ({step.get('id', '?')}) v{step.get('version', '?')}{install_note}"
+            f"  [bold]{name}[/bold] ({step_id}) v{version}{install_note}"
         )
         desc = step.get("description", "")
         if desc:
-            console.print(f"    {desc}")
+            console.print(f"    {_escape_markup(str(desc))}")
         console.print()
 
 
@@ -3048,6 +3643,7 @@ def workflow_step_info(
     from .catalog import StepCatalog, StepCatalogError, StepRegistry
 
     project_root = _require_specify_project()
+    safe_step_id = _escape_markup(str(step_id))
 
     registry = StepRegistry(project_root)
     installed_meta = registry.get(step_id)
@@ -3057,20 +3653,27 @@ def workflow_step_info(
     is_builtin = builtin_step is not None and not installed_meta
 
     if is_builtin:
-        console.print(f"\n{accent(step_id, bold=True)} [dim](built-in)[/dim]")
-        console.print(f"  Type key: {step_id}")
+        console.print(f"\n{accent(safe_step_id, bold=True)} [dim](built-in)[/dim]")
+        console.print(f"  Type key: {safe_step_id}")
         console.print(f"  {accent('Built-in step type')}")
         return
 
     if installed_meta:
+        name = _escape_markup(str(installed_meta.get("name", step_id)))
+        version = _escape_markup(str(installed_meta.get("version", "?")))
         console.print(
-            f"\n{accent(installed_meta.get('name', step_id), bold=True)} ({step_id})"
+            f"\n{accent(name, bold=True)} ({safe_step_id})"
         )
-        console.print(f"  Version:     {installed_meta.get('version', '?')}")
+        console.print(f"  Version:     {version}")
         if installed_meta.get("author"):
-            console.print(f"  Author:      {installed_meta['author']}")
+            console.print(
+                f"  Author:      {_escape_markup(str(installed_meta['author']))}"
+            )
         if installed_meta.get("description"):
-            console.print(f"  Description: {installed_meta['description']}")
+            console.print(
+                f"  Description: "
+                f"{_escape_markup(str(installed_meta['description']))}"
+            )
         console.print(f"  {accent('Installed')}")
         return
 
@@ -3082,20 +3685,24 @@ def workflow_step_info(
         info = None
 
     if info:
+        name = _escape_markup(str(info.get("name", step_id)))
+        version = _escape_markup(str(info.get("version", "?")))
         console.print(
-            f"\n{accent(info.get('name', step_id), bold=True)} ({step_id})"
+            f"\n{accent(name, bold=True)} ({safe_step_id})"
         )
-        console.print(f"  Version:     {info.get('version', '?')}")
+        console.print(f"  Version:     {version}")
         if info.get("author"):
-            console.print(f"  Author:      {info['author']}")
+            console.print(f"  Author:      {_escape_markup(str(info['author']))}")
         if info.get("description"):
-            console.print(f"  Description: {info['description']}")
+            console.print(
+                f"  Description: {_escape_markup(str(info['description']))}"
+            )
         console.print("  [yellow]Not installed[/yellow]")
         console.print(
-            f"\n  Install with: {accent(f'specify workflow step add {step_id}')}"
+            f"\n  Install with: {accent(f'specify workflow step add {safe_step_id}')}"
         )
     else:
-        console.print(f"[red]Error:[/red] Step type '{step_id}' not found")
+        console.print(f"[red]Error:[/red] Step type '{safe_step_id}' not found")
         raise typer.Exit(1)
 
 
@@ -3120,10 +3727,10 @@ def workflow_step_catalog_list():
             if cfg["install_allowed"]
             else "[yellow]discovery only[/yellow]"
         )
-        console.print(f"  [{i}] [bold]{cfg['name']}[/bold] — {install_status}")
-        console.print(f"      {cfg['url']}")
+        console.print(f"  [{i}] [bold]{_escape_markup(str(cfg['name']))}[/bold] — {install_status}")
+        console.print(f"      {_escape_markup(str(cfg['url']))}")
         if cfg.get("description"):
-            console.print(f"      [dim]{cfg['description']}[/dim]")
+            console.print(f"      [dim]{_escape_markup(str(cfg['description']))}[/dim]")
         console.print()
 
 
@@ -3166,6 +3773,102 @@ def workflow_step_catalog_remove(
         raise typer.Exit(1)
 
     console.print(f"{accent('✓')} Step catalog source '{removed_name}' removed")
+
+
+@workflow_overlay_app.command("add")
+def workflow_overlay_add_cmd(
+    source: Path = typer.Argument(..., help="Path to overlay YAML file"),
+    priority: int = typer.Option(
+        10,
+        "--priority",
+        help="Resolution priority (lower = higher precedence, default 10)",
+    ),
+):
+    """Add a project-local overlay for a workflow."""
+    from .overlays._commands import workflow_overlay_add
+
+    project_root = _require_specify_project()
+    if workflow_overlay_add(project_root, source, priority) is None:
+        raise typer.Exit(1)
+
+
+@workflow_overlay_app.command("set-priority")
+def workflow_overlay_set_priority_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID the overlay extends"),
+    overlay_id: str = typer.Argument(..., help="Overlay ID"),
+    priority: int = typer.Argument(
+        ..., help="New priority (lower = higher precedence)"
+    ),
+):
+    """Set the priority of a project-local overlay."""
+    from .overlays._commands import workflow_overlay_set_priority
+
+    project_root = _require_specify_project()
+    if not workflow_overlay_set_priority(project_root, workflow_id, overlay_id, priority):
+        raise typer.Exit(1)
+
+
+@workflow_overlay_app.command("enable")
+def workflow_overlay_enable_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID the overlay extends"),
+    overlay_id: str = typer.Argument(..., help="Overlay ID"),
+):
+    """Enable a project-local overlay."""
+    from .overlays._commands import workflow_overlay_enable
+
+    project_root = _require_specify_project()
+    if not workflow_overlay_enable(project_root, workflow_id, overlay_id):
+        raise typer.Exit(1)
+
+
+@workflow_overlay_app.command("disable")
+def workflow_overlay_disable_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID the overlay extends"),
+    overlay_id: str = typer.Argument(..., help="Overlay ID"),
+):
+    """Disable a project-local overlay."""
+    from .overlays._commands import workflow_overlay_disable
+
+    project_root = _require_specify_project()
+    if not workflow_overlay_disable(project_root, workflow_id, overlay_id):
+        raise typer.Exit(1)
+
+
+@workflow_overlay_app.command("remove")
+def workflow_overlay_remove_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID the overlay extends"),
+    overlay_id: str = typer.Argument(..., help="Overlay ID"),
+):
+    """Remove a project-local overlay."""
+    from .overlays._commands import workflow_overlay_remove
+
+    project_root = _require_specify_project()
+    if not workflow_overlay_remove(project_root, workflow_id, overlay_id):
+        raise typer.Exit(1)
+
+
+@workflow_overlay_app.command("list")
+def workflow_overlay_list_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID"),
+):
+    """List overlays for a workflow."""
+    from .overlays._commands import workflow_overlay_list
+
+    project_root = _require_specify_project()
+    if workflow_overlay_list(project_root, workflow_id) is None:
+        raise typer.Exit(1)
+
+
+@workflow_app.command("resolve")
+def workflow_resolve_cmd(
+    workflow_id: str = typer.Argument(..., help="Workflow ID to resolve"),
+):
+    """Show layer attribution for a resolved workflow."""
+    from .overlays._commands import workflow_resolve
+
+    project_root = _require_specify_project()
+    if workflow_resolve(project_root, workflow_id) is None:
+        raise typer.Exit(1)
 
 
 def register(app: typer.Typer) -> None:

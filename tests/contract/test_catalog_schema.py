@@ -5,6 +5,8 @@ built-in, install policy gating, payload parsing.
 """
 from __future__ import annotations
 
+import json
+import tomllib
 from pathlib import Path
 
 import yaml
@@ -37,7 +39,116 @@ def test_builtin_default_stack_when_no_config(tmp_path: Path):
     assert ids == ["default", "community"]
     assert sources[0].install_policy is InstallPolicy.INSTALL_ALLOWED
     assert sources[1].install_policy is InstallPolicy.DISCOVERY_ONLY
+    assert sources[1].priority == 20
     assert all(s.scope is Scope.BUILTIN for s in sources)
+
+
+def test_non_list_catalogs_raises_actionable_error(tmp_path: Path):
+    """A scalar ``catalogs:`` value raises a clean BundlerError, not a raw
+    'int object is not iterable' TypeError — matching what the sibling reader
+    (bundle catalog list) already reports for the same file."""
+    make_project(tmp_path)
+    (tmp_path / ".specify" / "bundle-catalogs.yml").write_text(
+        "catalogs: 5\n", encoding="utf-8"
+    )
+    with pytest.raises(BundlerError, match="must be a list"):
+        load_source_stack(tmp_path)
+
+
+@pytest.mark.parametrize("value", ["false", "0", "''", "{}"])
+def test_falsy_non_list_catalogs_still_raises(tmp_path: Path, value: str):
+    """A *falsy* non-list ``catalogs:`` value (false/0/''/{}) must also raise —
+    only an absent/``None`` value means "nothing to merge". A plain falsy check
+    would silently swallow these, diverging from the sibling reader."""
+    make_project(tmp_path)
+    (tmp_path / ".specify" / "bundle-catalogs.yml").write_text(
+        f"catalogs: {value}\n", encoding="utf-8"
+    )
+    with pytest.raises(BundlerError, match="must be a list"):
+        load_source_stack(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "- a\n- b\n",  # truthy list
+        "42\n",        # truthy scalar
+        "[]\n",        # falsy list
+        "false\n",     # falsy bool
+        "0\n",         # falsy int
+        "''\n",        # falsy empty string
+        "null\n",      # explicit null scalar (safe_load -> None, but a real node)
+        "~\n",         # explicit null scalar (alt spelling)
+    ],
+)
+def test_toplevel_non_mapping_raises(tmp_path: Path, body: str):
+    """A top-level non-mapping bundle-catalogs.yml (list/scalar/null) must raise,
+    matching the sibling reader (catalog_config._read) — not silently fall back
+    to the built-in default stack. This includes FALSY non-mappings ([], false,
+    0, '') and an explicit null (null/~); the shared load_yaml would coerce those
+    to {} and hide them, so it distinguishes them from a truly empty document."""
+    make_project(tmp_path)
+    (tmp_path / ".specify" / "bundle-catalogs.yml").write_text(body, encoding="utf-8")
+    with pytest.raises(BundlerError, match="expected a mapping at the top level"):
+        load_source_stack(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "catalogs:\n",       # present key, null value
+        "catalogs: []\n",    # present key, empty list
+        "",                  # truly empty document
+        "# only a comment\n",  # comment-only == empty document
+    ],
+)
+def test_absent_or_empty_catalogs_is_noop(tmp_path: Path, body: str):
+    """An empty document, comment-only file, or absent/empty-list ``catalogs:``
+    is valid: it contributes no project sources and falls back to the built-in
+    default stack (must not be confused with an explicit top-level null)."""
+    make_project(tmp_path)
+    (tmp_path / ".specify" / "bundle-catalogs.yml").write_text(body, encoding="utf-8")
+    # Does not raise; still yields the built-in defaults.
+    sources = load_source_stack(tmp_path)
+    assert len(sources) > 0
+
+
+def test_load_source_stack_rejects_unknown_schema_version(tmp_path: Path):
+    """A bundle-catalogs.yml with an unsupported MAJOR schema_version must raise
+    on the resolution path (load_source_stack -> _merge_config), matching the
+    sibling reader commands_impl/catalog_config._read. Without this a file
+    written by a newer/incompatible Spec Kit was silently parsed under v1
+    assumptions on the install/search path, while the other reader rejected it."""
+    make_project(tmp_path)
+    config = {
+        "schema_version": "2.0",
+        "catalogs": [{"id": "corp", "url": "https://corp/catalog.json",
+                      "priority": 1, "install_policy": "install-allowed"}],
+    }
+    (tmp_path / ".specify" / "bundle-catalogs.yml").write_text(
+        yaml.safe_dump(config), encoding="utf-8"
+    )
+    with pytest.raises(BundlerError, match="Unsupported catalog config schema version"):
+        load_source_stack(tmp_path)
+
+
+def test_load_source_stack_accepts_matching_or_absent_schema_version(tmp_path: Path):
+    """A matching major version (1.x) and an absent schema_version both stay
+    valid — the guard rejects only a different major, so existing configs that
+    omit the key are unaffected."""
+    make_project(tmp_path)
+    cfg = tmp_path / ".specify" / "bundle-catalogs.yml"
+    cfg.write_text(yaml.safe_dump({
+        "schema_version": "1.5",  # same major as CONFIG_SCHEMA_VERSION (1.0)
+        "catalogs": [{"id": "corp", "url": "https://corp/catalog.json",
+                      "priority": 1, "install_policy": "install-allowed"}],
+    }), encoding="utf-8")
+    assert "corp" in {s.id for s in load_source_stack(tmp_path)}
+    cfg.write_text(yaml.safe_dump({  # no schema_version key
+        "catalogs": [{"id": "corp2", "url": "https://corp2/catalog.json",
+                      "priority": 1, "install_policy": "install-allowed"}],
+    }), encoding="utf-8")
+    assert "corp2" in {s.id for s in load_source_stack(tmp_path)}
 
 
 def test_project_config_overrides_same_id(tmp_path: Path):
@@ -95,6 +206,29 @@ def test_builtin_default_stack_constant_shape():
     assert ids == {"default", "community"}
 
 
+def test_repository_community_bundle_catalog_matches_contract():
+    catalog_path = Path(__file__).parents[2] / "bundles" / "catalog.community.json"
+    payload = json.loads(catalog_path.read_text(encoding="utf-8"))
+
+    assert payload["schema_version"] == "1.0"
+    assert payload["catalog_url"].endswith("/bundles/catalog.community.json")
+    entries = load_catalog_payload(payload)
+    assert all(entry.verified is False for entry in entries.values())
+
+
+def test_wheel_packages_community_bundle_catalog():
+    repo_root = Path(__file__).parents[2]
+    with (repo_root / "pyproject.toml").open("rb") as pyproject_file:
+        pyproject = tomllib.load(pyproject_file)
+
+    force_include = pyproject["tool"]["hatch"]["build"]["targets"]["wheel"][
+        "force-include"
+    ]
+    assert force_include["bundles/catalog.community.json"] == (
+        "specify_cli/core_pack/bundles/catalog.community.json"
+    )
+
+
 def test_catalog_entry_rejects_string_tags():
     from specify_cli.bundler.models.catalog import CatalogEntry
 
@@ -111,6 +245,25 @@ def test_catalog_entry_rejects_non_boolean_verified():
     data["verified"] = "false"  # truthy string must not mark the entry verified
     with pytest.raises(BundlerError, match="'verified' must be a boolean"):
         CatalogEntry.from_dict(data)
+
+
+def test_catalog_entry_preserves_sha256_through_provenance():
+    digest = "a" * 64
+    payload = catalog_payload(
+        {"demo": catalog_entry_dict("demo", sha256=f"sha256:{digest}")}
+    )
+
+    entry = load_catalog_payload(payload)["demo"]
+    source = CatalogSource(
+        id="team",
+        url="https://example.com/catalog.json",
+        priority=10,
+        install_policy=InstallPolicy.INSTALL_ALLOWED,
+        scope=Scope.PROJECT,
+    )
+
+    assert entry.sha256 == f"sha256:{digest}"
+    assert entry.with_provenance(source).sha256 == f"sha256:{digest}"
 
 
 def test_load_payload_rejects_id_key_mismatch():
@@ -144,4 +297,18 @@ def test_catalog_entry_rejects_non_mapping_provides():
     data = catalog_entry_dict("demo")
     data["provides"] = "extensions"
     with pytest.raises(BundlerError, match="'provides' must be a mapping"):
+        CatalogEntry.from_dict(data)
+
+
+@pytest.mark.parametrize("field", ["requires", "provides"])
+@pytest.mark.parametrize("bad", [[], "", 0, False])
+def test_catalog_entry_rejects_falsy_non_mapping(field, bad):
+    # `or {}` coerced a FALSY non-mapping ([], '', 0, False) to {} before the
+    # isinstance guard, silently accepting a corrupt entry; only absent/None
+    # means "not present". Mirrors the manifest requires/provides guard.
+    from specify_cli.bundler.models.catalog import CatalogEntry
+
+    data = catalog_entry_dict("demo")
+    data[field] = bad
+    with pytest.raises(BundlerError, match=f"'{field}' must be a mapping"):
         CatalogEntry.from_dict(data)

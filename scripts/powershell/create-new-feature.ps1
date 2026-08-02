@@ -6,13 +6,18 @@ param(
     [switch]$DryRun,
     [switch]$AllowExistingBranch,
     [string]$ShortName,
-    [long]$Number = 0,
+    [string]$Number = "",
     [switch]$Timestamp,
     [switch]$Help,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
     [string[]]$FeatureDescription
 )
 $ErrorActionPreference = 'Stop'
+
+# If -Number is empty/whitespace, remove it from $PSBoundParameters (treated as omitted)
+if ($PSBoundParameters.ContainsKey('Number') -and [string]::IsNullOrWhiteSpace($Number)) {
+    $null = $PSBoundParameters.Remove('Number')
+}
 
 # Delegate to git extension if installed
 $RepoRoot = (Resolve-Path "$PSScriptRoot/../../..").Path
@@ -82,13 +87,28 @@ function Get-HighestNumberFromSpecs {
             # Match sequential prefixes (>=3 digits), but skip timestamp dirs.
             if ($_.Name -match '^(\d{3,})-' -and $_.Name -notmatch '^\d{8}-\d{6}-') {
                 [long]$num = 0
-                if ([long]::TryParse($matches[1], [ref]$num) -and $num -gt $highest) {
+                if ([long]::TryParse($matches[1], [ref]$num) -and $num -ge 0 -and $num -gt $highest) {
                     $highest = $num
                 }
             }
         }
     }
     return $highest
+}
+
+function Test-SpecPrefixInUse {
+    param(
+        [string]$SpecsDir,
+        [string]$FeatureNum
+    )
+
+    if (-not (Test-Path -LiteralPath $SpecsDir -PathType Container)) {
+        return $false
+    }
+
+    return $null -ne (Get-ChildItem -LiteralPath $SpecsDir -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "$FeatureNum-*" } |
+        Select-Object -First 1)
 }
 
 function Get-HighestNumberFromBranches {
@@ -218,12 +238,27 @@ if ($ShortName) {
     $branchSuffix = Get-BranchName -Description $featureDesc
 }
 
-# Warn if -Number and -Timestamp are both specified. Use ContainsKey (not
-# `-ne 0`) so an explicit `-Number 0` is also detected, matching the bash twin's
-# `[ -n "$BRANCH_NUMBER" ]` check.
+# Validate -Number if specified
+if ($PSBoundParameters.ContainsKey('Number')) {
+    if ([string]::IsNullOrWhiteSpace($Number)) {
+        $null = $PSBoundParameters.Remove('Number')
+    } else {
+        if ($Number -notmatch '^\d+$') {
+            [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+            exit 1
+        }
+        [long]$parsedNum = 0
+        if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
+            [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
+            exit 1
+        }
+    }
+}
+
+# Warn if -Number and -Timestamp are both specified. Use ContainsKey
 if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
-    Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
-    $Number = 0
+    [Console]::Error.WriteLine("[specify] Warning: -Number is ignored when -Timestamp is used")
+    $Number = "0"
 }
 
 # Determine branch prefix
@@ -231,14 +266,49 @@ if ($Timestamp) {
     $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
     $branchName = "$featureNum-$branchSuffix"
 } else {
-    # Determine branch number from existing feature directories. Auto-detect only
-    # when -Number was not supplied; an explicit value (including 0) is honored,
-    # matching the bash twin's `[ -z "$BRANCH_NUMBER" ]` check.
+    # Determine branch number from existing feature directories.
     if (-not $PSBoundParameters.ContainsKey('Number')) {
-        $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+        [long]$highest = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+        if ($highest -eq [long]::MaxValue) {
+            [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
+            exit 1
+        }
+        $Number = [string]($highest + 1)
     }
 
-    $featureNum = ('{0:000}' -f $Number)
+    [long]$numericVal = [long]::Parse($Number)
+    $featureNum = ('{0:000}' -f $numericVal)
+
+    # Treat an explicit number as a preference when its prefix is already used
+    # by a feature directory. Auto-detected numbers are already conflict-free.
+    if ($PSBoundParameters.ContainsKey('Number')) {
+        $specConflict = $false
+        $requestedBranchName = "$featureNum-$branchSuffix"
+        if ($requestedBranchName.Length -gt 244) {
+            $maxSuffix = 244 - ($featureNum.Length + 1)
+            $truncated = $branchSuffix.Substring(0, [Math]::Min($branchSuffix.Length, $maxSuffix)) -replace '-$', ''
+            $requestedBranchName = "$featureNum-$truncated"
+        }
+        $requestedDir = Join-Path $specsDir $requestedBranchName
+        if (-not $AllowExistingBranch -or -not (Test-Path -LiteralPath $requestedDir -PathType Container)) {
+            $specConflict = Test-SpecPrefixInUse -SpecsDir $specsDir -FeatureNum $featureNum
+        }
+
+        if ($specConflict) {
+            $requestedNum = $featureNum
+            [long]$resolvedNumber = Get-HighestNumberFromSpecs -SpecsDir $specsDir
+            do {
+                if ($resolvedNumber -eq [long]::MaxValue) {
+                    [Console]::Error.WriteLine("Error: feature number must be between 0 and 9223372036854775807, got '9223372036854775808'")
+                    exit 1
+                }
+                $resolvedNumber++
+                $featureNum = ('{0:000}' -f $resolvedNumber)
+            } while (Test-SpecPrefixInUse -SpecsDir $specsDir -FeatureNum $featureNum)
+            [Console]::Error.WriteLine("[specify] Warning: -Number $requestedNum conflicts with an existing spec directory; using $featureNum instead")
+        }
+    }
+
     $branchName = "$featureNum-$branchSuffix"
 }
 
@@ -259,9 +329,9 @@ if ($branchName.Length -gt $maxBranchLength) {
     $originalBranchName = $branchName
     $branchName = "$featureNum-$truncatedSuffix"
     
-    Write-Warning "[specify] Branch name exceeded GitHub's 244-byte limit"
-    Write-Warning "[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)"
-    Write-Warning "[specify] Truncated to: $branchName ($($branchName.Length) bytes)"
+    [Console]::Error.WriteLine("[specify] Warning: Branch name exceeded GitHub's 244-byte limit")
+    [Console]::Error.WriteLine("[specify] Original: $originalBranchName ($($originalBranchName.Length) bytes)")
+    [Console]::Error.WriteLine("[specify] Truncated to: $branchName ($($branchName.Length) bytes)")
 }
 
 $featureDir = Join-Path $specsDir $branchName
@@ -344,17 +414,19 @@ $DISCOVERED_DIRECTIVES = Discover-Directives -FeatureDescription $featureDesc -T
 $DISCOVERED_SKILLS = Discover-Skills -FeatureDescription $featureDesc -TeamDirectivesPath $TEAM_DIRECTIVES_DIR -SkillsCachePath (Join-Path $repoRoot '.specify/skills')
 
 if ($Json) {
+    $discoveredDirectivesObj = if ($DISCOVERED_DIRECTIVES) { $DISCOVERED_DIRECTIVES | ConvertFrom-Json } else { $null }
+    $discoveredSkillsObj = if ($DISCOVERED_SKILLS) { $DISCOVERED_SKILLS | ConvertFrom-Json } else { $null }
     $obj = [PSCustomObject]@{ 
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
         FEATURE_NUM = $featureNum
-        DISCOVERED_DIRECTIVES = $DISCOVERED_DIRECTIVES
-        DISCOVERED_SKILLS = $DISCOVERED_SKILLS
+        DISCOVERED_DIRECTIVES = $discoveredDirectivesObj
+        DISCOVERED_SKILLS = $discoveredSkillsObj
     }
     if ($DryRun) {
         $obj | Add-Member -NotePropertyName 'DRY_RUN' -NotePropertyValue $true
     }
-    $obj | ConvertTo-Json -Compress
+    $obj | ConvertTo-Json -Compress -Depth 10
 } else {
     Write-Output "BRANCH_NAME: $branchName"
     Write-Output "SPEC_FILE: $specFile"
@@ -362,5 +434,20 @@ if ($Json) {
     if (-not $DryRun) {
         Write-Output "SPECIFY_FEATURE set to: $branchName"
         Write-Output "SPECIFY_FEATURE_DIRECTORY set to: $featureDir"
+
+        # Persist hints use PowerShell single-quote escaping, matching the git
+        # extension twin. Emit to BOTH stdout (mirroring the bash/python twins'
+        # "# To persist in your shell:" lines) and stderr (their
+        # "# To persist:" lines), so PowerShell callers see the hint regardless
+        # of which stream they read.
+        $quotedBranch = "'" + $branchName.Replace("'", "''") + "'"
+        $quotedDir = "'" + $featureDir.Replace("'", "''") + "'"
+        $featureAssignment = "`$env:SPECIFY_FEATURE = $quotedBranch"
+        $directoryAssignment = "`$env:SPECIFY_FEATURE_DIRECTORY = $quotedDir"
+
+        Write-Output "# To persist in your shell: $featureAssignment"
+        Write-Output "#                           $directoryAssignment"
+        [Console]::Error.WriteLine("# To persist: $featureAssignment")
+        [Console]::Error.WriteLine("#              $directoryAssignment")
     }
 }

@@ -10,7 +10,6 @@ class TestZcodeIntegration(SkillsIntegrationTests):
     COMMANDS_SUBDIR = "skills"
     REGISTRAR_DIR = ".zcode/skills"
 
-
 class TestZcodeInvocation:
     """ZCode renders $speckit-* chat invocations (like Codex)."""
 

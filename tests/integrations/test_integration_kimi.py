@@ -11,7 +11,7 @@ from specify_cli.integrations.kimi import (
 )
 from specify_cli.integrations.manifest import IntegrationManifest
 
-from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix, install_preset_to
+from .test_integration_base_skills import SkillsIntegrationTests, _skill_prefix
 
 
 def _symlink_or_skip(

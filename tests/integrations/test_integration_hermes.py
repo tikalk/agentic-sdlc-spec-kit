@@ -352,12 +352,10 @@ class TestHermesInitFlow:
             d for d in (target / ".hermes" / "skills").iterdir()
             if "agent-context" not in d.name
         ]
-        from specify_cli import PKG_NAMES
-
-        if any("agentic-sdlc" in pkg for pkg in PKG_NAMES):
-            assert len(local_skills) > 0
-        else:
-            assert local_skills == [], f"Local skills dir should be empty, got: {local_skills}"
+        # Hermes is a global-skills integration: core skills are installed under
+        # ~/.hermes/skills, so the project-local dir stays empty (only a marker
+        # directory and, when present, extension-installed skills).
+        assert local_skills == [], f"Local skills dir should be empty, got: {local_skills}"
 
 
 class TestHermesBuildExecArgs:

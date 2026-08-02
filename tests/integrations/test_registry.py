@@ -28,6 +28,7 @@ ALL_INTEGRATION_KEYS = [
     "gemini", "tabnine",
     # Stage 5 — skills, generic & option-driven integrations
     "codex", "kimi", "agy", "zed", "generic",
+    "droid",
 ]
 
 
@@ -263,10 +264,11 @@ class TestMultiInstallSafeContracts:
             )
             files = manifest.get("files", {})
             assert isinstance(files, dict), f"{key} manifest files must be an object"
-            manifests[key] = set(files.keys())
+            manifests[key] = {p.replace("\\", "/") for p in files.keys()}
 
+        SHARED_INFRA_FILES = {".specify/events.py"}
         for first, second in _multi_install_safe_pairs():
-            overlap = manifests[first] & manifests[second]
+            overlap = (manifests[first] & manifests[second]) - SHARED_INFRA_FILES
             assert not overlap, (
                 f"{first} and {second} are declared multi-install safe but both manage "
                 f"these files: {sorted(overlap)}"

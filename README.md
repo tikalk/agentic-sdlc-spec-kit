@@ -5,7 +5,7 @@
 </div>
 
 <p align="center">
-    <strong>An open source toolkit that allows you to focus on product scenarios and predictable outcomes instead of vibe coding every piece from scratch.</strong>
+    <strong>An open source toolkit for building high-quality software with any AI coding agent — a ready-to-use spec-driven process (or bring your own), endlessly extensible, community-driven, and built for your whole organization.</strong>
 </p>
 
 ## 🎯 Project Vision
@@ -41,6 +41,11 @@ This fork represents the evolution from a development process to a complete orga
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/stargazers"><img src="https://img.shields.io/github/stars/tikalk/agentic-sdlc-spec-kit?style=social" alt="GitHub stars"/></a>
     <a href="https://github.com/tikalk/agentic-sdlc-spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/tikalk/agentic-sdlc-spec-kit" alt="License"/></a>
     <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+</p>
+
+<p align="center">
+    <strong>English</strong> ·
+    <a href="./README.zh-CN.md">简体中文</a>
 </p>
 
 ---
@@ -214,7 +219,7 @@ For detailed step-by-step instructions, see our [comprehensive guide](./spec-dri
 
 Want to see Spec Kit in action? Watch our [video overview](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)!
 
-[![Spec Kit video header](/media/spec-kit-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
+[![Spec Kit video header](https://raw.githubusercontent.com/github/spec-kit/main/media/spec-kit-video-header.jpg)](https://www.youtube.com/watch?v=a9eR1xsfvHg&pp=0gcJCckJAYcqIYzv)
 
 ## 🧩 Community Extensions
 
@@ -952,6 +957,7 @@ The report is saved to `SPECIFY_FEATURE_DIRECTORY/verify.md` and includes an ove
 If any pillar fails, convergence tasks are appended for another implement pass. Run the fixes and re-converge.
 
 </details>
+- **[Quick Start Guide](https://github.github.io/spec-kit/quickstart.html)** - Step-by-step implementation walkthrough
 
 ---
 
