@@ -39,9 +39,9 @@ packages = ["src/specify_cli"]
 "extensions/workflow" = "specify_cli/core_pack/extensions/workflow"
 "extensions/team-ai-directives" = "specify_cli/core_pack/extensions/team-ai-directives"
 # Tikalk bundled presets
-"presets/agentic-sdlc" = "specify_cli/bundled_presets/agentic-sdlc"
-"presets/agentic-change" = "specify_cli/bundled_presets/agentic-change"
-"presets/agentic-quick" = "specify_cli/bundled_presets/agentic-quick"
+"presets/agentic-sdlc" = "specify_cli/core_pack/presets/agentic-sdlc"
+"presets/agentic-change" = "specify_cli/core_pack/presets/agentic-change"
+"presets/agentic-quick" = "specify_cli/core_pack/presets/agentic-quick"
 "presets/catalog.json" = "specify_cli/bundled_presets/catalog.json"
 # Core pack assets for offline/air-gapped scaffolding
 "templates/checklist-template.md" = "specify_cli/core_pack/templates/checklist-template.md"

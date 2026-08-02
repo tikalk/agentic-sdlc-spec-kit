@@ -13,7 +13,7 @@ param(
     [switch]$DryRun,
     [string]$ShortName,
     [Parameter()]
-    [long]$Number = 0,
+    [string]$Number = "",
     [switch]$Timestamp,
     [string]$Issue,
     [switch]$Worktree,
@@ -64,14 +64,16 @@ if ($Help) {
     exit 0
 }
 
-# -Number is [long], so PowerShell binds "-5" as -5 rather than rejecting it
-# the way the bash/Python twins do (`^[0-9]+$`). A negative value would format
-# via '{0:000}' to e.g. "-005" and produce a branch name starting with "-",
-# which git refuses (refs cannot begin with a dash). Reject it here, before the
-# description check, matching the bash twin's parse-time validation order.
-if ($Number -lt 0) {
-    Write-Error 'Error: --number must be a non-negative integer'
-    exit 1
+if ($PSBoundParameters.ContainsKey('Number')) {
+    if ($Number -notmatch '^\d+$') {
+        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+        exit 1
+    }
+    [long]$parsedNum = 0
+    if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
+        [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
+        exit 1
+    }
 }
 
 if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
@@ -667,8 +669,8 @@ if ($env:GIT_BRANCH_NAME) {
     # `-ne 0`) so an explicit `-Number 0` is also detected, matching the bash twin's
     # `[ -n "$BRANCH_NUMBER" ]` check.
     if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
-        Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
-        $Number = 0
+        [Console]::Error.WriteLine("[specify] Warning: -Number is ignored when -Timestamp is used")
+        $Number = "0"
     }
 
     if ($Timestamp) {
@@ -681,17 +683,18 @@ if ($env:GIT_BRANCH_NAME) {
         # `[ -z "$BRANCH_NUMBER" ]` check.
         if (-not $PSBoundParameters.ContainsKey('Number')) {
             if ($DryRun -and $hasGit) {
-                $Number = Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix
+                $Number = [string](Get-NextBranchNumber -SpecsDir $specsDir -SkipFetch -ScopePrefix $branchScopePrefix)
             } elseif ($DryRun) {
-                $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+                $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
             } elseif ($hasGit) {
-                $Number = Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix
+                $Number = [string](Get-NextBranchNumber -SpecsDir $specsDir -ScopePrefix $branchScopePrefix)
             } else {
-                $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+                $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
             }
         }
 
-        $featureNum = $Number.ToString().PadLeft($numberPadding, '0')
+        [long]$numericVal = [long]::Parse($Number)
+        $featureNum = $numericVal.ToString().PadLeft($numberPadding, '0')
         $branchName = New-BranchName -FeatureNum $featureNum -BranchSuffix $branchSuffix -IssueToken $issueToken
     }
 }

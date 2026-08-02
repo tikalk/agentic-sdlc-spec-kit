@@ -6,7 +6,7 @@ param(
     [switch]$DryRun,
     [switch]$AllowExistingBranch,
     [string]$ShortName,
-    [long]$Number = 0,
+    [string]$Number = "",
     [switch]$Timestamp,
     [switch]$Help,
     [Parameter(Position = 0, ValueFromRemainingArguments = $true)]
@@ -233,12 +233,27 @@ if ($ShortName) {
     $branchSuffix = Get-BranchName -Description $featureDesc
 }
 
-# Warn if -Number and -Timestamp are both specified. Use ContainsKey (not
-# `-ne 0`) so an explicit `-Number 0` is also detected, matching the bash twin's
-# `[ -n "$BRANCH_NUMBER" ]` check.
+# Validate -Number if specified
+if ($PSBoundParameters.ContainsKey('Number')) {
+    if ($Number -notmatch '^-?\d+$') {
+        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+        exit 1
+    }
+    if ($Number -match '^-') {
+        [Console]::Error.WriteLine("Error: --number must be an unsigned integer, got '$Number'")
+        exit 1
+    }
+    [long]$parsedNum = 0
+    if (-not [long]::TryParse($Number, [ref]$parsedNum)) {
+        [Console]::Error.WriteLine("Error: --number must be between 0 and 9223372036854775807, got '$Number'")
+        exit 1
+    }
+}
+
+# Warn if -Number and -Timestamp are both specified. Use ContainsKey
 if ($Timestamp -and $PSBoundParameters.ContainsKey('Number')) {
-    Write-Warning "[specify] Warning: -Number is ignored when -Timestamp is used"
-    $Number = 0
+    [Console]::Error.WriteLine("[specify] Warning: -Number is ignored when -Timestamp is used")
+    $Number = "0"
 }
 
 # Determine branch prefix
@@ -246,14 +261,13 @@ if ($Timestamp) {
     $featureNum = Get-Date -Format 'yyyyMMdd-HHmmss'
     $branchName = "$featureNum-$branchSuffix"
 } else {
-    # Determine branch number from existing feature directories. Auto-detect only
-    # when -Number was not supplied; an explicit value (including 0) is honored,
-    # matching the bash twin's `[ -z "$BRANCH_NUMBER" ]` check.
+    # Determine branch number from existing feature directories.
     if (-not $PSBoundParameters.ContainsKey('Number')) {
-        $Number = (Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1
+        $Number = [string]((Get-HighestNumberFromSpecs -SpecsDir $specsDir) + 1)
     }
 
-    $featureNum = ('{0:000}' -f $Number)
+    [long]$numericVal = [long]::Parse($Number)
+    $featureNum = ('{0:000}' -f $numericVal)
 
     # Treat an explicit number as a preference when its prefix is already used
     # by a feature directory. Auto-detected numbers are already conflict-free.
