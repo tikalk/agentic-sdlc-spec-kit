@@ -1,5 +1,41 @@
 # Changelog
 
+## [1.8.1] - 2026-08-02
+
+### Fixed
+
+- PowerShell `-Number` parameter typed as `[string]` with explicit Int64 parsing to prevent parameter-binder crashes on non-numeric/overflow inputs.
+- Empty `-Number ""` stripped from `$PSBoundParameters` before delegation so it is treated as omitted.
+- `Get-NextBranchNumber` double-increment removed — branch numbering now returns the correct next number (`001`, `002`, …) instead of skipping one.
+- Numeric prefixes exceeding `[long]::MaxValue` (e.g. `9223372036854775808-`) ignored by `Get-HighestNumberFromSpecs`/`Get-HighestNumberFromNames` instead of crashing.
+- Non-dry text mode prints the `SPECIFY_FEATURE` persist hint to both stdout and stderr for cross-shell visibility.
+
+## [1.8.0] - 2026-07-07
+
+### Added
+
+- Configurable Conventional Commit support (`commit_style: conventional`) in the auto-commit flow (#3390/#3413).
+- Namespaced git feature branch templates (#3293) and Jira-style `{issue}` templates migrated onto upstream `branch_template`.
+
+### Changed
+
+- Jira branch templates migrated onto the upstream `branch_template` mechanism (fork no longer diverges on template handling).
+- `{prefix}` placeholder expansion in `branch_template` now matches the bash twin's behavior.
+- Branch validation honors configured feature branch templates when `branch_pattern.enabled: true`.
+
+### Fixed
+
+- PowerShell honors explicit `-Number 0` (#3412) and rejects negative `-Number` (#3538).
+- PowerShell emits the `'# To persist'` `SPECIFY_FEATURE` hint for parity with bash (#3632).
+- Trailing whitespace trimmed before stripping commit-message quotes (#3673).
+
+## [1.7.0] - 2026-06-20
+
+### Added
+
+- `speckit.git.publish` command (aliased `git.publish`) — platform-neutral PR (GitHub `gh`) / MR (GitLab `glab`) creation.
+- `speckit.git.commit` `--message` flag for explicit commit messages.
+
 ## [1.6.0] - 2026-06-19
 
 ### Added

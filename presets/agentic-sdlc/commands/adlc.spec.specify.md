@@ -228,7 +228,7 @@ Given that feature description, do this:
    7. Identify Key Entities (if data involved)
    8. Return: SUCCESS (spec ready for planning)
 
-7. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
+8. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description while preserving section order and headings.
 
    **Post-write validation**: After writing `spec.md`, re-read it and verify the
    Success Criteria section does not contain "TBD", "placeholder", or empty
@@ -236,7 +236,7 @@ Given that feature description, do this:
    the Success Criteria section before proceeding. Never leave Success Criteria
    as "TBD".
 
-8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
+9. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `SPECIFY_FEATURE_DIRECTORY/checklists/requirements.md` using this structure:
 

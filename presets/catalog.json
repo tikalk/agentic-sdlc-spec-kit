@@ -30,7 +30,7 @@
     "agentic-sdlc": {
       "name": "Agentic SDLC",
       "id": "agentic-sdlc",
-      "version": "1.2.0",
+      "version": "1.6.6",
       "description": "Full Agentic SDLC workflow with architecture, product, and TDD extensions",
       "author": "Tikal",
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
