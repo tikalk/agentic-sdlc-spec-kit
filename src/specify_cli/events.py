@@ -251,7 +251,7 @@ def _resolve_argv(template_path, project_root, ext_id):
     return [str(script_abs), *rest]
 
 
-def _run_inline(command_name, payload, project_root, timeout, envelope="plain"):
+def _run_inline(command_name, payload, project_root, timeout, envelope="plain", native_event=""):
     """Resolve and run the event command with stdlib only (no specify_cli)."""
     template_path, ext_id = _find_command_template(command_name, project_root)
     if not template_path:
@@ -269,7 +269,7 @@ def _run_inline(command_name, payload, project_root, timeout, envelope="plain"):
             cwd=str(project_root),
         )
         if result.stdout:
-            _emit(result.stdout, envelope)
+            _emit(result.stdout, envelope, native_event)
         if result.returncode != 0:
             if result.stderr:
                 sys.stderr.write(result.stderr)
@@ -283,7 +283,7 @@ def _run_inline(command_name, payload, project_root, timeout, envelope="plain"):
         return 2
 
 
-def _emit(output, envelope):
+def _emit(output, envelope, native_event=""):
     """Write handler output to stdout in the agent's context-injection shape.
 
     Not every agent injects a hook's plain-text stdout as model context:
@@ -291,9 +291,10 @@ def _emit(output, envelope):
     user-facing noise, never context), Copilot discards non-JSON stdout, and
     Cursor parses stdout as JSON. The native hook command passes the envelope
     as the dispatcher's 5th argument (see events_context_envelope on the
-    integration classes):
+    integration classes), and the native event name as the 6th argument so
+    hookSpecificOutput can include hookEventName:
 
-      hookSpecificOutput → {"hookSpecificOutput": {"additionalContext": ...}}
+      hookSpecificOutput → {"hookSpecificOutput": {"hookEventName": ..., "additionalContext": ...}}
       additionalContext  → {"additionalContext": ...}   (top-level, Copilot)
       additional_context → {"additional_context": ...}  (top-level, Cursor)
       suppress           → emit nothing (strict-JSON agents on events whose
@@ -308,7 +309,10 @@ def _emit(output, envelope):
     if envelope == "suppress":
         return
     if envelope == "hookSpecificOutput":
-        sys.stdout.write(json.dumps({"hookSpecificOutput": {"additionalContext": output}}) + "\\n")
+        payload = {"additionalContext": output}
+        if native_event:
+            payload["hookEventName"] = native_event
+        sys.stdout.write(json.dumps({"hookSpecificOutput": payload}) + "\\n")
         return
     if envelope == "additionalContext":
         sys.stdout.write(json.dumps({"additionalContext": output}) + "\\n")
@@ -339,6 +343,10 @@ def main():
     envelope = sys.argv[4] if len(sys.argv) >= 5 else "plain"
     if envelope not in ("plain", "hookSpecificOutput", "additionalContext", "additional_context", "suppress"):
         envelope = "plain"
+    # Optional 6th arg: native event name for hookSpecificOutput's
+    # hookEventName field (required by Qwen's hooks spec; included by
+    # Gemini/Tabnine/Devin which derive from the same protocol).
+    native_event = sys.argv[5] if len(sys.argv) >= 6 else ""
     payload = sys.stdin.read() if not sys.stdin.isatty() else "{}"
     project_root = Path(__file__).parent.parent.resolve()
 
@@ -349,14 +357,14 @@ def main():
         from specify_cli.events import resolve_and_run_event_command
         sys.exit(
             resolve_and_run_event_command(
-                command_name, _event_name, payload, project_root, timeout=timeout, envelope=envelope
+                command_name, _event_name, payload, project_root, timeout=timeout, envelope=envelope, native_event=native_event
             )
         )
     except (ImportError, TypeError):
         pass
 
     # Fallback: self-contained stdlib resolver (one-time/temporary installs).
-    sys.exit(_run_inline(command_name, payload, project_root, timeout, envelope))
+    sys.exit(_run_inline(command_name, payload, project_root, timeout, envelope, native_event))
 
 
 if __name__ == "__main__":
@@ -632,6 +640,7 @@ def resolve_and_run_event_command(
     *,
     timeout: int = 120,
     envelope: str = "plain",
+    native_event: str = "",
 ) -> int:
     """Core entry point to resolve and execute an event-driven command.
 
@@ -645,6 +654,11 @@ def resolve_and_run_event_command(
     ``additional_context`` JSON wrappers (Gemini/Tabnine/Qwen/Devin, Copilot,
     Cursor respectively), or ``suppress`` (strict-JSON agents on events whose
     output can't be used).
+
+    *native_event* is the agent's native hookEventName (e.g. ``"SessionStart"``),
+    required inside ``hookSpecificOutput`` by Qwen's hooks spec (and included
+    by the Claude Code hooks spec Gemini/Tabnine/Devin derive from). Only
+    used when *envelope* is ``hookSpecificOutput``.
     """
     template_path, ext_id = _find_command_template(command_name, project_root)
     if not template_path:
@@ -664,7 +678,7 @@ def resolve_and_run_event_command(
             cwd=str(project_root),
         )
         if result.stdout:
-            _emit_event_stdout(result.stdout, envelope)
+            _emit_event_stdout(result.stdout, envelope, native_event)
         if result.returncode != 0:
             if result.stderr:
                 sys.stderr.write(result.stderr)
@@ -678,18 +692,25 @@ def resolve_and_run_event_command(
         return 2
 
 
-def _emit_event_stdout(output: str, envelope: str) -> None:
+def _emit_event_stdout(output: str, envelope: str, native_event: str = "") -> None:
     """Write handler stdout in the agent's context-injection shape (C13).
 
     Mirrors the ``_emit`` helper inside the generated dispatcher template;
     keep both in sync. Empty output emits nothing under any envelope.
+
+    *native_event* is the agent's native hookEventName, required inside
+    ``hookSpecificOutput`` by Qwen's hooks spec (and included by the
+    Claude Code hooks spec Gemini/Tabnine/Devin derive from).
     """
     if not output:
         return
     if envelope == "suppress":
         return
     if envelope == "hookSpecificOutput":
-        sys.stdout.write(json.dumps({"hookSpecificOutput": {"additionalContext": output}}) + "\n")
+        payload = {"additionalContext": output}
+        if native_event:
+            payload["hookEventName"] = native_event
+        sys.stdout.write(json.dumps({"hookSpecificOutput": payload}) + "\n")
         return
     if envelope == "additionalContext":
         sys.stdout.write(json.dumps({"additionalContext": output}) + "\n")
@@ -1128,6 +1149,15 @@ def _dispatcher_command(
     envelope = _context_envelope_for(integration, event_name)
     if envelope:
         base += f" {_shell_quote(envelope, target_os)}"
+        # hookSpecificOutput requires the native hookEventName inside the
+        # envelope (Qwen's hooks spec marks it mandatory; the Claude Code
+        # hooks spec that Gemini/Tabnine/Devin derive from includes it).
+        # Append the native event name as a 6th dispatcher argument so the
+        # dispatcher can populate hookEventName in the JSON output.
+        if envelope == "hookSpecificOutput":
+            native_event = getattr(integration, "CANONICAL_TO_NATIVE", {}).get(event_name, "")
+            if native_event:
+                base += f" {_shell_quote(native_event, target_os)}"
     return base
 
 
@@ -1767,8 +1797,14 @@ def _build_opencode_plugin(
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
+            # OpenCode fires experimental.chat.system.transform for non-session
+            # operations (e.g. agent generation) with no sessionID. Guard so
+            # canonical session_start handlers only run when a session is
+            # present, preventing their output from being injected into
+            # internal prompts.
             plugin_returns.append(
                 f"    {native_lit}: async (input: any, output: any) => {{\n"
+                f"      if (!input.sessionID) return;\n"
                 f"      const ctx = _{ev}(input, output);\n"
                 f"      if (ctx) output.system.push(ctx);\n"
                 f"    }},"

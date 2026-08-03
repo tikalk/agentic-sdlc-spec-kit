@@ -658,9 +658,21 @@ class TestContextInjectionEnvelopes:
         _emit_event_stdout("hello ctx", "plain")
         assert capsys.readouterr().out == "hello ctx"
 
+        # hookSpecificOutput without native_event: no hookEventName (backward
+        # compat for callers that don't pass it).
         _emit_event_stdout("hello ctx", "hookSpecificOutput")
         assert json.loads(capsys.readouterr().out.strip()) == {
             "hookSpecificOutput": {"additionalContext": "hello ctx"}
+        }
+
+        # hookSpecificOutput with native_event: hookEventName included
+        # (required by Qwen's hooks spec; derived from Claude Code's).
+        _emit_event_stdout("hello ctx", "hookSpecificOutput", "SessionStart")
+        assert json.loads(capsys.readouterr().out.strip()) == {
+            "hookSpecificOutput": {
+                "additionalContext": "hello ctx",
+                "hookEventName": "SessionStart",
+            }
         }
 
         _emit_event_stdout("hello ctx", "additionalContext")
@@ -683,6 +695,7 @@ class TestContextInjectionEnvelopes:
     def test_envelope_resolution_and_command_formatting(self):
         from specify_cli.events import _dispatcher_command, _context_envelope_for
         from specify_cli.integrations.gemini import GeminiIntegration
+        from specify_cli.integrations.qwen import QwenIntegration
         from specify_cli.integrations.copilot import CopilotIntegration
         from specify_cli.integrations.cursor_agent import CursorAgentIntegration
         from specify_cli.integrations.claude import ClaudeIntegration
@@ -693,19 +706,32 @@ class TestContextInjectionEnvelopes:
         assert _context_envelope_for(gemini, "user_prompt_submit") == "hookSpecificOutput"
         assert _context_envelope_for(gemini, "pre_tool_use") == "suppress"
 
+        # hookSpecificOutput appends the native event name as a 6th dispatcher
+        # argument so the dispatcher can populate hookEventName.
         cmd_gemini_start = _dispatcher_command(gemini, Path("/proj"), "speckit.boot", "session_start")
-        assert cmd_gemini_start.endswith(" hookSpecificOutput")
+        assert cmd_gemini_start.endswith(" hookSpecificOutput SessionStart")
+
+        cmd_gemini_prompt = _dispatcher_command(gemini, Path("/proj"), "speckit.prompt", "user_prompt_submit")
+        assert cmd_gemini_prompt.endswith(" hookSpecificOutput BeforeAgent")
 
         cmd_gemini_tool = _dispatcher_command(gemini, Path("/proj"), "speckit.guard", "pre_tool_use")
         assert cmd_gemini_tool.endswith(" suppress")
 
+        # Qwen uses the same hookSpecificOutput protocol with its own native
+        # event names; verify hookEventName threading for Qwen's CamelCase names.
+        qwen = QwenIntegration()
+        cmd_qwen_start = _dispatcher_command(qwen, Path("/proj"), "speckit.boot", "session_start")
+        assert cmd_qwen_start.endswith(" hookSpecificOutput SessionStart")
+        cmd_qwen_prompt = _dispatcher_command(qwen, Path("/proj"), "speckit.prompt", "user_prompt_submit")
+        assert cmd_qwen_prompt.endswith(" hookSpecificOutput UserPromptSubmit")
+
         copilot = CopilotIntegration()
         assert _context_envelope_for(copilot, "session_start") == "additionalContext"
-        assert _context_envelope_for(copilot, "user_prompt_submit") is None
+        assert _context_envelope_for(copilot, "user_prompt_submit") == "additionalContext"
         cmd_copilot_start = _dispatcher_command(copilot, Path("/proj"), "speckit.boot", "session_start")
         assert cmd_copilot_start.endswith(" additionalContext")
         cmd_copilot_prompt = _dispatcher_command(copilot, Path("/proj"), "speckit.prompt", "user_prompt_submit")
-        assert not cmd_copilot_prompt.endswith(" additionalContext")
+        assert cmd_copilot_prompt.endswith(" additionalContext")
 
         cursor = CursorAgentIntegration()
         assert _context_envelope_for(cursor, "session_start") == "additional_context"
@@ -846,6 +872,11 @@ class TestOpencodePluginMerging:
         # would kill the OpenCode host process.
         assert "process.exit(2)" not in content
         assert "throw new Error" in content
+        # session_start (experimental.chat.system.transform) must be guarded
+        # so canonical session-start handlers only run when a session is
+        # present — OpenCode fires this hook for non-session operations
+        # (e.g. agent generation) with no sessionID.
+        assert "if (!input.sessionID) return;" in content
 
     def test_opencode_ts_plugin_chat_message_part_injection(self, tmp_path):
         """user_prompt_submit emits chat.message pushing a synthetic TextPart.
