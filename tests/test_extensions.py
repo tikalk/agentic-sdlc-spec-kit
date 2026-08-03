@@ -10454,3 +10454,310 @@ def test_forge_extension_info_hyphenates_command_names(
     # not the manifest's dotted name.
     assert "speckit-test-ext-hello" in output, output
     assert "speckit.test-ext.hello" not in output, output
+
+# ===== Extension Config Scaffolding Tests =====
+
+
+class TestExtensionConfigScaffolding:
+    """Test automatic config scaffolding during add/enable lifecycle."""
+
+    def _make_extension(self, ext_dir, config_entries=None):
+        """Create a minimal extension with optional config templates."""
+        ext_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "schema_version": "1.0",
+            "extension": {
+                "id": "test-ext",
+                "name": "Test Extension",
+                "version": "1.0.0",
+                "description": "Test extension",
+                "author": "Test",
+                "repository": "https://github.com/test/test",
+                "license": "MIT",
+                "homepage": "https://github.com/test/test",
+            },
+            "requires": {"speckit_version": ">=0.1.0"},
+            "provides": {
+                "commands": [{
+                    "name": "speckit.test-ext.example",
+                    "file": "commands/example.md",
+                    "description": "Example command",
+                }],
+            },
+            "tags": ["test"],
+        }
+        if config_entries:
+            manifest["provides"]["config"] = config_entries
+        import yaml
+        (ext_dir / "extension.yml").write_text(yaml.dump(manifest, default_flow_style=False))
+        # Create command file so validation passes
+        (ext_dir / "commands").mkdir(exist_ok=True)
+        (ext_dir / "commands" / "example.md").write_text("# Example")
+        return manifest
+
+    def test_scaffold_config_deploys_template(self, tmp_path):
+        """Config template lands where ConfigManager reads it, not in .specify/ root."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "config-template.yml",
+            "description": "Test config",
+            "required": True,
+        }])
+        (ext_dir / "config-template.yml").write_text("setting: default")
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == ["test-config.yml"]
+        assert skipped == []
+        assert failed == []
+        # ConfigManager._get_project_config() reads
+        # .specify/extensions/<id>/<name>, so that is where scaffolding must
+        # put it. Deploying to the .specify/ root left the file somewhere the
+        # extension never looks.
+        assert (ext_dir / "test-config.yml").exists()
+        assert (ext_dir / "test-config.yml").read_text() == "setting: default"
+        assert not (specify_dir / "test-config.yml").exists()
+
+    def test_scaffold_config_preserves_existing(self, tmp_path):
+        """Existing config files should never be overwritten."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "config-template.yml",
+            "description": "Test config",
+            "required": True,
+        }])
+        (ext_dir / "config-template.yml").write_text("setting: default")
+        (ext_dir / "test-config.yml").write_text("setting: custom")
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == ["test-config.yml"]
+        assert failed == []
+        assert (ext_dir / "test-config.yml").read_text() == "setting: custom"
+
+    def test_scaffold_config_no_config_section(self, tmp_path):
+        """Extensions without config section should return empty list."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir)
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == []
+
+    def test_scaffold_config_missing_template_file(self, tmp_path):
+        """Missing template files should be reported as failed."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "nonexistent.yml",
+            "description": "Test config",
+        }])
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["test-config.yml"]
+
+    def test_scaffold_config_rejects_path_traversal(self, tmp_path):
+        """Config names with path traversal should be rejected."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[
+            {"name": "../etc/passwd", "template": "config.yml"},
+            {"name": "safe.yml", "template": "../../secrets.yml"},
+            {"name": "/absolute/path.yml", "template": "config.yml"},
+        ])
+        (ext_dir / "config.yml").write_text("safe: true")
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["../etc/passwd", "safe.yml", "/absolute/path.yml"]
+
+    def test_scaffold_config_rejects_directory_template(self, tmp_path):
+        """Directory templates should be rejected (must be regular files)."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "config-dir",
+        }])
+        (ext_dir / "config-dir").mkdir()
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["test-config.yml"]
+
+    def test_scaffold_config_rejects_symlink_template(self, tmp_path):
+        """Symlink templates should not be copied."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "config-link.yml",
+        }])
+        real_template = ext_dir / "config-template.yml"
+        real_template.write_text("setting: default")
+        (ext_dir / "config-link.yml").symlink_to(real_template)
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["test-config.yml"]
+        assert not (specify_dir / "test-config.yml").exists()
+
+    def test_scaffold_config_malformed_manifest(self, tmp_path):
+        """Malformed config sections should not crash."""
+        from specify_cli.extensions import ExtensionManager, ExtensionManifest
+        import yaml
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        manifest_data = self._make_extension(ext_dir)
+        manifest_data["provides"]["config"] = "not-a-list"
+        (ext_dir / "extension.yml").write_text(yaml.dump(manifest_data))
+
+        manifest = ExtensionManifest(ext_dir / "extension.yml")
+        assert manifest.config == []
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["provides.config"]
+
+    def test_scaffold_config_missing_manifest_returns_consistent_result(self, tmp_path):
+        """A missing extension manifest should return the documented tuple."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        (project / ".specify").mkdir(parents=True)
+
+        manager = ExtensionManager(project)
+
+        assert manager.scaffold_config("missing") == ([], [], [])
+
+    def test_scaffold_config_rejects_symlinked_config_root(self, tmp_path):
+        """A symlinked .specify must not become the containment root.
+
+        Resolving .specify first and trusting the result lets a symlink point
+        anywhere: every target then satisfies relative_to and copy2 writes
+        outside the project.
+        """
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        project.mkdir()
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (project / ".specify").symlink_to(outside, target_is_directory=True)
+
+        ext_dir = outside / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.yml",
+            "template": "config-template.yml",
+            "description": "Test config",
+            "required": True,
+        }])
+        (ext_dir / "config-template.yml").write_text("setting: default")
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == []
+        assert skipped == []
+        assert failed == ["provides.config"]
+        assert not (outside / "extensions" / "test-ext" / "test-config.yml").exists()
+
+    def test_scaffold_config_rejects_targets_removal_would_not_preserve(self, tmp_path):
+        """Only top-level *-config.yml targets are scaffolded.
+
+        remove(keep_config=True) rmtree's every subdirectory and keeps only
+        top-level -config.yml / -config.local.yml files, and the backup path
+        globs the same pattern. Scaffolding anything else would hand the user a
+        file that `extension add --force` silently replaces with the template
+        default.
+        """
+        from specify_cli.extensions import ExtensionManager
+        for target in ("nested/test-config.yml", "settings.yml", "test-config.yaml"):
+            project = tmp_path / f"project-{target.replace('/', '_')}"
+            specify_dir = project / ".specify"
+            specify_dir.mkdir(parents=True)
+            ext_dir = specify_dir / "extensions" / "test-ext"
+            self._make_extension(ext_dir, config_entries=[{
+                "name": target,
+                "template": "config-template.yml",
+                "description": "Test config",
+                "required": True,
+            }])
+            (ext_dir / "config-template.yml").write_text("setting: default")
+
+            manager = ExtensionManager(project)
+            deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+            assert deployed == [], target
+            assert skipped == [], target
+            assert failed == [target], target
+
+    def test_scaffold_config_accepts_local_override_name(self, tmp_path):
+        """*-config.local.yml is preserved by removal, so it may be scaffolded."""
+        from specify_cli.extensions import ExtensionManager
+        project = tmp_path / "project"
+        specify_dir = project / ".specify"
+        specify_dir.mkdir(parents=True)
+        ext_dir = specify_dir / "extensions" / "test-ext"
+        self._make_extension(ext_dir, config_entries=[{
+            "name": "test-config.local.yml",
+            "template": "config-template.yml",
+            "description": "Test config",
+            "required": True,
+        }])
+        (ext_dir / "config-template.yml").write_text("setting: default")
+
+        manager = ExtensionManager(project)
+        deployed, skipped, failed = manager.scaffold_config("test-ext")
+
+        assert deployed == ["test-config.local.yml"]
+        assert failed == []

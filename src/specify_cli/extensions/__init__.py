@@ -563,6 +563,14 @@ class ExtensionManifest:
         return self.data.get("provides", {}).get("commands", [])
 
     @property
+    def config(self) -> List[Dict[str, Any]]:
+        """Get list of provided config templates, normalized to dictionaries."""
+        raw = self.data.get("provides", {}).get("config", [])
+        if not isinstance(raw, list) or not all(isinstance(entry, dict) for entry in raw):
+            return []
+        return raw
+
+    @property
     def hooks(self) -> Dict[str, Any]:
         """Get hook definitions."""
         return self.data.get("hooks", {})
@@ -2488,6 +2496,149 @@ class ExtensionManager:
             return self.install_from_directory(
                 extension_dir, speckit_version, priority=priority, force=force
             )
+
+    def _config_root_is_contained(self, specify_dir: Path) -> bool:
+        """Report whether `.specify` is a real directory inside the project.
+
+        Checked component by component so a symlink anywhere on the path is
+        rejected before it becomes the containment root. A missing `.specify`
+        is fine: scaffolding creates it under the project root.
+        """
+        try:
+            root = self.project_root.resolve()
+        except OSError:
+            return False
+        current = self.project_root
+        for part in specify_dir.relative_to(self.project_root).parts:
+            current = current / part
+            if current.is_symlink():
+                return False
+            if not current.exists():
+                return True
+            try:
+                if current.resolve().relative_to(root) is None:
+                    return False
+            except (OSError, ValueError):
+                return False
+        return current.is_dir()
+
+    @staticmethod
+    def _target_follows_preserved_convention(target_name: str) -> bool:
+        """True when a scaffold target survives remove/backup/restore.
+
+        Those paths only handle top-level ``*-config.yml`` and
+        ``*-config.local.yml`` files, so anything nested or otherwise named is
+        not preserved across an update.
+        """
+        if "/" in target_name or "\\" in target_name:
+            return False
+        return target_name.endswith("-config.yml") or target_name.endswith(
+            "-config.local.yml"
+        )
+
+    def scaffold_config(self, extension_id: str) -> tuple[List[str], List[str], List[str]]:
+        """Deploy config templates from an installed extension to the project.
+
+        Reads the extension's manifest provides.config section and copies
+        each config template to the project's .specify/ directory. Existing
+        config files are never overwritten (user customizations are preserved).
+
+        Args:
+            extension_id: ID of the installed extension
+
+        Returns:
+            Tuple of (deployed, skipped_existing, failed) where each is a list
+            of config file names.
+        """
+        ext_dir = self.extensions_dir / extension_id
+        manifest_path = ext_dir / "extension.yml"
+        if not manifest_path.exists():
+            return [], [], []
+
+        manifest = ExtensionManifest(manifest_path)
+        deployed = []
+        skipped_existing = []
+        failed = []
+
+        provides = manifest.data.get("provides", {})
+        raw_config = provides.get("config", [])
+        config_is_malformed = (
+            "config" in provides
+            and (
+                not isinstance(raw_config, list)
+                or not all(isinstance(entry, dict) for entry in raw_config)
+            )
+        )
+        if config_is_malformed:
+            return deployed, skipped_existing, ["provides.config"]
+
+        ext_dir_resolved = ext_dir.resolve()
+        # Config is deployed beneath the extension's own directory because that
+        # is where it is read from: ConfigManager._get_project_config() loads
+        # `.specify/extensions/<id>/<id>-config.yml`, and the bundled scripts
+        # and READMEs use the same location. Writing to `.specify/<name>` put
+        # the file somewhere nothing ever looks.
+        config_dir = self.project_root / ".specify" / "extensions" / extension_id
+        # Resolving that directory and trusting the result as the containment
+        # root lets a symlinked component point outside the project: every
+        # target would then satisfy relative_to and copy2 would write
+        # externally. Refuse a symlinked component up front, matching the
+        # project safe-write path in shared_infra.
+        if not self._config_root_is_contained(config_dir):
+            return deployed, skipped_existing, ["provides.config"]
+        config_dir_resolved = config_dir.resolve()
+
+        for config_entry in manifest.config:
+            template_name = config_entry.get("template", "")
+            target_name = config_entry.get("name", template_name)
+            failure_name = target_name if isinstance(target_name, str) and target_name else "provides.config"
+            if not isinstance(template_name, str) or not template_name:
+                failed.append(failure_name)
+                continue
+            if not isinstance(target_name, str) or not target_name:
+                failed.append(failure_name)
+                continue
+            # Only scaffold what removal actually preserves. remove(keep_config)
+            # keeps top-level files ending in -config.yml / -config.local.yml and
+            # rmtree's every subdirectory; the backup path globs the same
+            # top-level pattern. A nested or differently-named target would be
+            # silently destroyed by `extension add --force` and replaced with the
+            # template default, losing the user's customization.
+            if not self._target_follows_preserved_convention(target_name):
+                failed.append(failure_name)
+                continue
+
+            template_candidate = ext_dir / template_name
+            template_path = template_candidate.resolve()
+            target_path = (config_dir / target_name).resolve()
+            try:
+                template_path.relative_to(ext_dir_resolved)
+                target_path.relative_to(config_dir_resolved)
+            except ValueError:
+                failed.append(failure_name)
+                continue
+
+            if template_candidate.is_symlink() or not template_path.is_file():
+                failed.append(failure_name)
+                continue
+
+            if target_path.exists():
+                skipped_existing.append(target_name)
+                continue
+
+            try:
+                # mkdir belongs inside the handler: a nested target like
+                # foo/config.yml must land in `failed` when `.specify/foo` is a
+                # file or cannot be created, not raise out of scaffolding after
+                # `extension add` has already installed the extension.
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(template_path, target_path)
+            except OSError:
+                failed.append(target_name)
+                continue
+            deployed.append(target_name)
+
+        return deployed, skipped_existing, failed
 
     def install_from_zip(
         self,
