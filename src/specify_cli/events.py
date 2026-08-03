@@ -436,6 +436,12 @@ function runEvent(command: string, event: string, input: any, output: any, timeo
   }}
 }}
 
+// Cache session_start handler output per sessionID so non-idempotent
+// handlers (setup, telemetry, file-mutating scripts) run once per session
+// instead of on every LLM request (experimental.chat.system.transform
+// fires per LLM turn). Evicted on session.deleted.
+const sessionStartCache = new Map<string, string>();
+
 {event_entries}
 
 export default (async ({{ client, project, directory, $ }}) => {{
@@ -1113,7 +1119,11 @@ def _dispatcher_command(
     When *timeout_seconds* is given, the resolved timeout (in the
     integration's native unit) is appended as a 4th argument so the dispatcher
     and inner runner honor the per-handler timeout instead of a fixed 120s cap
-    that would kill a handler configured for longer (S4).
+    that would kill a handler configured for longer (S4). When omitted, a
+    default of 60s is emitted so the positional argument order
+    (command event timeout envelope native_event) stays aligned — otherwise
+    the envelope would land in the timeout slot and the dispatcher would
+    silently fall back to plain stdout.
 
     When the integration declares a context-injection envelope for this
     canonical event (``events_context_envelope``, C13), the envelope token is
@@ -1139,13 +1149,17 @@ def _dispatcher_command(
     # operator. Prefix & for the explicit windows target only.
     prefix = "& " if target_os == "windows" else ""
     base = f"{prefix}{q_interp} {dispatcher} {q_command} {q_event}"
-    if timeout_seconds is not None:
-        # R2: the dispatcher interprets this argument as seconds, so pass the
-        # raw seconds — NOT _native_timeout(...) (which converts to ms for
-        # Gemini/Qwen/Tabnine and would yield 60000 seconds). The buffer is
-        # applied to the native hook timeout field (in the adapter formatters)
-        # so the agent's outer cap fires after the inner subprocess timeout.
-        base += f" {_shell_quote(str(int(timeout_seconds)), target_os)}"
+    # Always emit the timeout (4th positional arg) so the dispatcher's argv
+    # parsing stays aligned when an envelope (5th) or native_event (6th)
+    # follows. Without it the envelope would land in the timeout slot and
+    # the dispatcher would fall back to plain stdout (R3).
+    resolved_timeout = 60 if timeout_seconds is None else int(timeout_seconds)
+    # R2: the dispatcher interprets this argument as seconds, so pass the
+    # raw seconds — NOT _native_timeout(...) (which converts to ms for
+    # Gemini/Qwen/Tabnine and would yield 60000 seconds). The buffer is
+    # applied to the native hook timeout field (in the adapter formatters)
+    # so the agent's outer cap fires after the inner subprocess timeout.
+    base += f" {_shell_quote(str(resolved_timeout), target_os)}"
     envelope = _context_envelope_for(integration, event_name)
     if envelope:
         base += f" {_shell_quote(envelope, target_os)}"
@@ -1801,11 +1815,18 @@ def _build_opencode_plugin(
             # operations (e.g. agent generation) with no sessionID. Guard so
             # canonical session_start handlers only run when a session is
             # present, preventing their output from being injected into
-            # internal prompts.
+            # internal prompts. Cache the handler output per sessionID so
+            # non-idempotent handlers (setup, telemetry, file-mutating
+            # scripts) execute once per session instead of on every LLM
+            # request; the cache is evicted on session.deleted.
             plugin_returns.append(
                 f"    {native_lit}: async (input: any, output: any) => {{\n"
                 f"      if (!input.sessionID) return;\n"
-                f"      const ctx = _{ev}(input, output);\n"
+                f"      let ctx = sessionStartCache.get(input.sessionID);\n"
+                f"      if (ctx === undefined) {{\n"
+                f"        ctx = _{ev}(input, output);\n"
+                f"        sessionStartCache.set(input.sessionID, ctx ?? \"\");\n"
+                f"      }}\n"
                 f"      if (ctx) output.system.push(ctx);\n"
                 f"    }},"
             )
@@ -1835,8 +1856,13 @@ def _build_opencode_plugin(
                 + "\n".join(body_lines) + "\n"
                 "  }"
             )
+            # Evict the sessionStartCache when the session is deleted so the
+            # cache doesn't grow unbounded across sessions.
+            eviction = ""
+            if native == "session.deleted":
+                eviction = "if (event.sessionID) sessionStartCache.delete(event.sessionID); "
             event_handlers.append(
-                f"      if (event.type === {native_lit}) {{ _{ev}(event, event); }}"
+                f"      if (event.type === {native_lit}) {{ {eviction}_{ev}(event, event); }}"
             )
 
     if event_handlers:

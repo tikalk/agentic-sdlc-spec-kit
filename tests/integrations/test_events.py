@@ -707,37 +707,39 @@ class TestContextInjectionEnvelopes:
         assert _context_envelope_for(gemini, "pre_tool_use") == "suppress"
 
         # hookSpecificOutput appends the native event name as a 6th dispatcher
-        # argument so the dispatcher can populate hookEventName.
+        # argument so the dispatcher can populate hookEventName. The default
+        # timeout (60s) is always emitted as the 4th arg to keep positional
+        # alignment (R3).
         cmd_gemini_start = _dispatcher_command(gemini, Path("/proj"), "speckit.boot", "session_start")
-        assert cmd_gemini_start.endswith(" hookSpecificOutput SessionStart")
+        assert cmd_gemini_start.endswith(" 60 hookSpecificOutput SessionStart")
 
         cmd_gemini_prompt = _dispatcher_command(gemini, Path("/proj"), "speckit.prompt", "user_prompt_submit")
-        assert cmd_gemini_prompt.endswith(" hookSpecificOutput BeforeAgent")
+        assert cmd_gemini_prompt.endswith(" 60 hookSpecificOutput BeforeAgent")
 
         cmd_gemini_tool = _dispatcher_command(gemini, Path("/proj"), "speckit.guard", "pre_tool_use")
-        assert cmd_gemini_tool.endswith(" suppress")
+        assert cmd_gemini_tool.endswith(" 60 suppress")
 
         # Qwen uses the same hookSpecificOutput protocol with its own native
         # event names; verify hookEventName threading for Qwen's CamelCase names.
         qwen = QwenIntegration()
         cmd_qwen_start = _dispatcher_command(qwen, Path("/proj"), "speckit.boot", "session_start")
-        assert cmd_qwen_start.endswith(" hookSpecificOutput SessionStart")
+        assert cmd_qwen_start.endswith(" 60 hookSpecificOutput SessionStart")
         cmd_qwen_prompt = _dispatcher_command(qwen, Path("/proj"), "speckit.prompt", "user_prompt_submit")
-        assert cmd_qwen_prompt.endswith(" hookSpecificOutput UserPromptSubmit")
+        assert cmd_qwen_prompt.endswith(" 60 hookSpecificOutput UserPromptSubmit")
 
         copilot = CopilotIntegration()
         assert _context_envelope_for(copilot, "session_start") == "additionalContext"
         assert _context_envelope_for(copilot, "user_prompt_submit") == "additionalContext"
         cmd_copilot_start = _dispatcher_command(copilot, Path("/proj"), "speckit.boot", "session_start")
-        assert cmd_copilot_start.endswith(" additionalContext")
+        assert cmd_copilot_start.endswith(" 60 additionalContext")
         cmd_copilot_prompt = _dispatcher_command(copilot, Path("/proj"), "speckit.prompt", "user_prompt_submit")
-        assert cmd_copilot_prompt.endswith(" additionalContext")
+        assert cmd_copilot_prompt.endswith(" 60 additionalContext")
 
         cursor = CursorAgentIntegration()
         assert _context_envelope_for(cursor, "session_start") == "additional_context"
         assert _context_envelope_for(cursor, "user_prompt_submit") == "suppress"
         cmd_cursor_start = _dispatcher_command(cursor, Path("/proj"), "speckit.boot", "session_start")
-        assert cmd_cursor_start.endswith(" additional_context")
+        assert cmd_cursor_start.endswith(" 60 additional_context")
 
         claude = ClaudeIntegration()
         codex = CodexIntegration()
@@ -857,6 +859,7 @@ class TestOpencodePluginMerging:
         events = {
             "pre_tool_use": [{"command": "speckit.tdd.validate", "matcher": "Edit"}],
             "session_start": [{"command": "speckit.agent-context.update"}],
+            "session_end": [{"command": "speckit.agent-context.teardown"}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
 
@@ -877,6 +880,13 @@ class TestOpencodePluginMerging:
         # present — OpenCode fires this hook for non-session operations
         # (e.g. agent generation) with no sessionID.
         assert "if (!input.sessionID) return;" in content
+        # session_start handler output is cached per sessionID so non-idempotent
+        # handlers run once per session instead of on every LLM request.
+        assert "sessionStartCache" in content
+        assert "sessionStartCache.get(input.sessionID)" in content
+        assert "sessionStartCache.set(input.sessionID" in content
+        # Cache is evicted on session.deleted (session_end).
+        assert "sessionStartCache.delete(event.sessionID)" in content
 
     def test_opencode_ts_plugin_chat_message_part_injection(self, tmp_path):
         """user_prompt_submit emits chat.message pushing a synthetic TextPart.
