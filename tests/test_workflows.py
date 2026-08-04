@@ -2254,6 +2254,59 @@ class TestInitStep:
         assert "--ignore-agent-tools" in argv
         assert (tmp_path / ".specify").is_dir()
 
+    def test_explicit_null_ignore_agent_tools_keeps_documented_default(
+        self, tmp_path
+    ):
+        """A bare ``ignore_agent_tools:`` must keep the documented default.
+
+        The class docstring says "Because workflows run unattended, the step
+        defaults to ``--ignore-agent-tools``" and the field docs say "defaults to
+        ``true``". But ``config.get(key, True)`` applies the default only when the
+        key is ABSENT — a bare ``ignore_agent_tools:`` in YAML parses to None,
+        which ``_resolve_bool`` turned into False, dropping the flag and
+        re-enabling the agent-CLI presence check for an unattended run.
+        """
+        from specify_cli.workflows.steps.init import InitStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        step = InitStep()
+        ctx = StepContext(
+            project_root=str(tmp_path), default_integration="copilot"
+        )
+        result = step.execute(
+            {
+                "id": "bootstrap",
+                "here": True,
+                "script": "sh",
+                "ignore_agent_tools": None,
+            },
+            ctx,
+        )
+
+        assert result.status == StepStatus.COMPLETED
+        assert "--ignore-agent-tools" in result.output["argv"]
+
+    def test_explicit_false_ignore_agent_tools_is_honoured(self, tmp_path):
+        """An explicit ``false`` must still opt in to the agent-CLI check."""
+        from specify_cli.workflows.steps.init import InitStep
+        from specify_cli.workflows.base import StepContext
+
+        step = InitStep()
+        ctx = StepContext(
+            project_root=str(tmp_path), default_integration="copilot"
+        )
+        result = step.execute(
+            {
+                "id": "bootstrap",
+                "here": True,
+                "script": "sh",
+                "ignore_agent_tools": False,
+            },
+            ctx,
+        )
+
+        assert "--ignore-agent-tools" not in result.output["argv"]
+
     def test_default_integration_falls_back_to_workflow_default(self, tmp_path):
         from specify_cli.workflows.steps.init import InitStep
         from specify_cli.workflows.base import StepContext, StepStatus
@@ -2267,6 +2320,24 @@ class TestInitStep:
         )
         assert result.status == StepStatus.COMPLETED
         assert result.output["integration"] == "copilot"
+
+    def test_default_integration_honors_env_var(self, tmp_path, monkeypatch):
+        # With no step-level and no workflow-level default, the resolved
+        # SPECKIT_INTEGRATION_DEFAULT value must drive both output.integration
+        # and the argv passed to init (guards against reverting to the constant).
+        from specify_cli.workflows.steps.init import InitStep
+        from specify_cli.workflows.base import StepContext, StepStatus
+
+        monkeypatch.setenv("SPECKIT_INTEGRATION_DEFAULT", "gemini")
+        step = InitStep()
+        ctx = StepContext(project_root=str(tmp_path))
+        result = step.execute(
+            {"id": "bootstrap", "here": True, "script": "sh"}, ctx
+        )
+        assert result.status == StepStatus.COMPLETED
+        assert result.output["integration"] == "gemini"
+        argv = result.output["argv"]
+        assert "--integration" in argv and "gemini" in argv
 
     def test_project_name_creates_subdirectory(self, tmp_path):
         from specify_cli.workflows.steps.init import InitStep
@@ -7059,6 +7130,35 @@ class TestRunState:
 
         with pytest.raises(FileNotFoundError):
             RunState.load("nonexistent", project_dir)
+
+    def test_load_rejects_stored_run_id_mismatch(self, project_dir):
+        """The state payload cannot redirect later writes to another run."""
+        from specify_cli.workflows.engine import RunState
+
+        run_dir = (
+            project_dir
+            / ".specify"
+            / "workflows"
+            / "runs"
+            / "requested-run"
+        )
+        run_dir.mkdir(parents=True)
+        (run_dir / "state.json").write_text(
+            json.dumps(
+                {
+                    "run_id": "other-run",
+                    "workflow_id": "test-workflow",
+                    "status": "created",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        with pytest.raises(
+            ValueError,
+            match="stored run_id 'other-run' does not match requested run_id 'requested-run'",
+        ):
+            RunState.load("requested-run", project_dir)
 
     @pytest.mark.parametrize(
         ("installed_workflow_id", "installed_registry_root"),

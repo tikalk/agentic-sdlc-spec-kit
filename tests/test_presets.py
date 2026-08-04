@@ -217,6 +217,102 @@ class TestPresetManifest:
         ):
             PresetManifest(manifest_path)
 
+    @pytest.mark.parametrize("field", ["id", "name", "version", "description"])
+    @pytest.mark.parametrize("bad", [1.0, 5, None, ["a"], {"a": 1}, True])
+    def test_preset_metadata_field_not_string_raises_validation_error(
+        self, temp_dir, valid_pack_data, field, bad
+    ):
+        """A non-string preset.<field> raises PresetValidationError, not a raw
+        TypeError.
+
+        The loop over these four fields only checked key PRESENCE, then fed the
+        values to ``re.match`` (id) and ``packaging.Version`` (version), both of
+        which raise a bare TypeError on a non-string. YAML makes that an easy
+        authoring slip: unquoted ``version: 1.0`` parses as a float and ``id: 2``
+        as an int. TypeError is not a PresetValidationError, so it escaped
+        list_installed()'s "Corrupted preset" fallback and made
+        `specify preset list` exit 1 with a raw traceback, hiding every healthy
+        preset too. The sibling IntegrationDescriptor already type-checks the
+        same four fields.
+        """
+        valid_pack_data["preset"][field] = bad
+        manifest_path = temp_dir / "preset.yml"
+        manifest_path.write_text(yaml.safe_dump(valid_pack_data), encoding="utf-8")
+
+        with pytest.raises(
+            PresetValidationError,
+            match=rf"Invalid preset\.{field}: expected a string",
+        ):
+            PresetManifest(manifest_path)
+
+    @pytest.mark.parametrize("field", ["name", "file"])
+    @pytest.mark.parametrize("bad", [1.0, 5, None, ["a"], {"a": 1}, True])
+    def test_template_entry_field_not_string_raises_validation_error(
+        self, temp_dir, valid_pack_data, field, bad
+    ):
+        """A non-string template ``name``/``file`` raises PresetValidationError.
+
+        ``name`` reaches ``re.match`` and ``file`` reaches ``os.path.normpath``;
+        both raise a bare TypeError on a non-string. The sibling extension
+        manifest already rejects a non-string command ``file`` via
+        relative_extension_path_violation().
+        """
+        valid_pack_data["provides"]["templates"][0][field] = bad
+        manifest_path = temp_dir / "preset.yml"
+        manifest_path.write_text(yaml.safe_dump(valid_pack_data), encoding="utf-8")
+
+        with pytest.raises(
+            PresetValidationError,
+            match=rf"Invalid template {field}: expected a string",
+        ):
+            PresetManifest(manifest_path)
+
+    def test_one_bad_manifest_does_not_hide_healthy_presets(self, temp_dir):
+        """End-to-end guard for the symptom: an unquoted ``version: 1.0`` in one
+        installed preset must degrade to "Corrupted preset" and still let
+        list_installed() report the healthy ones, instead of raising TypeError
+        out of the whole call.
+        """
+        preset_root = temp_dir / ".specify" / "presets"
+        for pack_id, version in (("good-pack", '"1.0.0"'), ("bad-pack", "1.0")):
+            pack_path = preset_root / pack_id
+            pack_path.mkdir(parents=True, exist_ok=True)
+            (pack_path / "preset.yml").write_text(
+                f"""schema_version: "1.0"
+preset:
+  id: {pack_id}
+  name: {pack_id}
+  version: {version}
+  description: desc
+requires:
+  speckit_version: ">=0.1.0"
+provides:
+  templates:
+    - type: template
+      name: spec
+      file: templates/spec.md
+""",
+                encoding="utf-8",
+            )
+        (preset_root / ".registry").write_text(
+            json.dumps(
+                {
+                    "schema_version": "1.0",
+                    "presets": {
+                        "good-pack": {"version": "1.0.0", "enabled": True},
+                        "bad-pack": {"version": "1.0", "enabled": True},
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        listed = {row["id"]: row for row in PresetManager(temp_dir).list_installed()}
+
+        assert set(listed) == {"good-pack", "bad-pack"}
+        assert "Corrupted" not in listed["good-pack"]["description"]
+        assert "Corrupted" in listed["bad-pack"]["description"]
+
     @pytest.mark.parametrize(
         "bad",
         [
@@ -4923,6 +5019,103 @@ class TestPresetSkills:
         assert "preset:self-test" not in content, "Preset content should be gone"
         assert "templates/commands/specify.md" in content, "Should reference core template"
         assert "disable-model-invocation: false" in content
+
+    def test_skill_restored_on_preset_remove_without_project_core_templates(self, project_dir):
+        """Removing a preset must restore core skills even when the project
+        has no ``.specify/templates/commands`` directory of its own — which
+        is the normal case, since ``specify init`` never populates it. The
+        real core commands live in the bundled core_pack/repo-root templates
+        tree, and restoration must fall back there instead of deleting the
+        skill outright (#3928).
+        """
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify")
+
+        # The project_dir fixture's commands dir is empty, matching a real
+        # project — specify init never populates project-local overrides
+        # for unmodified core commands.
+        core_cmds = project_dir / ".specify" / "templates" / "commands"
+        assert core_cmds.exists() and not any(core_cmds.iterdir())
+
+        manager = PresetManager(project_dir)
+        install_self_test_preset(manager)
+
+        skill_file = skills_dir / "speckit-specify" / "SKILL.md"
+        assert "preset:self-test" in skill_file.read_text(encoding="utf-8")
+
+        manager.remove("self-test")
+
+        assert skill_file.exists(), "Core skill must be restored, not deleted"
+        content = skill_file.read_text(encoding="utf-8")
+        assert "preset:self-test" not in content
+        assert "templates/commands/specify.md" in content
+        assert "Create or update the feature specification" in content
+
+    def test_extension_wins_over_bundled_core_on_preset_remove(
+        self, project_dir, monkeypatch
+    ):
+        """When an installed extension owns the same skill name as a core
+        command, removing a preset that overrode that skill must restore it
+        from the extension, not silently from the bundled core template.
+        Extensions are resolved ahead of bundled core elsewhere, and the
+        bundled-core fallback added for #3928 must not replace that
+        higher-priority layer.
+
+        The extension-command namespace rules (``speckit.<ext>.<command>``)
+        make a genuine end-to-end name collision with a core command
+        cumbersome to construct through real manifests, so this stubs
+        ``_build_extension_skill_restore_index`` to exercise the priority
+        ordering in ``_unregister_skills_in_dir`` directly -- the code path
+        under test doesn't care how the index entry was produced, only that
+        it wins over the bundled-core fallback when present.
+        """
+        self._write_init_options(project_dir, ai="claude")
+        skills_dir = project_dir / ".claude" / "skills"
+        self._create_skill(skills_dir, "speckit-specify")
+
+        # No project-local core template override — the normal case, and
+        # the one that makes the bundled-core fallback kick in at all.
+        core_cmds = project_dir / ".specify" / "templates" / "commands"
+        assert core_cmds.exists() and not any(core_cmds.iterdir())
+
+        extension_dir = project_dir / ".specify" / "extensions" / "fakeext"
+        (extension_dir / "commands").mkdir(parents=True, exist_ok=True)
+        ext_specify_file = extension_dir / "commands" / "specify.md"
+        ext_specify_file.write_text(
+            "---\ndescription: Extension specify command\n---\n\n"
+            "extension:fakeext specify body\n"
+        )
+
+        manager = PresetManager(project_dir)
+        install_self_test_preset(manager)
+
+        skill_file = skills_dir / "speckit-specify" / "SKILL.md"
+        assert "preset:self-test" in skill_file.read_text(encoding="utf-8")
+
+        fake_restore_index = {
+            "speckit-specify": {
+                "command_name": "speckit.fakeext.specify",
+                "source_file": ext_specify_file,
+                "source": "extension:fakeext",
+                "extension_id": "fakeext",
+                "extension_dir": extension_dir,
+            }
+        }
+        monkeypatch.setattr(
+            manager,
+            "_build_extension_skill_restore_index",
+            lambda: fake_restore_index,
+        )
+
+        manager.remove("self-test")
+
+        assert skill_file.exists()
+        content = skill_file.read_text(encoding="utf-8")
+        assert "preset:self-test" not in content
+        assert "source: extension:fakeext" in content
+        assert "extension:fakeext specify body" in content
+        assert "templates/commands/specify.md" not in content
 
     def test_skill_restored_on_remove_resolves_script_placeholders(self, project_dir):
         """Core restore should resolve {SCRIPT}/{ARGS} placeholders like other skill paths."""
@@ -11660,6 +11853,24 @@ class TestResolveContent:
 
 class TestCollectAllLayers:
     """Test PresetResolver.collect_all_layers() method."""
+
+    def test_non_utf8_legacy_command_keeps_replace_strategy(self, project_dir):
+        presets_dir = project_dir / ".specify" / "presets"
+        command_path = (
+            presets_dir / "legacy-pack" / "commands" / "speckit.legacy.md"
+        )
+        command_path.parent.mkdir(parents=True)
+        command_path.write_bytes(b"\xff\xfe")
+        PresetRegistry(presets_dir).add(
+            "legacy-pack", {"version": "1.0.0", "priority": 10}
+        )
+
+        layers = PresetResolver(project_dir).collect_all_layers(
+            "speckit.legacy", "command"
+        )
+
+        assert layers[0]["path"] == command_path
+        assert layers[0]["strategy"] == "replace"
 
     def test_single_core_layer(self, project_dir):
         """Test collecting layers with only core template."""

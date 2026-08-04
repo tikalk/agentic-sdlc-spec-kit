@@ -307,9 +307,25 @@ class PresetManifest:
 
         # Validate preset metadata
         pack = self.data["preset"]
+        # Check presence AND type: the format/version checks below feed these
+        # values straight to ``re.match`` and ``packaging.Version``, both of
+        # which raise a bare TypeError on a non-string. YAML makes that an easy
+        # authoring slip -- unquoted ``version: 1.0`` parses as a float and
+        # ``id: 2`` as an int -- and TypeError is not a PresetValidationError,
+        # so it escapes every caller that already handles a malformed manifest
+        # (see list_installed()'s "Corrupted preset" fallback, which catches
+        # PresetValidationError only, making one bad preset exit ``specify
+        # preset list`` with a raw traceback and hide the healthy ones).
+        # Mirrors the sibling IntegrationDescriptor, which already type-checks
+        # the same four fields.
         for field in ["id", "name", "version", "description"]:
             if field not in pack:
                 raise PresetValidationError(f"Missing preset.{field}")
+            if not isinstance(pack[field], str):
+                raise PresetValidationError(
+                    f"Invalid preset.{field}: expected a string, "
+                    f"got {type(pack[field]).__name__}"
+                )
 
         # Validate pack ID format
         if not re.match(r'^[a-z0-9-]+$', pack["id"]):
@@ -366,6 +382,19 @@ class PresetManifest:
                 raise PresetValidationError(
                     "Template missing 'type', 'name', or 'file'"
                 )
+
+            # 'name' feeds re.match and 'file' feeds os.path.normpath below;
+            # both raise a bare TypeError on a non-string, which is not a
+            # PresetValidationError and so escapes the callers that handle a
+            # malformed manifest. The sibling extension manifest already
+            # rejects a non-string command 'file' via
+            # relative_extension_path_violation().
+            for field in ("type", "name", "file"):
+                if not isinstance(tmpl[field], str):
+                    raise PresetValidationError(
+                        f"Invalid template {field}: expected a string, "
+                        f"got {type(tmpl[field]).__name__}"
+                    )
 
             if tmpl["type"] not in VALID_PRESET_TEMPLATE_TYPES:
                 raise PresetValidationError(
@@ -2229,7 +2258,10 @@ class PresetManager:
             ]
             if dir_core_ext_names:
                 self._unregister_skills_in_dir(
-                    dir_core_ext_names, skills_dir, dir_agent
+                    dir_core_ext_names,
+                    skills_dir,
+                    dir_agent,
+                    restore_from_bundled_core=True,
                 )
 
             for _skill_name, cmd_name, top_layer in override_skills:
@@ -3118,12 +3150,24 @@ class PresetManager:
         preset_dir: Union[Path, str],
         *,
         additional_owned_sources: Optional[Dict[str, str]] = None,
+        restore_from_bundled_core: bool = False,
     ) -> Dict[Path, tuple[Optional[str], List[str]]]:
         """Restore original SKILL.md files after a preset is removed.
 
         For each skill that was overridden by the preset, attempts to
         regenerate the skill from the core command template.  If no core
         template exists, the skill directory is removed.
+
+        Args:
+            restore_from_bundled_core: When True, a missing project-local
+                core template (the common case — ``specify init`` never
+                populates ``.specify/templates/commands``) falls back to
+                the bundled core_pack/repo-root templates so the skill is
+                restored instead of deleted (#3928). Callers that are
+                retiring a skill because its command now renders elsewhere
+                (a command file superseding it) must leave this False so
+                the skill is removed rather than resurrected with core
+                content that would duplicate the winning command.
 
         ``registered_skills`` records exactly which agent directories this
         preset actually wrote to (see :meth:`_register_skills`), so removal
@@ -3198,6 +3242,7 @@ class PresetManager:
                     renderer_agent,
                     pack_id=pack_id,
                     additional_owned_sources=additional_owned_sources,
+                    restore_from_bundled_core=restore_from_bundled_core,
                 )
                 if mutated_names:
                     restored[skills_dir] = (
@@ -3230,6 +3275,7 @@ class PresetManager:
             selected_ai,
             pack_id=pack_id,
             additional_owned_sources=additional_owned_sources,
+            restore_from_bundled_core=restore_from_bundled_core,
         )
         return (
             {skills_dir: (selected_ai, mutated_names)}
@@ -3303,6 +3349,7 @@ class PresetManager:
         *,
         pack_id: Optional[str] = None,
         additional_owned_sources: Optional[Dict[str, str]] = None,
+        restore_from_bundled_core: bool = False,
     ) -> List[str]:
         """Restore original SKILL.md files within a single skills directory.
 
@@ -3313,6 +3360,7 @@ class PresetManager:
                 placeholder resolution and argument-hint formatting.
             additional_owned_sources: Generated non-preset source markers
                 accepted as owned for specific skill names.
+            restore_from_bundled_core: See ``_unregister_skills``.
 
         Returns:
             Skill names whose files were restored or removed.
@@ -3388,9 +3436,34 @@ class PresetManager:
                 if current_source not in owned_sources:
                     continue
 
-            # Try to find the core command template
-            core_file = core_templates_dir / f"{short_name}.md" if core_templates_dir.exists() else None
-            if core_file and not core_file.exists():
+            extension_restore = extension_restore_index.get(skill_name)
+
+            # Try to find the core command template. Project-local overrides
+            # in core_templates_dir take precedence, but that directory is
+            # rarely populated — the real core commands ship in the bundled
+            # core_pack (wheel install) or the repo-root templates/ tree
+            # (source checkout). Callers that want a genuine restore (a
+            # preset was removed outright, not superseded by another
+            # renderer) opt into that fallback via restore_from_bundled_core
+            # so the skill is restored instead of deleted (#3928). An
+            # installed extension providing a core-named command resolves
+            # ahead of bundled core elsewhere, so skip the bundled fallback
+            # when an extension restore exists — otherwise it would win
+            # over the higher-priority extension layer below.
+            core_file = core_templates_dir / f"{short_name}.md"
+            if (
+                not core_file.exists()
+                and restore_from_bundled_core
+                and extension_restore is None
+            ):
+                from .. import _locate_core_pack, _repo_root
+
+                _core_pack = _locate_core_pack()
+                if _core_pack is not None:
+                    core_file = _core_pack / "commands" / f"{short_name}.md"
+                else:
+                    core_file = _repo_root() / "templates" / "commands" / f"{short_name}.md"
+            if not core_file.exists():
                 core_file = None
 
             if core_file:
@@ -3442,7 +3515,6 @@ class PresetManager:
                 mutated_names.append(skill_name)
                 continue
 
-            extension_restore = extension_restore_index.get(skill_name)
             if extension_restore:
                 content = extension_restore["source_file"].read_text(encoding="utf-8")
                 frontmatter, body = registrar.parse_frontmatter(content)
@@ -3588,7 +3660,9 @@ class PresetManager:
                 "registered_skills", registered_skills
             )
             if persisted_skills:
-                self._unregister_skills(persisted_skills, dest_dir)
+                self._unregister_skills(
+                    persisted_skills, dest_dir, restore_from_bundled_core=True
+                )
             try:
                 if dest_dir.exists():
                     shutil.rmtree(dest_dir)
@@ -3926,6 +4000,7 @@ class PresetManager:
                 restorable_skills,
                 pack_dir,
                 additional_owned_sources=override_sources,
+                restore_from_bundled_core=True,
             )
             try:
                 from ..agents import CommandRegistrar
@@ -5437,7 +5512,7 @@ class PresetResolver:
                                         fm_strategy = fm_data.get("strategy")
                                         if isinstance(fm_strategy, str) and fm_strategy.lower() in VALID_PRESET_STRATEGIES:
                                             strategy = fm_strategy.lower()
-                        except (yaml.YAMLError, OSError):
+                        except (UnicodeDecodeError, yaml.YAMLError, OSError):
                             # Best-effort legacy frontmatter parsing: keep default
                             # strategy ("replace") when content is unreadable/invalid.
                             pass

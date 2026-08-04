@@ -737,8 +737,10 @@ def resolve_events(
     if override_file.exists():
         try:
             override = yaml.safe_load(override_file.read_text(encoding="utf-8")) or {}
-        except yaml.YAMLError:
-            logger.warning("Could not parse %s; ignoring override", override_file)
+        except (OSError, UnicodeError, yaml.YAMLError):
+            logger.warning(
+                "Could not read or parse %s; ignoring override", override_file
+            )
             override = {}
         integrations = override.get("integrations", {}) if isinstance(override, dict) else {}
         if isinstance(integrations, dict) and integration_key in integrations:
@@ -895,7 +897,7 @@ def collect_extension_events(project_root: Path) -> ResolvedEvents:
                 continue
             try:
                 data = yaml.safe_load(ext_yml.read_text(encoding="utf-8")) or {}
-            except yaml.YAMLError:
+            except (UnicodeDecodeError, yaml.YAMLError):
                 continue
             if not isinstance(data, dict):
                 continue
