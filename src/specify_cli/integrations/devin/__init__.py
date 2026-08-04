@@ -44,6 +44,13 @@ class DevinIntegration(SkillsIntegration):
     # top-level "hooks" wrapper (U2), unlike the settings.json formats. The
     # json-root-nested writer/remover operate directly on the root event keys.
     events_format = "json-root-nested"
+    # Devin's hooks protocol is JSON-stdout; additionalContext is the
+    # documented injection field for SessionStart/UserPromptSubmit (C13).
+    events_context_envelope = {
+        "*": "suppress",
+        "session_start": "hookSpecificOutput",
+        "user_prompt_submit": "hookSpecificOutput",
+    }
 
     def build_exec_args(
         self,

@@ -48,6 +48,14 @@ class CursorAgentIntegration(SkillsIntegration):
     }
     events_config_file = ".cursor/hooks.json"
     events_format = "json-flat"
+    # Cursor sessionStart injects a top-level additional_context (snake_case)
+    # field (C13). beforeSubmitPrompt has no context output field (block/allow
+    # only), and plain text on any hook fails Cursor's JSON parse — suppress
+    # everything else.
+    events_context_envelope = {
+        "*": "suppress",
+        "session_start": "additional_context",
+    }
 
     def build_exec_args(
         self,
