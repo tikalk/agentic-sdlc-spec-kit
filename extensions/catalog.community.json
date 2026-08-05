@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-08-03T00:00:00Z",
+  "updated_at": "2026-08-04T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "adrkit": {
@@ -362,8 +362,8 @@
       "id": "archive",
       "description": "Archive merged features into main project memory, resolving gaps and conflicts.",
       "author": "Stanislav Deviatov",
-      "version": "1.0.0",
-      "download_url": "https://github.com/stn1slv/spec-kit-archive/archive/refs/tags/v1.0.0.zip",
+      "version": "1.1.0",
+      "download_url": "https://github.com/stn1slv/spec-kit-archive/archive/refs/tags/v1.1.0.zip",
       "repository": "https://github.com/stn1slv/spec-kit-archive",
       "homepage": "https://github.com/stn1slv/spec-kit-archive",
       "documentation": "https://github.com/stn1slv/spec-kit-archive/blob/main/README.md",
@@ -388,7 +388,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-14T00:00:00Z",
-      "updated_at": "2026-03-14T00:00:00Z"
+      "updated_at": "2026-08-04T00:00:00Z"
     },
     "azure-devops": {
       "name": "Azure DevOps Integration",
@@ -811,8 +811,8 @@
       "id": "charter",
       "description": "Compose modular project constitutions from shared fragment registries. Centralize governance rules, select per-project fragments, track upstream changes, and keep multi-project setups consistent.",
       "author": "Fyloss",
-      "version": "0.3.1",
-      "download_url": "https://github.com/Fyloss/spec-kit-charter/archive/refs/tags/v0.3.1.zip",
+      "version": "0.5.1",
+      "download_url": "https://github.com/Fyloss/spec-kit-charter/archive/refs/tags/v0.5.1.zip",
       "repository": "https://github.com/Fyloss/spec-kit-charter",
       "homepage": "https://github.com/Fyloss/spec-kit-charter",
       "documentation": "https://github.com/Fyloss/spec-kit-charter/tree/master/docs",
@@ -821,7 +821,8 @@
       "category": "process",
       "effect": "read-write",
       "requires": {
-        "speckit_version": ">=0.11.9"
+        "speckit_version": ">=0.11.9",
+        "tools": [{ "name": "git", "required": false }]
       },
       "provides": {
         "commands": 5,
@@ -838,7 +839,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-07-06T00:00:00Z",
-      "updated_at": "2026-07-06T00:00:00Z"
+      "updated_at": "2026-08-04T00:00:00Z"
     },
     "ci-guard": {
       "name": "CI Guard",
@@ -4487,6 +4488,47 @@
       "stars": 0,
       "created_at": "2026-06-22T00:00:00Z",
       "updated_at": "2026-06-22T00:00:00Z"
+    },
+    "tdd": {
+      "name": "TDD Extension",
+      "id": "tdd",
+      "description": "Drives spec-kit implementation with tests: a language-agnostic red-green-refactor loop with a per-feature test list, recorded red and green evidence, and mutation-checked test strength.",
+      "author": "d0whc3r",
+      "version": "1.1.2",
+      "download_url": "https://github.com/d0whc3r/spec-kit-tdd/releases/download/v1.1.2/tdd-1.1.2.zip",
+      "repository": "https://github.com/d0whc3r/spec-kit-tdd",
+      "homepage": "https://d0whc3r.github.io/spec-kit-tdd/",
+      "documentation": "https://github.com/d0whc3r/spec-kit-tdd/wiki",
+      "changelog": "https://github.com/d0whc3r/spec-kit-tdd/blob/main/CHANGELOG.md",
+      "license": "MIT",
+      "category": "process",
+      "effect": "read-write",
+      "requires": {
+        "speckit_version": ">=0.11.9"
+      },
+      "provides": {
+        "commands": 4,
+        "hooks": 3
+      },
+      "tags": [
+        "acceptance-tests",
+        "mutation-testing",
+        "property-based-testing",
+        "quality",
+        "red-green-refactor",
+        "spec-kit",
+        "spec-kit-extension",
+        "tdd",
+        "test-driven-development",
+        "test-first",
+        "testing",
+        "unit-tests"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-08-04T00:00:00Z",
+      "updated_at": "2026-08-04T00:00:00Z"
     },
     "team-assign": {
       "name": "Team Assign",

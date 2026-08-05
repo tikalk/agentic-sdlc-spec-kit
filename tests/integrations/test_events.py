@@ -251,6 +251,8 @@ class TestCanonicalEventMapping:
         integration = OpencodeIntegration()
         assert integration.supports_events() is True
         assert integration.CANONICAL_TO_NATIVE["pre_tool_use"] == "tool.execute.before"
+        assert integration.CANONICAL_TO_NATIVE["session_start"] == "experimental.chat.system.transform"
+        assert integration.CANONICAL_TO_NATIVE["user_prompt_submit"] == "chat.message"
         assert "stop" not in integration.CANONICAL_TO_NATIVE
 
     def test_copilot_mapping(self):
@@ -671,6 +673,104 @@ class TestCopilotAgentStop:
 
 # -- Shell quoting & matcher escaping (R2, R4) -------------------------------
 
+class TestContextInjectionEnvelopes:
+    """C13: context-injection envelope resolution and emission."""
+
+    def test_emit_event_stdout_wrapping(self, capsys):
+        from specify_cli.events import _emit_event_stdout
+
+        _emit_event_stdout("hello ctx", "plain")
+        assert capsys.readouterr().out == "hello ctx"
+
+        # hookSpecificOutput without native_event: no hookEventName (backward
+        # compat for callers that don't pass it).
+        _emit_event_stdout("hello ctx", "hookSpecificOutput")
+        assert json.loads(capsys.readouterr().out.strip()) == {
+            "hookSpecificOutput": {"additionalContext": "hello ctx"}
+        }
+
+        # hookSpecificOutput with native_event: hookEventName included
+        # (required by Qwen's hooks spec; derived from Claude Code's).
+        _emit_event_stdout("hello ctx", "hookSpecificOutput", "SessionStart")
+        assert json.loads(capsys.readouterr().out.strip()) == {
+            "hookSpecificOutput": {
+                "additionalContext": "hello ctx",
+                "hookEventName": "SessionStart",
+            }
+        }
+
+        _emit_event_stdout("hello ctx", "additionalContext")
+        assert json.loads(capsys.readouterr().out.strip()) == {
+            "additionalContext": "hello ctx"
+        }
+
+        _emit_event_stdout("hello ctx", "additional_context")
+        assert json.loads(capsys.readouterr().out.strip()) == {
+            "additional_context": "hello ctx"
+        }
+
+        _emit_event_stdout("hello ctx", "suppress")
+        assert capsys.readouterr().out == ""
+
+        # Empty output emits nothing under any envelope.
+        _emit_event_stdout("", "additionalContext")
+        assert capsys.readouterr().out == ""
+
+    def test_envelope_resolution_and_command_formatting(self):
+        from specify_cli.events import _dispatcher_command, _context_envelope_for
+        from specify_cli.integrations.gemini import GeminiIntegration
+        from specify_cli.integrations.qwen import QwenIntegration
+        from specify_cli.integrations.copilot import CopilotIntegration
+        from specify_cli.integrations.cursor_agent import CursorAgentIntegration
+        from specify_cli.integrations.claude import ClaudeIntegration
+        from specify_cli.integrations.codex import CodexIntegration
+
+        gemini = GeminiIntegration()
+        assert _context_envelope_for(gemini, "session_start") == "hookSpecificOutput"
+        assert _context_envelope_for(gemini, "user_prompt_submit") == "hookSpecificOutput"
+        assert _context_envelope_for(gemini, "pre_tool_use") == "suppress"
+
+        # hookSpecificOutput appends the native event name as a 6th dispatcher
+        # argument so the dispatcher can populate hookEventName. The default
+        # timeout (60s) is always emitted as the 4th arg to keep positional
+        # alignment (R3).
+        cmd_gemini_start = _dispatcher_command(gemini, Path("/proj"), "speckit.boot", "session_start")
+        assert cmd_gemini_start.endswith(" 60 hookSpecificOutput SessionStart")
+
+        cmd_gemini_prompt = _dispatcher_command(gemini, Path("/proj"), "speckit.prompt", "user_prompt_submit")
+        assert cmd_gemini_prompt.endswith(" 60 hookSpecificOutput BeforeAgent")
+
+        cmd_gemini_tool = _dispatcher_command(gemini, Path("/proj"), "speckit.guard", "pre_tool_use")
+        assert cmd_gemini_tool.endswith(" 60 suppress")
+
+        # Qwen uses the same hookSpecificOutput protocol with its own native
+        # event names; verify hookEventName threading for Qwen's CamelCase names.
+        qwen = QwenIntegration()
+        cmd_qwen_start = _dispatcher_command(qwen, Path("/proj"), "speckit.boot", "session_start")
+        assert cmd_qwen_start.endswith(" 60 hookSpecificOutput SessionStart")
+        cmd_qwen_prompt = _dispatcher_command(qwen, Path("/proj"), "speckit.prompt", "user_prompt_submit")
+        assert cmd_qwen_prompt.endswith(" 60 hookSpecificOutput UserPromptSubmit")
+
+        copilot = CopilotIntegration()
+        assert _context_envelope_for(copilot, "session_start") == "additionalContext"
+        assert _context_envelope_for(copilot, "user_prompt_submit") == "additionalContext"
+        cmd_copilot_start = _dispatcher_command(copilot, Path("/proj"), "speckit.boot", "session_start")
+        assert cmd_copilot_start.endswith(" 60 additionalContext")
+        cmd_copilot_prompt = _dispatcher_command(copilot, Path("/proj"), "speckit.prompt", "user_prompt_submit")
+        assert cmd_copilot_prompt.endswith(" 60 additionalContext")
+
+        cursor = CursorAgentIntegration()
+        assert _context_envelope_for(cursor, "session_start") == "additional_context"
+        assert _context_envelope_for(cursor, "user_prompt_submit") == "suppress"
+        cmd_cursor_start = _dispatcher_command(cursor, Path("/proj"), "speckit.boot", "session_start")
+        assert cmd_cursor_start.endswith(" 60 additional_context")
+
+        claude = ClaudeIntegration()
+        codex = CodexIntegration()
+        assert _context_envelope_for(claude, "session_start") is None
+        assert _context_envelope_for(codex, "session_start") is None
+
+
 class TestDispatcherCommandQuoting:
     """R2: dispatcher command components are shell-quoted so spaces and shell
     metacharacters are passed as single arguments, not reinterpreted."""
@@ -768,6 +868,59 @@ class TestTomlMatcherEscaping:
         assert group["matcher"] == 'Ba"sh'
 
 
+class TestTomlUnreadableConfig:
+    """An undecodable user config.toml must not crash install or teardown.
+
+    Every JSON merge/remove path goes through ``_load_user_json``, which
+    skips on an unreadable or malformed file to preserve user content (#22).
+    The TOML merge and remove read the user's config.toml with no boundary,
+    so a non-UTF-8 (or otherwise unreadable) file crashed
+    ``install_integration_events``/``remove_integration_events`` with a raw
+    ``UnicodeDecodeError`` — and the merge path would have regenerated the
+    file, discarding the user's bytes, had it not crashed first.
+    """
+
+    def test_merge_skips_unreadable_config_and_preserves_bytes(self, tmp_path):
+        from specify_cli.integrations.codex import CodexIntegration
+
+        integration = CodexIntegration()
+        manifest = _claude_manifest(tmp_path)
+        config_path = tmp_path / ".codex" / "config.toml"
+        config_path.parent.mkdir(parents=True)
+        user_bytes = b"# codex config \xff\xfe not utf-8\n"
+        config_path.write_bytes(user_bytes)
+
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+
+        # User bytes preserved and the skipped file is not tracked (S5).
+        assert config_path.read_bytes() == user_bytes
+        manifest.record_existing.assert_not_called()
+
+    def test_teardown_skips_unreadable_config_and_preserves_bytes(self, tmp_path):
+        from specify_cli.integrations.codex import CodexIntegration
+
+        integration = CodexIntegration()
+        manifest = _claude_manifest(tmp_path)
+        install_integration_events(
+            integration, tmp_path, manifest,
+            {"pre_tool_use": [{"command": "speckit.tdd.validate"}]},
+        )
+        config_path = tmp_path / ".codex" / "config.toml"
+        assert config_path.is_file()
+
+        # The user (or another tool) rewrites the config as non-UTF-8
+        # between install and uninstall.
+        user_bytes = b"# rewritten \xff\xfe not utf-8\n"
+        config_path.write_bytes(user_bytes)
+
+        remove_integration_events(integration, tmp_path, manifest)
+
+        assert config_path.read_bytes() == user_bytes
+
+
 # -- Opencode TS Plugin merging ---------------------------------------------
 
 class TestOpencodePluginMerging:
@@ -783,6 +936,7 @@ class TestOpencodePluginMerging:
         events = {
             "pre_tool_use": [{"command": "speckit.tdd.validate", "matcher": "Edit"}],
             "session_start": [{"command": "speckit.agent-context.update"}],
+            "session_end": [{"command": "speckit.agent-context.teardown"}],
         }
         install_integration_events(integration, tmp_path, manifest, events)
 
@@ -791,13 +945,50 @@ class TestOpencodePluginMerging:
         content = plugin_path.read_text()
         assert "runEvent" in content
         assert "tool.execute.before" in content
-        assert "session.created" in content
+        assert "experimental.chat.system.transform" in content
         assert "speckit.tdd.validate" in content
         assert "speckit.agent-context.update" in content
         # #13: failures must propagate via throw, not process.exit(2) which
         # would kill the OpenCode host process.
         assert "process.exit(2)" not in content
         assert "throw new Error" in content
+        # session_start (experimental.chat.system.transform) must be guarded
+        # so canonical session-start handlers only run when a session is
+        # present — OpenCode fires this hook for non-session operations
+        # (e.g. agent generation) with no sessionID.
+        assert "if (!input.sessionID) return;" in content
+        # session_start handler output is cached per sessionID so non-idempotent
+        # handlers run once per session instead of on every LLM request.
+        assert "sessionStartCache" in content
+        assert "sessionStartCache.get(input.sessionID)" in content
+        assert "sessionStartCache.set(input.sessionID" in content
+        # Cache is evicted on session.deleted (session_end).
+        assert "sessionStartCache.delete(event.sessionID)" in content
+
+    def test_opencode_ts_plugin_chat_message_part_injection(self, tmp_path):
+        """user_prompt_submit emits chat.message pushing a synthetic TextPart.
+        The part ID derives from output.parts[last].id (prt_ brand preserved)
+        with a prt_ fallback to prevent OpenCode session schema crashes."""
+        integration = OpencodeIntegration()
+        manifest = MagicMock(spec=IntegrationManifest)
+        manifest.files = {}
+        manifest.record_file = MagicMock()
+        manifest.record_existing = MagicMock()
+
+        events = {
+            "user_prompt_submit": [{"command": "speckit.discover"}],
+        }
+        install_integration_events(integration, tmp_path, manifest, events)
+
+        plugin_path = tmp_path / ".opencode/plugin/speckit-events.ts"
+        assert plugin_path.is_file()
+        content = plugin_path.read_text()
+        assert "chat.message" in content
+        assert "output.parts.push" in content
+        assert "synthetic: true" in content
+        assert 'type: "text"' in content
+        assert "output.parts[output.parts.length - 1]?.id" in content
+        assert '?? "prt_"' in content
 
     def test_opencode_ts_plugin_resolves_interpreter_and_directory_at_load(self, tmp_path):
         """C8/C9: the dispatcher + interpreter are resolved per-project at
@@ -1048,6 +1239,32 @@ class TestCommandRunner:
         assert PurePath(argv[1]).as_posix().endswith(".specify/scripts/python/boot.py")
         assert ".specify" in argv[1]
 
+    def test_unparseable_script_command_returns_none(self, tmp_path):
+        """A ``scripts:`` value shlex cannot tokenize must resolve to no argv.
+
+        The generated dispatcher's ``_resolve_argv`` twin wraps its
+        ``shlex.split`` in ``except ValueError: return None``, but the
+        CLI-side resolver did not: an unclosed quote in a ``scripts:``
+        frontmatter value raised a raw ``ValueError: No closing quotation``
+        through ``resolve_and_run_event_command`` instead of degrading to
+        "no runnable script" like every other malformed-input case here.
+        """
+        from specify_cli.events import _resolve_event_command_argv
+
+        cmd_dir = tmp_path / ".specify" / "templates" / "commands"
+        cmd_dir.mkdir(parents=True)
+        (cmd_dir / "boot.md").write_text(
+            "---\n"
+            "description: \"Boot\"\n"
+            "scripts:\n"
+            "  sh: scripts/bash/boot.sh \"unclosed\n"
+            "---\nBody\n",
+            encoding="utf-8",
+        )
+
+        argv = _resolve_event_command_argv(cmd_dir / "boot.md", tmp_path, None)
+        assert argv is None
+
     def test_ps_variant_prefixed_with_powershell_launcher(self, tmp_path):
         """S6: the ps variant prefixes argv with pwsh/powershell -File so
         subprocess.run(shell=False) can execute the .ps1 script."""
@@ -1126,7 +1343,7 @@ class TestCommandRunner:
         content = (tmp_path / EVENTS_DISPATCHER_REL).read_text()
         # Delegates to specify_cli when importable.
         assert "from specify_cli.events import resolve_and_run_event_command" in content
-        assert "except ImportError" in content
+        assert "except (ImportError, TypeError):" in content
         # Inline stdlib fallback resolver for one-time/temporary installs.
         assert "_run_inline" in content
         assert "_find_command_template" in content

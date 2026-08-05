@@ -69,11 +69,11 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0, f"init failed: {result.output}"
-        from tests.conftest import _cmd_prefix
-
-        prefix = _cmd_prefix()
-        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
-        assert (project / ".github" / "prompts" / f"{prefix}.plan.prompt.md").exists()
+        assert (
+            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
+        assert not (project / ".github" / "agents").exists()
+        assert not (project / ".github" / "prompts").exists()
         assert (project / ".specify" / "scripts" / "bash" / "common.sh").exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
@@ -81,6 +81,7 @@ class TestInitIntegrationFlag:
 
         opts = json.loads((project / ".specify" / "init-options.json").read_text(encoding="utf-8"))
         assert opts["integration"] == "copilot"
+        assert opts["ai_skills"] is True
         # init must not leave any legacy agent-context keys in init-options.json
         assert "context_file" not in opts
 
@@ -123,10 +124,9 @@ class TestInitIntegrationFlag:
 
         assert result.exit_code == 0, result.output
         assert f"defaulting to '{specify_cli.DEFAULT_INIT_INTEGRATION}'" in result.output
-        from tests.conftest import _cmd_prefix
-
-        prefix = _cmd_prefix()
-        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
+        assert (
+            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
 
         data = json.loads((project / ".specify" / "integration.json").read_text(encoding="utf-8"))
         assert data["integration"] == specify_cli.DEFAULT_INIT_INTEGRATION
@@ -265,10 +265,9 @@ class TestInitIntegrationFlag:
         finally:
             os.chdir(old_cwd)
         assert result.exit_code == 0
-        from tests.conftest import _cmd_prefix
-
-        prefix = _cmd_prefix()
-        assert (project / ".github" / "agents" / f"{prefix}.plan.agent.md").exists()
+        assert (
+            project / ".github" / "skills" / "speckit-plan" / "SKILL.md"
+        ).exists()
 
     def test_init_optional_preset_failure_reports_target_and_continues(
         self, tmp_path, monkeypatch
@@ -1505,7 +1504,7 @@ class TestSharedInfraCommandRefs:
         assert f"/{prefix}.specify" not in script_content
 
     def test_full_init_copilot_resolves_page_templates(self, tmp_path):
-        """Full CLI init with Copilot (markdown agent) produces dot refs in page templates."""
+        """Default Copilot skills mode produces hyphen refs in page templates."""
         from typer.testing import CliRunner
         from specify_cli import app
 
@@ -1530,27 +1529,28 @@ class TestSharedInfraCommandRefs:
         from tests.conftest import _cmd_prefix
 
         prefix = _cmd_prefix()
-        assert f"/{prefix}.plan" in content, f"Copilot (markdown) should use /{prefix}.plan"
+        assert f"/{prefix}-plan" in content, f"Copilot skills should use /{prefix}-plan"
+        assert f"/{prefix}.plan" not in content
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        assert f"/{prefix}.specify" in script_content
-        assert f"/{prefix}-specify" not in script_content
+        assert f"/{prefix}-specify" in script_content
+        assert f"/{prefix}.specify" not in script_content
 
-    def test_full_init_copilot_skills_resolves_page_templates(self, tmp_path):
-        """Full CLI init with Copilot --skills produces hyphen refs in page templates."""
+    def test_full_init_copilot_commands_resolves_page_templates(self, tmp_path):
+        """Copilot --commands produces dot refs in page templates."""
         from typer.testing import CliRunner
         from specify_cli import app
 
         runner = CliRunner()
-        project = tmp_path / "init-copilot-skills"
+        project = tmp_path / "init-copilot-commands"
         old_cwd = os.getcwd()
         try:
             os.chdir(tmp_path)
             result = runner.invoke(app, [
                 "init", str(project),
                 "--integration", "copilot",
-                "--integration-options", "--skills",
+                "--integration-options", "--commands",
                 "--script", "sh",
                 "--ignore-agent-tools",
             ], catch_exceptions=False)
@@ -1564,13 +1564,13 @@ class TestSharedInfraCommandRefs:
         from tests.conftest import _cmd_prefix
 
         prefix = _cmd_prefix()
-        assert f"/{prefix}-plan" in content, f"Copilot --skills should use /{prefix}-plan"
-        assert f"/{prefix}.plan" not in content, "dot-notation leaked into Copilot skills page template"
+        assert f"/{prefix}.plan" in content, f"Copilot --commands should use /{prefix}.plan"
+        assert f"/{prefix}-plan" not in content
         assert "__SPECKIT_COMMAND_" not in content
 
         script_content = self._combined_script_content(project, "sh")
-        assert f"/{prefix}-specify" in script_content
-        assert f"/{prefix}.specify" not in script_content
+        assert f"/{prefix}.specify" in script_content
+        assert f"/{prefix}-specify" not in script_content
 
 
 class TestIntegrationCatalogDiscoveryCLI:

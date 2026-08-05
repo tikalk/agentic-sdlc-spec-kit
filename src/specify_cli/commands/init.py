@@ -444,12 +444,13 @@ def register(app: typer.Typer) -> None:
                             "Template files will be merged with existing content "
                             "and may overwrite existing files. Do you want to continue?"
                         )
-                    except (typer.Abort, EOFError):
+                    except (typer.Abort, EOFError, OSError):
                         # typer.confirm raises Abort for BOTH an interactive Ctrl+C
                         # and an EOF on closed/empty stdin. Distinguish them: a real
                         # TTY cancellation is a normal exit (0, "cancelled"), while a
                         # missing-input EOF (non-interactive) becomes an actionable
-                        # error pointing at --force.
+                        # error pointing at --force. OSError (e.g. BrokenPipeError)
+                        # is treated the same as EOF — stdin is unusable.
                         if _stdin_is_interactive():
                             console.print("[yellow]Operation cancelled[/yellow]")
                             raise typer.Exit(0) from None

@@ -330,8 +330,8 @@ class IntegrationBase(ABC):
         on-disk layout to avoid silently migrating an existing project to a
         different mode.  The default ignores it.
 
-        The default (command-first integrations, e.g. Copilot's default
-        layout) is skills mode only when ``--skills`` was requested.
+        The default for command-first integrations is skills mode only when
+        ``--skills`` was requested.
         ``SkillsIntegration`` overrides this to return ``True`` by default;
         skills-first integrations that expose a legacy opt-out (e.g. Bob)
         override it to honor their own flag.
@@ -1255,6 +1255,20 @@ class IntegrationBase(ABC):
     def supports_events(self) -> bool:
         """Return True if this integration supports agent-native events."""
         return bool(getattr(self, "CANONICAL_TO_NATIVE", None) and getattr(self, "events_config_file", None))
+
+    # Context-injection envelope for hook stdout, keyed by canonical event
+    # (with "*" as the fallback). Not every agent injects a hook's plain-text
+    # stdout as model context: Gemini/Tabnine/Qwen/Devin are JSON-only
+    # protocols (plain text becomes user-facing noise), Copilot discards
+    # non-JSON stdout, and Cursor parses stdout as JSON. Values:
+    #   "hookSpecificOutput" → {"hookSpecificOutput": {"additionalContext": ...}}
+    #   "additionalContext"  → {"additionalContext": ...}   (top-level, Copilot)
+    #   "additional_context" → {"additional_context": ...}  (top-level, Cursor)
+    #   "suppress"           → emit nothing (strict-JSON agents on events whose
+    #                          output can't be used)
+    # Absent (no matching key and no "*") → plain stdout passthrough
+    # (Claude/Codex inject plain stdout; opencode injects via its TS plugin).
+    events_context_envelope: dict[str, str] = {}
 
     # -- Convenience helpers for subclasses -------------------------------
 

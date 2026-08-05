@@ -2,6 +2,62 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.15.2+adlc2] - 2026-08-05
+
+### Added
+
+- **Upstream merge (13 commits, post-0.15.2)**: Synced with upstream
+  `github/spec-kit` main (`ab468c4d..03d71b33`). No new upstream release tag;
+  fork suffix incremented (`0.15.2+adlc1` → `0.15.2+adlc2`). New upstream
+  features adopted:
+  - `feat(copilot): default integration to skills` (#3976) — Copilot now
+    defaults to the skills layout (`speckit-<name>/SKILL.md` under
+    `.github/skills/`); the commands layout (`.agent.md` + `.prompt.md` +
+    `.vscode/settings.json`) is opt-in via `--integration-options="--commands"`.
+    Fork adapted: `is_skills_mode()` checks both `spec-`/`speckit-` prefixes
+    (fork skills use `spec-*` when presets are active);
+    `build_command_invocation()` canonicalizes bare command names before alias
+    resolution; `resolve_command_alias` + `run_and_tee` + `_get_command_prefix()`
+    customizations re-applied onto upstream's rewritten module.
+  - `feat(events): context injection for opencode and JSON-envelope agent hooks`
+    (#3934, authored by fork maintainer upstream) — first-class context
+    injection for opencode session_start/user_prompt_submit via TS plugin, and
+    JSON-envelope wrapping for Gemini/Tabnine/Qwen/Devin/Copilot/Cursor hooks.
+    Auto-merged clean.
+- Community catalog: TDD extension (#3982), Charter v0.5.1 (#3983), Archive
+  v1.1.0 (#3981). Note: fork has its own bundled `tdd` extension (separate
+  from the community catalog entry).
+
+### Fixed
+
+- Upstream fixes adopted (all auto-merged clean): non-UTF-8 preset registry
+  (#3955), non-UTF-8 `config.toml` on hook install/teardown (#3963),
+  unreadable staged backup treated as conflict (#3962), non-string
+  `requires.speckit_version` rejected (#3980), reinstall rejected when kept
+  config unreadable (#3960), `None` returned for unparseable script command
+  (#3957), migration hardening (validate target options before uninstall
+  in `_migrate_commands.py`).
+- Fork fix: `build_command_invocation()` in copilot skills mode now
+  canonicalizes bare command names (e.g. `"plan"`) to `speckit.plan` before
+  alias resolution, so the invocation produces `/{prefix}-plan` instead of
+  `/plan` (which wouldn't match any installed skill). Also applied to
+  `_invoke_cli` for consistency in the non-streaming path.
+
+### Changed
+
+- 5 conflicts resolved: `AGENTS.md` (adopted upstream's new "Optional
+  overrides" section + "Opening pull requests" PR-prioritization subsection;
+  preserved fork header/SPECKIT markers), `copilot/__init__.py` (re-applied 4
+  fork customizations onto upstream's #3976 rewrite + made `is_skills_mode()`
+  prefix-aware), `test_cli.py` (adapted skills-default assertions to fork
+  naming), `test_integration_copilot.py` (adapted `build_command_invocation`
+  tests to fork alias-aware naming), `test_integration_subcommand.py`
+  (adapted copilot switch/upgrade tests to fork naming).
+- All semantic hotspots auto-merged cleanly: `events.py`, `extensions/__init__.py`,
+  `presets/__init__.py`, `base.py`, `_migrate_commands.py`,
+  `integration_runtime.py`. No `templates/` changes upstream → no preset
+  command porting needed. Ruff clean (`ruff@0.15.0`).
+
 # [0.15.2+adlc1] - 2026-08-04
 
 ### Added
