@@ -2500,7 +2500,10 @@ class TestIntegrationUpgrade:
         assert (
             project / ".github" / "agents" / f"{_cmd_prefix()}.plan.agent.md"
         ).exists()
-        assert not (project / ".github" / "skills").exists()
+        # Fork: model-invocation skills (quick-*) always exist for commands-mode
+        # agents; the migration signal is a command-derived skill dir.
+        assert not (project / ".github" / "skills" / "speckit-plan").exists()
+        assert not (project / ".github" / "skills" / "spec-plan").exists()
         init_options = json.loads(
             (project / ".specify" / "init-options.json").read_text(
                 encoding="utf-8"

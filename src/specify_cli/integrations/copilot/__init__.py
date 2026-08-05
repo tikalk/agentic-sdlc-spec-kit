@@ -352,9 +352,11 @@ class CopilotIntegration(IntegrationBase):
             # Use alias map to resolve to canonical form
             try:
                 from ..._core_fork import resolve_command_alias
-                # Ensure canonical form for alias resolution (callers may
-                # pass bare names like "plan" without the speckit. prefix)
-                if not command_name.startswith(("speckit.", "spec.", "adlc.")):
+                # Canonicalize only truly bare names (e.g. "plan") so the
+                # alias lookup finds speckit.plan -> spec.plan. Dotted names
+                # ("git.commit", "speckit.plan") are already canonical or
+                # alias-form — prepending speckit. would break their resolution.
+                if "." not in command_name:
                     canonical = f"speckit.{command_name}"
                 else:
                     canonical = command_name
