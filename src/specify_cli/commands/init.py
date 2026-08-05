@@ -14,8 +14,8 @@ from rich.panel import Panel
 
 from .._agent_config import (
     AGENT_CONFIG,
-    DEFAULT_INIT_INTEGRATION,
     SCRIPT_TYPE_CHOICES,
+    resolve_default_init_integration,
 )
 from .._assets import (
     _locate_bundled_workflow,
@@ -444,12 +444,13 @@ def register(app: typer.Typer) -> None:
                             "Template files will be merged with existing content "
                             "and may overwrite existing files. Do you want to continue?"
                         )
-                    except (typer.Abort, EOFError):
+                    except (typer.Abort, EOFError, OSError):
                         # typer.confirm raises Abort for BOTH an interactive Ctrl+C
                         # and an EOF on closed/empty stdin. Distinguish them: a real
                         # TTY cancellation is a normal exit (0, "cancelled"), while a
                         # missing-input EOF (non-interactive) becomes an actionable
-                        # error pointing at --force.
+                        # error pointing at --force. OSError (e.g. BrokenPipeError)
+                        # is treated the same as EOF — stdin is unusable.
                         if _stdin_is_interactive():
                             console.print("[yellow]Operation cancelled[/yellow]")
                             raise typer.Exit(0) from None
@@ -498,17 +499,18 @@ def register(app: typer.Typer) -> None:
                 raise typer.Exit(1)
             selected_ai = integration
         elif not _stdin_is_interactive():
+            default_integration = resolve_default_init_integration()
             console.print(
-                f"[dim]Non-interactive session detected: defaulting to '{DEFAULT_INIT_INTEGRATION}'. "
+                f"[dim]Non-interactive session detected: defaulting to '{default_integration}'. "
                 "Use --integration to choose a different agent.[/dim]"
             )
-            selected_ai = DEFAULT_INIT_INTEGRATION
+            selected_ai = default_integration
         else:
             ai_choices = {key: config["name"] for key, config in AGENT_CONFIG.items()}
             selected_ai = select_with_arrows(
                 ai_choices,
                 "Choose your coding agent integration:",
-                DEFAULT_INIT_INTEGRATION,
+                resolve_default_init_integration(),
             )
 
         if not integration:

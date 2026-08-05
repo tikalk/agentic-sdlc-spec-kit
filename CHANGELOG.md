@@ -2,6 +2,108 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.15.2+adlc2] - 2026-08-05
+
+### Added
+
+- **Upstream merge (13 commits, post-0.15.2)**: Synced with upstream
+  `github/spec-kit` main (`ab468c4d..03d71b33`). No new upstream release tag;
+  fork suffix incremented (`0.15.2+adlc1` → `0.15.2+adlc2`). New upstream
+  features adopted:
+  - `feat(copilot): default integration to skills` (#3976) — Copilot now
+    defaults to the skills layout (`speckit-<name>/SKILL.md` under
+    `.github/skills/`); the commands layout (`.agent.md` + `.prompt.md` +
+    `.vscode/settings.json`) is opt-in via `--integration-options="--commands"`.
+    Fork adapted: `is_skills_mode()` checks both `spec-`/`speckit-` prefixes
+    (fork skills use `spec-*` when presets are active);
+    `build_command_invocation()` canonicalizes bare command names before alias
+    resolution; `resolve_command_alias` + `run_and_tee` + `_get_command_prefix()`
+    customizations re-applied onto upstream's rewritten module.
+  - `feat(events): context injection for opencode and JSON-envelope agent hooks`
+    (#3934, authored by fork maintainer upstream) — first-class context
+    injection for opencode session_start/user_prompt_submit via TS plugin, and
+    JSON-envelope wrapping for Gemini/Tabnine/Qwen/Devin/Copilot/Cursor hooks.
+    Auto-merged clean.
+- Community catalog: TDD extension (#3982), Charter v0.5.1 (#3983), Archive
+  v1.1.0 (#3981). Note: fork has its own bundled `tdd` extension (separate
+  from the community catalog entry).
+
+### Fixed
+
+- Upstream fixes adopted (all auto-merged clean): non-UTF-8 preset registry
+  (#3955), non-UTF-8 `config.toml` on hook install/teardown (#3963),
+  unreadable staged backup treated as conflict (#3962), non-string
+  `requires.speckit_version` rejected (#3980), reinstall rejected when kept
+  config unreadable (#3960), `None` returned for unparseable script command
+  (#3957), migration hardening (validate target options before uninstall
+  in `_migrate_commands.py`).
+- Fork fix: `build_command_invocation()` in copilot skills mode now
+  canonicalizes bare command names (e.g. `"plan"`) to `speckit.plan` before
+  alias resolution, so the invocation produces `/{prefix}-plan` instead of
+  `/plan` (which wouldn't match any installed skill). Also applied to
+  `_invoke_cli` for consistency in the non-streaming path.
+
+### Changed
+
+- 5 conflicts resolved: `AGENTS.md` (adopted upstream's new "Optional
+  overrides" section + "Opening pull requests" PR-prioritization subsection;
+  preserved fork header/SPECKIT markers), `copilot/__init__.py` (re-applied 4
+  fork customizations onto upstream's #3976 rewrite + made `is_skills_mode()`
+  prefix-aware), `test_cli.py` (adapted skills-default assertions to fork
+  naming), `test_integration_copilot.py` (adapted `build_command_invocation`
+  tests to fork alias-aware naming), `test_integration_subcommand.py`
+  (adapted copilot switch/upgrade tests to fork naming).
+- All semantic hotspots auto-merged cleanly: `events.py`, `extensions/__init__.py`,
+  `presets/__init__.py`, `base.py`, `_migrate_commands.py`,
+  `integration_runtime.py`. No `templates/` changes upstream → no preset
+  command porting needed. Ruff clean (`ruff@0.15.0`).
+
+# [0.15.2+adlc1] - 2026-08-04
+
+### Added
+
+- **Upstream merge (0.15.1 → 0.15.2)**: Adopted upstream `github/spec-kit`
+  release `0.15.2` plus 3 post-release fixes. Package version base reset to
+  upstream `0.15.2` with fork counter reset (`0.15.1+adlc1` → `0.15.2+adlc1`).
+  Merged 14 commits since the last merge base `d1e86f63`. New upstream features:
+  - `feat(extensions): scaffold config templates on extension add/enable`
+    (#2000) — extensions declaring `provides.config` now auto-deploy their
+    config templates into `.specify/` on `extension add`/`enable`, preserving
+    existing files. Fork's bundled extensions (agent-context, git, …) declare
+    only `provides.commands`, so scaffolding is inert today; the
+    `agent-context` extension keeps its own `.template` + script self-seed
+    mechanism.
+  - `feat: allow overriding default init integration via
+    SPECKIT_INTEGRATION_DEFAULT` (#3952) — env-var picker for non-interactive
+    `specify init`, the workflow `init` step, and bundle init.
+  - `Add adrkit extension to community catalog` (#3947).
+- **New upstream hardening**: `fix(presets): restore core skills instead of
+  deleting them on preset remove` (#3929, with `restore_from_bundled_core`
+  flag + extension-restore priority), `fix(manifests): reject non-string
+  metadata instead of crashing on it` (#3943), `fix: narrow bare except
+  Exception in invoke separator resolution` (#3856), `fix(workflows): keep
+  the init step's documented ignore_agent_tools default on an explicit null`
+  (#3889), `fix(workflows): reject mismatched run state IDs` (#3899),
+  `fix: cap stdin read at 1 MiB to prevent DoS` (#3857, `MAX_STDIN_BYTES` in
+  `event.py`), non-UTF-8 tolerance for events/presets/extension manifests and
+  event overrides (#3900, #3896, #3895, #3897), `fix(presets): validate
+  required manifest mappings` (#3898).
+
+### Changed
+
+- **No conflict-heavy work this round**: the merge auto-resolved every
+  semantic hotspot (`__init__.py`, `agents.py`, `extensions/__init__.py`,
+  `extensions/_commands.py`, `presets/__init__.py`, `commands/init.py`,
+  `commands/bundle/__init__.py`, `events.py`, `event.py`, `workflows/engine.py`,
+  `workflows/steps/init/__init__.py`, `_agent_config.py`) without manual
+  intervention. Only `pyproject.toml` required manual conflict resolution to
+  preserve fork package identity and reset the version. Fork modules
+  (`_init_fork`, `_core_fork`, `_assets_fork`, `_base_fork`, `_workflows_fork`,
+  `extensions_fork`) untouched. No `templates/` changes upstream this round →
+  no preset command porting needed.
+- **Lint**: Ruff clean across `src/` and `tests/` with the pinned
+  `ruff@0.15.0`.
+
 # [0.15.1+adlc1] - 2026-08-02
 
 ### Added
@@ -4152,6 +4254,31 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.15.2] - 2026-08-03
+
+### Changed
+
+- fix(presets): restore core skills instead of deleting them on preset remove (#3929)
+- fix(manifests): reject non-string metadata instead of crashing on it (#3943)
+- fix: narrow bare except Exception in invoke separator resolution (#3856)
+- fix(workflows): keep the init step's documented ignore_agent_tools default on an explicit null (#3889)
+- fix(kimi): preserve non-UTF-8 user skills (#3895)
+- fix(presets): tolerate non-UTF-8 legacy commands (#3896)
+- feat: allow overriding default init integration via SPECKIT_INTEGRATION_DEFAULT (#3952)
+- Add adrkit extension to community catalog (#3947)
+- feat(extensions): scaffold config templates on extension add/enable (#2000)
+- fix(events): skip non-UTF-8 extension manifests (#3900)
+- fix(workflows): fail a gate whose on_reject is not abort/skip/retry (#3888)
+- fix(presets): validate required manifest mappings (#3898)
+- fix: eliminate TOCTOU race in zip packaging (#3855)
+- fix(workflows): fail a fan-in step whose output is not a mapping (#3887)
+- fix(workflows): refetch non-UTF-8 catalog caches (#3901)
+- fix(bundler): wrap local catalog decode failures (#3902)
+- Add `--extension` flag to `specify init` for opting into extensions at init time (#3914)
+- fix: bound response reads in extension catalog and download (#3775)
+- fix(workflows): reject a retry gate whose verdict enum forbids the reset value (#3912)
+- chore: release 0.15.1, begin 0.15.2.dev0 development (#3913)
 
 ## [0.15.1] - 2026-07-31
 

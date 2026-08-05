@@ -24,8 +24,19 @@ def event_run(
     """Resolve and run an event-driven command script with stdin payload."""
     from ..events import resolve_and_run_event_command
 
-    # Read payload from stdin if available
-    payload = sys.stdin.read() if not sys.stdin.isatty() else "{}"
+    # Read payload from stdin if available (capped at 1 MiB to prevent DoS).
+    MAX_STDIN_BYTES = 1 * 1024 * 1024
+    if not sys.stdin.isatty():
+        raw = sys.stdin.read(MAX_STDIN_BYTES)
+        if not sys.stdin.eof:
+            raise typer.Exit(
+                code=1,
+                message="stdin payload exceeds 1 MiB limit; "
+                "truncate or pipe a smaller payload",
+            )
+        payload = raw
+    else:
+        payload = "{}"
 
     # Run the event command
     project_root = Path.cwd()  # The agent runs events from project root

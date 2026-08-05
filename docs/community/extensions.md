@@ -25,6 +25,7 @@ The following community-contributed extensions are available in [`catalog.commun
 
 | Extension | Purpose | Category | Effect | URL |
 |-----------|---------|----------|--------|-----|
+| adrkit — decision memory for spec-driven development | Pulls the decisions governing this work into agent context, checks produced plans against them, and drafts an ADR from a plan artifact | `process` | Read+Write | [adrkit](https://github.com/mbeacom/adrkit) |
 | Agent Assign | Assign specialized Claude Code agents to spec-kit tasks for targeted execution | `process` | Read+Write | [spec-kit-agent-assign](https://github.com/xymelon/spec-kit-agent-assign) |
 | Agent Governance | Generate agent-platform repository governance files from Spec Kit metadata | `process` | Read+Write | [spec-kit-agent-governance](https://github.com/bigsmartben/spec-kit-agent-governance) |
 | AI-Driven Engineering (AIDE) | A structured 7-step workflow for building new projects from scratch with AI assistants — from vision through implementation | `process` | Read+Write | [aide](https://github.com/mnriem/spec-kit-extensions/tree/main/aide) |
@@ -152,6 +153,7 @@ The following community-contributed extensions are available in [`catalog.commun
 | Superpowers Implementation Bridge | Thin orchestrator between Spec Kit (design) and Superpowers (implementation). Cross-agent. | `process` | Read+Write | [speckit-superpowers-bridge](https://github.com/lihan3238/speckit-superpowers-bridge) |
 | Superspec | Bridges spec-kit with obra/superpowers (brainstorming, TDD, subagent, code-review) into a unified, resumable workflow with graceful degradation and session progress tracking | `process` | Read+Write | [superspec](https://github.com/WangX0111/superspec) |
 | Tasks to GitHub Project | Publish and synchronize Spec Kit tasks as cards on a GitHub Project (v2) kanban board, with priority and status sync between spec.md/tasks.md and the board. | `integration` | Read+Write | [spec-kit-tasks-to-project](https://github.com/mancioshell/spec-kit-tasks-to-project) |
+| TDD Extension | Drives spec-kit implementation with tests: a language-agnostic red-green-refactor loop with a per-feature test list, recorded red and green evidence, and mutation-checked test strength. | `process` | Read+Write | [spec-kit-tdd](https://github.com/d0whc3r/spec-kit-tdd) |
 | Team Assign | Assign tasks.md items to human engineers, split into subtasks, and generate a per-engineer workboard | `process` | Read+Write | [spec-kit-team-assign](https://github.com/tarunkumarbhati/spec-kit-team-assign) |
 | Test Coverage Drift Control | Generate incremental coverage drift reports and planned remediation tasks after implementation | `code` | Read+Write | [spec-kit-test-coverage-drift-control](https://github.com/benizzio/spec-kit-test-coverage-drift-control) |
 | Time Machine | Retroactively apply the full SDD workflow to existing codebases — analyse, spec, and ship feature-by-feature | `process` | Read+Write | [spec-kit-time-machine](https://github.com/teeyo/spec-kit-time-machine) |

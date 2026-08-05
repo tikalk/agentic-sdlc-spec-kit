@@ -11,7 +11,10 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from specify_cli._agent_config import DEFAULT_INIT_INTEGRATION, SCRIPT_TYPE_CHOICES
+from specify_cli._agent_config import (
+    SCRIPT_TYPE_CHOICES,
+    resolve_default_init_integration,
+)
 from specify_cli.workflows.base import StepBase, StepContext, StepResult, StepStatus
 from specify_cli.workflows.expressions import evaluate_expression
 
@@ -54,7 +57,8 @@ class InitStep(StepBase):
         Initialize in the target directory instead of creating a new one.
     ``integration``
         Integration key (e.g. ``copilot``).  Defaults to the workflow's
-        default integration, then to ``DEFAULT_INIT_INTEGRATION``.
+        default integration, then to the resolved default init integration
+        (``SPECKIT_INTEGRATION_DEFAULT`` env var, else ``copilot``).
     ``integration_options``
         Extra options for the integration (e.g. ``"--skills"`` or
         ``"--commands-dir .myagent/cmds"``).
@@ -81,7 +85,7 @@ class InitStep(StepBase):
         # Apply the same default that specify init uses in non-interactive mode
         # so that output.integration reflects the actual integration used.
         if not integration:
-            integration = DEFAULT_INIT_INTEGRATION
+            integration = resolve_default_init_integration()
 
         integration_options = self._resolve(
             config.get("integration_options"), context
@@ -91,9 +95,17 @@ class InitStep(StepBase):
 
         force = self._resolve_bool(config.get("force"), context)
         # Workflows run unattended; skip the agent CLI presence check by default.
-        ignore_agent_tools = self._resolve_bool(
-            config.get("ignore_agent_tools", True), context
-        )
+        # ``config.get(key, True)`` applies that default only when the key is
+        # ABSENT: a bare ``ignore_agent_tools:`` in YAML parses to None, which
+        # ``_resolve_bool`` then turns into False -- flipping the documented
+        # default and re-enabling the agent-CLI presence check this step promises
+        # to skip, so an unattended run fails with "Agent Detection Error" for
+        # any integration whose CLI is not installed. Normalize an explicit null
+        # to the default, mirroring the while/do-while ``max_iterations`` handling.
+        raw_ignore_agent_tools = config.get("ignore_agent_tools")
+        if raw_ignore_agent_tools is None:
+            raw_ignore_agent_tools = True
+        ignore_agent_tools = self._resolve_bool(raw_ignore_agent_tools, context)
 
         argv: list[str] = ["init"]
         if here:
