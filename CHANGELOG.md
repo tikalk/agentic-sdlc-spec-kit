@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.15.2+adlc4] - 2026-08-05
+
+### Fixed
+
+- **Extension catalog URL override**: `ExtensionCatalog.DEFAULT_CATALOG_URL` and
+  `COMMUNITY_CATALOG_URL` now point at the fork's repo
+  (`tikalk/agentic-sdlc-spec-kit`) instead of upstream (`github/spec-kit`).
+  Previously, `specify extension update` fetched upstream's catalog which
+  doesn't list fork-bundled extensions (`levelup`, `team-ai-directives`,
+  `evals`, `edd`, `architect`) → "Not found in catalog" warnings, and found
+  `tdd`/`product` in upstream's community catalog → "Updates not allowed from
+  'community'". Now all fork-bundled extensions are found in the fork's default
+  catalog as `bundled: true` with updates allowed.
+
 # [0.15.2+adlc2] - 2026-08-05
 
 ### Added

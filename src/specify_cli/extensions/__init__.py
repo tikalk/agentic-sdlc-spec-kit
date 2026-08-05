@@ -3506,6 +3506,22 @@ class ExtensionCatalog(CatalogStackBase):
         "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.json"
     )
     COMMUNITY_CATALOG_URL = "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json"
+
+    # Tikalk fork: override catalog URLs to point at the fork's repo so
+    # fork-bundled extensions (levelup, team-ai-directives, evals, edd,
+    # architect, etc.) are found by `specify extension update` / `extension
+    # search`. Without this, the update command fetches upstream's catalog
+    # which doesn't list fork-only extensions.
+    try:
+        from .._core_fork import (
+            FORK_DEFAULT_CATALOG_URL,
+            FORK_COMMUNITY_CATALOG_URL,
+        )
+
+        DEFAULT_CATALOG_URL = FORK_DEFAULT_CATALOG_URL
+        COMMUNITY_CATALOG_URL = FORK_COMMUNITY_CATALOG_URL
+    except ImportError:
+        pass
     CACHE_DURATION = 3600  # 1 hour in seconds
     CONFIG_FILENAME = "extension-catalogs.yml"
     ENTRY_CLASS = CatalogEntry
