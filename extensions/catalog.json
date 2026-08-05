@@ -54,7 +54,7 @@
     "assess": {
       "name": "Idea Assessment Pipeline",
       "id": "assess",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Assess an idea before Spec-Driven Development via intake, research, define, shape, and decide. A go verdict hands off to /speckit.specify; a kill closes it. Lives under .specify/assessments/<slug>/",
       "author": "spec-kit-core",
       "repository": "https://github.com/github/spec-kit",
@@ -70,7 +70,7 @@
     "bug": {
       "name": "Bug Triage Workflow",
       "id": "bug",
-      "version": "1.0.0",
+      "version": "1.0.1",
       "description": "Assess, fix, and validate bug reports against the codebase with per-bug reports stored under .specify/bugs/<slug>/",
       "author": "spec-kit-core",
       "repository": "https://github.com/github/spec-kit",

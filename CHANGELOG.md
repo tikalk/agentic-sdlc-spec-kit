@@ -2,6 +2,36 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.15.2+adlc3] - 2026-08-05
+
+### Fixed
+
+- **assess/bug extension command-reference resolution**: `__SPECKIT_COMMAND_ASSESS_*__`
+  and `__SPECKIT_COMMAND_BUG_*__` placeholders in extension command bodies
+  rendered to `/spec.assess.*` / `/spec.bug.*` (prefix fallback) instead of the
+  installed command names — a latent defect since the `assess` and `bug`
+  extensions were bundled in `0.14.4+adlc1`. Root cause: `_build_preset_command_placeholder_map()`
+  only scanned preset manifests, not extension manifests, so extension command
+  aliases were invisible to placeholder resolution.
+  - **Systemic fix**: `_build_preset_command_placeholder_map()` now also scans
+    `.specify/extensions/*/extension.yml` for `provides.commands[].aliases`,
+    mirroring the existing preset scan. Extension alias `assess.intake` →
+    placeholder `ASSESS_INTAKE` → renders `/assess.intake`.
+  - **Aliases added**: `assess` extension 1.0.0→1.0.1 (5 aliases:
+    `assess.intake/research/define/shape/decide`), `bug` extension 1.0.0→1.0.1
+    (3 aliases: `bug.assess/fix/test`). With `EXTENSION_ALIAS_PATTERN_ENABLED`,
+    only aliases register → files install as `assess.intake.md` / `bug.fix.md`
+    (not `speckit.assess.intake.md`), matching the fork convention used by the
+    `git` extension.
+  - **Behavior change for existing installs**: command files rename from
+    `speckit.assess.*.md` to `assess.*.md`; skill dirs rename from
+    `speckit-assess-*/` to `assess-*/`. Stale cleanup on upgrade removes the
+    old files.
+  - **Regression tests**: unit tests for placeholder map + alias declaration
+    tests + rendering regression (no unresolved placeholders; rendered refs
+    match installed filenames) in `test_base.py`, `test_assess_extension.py`,
+    `test_bug_extension.py`.
+
 # [0.15.2+adlc2] - 2026-08-05
 
 ### Added
