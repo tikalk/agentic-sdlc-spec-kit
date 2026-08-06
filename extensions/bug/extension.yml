@@ -3,7 +3,7 @@ schema_version: "1.0"
 extension:
   id: bug
   name: "Bug Triage Workflow"
-  version: "1.0.0"
+  version: "1.0.1"
   description: "Assess, fix, and validate bug reports against the codebase with per-bug reports stored under .specify/bugs/<slug>/"
   author: spec-kit-core
   repository: https://github.com/github/spec-kit
@@ -17,12 +17,15 @@ provides:
     - name: speckit.bug.assess
       file: commands/speckit.bug.assess.md
       description: "Assess a bug report (pasted text or URL) against the codebase and produce an assessment with possible remediation"
+      aliases: ["bug.assess"]
     - name: speckit.bug.fix
       file: commands/speckit.bug.fix.md
       description: "Apply the remediation from a bug assessment and record what was changed"
+      aliases: ["bug.fix"]
     - name: speckit.bug.test
       file: commands/speckit.bug.test.md
       description: "Validate that a previously fixed bug is resolved and record the verification report"
+      aliases: ["bug.test"]
 
 tags:
   - "bug"

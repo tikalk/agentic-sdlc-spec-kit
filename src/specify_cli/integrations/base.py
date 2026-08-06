@@ -84,7 +84,7 @@ def _get_command_prefix() -> str:
 
 
 def _build_preset_command_placeholder_map(project_root: Path) -> dict[str, str]:
-    """Build a placeholder name -> command path map from installed presets.
+    """Build a placeholder name -> command path map from installed presets and extensions.
 
     Scans ``.specify/presets/*/preset.yml`` for command templates and maps
     each alias (e.g. ``change.implement``) to an uppercase placeholder name
@@ -94,36 +94,43 @@ def _build_preset_command_placeholder_map(project_root: Path) -> dict[str, str]:
     Standard commands provided by presets (e.g. ``spec.implement``) are also
     mapped, so the default ``__SPECKIT_COMMAND_IMPLEMENT__`` resolves to the
     alias installed by the active preset rather than hardcoding the prefix.
+
+    Also scans ``.specify/extensions/*/extension.yml`` for command aliases so
+    that ``__SPECKIT_COMMAND_ASSESS_INTAKE__`` resolves to ``/assess.intake``
+    instead of the prefix fallback ``/spec.assess.intake`` (which would not
+    match the alias-installed file ``assess.intake.md``). Extensions declare
+    commands under ``provides.commands[]`` (not ``provides.templates[]``), so
+    they are scanned separately from presets.
     """
     placeholder_map: dict[str, str] = {}
-    presets_dir = project_root / ".specify" / "presets"
-    if not presets_dir.is_dir():
-        return placeholder_map
 
-    for preset_dir in presets_dir.iterdir():
-        if not preset_dir.is_dir():
-            continue
-        manifest_path = preset_dir / "preset.yml"
-        if not manifest_path.is_file():
-            continue
-        try:
-            with open(manifest_path, "r", encoding="utf-8") as f:
-                manifest = yaml.safe_load(f)
-        except Exception:
-            continue
+    def _scan_command_manifest(
+        manifest: object, commands_key: str, templates_key: str | None = None
+    ) -> None:
+        """Populate *placeholder_map* from a preset or extension manifest dict.
+
+        Presets list commands under ``provides.templates[]`` (type == command);
+        extensions list them under ``provides.commands[]``. The ``templates_key``
+        selects the preset layout; when it is None, ``commands_key`` is used
+        directly (extension layout).
+        """
         if not isinstance(manifest, dict):
-            continue
+            return
         provides = manifest.get("provides", {})
-        templates = provides.get("templates", [])
-        if not isinstance(templates, list):
-            continue
-        for tmpl in templates:
-            if not isinstance(tmpl, dict):
+        items: list = []
+        if templates_key is not None:
+            items = provides.get(templates_key, []) or []
+        else:
+            items = provides.get(commands_key, []) or []
+        if not isinstance(items, list):
+            return
+        for item in items:
+            if not isinstance(item, dict):
                 continue
-            if tmpl.get("type") != "command":
+            if templates_key is not None and item.get("type") != "command":
                 continue
-            cmd_name = tmpl.get("name")
-            aliases = tmpl.get("aliases", [])
+            cmd_name = item.get("name")
+            aliases = item.get("aliases", [])
             if not isinstance(aliases, list):
                 aliases = []
             first_alias = aliases[0] if aliases else cmd_name
@@ -141,6 +148,37 @@ def _build_preset_command_placeholder_map(project_root: Path) -> dict[str, str]:
                 placeholder = cmd_name.replace(".", "_").replace("-", "_").upper()
                 if placeholder:
                     placeholder_map[placeholder] = first_alias
+
+    presets_dir = project_root / ".specify" / "presets"
+    if presets_dir.is_dir():
+        for preset_dir in presets_dir.iterdir():
+            if not preset_dir.is_dir():
+                continue
+            manifest_path = preset_dir / "preset.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = yaml.safe_load(f)
+            except Exception:
+                continue
+            _scan_command_manifest(manifest, commands_key="commands", templates_key="templates")
+
+    extensions_dir = project_root / ".specify" / "extensions"
+    if extensions_dir.is_dir():
+        for ext_dir in extensions_dir.iterdir():
+            if not ext_dir.is_dir() or ext_dir.name.startswith("."):
+                continue
+            manifest_path = ext_dir / "extension.yml"
+            if not manifest_path.is_file():
+                continue
+            try:
+                with open(manifest_path, "r", encoding="utf-8") as f:
+                    manifest = yaml.safe_load(f)
+            except Exception:
+                continue
+            _scan_command_manifest(manifest, commands_key="commands")
+
     return placeholder_map
 
 

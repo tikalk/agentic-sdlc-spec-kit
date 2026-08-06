@@ -111,3 +111,116 @@ class TestExtensionInstall:
 
         names = {c["name"] for c in manifest.commands}
         assert names == EXPECTED_COMMANDS
+
+
+# ── Aliases ─────────────────────────────────────────────────────────────────
+
+
+class TestExtensionAliases:
+    """Each bug command declares a short alias so the fork installs it as
+    ``bug.<stage>.md`` (not ``speckit.bug.<stage>.md``) and the
+    ``__SPECKIT_COMMAND_BUG_*__`` placeholders resolve to ``/bug.<stage>``."""
+
+    def _load_manifest(self):
+        return yaml.safe_load((EXT_DIR / "extension.yml").read_text(encoding="utf-8"))
+
+    def test_every_command_has_alias(self):
+        commands = self._load_manifest()["provides"]["commands"]
+        for cmd in commands:
+            aliases = cmd.get("aliases")
+            assert isinstance(aliases, list) and len(aliases) == 1, (
+                f"{cmd['name']} must declare exactly one alias"
+            )
+
+    def test_aliases_are_two_segment(self):
+        commands = self._load_manifest()["provides"]["commands"]
+        for cmd in commands:
+            alias = cmd["aliases"][0]
+            parts = alias.split(".")
+            assert len(parts) == 2, f"alias '{alias}' must be two-segment"
+
+    def test_alias_matches_command_stem(self):
+        commands = self._load_manifest()["provides"]["commands"]
+        for cmd in commands:
+            stem = cmd["name"].split(".", 2)[-1]  # bug.assess -> assess
+            assert cmd["aliases"][0] == f"bug.{stem}"
+
+
+# ── Command-ref rendering ───────────────────────────────────────────────────
+
+
+class TestCommandRefRendering:
+    """Installed command files must contain no unresolved placeholders, and
+    every rendered ``/bug.<stage>`` reference must correspond to an
+    installed command file."""
+
+    def test_no_unresolved_placeholders(self, tmp_path: Path):
+        from specify_cli.integrations.base import IntegrationBase
+
+        ext_dir = tmp_path / ".specify" / "extensions" / "bug"
+        ext_dir.mkdir(parents=True)
+        manifest = {
+            "schema_version": "1.0",
+            "extension": {"id": "bug", "version": "1.0.1"},
+            "provides": {
+                "commands": [
+                    {
+                        "name": f"speckit.bug.{s}",
+                        "file": f"commands/speckit.bug.{s}.md",
+                        "aliases": [f"bug.{s}"],
+                    }
+                    for s in ("assess", "fix", "test")
+                ]
+            },
+        }
+        (ext_dir / "extension.yml").write_text(
+            yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
+        )
+
+        for source in EXT_DIR.glob("commands/*.md"):
+            raw = source.read_text(encoding="utf-8")
+            rendered = IntegrationBase.resolve_command_refs(
+                raw, ".", project_root=tmp_path
+            )
+            assert "__SPECKIT_COMMAND_" not in rendered, (
+                f"{source.name} has unresolved placeholder(s)"
+            )
+
+    def test_rendered_refs_match_installed_files(self, tmp_path: Path):
+        import re
+
+        from specify_cli.integrations.base import IntegrationBase
+
+        ext_dir = tmp_path / ".specify" / "extensions" / "bug"
+        ext_dir.mkdir(parents=True)
+        manifest = {
+            "schema_version": "1.0",
+            "extension": {"id": "bug", "version": "1.0.1"},
+            "provides": {
+                "commands": [
+                    {
+                        "name": f"speckit.bug.{s}",
+                        "file": f"commands/speckit.bug.{s}.md",
+                        "aliases": [f"bug.{s}"],
+                    }
+                    for s in ("assess", "fix", "test")
+                ]
+            },
+        }
+        (ext_dir / "extension.yml").write_text(
+            yaml.safe_dump(manifest, sort_keys=False), encoding="utf-8"
+        )
+
+        installed_names = {f"bug.{s}" for s in ("assess", "fix", "test")}
+
+        for source in EXT_DIR.glob("commands/*.md"):
+            raw = source.read_text(encoding="utf-8")
+            rendered = IntegrationBase.resolve_command_refs(
+                raw, ".", project_root=tmp_path
+            )
+            refs = set(re.findall(r"/bug\.\w+", rendered))
+            for ref in refs:
+                assert ref.lstrip("/") in installed_names, (
+                    f"{source.name} renders '{ref}' but no "
+                    f"alias-installed file matches"
+                )

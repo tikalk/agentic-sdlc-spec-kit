@@ -294,15 +294,20 @@ class TestResolveCommandRefs:
         prefix = self._get_prefix()
         assert result == f"/{prefix}.specify then /{prefix}.plan then /{prefix}.tasks"
 
-    def test_extension_command_dot(self):
+    def test_extension_command_dot(self, tmp_path):
+        """Extension command refs resolve to the alias when the extension
+        manifest is installed (e.g. git.commit), and fall back to the
+        prefix when no extension manifest is present."""
         text = "Run __SPECKIT_COMMAND_GIT_COMMIT__ to commit."
-        result = IntegrationBase.resolve_command_refs(text, ".")
+        # With no extension manifest in tmp_path, falls back to prefix.
+        result = IntegrationBase.resolve_command_refs(text, ".", project_root=tmp_path)
         prefix = self._get_prefix()
         assert result == f"Run /{prefix}.git.commit to commit."
 
-    def test_extension_command_hyphen(self):
+    def test_extension_command_hyphen(self, tmp_path):
+        """Extension command refs use the separator on prefix fallback."""
         text = "Run __SPECKIT_COMMAND_GIT_COMMIT__ to commit."
-        result = IntegrationBase.resolve_command_refs(text, "-")
+        result = IntegrationBase.resolve_command_refs(text, "-", project_root=tmp_path)
         prefix = self._get_prefix()
         assert result == f"Run /{prefix}-git-commit to commit."
 
@@ -412,6 +417,57 @@ class TestResolveCommandRefs:
         text = "Run __SPECKIT_COMMAND_CHANGE_IMPLEMENT__ now."
         result = IntegrationBase.resolve_command_refs(text, "-", project_root=tmp_path)
         assert result == "Run /change-implement now."
+
+    def test_extension_alias_placeholder_resolution(self, tmp_path):
+        """Extension command aliases resolve via the placeholder map.
+
+        Mirrors the assess extension: ``speckit.assess.intake`` with alias
+        ``assess.intake`` must let ``__SPECKIT_COMMAND_ASSESS_INTAKE__``
+        resolve to ``/assess.intake`` instead of the prefix fallback
+        ``/spec.assess.intake`` (which would not match the alias-installed
+        ``assess.intake.md`` file).
+        """
+        ext_dir = tmp_path / ".specify" / "extensions" / "assess"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n"
+            "  id: assess\n"
+            "  version: '1.0.1'\n"
+            "provides:\n"
+            "  commands:\n"
+            "    - name: speckit.assess.intake\n"
+            "      file: commands/speckit.assess.intake.md\n"
+            "      aliases: [assess.intake]\n"
+            "    - name: speckit.assess.decide\n"
+            "      file: commands/speckit.assess.decide.md\n"
+            "      aliases: [assess.decide]\n"
+        )
+        text = (
+            "Run __SPECKIT_COMMAND_ASSESS_INTAKE__ then "
+            "__SPECKIT_COMMAND_ASSESS_DECIDE__."
+        )
+        result = IntegrationBase.resolve_command_refs(text, ".", project_root=tmp_path)
+        assert result == "Run /assess.intake then /assess.decide."
+
+    def test_extension_alias_placeholder_separator(self, tmp_path):
+        """Extension alias placeholders respect the invoke separator."""
+        ext_dir = tmp_path / ".specify" / "extensions" / "bug"
+        ext_dir.mkdir(parents=True)
+        (ext_dir / "extension.yml").write_text(
+            "schema_version: '1.0'\n"
+            "extension:\n"
+            "  id: bug\n"
+            "  version: '1.0.1'\n"
+            "provides:\n"
+            "  commands:\n"
+            "    - name: speckit.bug.fix\n"
+            "      file: commands/speckit.bug.fix.md\n"
+            "      aliases: [bug.fix]\n"
+        )
+        text = "Run __SPECKIT_COMMAND_BUG_FIX__ now."
+        result = IntegrationBase.resolve_command_refs(text, "-", project_root=tmp_path)
+        assert result == "Run /bug-fix now."
 
 
 class TestResolvePythonInterpreter:
