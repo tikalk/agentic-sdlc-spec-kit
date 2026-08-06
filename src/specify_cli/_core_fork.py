@@ -44,6 +44,16 @@ EXTENSION_ALIAS_PATTERN_ENABLED = True
 # Install command template for fork (used in self check output)
 FORK_INSTALL_COMMAND = "uv tool install agentic-sdlc-specify-cli --force --from git+https://github.com/tikalk/agentic-sdlc-spec-kit.git@{tag}"
 
+# Fork catalog URLs — point at the fork's repo instead of upstream so
+# fork-bundled extensions (levelup, team-ai-directives, evals, edd, architect,
+# etc.) are found by `specify extension update` / `extension search`.
+FORK_DEFAULT_CATALOG_URL = (
+    "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/extensions/catalog.json"
+)
+FORK_COMMUNITY_CATALOG_URL = (
+    "https://raw.githubusercontent.com/tikalk/agentic-sdlc-spec-kit/main/extensions/catalog.community.json"
+)
+
 
 def build_alias_map(project_root: Path) -> dict[str, str]:
     """Build a command name -> first alias map from installed extension/preset manifests.
