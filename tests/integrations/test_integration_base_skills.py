@@ -484,6 +484,7 @@ class SkillsIntegrationTests:
             ".specify/integration.json",
             f".specify/integrations/{self.KEY}.manifest.json",
             ".specify/integrations/speckit.manifest.json",
+            ".specify/.gitignore",
             ".specify/memory/.constitution-template.json",
             ".specify/memory/constitution.md",
         ]
