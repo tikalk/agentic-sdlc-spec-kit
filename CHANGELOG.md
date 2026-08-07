@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.16.0+adlc2] - 2026-08-07
+
+### Changed
+
+- **levelup extension no longer preinstalled**: `extensions/catalog.json` now
+  sets `levelup.preinstall` to `false`. The `levelup` extension's commands
+  (`/levelup.init`, `/levelup.clarify`, `/levelup.specify`, `/levelup.skill`,
+  `/levelup.implement`, `/levelup.validate`) overlap with the
+  `adlc-team-skills` `levelup-*` skills/commands. Removing levelup from
+  auto-install eliminates the command redundancy when both toolkits are used
+  together (the recommended coexistence flow: install `adlc-team-skills` first,
+  run `team-setup`, then `specify init` without `--team-ai-directives`).
+  The extension remains bundled and installable on demand via
+  `specify extension install levelup`.
+
 # [0.15.2+adlc4] - 2026-08-05
 
 ### Fixed
