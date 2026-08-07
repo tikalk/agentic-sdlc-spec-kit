@@ -209,24 +209,44 @@ class TestCatalogFetch:
     """Tests that use a local HTTP server stub via monkeypatch."""
 
     def _patch_urlopen(self, monkeypatch, catalog_data):
-        """Patch authentication.http.open_url to return *catalog_data*."""
-        import io
-        from unittest.mock import MagicMock
+        """Patch authentication.http.open_url to return *catalog_data*.
+
+        ``_fetch_single_catalog`` calls ``open_url`` (which uses an opener, not
+        the module-level ``urllib.request.urlopen``), so the mock must target
+        ``open_url`` directly. Each call gets a fresh ``FakeResponse`` so the
+        bounded-read offset resets per fetch (the default + community catalogs
+        are both fetched)."""
+
+        class FakeResponse:
+            def __init__(self, data, url=""):
+                self._data = json.dumps(data).encode()
+                self._url = url if isinstance(url, str) else url.full_url
+                self._offset = 0
+
+            def read(self, size=-1):
+                if size == -1:
+                    chunk = self._data[self._offset:]
+                    self._offset = len(self._data)
+                else:
+                    chunk = self._data[self._offset:self._offset + size]
+                    self._offset += len(chunk)
+                return chunk
+
+            def geturl(self):
+                return self._url
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+        def fake_open_url(url, timeout=10, **kwargs):
+            return FakeResponse(catalog_data, url)
+
         import specify_cli.authentication.http as _auth_http
 
-        if isinstance(catalog_data, (dict, list)):
-            raw = json.dumps(catalog_data).encode("utf-8")
-        else:
-            raw = str(catalog_data).encode("utf-8")
-
-        mock_resp = MagicMock()
-        mock_resp.read.side_effect = io.BytesIO(raw).read
-        mock_resp.headers = {}
-        mock_resp.geturl.return_value = "https://example.com/catalog.json"
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-
-        monkeypatch.setattr(_auth_http, "open_url", lambda url, timeout=10: mock_resp)
+        monkeypatch.setattr(_auth_http, "open_url", fake_open_url)
 
     def test_fetch_and_search_all(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -255,6 +275,110 @@ class TestCatalogFetch:
         assert len(results) >= 1
         ids = [r["id"] for r in results]
         assert "acme-coder" in ids
+
+    def test_poisoned_cache_shape_is_dropped_and_refetched(self, tmp_path, monkeypatch):
+        """A fresh-but-mis-shaped cache (e.g. integrations as a list) must be
+        dropped and refetched, not returned — otherwise it later crashes on
+        .items(). The cache path must clear the same shape checks as a fresh
+        fetch."""
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.delenv("SPECKIT_INTEGRATION_CATALOG_URL", raising=False)
+        (tmp_path / ".specify").mkdir()
+        cat = IntegrationCatalog(tmp_path)
+
+        catalog = {
+            "schema_version": "1.0",
+            "updated_at": "2026-01-01T00:00:00Z",
+            "integrations": {
+                "acme-coder": {
+                    "id": "acme-coder", "name": "Acme Coder", "version": "2.0.0",
+                    "description": "Community integration", "author": "acme-org",
+                    "tags": ["cli"],
+                },
+            },
+        }
+        self._patch_urlopen(monkeypatch, catalog)
+        cat.search()  # populate the cache legitimately
+
+        # Poison the cached payload (integrations as a list), keeping the fresh
+        # metadata so the age check passes and the cache branch is taken.
+        cache_dir = tmp_path / ".specify" / "integrations" / ".cache"
+        data_files = [
+            f for f in cache_dir.glob("catalog-*.json")
+            if not f.name.endswith("-metadata.json")
+        ]
+        assert data_files, "cache was not populated"
+        data_files[0].write_text(
+            json.dumps({"schema_version": "1.0", "integrations": []}),
+            encoding="utf-8",
+        )
+
+        # The poisoned cache is dropped and the (valid) source is refetched.
+        results = cat.search()
+        assert "acme-coder" in [r["id"] for r in results]
+
+    def test_fetch_rejects_oversized_catalog_response(
+        self, tmp_path, monkeypatch
+    ):
+        """Regression: _fetch_single_catalog must use read_response_limited
+        with MAX_JSON_METADATA_BYTES, not unbounded resp.read()."""
+        from specify_cli.integrations.catalog import (
+            IntegrationCatalog,
+            IntegrationCatalogError,
+        )
+        import specify_cli.integrations.catalog as catalog_module
+
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.delenv("SPECKIT_INTEGRATION_CATALOG_URL", raising=False)
+        (tmp_path / ".specify").mkdir()
+        cat = IntegrationCatalog(tmp_path)
+
+        # Set limit very small so any response is oversized
+        monkeypatch.setattr(catalog_module, "MAX_JSON_METADATA_BYTES", 32)
+
+        class _OversizedResponse:
+            def __init__(self):
+                self._data = b"x" * 64
+                self._offset = 0
+
+            def read(self, size=-1):
+                if size == -1:
+                    chunk = self._data[self._offset:]
+                    self._offset = len(self._data)
+                else:
+                    chunk = self._data[self._offset:self._offset + size]
+                    self._offset += len(chunk)
+                return chunk
+
+            def geturl(self):
+                return "https://example.com/catalog.json"
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+        import specify_cli.authentication.http as _auth_http
+
+        def fake_open_url(url, timeout=10, **kwargs):
+            return _OversizedResponse()
+
+        monkeypatch.setattr(_auth_http, "open_url", fake_open_url)
+
+        from specify_cli.integrations.catalog import IntegrationCatalogEntry
+
+        entry = IntegrationCatalogEntry(
+            url="https://example.com/catalog.json",
+            name="test",
+            priority=1,
+            install_allowed=True,
+        )
+
+        with pytest.raises(IntegrationCatalogError, match="exceeds maximum size"):
+            cat._fetch_single_catalog(entry, force_refresh=True)
 
     def test_search_by_tag(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -578,8 +702,16 @@ class TestIntegrationListCatalog:
             def __init__(self, data, url=""):
                 self._data = json.dumps(data).encode()
                 self._url = url if isinstance(url, str) else url.full_url
-            def read(self):
-                return self._data
+                self._offset = 0
+
+            def read(self, size=-1):
+                if size == -1:
+                    chunk = self._data[self._offset:]
+                    self._offset = len(self._data)
+                else:
+                    chunk = self._data[self._offset:self._offset + size]
+                    self._offset += len(chunk)
+                return chunk
 
             def geturl(self):
                 return self._url
