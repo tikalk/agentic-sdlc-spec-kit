@@ -2,6 +2,21 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.16.0+adlc2] - 2026-08-07
+
+### Changed
+
+- **levelup extension no longer preinstalled**: `extensions/catalog.json` now
+  sets `levelup.preinstall` to `false`. The `levelup` extension's commands
+  (`/levelup.init`, `/levelup.clarify`, `/levelup.specify`, `/levelup.skill`,
+  `/levelup.implement`, `/levelup.validate`) overlap with the
+  `adlc-team-skills` `levelup-*` skills/commands. Removing levelup from
+  auto-install eliminates the command redundancy when both toolkits are used
+  together (the recommended coexistence flow: install `adlc-team-skills` first,
+  run `team-setup`, then `specify init` without `--team-ai-directives`).
+  The extension remains bundled and installable on demand via
+  `specify extension install levelup`.
+
 # [0.15.2+adlc4] - 2026-08-05
 
 ### Fixed
@@ -4298,6 +4313,31 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.16.0] - 2026-08-05
+
+### Changed
+
+- fix: keep long frontmatter values on a single line (#3989)
+- fix: skip corrupted run state files in list_runs (#3817)
+- fix: skip corrupted run state files in list_runs (#3814)
+- Add July 2026 newsletter (#3987)
+- fix(presets): start fresh on a non-UTF-8 preset registry (#3955)
+- docs: clarify agent PR review prioritization (#3985)
+- fix(events): preserve a non-UTF-8 config.toml on hook install/teardown (#3963)
+- fix(extensions): treat an unreadable staged backup as a conflict (#3962)
+- fix(manifests): reject non-string requires.speckit_version (#3980)
+- fix(extensions): reject reinstall when a kept config cannot be read (#3960)
+- [extension] Update Charter extension to v0.5.1 (#3983)
+- fix(events): return None for an unparseable script command (#3957)
+- feat(events): context injection for opencode and JSON-envelope agent hooks (#3934)
+- Add TDD Extension to community catalog (#3982)
+- Update Archive Extension to v1.1.0 (#3981)
+- feat(copilot): default integration to skills (#3976)
+- fix(events): ignore non-UTF-8 event overrides (#3897)
+- fix: cap stdin read at 1 MiB to prevent DoS (#3857)
+- fix(workflows): reject mismatched run state IDs (#3899)
+- chore: release 0.15.2, begin 0.15.3.dev0 development (#3953)
 
 ## [0.15.2] - 2026-08-03
 

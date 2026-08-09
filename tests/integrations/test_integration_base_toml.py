@@ -494,6 +494,7 @@ class TomlIntegrationTests:
         files.append(".specify/init-options.json")
         files.append(f".specify/integrations/{self.KEY}.manifest.json")
         files.append(".specify/integrations/speckit.manifest.json")  # FIXME: should be spec.manifest.json
+        files.append(".specify/.gitignore")
 
         if script_variant == "sh":
             for name in [
