@@ -4,7 +4,13 @@ A lightweight change proposal workflow modeled on OpenSpec concepts. Create stru
 
 ## Installation
 
-This preset is pre-installed when you run `specify init`. It co-exists with the `agentic-sdlc` preset.
+This preset is **opt-in** — it is bundled with the Specify CLI but no longer auto-installed by `specify init`. Add it to a project with:
+
+```bash
+specify preset add agentic-change
+```
+
+It co-exists with the `agentic-sdlc` preset.
 
 ## Commands
 
