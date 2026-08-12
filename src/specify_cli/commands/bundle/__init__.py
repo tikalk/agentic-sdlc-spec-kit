@@ -14,7 +14,7 @@ from pathlib import Path
 import typer
 from rich.markup import escape as _escape_markup
 
-# Tikalk fork: use make_typer for BannerGroup theming on sub-command groups
+# Tikalk fork: make_typer BannerGroup theming on sub-command groups
 try:
     from ..._init_fork import make_typer
 except ImportError:
@@ -22,8 +22,8 @@ except ImportError:
         kwargs.setdefault("add_completion", False)
         return typer.Typer(name=name, help=help, **kwargs)
 
-from ..._console import console, err_console
 from ..._download_security import MAX_DOWNLOAD_BYTES, read_response_limited
+from ..._console import console, err_console
 from ...bundler import BundlerError
 from ...bundler.lib.project import (
     active_integration,
