@@ -6,7 +6,7 @@ All notable changes to the Specify CLI and templates are documented here.
 
 ### Changed
 
-- **Upstream merge**: Synced with github/spec-kit 0.16.2 (50 commits, base 0.16.0+adlc3 → 0.16.2+adlc1).
+- **Upstream merge**: Synced with github/spec-kit 0.16.2 (53 commits, base 0.16.0+adlc3 → 0.16.2+adlc1). Includes post-0.16.2 fix: `fix: Alquimia argument hints after folded descriptions` (#4063).
   - New integration: `command-code` (Command Code CLI, skills-based, `$speckit-*` invocation)
   - New feature: `feat(presets): resolve constitution templates at command time` (#3984) — constitution template resolved via `resolve-template` script at command time instead of install-time materialization
   - New feature: `feat(extensions): accept provides.templates and provides.scripts in manifest` (#4012) — extension manifests can declare templates and scripts
