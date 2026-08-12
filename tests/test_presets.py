@@ -13611,7 +13611,10 @@ class TestInstalledPresetRichMarkup:
         )
 
         assert result.exit_code == 0, (result.output, result.exception)
-        assert "constitution.md" in strip_ansi(result.output)
+        # Strip ALL whitespace so the assertion is stable when Rich wraps
+        # long runner worktree paths (e.g. Windows CI) mid-word across lines.
+        normalized = "".join(strip_ansi(result.output).split())
+        assert "constitution.md" in normalized
 
     def test_resolve_rejects_empty_command_segments(self, project_dir):
         """Dotted command identifiers cannot contain empty path-like segments."""
