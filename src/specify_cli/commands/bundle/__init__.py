@@ -67,7 +67,12 @@ def _fail(message: str) -> None:
     """Print an actionable error to stderr and exit non-zero."""
     # Use the stderr console so the error never lands on stdout, which under
     # ``--json`` carries the machine-readable payload and must stay parseable.
-    err_console.print(f"[red]Error:[/red] {message}", style=None)
+    # Escape the message: every caller passes ``str(exc)`` from a BundlerError
+    # that interpolates untrusted data (a CLI argument, a catalog url, a
+    # bundle.yml field), so a '[...]' in it would be parsed as a Rich style tag
+    # -- silently swallowing the text, or raising MarkupError on an unbalanced
+    # closer and replacing the whole message with a traceback.
+    err_console.print(f"[red]Error:[/red] {_escape_markup(message)}", style=None)
     raise typer.Exit(code=1)
 
 
@@ -355,9 +360,10 @@ def bundle_list(
     console.print(f"\n{accent('Installed bundles:', bold=True)}\n")
     for record in records:
         console.print(
-            f"  [bold]{record.bundle_id}[/bold] v{record.version} "
+            f"  [bold]{_escape_markup(str(record.bundle_id))}[/bold] "
+            f"v{_escape_markup(str(record.version))} "
             f"[dim]({len(record.contributed_components)} components, "
-            f"installed {record.installed_at})[/dim]"
+            f"installed {_escape_markup(str(record.installed_at))})[/dim]"
         )
 
 
@@ -418,14 +424,14 @@ def bundle_install(
             console.print(
                 accent(
                     "No Spec Kit project here; initializing with integration "
-                    f"'{init_integration}'…"
+                    f"'{_escape_markup(str(init_integration))}'…"
                 )
             )
             _run_init(init_integration, script_type=_default_script_type(), offline=offline)
             project_root = require_project_root()
 
         for overlap in _bundle_overlaps(project_root, manifest, offline=offline):
-            console.print(f"[yellow]![/yellow] {overlap}")
+            console.print(f"[yellow]![/yellow] {_escape_markup(str(overlap))}")
 
         # For an already-initialized project, the project's recorded active
         # integration is authoritative — an explicit --integration must not be
@@ -440,7 +446,7 @@ def bundle_install(
             integration_explicit=bool(integration) and detected is None,
         )
         for warning in plan.warnings:
-            console.print(f"[yellow]![/yellow] {warning}")
+            console.print(f"[yellow]![/yellow] {_escape_markup(str(warning))}")
 
         result = install_bundle(
             project_root,
@@ -453,7 +459,7 @@ def bundle_install(
         return
 
     console.print(
-        f"{accent('✓')} Installed '{result.bundle_id}' "
+        f"{accent('✓')} Installed '{_escape_markup(str(result.bundle_id))}' "
         f"({len(result.installed)} added, {len(result.skipped)} already present)."
     )
 
@@ -505,7 +511,10 @@ def bundle_update(
                 integration_explicit=bool(integration) and detected is None,
             )
             install_bundle(project_root, plan, installer, manifest=manifest, refresh=True)
-            console.print(f"{accent('✓')} Updated '{target}' to v{plan.version}.")
+            console.print(
+                f"{accent('✓')} Updated '{_escape_markup(str(target))}' "
+                f"to v{_escape_markup(str(plan.version))}."
+            )
     except BundlerError as exc:
         _fail(str(exc))
         return
@@ -527,7 +536,7 @@ def bundle_remove(
         return
 
     console.print(
-        f"{accent('✓')} Removed '{result.bundle_id}' "
+        f"{accent('✓')} Removed '{_escape_markup(str(result.bundle_id))}' "
         f"({len(result.uninstalled)} uninstalled, {len(result.skipped)} kept for other bundles)."
     )
 
@@ -567,13 +576,16 @@ def bundle_validate(
         return
 
     for warning in report.warnings:
-        console.print(f"[yellow]![/yellow] {warning}")
+        console.print(f"[yellow]![/yellow] {_escape_markup(str(warning))}")
     if not report.ok:
         console.print("[red]Manifest is invalid:[/red]")
         for error in report.errors:
-            console.print(f"  [red]-[/red] {error}")
+            console.print(f"  [red]-[/red] {_escape_markup(str(error))}")
         raise typer.Exit(code=1)
-    console.print(f"{accent('✓')} {manifest.bundle.id} is well-formed and valid.")
+    console.print(
+        f"{accent('✓')} {_escape_markup(str(manifest.bundle.id))} "
+        "is well-formed and valid."
+    )
 
 
 @bundle_app.command("build")
@@ -596,8 +608,9 @@ def bundle_build(
         return
 
     console.print(
-        f"{accent('✓')} Built {result.artifact_path.name} "
-        f"({result.file_count} files) → {result.artifact_path}"
+        f"{accent('✓')} Built {_escape_markup(result.artifact_path.name)} "
+        f"({result.file_count} files) → "
+        f"{_escape_markup(str(result.artifact_path))}"
     )
 
 
@@ -615,9 +628,9 @@ def bundle_init(
         if project_root is None:
             init_integration = _resolve_init_integration(integration, None)
             console.print(
-                accent(
+accent(
                     "Initializing a Spec Kit project with integration "
-                    f"'{init_integration}'…"
+                    f"'{_escape_markup(str(init_integration))}'…"
                 )
             )
             _run_init(init_integration, script_type=_default_script_type(), offline=offline)
@@ -626,7 +639,10 @@ def bundle_init(
         _fail(str(exc))
         return
 
-    console.print(f"{accent('✓')} Spec Kit project ready at {project_root}.")
+    console.print(
+        f"{accent('✓')} Spec Kit project ready at "
+        f"{_escape_markup(str(project_root))}."
+    )
     if bundle:
         bundle_install(bundle, integration=integration, offline=offline)
 
@@ -650,10 +666,11 @@ def catalog_list() -> None:
     only_builtin = all(s.scope == Scope.BUILTIN for s in sources)
     for source in sources:
         console.print(
-            f"  [bold]{source.id}[/bold]  priority={source.priority}  "
+            f"  [bold]{_escape_markup(str(source.id))}[/bold]  "
+            f"priority={source.priority}  "
             f"policy={source.install_policy.value}  scope={source.scope.value}"
         )
-        console.print(f"    [dim]{source.url}[/dim]")
+        console.print(f"    [dim]{_escape_markup(str(source.url))}[/dim]")
     if only_builtin:
         console.print("\n[dim]Using the built-in default stack.[/dim]")
 
@@ -678,7 +695,7 @@ def catalog_add(
         return
 
     console.print(
-        f"{accent('✓')} Added catalog '{source.id}' "
+        f"{accent('✓')} Added catalog '{_escape_markup(str(source.id))}' "
         f"(priority {source.priority}, {source.install_policy.value})."
     )
 
@@ -697,7 +714,10 @@ def catalog_remove(
         _fail(str(exc))
         return
 
-    console.print(f"{accent('✓')} Removed catalog source '{removed}'.")
+    console.print(
+        f"{accent('✓')} Removed catalog source "
+        f"'{_escape_markup(str(removed))}'."
+    )
 
 
 # ZIP magic-byte signatures used to detect .zip payloads from REST API asset
@@ -798,7 +818,17 @@ def _local_manifest_source(arg: str):
                 error_type=BundlerError,
                 label="bundle manifest",
             )
-        data = _yaml.safe_load(io.BytesIO(raw))
+        try:
+            data = _yaml.safe_load(io.BytesIO(raw))
+        except _yaml.YAMLError as exc:
+            # The sibling directory/bundle.yml branches reach YAML through
+            # load_yaml(), which turns a parse failure into a BundlerError. This
+            # branch parses inline, so without this it raises a raw YAMLError --
+            # neither a ValueError nor an OSError -- which escapes
+            # bundle_install()'s `except BundlerError` as a traceback.
+            raise BundlerError(
+                f"Invalid YAML in bundle.yml inside '{candidate}': {exc}"
+            ) from exc
         return BundleManifest.from_dict(data)
 
     if candidate.name == "bundle.yml" or candidate.suffix in (".yml", ".yaml"):

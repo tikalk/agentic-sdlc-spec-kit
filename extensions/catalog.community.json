@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "updated_at": "2026-08-04T00:00:00Z",
+  "updated_at": "2026-08-11T00:00:00Z",
   "catalog_url": "https://raw.githubusercontent.com/github/spec-kit/main/extensions/catalog.community.json",
   "extensions": {
     "adrkit": {
@@ -362,8 +362,8 @@
       "id": "archive",
       "description": "Archive merged features into main project memory, resolving gaps and conflicts.",
       "author": "Stanislav Deviatov",
-      "version": "1.1.0",
-      "download_url": "https://github.com/stn1slv/spec-kit-archive/archive/refs/tags/v1.1.0.zip",
+      "version": "1.2.2",
+      "download_url": "https://github.com/stn1slv/spec-kit-archive/archive/refs/tags/v1.2.2.zip",
       "repository": "https://github.com/stn1slv/spec-kit-archive",
       "homepage": "https://github.com/stn1slv/spec-kit-archive",
       "documentation": "https://github.com/stn1slv/spec-kit-archive/blob/main/README.md",
@@ -388,7 +388,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-14T00:00:00Z",
-      "updated_at": "2026-08-04T00:00:00Z"
+      "updated_at": "2026-08-11T00:00:00Z"
     },
     "azure-devops": {
       "name": "Azure DevOps Integration",
@@ -1815,6 +1815,41 @@
       "created_at": "2026-06-24T00:00:00Z",
       "updated_at": "2026-07-07T00:00:00Z"
     },
+    "grill": {
+      "name": "SpecKit Grill Me",
+      "id": "grill",
+      "description": "Exhaustively resolve specification ambiguities and decisions before planning.",
+      "author": "yoshi1220",
+      "version": "1.0.0",
+      "download_url": "https://github.com/yoshi1220/speckit-grill-me/releases/download/v1.0.0/speckit-grill-me-extension-v1.0.0.zip",
+      "repository": "https://github.com/yoshi1220/speckit-grill-me",
+      "homepage": "https://github.com/yoshi1220/speckit-grill-me/tree/main/spec-kit-extension",
+      "documentation": "https://github.com/yoshi1220/speckit-grill-me/blob/main/spec-kit-extension/README.md",
+      "changelog": "https://github.com/yoshi1220/speckit-grill-me/blob/main/spec-kit-extension/CHANGELOG.md",
+      "license": "MIT",
+      "category": "process",
+      "effect": "read-write",
+      "requires": {
+        "speckit_version": ">=0.16.2",
+        "tools": [{ "name": "bash", "required": true }]
+      },
+      "provides": {
+        "commands": 1,
+        "hooks": 0
+      },
+      "tags": [
+        "clarification",
+        "requirements",
+        "specification",
+        "elicitation",
+        "workflow"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-08-11T00:00:00Z",
+      "updated_at": "2026-08-11T00:00:00Z"
+    },
     "harness": {
       "name": "Research Harness",
       "id": "harness",
@@ -2106,6 +2141,40 @@
       "stars": 0,
       "created_at": "2026-06-08T00:00:00Z",
       "updated_at": "2026-06-24T00:00:00Z"
+    },
+    "keel": {
+      "name": "Keel Discovery",
+      "id": "keel",
+      "description": "A Spec Kit extension that puts customer evidence upstream of /speckit.specify, and audits what you shipped against it afterwards.",
+      "author": "Keel Discovery",
+      "version": "0.1.1",
+      "download_url": "https://github.com/keeldiscovery/spec-kit-keel/archive/refs/tags/v0.1.1.zip",
+      "repository": "https://github.com/keeldiscovery/spec-kit-keel",
+      "homepage": "https://keeldiscovery.com",
+      "documentation": "https://github.com/keeldiscovery/spec-kit-keel/blob/main/README.md",
+      "changelog": "https://github.com/keeldiscovery/spec-kit-keel/blob/main/CHANGELOG.md",
+      "license": "Apache-2.0",
+      "category": "process",
+      "effect": "read-write",
+      "requires": {
+        "speckit_version": ">=0.15.0"
+      },
+      "provides": {
+        "commands": 5,
+        "hooks": 2
+      },
+      "tags": [
+        "discovery",
+        "evidence",
+        "customer-research",
+        "validation",
+        "traceability"
+      ],
+      "verified": false,
+      "downloads": 0,
+      "stars": 0,
+      "created_at": "2026-08-10T00:00:00Z",
+      "updated_at": "2026-08-10T00:00:00Z"
     },
     "learn": {
       "name": "Learning Extension",
@@ -3406,8 +3475,8 @@
       "id": "reconcile",
       "description": "Reconcile implementation drift by surgically updating the feature's own spec, plan, and tasks.",
       "author": "Stanislav Deviatov",
-      "version": "1.0.0",
-      "download_url": "https://github.com/stn1slv/spec-kit-reconcile/archive/refs/tags/v1.0.0.zip",
+      "version": "1.1.0",
+      "download_url": "https://github.com/stn1slv/spec-kit-reconcile/archive/refs/tags/v1.1.0.zip",
       "repository": "https://github.com/stn1slv/spec-kit-reconcile",
       "homepage": "https://github.com/stn1slv/spec-kit-reconcile",
       "documentation": "https://github.com/stn1slv/spec-kit-reconcile/blob/main/README.md",
@@ -3432,7 +3501,7 @@
       "downloads": 0,
       "stars": 0,
       "created_at": "2026-03-14T00:00:00Z",
-      "updated_at": "2026-03-14T00:00:00Z"
+      "updated_at": "2026-08-10T00:00:00Z"
     },
     "red-team": {
       "name": "Red Team",

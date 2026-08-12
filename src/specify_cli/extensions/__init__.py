@@ -83,6 +83,13 @@ if EXTENSION_ALIAS_PATTERN_ENABLED:
 else:
     EXTENSION_ALIAS_NAME_PATTERN = None
 
+# Naming pattern for provides.templates / provides.scripts entries. Unlike
+# commands, these are not namespaced (they aren't invoked via a command
+# name), so they follow the same plain slug pattern as extension.id.
+VALID_EXTENSION_ARTIFACT_NAME_PATTERN = re.compile(r"^[a-z0-9-]+$")
+
+VALID_SCRIPT_RUNTIMES = frozenset({"bash", "powershell", "python"})
+
 VALID_EFFECTS = frozenset({"read-only", "read-write"})
 
 DEFAULT_HOOK_PRIORITY = 10
@@ -388,11 +395,17 @@ class ExtensionManifest:
                 f"Invalid provides: expected a mapping, got {type(provides).__name__}"
             )
         commands = provides.get("commands", [])
+        templates = provides.get("templates", [])
+        scripts = provides.get("scripts", [])
         hooks = self.data.get("hooks")
         events = self.data.get("events")
 
         if "commands" in provides and not isinstance(commands, list):
             raise ValidationError("Invalid provides.commands: expected a list")
+        if "templates" in provides and not isinstance(templates, list):
+            raise ValidationError("Invalid provides.templates: expected a list")
+        if "scripts" in provides and not isinstance(scripts, list):
+            raise ValidationError("Invalid provides.scripts: expected a list")
         if "hooks" in self.data and not isinstance(hooks, dict):
             raise ValidationError("Invalid hooks: expected a mapping")
         if "events" in self.data:
@@ -402,9 +415,17 @@ class ExtensionManifest:
         has_commands = bool(commands)
         has_hooks = bool(hooks)
         has_events = bool(events)
+        has_templates = bool(templates)
+        has_scripts = bool(scripts)
 
-        if not has_commands and not has_hooks and not has_events:
-            raise ValidationError("Extension must provide at least one command, hook, or event")
+        if not has_commands and not has_hooks and not has_events and not has_templates and not has_scripts:
+            raise ValidationError(
+                "Extension must provide at least one command, hook, or event "
+                "(or a declared template/script)"
+            )
+
+        self._validate_provided_artifacts(templates, section="templates", singular="template")
+        self._validate_provided_artifacts(scripts, section="scripts", singular="script")
 
         # Validate hook values (if present).
         # Each event is a single mapping or a list of mappings.
@@ -566,6 +587,80 @@ class ExtensionManifest:
                     )
 
     @staticmethod
+    def _validate_provided_artifacts(entries: List[Any], section: str, singular: str) -> None:
+        """Validate provides.templates / provides.scripts entries.
+
+        Mirrors the shape/path-safety checks PresetManifest applies to its
+        non-command templates, minus 'type' (the section name already
+        distinguishes template vs script) and 'strategy' (extension-provided
+        artifacts are always 'replace' -- see the forced-replace resolver
+        behavior for extension layers in presets/__init__.py). A present
+        'strategy' key is rejected rather than silently ignored, so an author
+        who copies a preset-style entry gets a clear error instead of a
+        silently-dropped field. Duplicate names within a section are also
+        rejected: the resolver returns the first matching entry by name
+        (``PresetResolver._extension_manifest_declared_template``), so a
+        later duplicate would be silently unreachable while still being
+        exposed by ``ExtensionManifest.templates``/``.scripts``.
+        """
+        seen_names: set[str] = set()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                raise ValidationError(
+                    f"Each entry in 'provides.{section}' must be a mapping"
+                )
+            if "name" not in entry or "file" not in entry:
+                raise ValidationError(f"{singular.capitalize()} missing 'name' or 'file'")
+
+            name = entry["name"]
+            if not isinstance(name, str):
+                raise ValidationError(
+                    f"Invalid {singular} name: expected a string, got {type(name).__name__}"
+                )
+            if not VALID_EXTENSION_ARTIFACT_NAME_PATTERN.match(name):
+                raise ValidationError(
+                    f"Invalid {singular} name '{name}': "
+                    "must be lowercase alphanumeric with hyphens only"
+                )
+            if name in seen_names:
+                raise ValidationError(
+                    f"Duplicate {singular} name '{name}' in 'provides.{section}'"
+                )
+            seen_names.add(name)
+
+            file_value = entry["file"]
+            reason = relative_extension_path_violation(file_value)
+            if reason:
+                label = repr(file_value) if isinstance(file_value, str) else f"for {singular} '{name}'"
+                raise ValidationError(f"Invalid {singular} 'file' {label}: {reason}")
+
+            if "description" in entry and not isinstance(entry["description"], str):
+                raise ValidationError(
+                    f"Invalid {singular} description for '{name}': expected a string"
+                )
+
+            if "strategy" in entry:
+                raise ValidationError(
+                    f"Invalid {singular} entry '{name}': 'strategy' is not authorable for "
+                    "extension-provided artifacts, which always use 'replace' semantics"
+                )
+
+            if section == "scripts" and "runtimes" in entry:
+                runtimes = entry["runtimes"]
+                if not isinstance(runtimes, list) or not all(
+                    isinstance(r, str) for r in runtimes
+                ):
+                    raise ValidationError(
+                        f"Invalid runtimes for script '{name}': expected a list of strings"
+                    )
+                invalid = sorted(set(runtimes) - VALID_SCRIPT_RUNTIMES)
+                if invalid:
+                    raise ValidationError(
+                        f"Invalid runtimes {invalid} for script '{name}': "
+                        f"must be one of {sorted(VALID_SCRIPT_RUNTIMES)}"
+                    )
+
+    @staticmethod
     def _try_correct_command_name(name: str, ext_id: str) -> Optional[str]:
         """Try to auto-correct a non-conforming command name to the required pattern.
 
@@ -636,6 +731,16 @@ class ExtensionManifest:
         return raw
 
     @property
+    def templates(self) -> List[Dict[str, Any]]:
+        """Get list of declared templates (provides.templates)."""
+        return self.data.get("provides", {}).get("templates", [])
+
+    @property
+    def scripts(self) -> List[Dict[str, Any]]:
+        """Get list of declared scripts (provides.scripts)."""
+        return self.data.get("provides", {}).get("scripts", [])
+
+    @property
     def hooks(self) -> Dict[str, Any]:
         """Get hook definitions."""
         return self.data.get("hooks", {})
@@ -670,6 +775,13 @@ class ExtensionRegistry:
         if not self.registry_path.exists():
             return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
 
+        # A non-regular file (e.g. a directory at the registry path) is not a
+        # readable registry. Recover to empty so construction — used by the
+        # install/enable/disable flows — does not crash. Resolution paths that
+        # must fail closed consult is_corrupt() instead of relying on this.
+        if not self.registry_path.is_file():
+            return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
+
         try:
             with open(self.registry_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -688,6 +800,38 @@ class ExtensionRegistry:
             # is deliberately not caught: the data may be intact on disk, and
             # starting fresh would let a later _save() wipe it.
             return {"schema_version": self.SCHEMA_VERSION, "extensions": {}}
+
+    def is_corrupt(self) -> bool:
+        """Report whether an existing registry file is present but unreadable.
+
+        ``_load`` deliberately recovers from a corrupt registry by normalizing
+        it to an empty mapping so install/enable/disable flows keep working.
+        Resolution paths, however, must fail closed: a corrupt registry that
+        normalizes to ``{}`` would otherwise cause every on-disk extension
+        directory to be admitted as an unregistered, enabled extension. This
+        probe lets those callers distinguish "no registry" (safe) from
+        "registry exists but is invalid" (unsafe) without changing recovery
+        behavior. An absent registry returns ``False``; a directory, broken
+        or dangling symlink, non-regular file, unreadable file, non-mapping
+        root, or non-mapping ``extensions`` value returns ``True``.
+        """
+        # os.path.lexists (not Path.exists) so a dangling symlink is detected
+        # rather than followed to a non-existent target and mistaken for an
+        # absent registry — which would reopen the fail-open directory scan.
+        if not os.path.lexists(self.registry_path):
+            return False
+        if not self.registry_path.is_file():
+            return True
+        try:
+            with open(self.registry_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+            return True
+        if not isinstance(data, dict):
+            return True
+        if "extensions" in data and not isinstance(data["extensions"], dict):
+            return True
+        return False
 
     def _save(self):
         """Save registry to disk."""

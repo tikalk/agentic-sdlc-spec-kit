@@ -6,6 +6,8 @@ import os
 import pytest
 import yaml
 
+from tests.http_helpers import route_opener_open_through_urlopen  # noqa: F401
+
 from specify_cli.integrations.catalog import (
     IntegrationCatalog,
     IntegrationCatalogEntry,
@@ -13,7 +15,32 @@ from specify_cli.integrations.catalog import (
     IntegrationDescriptor,
     IntegrationDescriptorError,
     IntegrationValidationError,
+    _catalog_shape_error,
 )
+
+
+class TestCatalogShapeValidator:
+    """The shared shape validator used by BOTH the fresh-fetch and cache-read
+    paths, so a poisoned/older cache can't bypass the format contract the fresh
+    fetch enforces (dict + 'schema_version' + dict 'integrations')."""
+
+    def test_valid_payload_returns_none(self):
+        assert _catalog_shape_error({"schema_version": "1.0", "integrations": {}}) is None
+
+    def test_missing_schema_version_is_rejected(self):
+        # The exact bypass the two paths used to disagree on: a dict with a dict
+        # 'integrations' but no 'schema_version'.
+        assert _catalog_shape_error({"integrations": {}}) is not None
+
+    def test_missing_integrations_is_rejected(self):
+        assert _catalog_shape_error({"schema_version": "1.0"}) is not None
+
+    def test_non_dict_integrations_is_rejected(self):
+        assert _catalog_shape_error({"schema_version": "1.0", "integrations": []}) is not None
+
+    @pytest.mark.parametrize("payload", [[], "x", 5, None])
+    def test_non_dict_payload_is_rejected(self, payload):
+        assert _catalog_shape_error(payload) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -134,20 +161,11 @@ class TestActiveCatalogs:
         specify = tmp_path / ".specify"
         specify.mkdir()
         cfg = specify / "integration-catalogs.yml"
-        cfg.write_text(
-            yaml.dump(
-                {
-                    "catalogs": [
-                        {
-                            "url": "https://my.example.com/cat.json",
-                            "name": "mine",
-                            "priority": 1,
-                            "install_allowed": True,
-                        },
-                    ]
-                }
-            )
-        )
+        cfg.write_text(yaml.dump({
+            "catalogs": [
+                {"url": "https://my.example.com/cat.json", "name": "mine", "priority": 1, "install_allowed": True},
+            ]
+        }))
         cat = IntegrationCatalog(tmp_path)
         active = cat.get_active_catalogs()
         assert len(active) == 1
@@ -209,13 +227,7 @@ class TestCatalogFetch:
     """Tests that use a local HTTP server stub via monkeypatch."""
 
     def _patch_urlopen(self, monkeypatch, catalog_data):
-        """Patch authentication.http.open_url to return *catalog_data*.
-
-        ``_fetch_single_catalog`` calls ``open_url`` (which uses an opener, not
-        the module-level ``urllib.request.urlopen``), so the mock must target
-        ``open_url`` directly. Each call gets a fresh ``FakeResponse`` so the
-        bounded-read offset resets per fetch (the default + community catalogs
-        are both fetched)."""
+        """Patch authentication.http.urllib.request.urlopen to return *catalog_data*."""
 
         class FakeResponse:
             def __init__(self, data, url=""):
@@ -241,12 +253,12 @@ class TestCatalogFetch:
             def __exit__(self, *a):
                 pass
 
-        def fake_open_url(url, timeout=10, **kwargs):
+        def fake_urlopen(req, timeout=10):
+            url = req if isinstance(req, str) else req.full_url
             return FakeResponse(catalog_data, url)
 
         import specify_cli.authentication.http as _auth_http
-
-        monkeypatch.setattr(_auth_http, "open_url", fake_open_url)
+        monkeypatch.setattr(_auth_http.urllib.request, "urlopen", fake_urlopen)
 
     def test_fetch_and_search_all(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -363,10 +375,10 @@ class TestCatalogFetch:
 
         import specify_cli.authentication.http as _auth_http
 
-        def fake_open_url(url, timeout=10, **kwargs):
+        def fake_urlopen(req, timeout=10):
             return _OversizedResponse()
 
-        monkeypatch.setattr(_auth_http, "open_url", fake_open_url)
+        monkeypatch.setattr(_auth_http.urllib.request, "urlopen", fake_urlopen)
 
         from specify_cli.integrations.catalog import IntegrationCatalogEntry
 
@@ -379,6 +391,125 @@ class TestCatalogFetch:
 
         with pytest.raises(IntegrationCatalogError, match="exceeds maximum size"):
             cat._fetch_single_catalog(entry, force_refresh=True)
+
+    def _patch_urlopen_bytes(self, monkeypatch, bodies):
+        """Patch urlopen to serve raw *bodies* keyed by URL substring.
+
+        Mirrors ``_patch_urlopen`` but passes the bytes through verbatim: these
+        tests need a body that is not valid UTF-8, which ``json.dumps`` cannot
+        produce.
+        """
+
+        class _RawResponse:
+            def __init__(self, data, url):
+                self._data = data
+                self._url = url
+                self._offset = 0
+
+            def read(self, size=-1):
+                if size == -1:
+                    chunk = self._data[self._offset:]
+                    self._offset = len(self._data)
+                else:
+                    chunk = self._data[self._offset:self._offset + size]
+                    self._offset += len(chunk)
+                return chunk
+
+            def geturl(self):
+                return self._url
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                pass
+
+        def fake_urlopen(req, timeout=10):
+            url = req if isinstance(req, str) else req.full_url
+            for marker, body in bodies.items():
+                if marker in url:
+                    return _RawResponse(body, url)
+            raise AssertionError(f"unexpected URL requested: {url}")
+
+        import specify_cli.authentication.http as _auth_http
+        monkeypatch.setattr(_auth_http.urllib.request, "urlopen", fake_urlopen)
+
+    def test_fetch_wraps_non_utf8_catalog_response(self, tmp_path, monkeypatch):
+        """Regression: a non-UTF-8 response body must raise IntegrationCatalogError.
+
+        ``.decode("utf-8")`` runs before ``json.loads``, so the resulting
+        UnicodeDecodeError is not a JSONDecodeError and slipped past both
+        handlers as a raw traceback.
+        """
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.delenv("SPECKIT_INTEGRATION_CATALOG_URL", raising=False)
+        (tmp_path / ".specify").mkdir(exist_ok=True)
+        cat = IntegrationCatalog(tmp_path)
+
+        self._patch_urlopen_bytes(
+            monkeypatch,
+            {"catalog.json": b'{"schema_version": "1.0", "name": "\xff\xfe"}'},
+        )
+
+        entry = IntegrationCatalogEntry(
+            url="https://example.com/catalog.json",
+            name="test",
+            priority=1,
+            install_allowed=True,
+        )
+
+        with pytest.raises(IntegrationCatalogError, match="not valid UTF-8"):
+            cat._fetch_single_catalog(entry, force_refresh=True)
+
+    def test_search_skips_non_utf8_catalog(self, tmp_path, monkeypatch, capsys):
+        """A single non-UTF-8 catalog must not take down the whole search.
+
+        ``_get_merged_integrations`` is built to warn and continue on a bad
+        catalog; an unwrapped UnicodeDecodeError defeated that entirely.
+        """
+        monkeypatch.setenv("HOME", str(tmp_path))
+        monkeypatch.setenv("USERPROFILE", str(tmp_path))
+        monkeypatch.delenv("SPECKIT_INTEGRATION_CATALOG_URL", raising=False)
+        specify = tmp_path / ".specify"
+        specify.mkdir(exist_ok=True)
+        (specify / "integration-catalogs.yml").write_text(
+            "catalogs:\n"
+            "  - name: broken\n"
+            "    url: https://example.com/broken.json\n"
+            "    priority: 1\n"
+            "  - name: healthy\n"
+            "    url: https://example.com/healthy.json\n"
+            "    priority: 2\n",
+            encoding="utf-8",
+        )
+
+        healthy = json.dumps(
+            {
+                "schema_version": "1.0",
+                "integrations": {
+                    "acme-coder": {
+                        "name": "Acme Coder",
+                        "version": "1.0.0",
+                        "description": "Acme integration",
+                    }
+                },
+            }
+        ).encode("utf-8")
+
+        self._patch_urlopen_bytes(
+            monkeypatch,
+            {
+                "broken.json": b'{"schema_version": "1.0", "name": "\xff\xfe"}',
+                "healthy.json": healthy,
+            },
+        )
+
+        cat = IntegrationCatalog(tmp_path)
+        results = cat.search()
+
+        assert "acme-coder" in [r["id"] for r in results]
+        assert "broken" in capsys.readouterr().err
 
     def test_search_by_tag(self, tmp_path, monkeypatch):
         monkeypatch.setenv("HOME", str(tmp_path))
@@ -411,20 +542,8 @@ class TestCatalogFetch:
             "schema_version": "1.0",
             "updated_at": "2026-01-01T00:00:00Z",
             "integrations": {
-                "claude": {
-                    "id": "claude",
-                    "name": "Claude Code",
-                    "version": "1.0.0",
-                    "description": "Anthropic",
-                    "tags": [],
-                },
-                "gemini": {
-                    "id": "gemini",
-                    "name": "Gemini CLI",
-                    "version": "1.0.0",
-                    "description": "Google",
-                    "tags": [],
-                },
+                "claude": {"id": "claude", "name": "Claude Code", "version": "1.0.0", "description": "Anthropic", "tags": []},
+                "gemini": {"id": "gemini", "name": "Gemini CLI", "version": "1.0.0", "description": "Google", "tags": []},
             },
         }
         self._patch_urlopen(monkeypatch, catalog)
@@ -462,13 +581,9 @@ class TestCatalogFetch:
         (tmp_path / ".specify").mkdir()
         cat = IntegrationCatalog(tmp_path)
 
-        self._patch_urlopen(
-            monkeypatch, {"schema_version": "1.0"}
-        )  # missing "integrations"
+        self._patch_urlopen(monkeypatch, {"schema_version": "1.0"})  # missing "integrations"
 
-        with pytest.raises(
-            IntegrationCatalogError, match="Failed to fetch any integration catalog"
-        ):
+        with pytest.raises(IntegrationCatalogError, match="Failed to fetch any integration catalog"):
             cat.search()
 
     def test_clear_cache(self, tmp_path):
@@ -526,24 +641,17 @@ class TestIntegrationDescriptor:
         data = {**VALID_DESCRIPTOR}
         del data["schema_version"]
         p = self._write(tmp_path, data)
-        with pytest.raises(
-            IntegrationDescriptorError, match="Missing required field: schema_version"
-        ):
+        with pytest.raises(IntegrationDescriptorError, match="Missing required field: schema_version"):
             IntegrationDescriptor(p)
 
     def test_unsupported_schema_version(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "schema_version": "99.0"}
         p = self._write(tmp_path, data)
-        with pytest.raises(
-            IntegrationDescriptorError, match="Unsupported schema version"
-        ):
+        with pytest.raises(IntegrationDescriptorError, match="Unsupported schema version"):
             IntegrationDescriptor(p)
 
     def test_missing_integration_id(self, tmp_path):
-        data = {
-            **VALID_DESCRIPTOR,
-            "integration": {"name": "X", "version": "1.0.0", "description": "Y"},
-        }
+        data = {**VALID_DESCRIPTOR, "integration": {"name": "X", "version": "1.0.0", "description": "Y"}}
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="Missing integration.id"):
             IntegrationDescriptor(p)
@@ -565,44 +673,29 @@ class TestIntegrationDescriptor:
     def test_missing_speckit_version(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "requires": {}}
         p = self._write(tmp_path, data)
-        with pytest.raises(
-            IntegrationDescriptorError, match="requires.speckit_version"
-        ):
+        with pytest.raises(IntegrationDescriptorError, match="requires.speckit_version"):
             IntegrationDescriptor(p)
 
     def test_no_commands_or_scripts(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "provides": {}}
         p = self._write(tmp_path, data)
-        with pytest.raises(
-            IntegrationDescriptorError, match="at least one command or script"
-        ):
+        with pytest.raises(IntegrationDescriptorError, match="at least one command or script"):
             IntegrationDescriptor(p)
 
     def test_command_missing_name(self, tmp_path):
         data = {**VALID_DESCRIPTOR, "provides": {"commands": [{"file": "x.md"}]}}
         p = self._write(tmp_path, data)
-        with pytest.raises(
-            IntegrationDescriptorError, match="missing 'name' or 'file'"
-        ):
+        with pytest.raises(IntegrationDescriptorError, match="missing 'name' or 'file'"):
             IntegrationDescriptor(p)
 
     def test_commands_not_a_list(self, tmp_path):
-        data = {
-            **VALID_DESCRIPTOR,
-            "provides": {"commands": "not-a-list", "scripts": ["a.sh"]},
-        }
+        data = {**VALID_DESCRIPTOR, "provides": {"commands": "not-a-list", "scripts": ["a.sh"]}}
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="expected a list"):
             IntegrationDescriptor(p)
 
     def test_scripts_not_a_list(self, tmp_path):
-        data = {
-            **VALID_DESCRIPTOR,
-            "provides": {
-                "commands": [{"name": "a", "file": "b"}],
-                "scripts": "not-a-list",
-            },
-        }
+        data = {**VALID_DESCRIPTOR, "provides": {"commands": [{"name": "a", "file": "b"}], "scripts": "not-a-list"}}
         p = self._write(tmp_path, data)
         with pytest.raises(IntegrationDescriptorError, match="expected a list"):
             IntegrationDescriptor(p)
@@ -624,13 +717,10 @@ class TestIntegrationDescriptor:
         assert h.startswith("sha256:")
 
     def test_tools_accessor(self, tmp_path):
-        data = {
-            **VALID_DESCRIPTOR,
-            "requires": {
-                "speckit_version": ">=0.6.0",
-                "tools": [{"name": "my-agent", "version": ">=1.0.0", "required": True}],
-            },
-        }
+        data = {**VALID_DESCRIPTOR, "requires": {
+            "speckit_version": ">=0.6.0",
+            "tools": [{"name": "my-agent", "version": ">=1.0.0", "required": True}],
+        }}
         p = self._write(tmp_path, data)
         desc = IntegrationDescriptor(p)
         assert len(desc.tools) == 1
@@ -649,26 +739,18 @@ class TestIntegrationListCatalog:
         """Create a minimal spec-kit project."""
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    "copilot",
-                    "--script",
-                    "sh",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = runner.invoke(app, [
+                "init", "--here",
+                "--integration", "copilot",
+                "--script", "sh",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old)
         assert result.exit_code == 0, result.output
@@ -678,7 +760,6 @@ class TestIntegrationListCatalog:
         """--catalog should show catalog entries."""
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path)
 
@@ -722,15 +803,8 @@ class TestIntegrationListCatalog:
             def __exit__(self, *a):
                 pass
 
-        import io
-        from unittest.mock import MagicMock
-        mock_resp = MagicMock()
-        mock_resp.read.side_effect = io.BytesIO(json.dumps(catalog).encode("utf-8")).read
-        mock_resp.headers = {}
-        mock_resp.geturl.return_value = "https://example.com/catalog.json"
-        mock_resp.__enter__ = lambda s: s
-        mock_resp.__exit__ = MagicMock(return_value=False)
-        monkeypatch.setattr(_auth_http, "open_url", lambda req, timeout=10: mock_resp)
+        monkeypatch.setattr(_auth_http.urllib.request, "urlopen",
+                            lambda req, timeout=10: FakeResponse(catalog, req if isinstance(req, str) else req.full_url))
 
         old = os.getcwd()
         try:
@@ -747,7 +821,6 @@ class TestIntegrationListCatalog:
         """Default list (no --catalog) works as before."""
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path)
 
@@ -762,6 +835,40 @@ class TestIntegrationListCatalog:
         assert "copilot" in result.output
         assert "installed" in result.output
 
+    def test_catalog_list_escapes_rich_markup(self, tmp_path, monkeypatch):
+        """User-editable catalog name/url/description must not be parsed as Rich markup."""
+        from typer.testing import CliRunner
+        from specify_cli import app
+        from specify_cli.integrations.catalog import IntegrationCatalog
+        runner = CliRunner()
+        project = self._init_project(tmp_path)
+
+        configs = [
+            {
+                "name": "Bracket [Catalog]",
+                "url": "https://example.com/[cat].json",
+                "description": "desc [with] brackets",
+                "install_allowed": True,
+            },
+        ]
+        monkeypatch.setattr(
+            IntegrationCatalog,
+            "get_project_catalog_configs",
+            lambda self: [dict(c) for c in configs],
+        )
+
+        old = os.getcwd()
+        try:
+            os.chdir(project)
+            result = runner.invoke(app, ["integration", "catalog", "list"])
+        finally:
+            os.chdir(old)
+
+        assert result.exit_code == 0, result.output
+        assert "Bracket [Catalog]" in result.output
+        assert "https://example.com/[cat].json" in result.output
+        assert "desc [with] brackets" in result.output
+
 
 # ---------------------------------------------------------------------------
 # CLI: integration upgrade
@@ -774,26 +881,18 @@ class TestIntegrationUpgrade:
     def _init_project(self, tmp_path, integration="copilot"):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(
-                app,
-                [
-                    "init",
-                    "--here",
-                    "--integration",
-                    integration,
-                    "--script",
-                    "sh",
-                    "--ignore-agent-tools",
-                ],
-                catch_exceptions=False,
-            )
+            result = runner.invoke(app, [
+                "init", "--here",
+                "--integration", integration,
+                "--script", "sh",
+                "--ignore-agent-tools",
+            ], catch_exceptions=False)
         finally:
             os.chdir(old)
         assert result.exit_code == 0, result.output
@@ -802,7 +901,6 @@ class TestIntegrationUpgrade:
     def test_upgrade_requires_speckit_project(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         old = os.getcwd()
         try:
@@ -816,7 +914,6 @@ class TestIntegrationUpgrade:
     def test_upgrade_no_integration_installed(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = tmp_path / "proj"
         project.mkdir()
@@ -833,16 +930,13 @@ class TestIntegrationUpgrade:
     def test_upgrade_succeeds(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(
-                app, ["integration", "upgrade", "--force"], catch_exceptions=False
-            )
+            result = runner.invoke(app, ["integration", "upgrade"], catch_exceptions=False)
         finally:
             os.chdir(old)
         assert result.exit_code == 0
@@ -851,7 +945,6 @@ class TestIntegrationUpgrade:
     def test_upgrade_blocks_on_modified_files(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -878,7 +971,6 @@ class TestIntegrationUpgrade:
     def test_upgrade_force_overwrites_modified(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -895,9 +987,7 @@ class TestIntegrationUpgrade:
         old = os.getcwd()
         try:
             os.chdir(project)
-            result = runner.invoke(
-                app, ["integration", "upgrade", "--force"], catch_exceptions=False
-            )
+            result = runner.invoke(app, ["integration", "upgrade", "--force"], catch_exceptions=False)
         finally:
             os.chdir(old)
         assert result.exit_code == 0
@@ -906,7 +996,6 @@ class TestIntegrationUpgrade:
     def test_upgrade_wrong_integration_key(self, tmp_path):
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -923,7 +1012,6 @@ class TestIntegrationUpgrade:
         """Upgrade with missing manifest suggests fresh install."""
         from typer.testing import CliRunner
         from specify_cli import app
-
         runner = CliRunner()
         project = self._init_project(tmp_path, "copilot")
 
@@ -1138,6 +1226,57 @@ class TestCatalogSourceManagement:
         message = str(exc_info.value)
         assert str(cfg_path) in message
         assert "expected a mapping" in message
+
+    def test_add_catalog_rejects_inf_priority_in_existing_entry(
+        self, tmp_path, monkeypatch
+    ):
+        # ``priority: .inf`` loads as float('inf'); int() on it raises
+        # OverflowError, which used to escape the IntegrationValidationError
+        # contract as a raw traceback (github/spec-kit#3526 fixed the sibling
+        # workflow/step loaders the same way).
+        self._isolate(tmp_path, monkeypatch)
+        cfg_path = tmp_path / ".specify" / "integration-catalogs.yml"
+        cfg_path.write_text(
+            yaml.dump(
+                {
+                    "catalogs": [
+                        {
+                            "url": "https://a.example.com/catalog.json",
+                            "priority": float("inf"),
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        cat = IntegrationCatalog(tmp_path)
+        with pytest.raises(
+            IntegrationValidationError, match="must be an integer"
+        ):
+            cat.add_catalog("https://new.example.com/catalog.json")
+
+    def test_remove_catalog_tolerates_inf_priority(self, tmp_path, monkeypatch):
+        # Building the remove display order must not crash on a ``priority:
+        # .inf`` entry; it falls back to positional order like the other
+        # non-integer priorities do.
+        self._isolate(tmp_path, monkeypatch)
+        cfg_path = tmp_path / ".specify" / "integration-catalogs.yml"
+        cfg_path.write_text(
+            yaml.dump(
+                {
+                    "catalogs": [
+                        {
+                            "url": "https://a.example.com/catalog.json",
+                            "priority": float("inf"),
+                        },
+                        {"url": "https://b.example.com/catalog.json", "priority": 2},
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        cat = IntegrationCatalog(tmp_path)
+        cat.remove_catalog(0)  # must not raise OverflowError
 
     def test_add_catalog_skips_blank_url_entries(self, tmp_path, monkeypatch):
         self._isolate(tmp_path, monkeypatch)

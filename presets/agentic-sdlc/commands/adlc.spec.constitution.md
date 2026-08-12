@@ -4,6 +4,10 @@ handoffs:
   - label: Build Specification
     agent: adlc.spec.specify
     prompt: Implement the feature specification based on the updated constitution. I want to build...
+scripts:
+  sh: scripts/bash/resolve-template.sh constitution-template --json
+  ps: scripts/powershell/resolve-template.ps1 constitution-template -Json
+  py: scripts/python/resolve_template.py constitution-template --json
 ---
 
 ## MANDATORY: Pre-Execution Hooks
