@@ -30,7 +30,7 @@ The original [github/spec-kit](https://github.com/github/spec-kit) repository fo
 
 - **Bundled extensions — new capabilities beyond core SDD.** Ships fork-owned extensions: `architect` (ADRs + Rozanski & Woods architecture descriptions), `product` (PRDs & PDRs), `tdd` (strict RED→GREEN→REFACTOR with risk-based testing), `edd`/`evals` (evaluation-driven development with PromptFoo), and `workflow` (mission-driven SDLC automation with supervision modes). See [📦 Bundled Extensions](#-bundled-extensions).
 
-- **Bundled presets — stackable workflow customizations.** Ships `agentic-sdlc` (full lifecycle: specify → plan → tasks → implement → converge), `agentic-change` (lightweight change proposals), and `agentic-quick` (session-based ad-hoc execution) — all pre-installed at `specify init`. See [📦 Bundled Presets](#-bundled-presets).
+- **Bundled presets — stackable workflow customizations.** Ships `agentic-sdlc` (full lifecycle: specify → plan → tasks → implement → converge), `agentic-change` (lightweight change proposals, opt-in), and `agentic-quick` (session-based ad-hoc execution) — `agentic-sdlc` and `agentic-quick` are pre-installed at `specify init`, while `agentic-change` installs on demand via `specify preset add agentic-change`. See [📦 Bundled Presets](#-bundled-presets).
 
 - **Execution enhancements.** DAG-aware task orchestration with wave-based parallel/sequential execution, dual execution loop (`[SYNC]`/`[ASYNC]` task classification), and feature-level git worktree isolation with task-branch workflow (`git.task`, `git.task-merge`) — extending the upstream `git` extension with worktree and DAG capabilities.
 
@@ -283,13 +283,13 @@ This fork includes pre-installed extensions:
 
 ## 📦 Bundled Presets
 
-This fork includes pre-installed presets (auto-installed during `specify init`):
+This fork ships bundled presets (included in the wheel). Pre-installed presets are auto-scaffolded by `specify init`; opt-in presets install on demand with `specify preset add <id>`:
 
-| Preset | Commands | Purpose |
-|--------|----------|---------|
-| agentic-sdlc | `/spec.*` | Full Agentic SDLC lifecycle — specify, plan, tasks, implement, converge |
-| agentic-change | `/change.specify`, `/change.implement`, `/change.converge`, `/change.levelup` | Lightweight change proposal workflow with spec + tasks artifacts |
-| agentic-quick | `/quick.implement`, `/quick.levelup` | Session-based ad-hoc task execution with CDR levelup |
+| Preset | Commands | Purpose | Pre-installed |
+|--------|----------|---------|---------------|
+| agentic-sdlc | `/spec.*` | Full Agentic SDLC lifecycle — specify, plan, tasks, implement, converge | ✅ |
+| agentic-change | `/change.specify`, `/change.implement`, `/change.converge`, `/change.levelup` | Lightweight change proposal workflow with spec + tasks artifacts | ❌ opt-in |
+| agentic-quick | `/quick.implement`, `/quick.levelup` | Session-based ad-hoc task execution with CDR levelup | ✅ |
 
 > **Migration note:** The `quick` extension has been replaced by the `agentic-change` and `agentic-quick` bundled presets. If you have the old `quick` extension installed, run `specify extension remove quick && specify init` to migrate.
 

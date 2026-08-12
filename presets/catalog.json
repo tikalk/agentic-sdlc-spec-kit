@@ -61,7 +61,7 @@
       "repository": "https://github.com/tikalk/agentic-sdlc-spec-kit",
       "license": "MIT",
       "bundled": true,
-      "preinstall": true,
+      "preinstall": false,
       "requires": {
         "speckit_version": ">=0.6.0"
       },

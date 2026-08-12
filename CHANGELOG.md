@@ -2,6 +2,18 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.16.0+adlc3] - 2026-08-11
+
+### Changed
+
+- **`agentic-change` preset no longer preinstalled**: `presets/catalog.json`
+  now sets `agentic-change.preinstall` to `false`. The preset's commands
+  (`/change.specify`, `/change.implement`, `/change.converge`,
+  `/change.levelup`) are no longer auto-scaffolded by `specify init`. The
+  preset remains bundled in the wheel and installable on demand via
+  `specify preset add agentic-change`. The `agentic-sdlc` and `agentic-quick`
+  presets are unaffected.
+
 # [0.16.0+adlc2] - 2026-08-07
 
 ### Changed
