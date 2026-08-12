@@ -305,7 +305,7 @@ def _run_powershell_agent_context_script(
         env=env,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=60,
     )
 
 
@@ -329,7 +329,7 @@ def _run_powershell_agent_context_script_with_env(
         env=env,
         capture_output=True,
         text=True,
-        timeout=30,
+        timeout=60,
     )
 
 
