@@ -2,6 +2,25 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [0.16.2+adlc1] - 2026-08-12
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit 0.16.2 (53 commits, base 0.16.0+adlc3 → 0.16.2+adlc1). Includes post-0.16.2 fix: `fix: Alquimia argument hints after folded descriptions` (#4063).
+  - New integration: `command-code` (Command Code CLI, skills-based, `$speckit-*` invocation)
+  - New feature: `feat(presets): resolve constitution templates at command time` (#3984) — constitution template resolved via `resolve-template` script at command time instead of install-time materialization
+  - New feature: `feat(extensions): accept provides.templates and provides.scripts in manifest` (#4012) — extension manifests can declare templates and scripts
+  - New feature: `feat(presets): resolve constitution templates at command time` (#3984)
+  - Checklist ownership semantics: reviewer-owned markers (`[x]` = reviewed, not implemented), read-only gate in implement command
+  - Template content resolution: `TASKS_TEMPLATE_CONTENT` and `TEMPLATE_CONTENT` replace path-based template loading
+  - `scripts:` frontmatter added to `constitution` command for `resolve-template.sh/ps1/py`
+  - `--template checklist-template` flag added to `check-prerequisites` scripts
+  - Upstream fixes: bounded response read in integration catalog fetch (#3818), non-UTF-8 catalog response wrapping (#4011), Rich markup escaping in bundle CLI (#4023), workflow condition/overlay hardening (#3881, #3883), duplicate provides.templates/scripts rejection (#4016), preset remove unreadable restore source (#4020), extension cache clear missing_ok (#3845), integration JSON removal missing_ok (#3846), preset catalog config read failure details (#3840), bug-test Python dependency provisioning (#4030)
+  - Community catalog additions: Keel Discovery, SpecKit Grill Me, Model Routing Governance; updates: Reconcile v1.1.0, Architecture Governance v0.5.2, Security Governance v0.6.2, Archive v1.2.2
+- **9 conflicts resolved**: `pyproject.toml` (version → 0.16.2+adlc1), `scripts/bash/common.sh` (kept fork `extract_constitution_rules`/`load_team_directives_config` + adopted upstream `_python3_command`/`_sorted_extension_ids`/`resolve_template_content`), `scripts/bash/create-new-feature.sh` (adopted upstream content-based template write + kept fork `replace_date_placeholders` + restored missing `SPEC_FILE` definition), `scripts/powershell/create-new-feature.ps1` (parallel merge), `scripts/python/create_new_feature.py` (union imports), `src/specify_cli/commands/bundle/__init__.py` (kept fork `accent()` theming + adopted upstream `_escape_markup` for user-supplied values), `presets/catalog.json` (updated_at), `extensions/EXTENSION-API-REFERENCE.md` (union: fork `runtime_hooks` + upstream `templates`/`scripts`), `README.md` (fork `/spec.*` prefix + upstream Command Code mention)
+- **Test adaptations**: `test_integration_catalog.py` (took upstream version — fork's `adbb0146` `open_url` mock workaround obsolete), `test_integration_command_code.py` (fork `PKG_NAMES` prefix adaptation for `$spec-constitution` vs `$speckit-constitution`)
+- **Template-to-preset alignment**: ported upstream changes to `adlc.spec.checklist.md` (`--template` flag, ownership section, TEMPLATE_CONTENT), `adlc.spec.constitution.md` (`scripts:` frontmatter for resolve-template), `adlc.spec.implement.md` (checklist marker semantics: completed→checked, read-only gate), `adlc.spec.tasks.md` (TASKS_TEMPLATE_CONTENT), `checklist-template.md` (Review Ownership + Marker Semantics)
+
 # [0.16.0+adlc3] - 2026-08-11
 
 ### Changed
@@ -4325,6 +4344,57 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [0.16.2] - 2026-08-10
+
+### Changed
+
+- Add Command Code integration to spec-kit (#4019)
+- fix(workflows): strip a resolved condition before the true/false check (#3883)
+- fix(workflows): guard a non-string overlay edit 'operation' (#3881)
+- fix: bound response read in integration catalog fetch (#3818)
+- Fix bug-test Python dependency provisioning (#4030)
+- fix(bundle): escape Rich markup in bundle CLI error and status output (#4023)
+- fix(presets): skip an unreadable restore source in `preset remove` (#4020)
+- Add Keel Discovery extension to community catalog (#4035)
+- fix: show error details in preset catalog config read failure (#3840)
+- Update Reconcile Extension to v1.1.0 (#4034)
+- Add Model Routing Governance preset to community catalog (#4033)
+- fix: use missing_ok=True in integration JSON removal (#3846)
+- fix: use missing_ok=True in extension cache clear (#3845)
+- fix(extensions): reject duplicate provides.templates/scripts names (#4016)
+- feat(presets): resolve constitution templates at command time (#3984)
+- [bug-fix] Fix preset-wrap-drops-argument-hint: inherit argument-hint from core template (#3996)
+- docs: document installing specify-cli from a custom package index (#4032)
+- feat(extensions): accept provides.templates and provides.scripts in manifest (#4012)
+- fix(presets): treat an unreadable core template as missing (#3961)
+- chore: release 0.16.1, begin 0.16.2.dev0 development (#4014)
+
+## [0.16.1] - 2026-08-07
+
+### Changed
+
+- fix(integrations): wrap a non-UTF-8 catalog response (#4011)
+- fix(events): skip an unreadable command template (#3956)
+- fix(bundle): wrap malformed YAML in a local .zip bundle manifest (#4013)
+- chore(deps): bump github/codeql-action/analyze from 4.37.3 to 4.37.5 (#4005)
+- chore(deps): bump DavidAnson/markdownlint-cli2-action (#4006)
+- fix(agent-context): recurse for nested plans in Python mtime fallback (#3757)
+- fix: add utf-8 encoding to extension and preset registry file I/O (#3834)
+- fix(init): escape user-supplied values in `specify init` output (#3787)
+- fix: bound response read in integration catalog fetch (#3812)
+- fix: use missing_ok for temp file cleanup to avoid masking errors (#3803)
+- fix(workflows): handle an unreadable run state in `workflow status` (#3999)
+- feat(init): scaffold managed .specify/.gitignore (#4000)
+- fix(scripts): stop check-prerequisites text mode crashing on a legacy stdout code page (#3890)
+- fix(presets): return None for an unreadable layer in resolve_content (#3959)
+- fix(extensions): start fresh on a non-UTF-8 extension registry (#3998)
+- Fix init-force-preset-desync: reapply presets/extensions on init --here --force (#3995)
+- fix(skills): apply the line-anchored delimiter scan to hermes and kimi (#3739)
+- fix(archives): wrap the bare EOFError a truncated tar.gz raises (#3938)
+- test(integrations): guard multiline/control-char SKILL.md frontmatter escaping (#3392)
+- fix(scripts): stop setup-tasks text mode crashing on a legacy code page (#3892)
+- chore: release 0.16.0, begin 0.16.1.dev0 development (#3992)
 
 ## [0.16.0] - 2026-08-05
 

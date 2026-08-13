@@ -9,6 +9,7 @@ keeps working.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import typer
@@ -374,9 +375,26 @@ def preset_resolve(
     from .. import _require_specify_project
     from . import PresetResolver
 
+    is_command = "." in template_name
+    valid_name = (
+        re.fullmatch(r"[a-z0-9-]+(?:\.[a-z0-9-]+)+", template_name)
+        if is_command
+        else re.fullmatch(r"[a-z0-9-]+", template_name)
+    )
+    if valid_name is None:
+        typer.echo(
+            f"Error: invalid template name '{template_name}'; "
+            "use lowercase letters, digits, and hyphens, with non-empty "
+            "dot-separated segments for commands",
+            err=True,
+        )
+        raise typer.Exit(1)
+
     project_root = _require_specify_project()
     resolver = PresetResolver(project_root)
-    layers = resolver.collect_all_layers(template_name)
+    template_type = "command" if is_command else "template"
+
+    layers = resolver.collect_all_layers(template_name, template_type)
     safe_template_name = _escape_markup(str(template_name))
 
     if layers:
@@ -399,7 +417,7 @@ def preset_resolve(
         if has_composition:
             # Verify composition is actually possible
             try:
-                composed = resolver.resolve_content(template_name)
+                composed = resolver.resolve_content(template_name, template_type)
             except Exception as exc:
                 composed = None
                 console.print(
@@ -438,7 +456,7 @@ def preset_resolve(
                 )
     else:
         # No layers found — fall back to resolve_with_source for non-composition cases
-        result = resolver.resolve_with_source(template_name)
+        result = resolver.resolve_with_source(template_name, template_type)
         if result:
             console.print(
                 f"  [bold]{safe_template_name}[/bold]: "
@@ -840,8 +858,8 @@ def preset_catalog_remove(
 
     try:
         config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
-    except Exception:
-        console.print("[red]Error:[/red] Failed to read preset catalog config.")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] Failed to read preset catalog config: {e}")
         raise typer.Exit(1)
 
     catalogs = config.get("catalogs", [])

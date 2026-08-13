@@ -64,7 +64,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR, AVAILABLE_DOCS list, and (if provided) TASKS_TEMPLATE. All paths must be absolute when provided. AVAILABLE_DOCS is a list of document names/relative paths available under FEATURE_DIR (for example `research.md` or `contracts/`). For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `{SCRIPT}` from repo root and parse FEATURE_DIR, TASKS_TEMPLATE_CONTENT, TASKS_TEMPLATE, and AVAILABLE_DOCS list. `FEATURE_DIR` and `TASKS_TEMPLATE` must be absolute paths when provided. `AVAILABLE_DOCS` is a list of document names/relative paths available under `FEATURE_DIR` (for example `research.md` or `contracts/`). For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 ### CRITICAL - Path Validation
 
@@ -138,9 +138,8 @@ If working in a non-git repository:
 
 6. **Generate tasks.md**:
    - Resolve the tasks template:
-     - If `{SCRIPT}` JSON output included `TASKS_TEMPLATE`, use that path (must be an absolute path)
-     - Otherwise fall back to `.specify/templates/tasks-template.md`
-     - Otherwise fall back to `templates/tasks-template.md`
+     - Use TASKS_TEMPLATE_CONTENT (from the JSON output above) as the structure
+     - For compatibility with older setup scripts that omit TASKS_TEMPLATE_CONTENT, read TASKS_TEMPLATE instead
    - Use the resolved template as structure, fill with:
    - Correct feature name from plan.md
    - Phase 1: Setup tasks (project initialization)

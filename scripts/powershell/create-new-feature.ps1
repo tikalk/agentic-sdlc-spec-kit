@@ -335,6 +335,7 @@ if ($branchName.Length -gt $maxBranchLength) {
 }
 
 $featureDir = Join-Path $specsDir $branchName
+$specFile = Join-Path $featureDir 'spec.md'
 if (-not $DryRun) {
     if ((Test-Path -LiteralPath $featureDir -PathType Container) -and -not $AllowExistingBranch) {
         if ($Timestamp) {
@@ -347,6 +348,12 @@ if (-not $DryRun) {
 }
 
 if (-not $DryRun) {
+    $needsSpec = -not (Test-Path -PathType Leaf $specFile)
+    $content = $null
+    if ($needsSpec) {
+        $content = Resolve-TemplateContent -TemplateName 'spec-template' -RepoRoot $repoRoot
+    }
+
     New-Item -ItemType Directory -Path $featureDir -Force | Out-Null
 }
  
@@ -362,14 +369,9 @@ function Replace-DatePlaceholders {
     }
 }
 
-# Use default template (tikalk customization with framework options)
-$template = Resolve-Template -TemplateName 'spec-template' -RepoRoot $repoRoot
-$specFile = Join-Path $featureDir 'spec.md'
 if (-not $DryRun) {
-    if (-not (Test-Path -PathType Leaf $specFile)) {
-        if ($template -and (Test-Path $template)) {
-            # Read the template content and write it to the spec file with UTF-8 encoding without BOM
-            $content = [System.IO.File]::ReadAllText($template)
+    if ($needsSpec) {
+        if ($null -ne $content) {
             $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
             [System.IO.File]::WriteAllText($specFile, $content, $utf8NoBom)
         } else {
