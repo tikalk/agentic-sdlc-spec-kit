@@ -14,6 +14,15 @@ Integrations connect Spec Kit to your AI coding agent. Each integration sets up 
 
 [Integrations reference →](integrations.md)
 
+## Project Configuration
+
+Project configuration lets you inspect and safely change selected settings
+recorded during initialization, including script type, feature numbering, and
+the team-directives source. Extension lifecycle commands are also available
+under `specify config extension`.
+
+[Project configuration reference →](configuration.md)
+
 ## Extensions
 
 Extensions add new capabilities to Spec Kit — domain-specific commands, external tool integrations, quality gates, and more. They are discovered through catalogs and can be installed, updated, enabled, disabled, or removed independently. Multiple extensions can coexist in a single project.

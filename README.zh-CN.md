@@ -12,7 +12,7 @@
     <a href="https://github.com/github/spec-kit/releases/latest"><img src="https://img.shields.io/github/v/release/github/spec-kit" alt="Latest Release"/></a>
     <a href="https://github.com/github/spec-kit/stargazers"><img src="https://img.shields.io/github/stars/github/spec-kit?style=social" alt="GitHub stars"/></a>
     <a href="https://github.com/github/spec-kit/blob/main/LICENSE"><img src="https://img.shields.io/github/license/github/spec-kit" alt="License"/></a>
-    <a href="https://github.github.io/spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
+    <a href="https://tikalk.github.io/agentic-sdlc-spec-kit/"><img src="https://img.shields.io/badge/docs-GitHub_Pages-blue" alt="Documentation"/></a>
 </p>
 
 <p align="center">
@@ -155,7 +155,7 @@ specify self upgrade --tag vX.Y.Z[suffix]
 
 ## 🤖 支持的 AI 编码助手集成
 
-Spec Kit 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也包括基于 IDE 的助手。完整列表以及相关说明和使用细节，请参阅[支持的 AI 编码助手集成](https://github.github.io/spec-kit/reference/integrations.html)指南。
+Spec Kit 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，也包括基于 IDE 的助手。完整列表以及相关说明和使用细节，请参阅[支持的 AI 编码助手集成](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/integrations.html)指南。
 
 运行 `specify integration list` 可查看当前安装版本中所有可用的集成。
 
@@ -189,7 +189,7 @@ Spec Kit 可与 30 多个 AI 编码助手协作 —— 既包括 CLI 工具，�
 
 ## 🔧 Specify CLI 参考
 
-完整的命令详情、选项与示例，请参阅 [CLI 参考文档](https://github.github.io/spec-kit/reference/overview.html)。
+完整的命令详情、选项与示例，请参阅 [CLI 参考文档](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/overview.html)。
 
 ## 🧩 打造你自己的 Spec Kit：扩展与预设
 
@@ -222,7 +222,7 @@ specify extension add <extension-name>
 
 举例来说，扩展可以添加 Jira 集成、实现后代码审查、V 模型测试追溯性，或项目健康诊断等功能。
 
-完整命令指南请参阅[扩展参考文档](https://github.github.io/spec-kit/reference/extensions.html)。浏览[社区扩展](https://github.github.io/spec-kit/community/extensions.html)了解现有资源。
+完整命令指南请参阅[扩展参考文档](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/extensions.html)。浏览[社区扩展](https://github.github.io/spec-kit/community/extensions.html)了解现有资源。
 
 ### 预设 —— 定制现有工作流
 
@@ -238,7 +238,7 @@ specify preset add <preset-name>
 
 举例来说，预设可以重构规范模板以要求监管追溯性，将工作流适配为你所用的方法论（如敏捷、看板、瀑布、用户任务驱动或领域驱动设计），在方案中添加强制安全审查关卡，强制要求测试优先的任务排序，或将整个工作流本地化为其他语言。[海盗语演示](https://github.com/mnriem/spec-kit-pirate-speak-preset-demo)充分展示了定制的深度。多个预设可按优先级叠加使用。
 
-完整命令指南以及解析顺序和优先级叠加说明，请参阅[预设参考文档](https://github.github.io/spec-kit/reference/presets.html)。
+完整命令指南以及解析顺序和优先级叠加说明，请参阅[预设参考文档](https://tikalk.github.io/agentic-sdlc-spec-kit/reference/presets.html)。
 
 ## 📦 捆绑包：面向角色的一键配置
 
@@ -344,7 +344,7 @@ specify bundle build --path ./my-bundle         # 生成带版本的 .zip 产物
 ## 📖 深入了解
 
 - **[完整的规范驱动开发方法论](./spec-driven.md)** —— 深入了解整个流程
-- **[快速上手指南](https://github.github.io/spec-kit/quickstart.html)** —— 分步实现演练
+- **[快速上手指南](https://tikalk.github.io/agentic-sdlc-spec-kit/quickstart.html)** —— 分步实现演练
 
 ---
 

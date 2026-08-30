@@ -7,6 +7,12 @@ on:
     branches: ["main"]
     paths:
       - 'docs/**'
+      - 'media/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
+      - 'CODE_OF_CONDUCT.md'
+      - 'SECURITY.md'
+      - 'SUPPORT.md'
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -26,7 +32,7 @@ concurrency:
 jobs:
   # Build job
   build:
-    if: github.repository == 'github/spec-kit'
+    if: github.repository == 'tikalk/agentic-sdlc-spec-kit'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -57,7 +63,7 @@ jobs:
 
   # Deploy job
   deploy:
-    if: github.repository == 'github/spec-kit'
+    if: github.repository == 'tikalk/agentic-sdlc-spec-kit'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

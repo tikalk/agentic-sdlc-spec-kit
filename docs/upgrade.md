@@ -547,4 +547,4 @@ After upgrading:
 - **Test new slash commands:** Run `/speckit.constitution` or another command to verify everything works
 - **Review release notes:** Check [GitHub Releases](https://github.com/github/spec-kit/releases) for new features and breaking changes
 - **Update workflows:** If new commands were added, update your team's development workflows
-- **Check documentation:** Visit [github.io/spec-kit](https://github.github.io/spec-kit/) for updated guides
+- **Check documentation:** Visit [the documentation site](https://tikalk.github.io/agentic-sdlc-spec-kit/) for updated guides
