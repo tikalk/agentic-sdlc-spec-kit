@@ -205,7 +205,7 @@ class TestLoadAuthConfig:
     def test_invalid_json_raises(self, tmp_path):
         cfg = tmp_path / "auth.json"
         cfg.write_text("not json")
-        with pytest.raises(json.JSONDecodeError):
+        with pytest.raises(ValueError, match="invalid JSON"):
             load_auth_config(cfg)
 
     def test_not_object_raises(self, tmp_path):
@@ -302,6 +302,20 @@ class TestLoadAuthConfig:
         with pytest.raises(ValueError, match="invalid host pattern"):
             load_auth_config(cfg)
 
+    @pytest.mark.parametrize("host", ["gith?b.com", "[a-z].example.com"])
+    def test_unsupported_glob_metacharacters_raise(self, tmp_path, host):
+        cfg = tmp_path / "auth.json"
+        cfg.write_text(json.dumps({
+            "providers": [{
+                "hosts": [host],
+                "provider": "github",
+                "auth": "bearer",
+                "token_env": "X",
+            }]
+        }))
+        with pytest.raises(ValueError, match="invalid host pattern"):
+            load_auth_config(cfg)
+
     def test_valid_star_dot_host_accepted(self, tmp_path):
         cfg = tmp_path / "auth.json"
         cfg.write_text(json.dumps({
@@ -331,7 +345,7 @@ class TestLoadAuthConfig:
 class TestFindEntriesForUrl:
     def test_exact_match(self):
         entry = _github_entry()
-        result = find_entries_for_url("https://github.com/org/repo", [entry])
+        result = find_entries_for_url("https://github.com:443/org/repo", [entry])
         assert result == [entry]
 
     def test_wildcard_match(self):
@@ -343,6 +357,39 @@ class TestFindEntriesForUrl:
         )
         result = find_entries_for_url("https://myorg.visualstudio.com/project", [entry])
         assert result == [entry]
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "https://visualstudio.com/project",
+            "https://evilvisualstudio.com/project",
+            "https://visualstudio.com.evil.example/project",
+        ],
+    )
+    def test_wildcard_does_not_match_apex_or_lookalikes(self, url):
+        entry = AuthConfigEntry(
+            hosts=("*.visualstudio.com",),
+            provider="azure-devops",
+            auth="basic-pat",
+            token_env="ADO_PAT",
+        )
+        assert find_entries_for_url(url, [entry]) == []
+
+    @pytest.mark.parametrize(
+        ("pattern", "url"),
+        [
+            ("gith?b.com", "https://github.com/org/repo"),
+            ("[a-z].example.com", "https://a.example.com/file"),
+        ],
+    )
+    def test_exact_hosts_do_not_apply_glob_semantics(self, pattern, url):
+        entry = AuthConfigEntry(
+            hosts=(pattern,),
+            provider="github",
+            auth="bearer",
+            token="sentinel",
+        )
+        assert find_entries_for_url(url, [entry]) == []
 
     def test_no_match_returns_empty(self):
         entry = _github_entry()
@@ -362,10 +409,12 @@ class TestFindEntriesForUrl:
         [
             "https://[::1",                 # unterminated ipv6 bracket
             "https://[not-an-ip]/file",     # bracketed non-ip host
+            "https://github.com:notaport/x", # non-numeric port
+            "https://github.com:99999/x",   # out-of-range port
         ],
     )
     def test_malformed_url_returns_empty(self, url):
-        # A malformed authority makes urlparse/hostname raise ValueError.
+        # A malformed authority makes urlparse, hostname, or port raise ValueError.
         # Since no entry can match such a URL, this must return no matches
         # (like a host-less URL) rather than leaking a raw ValueError out of
         # the shared HTTP client.
@@ -1048,6 +1097,39 @@ class TestRedirectStripping:
         assert new_req is not None
         assert new_req.headers.get("Authorization") is None
         assert new_req.unredirected_hdrs.get("Authorization") is None
+
+    @pytest.mark.parametrize(
+        ("hosts", "target", "expected_auth"),
+        [
+            (("*.example.com",), "https://api.example.com/asset", "Bearer tok"),
+            (("*.example.com",), "https://example.com/asset", None),
+            (("*.example.com",), "https://evil-example.com/asset", None),
+            (("gith?b.com",), "https://github.com/asset", None),
+            (("[a-z].example.com",), "https://a.example.com/asset", None),
+        ],
+    )
+    def test_redirect_host_patterns_use_literal_safe_matching(
+        self, hosts, target, expected_auth
+    ):
+        from specify_cli.authentication.http import _StripAuthOnRedirect
+        from urllib.request import Request
+        import io
+
+        handler = _StripAuthOnRedirect(hosts)
+        req = Request(
+            "https://source.example.org/file",
+            headers={"Authorization": "Bearer tok"},
+        )
+        new_req = handler.redirect_request(
+            req, io.BytesIO(b""), 302, "Found", {}, target
+        )
+
+        assert new_req is not None
+        auth = (
+            new_req.get_header("Authorization")
+            or new_req.unredirected_hdrs.get("Authorization")
+        )
+        assert auth == expected_auth
 
     def test_https_to_http_same_host_redirect_rejected(self):
         from specify_cli.authentication.http import _StripAuthOnRedirect

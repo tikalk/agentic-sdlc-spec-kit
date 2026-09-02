@@ -1,9 +1,9 @@
 ---
 description: Perform cross-artifact consistency and quality analysis. Automatically detects pre vs post-implementation context based on project state.
 scripts:
-  sh: scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks
-  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireTasks -IncludeTasks
-  py: scripts/python/check_prerequisites.py --json --require-tasks --include-tasks
+  sh: scripts/bash/check-prerequisites.sh --json --require-spec --require-tasks --include-tasks
+  ps: scripts/powershell/check-prerequisites.ps1 -Json -RequireSpec -RequireTasks -IncludeTasks
+  py: scripts/python/check_prerequisites.py --json --require-spec --require-tasks --include-tasks
 ---
 
 ## MANDATORY: Pre-Execution Hooks
