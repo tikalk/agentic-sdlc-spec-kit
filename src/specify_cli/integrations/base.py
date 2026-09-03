@@ -837,6 +837,10 @@ class IntegrationBase(ABC):
         custom placeholders such as ``__SPECKIT_COMMAND_CHANGE_IMPLEMENT__``
         are resolved to the preset's alias (e.g. ``/change.implement``).
 
+        A hyphen belongs to the segment it sits in rather than separating
+        segments, so ``__SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__`` resolves to
+        ``/spec.agent-context.update``.
+
         *prefix* defaults to ``"/"`` but may be ``"$"`` or ``"/skill:"`` for
         agents whose native skills invocation uses a different chat prefix.
         It only applies to the non-preset fallback path.
@@ -858,7 +862,7 @@ class IntegrationBase(ABC):
                 + placeholder.lower().replace("_", separator)
             )
 
-        return re.sub(r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_]*)__", _replace, content)
+        return re.sub(r"__SPECKIT_COMMAND_([A-Z][A-Z0-9_-]*)__", _replace, content)
 
     @staticmethod
     def resolve_python_interpreter(project_root: Path | None = None) -> str:

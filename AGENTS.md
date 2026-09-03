@@ -377,6 +377,7 @@ Require a command-line tool to be installed:
 - **Forge**: `forge` CLI
 - **DeepSeek Harness**: `dsh` CLI
 - **Docker Agent**: `docker-agent` CLI
+- **Muse Code**: `muse` CLI
 
 ### IDE-Based Agents
 

@@ -2,6 +2,20 @@
 
 All notable changes to the Specify CLI and templates are documented here.
 
+# [1.0.4+adlc1] - 2026-09-03
+
+### Changed
+
+- **Upstream merge**: Synced with github/spec-kit through `1.0.4` + 7 post-release commits (11 commits, base 1.0.3+adlc1 → 1.0.4+adlc1; upstream HEAD `db648699`).
+  - New integration: `muse` (Muse Code, skills-based, #4413)
+  - New workflow feature: `slot` step type (#4352) — named output slots for inter-step data passing
+  - Script parity fix: bash branch-name sanitizing now matches Python/PowerShell twins (LC_ALL=C, printf, POSIX `--*` sed) across core + git-extension twins (#4286)
+  - Command ref: hyphen allowed in `__SPECKIT_COMMAND_*__` token names (#4356) — `agent-context.update` resolves correctly
+  - Workflow fixes: require `steps` body on while/do-while loops (#4149), remove unused scope input from bundled speckit workflow (#4401, bumps workflow catalog to 1.0.1)
+  - Community catalog: Axi, Evaluator Contract, Charter v0.6.1
+- **5 conflicts resolved**: `pyproject.toml` (version → `1.0.4+adlc1`), `scripts/bash/create-new-feature.sh` (adopted upstream #4286 `clean_branch_name`/`generate_branch_name` parity fix; removed fork's old duplicate; kept all fork customizations), `extensions/git/scripts/powershell/create-new-feature-branch.ps1` (applied upstream's ASCII word-boundary acronym regex to fork's `Get-BranchName`; kept fork's `Invoke-WorktreeDelegation` intact — conflict was a merge-alignment collision), `src/specify_cli/integrations/base.py` (kept fork `resolve_command_refs` signature with `project_root` param; adopted upstream's hyphen-allowing regex `[A-Z0-9_-]*` + docstring), `workflows/catalog.json` (took upstream `updated_at` + speckit workflow 1.0.1; kept fork's `feature-squad` + `impl-converge-loop` entries)
+- **Test adaptation**: `test_integration_muse.py` — `/speckit-constitution` next-steps assertion → `/spec-constitution` (fork prefix)
+
 # [1.0.3+adlc1] - 2026-09-02
 
 ### Changed
@@ -4359,6 +4373,31 @@ This release migrates fork-specific customizations to a preset system to reduce 
 ## Upstream Changelog (spec-kit)
 
 The following entries are from the upstream spec-kit project and are included for reference.
+
+## [1.0.4] - 2026-09-02
+
+### Changed
+
+- fix(scripts): stop wrap composition looping on a token in core content (#4396)
+- [extension] Update Charter extension to v0.6.1 (#4409)
+- fix(workflows): keep non-ASCII text readable in written overlay files (#4148)
+- fix(workflows): report overlay operation keys in declaration order (#4146)
+- fix: skip corrupted state.json in list_runs() instead of aborting (#3904)
+- fix(rovodev): guard non-string prompt names when merging prompts.yml (#4145)
+- fix: narrow bare except Exception in preset command reconciliation (#3842)
+- fix(workflows): refuse a filter mixed with a comparison operator instead of silently mis-binding it (#3894)
+- fix: escape Rich markup in workflow error output (#3837)
+- fix: add JSON error handling to auth config loader (#3836)
+- fix: use missing_ok=True in extension ZIP cleanup (#3870)
+- feat(presets): let a preset declare a required extension (#4250)
+- fix(bundler): reject unsupported catalog payload versions (#4090)
+- fix(extensions): install bundled extension updates from the local package (#4351)
+- docs: clarify autonomous PR handling (#4392)
+- fix(workflows): reject malformed step config on add (#4087)
+- fix(powershell): stop create-new-feature crashing on a non-Latin description (#4138)
+- fix(bundler): treat an explicit-null records field as missing, not "None" (#4136)
+- Add DeepSeek Harness (DSH) integration (#4336)
+- chore: release 1.0.3, begin 1.0.4.dev0 development (#4391)
 
 ## [1.0.3] - 2026-09-01
 
