@@ -27,6 +27,9 @@ except ImportError:
             style = f"dim {style}"
         return f"[{style}]{text}[/]"
 
+    def accent_style() -> str:
+        return "cyan"
+
 CLAUDE_LOCAL_PATH = Path.home() / ".claude" / "local" / "claude"
 CLAUDE_NPM_LOCAL_PATH = Path.home() / ".claude" / "local" / "node_modules" / ".bin" / "claude"
 DOCKER_AGENT_CHECK_TIMEOUT = 5
