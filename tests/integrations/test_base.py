@@ -314,12 +314,14 @@ class TestResolveCommandRefs:
     def test_hyphenated_command_dot(self):
         text = "Run __SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__ to refresh."
         result = IntegrationBase.resolve_command_refs(text, ".")
-        assert result == "Run /speckit.agent-context.update to refresh."
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}.agent-context.update to refresh."
 
     def test_hyphenated_command_hyphen(self):
         text = "Run __SPECKIT_COMMAND_AGENT-CONTEXT_UPDATE__ to refresh."
         result = IntegrationBase.resolve_command_refs(text, "-")
-        assert result == "Run /speckit-agent-context-update to refresh."
+        prefix = self._get_prefix()
+        assert result == f"Run /{prefix}-agent-context-update to refresh."
 
     def test_no_placeholders_unchanged(self):
         text = "No placeholders here."
